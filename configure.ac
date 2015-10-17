@@ -83,7 +83,7 @@ AS_IF([test "x$crypto" = x],
        AS_IF([test $ac_cv_search_wolfSSL_Init != no],
              [crypto=wolfssl
               libcrypto=$ac_cv_search_wolfSSL_Init],
-             [AC_MSG_ERROR([crypto requires wolfssl (a.k.a. cyassl)])])],
+             [AC_MSG_WARN([crypto requires wolfssl (a.k.a. cyassl)])])],
       [test "x$crypto" = xwolfssl],
       [AC_SEARCH_LIBS([wolfSSL_Init],
                       [wolfssl],
@@ -92,7 +92,7 @@ AS_IF([test "x$crypto" = x],
        libcrypto=$ac_cv_search_wolfSSL_Init],
       [AC_MSG_ERROR([crypto was unrecognizable])])
 # DEPENDENCIES
-AS_IF([test $crypto = wolfssl],
+AS_IF([test "x$crypto" = wolfssl],
       [AC_CHECK_HEADERS([wolfssl/ssl.h cyassl/ssl.h], [break])
        AC_DEFINE([CRYPTO_USE_WOLFSSL],
                  [1],
@@ -107,12 +107,12 @@ AS_IF([test "x$network" = x],
                        [],
                        [#define __USE_W32_SOCKETS 1])
        AS_IF([test $ac_cv_header_sys_socket_h != no && test $ac_cv_header_WinSock2_h != no],
-             [AC_MSG_ERROR([network cannot decide whether to use socket or winsock2])],
+             [AC_MSG_WARN([network cannot decide whether to use socket or winsock2])],
              [test $ac_cv_header_sys_socket_h != no],
              [network=socket],
              [test $ac_cv_header_WinSock2_h != no],
              [network=winsock2],
-             [AC_MSG_ERROR([network requires either socket or winsock2])])],
+             [AC_MSG_WARN([network requires either socket or winsock2])])],
       [test "x$network" = xsocket],
       [AC_CHECK_HEADER([sys/socket.h],
                        [],
@@ -124,7 +124,7 @@ AS_IF([test "x$network" = x],
                        [#define __USE_W32_SOCKETS 1])],
       [AC_MSG_ERROR([network was unrecognizable])])
 # DEPENDENCIES
-AS_IF([test $network = socket],
+AS_IF([test "x$network" = socket],
       [libnetwork=""
        AC_DEFINE([NETWORK_USE_SOCKET],
                  [1],
@@ -142,7 +142,8 @@ AS_IF([test "x$sound" = x],
                       [openal])
        AS_IF([test $ac_cv_search_alcOpenDevice != no],
              [sound=openal
-              libsound=$ac_cv_search_alcOpenDevice])],
+              libsound=$ac_cv_search_alcOpenDevice],
+             [AC_MSG_WARN([sound requires openal])])],
       [test "x$sound" = xopenal],
       [AC_SEARCH_LIBS([alcOpenDevice],
                       [openal],
@@ -151,7 +152,7 @@ AS_IF([test "x$sound" = x],
        libsound=$ac_cv_search_alcOpenDevice],
       [AC_MSG_ERROR([sound was unrecognizable])])
 # DEPENDENCIES
-AS_IF([test $sound = openal],
+AS_IF([test "x$sound" = openal],
       [AC_CHECK_HEADERS([AL/al.h], [break])
        AC_CHECK_HEADERS([AL/alc.h], [break])
        AC_DEFINE([SOUND_USE_OPENAL],
