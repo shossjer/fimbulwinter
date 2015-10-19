@@ -1,4 +1,5 @@
 
+#include <core/color.hpp>
 #include <core/maths/Matrix.hpp>
 #include <core/thread/delay.hpp>
 #include <engine/debug.hpp>
@@ -75,9 +76,10 @@ namespace
 				projection3D = core::maths::Matrixf::perspective(100., float(dimension.width) / float(dimension.height), 1., 100.);
 			}
 			// setup frame
-			static int tmp = 0;
-			if (++tmp > 100) tmp = 0;
-			glClearColor(0.f, 0.f, float(tmp) / 100.f, 0.f);
+			static core::color::hsv_t<float> tmp1{0, 1, 1};
+			tmp1 += core::color::hue_t<float>{1};
+			const auto tmp2 = make_rgb(tmp1);
+			glClearColor(tmp2.red(), tmp2.green(), tmp2.blue(), 0.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			// setup 3D
