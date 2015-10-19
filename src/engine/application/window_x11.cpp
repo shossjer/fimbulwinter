@@ -11,12 +11,23 @@
 
 #include <stdexcept>
 
+namespace engine
+{
+	namespace graphics
+	{
+		namespace renderer
+		{
+			void notify_resize(const int width, const int height);
+		}
+	}
+}
+
 namespace
 {
 	struct Display_guard
 	{
 		using resource_t = Display;
-		
+
 		resource_t *resource;
 
 		template <typename ...Ps>
@@ -40,7 +51,7 @@ namespace
 		resource_t *detach()
 			{
 				debug_assert(this->resource != nullptr);
-				
+
 				resource_t *const resource = this->resource;
 				this->resource = nullptr;
 				return resource;
@@ -49,9 +60,9 @@ namespace
 	struct GLXFBConfig_guard
 	{
 		using resource_t = GLXFBConfig;
-		
+
 		resource_t *resource;
-					
+
 		template <typename ...Ps>
 		GLXFBConfig_guard(Ps &&...ps) :
 			resource(glXChooseFBConfig(std::forward<Ps>(ps)...))
@@ -73,7 +84,7 @@ namespace
 		resource_t *detach()
 			{
 				debug_assert(this->resource != nullptr);
-				
+
 				resource_t *const tmp = this->resource;
 				this->resource = nullptr;
 				return tmp;
@@ -83,9 +94,9 @@ namespace
 	struct XVisualInfo_guard
 	{
 		using resource_t = XVisualInfo;
-		
+
 		resource_t *resource;
-					
+
 		template <typename ...Ps>
 		XVisualInfo_guard(Ps &&...ps) :
 			resource(glXGetVisualFromFBConfig(std::forward<Ps>(ps)...))
@@ -107,7 +118,7 @@ namespace
 		resource_t *detach()
 			{
 				debug_assert(this->resource != nullptr);
-				
+
 				resource_t *const tmp = this->resource;
 				this->resource = nullptr;
 				return tmp;
@@ -117,9 +128,9 @@ namespace
 	struct XVisualInfo_guard
 	{
 		using resource_t = XVisualInfo;
-		
+
 		resource_t *resource;
-					
+
 		template <typename ...Ps>
 		XVisualInfo_guard(Ps &&...ps) :
 			resource(glXChooseVisual(std::forward<Ps>(ps)...))
@@ -141,20 +152,23 @@ namespace
 		resource_t *detach()
 			{
 				debug_assert(this->resource != nullptr);
-				
+
 				resource_t *const tmp = this->resource;
 				this->resource = nullptr;
 				return tmp;
 			}
 	};
 #endif
-	
+
 	/**
 	 */
 	Display *event_display;
 	/**
 	 */
 	Display *render_display;
+	/**
+	 */
+	Window render_window;
 #ifdef GLX_VERSION_1_3
 	/**
 	 */
@@ -163,9 +177,6 @@ namespace
 	 */
 	GLXContext glx_context;
 #else
-	/**
-	 */
-	Window render_window;
 	/**
 	 */
 	GLXContext render_context;
@@ -181,10 +192,9 @@ namespace
 		XEvent event;
 
 		while (!XNextEvent(event_display, &event))
-		// while (!XNextEvent(render_display, &event))
 		{
-			// switch (event.type)
-			// {
+			switch (event.type)
+			{
 			// case ButtonPress:
 			// 	// cronus::core::dispatch_button_press(event.xbutton.button,
 			// 	//                                     event.xbutton.state,
@@ -195,14 +205,14 @@ namespace
 			// 	//                                       event.xbutton.state,
 			// 	//                                       event.xbutton.time);
 			// 	break;
-			// case ConfigureNotify:
-			// 	break;
+			case ConfigureNotify:
+				break;
 			// case DestroyNotify:
-			// 	return 0;
-			// case Expose:
-			// 	// cronus::core::dispatch_expose(event.xexpose.width,
-			// 	//                               event.xexpose.height);
 			// 	break;
+			case Expose:
+				engine::graphics::renderer::notify_resize(event.xexpose.width,
+				                                          event.xexpose.height);
+				break;
 			// case KeyPress:
 			// 	// cronus::core::dispatch_key_press(event.xkey.keycode,
 			// 	//                                  event.xkey.state,
@@ -213,21 +223,20 @@ namespace
 			// 	//                                    event.xkey.state,
 			// 	//                                    event.xkey.time);
 			// 	break;
-			// case MapNotify:
-			// 	break;
-			// case MotionNotify:
-			// 	// cronus::core::dispatch_motion_notify(event.xmotion.x,
-			// 	//                                      event.xmotion.y,
-			// 	//                                      event.xmotion.time);
-			// 	break;
-			// case ReparentNotify:
-			// 	break;
-			// case UnmapNotify:
-			// 	break;
-			// default:
-			// 	application_debug_printline("Event type(event_display): ", event.type);
-			// }
-			application_debug_printline("Event type(event_display): ", event.type);
+			case MapNotify:
+				break;
+			case MotionNotify:
+				// cronus::core::dispatch_motion_notify(event.xmotion.x,
+				//                                      event.xmotion.y,
+				//                                      event.xmotion.time);
+				break;
+			case ReparentNotify:
+				break;
+			case UnmapNotify:
+				return 0;
+			default:
+				application_debug_printline("Event type(event_display): ", event.type);
+			}
 		}
 		return -1;
 	}
@@ -245,7 +254,7 @@ namespace engine
 				// XOpenDisplay
 				Display_guard event_display(nullptr);
 				Display_guard render_display(nullptr);
-				
+
 				// glXQueryExtension
 				{
 					int errorBase;
@@ -275,17 +284,17 @@ namespace engine
 				{
 					application_debug_trace("glXGetClientString GLX_VENDOR: ", glXGetClientString(render_display, GLX_VENDOR));
 					application_debug_trace("glXGetClientString GLX_VERSION: ", glXGetClientString(render_display, GLX_VERSION));
-					application_debug_trace("glXGetClientString GLX_EXTENSIONS: ", glXGetClientString(render_display, GLX_EXTENSIONS));
+					// application_debug_trace("glXGetClientString GLX_EXTENSIONS: ", glXGetClientString(render_display, GLX_EXTENSIONS));
 				}
 				// glXQueryServerString
 				{
 					application_debug_trace("glXQueryServerString GLX_VENDOR: ", glXQueryServerString(render_display, screen, GLX_VENDOR));
 					application_debug_trace("glXQueryServerString GLX_VERSION: ", glXQueryServerString(render_display, screen, GLX_VERSION));
-					application_debug_trace("glXQueryServerString GLX_EXTENSIONS: ", glXQueryServerString(render_display, screen, GLX_EXTENSIONS));
+					// application_debug_trace("glXQueryServerString GLX_EXTENSIONS: ", glXQueryServerString(render_display, screen, GLX_EXTENSIONS));
 				}
 				// glXQueryExtensionsString
 				{
-					application_debug_trace("glXQueryExtensionsString: ", glXQueryExtensionsString(render_display, screen));
+					// application_debug_trace("glXQueryExtensionsString: ", glXQueryExtensionsString(render_display, screen));
 				}
 #endif
 
@@ -388,11 +397,11 @@ namespace engine
 				//
 				::event_display = event_display.detach();
 				::render_display = render_display.detach();
+				::render_window = render_window;
 #ifdef GLX_VERSION_1_3
 				::glx_window = glx_window;
 				::glx_context = glx_context;
 #else
-				::render_window = render_window;
 				::render_context = render_context;
 #endif
 			}
@@ -401,18 +410,18 @@ namespace engine
 #ifdef GLX_VERSION_1_3
 				glXDestroyWindow(render_display, glx_window);
 				glXDestroyContext(render_display, glx_context);
-				// XDestroyWindow(render_display, render_window); // because we already did this
+				XDestroyWindow(render_display, render_window);
 				XCloseDisplay(render_display);
 				XCloseDisplay(event_display);
 #else
 				glXDestroyContext(render_display, render_context);
-				// XDestroyWindow(render_display, render_window); // because we already did this
+				XDestroyWindow(render_display, render_window);
 				XCloseDisplay(render_display);
 				XCloseDisplay(event_display);
 #endif
 			}
 
-			void makeCurrent()
+			void make_current()
 			{
 #ifdef GLX_VERSION_1_3
 				glXMakeContextCurrent(render_display, glx_window, glx_window, glx_context);
@@ -420,7 +429,7 @@ namespace engine
 				glXMakeCurrent(render_display, render_window, render_context);
 #endif
 			}
-			void swapBuffers()
+			void swap_buffers()
 			{
 				// check if we are supposed to close down the application
 				{
@@ -435,7 +444,9 @@ namespace engine
 						case ClientMessage:
 							if ((Atom)event.xclient.data.l[0] == wm_delete_window)
 							{
-								XDestroyWindow(render_display, event.xclient.window);
+								application_debug_printline("wm_delete_window");
+
+								XUnmapWindow(render_display, event.xclient.window);
 							}
 							break;
 						default:
