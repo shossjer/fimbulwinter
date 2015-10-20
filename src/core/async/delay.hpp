@@ -1,18 +1,18 @@
 
-#ifndef CORE_THREAD_DELAY_HPP
-#define CORE_THREAD_DELAY_HPP
+#ifndef CORE_ASYNC_DELAY_HPP
+#define CORE_ASYNC_DELAY_HPP
 
 #include <config.h>
 
 #if THREAD_USE_KERNEL32
-# include <Windows.h>
+# include <windows.h>
 #elif THREAD_USE_PTHREAD
 # include <pthread.h>
 #endif
 
 namespace core
 {
-	namespace thread
+	namespace async
 	{
 		/**
 		 * Delays calling thread.
@@ -42,4 +42,4 @@ namespace core
 	}
 }
 
-#endif /* CORE_THREAD_DELAY_HPP */
+#endif /* CORE_ASYNC_DELAY_HPP */

@@ -500,6 +500,7 @@ namespace engine
 			{
 				return messageLoop();
 			}
+
 			void close()
 			{
 				application_debug_printline("WARNING: 'cronus::application::close' is not implemented");

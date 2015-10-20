@@ -4,7 +4,7 @@
 
 #include <config.h>
 
-#include <core/thread/sync/CriticalSection.hpp>
+#include <core/sync/CriticalSection.hpp>
 #include <utility/stream.hpp>
 
 #include <cstdlib>
@@ -99,7 +99,7 @@ namespace core
 	private:
 		/**
 		 */
-		core::thread::sync::CriticalSection cs;
+		core::sync::CriticalSection cs;
 		/**
 		 */
 		channel_t mask;
@@ -120,7 +120,7 @@ namespace core
 			{
 				if (cond_value) return;
 				
-				std::lock_guard<core::thread::sync::CriticalSection>(this->cs);
+				std::lock_guard<core::sync::CriticalSection>(this->cs);
 				utility::to_stream(std::cerr, file_name, "@", line_number, ": ", cond_string, "\n");
 				std::cerr.flush();
 				
@@ -133,7 +133,7 @@ namespace core
 			{
 				if (cond_value) return;
 				
-				std::lock_guard<core::thread::sync::CriticalSection>(this->cs);
+				std::lock_guard<core::sync::CriticalSection>(this->cs);
 				utility::to_stream(std::cerr, file_name, "@", line_number, ": ", cond_string, "\n", comment, "\n");
 				std::cerr.flush();
 				
@@ -147,7 +147,7 @@ namespace core
 				// TODO:
 				if ((this->mask & channels) == 0) return;
 				
-				std::lock_guard<core::thread::sync::CriticalSection>(this->cs);
+				std::lock_guard<core::sync::CriticalSection>(this->cs);
 				utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ts>(ts)...);
 				std::cout.flush();
 			}
@@ -159,7 +159,7 @@ namespace core
 				// TODO:
 				if ((this->mask & channels) == 0) return;
 				
-				std::lock_guard<core::thread::sync::CriticalSection>(this->cs);
+				std::lock_guard<core::sync::CriticalSection>(this->cs);
 				utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
 				std::cout.flush();
 			}
@@ -169,7 +169,7 @@ namespace core
 		void trace(const char (&file_name)[N], const int line_number, const channel_t channels, Ts &&...ts)
 			{
 				// TODO:
-				std::lock_guard<core::thread::sync::CriticalSection>(this->cs);
+				std::lock_guard<core::sync::CriticalSection>(this->cs);
 				utility::to_stream(std::cerr, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
 				std::cerr.flush();
 			}

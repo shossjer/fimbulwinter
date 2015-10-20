@@ -102,15 +102,15 @@ AS_IF([test "x$crypto" = wolfssl],
 AC_MSG_NOTICE([network])
 AS_IF([test "x$network" = x],
       [AC_CHECK_HEADER([sys/socket.h])
-       AC_CHECK_HEADER([WinSock2.h],
+       AC_CHECK_HEADER([winsock2.h],
                        [],
                        [],
                        [#define __USE_W32_SOCKETS 1])
-       AS_IF([test $ac_cv_header_sys_socket_h != no && test $ac_cv_header_WinSock2_h != no],
+       AS_IF([test $ac_cv_header_sys_socket_h != no && test $ac_cv_header_winsock2_h != no],
              [AC_MSG_WARN([network cannot decide whether to use socket or winsock2])],
              [test $ac_cv_header_sys_socket_h != no],
              [network=socket],
-             [test $ac_cv_header_WinSock2_h != no],
+             [test $ac_cv_header_winsock2_h != no],
              [network=winsock2],
              [AC_MSG_WARN([network requires either socket or winsock2])])],
       [test "x$network" = xsocket],
@@ -118,7 +118,7 @@ AS_IF([test "x$network" = x],
                        [],
                        [AC_MSG_ERROR([forcing network to use nonexisting socket])])],
       [test "x$network" = xwinsock2],
-      [AC_CHECK_HEADER([WinSock2.h],
+      [AC_CHECK_HEADER([winsock2.h],
                        [],
                        [AC_MSG_ERROR([forcing network to use nonexisting winsock2])],
                        [#define __USE_W32_SOCKETS 1])],
@@ -190,7 +190,7 @@ AS_IF([test "x$thread" = x],
       [AC_MSG_ERROR([thread was unrecognizable])])
 # DEPENDENCIES
 AS_IF([test $thread = kernel32],
-      [AC_CHECK_HEADERS([Windows.h], [break])
+      [AC_CHECK_HEADERS([windows.h], [break])
        AC_SEARCH_LIBS([QueryPerformanceCounter],
                       [winmm],
                       [AS_IF([test "$ac_cv_search_QueryPerformanceCounter" != "none required"],
