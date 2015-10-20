@@ -9,9 +9,9 @@ tribunal_SOURCES = src/main.cpp \
                    src/core/async/Thread.cpp \
                    src/engine/application/window.cpp \
                    src/engine/graphics/renderer.cpp
-tribunal_CPPFLAGS = -g -rdynamic -Wall -std=c++11 -I$(top_builddir) -I$(top_srcdir)/src
+tribunal_CPPFLAGS = -g -Wall -std=c++11 -I$(top_builddir) -I$(top_srcdir)/src
 
 noinst_PROGRAMS = tribunal-check
 
 tribunal_check_SOURCES = tst/main.cpp
-tribunal_check_CPPFLAGS = -g -rdynamic -Wall -std=c++11 -I$(top_builddir) -I$(top_srcdir)/src
+tribunal_check_CPPFLAGS = -g -Wall -std=c++11 -I$(top_builddir) -I$(top_srcdir)/src

@@ -177,7 +177,7 @@ namespace engine
 
 				HGLRC hGLRC = wglCreateContext(hDC);
 
-				ShowWindow(hWnd);
+				ShowWindow(hWnd, nCmdShow);
 
 				::hWnd = hWnd;
 				::hDC = hDC;

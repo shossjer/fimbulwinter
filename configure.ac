@@ -35,8 +35,9 @@ AC_SUBST([libwindow])
 
 AC_C_BIGENDIAN()
 
-AC_LANG([C++])
-CPPFLAGS="-std=c++11"
+#AC_LANG([C++])
+#CPPFLAGS="-std=c++11"
+AC_LANG([C])
 
 
 # MY_SEARCH_LIBS(prologue,
@@ -80,19 +81,20 @@ AC_MSG_NOTICE([crypto])
 AS_IF([test "x$crypto" = x],
       [AC_SEARCH_LIBS([wolfSSL_Init],
                       [wolfssl])
-       AS_IF([test $ac_cv_search_wolfSSL_Init != no],
+       AS_IF([test "$ac_cv_search_wolfSSL_Init" != no],
              [crypto=wolfssl
-              libcrypto=$ac_cv_search_wolfSSL_Init],
+              AS_IF([test "$ac_cv_search_wolfSSL_Init" != "none required"],
+                    [libcrypto=$ac_cv_search_wolfSSL_Init])],
              [AC_MSG_WARN([crypto requires wolfssl (a.k.a. cyassl)])])],
       [test "x$crypto" = xwolfssl],
       [AC_SEARCH_LIBS([wolfSSL_Init],
                       [wolfssl],
-                      [],
-                      [AC_MSG_ERROR([forcing crypto to use nonexisting wolfssl (a.k.a. cyassl)])])
-       libcrypto=$ac_cv_search_wolfSSL_Init],
+                      [AS_IF([test "$ac_cv_search_wolfSSL_Init" != "none required"],
+                             [libcrypto=$ac_cv_search_wolfSSL_Init])],
+                      [AC_MSG_ERROR([forcing crypto to use nonexisting wolfssl (a.k.a. cyassl)])])],
       [AC_MSG_ERROR([crypto was unrecognizable])])
 # DEPENDENCIES
-AS_IF([test "x$crypto" = wolfssl],
+AS_IF([test "x$crypto" = xwolfssl],
       [AC_CHECK_HEADERS([wolfssl/ssl.h cyassl/ssl.h], [break])
        AC_DEFINE([CRYPTO_USE_WOLFSSL],
                  [1],
@@ -106,11 +108,11 @@ AS_IF([test "x$network" = x],
                        [],
                        [],
                        [#define __USE_W32_SOCKETS 1])
-       AS_IF([test $ac_cv_header_sys_socket_h != no && test $ac_cv_header_winsock2_h != no],
+       AS_IF([test "$ac_cv_header_sys_socket_h" != no && test "$ac_cv_header_winsock2_h" != no],
              [AC_MSG_WARN([network cannot decide whether to use socket or winsock2])],
-             [test $ac_cv_header_sys_socket_h != no],
+             [test "$ac_cv_header_sys_socket_h" != no],
              [network=socket],
-             [test $ac_cv_header_winsock2_h != no],
+             [test "$ac_cv_header_winsock2_h" != no],
              [network=winsock2],
              [AC_MSG_WARN([network requires either socket or winsock2])])],
       [test "x$network" = xsocket],
@@ -124,12 +126,12 @@ AS_IF([test "x$network" = x],
                        [#define __USE_W32_SOCKETS 1])],
       [AC_MSG_ERROR([network was unrecognizable])])
 # DEPENDENCIES
-AS_IF([test "x$network" = socket],
+AS_IF([test "x$network" = xsocket],
       [libnetwork=""
        AC_DEFINE([NETWORK_USE_SOCKET],
                  [1],
                  [Define to 1 if network should use socket])],
-      [test $network = winsock2],
+      [test "x$network" = xwinsock2],
       [libnetwork="-lws2_32"
        AC_DEFINE([NETWORK_USE_WINSOCK2],
                  [1],
@@ -140,19 +142,20 @@ AC_MSG_NOTICE([sound])
 AS_IF([test "x$sound" = x],
       [AC_SEARCH_LIBS([alcOpenDevice],
                       [openal])
-       AS_IF([test $ac_cv_search_alcOpenDevice != no],
+       AS_IF([test "$ac_cv_search_alcOpenDevice" != no],
              [sound=openal
-              libsound=$ac_cv_search_alcOpenDevice],
+              AS_IF([test "$ac_cv_search_alcOpenDevice" != "none required"],
+                    [libsound=$ac_cv_search_alcOpenDevice])],
              [AC_MSG_WARN([sound requires openal])])],
       [test "x$sound" = xopenal],
       [AC_SEARCH_LIBS([alcOpenDevice],
                       [openal],
-                      [],
-                      [AC_MSG_ERROR([forcing sound to use nonexisting openal])])
-       libsound=$ac_cv_search_alcOpenDevice],
+                      [AS_IF([test "$ac_cv_search_alcOpenDevice" != "none required"],
+                             [libsound=$ac_cv_search_alcOpenDevice])],
+                      [AC_MSG_ERROR([forcing sound to use nonexisting openal])])],
       [AC_MSG_ERROR([sound was unrecognizable])])
 # DEPENDENCIES
-AS_IF([test "x$sound" = openal],
+AS_IF([test "x$sound" = xopenal],
       [AC_CHECK_HEADERS([AL/al.h], [break])
        AC_CHECK_HEADERS([AL/alc.h], [break])
        AC_DEFINE([SOUND_USE_OPENAL],
@@ -166,41 +169,42 @@ AS_IF([test "x$thread" = x],
                       [kernel32])
        AC_SEARCH_LIBS([pthread_create],
                       [pthread])
-       AS_IF([test $ac_cv_search_CreateThread != no && test $ac_cv_search_pthread_create != no],
+       AS_IF([test "$ac_cv_search_CreateThread" != no && test "$ac_cv_search_pthread_create" != no],
              [AC_MSG_ERROR([thread cannot decide whether to use kernel32 or pthread])],
-             [test $ac_cv_search_CreateThread != no],
+             [test "$ac_cv_search_CreateThread" != no],
              [thread=kernel32
-              libthread=$ac_cv_search_CreateThread],
-             [test $ac_cv_search_pthread_create != no],
+              AS_IF([test "$ac_cv_search_CreateThread" != "none required"],
+                    [libthread=$ac_cv_search_CreateThread])],
+             [test "$ac_cv_search_pthread_create" != no],
              [thread=pthread
-              libthread=$ac_cv_search_pthread_create],
+              AS_IF([test "$ac_cv_search_pthread_create" != "none required"],
+                    [libthread=$ac_cv_search_pthread_create])],
              [AC_MSG_ERROR([thread requires either kernel32 or pthread])])],
       [test "x$thread" = xkernel32],
       [AC_SEARCH_LIBS([CreateThread],
                       [kernel32],
-                      [],
-                      [AC_MSG_ERROR([forcing thread to use nonexisting kernel32])])
-       libthread=$ac_cv_search_CreateThread],
+                      [AS_IF([test "$ac_cv_search_CreateThread" != "none required"],
+                             [libthread=$ac_cv_search_CreateThread])],
+                      [AC_MSG_ERROR([forcing thread to use nonexisting kernel32])])],
       [test "x$thread" = xpthread],
       [AC_SEARCH_LIBS([pthread_create],
                       [pthread],
-                      [],
-                      [AC_MSG_ERROR([forcing thread to use nonexisting pthread])])
-       libthread=$ac_cv_search_pthread_create],
+                      [AS_IF([test "$ac_cv_search_pthread_create" != "none required"],
+                             [libthread=$ac_cv_search_pthread_create])],
+                      [AC_MSG_ERROR([forcing thread to use nonexisting pthread])])],
       [AC_MSG_ERROR([thread was unrecognizable])])
 # DEPENDENCIES
-AS_IF([test $thread = kernel32],
+AS_IF([test "x$thread" = xkernel32],
       [AC_CHECK_HEADERS([windows.h], [break])
        AC_SEARCH_LIBS([QueryPerformanceCounter],
                       [winmm],
                       [AS_IF([test "$ac_cv_search_QueryPerformanceCounter" != "none required"],
                              [libthread+=" $ac_cv_search_QueryPerformanceCounter"])],
                       [AC_MSG_ERROR([thread(kernel32) requires winmm])])
-       AC_CHECK_TYPES([HANDLE], [break])
        AC_DEFINE([THREAD_USE_KERNEL32],
                  [1],
                  [Define to 1 if thread should use kernel32])],
-      [test $thread = pthread],
+      [test "x$thread" = xpthread],
       [AC_CHECK_HEADERS([pthread.h], [break])
        AC_SEARCH_LIBS([clock_gettime],
                       [rt],
@@ -211,51 +215,66 @@ AS_IF([test $thread = kernel32],
                  [1],
                  [Define to 1 if thread should use pthread])])
 # FUNCTIONALITY
-AS_IF([test $thread = kernel32],
+AS_IF([test "x$thread" = xkernel32],
       [],
-      [test $thread = pthread],
+      [test "x$thread" = xpthread],
       [])
 
 # WINDOW
 AC_MSG_NOTICE([window])
 AS_IF([test "x$window" = x],
-      [AC_SEARCH_LIBS([RegisterClassEx],
+      [AC_SEARCH_LIBS([RegisterClassExA],
                       [user32])
 	   AC_SEARCH_LIBS([XOpenDisplay],
                       [X11])
-       AS_IF([test $ac_cv_search_RegisterClassEx != no && test $ac_cv_search_XOpenDisplay != no],
+       AS_IF([test "$ac_cv_search_RegisterClassExA" != no && test "$ac_cv_search_XOpenDisplay" != no],
              [AC_MSG_ERROR([window cannot decide whether to use user32 or X11])],
-             [test $ac_cv_search_RegisterClassEx != no],
+             [test "$ac_cv_search_RegisterClassExA" != no],
              [window=user32
-              libwindow=$ac_cv_search_RegisterClassEx],
-             [test $ac_cv_search_XOpenDisplay != no],
+              AS_IF([test "$ac_cv_search_RegisterClassExA" != "none required"],
+                    [libwindow=$ac_cv_search_RegisterClassExA])],
+             [test "$ac_cv_search_XOpenDisplay" != no],
              [window=X11
-              libwindow=$ac_cv_search_XOpenDisplay],
+              AS_IF([test "$ac_cv_search_XOpenDisplay" != "none required"],
+                    [libwindow=$ac_cv_search_XOpenDisplay])],
              [AC_MSG_ERROR([window requires either user32 or X11])])],
       [test "x$window" = xuser32],
-      [AC_SEARCH_LIBS([RegisterClassEx],
+      [AC_SEARCH_LIBS([RegisterClassExA],
                       [user32],
-                      [],
-                      [AC_MSG_ERROR([forcing window to use nonexisting user32])])
-       libwindow=$ac_cv_search_RegisterClassEx],
+                      [AS_IF([test "$ac_cv_search_RegisterClassExA" != "none required"],
+                             [libwindow=$ac_cv_search_RegisterClassExA])],
+                      [AC_MSG_ERROR([forcing window to use nonexisting user32])])],
       [test "x$window" = xX11],
       [AC_SEARCH_LIBS([XOpenDisplay],
                       [X11],
-                      [],
-                      [AC_MSG_ERROR([forcing window to use nonexisting X11])])
-       libwindow=$ac_cv_search_XOpenDisplay],
+                      [AS_IF([test "$ac_cv_search_XOpenDisplay" != "none required"],
+                             [libwindow=$ac_cv_search_XOpenDisplay])],
+                      [AC_MSG_ERROR([forcing window to use nonexisting X11])])],
       [AC_MSG_ERROR([window was unrecognizable])])
 # DEPENDENCIES
-AS_IF([test $window = user32],
-      [AC_CHECK_LIB([gdi32], [main], [], [AC_MSG_ERROR([window($window) requires gdi32])])
-       AC_CHECK_LIB([opengl32], [main], [], [AC_MSG_ERROR([window($window) requires opengl32])])
-       AC_CHECK_LIB([glu32], [main], [], [AC_MSG_ERROR([window($window) requires glu32])])
-       AC_CHECK_HEADERS([Windows.h], [break])
-       libwindow="-luser32 -lgdi32 -lopengl32 -lglu32"
+AS_IF([test "x$window" = xuser32],
+      [AC_SEARCH_LIBS([ChoosePixelFormat],
+                      [gdi32],
+                      [AS_IF([test "$ac_cv_search_ChoosePixelFormat" != "none required"],
+                             [libwindow+=" $ac_cv_search_ChoosePixelFormat"])],
+                      [AC_MSG_ERROR([window($window) requires gdi32])])
+       AC_SEARCH_LIBS([glLoadIdentity],
+                      [opengl32],
+                      [AS_IF([test "$ac_cv_search_glLoadIdentity" != "none required"],
+                             [libwindow+=" $ac_cv_search_glLoadIdentity"])],
+                      [AC_MSG_ERROR([window($window) requires opengl32])])
+       AC_SEARCH_LIBS([gluPerspective],
+                      [glu32],
+                      [AS_IF([test "$ac_cv_search_gluPerspective" != "none required"],
+                             [libwindow+=" $ac_cv_search_gluPerspective"])],
+                      [AC_MSG_WARN([window($window) requires glu32])])
+       AC_CHECK_HEADERS([windows.h], [break])
+       AC_CHECK_HEADERS([GL/gl.h], [break])
+       AC_CHECK_HEADERS([GL/glu.h], [break])
        AC_DEFINE([WINDOW_USE_USER32],
                  [1],
                  [Define to 1 if window should use user32])],
-      [test $window = X11],
+      [test "x$window" = xX11],
       [AC_SEARCH_LIBS([glLoadIdentity],
                       [GL],
                       [AS_IF([test "$ac_cv_search_glLoadIdentity" != "none required"],
@@ -265,7 +284,7 @@ AS_IF([test $window = user32],
                       [GLU],
                       [AS_IF([test "$ac_cv_search_gluPerspective" != "none required"],
                              [libwindow+=" $ac_cv_search_gluPerspective"])],
-                      [AC_MSG_ERROR([window($window) requires GLU])])
+                      [AC_MSG_WARN([window($window) requires GLU])])
        AC_CHECK_HEADERS([X11/Xlib.h], [break])
        AC_CHECK_HEADERS([GL/gl.h], [break])
        AC_CHECK_HEADERS([GL/glu.h], [break])
@@ -274,12 +293,12 @@ AS_IF([test $window = user32],
                  [1],
                  [Define to 1 if window should use X11])])
 # FUNCTIONALITY
-AS_IF([test $window = user32],
+AS_IF([test "x$window" = xuser32],
       [AC_CHECK_FUNCS([CreateWaitableTimerEx CreateWaitableTimer], [break])
        AC_CHECK_FUNCS([GetModuleHandleEx GetModuleHandle], [break])
        AC_MSG_CHECKING([for GetModuleHandle])
        AC_LINK_IFELSE([AC_LANG_PROGRAM([#include<Windows.h>], [GetModuleHandle(0);])], [AC_MSG_RESULT([yes])], [AC_MSG_RESULT([no])])],
-      [test $window = X11],
+      [test "x$window" = xX11],
       [])
 
 

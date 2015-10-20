@@ -16,6 +16,7 @@
 #if WINDOW_USE_USER32
 # include <windows.h>
 # include <GL/gl.h>
+# include <GL/glext.h>
 #elif WINDOW_USE_X11
 # include <GL/gl.h>
 #endif
