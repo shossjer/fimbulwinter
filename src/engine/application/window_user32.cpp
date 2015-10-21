@@ -115,6 +115,14 @@ namespace engine
 			// TODO: proper error handling
 			void create(HINSTANCE hInstance, const int nCmdShow)
 			{
+				OSVERSIONINFO osvi;
+				{
+					ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+					osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+				}
+				GetVersionEx(&osvi);
+				application_debug_trace("GetVersionEx: ", osvi.dwMajorVersion, " ", osvi.dwMinorVersion);
+
 				// register window class
 				const WNDCLASSEX WndClass = {sizeof(WNDCLASSEX),
 				                             0,
