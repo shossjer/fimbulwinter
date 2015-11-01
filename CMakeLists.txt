@@ -21,6 +21,14 @@ endif()
 message(STATUS "CMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION}")
 message(STATUS "PROJECT_BINARY_DIR=${PROJECT_BINARY_DIR}")
 message(STATUS "PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}")
+
+set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
+message(STATUS "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
+message(STATUS "CMAKE_SYSTEM_PREFIX_PATH=${CMAKE_SYSTEM_PREFIX_PATH}")
+set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
+message(STATUS "CMAKE_INCLUDE_PATH=${CMAKE_INCLUDE_PATH}")
+
+message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
 if (WIN32)
   message(STATUS "THIS IS A WINDOWS MACHINE")
 endif()
@@ -31,12 +39,40 @@ set(TRIBUNAL_VERSION_MINOR 1)
 
 # source listing
 set(TRIBUNAL_SOURCE
-  src/main.cpp
-  src/core/async/Thread.cpp
-  src/engine/application/window.cpp
-  src/engine/graphics/renderer.cpp
-  )
-add_executable(Tribunal ${TRIBUNAL_SOURCE})
+	src/main.cpp
+	src/core/async/Thread.cpp
+	src/engine/application/window.cpp
+	src/engine/graphics/renderer.cpp
+	)
+  
+# source listing
+set(TRIBUNAL_HEADER
+	src/engine/graphics/renderer.hpp
+	src/engine/debug.hpp
+	)
+	
+set(TRIBUNAL_FILES ${TRIBUNAL_SOURCE} ${TRIBUNAL_HEADER})
+	
+foreach(FILE ${TRIBUNAL_FILES}) 
+	get_filename_component(PARENT_DIR "${FILE}" PATH)
+
+	# skip src or include and changes /'s to \\'s
+	string(REGEX REPLACE "(\\./)?(src|include)/?" "" GROUP "${PARENT_DIR}")
+	string(REPLACE "/" "\\" GROUP "${GROUP}")
+
+	# group into "Source Files" and "Header Files"
+	if ("${FILE}" MATCHES ".*\\.cpp")
+		set(GROUP "Source Files\\${GROUP}")
+	elseif("${FILE}" MATCHES ".*\\.h")
+		set(GROUP "Header Files\\${GROUP}")
+	else()
+		set(GROUP "Other Files\\${GROUP}")
+	endif()
+
+	source_group("${GROUP}" FILES "${FILE}")
+endforeach()
+
+add_executable(Tribunal ${TRIBUNAL_FILES})
 
 # compiler flags
 set(CMAKE_CXX_FLAGS "-std=c++11 -Wall ${CMAKE_CXX_FLAGS}")
