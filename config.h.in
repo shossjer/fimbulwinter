@@ -1,0 +1,35 @@
+/**
+ */
+#define TRIBUNAL_VERSION_MAJOR @TRIBUNAL_VERSION_MAJOR@
+/**
+ */
+#define TRIBUNAL_VERSION_MINOR @TRIBUNAL_VERSION_MINOR@
+
+/**
+ */
+#cmakedefine MODE_DEBUG 1
+/**
+ */
+#cmakedefine MODE_RELEASE 1
+
+/**
+ */
+#cmakedefine SOUND_USE_OPENAL 1
+
+/**
+ */
+#cmakedefine THREAD_USE_KERNEL32 1
+/**
+ */
+#cmakedefine THREAD_USE_PTHREAD 1
+
+/**
+ */
+#cmakedefine WINDOW_USE_USER32 1
+/**
+ */
+#cmakedefine WINDOW_USE_X11 1
+
+/**
+ */
+#cmakedefine HAVE_IMMINTRIN_H 1
