@@ -16,7 +16,7 @@
 #if WINDOW_USE_USER32
 # include <windows.h>
 # include <GL/gl.h>
-# include <GL/glext.h>
+//# include <GL/glext.h>
 #elif WINDOW_USE_X11
 # include <GL/gl.h>
 #endif
@@ -61,7 +61,9 @@ namespace
 		graphics_debug_trace("glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
 		graphics_debug_trace("glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
 		graphics_debug_trace("glGetString GL_VERSION: ", glGetString(GL_VERSION));
+#if WINDOW_USE_X11
 		graphics_debug_trace("glGetString GL_SHADING_LANGUAGE_VERSION: ", glGetString(GL_SHADING_LANGUAGE_VERSION));
+#endif
 
 		// pre-loop stuff
 		glClearDepth(1.0f);

@@ -50,8 +50,21 @@ set(TRIBUNAL_SOURCE
 
 # source listing
 set(TRIBUNAL_HEADER
-	src/engine/graphics/renderer.hpp
+	src/core/color.hpp
+	src/core/debug.hpp
+	src/core/async/delay.hpp
+	src/core/async/Thread.hpp
+	src/core/maths/Matrix.hpp
+	src/core/sync/CriticalSection.hpp
+	src/core/sync/Mutex.hpp
 	src/engine/debug.hpp
+	src/engine/application/window.hpp
+	src/engine/graphics/renderer.hpp
+	src/gameplay/debug.hpp
+	src/utility/inaccessible.hpp
+	src/utility/stream.hpp
+	src/utility/string.hpp
+	src/utility/type_traits.hpp
 	)
 
 set(TRIBUNAL_FILES ${TRIBUNAL_SOURCE} ${TRIBUNAL_HEADER})
@@ -79,10 +92,10 @@ add_executable(Tribunal ${TRIBUNAL_FILES})
 
 # compiler flags
 if (MSVC)
-  set(CMAKE_CXX_FLAGS "/W ${CMAKE_CXX_FLAGS}")
+#  set(CMAKE_CXX_FLAGS "/W ${CMAKE_CXX_FLAGS}")
 
-  set(CMAKE_CXX_FLAGS_DEBUG "")
-  set(CMAKE_CXX_FLAGS_RELEASE "")
+#  set(CMAKE_CXX_FLAGS_DEBUG "")
+#  set(CMAKE_CXX_FLAGS_RELEASE "")
 else()
   set(CMAKE_CXX_FLAGS "-std=c++11 -Wall ${CMAKE_CXX_FLAGS}")
 

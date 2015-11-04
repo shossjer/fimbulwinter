@@ -1,4 +1,6 @@
 
+#include "Thread.hpp"
+
 #include <core/debug.hpp>
 
 #include <windows.h>
