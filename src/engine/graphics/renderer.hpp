@@ -24,6 +24,12 @@ namespace engine
 			// GLuint vbo;
 			// opengl::VertexBufferObject vbo;
 		};
+		/**  */
+		struct Point
+		{
+			core::maths::Matrixf matrix;
+			float size;
+		};
 	}
 }
 

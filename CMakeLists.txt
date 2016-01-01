@@ -46,6 +46,10 @@ set(TRIBUNAL_SOURCE
 	src/core/async/Thread.cpp
 	src/engine/application/window.cpp
 	src/engine/graphics/renderer.cpp
+	src/engine/graphics/events.cpp
+	src/engine/hid/input.cpp
+	src/engine/hid/input_user32.cpp
+	src/engine/hid/input_x11.cpp
 	)
 
 # source listing
@@ -60,6 +64,8 @@ set(TRIBUNAL_HEADER
 	src/engine/debug.hpp
 	src/engine/application/window.hpp
 	src/engine/graphics/renderer.hpp
+	src/engine/graphics/events.hpp
+	src/engine/hid/input.hpp
 	src/gameplay/debug.hpp
 	src/utility/inaccessible.hpp
 	src/utility/stream.hpp

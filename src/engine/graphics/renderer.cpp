@@ -1,6 +1,7 @@
 
 #include "renderer.hpp"
 
+#include "events.hpp"
 #include "opengl.hpp"
 #include "opengl/Matrix.hpp"
 
@@ -26,6 +27,10 @@ namespace engine
 			extern void swap_buffers();
 		}
 	}
+	namespace graphics
+	{
+		extern void poll_messages();
+	}
 }
 
 namespace
@@ -44,13 +49,22 @@ namespace
 	int write_resize = 1;
 	std::atomic_int latest_resize{2};
 
-	/* Current dimension used by the engine */
+	/** Current window dimensions */
 	dimension_t dimension = {100, 100}; // initialized to something positive
 
+	/** Current 2D projection matrix */
 	core::maths::Matrixf projection2D;
+	/** Current 3D projection matrix */
 	core::maths::Matrixf projection3D;
-
+	/** Current 3D view/camera matrix */
 	core::maths::Matrixf view3D;
+
+
+	std::size_t npoints = 0;
+	engine::graphics::Point points[100]; // stores point components
+	std::size_t point_objects[100]; // stores object numbers
+
+	std::size_t indices[2 * (100)]; // stores indices
 
 	void render_callback()
 	{
@@ -68,6 +82,17 @@ namespace
 		glClearDepth(1.0f);
 		glDepthFunc(GL_LEQUAL);
 
+		// vvvvvvvv tmp vvvvvvvv
+		npoints++;
+		points[0].matrix = core::maths::Matrixf(1.f, 0.f, 0.f, 0.f,
+		                                        0.f, 1.f, 0.f, 0.f,
+		                                        0.f, 0.f, 1.f, 0.f,
+		                                        0.f, 0.f, 0.f, 1.f);
+		points[0].size = 8.f;
+		point_objects[0] = 17;
+		indices[17] = 0;
+		// ^^^^^^^^ tmp ^^^^^^^^
+
 		while (active)
 		{
 			// handle notifications
@@ -83,12 +108,14 @@ namespace
 				projection2D = core::maths::Matrixf::ortho(0., dimension.width, dimension.height, 0., -1., 1.);
 				projection3D = core::maths::Matrixf::perspective(core::maths::make_degree(80.), float(dimension.width) / float(dimension.height), .125, 128.);
 			}
+			//
+			engine::graphics::poll_messages();
 			// setup frame
 			static core::color::hsv_t<float> tmp1{0, 1, 1};
 			tmp1 += core::color::hue_t<float>{1};
 			const auto tmp2 = make_rgb(tmp1);
-			glClearColor(tmp2.red(), tmp2.green(), tmp2.blue(), 0.f);
-			// glClearColor(0.f, 0.f, 0.f, 0.f);
+			// glClearColor(tmp2.red(), tmp2.green(), tmp2.blue(), 0.f);
+			glClearColor(0.f, 0.f, 0.f, 0.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			// setup 3D
@@ -119,6 +146,23 @@ namespace
 			glVertex3f(0.f, 0.f, 0.f);
 			glVertex3f(0.f, 0.f, 100.f);
 			glEnd();
+
+			glColor3f(tmp2.red(), tmp2.green(), tmp2.blue());
+			for (std::size_t i = 0; i < npoints; i++)
+			{
+				glPointSize(points[i].size);
+
+				glPushMatrix();
+				glMultMatrixf(points[i].matrix.get());
+
+				glBegin(GL_POINTS);
+				glVertex3f(0.f, 0.f, 0.f);
+				glEnd();
+
+				glPopMatrix();
+			}
+
+
 
 			// draw meshes
 			// for (int i = 0; i < n_meshes; i++)
@@ -174,6 +218,12 @@ namespace engine
 				resizes[write_resize].height = height;
 				masks[write_resize] = true;
 				write_resize = latest_resize.exchange(write_resize); // std::memory_order_release?
+			}
+
+			void set(const ModelViewMessage & message)
+			{
+				const std::size_t index = indices[message.object];
+				points[index].matrix = message.model_view;
 			}
 		}
 	}

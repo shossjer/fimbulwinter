@@ -50,6 +50,10 @@
  * \note Is thread-safe.
  */
 # define debug_trace(channels, ...) core::debug::instance().trace(__FILE__, __LINE__, channels, __VA_ARGS__)
+/**
+ * Asserts that this path is never reached.
+ */
+# define debug_unreachable() debug_assert(false)
 #else
 /**
  * Does nothing.
@@ -67,6 +71,10 @@
  * Does nothing.
  */
 # define debug_trace(channels, ...)
+/**
+ * Does nothing.
+ */
+# define debug_unreachable()
 #endif
 
 #ifdef __GNUG__
