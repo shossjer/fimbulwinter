@@ -1,6 +1,7 @@
 
 #include <engine/debug.hpp>
 
+#include <windowsx.h>
 #include <windows.h>
 
 namespace engine
