@@ -4,12 +4,13 @@
 
 #include <config.h>
 
-#if WINDOW_USE_USER32
-#include <Windows.h>
-#endif
-
+#include "Context.hpp"
 
 #include <cstdint>
+
+#if WINDOW_USE_USER32
+# include <Windows.h>
+#endif
 
 namespace engine
 {
@@ -587,6 +588,30 @@ namespace engine
 				// data.wheel.set(delta);
 			}
 		};
+
+		/**
+		 */
+		struct Device
+		{
+			Context * context;
+		};
+
+		/**
+		 */
+		void add(std::size_t object, Device device);
+		/**
+		 */
+		void remove(std::size_t object);
+		/**
+		 */
+		void replace(std::size_t object, Device device);
+
+		/**
+		 * Makes the object get the focus.
+		 *
+		 * \param[in] object Object that must already exist.
+		 */
+		void set_focus(std::size_t object);
 
 		/**
 		 */

@@ -53,7 +53,11 @@
 /**
  * Asserts that this path is never reached.
  */
-# define debug_unreachable() debug_assert(false)
+# define debug_unreachable() \
+	do { \
+		debug_assert(false); \
+		std::terminate(); \
+	} while(false)
 #else
 /**
  * Does nothing.
@@ -74,7 +78,7 @@
 /**
  * Does nothing.
  */
-# define debug_unreachable()
+# define debug_unreachable() std::terminate()
 #endif
 
 #ifdef __GNUG__

@@ -4,70 +4,72 @@
 #include <core/debug.hpp>
 #include <engine/graphics/events.hpp>
 
+namespace
+{
+	const std::size_t max_devices = 10;
+
+	std::size_t n_devices = 0;
+	engine::hid::Device devices[max_devices];
+	std::size_t objects[max_devices];
+
+	std::size_t find(const std::size_t object)
+	{
+		for (std::size_t i = 0; i < n_devices; i++)
+			if (objects[i] == object)
+				return i;
+		debug_unreachable();
+	}
+}
+
 namespace engine
 {
 	namespace hid
 	{
+		void add(const std::size_t object, const Device device)
+		{
+			debug_assert(n_devices < max_devices);
+
+			devices[n_devices] = device;
+			objects[n_devices] = object;
+			n_devices++;
+		}
+		void remove(const std::size_t object)
+		{
+			const std::size_t first = find(object);
+			const std::size_t last = n_devices - 1;
+
+			for (std::size_t i = first; i < last; i++)
+				devices[i] = devices[i + 1];
+			for (std::size_t i = first; i < last; i++)
+				objects[i] = objects[i + 1];
+			n_devices--;
+		}
+		void replace(const std::size_t object, const Device device)
+		{
+			devices[find(object)] = device;
+		}
+
+		void set_focus(const std::size_t object)
+		{
+			const std::size_t first = 0;
+			const std::size_t last = find(object);
+
+			const Device device = devices[last];
+
+			for (std::size_t i = last; i > first; i--)
+				devices[i] = devices[i - 1];
+			for (std::size_t i = last; i > first; i--)
+				objects[i] = objects[i - 1];
+
+			devices[first] = device;
+			objects[first] = object;
+		}
+
 		void dispatch(const Input & input)
 		{
-			// for (std::size_t i = 0; i < ncontexts; i++)
-			// {
-			// 	if (contexts[i]->translate(input)) break;
-			// }
-
-			static float y = 0.f;
-
-			switch (input.getState())
-			{
-			case Input::State::DOWN:
-				switch (input.getButton())
-				{
-				case Input::Button::KEY_ARROWDOWN:
-				{
-					y -= .1f;
-					const engine::graphics::ModelViewMessage message = {
-						17,
-						core::maths::Matrixf(1.f, 0.f, 0.f, 0.f,
-						                     0.f, 1.f, 0.f, y,
-						                     0.f, 0.f, 1.f, 0.f,
-						                     0.f, 0.f, 0.f, 1.f)
-					};
-					engine::graphics::post_message(message);
+			for (std::size_t i = 0; i < n_devices; i++)
+				if (devices[i].context->translate(input))
 					break;
-				}
-				case Input::Button::KEY_ARROWUP:
-				{
-					y += .1f;
-					const engine::graphics::ModelViewMessage message = {
-						17,
-						core::maths::Matrixf(1.f, 0.f, 0.f, 0.f,
-						                     0.f, 1.f, 0.f, y,
-						                     0.f, 0.f, 1.f, 0.f,
-						                     0.f, 0.f, 0.f, 1.f)
-					};
-					engine::graphics::post_message(message);
-					break;
-				}
-				case Input::Button::KEY_SPACEBAR:
-				{
-					y = 0.f;
-					const engine::graphics::ModelViewMessage message = {
-						17,
-						core::maths::Matrixf(1.f, 0.f, 0.f, 0.f,
-						                     0.f, 1.f, 0.f, y,
-						                     0.f, 0.f, 1.f, 0.f,
-						                     0.f, 0.f, 0.f, 1.f)
-					};
-					engine::graphics::post_message(message);
-					break;
-				}
-				default:
-					;
-				}
-				break;
-			default:
-				;
-			}
 		}
 	}
 }
