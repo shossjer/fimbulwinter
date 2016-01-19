@@ -2,6 +2,7 @@
 #include "player.hpp"
 
 #include <engine/graphics/events.hpp>
+#include <engine/graphics/renderer.hpp>
 #include <engine/hid/input.hpp>
 
 namespace
@@ -10,7 +11,7 @@ namespace
 	using engine::hid::Device;
 	using engine::hid::Input;
 
-	constexpr std::size_t player_object = 17;
+	constexpr std::size_t this_object = 17;
 
 	class Controller : public Context
 	{
@@ -36,8 +37,8 @@ namespace
 				default:
 					return false;
 				}
-				const engine::graphics::ModelViewMessage message = {
-					player_object,
+				const engine::graphics::ModelMatrixMessage message = {
+					this_object,
 					core::maths::Matrixf(1.f, 0.f, 0.f, 0.f,
 					                     0.f, 1.f, 0.f, y,
 					                     0.f, 0.f, 1.f, 0.f,
@@ -61,11 +62,19 @@ namespace gameplay
 	{
 		void create()
 		{
-			engine::hid::add(player_object, device);
+			const engine::graphics::Point point = {
+				core::maths::Matrixf(1.f, 0.f, 0.f, 0.f,
+				                     0.f, 1.f, 0.f, 0.f,
+				                     0.f, 0.f, 1.f, 0.f,
+				                     0.f, 0.f, 0.f, 1.f),
+				8.f
+			};
+			engine::graphics::renderer::add(this_object, point);
+			engine::hid::add(this_object, device);
 		}
 		void destroy()
 		{
-			engine::hid::remove(player_object);
+			engine::hid::remove(this_object);
 		}
 	}
 }

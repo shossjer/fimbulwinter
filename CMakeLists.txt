@@ -50,6 +50,7 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
+	src/gameplay/game-menu.cpp
 	src/gameplay/player.cpp
 	)
 
@@ -68,6 +69,7 @@ set(TRIBUNAL_HEADER
 	src/engine/graphics/events.hpp
 	src/engine/hid/input.hpp
 	src/gameplay/debug.hpp
+	src/gameplay/game-menu.hpp
 	src/gameplay/player.hpp
 	src/utility/inaccessible.hpp
 	src/utility/stream.hpp
