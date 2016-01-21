@@ -45,6 +45,7 @@ set(TRIBUNAL_SOURCE
 	src/main.cpp
 	src/core/async/Thread.cpp
 	src/engine/application/window.cpp
+	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
 	)
 
@@ -59,6 +60,7 @@ set(TRIBUNAL_HEADER
 	src/core/sync/Mutex.hpp
 	src/engine/debug.hpp
 	src/engine/application/window.hpp
+	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/renderer.hpp
 	src/gameplay/debug.hpp
 	src/utility/inaccessible.hpp

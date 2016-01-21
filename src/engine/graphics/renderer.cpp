@@ -2,6 +2,7 @@
 #include "renderer.hpp"
 
 #include "opengl.hpp"
+#include "opengl/Font.hpp"
 #include "opengl/Matrix.hpp"
 
 #include <config.h>
@@ -52,6 +53,8 @@ namespace
 
 	core::maths::Matrixf view3D;
 
+	engine::graphics::opengl::Font normal_font;
+
 	void render_callback()
 	{
 		graphics_debug_trace("render_callback starting");
@@ -67,6 +70,19 @@ namespace
 		// pre-loop stuff
 		glClearDepth(1.0f);
 		glDepthFunc(GL_LEQUAL);
+		// vvvvvvvv tmp vvvvvvvv
+		{
+			engine::graphics::opengl::Font::Data data;
+
+			if (!data.load("consolas", 12))
+			{
+				debug_assert(("COULD NOT LOAD THE FONT: maybe it is missing?", false));
+			}
+			normal_font.compile(data);
+
+			data.free();
+		}
+		// ^^^^^^^^ tmp ^^^^^^^^
 
 		while (active)
 		{
@@ -128,7 +144,7 @@ namespace
 
 			// setup 2D
 			glMatrixMode(GL_PROJECTION);
-			// glLoadMatrixf(projection2D);
+			glLoadMatrix(projection2D);
 			glMatrixMode(GL_MODELVIEW);
 
 			glLoadIdentity();
@@ -137,6 +153,9 @@ namespace
 
 			// draw gui
 			// ...
+			glColor3ub(255, 255, 255);
+			glRasterPos2i(10, 10 + 12);
+			normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
 
 			core::async::delay(10);
 
@@ -144,6 +163,11 @@ namespace
 			engine::application::window::swap_buffers();
 		}
 		graphics_debug_trace("render_callback stopping");
+		// vvvvvvvv tmp vvvvvvvv
+		{
+			normal_font.decompile();
+		}
+		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 }
 
