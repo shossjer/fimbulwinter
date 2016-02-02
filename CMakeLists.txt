@@ -56,11 +56,16 @@ set(TRIBUNAL_HEADER
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
 	src/core/maths/Matrix.hpp
+	src/core/maths/Quaternion.hpp
+	src/core/maths/Scalar.hpp
+	src/core/maths/Vector.hpp
+	src/core/maths/util.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Mutex.hpp
 	src/engine/debug.hpp
 	src/engine/application/window.hpp
 	src/engine/graphics/opengl/Font.hpp
+	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/renderer.hpp
 	src/gameplay/debug.hpp
 	src/utility/inaccessible.hpp

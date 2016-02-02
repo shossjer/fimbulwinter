@@ -2,30 +2,12 @@
 #ifndef CORE_MATHS_UTIL_HPP
 #define CORE_MATHS_UTIL_HPP
 
+#include <utility/type_traits.hpp>
+
 namespace core
 {
 	namespace maths
 	{
-		template <typename T, typename U>
-		struct fits_in;
-
-		template <>
-		struct fits_in<float, float>
-		{
-			using type = void;
-		};
-		template <>
-		struct fits_in<float, double>
-		{
-			using type = void;
-		};
-		template <>
-		struct fits_in<double, double>
-		{
-			using type = void;
-		};
-
-
 		template <typename T>
 		struct constant
 		{
@@ -44,34 +26,42 @@ namespace core
 		template <typename T>
 		class degree
 		{
+		public:
+			using value_type = T;
+
 		private:
-			T value;
+			value_type value;
 
 		public:
 			degree() = default;
-			degree(const degree<T> & degree) = default;
-			explicit degree(const T value) : value(value) {}
-			template <typename U, typename = typename fits_in<U, T>::type>
+			explicit degree(const value_type value) : value(value) {}
+			template <typename U,
+			          typename = mpl::enable_if_t<mpl::fits_in<U, T>::value &&
+			                                      mpl::is_different<U, T>::value>>
 			degree(const degree<U> & degree) : value(degree.get()) {}
-			template <typename U, typename = typename fits_in<U, T>::type>
-			degree(const radian<U> & radian) : value(T(radian.get() / constantd::pi * 180.)) {}
-
-			degree<T> & operator = (const degree<T> & degree) = default;
-
-		public:
-			T get() const { return this->value; }
+			template <typename U,
+			          typename = mpl::enable_if_t<mpl::fits_in<U, T>::value>>
+			degree(const radian<U> & radian) : value(value_type{radian.get()} / constant<value_type>::pi * value_type{180}) {}
 
 		public:
-			friend radian<T> make_radian(const degree<T> & degree)
+			value_type get() const { return this->value; }
+
+		public:
+			friend radian<value_type> make_radian(const degree<value_type> & degree)
 			{
-				return radian<T>{T(degree.value / 180. *  constantd::pi)};
+				return radian<value_type>{value_type(degree.value / 180. *  constantd::pi)};
 			}
 		};
 
 		template <typename T>
-		degree<T> make_degree(const T value)
+		inline degree<T> make_degree(const T value)
 		{
 			return degree<T>{value};
+		}
+		template <typename T, typename U>
+		inline degree<T> make_degree(const degree<U> & degree)
+		{
+			return make_degree(T(degree.get()));
 		}
 
 		using degreef = degree<float>;
@@ -80,34 +70,42 @@ namespace core
 		template <typename T>
 		class radian
 		{
+		public:
+			using value_type = T;
+
 		private:
-			T value;
+			value_type value;
 
 		public:
 			radian() = default;
-			radian(const radian<T> & radian) = default;
-			explicit radian(const T value) : value(value) {}
-			template <typename U, typename = typename fits_in<U, T>::type>
+			explicit radian(const value_type value) : value(value) {}
+			template <typename U,
+			          typename = mpl::enable_if_t<mpl::fits_in<U, T>::value &&
+			                                      mpl::is_different<U, T>::value>>
 			radian(const radian<U> & radian) : value(radian.get()) {}
-			template <typename U, typename = typename fits_in<U, T>::type>
-			radian(const degree<U> & degree) : value(T(degree.get() / 180. *  constantd::pi)) {}
-
-			radian<T> & operator = (const radian<T> & radian) = default;
-
-		public:
-			T get() const { return this->value; }
+			template <typename U,
+			          typename = mpl::enable_if_t<mpl::fits_in<U, T>::value>>
+			radian(const degree<U> & degree) : value(value_type{degree.get()} / value_type{180} *  constant<value_type>::pi) {}
 
 		public:
-			friend degree<T> make_degree(const radian<T> & radian)
+			value_type get() const { return this->value; }
+
+		public:
+			friend degree<value_type> make_degree(const radian<value_type> & radian)
 			{
-				return degree<T>{T(radian.value / constantd::pi * 180.)};
+				return degree<value_type>{value_type{radian.value} / constantd::pi * 180.};
 			}
 		};
 
 		template <typename T>
-		radian<T> make_radian(const T value)
+		inline radian<T> make_radian(const T value)
 		{
 			return radian<T>{value};
+		}
+		template <typename T, typename U>
+		inline radian<T> make_radian(const radian<U> & radian)
+		{
+			return make_radian(T(radian.get()));
 		}
 
 		using radianf = radian<float>;

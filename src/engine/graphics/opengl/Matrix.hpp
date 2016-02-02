@@ -9,13 +9,19 @@ namespace core
 {
 	namespace maths
 	{
-		inline void glLoadMatrix(const Matrixd &matrix)
+		inline void glLoadMatrix(const Matrixd & matrix)
 		{
-			glLoadMatrixd(matrix.get());
+			// TODO make aligned
+			Matrixd::array_type buffer;
+			matrix.get_aligned(buffer);
+			glLoadMatrixd(buffer);
 		}
-		inline void glLoadMatrix(const Matrixf &matrix)
+		inline void glLoadMatrix(const Matrixf & matrix)
 		{
-			glLoadMatrixf(matrix.get());
+			// TODO make aligned
+			Matrixf::array_type buffer;
+			matrix.get_aligned(buffer);
+			glLoadMatrixf(buffer);
 		}
 	}
 }
