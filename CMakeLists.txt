@@ -1,5 +1,5 @@
 #
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8)
 project(tribunal)
 
 # make debug build default
@@ -107,6 +107,9 @@ endif()
 
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
+
+enable_testing (true)
+add_subdirectory (tst)
 
 # lookup dependencies
 # User32

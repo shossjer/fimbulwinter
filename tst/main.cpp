@@ -1,5 +1,13 @@
 
-int main(const int argc, const char *const argv[])
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
+
+TEST_CASE( "Important test", "Make sure logic works" )
 {
-	return 0;
+    REQUIRE((1 && 2));
+	REQUIRE_FALSE((1 & 2));
+
+	REQUIRE((1 || 2));
+	REQUIRE((1 | 2));
+	REQUIRE((1 | 2) == (1 | 3));
 }
