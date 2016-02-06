@@ -6,10 +6,11 @@ find_package(Git REQUIRED)
 
 ExternalProject_Add(
     catch
-    PREFIX ${CMAKE_BINARY_DIR}/catch
-    GIT_REPOSITORY https://github.com/philsquared/Catch.git
+    PREFIX "${CMAKE_BINARY_DIR}/catch"
+    GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
+	GIT_TAG "master"
     TIMEOUT 10
-    UPDATE_COMMAND ${GIT_EXECUTABLE} pull
+    UPDATE_COMMAND ""
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
@@ -51,3 +52,6 @@ foreach(FILE ${TRIBUNAL_TEST_FILES})
 endforeach()
 
 add_executable(TribunalTest ${TRIBUNAL_TEST_FILES})
+
+add_dependencies(TribunalTest Tribunal)
+add_dependencies(TribunalTest catch)
