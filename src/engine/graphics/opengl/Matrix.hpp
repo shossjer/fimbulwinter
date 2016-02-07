@@ -11,14 +11,14 @@ namespace core
 	{
 		inline void glLoadMatrix(const Matrixd & matrix)
 		{
-			// TODO make aligned
+			// TODO: make aligned
 			Matrixd::array_type buffer;
 			matrix.get_aligned(buffer);
 			glLoadMatrixd(buffer);
 		}
 		inline void glLoadMatrix(const Matrixf & matrix)
 		{
-			// TODO make aligned
+			// TODO: make aligned
 			Matrixf::array_type buffer;
 			matrix.get_aligned(buffer);
 			glLoadMatrixf(buffer);

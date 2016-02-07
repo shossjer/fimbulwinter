@@ -55,6 +55,7 @@ set(TRIBUNAL_HEADER
 	src/core/debug.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
+	src/core/container/Stack.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Quaternion.hpp
 	src/core/maths/Scalar.hpp

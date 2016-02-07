@@ -23,6 +23,17 @@ namespace core
 
 			public:
 				/**
+				 */
+				static const derived_type & identity()
+				{
+					static derived_type matrix{T{1}, T{0}, T{0}, T{0},
+					                           T{0}, T{1}, T{0}, T{0},
+					                           T{0}, T{0}, T{1}, T{0},
+					                           T{0}, T{0}, T{0}, T{1}};
+					return matrix;
+				}
+
+				/**
 				 * Because OpenGL 3 and later does not have this.
 				 */
 				static derived_type ortho(const T left,
@@ -44,7 +55,7 @@ namespace core
 				/**
 				 * Because OpenGL 3 and later does not have this (actually it never did since it is a glu-thing).
 				 */
-				static derived_type perspective(const radiand fovy,
+				static derived_type perspective(const radian<T> fovy,
 				                                const T aspect,
 				                                const T zNear,
 				                                const T zFar)
@@ -56,6 +67,36 @@ namespace core
 					                    T{0}, f, T{0}, T{0},
 					                    T{0}, T{0}, (zFar + zNear) * inv_depth, T{2} * zFar * zNear * inv_depth,
 					                    T{0}, T{0}, T{-1}, T{0}};
+				}
+
+				/**
+				 */
+				static derived_type rotation(const radian<T> radian, T x, T y, T z)
+				{
+					const T len_sq  = x * x + y * y + z * z;
+					if (len_sq != T{1}) // TODO this will probably never be true
+					{
+						const T inv_len = T{1} / std::sqrt(len_sq);
+						x *= inv_len;
+						y *= inv_len;
+						z *= inv_len;
+					}
+					const T c = std::cos(radian.get());
+					const T s = std::sin(radian.get());
+
+					return derived_type{x * x * (1 - c) + c    , x * y * (1 - c) - z * s, x * z * (1 - c) + y * s, T{0},
+					                    y * x * (1 - c) + z * s, y * y * (1 - c) + c    , y * z * (1 - c) - x * s, T{0},
+					                    z * x * (1 - c) - y * s, z * y * (1 - c) + x * s, z * z * (1 - c) + c    , T{0},
+					                    T{0}, T{0}, T{0}, T{1}};
+				}
+				/**
+				 */
+				static derived_type translation(const T x, const T y, const T z)
+				{
+					return derived_type{T{1}, T{0}, T{0}, x,
+					                    T{0}, T{1}, T{0}, y,
+					                    T{0}, T{0}, T{1}, z,
+					                    T{0}, T{0}, T{0}, T{1}};
 				}
 			};
 		}
@@ -81,7 +122,7 @@ namespace core
 				this->set(m11, m12, m13, m14,
 				          m21, m22, m23, m24,
 				          m31, m32, m33, m34,
-				          m41, m42, m42, m44);
+				          m41, m42, m43, m44);
 			}
 
 		public:

@@ -10,6 +10,7 @@
 #include <core/async/delay.hpp>
 #include <core/async/Thread.hpp>
 #include <core/color.hpp>
+#include <core/container/Stack.hpp>
 #include <core/maths/Matrix.hpp>
 #include <engine/debug.hpp>
 
@@ -27,6 +28,70 @@ namespace engine
 			extern void swap_buffers();
 		}
 	}
+}
+
+namespace
+{
+	class Stack
+	{
+	public:
+		using this_type = Stack;
+		using value_type = core::maths::Matrixf;
+
+		static constexpr std::size_t capacity = 10;
+	private:
+		using prime_type = value_type::value_type;
+
+	private:
+		core::container::Stack<value_type, capacity> stack;
+
+	public:
+		Stack()
+		{
+			this->stack.emplace();
+		}
+
+	public:
+		void pop()
+		{
+			debug_assert(this->stack.size() > 1);
+			this->stack.pop();
+		}
+		void push()
+		{
+			debug_assert(this->stack.size() < capacity);
+			this->stack.push(this->stack.top());
+		}
+
+		void load(const value_type matrix)
+		{
+			this->stack.top() = matrix;
+		}
+		void mult(const value_type matrix)
+		{
+			this->stack.top() *= matrix;
+		}
+		/**
+		 * \note Use `mult` instead.
+		 */
+		void rotate(const core::maths::radian<prime_type> radian, const prime_type x, const prime_type y, const prime_type z)
+		{
+			this->stack.top() *= value_type::rotation(radian, x, y, z);
+		}
+		/**
+		 * \note Use `mult` instead.
+		 */
+		void translate(const prime_type x, const prime_type y, const prime_type z)
+		{
+			this->stack.top() *= value_type::translation(x, y, z);
+		}
+
+	public:
+		friend void glLoadMatrix(const Stack & stack)
+		{
+			glLoadMatrix(stack.stack.top());
+		}
+	};
 }
 
 namespace
@@ -52,6 +117,8 @@ namespace
 	core::maths::Matrixf projection3D;
 
 	core::maths::Matrixf view3D;
+	// core::container::Stack<core::maths::Matrixf, 10> modelview_stack;
+	Stack modelview_matrix;
 
 	engine::graphics::opengl::Font normal_font;
 
@@ -97,7 +164,7 @@ namespace
 
 				// these calculations do not need opengl context
 				projection2D = core::maths::Matrixf::ortho(0., dimension.width, dimension.height, 0., -1., 1.);
-				projection3D = core::maths::Matrixf::perspective(core::maths::make_degree(80.), float(dimension.width) / float(dimension.height), .125, 128.);
+				projection3D = core::maths::Matrixf::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
 			}
 			// setup frame
 			static core::color::hsv_t<float> tmp1{0, 1, 1};
@@ -111,19 +178,21 @@ namespace
 			glMatrixMode(GL_PROJECTION);
 			glLoadMatrix(projection3D);
 			glMatrixMode(GL_MODELVIEW);
-
-			// glLoadMatrixd(_view_matrix_3d.get());
+			// vvvvvvvv tmp vvvvvvvv
 			view3D = core::maths::Matrixf(1.f, 0.f, 0.f, 0.f,
 			                              0.f, 1.f, 0.f, -1.f,
 			                              0.f, 0.f, 1.f, -10.f,
 			                              0.f, 0.f, 0.f, 1.f);
-			glLoadMatrix(view3D);
+			// ^^^^^^^^ tmp ^^^^^^^^
+			modelview_matrix.load(view3D);
 
 			glEnable(GL_DEPTH_TEST);
 
+			modelview_matrix.push();
 			static double deg = 0.;
 			if ((deg += 1.) >= 360.) deg -= 360.;
-			glRotated(deg, 0.f, 1.f, 0.f);
+			modelview_matrix.rotate(core::maths::make_degree(float(deg)), 0.f, 1.f, 0.f);
+			glLoadMatrix(modelview_matrix);
 			glBegin(GL_LINES);
 			glColor3ub(255, 0, 0);
 			glVertex3f(0.f, 0.f, 0.f);
@@ -135,6 +204,7 @@ namespace
 			glVertex3f(0.f, 0.f, 0.f);
 			glVertex3f(0.f, 0.f, 100.f);
 			glEnd();
+			modelview_matrix.pop();
 
 			// draw meshes
 			// for (int i = 0; i < n_meshes; i++)
@@ -146,13 +216,13 @@ namespace
 			glMatrixMode(GL_PROJECTION);
 			glLoadMatrix(projection2D);
 			glMatrixMode(GL_MODELVIEW);
-
-			glLoadIdentity();
+			modelview_matrix.load(core::maths::Matrixf::identity());
 
 			glDisable(GL_DEPTH_TEST);
 
 			// draw gui
 			// ...
+			glLoadMatrix(modelview_matrix);
 			glColor3ub(255, 255, 255);
 			glRasterPos2i(10, 10 + 12);
 			normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
