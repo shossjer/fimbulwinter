@@ -75,7 +75,13 @@ namespace core
 			}
 
 		public:
-			friend this_type inverse(const this_type & s)
+			void invert()
+			{
+				this->value = value_type{1} / this->value;
+			}
+
+		public:
+			friend this_type invert(const this_type & s)
 			{
 				return value_type{1} / s.value;
 			}

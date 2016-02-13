@@ -50,7 +50,7 @@ namespace core
 				}
 				derived_type & operator += (const derived_type & v)
 				{
-					return *this = *this + v;
+					return static_cast<Derived &>(*this = *this + v);
 				}
 				derived_type operator - (const derived_type & v) const
 				{
@@ -61,7 +61,7 @@ namespace core
 				}
 				derived_type & operator -= (const derived_type & v)
 				{
-					return *this = *this - v;
+					return static_cast<Derived &>(*this = *this - v);
 				}
 				derived_type operator * (const Scalar<value_type> s) const
 				{
@@ -72,7 +72,7 @@ namespace core
 				}
 				derived_type & operator *= (const Scalar<value_type> s)
 				{
-					return *this = *this * s;
+					return static_cast<Derived &>(*this = *this * s);
 				}
 				derived_type operator / (const Scalar<value_type> s) const
 				{
@@ -80,7 +80,7 @@ namespace core
 				}
 				derived_type & operator /= (const Scalar<value_type> s)
 				{
-					return *this = *this / s;
+					return static_cast<Derived &>(*this = *this / s);
 				}
 
 			public:
@@ -126,6 +126,11 @@ namespace core
 			using base_type::Vector;
 
 		public:
+			friend this_type operator * (const Scalar<value_type> & s1, const this_type & v2)
+			{
+				return v2 * s1;
+			}
+
 			friend Scalar<value_type> dot(const this_type & v1, const this_type & v2)
 			{
 				value_type sum = value_type{0};
@@ -154,6 +159,11 @@ namespace core
 			using base_type::Vector;
 
 		public:
+			friend this_type operator * (const Scalar<value_type> & s1, const this_type & v2)
+			{
+				return v2 * s1;
+			}
+
 			friend this_type cross(const this_type & v1, const this_type & v2)
 			{
 				return this_type{v1.values[1] * v2.values[2] - v1.values[2] * v2.values[1],

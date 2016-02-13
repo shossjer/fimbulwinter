@@ -93,7 +93,7 @@ namespace core
 		public:
 			friend degree<value_type> make_degree(const radian<value_type> & radian)
 			{
-				return degree<value_type>{value_type{radian.value} / constantd::pi * 180.};
+				return degree<value_type>{value_type(radian.value / constantd::pi * 180.)};
 			}
 		};
 

@@ -138,7 +138,7 @@ namespace core
 
 				return std::sqrt(w * w + x * x + y * y + z * z);
 			}
-			void normal()
+			void normalize()
 			{
 				*this *= inverse(this->length());
 			}
