@@ -19,7 +19,7 @@ namespace engine
 		/**  */
 		struct DrawArrays
 		{
-			core::maths::Matrixf matrix;
+			core::maths::Matrix4x4f matrix;
 			// opengl::Color4f color;
 			// GLuint vbo;
 			// opengl::VertexBufferObject vbo;

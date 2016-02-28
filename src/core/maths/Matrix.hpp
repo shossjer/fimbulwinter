@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+#include <utility/algorithm.hpp>
 #include <utility/type_traits.hpp>
 
 #include <algorithm>
@@ -13,10 +14,57 @@ namespace core
 {
 	namespace maths
 	{
+		template <std::size_t M, std::size_t N, typename T>
+		class Matrix;
+		template <std::size_t N, typename T>
+		class Vector;
+
+		template <std::size_t M, std::size_t N, typename T>
+		Vector<M, T> operator * (const Matrix<M, N, T> & m, const Vector<N, T> & v);
+	}
+}
+
+namespace core
+{
+	namespace maths
+	{
 		namespace detail
 		{
-			template <typename T, typename Derived>
+			template <std::size_t M, std::size_t N, typename T, typename Derived>
 			class Matrix
+			{
+			private:
+				using derived_type = Derived;
+			};
+			template <typename T, typename Derived>
+			class Matrix<2, 2, T, Derived>
+			{
+			private:
+				using derived_type = Derived;
+
+			public:
+				/**
+				 */
+				static const derived_type & identity()
+				{
+					static derived_type matrix{T{1}, T{0},
+					                           T{0}, T{1}};
+					return matrix;
+				}
+
+				/**
+				 */
+				static derived_type rotation(const radian<T> radian)
+				{
+					const auto c = std::cos(radian.get());
+					const auto s = std::sin(radian.get());
+
+					return derived_type{c, -s,
+					                    s,  c};
+				}
+			};
+			template <typename T, typename Derived>
+			class Matrix<4, 4, T, Derived>
 			{
 			private:
 				using derived_type = Derived;
@@ -101,51 +149,50 @@ namespace core
 			};
 		}
 
-		template <typename T>
-		class Matrix : public detail::Matrix<T, Matrix<T>>
+		template <std::size_t M, std::size_t N, typename T>
+		class Matrix : public detail::Matrix<M, N, T, Matrix<M, N, T>>
 		{
 		public:
-			using array_type = T[4 * 4];
-			using this_type = Matrix<T>;
+			using array_type = T[M * N];
+			using this_type = Matrix<M,  N, T>;
 			using value_type = T;
 
+			static constexpr std::size_t capacity = M * N;
+
 		private:
-			array_type values;
+			std::array<value_type, capacity> values;
 
 		public:
 			Matrix() = default;
-			Matrix(const T m11, const T m12, const T m13, const T m14,
-			       const T m21, const T m22, const T m23, const T m24,
-			       const T m31, const T m32, const T m33, const T m34,
-			       const T m41, const T m42, const T m43, const T m44)
+			template <typename ...Ps,
+			          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
+			Matrix(Ps && ...ps) :
+				values(utility::transpose<value_type, N, M>({value_type{std::forward<Ps>(ps)}...}))
 			{
-				this->set(m11, m12, m13, m14,
-				          m21, m22, m23, m24,
-				          m31, m32, m33, m34,
-				          m41, m42, m43, m44);
 			}
 
 		public:
-			this_type operator * (const this_type & m) const
+			template <std::size_t K>
+			Matrix<M, K, T> operator * (const Matrix<N, K, T> & m) const
 			{
-				this_type product;
+				Matrix<M, K, T> product;
 
-				for (std::size_t column = 0; column < 4; ++column) // K
+				for (std::size_t column = 0; column < K; column++)
 				{
-					for (std::size_t row = 0; row < 4; ++row) // M
+					for (std::size_t row = 0; row < M; row++)
 					{
 						T dot = T{0};
 
-						for (std::size_t i = 0; i < 4; ++i) // N
+						for (std::size_t i = 0; i < N; i++)
 						{
-							dot += this->values[row + i * 4] * m.values[i + column * 4]; // M N
+							dot += this->values[row + i * M] * m.values[i + column * N];
 						}
-						product.values[row + column * 4] = dot; // M
+						product.values[row + column * M] = dot;
 					}
 				}
 				return product;
 			}
-			this_type & operator *= (const this_type & m)
+			this_type & operator *= (const Matrix<N, N, T> & m)
 			{
 				return *this = *this * m;
 			}
@@ -161,27 +208,11 @@ namespace core
 				return this->get(buffer);
 			}
 
-			void set(const T m11, const T m12, const T m13, const T m14,
-			         const T m21, const T m22, const T m23, const T m24,
-			         const T m31, const T m32, const T m33, const T m34,
-			         const T m41, const T m42, const T m43, const T m44)
+			template <typename ...Ps,
+			          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
+			void set(Ps && ...ps)
 			{
-				this->values[ 0] = m11;
-				this->values[ 1] = m21;
-				this->values[ 2] = m31;
-				this->values[ 3] = m41;
-				this->values[ 4] = m12;
-				this->values[ 5] = m22;
-				this->values[ 6] = m32;
-				this->values[ 7] = m42;
-				this->values[ 8] = m13;
-				this->values[ 9] = m23;
-				this->values[10] = m33;
-				this->values[11] = m43;
-				this->values[12] = m14;
-				this->values[13] = m24;
-				this->values[14] = m34;
-				this->values[15] = m44;
+				this->values = utility::transpose<value_type, N, M>({value_type{std::forward<Ps>(ps)}...});
 			}
 			void set(const array_type & buffer)
 			{
@@ -191,10 +222,16 @@ namespace core
 			{
 				this->set(buffer);
 			}
+
+		public:
+			template <std::size_t M_, std::size_t N_, typename T_>
+			friend Vector<M_, T_> operator * (const Matrix<M_, N_, T_> & m, const Vector<N_, T_> & v);
 		};
 
-		using Matrixd = Matrix<double>;
-		using Matrixf = Matrix<float>;
+		using Matrix2x2d = Matrix<2, 2, double>;
+		using Matrix2x2f = Matrix<2, 2, float>;
+		using Matrix4x4d = Matrix<4, 4, double>;
+		using Matrix4x4f = Matrix<4, 4, float>;
 	}
 }
 

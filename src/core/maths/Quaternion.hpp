@@ -144,7 +144,7 @@ namespace core
 			}
 
 		public:
-			friend Matrix<value_type> make_matrix(const this_type & q)
+			friend Matrix<4, 4, value_type> make_matrix(const this_type & q)
 			{
 				const auto w = q.values[0];
 				const auto x = q.values[1];
@@ -161,10 +161,10 @@ namespace core
 				const auto yz = y * z;
 				const auto zz = z * z;
 
-				return Matrix<value_type>{1 - 2 * (yy + zz),     2 * (xy + wz),     2 * (xz - wy), 0,
-				                              2 * (xy - wz), 1 - 2 * (xx + zz),     2 * (yz + wx), 0,
-				                              2 * (xz + wy),     2 * (yz - wx), 1 - 2 * (xx + yy), 0,
-				                                  0        ,         0        ,         0        , 1};
+				return Matrix<4, 4, value_type>{1 - 2 * (yy + zz),     2 * (xy + wz),     2 * (xz - wy), 0,
+				                                    2 * (xy - wz), 1 - 2 * (xx + zz),     2 * (yz + wx), 0,
+				                                    2 * (xz + wy),     2 * (yz - wx), 1 - 2 * (xx + yy), 0,
+				                                        0        ,         0        ,         0        , 1};
 			}
 
 			friend this_type lerp(const this_type & q1, const this_type & q2,

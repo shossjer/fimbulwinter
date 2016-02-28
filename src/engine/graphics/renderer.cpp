@@ -29,6 +29,15 @@ namespace engine
 		}
 	}
 }
+namespace engine
+{
+	namespace physics
+	{
+		extern void init();
+		extern void draw();
+		extern void simulate(const double dt);
+	}
+}
 
 namespace
 {
@@ -36,7 +45,7 @@ namespace
 	{
 	public:
 		using this_type = Stack;
-		using value_type = core::maths::Matrixf;
+		using value_type = core::maths::Matrix4x4f;
 
 		static constexpr std::size_t capacity = 10;
 	private:
@@ -113,11 +122,11 @@ namespace
 	/* Current dimension used by the engine */
 	dimension_t dimension = {100, 100}; // initialized to something positive
 
-	core::maths::Matrixf projection2D;
-	core::maths::Matrixf projection3D;
+	core::maths::Matrix4x4f projection2D;
+	core::maths::Matrix4x4f projection3D;
 
-	core::maths::Matrixf view3D;
-	// core::container::Stack<core::maths::Matrixf, 10> modelview_stack;
+	core::maths::Matrix4x4f view3D;
+	// core::container::Stack<core::maths::Matrix4x4f, 10> modelview_stack;
 	Stack modelview_matrix;
 
 	engine::graphics::opengl::Font normal_font;
@@ -150,6 +159,7 @@ namespace
 			data.free();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
+		engine::physics::init(); // WAT
 
 		while (active)
 		{
@@ -163,15 +173,11 @@ namespace
 				glViewport(0, 0, dimension.width, dimension.height);
 
 				// these calculations do not need opengl context
-				projection2D = core::maths::Matrixf::ortho(0., dimension.width, dimension.height, 0., -1., 1.);
-				projection3D = core::maths::Matrixf::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
+				projection2D = core::maths::Matrix4x4f::ortho(0., dimension.width, dimension.height, 0., -1., 1.);
+				projection3D = core::maths::Matrix4x4f::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
 			}
 			// setup frame
-			static core::color::hsv_t<float> tmp1{0, 1, 1};
-			tmp1 += core::color::hue_t<float>{1};
-			const auto tmp2 = make_rgb(tmp1);
-			glClearColor(tmp2.red(), tmp2.green(), tmp2.blue(), 0.f);
-			// glClearColor(0.f, 0.f, 0.f, 0.f);
+			glClearColor(0.f, 0.f, .1f, 0.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			// setup 3D
@@ -179,44 +185,21 @@ namespace
 			glLoadMatrix(projection3D);
 			glMatrixMode(GL_MODELVIEW);
 			// vvvvvvvv tmp vvvvvvvv
-			view3D = core::maths::Matrixf(1.f, 0.f, 0.f, 0.f,
-			                              0.f, 1.f, 0.f, -1.f,
-			                              0.f, 0.f, 1.f, -10.f,
-			                              0.f, 0.f, 0.f, 1.f);
+			view3D = core::maths::Matrix4x4f::translation(0.f, -50.f, -64.f);
 			// ^^^^^^^^ tmp ^^^^^^^^
 			modelview_matrix.load(view3D);
 
 			glEnable(GL_DEPTH_TEST);
 
-			modelview_matrix.push();
-			static double deg = 0.;
-			if ((deg += 1.) >= 360.) deg -= 360.;
-			modelview_matrix.rotate(core::maths::make_degree(float(deg)), 0.f, 1.f, 0.f);
 			glLoadMatrix(modelview_matrix);
-			glBegin(GL_LINES);
-			glColor3ub(255, 0, 0);
-			glVertex3f(0.f, 0.f, 0.f);
-			glVertex3f(100.f, 0.f, 0.f);
-			glColor3ub(0, 255, 0);
-			glVertex3f(0.f, 0.f, 0.f);
-			glVertex3f(0.f, 100.f, 0.f);
-			glColor3ub(0, 0, 255);
-			glVertex3f(0.f, 0.f, 0.f);
-			glVertex3f(0.f, 0.f, 100.f);
-			glEnd();
-			modelview_matrix.pop();
-
-			// draw meshes
-			// for (int i = 0; i < n_meshes; i++)
-			// {
-			// 	meshes[i].draw();
-			// }
+			engine::physics::simulate(1. / 100.);
+			engine::physics::draw(); // WAT
 
 			// setup 2D
 			glMatrixMode(GL_PROJECTION);
 			glLoadMatrix(projection2D);
 			glMatrixMode(GL_MODELVIEW);
-			modelview_matrix.load(core::maths::Matrixf::identity());
+			modelview_matrix.load(core::maths::Matrix4x4f::identity());
 
 			glDisable(GL_DEPTH_TEST);
 

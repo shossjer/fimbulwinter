@@ -9,19 +9,39 @@ namespace core
 {
 	namespace maths
 	{
-		inline void glLoadMatrix(const Matrixd & matrix)
+		inline void glLoadMatrix(const Matrix4x4d & matrix)
 		{
 			// TODO: make aligned
-			Matrixd::array_type buffer;
+			Matrix4x4d::array_type buffer;
 			matrix.get_aligned(buffer);
 			glLoadMatrixd(buffer);
 		}
-		inline void glLoadMatrix(const Matrixf & matrix)
+		inline void glLoadMatrix(const Matrix4x4f & matrix)
 		{
 			// TODO: make aligned
-			Matrixf::array_type buffer;
+			Matrix4x4f::array_type buffer;
 			matrix.get_aligned(buffer);
 			glLoadMatrixf(buffer);
+		}
+		/**
+		 * \note Do not use, prefer glLoadMatrix instead!
+		 */
+		inline void glMultMatrix(const Matrix4x4d & matrix)
+		{
+			// TODO: make aligned
+			Matrix4x4d::array_type buffer;
+			matrix.get_aligned(buffer);
+			glMultMatrixd(buffer);
+		}
+		/**
+		 * \note Do not use, prefer glLoadMatrix instead!
+		 */
+		inline void glMultMatrix(const Matrix4x4f & matrix)
+		{
+			// TODO: make aligned
+			Matrix4x4f::array_type buffer;
+			matrix.get_aligned(buffer);
+			glMultMatrixf(buffer);
 		}
 	}
 }
