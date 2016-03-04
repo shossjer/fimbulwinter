@@ -24,6 +24,18 @@ namespace engine
 			} buffer[2];
 		};
 
+		struct Circle
+		{
+			Body body;
+
+			double radie;
+
+			void calc_body(const double density) 
+			{
+				this->body.mass = 3.1415926f*this->radie*density;
+				this->body.mofi = 0.5*this->body.mass*this->radie*this->radie;
+			}
+		};
 		struct Plane
 		{
 			Body body;

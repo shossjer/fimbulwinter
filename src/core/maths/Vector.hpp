@@ -8,6 +8,7 @@
 
 #include <utility/type_traits.hpp>
 
+#include <array>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -72,7 +73,9 @@ namespace core
 				std::array<value_type, capacity> values;
 
 			public:
-				Vector() = default;
+				Vector()// = default
+				{
+				}
 				template <typename ...Ps,
 				          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
 				Vector(Ps && ...ps) :

@@ -14,8 +14,12 @@ namespace
 	int read_buffer = 0;
 	int write_buffer = 1;
 
-	engine::physics::Plane planes[3]; // ground, slope and wall
-	engine::physics::Rectangle me;
+//	engine::physics::Plane planes[3]; // ground, slope and wall
+//	engine::physics::Rectangle me;
+
+	std::vector<engine::physics::Circle> circles;
+	std::vector<engine::physics::Plane> planes;
+	std::vector<engine::physics::Rectangle> rectangles;
 
 	enum class State
 	{
@@ -46,26 +50,26 @@ namespace
 
 	std::vector<Collision> collisions;
 
-	void compute_forces()
+	void compute_forces(engine::physics::Body & body)
 	{
 		// note: so far only `me` does this
-		auto & nb = me.body.buffer[write_buffer];
+		auto & nb = body.buffer[write_buffer];
 
-		nb.force.set(0., -9.82 * me.body.mass);
+		nb.force.set(0., -9.82 * body.mass);
 		nb.torque = 0.;
 	}
-	void update_objects(const double dt)
+	void update_objects(engine::physics::Body & body, const double dt)
 	{
 		// note: so far only `me` does this
-		const auto & ob = me.body.buffer[read_buffer];
-		auto & nb = me.body.buffer[write_buffer];
+		const auto & ob = body.buffer[read_buffer];
+		auto & nb = body.buffer[write_buffer];
 
 		// note: the error in these equations are too big, we need to use
 		// something better; like velocity verlot
 		nb.position = ob.position + dt * ob.velocity;
 		nb.rotation = ob.rotation + dt * ob.angularv;
-		nb.velocity = ob.velocity + dt / me.body.mass * ob.force;
-		nb.angularv = ob.angularv + dt / me.body.mofi * ob.torque;
+		nb.velocity = ob.velocity + dt / body.mass * ob.force;
+		nb.angularv = ob.angularv + dt / body.mofi * ob.torque;
 	}
 
 	State check_for_collisions()
@@ -73,76 +77,136 @@ namespace
 		collisions.clear();
 		State state = State::EVERYTHING_IS_OKAY;
 
-		// note: so far we only check if `me` has collided with anything...
-		const auto & nb = me.body.buffer[write_buffer];
-
-		const auto rotation = core::maths::Matrix2x2d::rotation(core::maths::make_radian(nb.rotation));
-		const auto r = rotation * core::maths::Vector2d{me.width / 2., 0.};
-		const auto s = rotation * core::maths::Vector2d{0., me.height / 2.};
-
-		// note: ...and that anything is any plane
-		for (auto && plane : planes)
+		// check all circles
+		for (auto & circle : circles)
 		{
-			// compute the effective radius
-			const auto rn = dot(r, plane.normal).get(); // dot returns Scalar<T>
-			const auto sn = dot(s, plane.normal).get();
-			const auto reff = std::abs(rn) + std::abs(sn);
-			// distance = ax + by + cz + d
-			const auto distance = dot(nb.position, plane.normal).get() + (plane.d - reff); // dot returns Scalar<T>
-			// debug_printline(0xffffffff, distance);
+			// note: so far we only check if `me` has collided with anything...
+			const auto & nb = circle.body.buffer[write_buffer];
 
-			const auto collision_boundary = .1;
-			if (distance < -collision_boundary) // intersection
+			// note: ...and that anything is any plane
+			for (auto && plane : planes)
 			{
-				return State::INTERSECTION;
-			}
-			if (distance < collision_boundary) // collision
-			{
-				const auto rd_ = rn < 0. ? r : core::maths::Vector2d{0., 0.}-r; // direction of left/right
-				const auto sd_ = sn < 0. ? s : core::maths::Vector2d{0., 0.}-s; // direction of bottom/top
+				const auto r = plane.normal*(-circle.radie);
+			//	const auto s = core::maths::Vector2d{ 0., 0.};
 
-				const auto Position = nb.position + rd_ + sd_;
+				// compute the effective radius
+				const auto rn = dot(r, plane.normal).get(); // dot returns Scalar<T>
+			//	const auto sn = dot(s, plane.normal).get();
+				const auto reff = std::abs(rn);// +std::abs(sn);
+				// distance = ax + by + cz + d
+				const auto distance = dot(nb.position, plane.normal).get() + (plane.d - reff); // dot returns Scalar<T>
+																							   // debug_printline(0xffffffff, distance);
 
-				const auto CMToCornerPerp = get_perp(Position - nb.position);
-
-				const auto Velocity = nb.velocity + nb.angularv * CMToCornerPerp;
-
-				const auto relvel = dot(Velocity, plane.normal).get();
-				debug_printline(0xffffffff, "relvel=", relvel);
-
-				if (relvel < 0.) // moving into
+				const auto collision_boundary = .1;
+				if (distance < -collision_boundary) // intersection
 				{
-					// note: we need to do something like this in order to
-					// detect edge-collisions and not only vertex collisions
-					// const auto edge_boundary = 0.0001;
-					// if (std::abs(rn) < edge_boundary) // bottom/top edge collision
-					// {
-					// 	const auto sd = sn < 0. ? sn : -sn; // direction of bottom/top
+					return State::INTERSECTION;
+				}
+				if (distance < collision_boundary) // collision
+				{
+					const auto rd_ = rn < 0. ? r : core::maths::Vector2d{ 0., 0. }-r; // direction of left/right
+				//	const auto sd_ = sn < 0. ? s : core::maths::Vector2d{ 0., 0. }-s; // direction of bottom/top
 
-					// 	collisions.emplace_back(me.body, ground.body,
-					// 	                        nb.position + sd * s - r,
-					// 	                        nb.position + sd * s + r,
-					// 	                        ground.normal);
-					// }
-					// else if (std::abs(sn) < edge_boundary) // left/right edge collision
-					// {
-					// 	const auto rd = rn < 0. ? rn : -rn; // direction of left/right
+					const auto Position = nb.position + rd_;// +sd_;
 
-					// 	collisions.emplace_back(me.body, ground.body,
-					// 	                        nb.position + rd * r - s,
-					// 	                        nb.position + rd * r + s,
-					// 	                        ground.normal);
-					// }
-					// else // vertex collision
+					const auto CMToCornerPerp = get_perp(Position - nb.position);
+
+					const auto Velocity = nb.velocity + nb.angularv * CMToCornerPerp;
+
+					const auto relvel = dot(Velocity, plane.normal).get();
+					debug_printline(0xffffffff, "relvel=", relvel);
+
+					if (relvel < 0.) // moving into
 					{
-						const auto rd = rn < 0. ? r : core::maths::Vector2d{0., 0.}-r; // direction of left/right
-						const auto sd = sn < 0. ? s : core::maths::Vector2d{0., 0.}-s; // direction of bottom/top
+						{
+							const auto rd = rn < 0. ? r : core::maths::Vector2d{ 0., 0. }-r; // direction of left/right
+						//	const auto sd = sn < 0. ? s : core::maths::Vector2d{ 0., 0. }-s; // direction of bottom/top
 
-						collisions.emplace_back(me.body, plane.body,
-						                        nb.position + rd + sd,
-						                        plane.normal);
+							collisions.emplace_back(circle.body, plane.body,
+								nb.position + rd,// + sd,
+								plane.normal);
+						}
+						state = State::COLLISION;
 					}
-					state = State::COLLISION;
+				}
+			}
+		}
+		
+
+		// check all rectangles
+		for (auto & rectangle : rectangles)
+		{
+			// note: so far we only check if `me` has collided with anything...
+			const auto & nb = rectangle.body.buffer[write_buffer];
+
+			const auto rotation = core::maths::Matrix2x2d::rotation(core::maths::make_radian(nb.rotation));
+			const auto r = rotation * core::maths::Vector2d{ rectangle.width / 2., 0. };
+			const auto s = rotation * core::maths::Vector2d{ 0., rectangle.height / 2. };
+
+			// note: ...and that anything is any plane
+			for (auto && plane : planes)
+			{
+				// compute the effective radius
+				const auto rn = dot(r, plane.normal).get(); // dot returns Scalar<T>
+				const auto sn = dot(s, plane.normal).get();
+				const auto reff = std::abs(rn) + std::abs(sn);
+				// distance = ax + by + cz + d
+				const auto distance = dot(nb.position, plane.normal).get() + (plane.d - reff); // dot returns Scalar<T>
+				// debug_printline(0xffffffff, distance);
+
+				const auto collision_boundary = .1;
+				if (distance < -collision_boundary) // intersection
+				{
+					return State::INTERSECTION;
+				}
+				if (distance < collision_boundary) // collision
+				{
+					const auto rd_ = rn < 0. ? r : core::maths::Vector2d{ 0., 0. }-r; // direction of left/right
+					const auto sd_ = sn < 0. ? s : core::maths::Vector2d{ 0., 0. }-s; // direction of bottom/top
+
+					const auto Position = nb.position + rd_ + sd_;
+
+					const auto CMToCornerPerp = get_perp(Position - nb.position);
+
+					const auto Velocity = nb.velocity + nb.angularv * CMToCornerPerp;
+
+					const auto relvel = dot(Velocity, plane.normal).get();
+					debug_printline(0xffffffff, "relvel=", relvel);
+
+					if (relvel < 0.) // moving into
+					{
+						// note: we need to do something like this in order to
+						// detect edge-collisions and not only vertex collisions
+						// const auto edge_boundary = 0.0001;
+						// if (std::abs(rn) < edge_boundary) // bottom/top edge collision
+						// {
+						// 	const auto sd = sn < 0. ? sn : -sn; // direction of bottom/top
+
+						// 	collisions.emplace_back(me.body, ground.body,
+						// 	                        nb.position + sd * s - r,
+						// 	                        nb.position + sd * s + r,
+						// 	                        ground.normal);
+						// }
+						// else if (std::abs(sn) < edge_boundary) // left/right edge collision
+						// {
+						// 	const auto rd = rn < 0. ? rn : -rn; // direction of left/right
+
+						// 	collisions.emplace_back(me.body, ground.body,
+						// 	                        nb.position + rd * r - s,
+						// 	                        nb.position + rd * r + s,
+						// 	                        ground.normal);
+						// }
+						// else // vertex collision
+						{
+							const auto rd = rn < 0. ? r : core::maths::Vector2d{ 0., 0. }-r; // direction of left/right
+							const auto sd = sn < 0. ? s : core::maths::Vector2d{ 0., 0. }-s; // direction of bottom/top
+
+							collisions.emplace_back(rectangle.body, plane.body,
+								nb.position + rd + sd,
+								plane.normal);
+						}
+						state = State::COLLISION;
+					}
 				}
 			}
 		}
@@ -220,38 +284,72 @@ namespace engine
 			// note: the drawing of the planes are hard coded and do not depend
 			// on the values written here
 			// ground
+			planes.push_back(engine::physics::Plane());
+			planes.push_back(engine::physics::Plane());
+			planes.push_back(engine::physics::Plane());
+
 			planes[0].normal.set(0., 1.);
-			planes[0].d = -dot(planes[0].normal, core::maths::Vector2d{0., 0.}).get(); // dot returns Scalar<T>
+			planes[0].d = -dot(planes[0].normal, core::maths::Vector2d{ 0., 0. }).get(); // dot returns Scalar<T>
 
 			planes[0].body.mass = std::numeric_limits<double>::infinity();
 			planes[0].body.mofi = std::numeric_limits<double>::infinity();
 			// slope
-			planes[1].normal = normalize(core::maths::Vector2d{1., 2.});
-			planes[1].d = -dot(planes[1].normal, core::maths::Vector2d{0., 0.}).get(); // dot returns Scalar<T>
+			planes[1].normal = normalize(core::maths::Vector2d{ 1., 2. });
+			planes[1].d = -dot(planes[1].normal, core::maths::Vector2d{ 0., 0. }).get(); // dot returns Scalar<T>
 
 			planes[1].body.mass = std::numeric_limits<double>::infinity();
 			planes[1].body.mofi = std::numeric_limits<double>::infinity();
 			// wall
 			planes[2].normal.set(-1., 0.);
-			planes[2].d = -dot(planes[2].normal, core::maths::Vector2d{50., 0.}).get(); // dot returns Scalar<T>
+			planes[2].d = -dot(planes[2].normal, core::maths::Vector2d{ 60., 0. }).get(); // dot returns Scalar<T>
 
 			planes[2].body.mass = std::numeric_limits<double>::infinity();
 			planes[2].body.mofi = std::numeric_limits<double>::infinity();
 
-			// me
-			me.width = 20.;
-			me.height = 10.;
-
 			const double density = 3.;
-			me.body.mass = density * me.width * me.height;
-			me.body.mofi = (me.body.mass / 12.) * (square(me.width) + square(me.height));
 
-			me.body.buffer[read_buffer].position.set(-37., 57.);
-			me.body.buffer[read_buffer].rotation = 0.1; // radians
-			me.body.buffer[read_buffer].velocity.set(0., 0.);
-			me.body.buffer[read_buffer].angularv = 0.1; // radians/s
+			rectangles.push_back(engine::physics::Rectangle());
+			rectangles.push_back(engine::physics::Rectangle());
+			{
+				// me
+				rectangles[0].width = 20.;
+				rectangles[0].height = 10.;
+
+				rectangles[0].body.mass = density * rectangles[0].width * rectangles[0].height;
+				rectangles[0].body.mofi = (rectangles[0].body.mass / 12.) * (square(rectangles[0].width) + square(rectangles[0].height));
+
+				rectangles[0].body.buffer[read_buffer].position.set(20., 57.);
+				rectangles[0].body.buffer[read_buffer].rotation = 0.1; // radians
+				rectangles[0].body.buffer[read_buffer].velocity.set(0., 0.);
+				rectangles[0].body.buffer[read_buffer].angularv = 0.1; // radians/s
+			}
+			{
+				// you
+				rectangles[1].width = 10.;
+				rectangles[1].height = 5.;
+
+				rectangles[1].body.mass = density * rectangles[1].width * rectangles[1].height;
+				rectangles[1].body.mofi = (rectangles[1].body.mass / 12.) * (square(rectangles[1].width) + square(rectangles[1].height));
+
+				rectangles[1].body.buffer[read_buffer].position.set(-20., 57.);
+				rectangles[1].body.buffer[read_buffer].rotation = 0.1; // radians
+				rectangles[1].body.buffer[read_buffer].velocity.set(0., 0.);
+				rectangles[1].body.buffer[read_buffer].angularv = 0.1; // radians/s
+			}
 			// note: no need to set force and torque since they will be
 			// initialized in `compute_forces`
+			
+			circles.push_back(engine::physics::Circle());
+			{
+				// bob
+				circles[0].radie = 10.;
+				circles[0].calc_body(density);
+
+				circles[0].body.buffer[read_buffer].position.set(-20., 57.);
+				circles[0].body.buffer[read_buffer].rotation = 0.; // radians
+				circles[0].body.buffer[read_buffer].velocity.set(0., 0.);
+				circles[0].body.buffer[read_buffer].angularv = 1.0; // radians/s
+			}
 		}
 
 		// note: this function should not exist; everything should be rendered
@@ -273,45 +371,111 @@ namespace engine
 			}
 			glEnd();
 
-			// ground
-			glLineWidth(4.f);
-			glBegin(GL_LINES);
-			glColor3ub(255, 0, 255);
-			glVertex3f(-1000.f, 0.f, 0.f);
-			glVertex3f(+1000.f, 0.f, 0.f);
-			glEnd();
-			// slope
-			glLineWidth(4.f);
-			glBegin(GL_LINES);
-			glColor3ub(255, 0, 255);
-			glVertex3f(-1000.f, +500.f, 0.f);
-			glVertex3f(+1000.f, -500.f, 0.f);
-			glEnd();
-			// wall
-			glLineWidth(4.f);
-			glBegin(GL_LINES);
-			glColor3ub(255, 0, 255);
-			glVertex3f(50.f, -1000.f, 0.f);
-			glVertex3f(50.f, +1000.f, 0.f);
-			glEnd();
+			//// ground
+			//glLineWidth(4.f);
+			//glBegin(GL_LINES);
+			//glColor3ub(255, 0, 255);
+			//glVertex3f(-1000.f, 0.f, 0.f);
+			//glVertex3f(+1000.f, 0.f, 0.f);
+			//glEnd();
+			//// slope
+			//glLineWidth(4.f);
+			//glBegin(GL_LINES);
+			//glColor3ub(255, 0, 255);
+			//glVertex3f(-1000.f, +500.f, 0.f);
+			//glVertex3f(+1000.f, -500.f, 0.f);
+			//glEnd();
+			//// wall
+			//glLineWidth(4.f);
+			//glBegin(GL_LINES);
+			//glColor3ub(255, 0, 255);
+			//glVertex3f(50.f, -1000.f, 0.f);
+			//glVertex3f(50.f, +1000.f, 0.f);
+			//glEnd();
 
-			// me
-			glLineWidth(4.f);
-			core::maths::Vector2d::array_type pos;
-			me.body.buffer[read_buffer].position.get(pos);
-			core::maths::Matrix4x4f mat;
-			mat  = core::maths::Matrix4x4f::translation(float(pos[0]), float(pos[1]), 0.f);
-			mat *= core::maths::Matrix4x4f::rotation(core::maths::make_radian(float(me.body.buffer[read_buffer].rotation)), 0.f, 0.f, 1.f);
-			glPushMatrix();
-			glMultMatrix(mat);
-			glBegin(GL_LINE_LOOP);
-			glColor3ub(0, 255, 0);
-			glVertex3f(- me.width / 2.f, - me.height / 2.f, 0.f);
-			glVertex3f(- me.width / 2.f, + me.height / 2.f, 0.f);
-			glVertex3f(+ me.width / 2.f, + me.height / 2.f, 0.f);
-			glVertex3f(+ me.width / 2.f, - me.height / 2.f, 0.f);
-			glEnd();
-			glPopMatrix();
+			for (const auto & plane : planes)
+			{
+				glLineWidth(4.f);
+				glBegin(GL_LINES);
+				glColor3ub(255, 0, 255);
+
+				const auto & c = plane.normal*(-plane.d);//plane.body.buffer[read_buffer].position;
+				const auto perp = get_perp(plane.normal);
+
+				core::maths::Vector2d::array_type start;
+				(c + perp * 1000).get(start);
+				core::maths::Vector2d::array_type end;
+				(c - perp * 1000).get(end);
+
+				glVertex3f(start[0], start[1], 0.f);
+				glVertex3f(end[0], end[1], 0.f);
+
+				glEnd();
+			}
+
+
+			for (const auto & rectangle : rectangles)
+			{
+				glPushMatrix();
+				{
+					// me
+					glLineWidth(4.f);
+					core::maths::Vector2d::array_type pos;
+					rectangle.body.buffer[read_buffer].position.get(pos);
+					core::maths::Matrix4x4f mat;
+					mat = core::maths::Matrix4x4f::translation(float(pos[0]), float(pos[1]), 0.f);
+					mat *= core::maths::Matrix4x4f::rotation(core::maths::make_radian(float(rectangle.body.buffer[read_buffer].rotation)), 0.f, 0.f, 1.f);
+
+					glMultMatrix(mat);
+
+					glBegin(GL_LINE_LOOP);
+					glColor3ub(0, 255, 0);
+					glVertex3f(-rectangle.width / 2.f, -rectangle.height / 2.f, 0.f);
+					glVertex3f(-rectangle.width / 2.f, +rectangle.height / 2.f, 0.f);
+					glVertex3f(+rectangle.width / 2.f, +rectangle.height / 2.f, 0.f);
+					glVertex3f(+rectangle.width / 2.f, -rectangle.height / 2.f, 0.f);
+					glEnd();
+				}
+				glPopMatrix();
+			}
+
+			{
+				const unsigned int SEGMENTS = 12;
+				float theta = 2 * 3.1415926f / float(SEGMENTS);
+				float c = cosf(theta);//precalculate the sine and cosine
+				float s = sinf(theta);
+				float t;
+
+				for (const auto & circle : circles)
+				{
+					glPushMatrix();
+					{
+						core::maths::Vector2d::array_type pos;
+						circle.body.buffer[read_buffer].position.get(pos);
+						core::maths::Matrix4x4f mat;
+						mat = core::maths::Matrix4x4f::translation(float(pos[0]), float(pos[1]), 0.f);
+						mat *= core::maths::Matrix4x4f::rotation(core::maths::make_radian(float(circle.body.buffer[read_buffer].rotation)), 0.f, 0.f, 1.f);
+
+						glMultMatrix(mat);
+
+						float x = circle.radie;//we start at angle = 0 
+						float y = 0;
+
+						glBegin(GL_LINE_LOOP);
+						for (int i = 0; i < SEGMENTS; i++)
+						{
+							glVertex2f(x, y);//output vertex 
+
+													   //apply the rotation matrix
+							t = x;
+							x = c * x - s * y;
+							y = s * t + c * y;
+						}
+						glEnd();
+					}
+					glPopMatrix();
+				}
+			}
 		}
 
 		void simulate(const double dt)
@@ -325,8 +489,17 @@ namespace engine
 			{
 				debug_assert(endt - begint > 0.00000001);
 
-				compute_forces();
-				update_objects(endt - begint);
+				for (auto & val : rectangles)
+				{
+					compute_forces(val.body);
+					update_objects(val.body, endt - begint);
+				}
+
+				for (auto & val : circles)
+				{
+					compute_forces(val.body);
+					update_objects(val.body, endt - begint);
+				}
 
 				const State state = check_for_collisions();
 

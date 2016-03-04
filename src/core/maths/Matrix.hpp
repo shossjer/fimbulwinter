@@ -163,7 +163,9 @@ namespace core
 			std::array<value_type, capacity> values;
 
 		public:
-			Matrix() = default;
+			Matrix()// = default;
+			{
+			}
 			template <typename ...Ps,
 			          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
 			Matrix(Ps && ...ps) :
