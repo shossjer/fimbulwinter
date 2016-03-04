@@ -58,9 +58,11 @@ set(TRIBUNAL_HEADER
 	src/core/async/Thread.hpp
 	src/core/container/Stack.hpp
 	src/core/maths/Matrix.hpp
+	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp
 	src/core/maths/Scalar.hpp
 	src/core/maths/Vector.hpp
+	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Mutex.hpp
@@ -71,6 +73,7 @@ set(TRIBUNAL_HEADER
 	src/engine/graphics/renderer.hpp
 	src/engine/physics/collision.hpp
 	src/gameplay/debug.hpp
+	src/utility/algorithm.hpp
 	src/utility/inaccessible.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp

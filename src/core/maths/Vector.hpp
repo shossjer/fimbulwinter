@@ -6,12 +6,13 @@
 
 #include "Scalar.hpp"
 
+#include <utility/algorithm.hpp>
 #include <utility/type_traits.hpp>
 
 #include <array>
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#include <ostream>
 
 namespace core
 {
@@ -19,6 +20,8 @@ namespace core
 	{
 		template <std::size_t M, std::size_t N, typename T>
 		class Matrix;
+		template <std::size_t D, typename T>
+		class Plane;
 		template <std::size_t N, typename T>
 		class Vector;
 
@@ -84,6 +87,10 @@ namespace core
 				}
 
 			public:
+				derived_type operator + () const
+				{
+					return *this;
+				}
 				derived_type operator + (const derived_type & v) const
 				{
 					derived_type res;
@@ -94,6 +101,12 @@ namespace core
 				derived_type & operator += (const derived_type & v)
 				{
 					return static_cast<Derived &>(*this = *this + v);
+				}
+				derived_type operator - () const
+				{
+					derived_type res;
+					res.values = utility::flip(this->values);
+					return res;
 				}
 				derived_type operator - (const derived_type & v) const
 				{
@@ -180,6 +193,8 @@ namespace core
 			friend Vector<2, T_> cross(attribute_up<Vector<1, T_>> && v1, const Vector<2, T_> & v2);
 			template <typename T_>
 			friend Vector<2, T_> cross(const Vector<2, T_> & v1, attribute_up<Vector<1, T_>> && v2);
+			template <std::size_t D_, typename T_>
+			friend Scalar<T_> dot(const Plane<D_, T_> & plane, const Vector<D_, T_> & point);
 			friend Scalar<value_type> dot(const this_type & v1, const this_type & v2)
 			{
 				value_type sum = value_type{0};
@@ -192,6 +207,9 @@ namespace core
 			{
 				return v1 * s.get() + v2 * (value_type{1} - s.get());
 			}
+
+			template <std::size_t D_, typename T_>
+			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
 		};
 		template <typename T>
 		class Vector<2, T> : public detail::Vector<2, T, Vector<2, T>>
@@ -227,6 +245,8 @@ namespace core
 			friend Vector<2, T_> cross(attribute_up<Vector<1, T_>> && v1, const Vector<2, T_> & v2);
 			template <typename T_>
 			friend Vector<2, T_> cross(const Vector<2, T_> & v1, attribute_up<Vector<1, T_>> && v2);
+			template <std::size_t D_, typename T_>
+			friend Scalar<T_> dot(const Plane<D_, T_> & plane, const Vector<D_, T_> & point);
 			friend Scalar<value_type> dot(const this_type & v1, const this_type & v2)
 			{
 				value_type sum = value_type{0};
@@ -249,9 +269,12 @@ namespace core
 				return this_type{-v.values[1], v.values[0]};
 			}
 
+			template <std::size_t D_, typename T_>
+			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
+
 			friend std::ostream & operator << (std::ostream & stream, const this_type & v)
 			{
-				return stream << "(" << v.values[0] << ", " << v.values[1] << ")" << std::endl;
+				return stream << "(" << v.values[0] << ", " << v.values[1] << ")";
 			}
 
 			friend value_type length(const this_type & v)
@@ -287,6 +310,8 @@ namespace core
 				                 v1.values[2] * v2.values[0] - v1.values[0] * v2.values[2],
 				                 v1.values[0] * v2.values[1] - v1.values[1] * v2.values[0]};
 			}
+			template <std::size_t D_, typename T_>
+			friend Scalar<T_> dot(const Plane<D_, T_> & plane, const Vector<D_, T_> & point);
 			friend Scalar<value_type> dot(const this_type & v1, const this_type & v2)
 			{
 				value_type sum = value_type{0};
@@ -299,6 +324,9 @@ namespace core
 			{
 				return v1 * s.get() + v2 * (value_type{1} - s.get());
 			}
+
+			template <std::size_t D_, typename T_>
+			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
 		};
 
 		template <typename T>

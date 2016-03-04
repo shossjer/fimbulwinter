@@ -2,6 +2,8 @@
 #ifndef ENGINE_PHYSICS_COLLISION_HPP
 #define ENGINE_PHYSICS_COLLISION_HPP
 
+#include <core/maths/Plane.hpp>
+#include <core/maths/Scalar.hpp>
 #include <core/maths/Vector.hpp>
 
 namespace engine
@@ -18,9 +20,9 @@ namespace engine
 				core::maths::Vector2d position;
 				core::maths::Vector2d velocity;
 				core::maths::Vector2d force;
-				double                rotation;
-				double                angularv;
-				double                torque;
+				core::maths::Scalard  rotation;
+				core::maths::Scalard  angularv;
+				core::maths::Scalard  torque;
 			} buffer[2];
 		};
 
@@ -40,8 +42,7 @@ namespace engine
 		{
 			Body body;
 
-			core::maths::Vector2d normal;
-			double d;
+			core::maths::Plane2d plane;
 		};
 		struct Rectangle
 		{

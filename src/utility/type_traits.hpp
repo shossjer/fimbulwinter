@@ -4,6 +4,8 @@
 #ifndef UTILITY_TYPETRAITS_HPP
 #define UTILITY_TYPETRAITS_HPP
 
+#include <array>
+#include <tuple>
 #include <type_traits>
 
 namespace mpl
@@ -131,6 +133,11 @@ namespace mpl
 	using make_integral_sequence = integral_enumerate<T, 0, N>;
 	template <std::size_t N>
 	using make_index_sequence = make_integral_sequence<std::size_t, N>;
+
+	template <typename T>
+	using make_tuple_sequence = make_index_sequence<std::tuple_size<T>::value>;
+	template <typename T>
+	using make_array_sequence = make_tuple_sequence<T>;
 
 	// integral_concat
 	template <typename S1, typename S2>
