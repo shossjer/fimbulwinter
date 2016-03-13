@@ -105,7 +105,7 @@ namespace core
 				derived_type operator - () const
 				{
 					derived_type res;
-					res.values = utility::flip(this->values);
+					res.values = utl::flip(this->values);
 					return res;
 				}
 				derived_type operator - (const derived_type & v) const

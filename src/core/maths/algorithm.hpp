@@ -84,7 +84,7 @@ namespace core
 		template <std::size_t D, typename T>
 		inline Plane<D, T> make_plane(const Vector<D, T> & point, const Vector<D, T> & normal)
 		{
-			return utility::unpack(utility::append(normal.values, dot(point, normal)), utility::constructor<Plane<D, T>>{});
+			return utl::unpack(utl::append(normal.values, dot(point, normal)), utl::constructor<Plane<D, T>>{});
 		}
 	}
 }
