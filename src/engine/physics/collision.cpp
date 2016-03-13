@@ -9,6 +9,8 @@
 
 #include <vector>
 
+#define USE_FRICTION 1
+
 namespace
 {
 	int read_buffer = 0;
@@ -114,7 +116,7 @@ namespace
 					const auto Velocity = nb.velocity + nb.angularv * CMToCornerPerp;
 
 					const auto relvel = dot(Velocity, plane.normal).get();
-					debug_printline(0xffffffff, "relvel=", relvel);
+				//	debug_printline(0xffffffff, "relvel=", relvel);
 
 					if (relvel < 0.) // moving into
 					{
@@ -171,7 +173,7 @@ namespace
 					const auto Velocity = nb.velocity + nb.angularv * CMToCornerPerp;
 
 					const auto relvel = dot(Velocity, plane.normal).get();
-					debug_printline(0xffffffff, "relvel=", relvel);
+				//	debug_printline(0xffffffff, "relvel=", relvel);
 
 					if (relvel < 0.) // moving into
 					{
@@ -219,32 +221,107 @@ namespace
 	}
 	void resolve_collisions()
 	{
-		debug_printline(0xffffffff, "#collisions=", collisions.size());
+	//	debug_printline(0xffffffff, "#collisions=", collisions.size());
 		const auto e = 0.7; // 0 <= e <= 1
+		const auto u = 0.4; // 0 <= u <= 1
 
 		for (auto && collision : collisions)
 		{
-			// note: this code only handles collisions with immovable objects
 			auto &nb = collision.body1.buffer[write_buffer];
+			const auto CMToCornerPerp = get_perp(collision.point - nb.position);
 
-			const auto Position = collision.point;
-
-			const auto CMToCornerPerp = get_perp(Position - nb.position);
+			
+			// note: this code only handles collisions with immovable objects
 
 			const auto Velocity = nb.velocity + nb.angularv * CMToCornerPerp;
 
 			const auto ImpulseNumerator = -(1. + e) * dot(Velocity, collision.normal).get();
 
-			const auto PerpDot = dot(CMToCornerPerp, collision.normal).get();
+			const auto perpN = dot(CMToCornerPerp, collision.normal).get();
 
-			const auto ImpulseDenominator = (1. / collision.body1.mass) + (1. / collision.body1.mofi) * PerpDot * PerpDot;
+			const auto ImpulseDenominator = (1. / collision.body1.mass) + (1. / collision.body1.mofi) * perpN * perpN;
 
 			const auto Impulse = ImpulseNumerator / ImpulseDenominator;
-			debug_printline(0xffffffff, "impulse=", Impulse);
+		//	debug_printline(0xffffffff, "impulse=", Impulse);
 
 			nb.velocity += Impulse * (1. / collision.body1.mass) * collision.normal;
+			nb.angularv += Impulse * (1. / collision.body1.mofi) * perpN;
 
-			nb.angularv += Impulse * (1. / collision.body1.mofi) * PerpDot;
+#if USE_FRICTION
+			
+			// friction
+
+			core::maths::Vector2d tangentN;	// two ways to determine it
+			{
+				//// Has issue with Circles when they are moving along surfaces, bouncing is fine
+				//// calculate the tangent of collision normal (direction is important)
+				//const auto tangent = Velocity - dot(Velocity, collision.normal) * collision.normal;
+
+				//// debug
+				//const auto debugLength = length(tangent);
+
+				//if (debugLength == 0.)	// this keeps happening with Circle, NEVER with rectangle!
+				//{
+				//	debug_printline(0xffffffff, "no friction vector");
+				//	continue;
+				//}
+
+				//// http://gamedevelopment.tutsplus.com/tutorials/how-to-create-a-custom-2d-physics-engine-friction-scene-and-jump-table--gamedev-7756
+				//tangentN = normalize(tangent);
+			}
+			{
+				core::maths::Vector2d::array_type pos;
+				collision.normal.get(pos);
+
+				// alternative to above
+				if (cross2(Velocity, collision.normal) < 0.)
+					tangentN = core::maths::Vector2d(-pos[1], pos[0]);
+				else
+					tangentN = core::maths::Vector2d(pos[1], -pos[0]);
+			}
+					
+			// 
+			const auto perpTan = dot(CMToCornerPerp, tangentN).get();
+
+			// Solve for magnitude to apply along the friction vector
+			const auto frictionImpNumerator = -dot(Velocity, tangentN).get();
+			const auto frictionImpDenominator = (1. / collision.body1.mass) + 
+												(1. / collision.body1.mofi) * perpTan * perpTan;
+			
+			const auto frictionImpulse = frictionImpNumerator / frictionImpDenominator;
+			const auto frictionLimit = Impulse*u;
+			
+			if (std::abs(frictionImpulse) < frictionLimit)
+			{
+				debug_printline(0xffffffff, "friction NOT limited");
+				nb.velocity += frictionImpulse * (1. / collision.body1.mass) * tangentN;
+				nb.angularv += frictionImpulse * (1. / collision.body1.mofi) * perpTan;
+			}
+			else
+			{
+				debug_printline(0xffffffff, "frition LIMITED");
+				nb.velocity -= frictionLimit * (1. / collision.body1.mass) * tangentN;
+				nb.angularv -= frictionLimit * (1. / collision.body1.mofi) * perpTan;
+			}
+
+			// test - make sure movement is sufficient
+			{
+				const auto lvel = nb.velocity + nb.angularv * CMToCornerPerp;
+
+				const auto relvel = dot(lvel, collision.normal).get();
+
+				if (relvel < 0.) // moving into
+				{
+					debug_printline(0xffffffff, "Contact relvel=", relvel);
+
+					const auto compensate = relvel*collision.normal;
+
+					nb.velocity -= compensate;
+					nb.angularv -= relvel;
+				}
+			}
+
+#endif
 
 			// note: something like this is what we should do instead
 			// const auto body1_collision_point = collision.point - collision.body1.buffer[write_buffer].position;
@@ -309,7 +386,6 @@ namespace engine
 			const double density = 3.;
 
 			rectangles.push_back(engine::physics::Rectangle());
-			rectangles.push_back(engine::physics::Rectangle());
 			{
 				// me
 				rectangles[0].width = 20.;
@@ -323,6 +399,8 @@ namespace engine
 				rectangles[0].body.buffer[read_buffer].velocity.set(0., 0.);
 				rectangles[0].body.buffer[read_buffer].angularv = 0.1; // radians/s
 			}
+
+			rectangles.push_back(engine::physics::Rectangle());
 			{
 				// you
 				rectangles[1].width = 10.;
@@ -339,17 +417,17 @@ namespace engine
 			// note: no need to set force and torque since they will be
 			// initialized in `compute_forces`
 			
-			circles.push_back(engine::physics::Circle());
-			{
-				// bob
-				circles[0].radie = 10.;
-				circles[0].calc_body(density);
+			//circles.push_back(engine::physics::Circle());
+			//{
+			//	// bob
+			//	circles[0].radie = 10.;
+			//	circles[0].calc_body(density);
 
-				circles[0].body.buffer[read_buffer].position.set(-20., 57.);
-				circles[0].body.buffer[read_buffer].rotation = 0.; // radians
-				circles[0].body.buffer[read_buffer].velocity.set(0., 0.);
-				circles[0].body.buffer[read_buffer].angularv = 1.0; // radians/s
-			}
+			//	circles[0].body.buffer[read_buffer].position.set(-50., 40.);
+			//	circles[0].body.buffer[read_buffer].rotation = 0.; // radians
+			//	circles[0].body.buffer[read_buffer].velocity.set(0., 0.);
+			//	circles[0].body.buffer[read_buffer].angularv = 0.0; // radians/s
+			//}
 		}
 
 		// note: this function should not exist; everything should be rendered

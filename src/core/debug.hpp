@@ -123,8 +123,11 @@ namespace core
 				std::lock_guard<core::sync::CriticalSection>(this->cs);
 				utility::to_stream(std::cerr, file_name, "@", line_number, ": ", cond_string, "\n");
 				std::cerr.flush();
-				
+#if _MSC_VER
 				std::terminate();
+#else
+				std::terminate();
+#endif
 			}
 		/**
 		 */

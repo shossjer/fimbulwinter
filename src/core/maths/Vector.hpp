@@ -219,6 +219,10 @@ namespace core
 			{
 				return Vector<1, T>{v1.values[0] * v2.values[1] - v1.values[1] * v2.values[0]};
 			}
+			friend value_type cross2(const this_type & v1, const this_type & v2)
+			{
+				return v1.values[0] * v2.values[1] - v1.values[1] * v2.values[0];
+			}
 			template <typename T_>
 			friend Vector<2, T_> cross(attribute_up<Vector<1, T_>> && v1, const Vector<2, T_> & v2);
 			template <typename T_>
@@ -248,6 +252,11 @@ namespace core
 			friend std::ostream & operator << (std::ostream & stream, const this_type & v)
 			{
 				return stream << "(" << v.values[0] << ", " << v.values[1] << ")" << std::endl;
+			}
+
+			friend value_type length(const this_type & v)
+			{
+				return std::sqrt(v.values[0] * v.values[0] + v.values[1] * v.values[1]);
 			}
 		};
 		template <typename T>
