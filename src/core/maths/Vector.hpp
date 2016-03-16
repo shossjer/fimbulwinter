@@ -281,6 +281,11 @@ namespace core
 			{
 				return std::sqrt(v.values[0] * v.values[0] + v.values[1] * v.values[1]);
 			}
+
+			friend value_type square(const this_type & v)
+			{
+				return (v.values[0] * v.values[0] + v.values[1] * v.values[1]);
+			}
 		};
 		template <typename T>
 		class Vector<3, T> : public detail::Vector<3, T, Vector<3, T>>

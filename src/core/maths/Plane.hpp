@@ -40,7 +40,7 @@ namespace core
 			std::array<T, D + 1> values;
 
 		public:
-			Plane() = default;
+			Plane() {};
 			template <typename ...Ps,
 			          typename = mpl::enable_if_t<sizeof...(Ps) == (D + 1)>>
 			Plane(Ps && ...ps) :

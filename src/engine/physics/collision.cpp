@@ -13,6 +13,8 @@
 
 namespace
 {
+	const double THREASHOLD = 0.1;
+
 	int read_buffer = 0;
 	int write_buffer = 1;
 
@@ -50,7 +52,8 @@ namespace
 		}
 	};
 
-	std::vector<Collision> collisions;
+	std::vector<Collision> collisionsPlane;
+	std::vector<Collision> collisionCircles;
 
 	void compute_forces(engine::physics::Body & body)
 	{
@@ -74,42 +77,93 @@ namespace
 		nb.angularv = ob.angularv + dt / body.mofi * ob.torque;
 	}
 
+	//// distance Circle to Circle
+	//double distance(const core::maths::Vector2d & callerCentre, const double callerRadie, const core::maths::Vector2d & targetCentre, const double targetRadie)
+	//{
+
+	//}
+
+	//// distance Circle to Plane (also Circle vs Rectangle (called 1 - 2 times))
+	//double distance(const core::maths::Vector2d & callerCentre, const double callerRadie, const core::maths::Vector2d & targetNormal)
+	//{
+
+	//}
+	//// distance Rectangle to Plane (also Rectangle vs Rectangle (called 1 - 4 times))
+	//double distance()
+	//{
+
+	//}
+
+
 	State check_for_collisions()
 	{
-		collisions.clear();
+		collisionCircles.clear();
+		collisionsPlane.clear();
+
 		State state = State::EVERYTHING_IS_OKAY;
 
 		// check all circles
-		for (auto & circle : circles)
+		//for (auto & circle : circles)
+		for(unsigned int i = 0; i < circles.size(); i++)
 		{
 			// note: so far we only check if `me` has collided with anything...
-			const auto & nb = circle.body.buffer[write_buffer];
+			const auto & nb1 = circles[i].body.buffer[write_buffer];
+
+			// 
+			for (unsigned int j = i + 1; j < circles.size(); j++)
+			{
+				const auto distanceVector = circles[j].body.buffer[write_buffer].position - circles[i].body.buffer[write_buffer].position;
+				const auto distanceSquare = square(distanceVector);
+
+				const auto radie = circles[i].radie + circles[j].radie;
+
+				if (distanceSquare < (radie*radie - THREASHOLD)) // intersection
+					return State::INTERSECTION;
+
+				if (distanceSquare < (radie*radie + THREASHOLD)) // collision
+				{
+					const auto & nb2 = circles[j].body.buffer[write_buffer];
+
+					const auto relvelVec = nb2.velocity - nb1.velocity;
+					const auto relvel = dot(relvelVec, distanceVector).get();
+
+
+					if (relvel < 0.) // moving into
+					{
+					//	const auto rd = rn < 0. ? r : core::maths::Vector2d{ 0., 0. }-r; // direction of left/right
+
+						const auto deltaN = distanceVector / std::sqrt(distanceSquare);
+
+						collisionCircles.emplace_back(circles[i].body, circles[j].body, nb1.position + deltaN*circles[i].radie, core::maths::Vector2d{ 0., 0. }-deltaN);
+
+						state = State::COLLISION;
+					}
+				}
+			}
 
 			// note: ...and that anything is any plane
 			for (auto && plane : planes)
 			{
-				const auto r = plane.plane.normal() * (-circle.radie);
+				const auto r = plane.plane.normal() * (-circles[i].radie);
 
 				// compute the effective radius
 				const auto rn = dot(r, plane.plane.normal());
 				const auto reff = abs(rn);
 				// distance = ax + by + cz + d
-				const auto dist = distance(plane.plane, nb.position) - reff;
+				const auto dist = distance(plane.plane, nb1.position) - reff;
 
-				const auto collision_boundary = .1;
-				if (dist < -collision_boundary) // intersection
-				{
+				if (dist < -THREASHOLD) // intersection
 					return State::INTERSECTION;
-				}
-				if (dist < collision_boundary) // collision
+				
+				if (dist < THREASHOLD) // collision
 				{
 					const auto rd_ = rn < 0. ? r : -r; // direction of left/right
 
-					const auto Position = nb.position + rd_;
+					const auto Position = nb1.position + rd_;
 
-					const auto CMToCornerPerp = get_perp(Position - nb.position);
+					const auto CMToCornerPerp = get_perp(Position - nb1.position);
 
-					const auto Velocity = nb.velocity + nb.angularv * CMToCornerPerp;
+					const auto Velocity = nb1.velocity + nb1.angularv * CMToCornerPerp;
 
 					const auto relvel = dot(Velocity, plane.plane.normal());
 					// debug_printline(0xffffffff, "relvel=", relvel);
@@ -119,10 +173,11 @@ namespace
 						{
 							const auto rd = rn < 0. ? r : -r; // direction of left/right
 
-							collisions.emplace_back(circle.body, plane.body,
-							                        nb.position + rd,
+							collisionsPlane.emplace_back(circles[i].body, plane.body,
+							                        nb1.position + rd,
 							                        plane.plane.normal());
 						}
+
 						state = State::COLLISION;
 					}
 				}
@@ -196,7 +251,8 @@ namespace
 							const auto rd = rn < 0. ? r : -r; // direction of left/right
 							const auto sd = sn < 0. ? s : -s; // direction of bottom/top
 
-							collisions.emplace_back(rectangle.body, plane.body,
+
+							collisionsPlane.emplace_back(rectangle.body, plane.body,
 							                        nb.position + rd + sd,
 							                        plane.plane.normal());
 						}
@@ -213,7 +269,7 @@ namespace
 		const auto e = 0.7; // 0 <= e <= 1
 		const auto u = 0.4; // 0 <= u <= 1
 
-		for (auto && collision : collisions)
+		for (auto && collision : collisionsPlane)
 		{
 			auto &nb = collision.body1.buffer[write_buffer];
 			const auto CMToCornerPerp = get_perp(collision.point - nb.position);
@@ -230,6 +286,7 @@ namespace
 			const auto ImpulseDenominator = (1. / collision.body1.mass) + (1. / collision.body1.mofi) * perpN * perpN;
 
 			const auto Impulse = ImpulseNumerator / ImpulseDenominator;
+
 		//	debug_printline(0xffffffff, "impulse=", Impulse);
 
 			nb.velocity += Impulse * (1. / collision.body1.mass) * collision.normal;
@@ -300,17 +357,14 @@ namespace
 
 				if (relvel < 0.) // moving into
 				{
-					debug_printline(0xffffffff, "Contact relvel=", relvel);
+					debug_printline(0xffffffff, "After impulse comp. still moving towards each others!");
 
-					const auto compensate = relvel*collision.normal;
-
-					nb.velocity -= compensate;
-					nb.angularv -= relvel;
+				//	const auto compensate = relvel*collision.normal;
+				//	nb.velocity -= compensate;
+				//	nb.angularv -= relvel;
 				}
 			}
-
 #endif
-
 			// note: something like this is what we should do instead
 			// const auto body1_collision_point = collision.point - collision.body1.buffer[write_buffer].position;
 			// const auto body2_collision_point = collision.point - collision.body2.buffer[write_buffer].position;
@@ -336,6 +390,87 @@ namespace
 			// collision.body1.buffer[write_buffer].angularv += impulse / collision.body1.mofi * body2_perp_dot;
 			// collision.body2.buffer[write_buffer].velocity -= impulse / collision.body2.mass * collision.normal;
 			// collision.body2.buffer[write_buffer].angularv -= impulse / collision.body2.mofi * body2_perp_dot;
+		}
+
+		for (auto && collision : collisionCircles)
+		{
+			debug_printline(0xffffffff, "non single collision");
+
+			auto &nb1 = collision.body1.buffer[write_buffer];
+			auto &nb2 = collision.body2.buffer[write_buffer];
+
+			const auto CMToCornerPerp1 = get_perp(collision.point - nb1.position);
+			const auto CMToCornerPerp2 = get_perp(collision.point - nb2.position);
+
+			// note: this code only handles collisions with immovable objects
+
+			const auto Velocity1 = nb1.velocity + nb1.angularv * CMToCornerPerp1;
+			const auto Velocity2 = nb2.velocity + nb2.angularv * CMToCornerPerp2;
+			const auto velBoth = Velocity2 - Velocity1;
+
+			const auto ImpulseNumerator = -(1. + e) * dot(velBoth, collision.normal).get();
+
+			const auto perpN1 = dot(CMToCornerPerp1, collision.normal).get();
+			const auto perpN2 = dot(CMToCornerPerp2, collision.normal).get();
+
+			const auto mass = (1. / collision.body1.mass) + (1. / collision.body2.mass);
+		
+			const auto ImpulseDenominator = mass +	(1. / collision.body1.mofi) * perpN1 * perpN1 + 
+													(1. / collision.body2.mofi) * perpN2 * perpN2;
+
+			const auto Impulse = ImpulseNumerator / ImpulseDenominator;
+
+			//	debug_printline(0xffffffff, "impulse=", Impulse);
+
+			nb1.velocity -= Impulse * (1. / collision.body1.mass) * collision.normal;
+			nb1.angularv -= Impulse * (1. / collision.body1.mofi) * perpN1;
+			nb2.velocity += Impulse * (1. / collision.body2.mass) * collision.normal;
+			nb2.angularv += Impulse * (1. / collision.body2.mofi) * perpN2;
+
+#if USE_FRICTION
+			//// friction - somehow make it work for two objects
+
+			//core::maths::Vector2d tangentN1;
+			//core::maths::Vector2d tangentN2;
+
+			//core::maths::Vector2d::array_type collisionNormal;
+			//collision.normal.get(collisionNormal);
+
+			//if (cross2(Velocity1, collision.normal) < 0.)
+			//	tangentN1 = core::maths::Vector2d(-collisionNormal[1], collisionNormal[0]);
+			//else
+			//	tangentN1 = core::maths::Vector2d(collisionNormal[1], -collisionNormal[0]);
+
+			//if (cross2(Velocity2, collision.normal) < 0.)
+			//	tangentN2 = core::maths::Vector2d(-collisionNormal[1], collisionNormal[0]);
+			//else
+			//	tangentN2 = core::maths::Vector2d(collisionNormal[1], -collisionNormal[0]);
+
+			//// 
+			//const auto perpTan1 = dot(CMToCornerPerp1, tangentN1).get();
+			//const auto perpTan2 = dot(CMToCornerPerp2, tangentN2).get();
+
+			//// Solve for magnitude to apply along the friction vector
+			//const auto frictionImpNumerator = -dot(velBoth, tangentN1).get();
+			//const auto frictionImpDenominator = (1. / collision.body1.mass) +
+			//	(1. / collision.body1.mofi) * perpTan * perpTan;
+
+			//const auto frictionImpulse = frictionImpNumerator / frictionImpDenominator;
+			//const auto frictionLimit = Impulse*u;
+
+			//if (std::abs(frictionImpulse) < frictionLimit)
+			//{
+			//	debug_printline(0xffffffff, "friction NOT limited");
+			//	nb1.velocity += frictionImpulse * (1. / collision.body1.mass) * tangentN;
+			//	nb1.angularv += frictionImpulse * (1. / collision.body1.mofi) * perpTan;
+			//}
+			//else
+			//{
+			//	debug_printline(0xffffffff, "frition LIMITED");
+			//	nb.velocity -= frictionLimit * (1. / collision.body1.mass) * tangentN;
+			//	nb.angularv -= frictionLimit * (1. / collision.body1.mofi) * perpTan;
+			//}
+#endif
 		}
 	}
 }
@@ -373,49 +508,95 @@ namespace engine
 
 			const double density = 3.;
 
-			rectangles.emplace_back();
-			{
-				// me
-				rectangles[0].width = 20.;
-				rectangles[0].height = 10.;
 
-				rectangles[0].body.mass = density * rectangles[0].width * rectangles[0].height;
-				rectangles[0].body.mofi = (rectangles[0].body.mass / 12.) * (core::maths::square(rectangles[0].width) + core::maths::square(rectangles[0].height));
+			//rectangles.push_back(engine::physics::Rectangle());
+			//{
+			//	// me
+			//	rectangles.back().width = 20.;
+			//	rectangles.back().height = 10.;
 
-				rectangles[0].body.buffer[read_buffer].position.set(20., 57.);
-				rectangles[0].body.buffer[read_buffer].rotation = 0.1; // radians
-				rectangles[0].body.buffer[read_buffer].velocity.set(0., 0.);
-				rectangles[0].body.buffer[read_buffer].angularv = 0.1; // radians/s
-			}
+			//	rectangles.back().body.mass = density * rectangles.back().width * rectangles.back().height;
+			//	rectangles.back().body.mofi = (rectangles.back().body.mass / 12.) * (square(rectangles.back().width) + square(rectangles.back().height));
 
-			rectangles.emplace_back();
-			{
-				// you
-				rectangles[1].width = 10.;
-				rectangles[1].height = 5.;
+			//	rectangles.back().body.buffer[read_buffer].position.set(20., 57.);
+			//	rectangles.back().body.buffer[read_buffer].rotation = 0.1; // radians
+			//	rectangles.back().body.buffer[read_buffer].velocity.set(0., 0.);
+			//	rectangles.back().body.buffer[read_buffer].angularv = 0.1; // radians/s
+			//}
 
-				rectangles[1].body.mass = density * rectangles[1].width * rectangles[1].height;
-				rectangles[1].body.mofi = (rectangles[1].body.mass / 12.) * (core::maths::square(rectangles[1].width) + core::maths::square(rectangles[1].height));
+			//rectangles.push_back(engine::physics::Rectangle());
+			//{
+			//	// you
+			//	rectangles.back().width = 10.;
+			//	rectangles.back().height = 5.;
 
-				rectangles[1].body.buffer[read_buffer].position.set(-20., 57.);
-				rectangles[1].body.buffer[read_buffer].rotation = 0.1; // radians
-				rectangles[1].body.buffer[read_buffer].velocity.set(0., 0.);
-				rectangles[1].body.buffer[read_buffer].angularv = 0.1; // radians/s
-			}
+			//	rectangles.back().body.mass = density * rectangles.back().width * rectangles.back().height;
+			//	rectangles.back().body.mofi = (rectangles.back().body.mass / 12.) * (square(rectangles.back().width) + square(rectangles.back().height));
+
+			//	rectangles.back().body.buffer[read_buffer].position.set(-20., 57.);
+			//	rectangles.back().body.buffer[read_buffer].rotation = 0.1; // radians
+			//	rectangles.back().body.buffer[read_buffer].velocity.set(0., 0.);
+			//	rectangles.back().body.buffer[read_buffer].angularv = 0.1; // radians/s
+			//}
 			// note: no need to set force and torque since they will be
 			// initialized in `compute_forces`
 			
-			//circles.push_back(engine::physics::Circle());
-			//{
-			//	// bob
-			//	circles[0].radie = 10.;
-			//	circles[0].calc_body(density);
+			circles.push_back(engine::physics::Circle());
+			{
+				// bob
+				circles.back().radie = 10.;
+				circles.back().calc_body(density);
 
-			//	circles[0].body.buffer[read_buffer].position.set(-50., 40.);
-			//	circles[0].body.buffer[read_buffer].rotation = 0.; // radians
-			//	circles[0].body.buffer[read_buffer].velocity.set(0., 0.);
-			//	circles[0].body.buffer[read_buffer].angularv = 0.0; // radians/s
-			//}
+				circles.back().body.buffer[read_buffer].position.set(-50., 50.);
+				circles.back().body.buffer[read_buffer].rotation = 0.; // radians
+				circles.back().body.buffer[read_buffer].velocity.set(0., 0.);
+				circles.back().body.buffer[read_buffer].angularv = 0.0; // radians/s
+			}
+
+			circles.push_back(engine::physics::Circle());
+			{
+				circles.back().radie = 10.;
+				circles.back().calc_body(density);
+
+				circles.back().body.buffer[read_buffer].position.set(-20., 40.);
+				circles.back().body.buffer[read_buffer].rotation = 0.; // radians
+				circles.back().body.buffer[read_buffer].velocity.set(0., 0.);
+				circles.back().body.buffer[read_buffer].angularv = 0.0; // radians/s
+			}
+
+
+			circles.push_back(engine::physics::Circle());
+			{
+				circles.back().radie = 5.;
+				circles.back().calc_body(density);
+
+				circles.back().body.buffer[read_buffer].position.set(20., 40.);
+				circles.back().body.buffer[read_buffer].rotation = 0.; // radians
+				circles.back().body.buffer[read_buffer].velocity.set(0., 0.);
+				circles.back().body.buffer[read_buffer].angularv = 0.0; // radians/s
+			}
+
+
+			circles.push_back(engine::physics::Circle());
+			{
+				circles.back().radie = 5.;
+				circles.back().calc_body(density);
+
+				circles.back().body.buffer[read_buffer].position.set(20., 100.);
+				circles.back().body.buffer[read_buffer].rotation = 0.; // radians
+				circles.back().body.buffer[read_buffer].velocity.set(0., 0.);
+				circles.back().body.buffer[read_buffer].angularv = 0.0; // radians/s
+			}
+			circles.push_back(engine::physics::Circle());
+			{
+				circles.back().radie = 5.;
+				circles.back().calc_body(density);
+
+				circles.back().body.buffer[read_buffer].position.set(-50., 80.);
+				circles.back().body.buffer[read_buffer].rotation = 0.; // radians
+				circles.back().body.buffer[read_buffer].velocity.set(0., 0.);
+				circles.back().body.buffer[read_buffer].angularv = 0.0; // radians/s
+			}
 		}
 
 		// note: this function should not exist; everything should be rendered
@@ -506,6 +687,7 @@ namespace engine
 						float y = 0;
 
 						glBegin(GL_LINE_LOOP);
+						glColor3ub(0, 255, 255);
 						for (std::size_t i = 0; i < SEGMENTS; i++)
 						{
 							glVertex2f(x, y);//output vertex 
