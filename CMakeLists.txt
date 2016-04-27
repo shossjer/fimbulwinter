@@ -16,6 +16,7 @@ else()
 endif()
 
 # set include paths
+# these paths are used when finding files et. al.
 if (MSVC)
   set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
   set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
@@ -47,6 +48,7 @@ set(TRIBUNAL_SOURCE
 	src/engine/application/window.cpp
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
+	src/engine/model/armature.cpp
 	src/engine/physics/collision.cpp
 	)
 
@@ -71,9 +73,11 @@ set(TRIBUNAL_HEADER
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/renderer.hpp
+	src/engine/model/armature.hpp
 	src/engine/physics/collision.hpp
 	src/gameplay/debug.hpp
 	src/utility/algorithm.hpp
+	src/utility/array.hpp
 	src/utility/inaccessible.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
@@ -101,6 +105,9 @@ foreach(FILE ${TRIBUNAL_FILES})
 	source_group("${GROUP}" FILES "${FILE}")
 endforeach()
 
+include_directories("${PROJECT_BINARY_DIR}")
+include_directories("${PROJECT_SOURCE_DIR}/src")
+
 add_executable(Tribunal ${TRIBUNAL_FILES})
 
 # compiler flags
@@ -115,9 +122,6 @@ else()
   set(CMAKE_CXX_FLAGS_DEBUG "-g")
   set(CMAKE_CXX_FLAGS_RELEASE "")
 endif()
-
-include_directories("${PROJECT_BINARY_DIR}")
-include_directories("${PROJECT_SOURCE_DIR}/src")
 
 enable_testing (true)
 add_subdirectory (tst)

@@ -1,0 +1,7 @@
+dev/export_armature.py   dc67b9d48f00e075880b60e9637327e331d4f115d348ef081fad135ac45dc010
+dev/export_common.py     cb63ab6eeecf393887588a6f5e1c5730276c00a16d4dbc09361c6cf960b7aba0
+dev/export_mesh.py       e1097ada42dbd4ba1d1dd878feed2827f29265b33d56e0ffc41e7ece15559c20
+dev/player_skinned.blend f7756f9d4ca2a818338ea9ab9a931bb85687a730479ad5b993192bbff1a6392b
+res/font/consolas.ttf    45c14a49e0ba2edc00b72afad9a930cad5c1b9a93323b239a8c308efc5a65e8e
+res/my_armature          4c0405e281530f43c46f95e809d78d64827eb1c6fa86b661193c3195424a9ce0
+res/my_mesh              522333e9e596845bf9b01ed26ff144c832bf9667292f6f1797007f812cca5293

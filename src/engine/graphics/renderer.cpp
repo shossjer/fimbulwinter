@@ -31,6 +31,12 @@ namespace engine
 }
 namespace engine
 {
+	namespace model
+	{
+		extern void init();
+		extern void draw();
+		extern void update();
+	}
 	namespace physics
 	{
 		extern void init();
@@ -159,7 +165,8 @@ namespace
 			data.free();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
-		engine::physics::init(); // WAT
+		engine::model::init(); // WAT
+
 
 		while (active)
 		{
@@ -192,8 +199,9 @@ namespace
 			glEnable(GL_DEPTH_TEST);
 
 			glLoadMatrix(modelview_matrix);
-			engine::physics::simulate(1. / 100.);
-			engine::physics::draw(); // WAT
+			engine::model::update();
+			engine::model::draw();
+			glLoadMatrix(modelview_matrix);
 
 			// setup 2D
 			glMatrixMode(GL_PROJECTION);

@@ -28,6 +28,7 @@ set(TRIBUNAL_TEST_SOURCE
 	core/maths/Quaternion.cpp
 	core/maths/Vector.cpp
 	core/maths/util.cpp
+	utility/array.cpp
 	)
 
 # source listing
