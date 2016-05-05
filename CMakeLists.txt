@@ -17,8 +17,8 @@ endif()
 
 # set include paths
 if (MSVC)
-  set(CMAKE_PREFIX_PATH "../3rdparty/physx/Lib/;C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
-  set(CMAKE_INCLUDE_PATH "../3rdparty/physx/Include/;C:/Program Files (x86)/Windows Kits/8.1/Include/um")
+  set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
+  set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
 else()
   # gcc -xc++ -E -v /dev/null
   set(CMAKE_INCLUDE_PATH "/usr/include/c++/4.8;/usr/include/x86_64-linux-gnu/c++/4.8;/usr/include/c++/4.8/backward;/usr/lib/gcc/x86_64-linux-gnu/4.8/include;/usr/local/include;/usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed;/usr/include/x86_64-linux-gnu;/usr/include")
@@ -129,7 +129,6 @@ endif()
 
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
-include_directories("../3rdparty/physx/Include")
 
 enable_testing (true)
 add_subdirectory (tst)
@@ -181,7 +180,7 @@ find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
 # Check that Physx header files exist
-find_file(FILE_PHYSX_HEADERS PxPhysicsAPI.h)
+find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
 
 message(STATUS "Looking for Physx header files - ${FILE_PHYSX_HEADERS}")
 
