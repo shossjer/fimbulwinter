@@ -47,6 +47,12 @@ set(TRIBUNAL_SOURCE
 	src/engine/application/window.cpp
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
+	src/engine/graphics/events.cpp
+	src/engine/hid/input.cpp
+	src/engine/hid/input_user32.cpp
+	src/engine/hid/input_x11.cpp
+	src/gameplay/game-menu.cpp
+	src/gameplay/player.cpp
 	)
 
 # source listing
@@ -70,7 +76,11 @@ set(TRIBUNAL_HEADER
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/renderer.hpp
+	src/engine/graphics/events.hpp
+	src/engine/hid/input.hpp
 	src/gameplay/debug.hpp
+	src/gameplay/game-menu.hpp
+	src/gameplay/player.hpp
 	src/utility/algorithm.hpp
 	src/utility/inaccessible.hpp
 	src/utility/stream.hpp

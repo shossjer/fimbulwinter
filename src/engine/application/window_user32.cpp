@@ -1,6 +1,7 @@
 
 #include <engine/debug.hpp>
 
+#include <windowsx.h>
 #include <windows.h>
 
 namespace engine
@@ -9,8 +10,34 @@ namespace engine
 	{
 		namespace renderer
 		{
-			void notify_resize(const int width, const int height);
+			extern void notify_resize(const int width, const int height);
 		}
+	}
+	namespace hid
+	{
+		extern void key_down(BYTE virtual_key,
+		                     BYTE scan_code,
+		                     LONG time);
+		extern void key_up(BYTE virtual_key,
+		                   BYTE scan_code,
+		                   LONG time);
+		// extern void lbutton_down(LONG time);
+		// extern void lbutton_up(LONG time);
+		// extern void mbutton_down(LONG time);
+		// extern void mbutton_up(LONG time);
+		extern void mouse_move(const int_fast16_t x,
+		                       const int_fast16_t y,
+		                       LONG time);
+		// extern void mouse_wheel(const int_fast16_t delta,
+		//                         LONG time);
+		// extern void rbutton_down(LONG time);
+		// extern void rbutton_up(LONG time);
+		extern void syskey_down(BYTE virtual_key,
+		                        BYTE scan_code,
+		                        LONG time);
+		extern void syskey_up(BYTE virtual_key,
+		                      BYTE scan_code,
+		                      LONG time);
 	}
 }
 
@@ -37,46 +64,53 @@ namespace
 			// case WM_DEADCHAR:
 			// 	break;
 		case WM_KEYDOWN:
-			// cronus::core::dispatch<cronus::user::State::DOWN>((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
+			engine::hid::key_down((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
 			break;
 		case WM_KEYUP:
-			// cronus::core::dispatch<cronus::user::State::UP>((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
+			engine::hid::key_up((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
 			break;
 			// case WM_SYSDEADCHAR:
 			// 	break;
 		case WM_SYSKEYDOWN:
-			// cronus::core::dispatch<cronus::user::State::DOWN>((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
+			engine::hid::syskey_down((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
 			break;
 		case WM_SYSKEYUP:
-			// cronus::core::dispatch<cronus::user::State::UP>((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
+			engine::hid::syskey_up((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
 			break;
 			// case WM_UNICHAR:
 			// 	break;
 
 		case WM_MOUSEMOVE:
-			// cronus::core::dispatch<cronus::user::State::MOVE>(cronus::user::Cursor((int_fast16_t)GET_X_LPARAM(lParam), (int_fast16_t)GET_Y_LPARAM(lParam)), GetMessageTime());
+			engine::hid::mouse_move((int_fast16_t)GET_X_LPARAM(lParam), (int_fast16_t)GET_Y_LPARAM(lParam), GetMessageTime());
 			break;
-		case WM_LBUTTONDOWN:
-			// cronus::core::dispatch<cronus::user::State::DOWN>(0x01, GetMessageTime());
-			break;
-		case WM_LBUTTONUP:
-			// cronus::core::dispatch<cronus::user::State::UP>(0x01, GetMessageTime());
-			break;
-		case WM_RBUTTONDOWN:
-			// cronus::core::dispatch<cronus::user::State::DOWN>(0x02, GetMessageTime());
-			break;
-		case WM_RBUTTONUP:
-			// cronus::core::dispatch<cronus::user::State::UP>(0x02, GetMessageTime());
-			break;
-		case WM_MBUTTONDOWN:
-			// cronus::core::dispatch<cronus::user::State::DOWN>(0x04, GetMessageTime());
-			break;
-		case WM_MBUTTONUP:
-			// cronus::core::dispatch<cronus::user::State::UP>(0x04, GetMessageTime());
-			break;
-		case WM_MOUSEWHEEL:
-			// cronus::core::dispatch_wheel((int)((int16_t)HIWORD(wParam) / WHEEL_DELTA), GetMessageTime());
-			break;
+		// case WM_LBUTTONDOWN:
+		// 	// cronus::core::dispatch<cronus::user::State::DOWN>(0x01, GetMessageTime());
+		// 	engine::hid::lbutton_down(GetMessageTime());
+		// 	break;
+		// case WM_LBUTTONUP:
+		// 	// cronus::core::dispatch<cronus::user::State::UP>(0x01, GetMessageTime());
+		// 	engine::hid::lbutton_up(GetMessageTime());
+		// 	break;
+		// case WM_RBUTTONDOWN:
+		// 	// cronus::core::dispatch<cronus::user::State::DOWN>(0x02, GetMessageTime());
+		// 	engine::hid::rbutton_down(GetMessageTime());
+		// 	break;
+		// case WM_RBUTTONUP:
+		// 	// cronus::core::dispatch<cronus::user::State::UP>(0x02, GetMessageTime());
+		// 	engine::hid::rbutton_up(GetMessageTime());
+		// 	break;
+		// case WM_MBUTTONDOWN:
+		// 	// cronus::core::dispatch<cronus::user::State::DOWN>(0x04, GetMessageTime());
+		// 	engine::hid::mbutton_down(GetMessageTime());
+		// 	break;
+		// case WM_MBUTTONUP:
+		// 	// cronus::core::dispatch<cronus::user::State::UP>(0x04, GetMessageTime());
+		// 	engine::hid::mbutton_up(GetMessageTime());
+		// 	break;
+		// case WM_MOUSEWHEEL:
+		// 	// cronus::core::dispatch_wheel((int)((int16_t)HIWORD(wParam) / WHEEL_DELTA), GetMessageTime());
+		// 	engine::hid::mouse_wheel((int_fast16_t)HIWORD(wParam), GetMessageTime());
+		// 	break;
 
 		case WM_CLOSE:
 			PostQuitMessage(0);

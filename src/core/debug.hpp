@@ -50,6 +50,14 @@
  * \note Is thread-safe.
  */
 # define debug_trace(channels, ...) core::debug::instance().trace(__FILE__, __LINE__, channels, __VA_ARGS__)
+/**
+ * Asserts that this path is never reached.
+ */
+# define debug_unreachable() \
+	do { \
+		debug_assert(false); \
+		std::terminate(); \
+	} while(false)
 #else
 /**
  * Does nothing.
@@ -67,6 +75,10 @@
  * Does nothing.
  */
 # define debug_trace(channels, ...)
+/**
+ * Does nothing.
+ */
+# define debug_unreachable() std::terminate()
 #endif
 
 #ifdef __GNUG__

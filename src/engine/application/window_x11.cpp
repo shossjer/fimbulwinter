@@ -28,8 +28,20 @@ namespace engine
 	{
 		namespace renderer
 		{
-			void notify_resize(const int width, const int height);
+			extern void notify_resize(const int width, const int height);
 		}
+	}
+	namespace hid
+	{
+		extern void key_press(const unsigned int keycode,
+		                      const unsigned int state,
+		                      const ::Time time);
+		extern void key_release(const unsigned int keycode,
+		                        const unsigned int state,
+		                        const ::Time time);
+		extern void motion_notify(const int x,
+		                          const int y,
+		                          const ::Time time);
 	}
 }
 
@@ -224,22 +236,22 @@ namespace
 				engine::graphics::renderer::notify_resize(event.xexpose.width,
 				                                          event.xexpose.height);
 				break;
-			// case KeyPress:
-			// 	// cronus::core::dispatch_key_press(event.xkey.keycode,
-			// 	//                                  event.xkey.state,
-			// 	//                                  event.xkey.time);
-			// 	break;
-			// case KeyRelease:
-			// 	// cronus::core::dispatch_key_release(event.xkey.keycode,
-			// 	//                                    event.xkey.state,
-			// 	//                                    event.xkey.time);
-			// 	break;
+			case KeyPress:
+				engine::hid::key_press(event.xkey.keycode,
+				                       event.xkey.state,
+				                       event.xkey.time);
+				break;
+			case KeyRelease:
+				engine::hid::key_release(event.xkey.keycode,
+				                         event.xkey.state,
+				                         event.xkey.time);
+				break;
 			case MapNotify:
 				break;
 			case MotionNotify:
-				// cronus::core::dispatch_motion_notify(event.xmotion.x,
-				//                                      event.xmotion.y,
-				//                                      event.xmotion.time);
+				engine::hid::motion_notify(event.xmotion.x,
+				                           event.xmotion.y,
+				                           event.xmotion.time);
 				break;
 			case ReparentNotify:
 				break;

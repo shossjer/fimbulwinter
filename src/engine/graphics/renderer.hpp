@@ -10,12 +10,6 @@ namespace engine
 {
 	namespace graphics
 	{
-		namespace renderer
-		{
-			void create();
-			void destroy();
-		}
-
 		/**  */
 		struct DrawArrays
 		{
@@ -24,6 +18,33 @@ namespace engine
 			// GLuint vbo;
 			// opengl::VertexBufferObject vbo;
 		};
+		/**  */
+		struct Point
+		{
+			core::maths::Matrix4x4f matrix;
+			float size;
+		};
+
+		/**  */
+		struct Rectangle
+		{
+			float red, green, blue;
+			float width, height;
+			float x, y, z; // offset from center
+		};
+
+		namespace renderer
+		{
+			void create();
+			void destroy();
+
+			template <typename T>
+			void add(const std::size_t object, const T & component);
+			void remove(std::size_t object);
+
+			template <typename T>
+			void set(const T & message);
+		}
 	}
 }
 

@@ -2,6 +2,8 @@
 #include <core/debug.hpp>
 #include <engine/application/window.hpp>
 #include <engine/graphics/renderer.hpp>
+#include <gameplay/game-menu.hpp>
+#include <gameplay/player.hpp>
 
 #include <config.h>
 
@@ -25,9 +27,15 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	engine::application::window::create(hInstance, nCmdShow);
 	engine::graphics::renderer::create();
 
+	gameplay::player::create();
+	gameplay::gamemenu::create();
+
 	const int ret = engine::application::window::execute();
 
 	debug_printline(0xffffffff, "loop is no more");
+
+	gameplay::gamemenu::destroy();
+	gameplay::player::destroy();
 
 	engine::graphics::renderer::destroy();
 	engine::application::window::destroy(hInstance);
@@ -40,9 +48,15 @@ int main(const int argc, const char *const argv[])
 	engine::application::window::create();
 	engine::graphics::renderer::create();
 
+	gameplay::player::create();
+	gameplay::gamemenu::create();
+
 	const int ret = engine::application::window::execute();
 
 	debug_printline(0xffffffff, "loop is no more");
+
+	gameplay::gamemenu::destroy();
+	gameplay::player::destroy();
 
 	engine::graphics::renderer::destroy();
 	engine::application::window::destroy();
