@@ -14,12 +14,12 @@
 #include <core/container/Stack.hpp>
 #include <core/maths/Matrix.hpp>
 #include <engine/debug.hpp>
+#include <utility/type_traits.hpp>
 
 #include <atomic>
 #include <cstring> // memset
 #include <stdexcept>
 #include <tuple>
-#include <type_traits> // mpl
 #include <utility>
 
 namespace engine
@@ -140,64 +140,6 @@ namespace
 		debug_unreachable();
 	}
 
-	namespace mpl
-	{
-		template <typename T>
-		using decay_t = typename std::decay<T>::type;
-
-		template <std::size_t N>
-		using index_constant = std::integral_constant<std::size_t, N>;
-
-
-		template <typename T>
-		struct type_is
-		{
-			using type = T;
-		};
-
-		template <typename ...Ts>
-		struct list {};
-
-		// template <std::size_t I, typename ...Ts>
-		// struct select;
-		// template <typename T, typename ...Ts>
-		// struct select<0, T, Ts...> : type_is<T> {};
-		// template <std::size_t I, typename T, typename ...Ts>
-		// struct select<I, T, Ts...> : select<I - 1, Ts...> {};
-		// template <std::size_t I, typename ...Ts>
-		// using select_t = typename select<I, Ts...>::type;
-
-		template <typename T, typename L>
-		struct index_of;
-		template <typename T, typename ...Ts>
-		struct index_of<T, list<T, Ts...>> : index_constant<0> {};
-		template <typename T, typename T1, typename ...Ts>
-		struct index_of<T, list<T1, Ts...>> : index_constant<1 + index_of<T, list<Ts...>>::value> {};
-
-		template <typename T, T ...Ns>
-		struct integral_sequence {};
-
-		template <typename T, typename S, T ...Ns>
-		struct append;
-		template <typename T, T ...Ms, T ...Ns>
-		struct append<T, integral_sequence<T, Ms...>, Ns...> : type_is<integral_sequence<T, Ns..., Ms...>> {};
-		template <typename T, typename S, T ...Ns>
-		using append_t = typename append<T, S, Ns...>::type;
-
-		template <typename T, T B, T E, typename S = integral_sequence<T>>
-		struct enumerate : type_is<typename enumerate<T, B + 1, E, append_t<T, S, B>>::type> {};
-		template <typename T, T E, typename S>
-		struct enumerate<T, E, E, S> : type_is<S> {};
-		template <typename T, T B, T E>
-		using enumerate_t = typename enumerate<T, B, E>::type;
-
-		template <typename T, T N>
-		using make_integral_sequence = enumerate_t<T, 0, N>;
-
-		template <std::size_t N>
-		using make_index_sequence = make_integral_sequence<std::size_t, N>;
-	}
-
 	template <std::size_t M, typename ...Arrays>
 	class HashCollection;
 	template <std::size_t M, typename ...Ts, std::size_t ...Ns>
@@ -239,7 +181,7 @@ namespace
 
 	public:
 		template <typename T, std::size_t I = mpl::index_of<mpl::decay_t<T>,
-		                                                    mpl::list<Ts...>>::value>
+		                                                    mpl::type_list<Ts...>>::value>
 		auto get() const -> decltype(std::get<I>(this->collections))
 		{
 			return std::get<I>(this->collections);
@@ -252,7 +194,7 @@ namespace
 		void add(const std::size_t object, T && component)
 		{
 			constexpr std::size_t I = mpl::index_of<mpl::decay_t<T>,
-			                                        mpl::list<Ts...>>::value;
+			                                        mpl::type_list<Ts...>>::value;
 			auto & collection = std::get<I>(this->collections);
 			debug_assert(collection.size < collection.capacity);
 
@@ -395,7 +337,7 @@ namespace
 				glViewport(0, 0, dimension.width, dimension.height);
 
 				// these calculations do not need opengl context
-				projection2D = core::maths::Matrix4x4f::ortho(0., dimension.width, dimension.height, 0., -1., 1.);
+				projection2D = core::maths::Matrix4x4f::ortho(0.f, dimension.width, dimension.height, 0.f, -1.f, 1.f);
 				projection3D = core::maths::Matrix4x4f::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
 			}
 			//

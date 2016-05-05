@@ -7,6 +7,7 @@
 #include "Context.hpp"
 
 #include <cstdint>
+#include <cstddef>
 
 #if WINDOW_USE_USER32
 # include <Windows.h>
