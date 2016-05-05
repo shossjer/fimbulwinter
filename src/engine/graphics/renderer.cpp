@@ -24,6 +24,13 @@
 
 namespace engine
 {
+	namespace physics
+	{
+		extern void setup();
+		extern void update();
+		extern void render();
+	}
+
 	namespace application
 	{
 		namespace window
@@ -296,6 +303,23 @@ namespace
 	               std::array<engine::graphics::Point, 100>,
 	               std::array<engine::graphics::Rectangle, 100>> collection;
 
+	void initLights()
+	{
+		// set up light colors (ambient, diffuse, specular)
+		GLfloat lightKa[] = { .2f, .2f, .2f, 1.0f };  // ambient light
+		GLfloat lightKd[] = { .7f, .7f, .7f, 1.0f };  // diffuse light
+		GLfloat lightKs[] = { 1, 1, 1, 1 };           // specular light
+		glLightfv(GL_LIGHT0, GL_AMBIENT, lightKa);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, lightKd);
+		glLightfv(GL_LIGHT0, GL_SPECULAR, lightKs);
+
+		// position the light
+		float lightPos[4] = { 0, 0, 20, 1 }; // positional light
+		glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+
+		glEnable(GL_LIGHT0);                        // MUST enable each light source after configuration
+	}
+
 	void render_callback()
 	{
 		graphics_debug_trace("render_callback starting");
@@ -308,9 +332,29 @@ namespace
 		graphics_debug_trace("glGetString GL_SHADING_LANGUAGE_VERSION: ", glGetString(GL_SHADING_LANGUAGE_VERSION));
 #endif
 
-		// pre-loop stuff
-		glClearDepth(1.0f);
+		glShadeModel(GL_SMOOTH);                    // shading mathod: GL_SMOOTH or GL_FLAT
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);      // 4-byte pixel alignment
+
+													// enable /disable features
+		glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+		//glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+		//glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_CULL_FACE);
+
+		// track material ambient and diffuse from surface color, call it before glEnable(GL_COLOR_MATERIAL)
+		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+		glEnable(GL_COLOR_MATERIAL);
+
+		//	glClearColor(0, 0, 0, 0);                   // background color
+		glClearStencil(0);                          // clear stencil buffer
+		glClearDepth(1.0f);                         // 0 is near, 1 is far
 		glDepthFunc(GL_LEQUAL);
+
+		initLights();
+
 		// vvvvvvvv tmp vvvvvvvv
 		{
 			engine::graphics::opengl::Font::Data data;
@@ -324,6 +368,8 @@ namespace
 			data.free();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
+
+		engine::physics::setup();
 
 		while (active)
 		{
@@ -355,7 +401,7 @@ namespace
 			glLoadMatrix(projection3D);
 			glMatrixMode(GL_MODELVIEW);
 			// vvvvvvvv tmp vvvvvvvv
-			view3D = core::maths::Matrix4x4f::translation(0.f, -1.f, -10.f);
+			view3D = core::maths::Matrix4x4f::translation(0.f, -1.f, -20.f);
 			// ^^^^^^^^ tmp ^^^^^^^^
 			modelview_matrix.load(view3D);
 
@@ -394,6 +440,9 @@ namespace
 			glVertex3f(0.f, 0.f, 0.f);
 			glVertex3f(0.f, 0.f, 100.f);
 			glEnd();
+
+			engine::physics::update();
+			engine::physics::render();
 
 			// setup 2D
 			glMatrixMode(GL_PROJECTION);

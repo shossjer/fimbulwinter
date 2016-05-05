@@ -17,8 +17,8 @@ endif()
 
 # set include paths
 if (MSVC)
-  set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
-  set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
+  set(CMAKE_PREFIX_PATH "../3rdparty/physx/Lib/;C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
+  set(CMAKE_INCLUDE_PATH "../3rdparty/physx/Include/;C:/Program Files (x86)/Windows Kits/8.1/Include/um")
 else()
   # gcc -xc++ -E -v /dev/null
   set(CMAKE_INCLUDE_PATH "/usr/include/c++/4.8;/usr/include/x86_64-linux-gnu/c++/4.8;/usr/include/c++/4.8/backward;/usr/lib/gcc/x86_64-linux-gnu/4.8/include;/usr/local/include;/usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed;/usr/include/x86_64-linux-gnu;/usr/include")
@@ -51,6 +51,8 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
+	src/engine/physics/handle.cpp
+	src/engine/physics/PhysxContainer.cpp
 	src/gameplay/game-menu.cpp
 	src/gameplay/player.cpp
 	)
@@ -78,6 +80,7 @@ set(TRIBUNAL_HEADER
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/events.hpp
 	src/engine/hid/input.hpp
+	src/engine/physics/PhysxContainer.hpp
 	src/gameplay/debug.hpp
 	src/gameplay/game-menu.hpp
 	src/gameplay/player.hpp
@@ -126,6 +129,7 @@ endif()
 
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
+include_directories("../3rdparty/physx/Include")
 
 enable_testing (true)
 add_subdirectory (tst)
@@ -175,6 +179,43 @@ find_file(FILE_X11_XLIB_H X11/Xlib.h)
 message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
 find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
+
+# Check that Physx header files exist
+find_file(FILE_PHYSX_HEADERS PxPhysicsAPI.h)
+
+message(STATUS "Looking for Physx header files - ${FILE_PHYSX_HEADERS}")
+
+find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x86)
+find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x86)
+find_library(LIBRARY_PHYSX_EXTENSIONS_D PhysX3ExtensionsDEBUG)
+find_library(LIBRARY_PHYSX_PROFILE_D PhysXProfileSDKDEBUG)
+find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x86)
+find_library(LIBRARY_PHYSX_CORE PhysX3_x86)
+find_library(LIBRARY_PHYSX_COMMON PhysX3Common_x86)
+find_library(LIBRARY_PHYSX_EXTENSIONS PhysX3Extensions)
+find_library(LIBRARY_PHYSX_PROFILE PhysXProfileSDK)
+find_library(LIBRARY_PHYSX_CHARACTER PhysX3CharacterKinematic_x86)
+
+message(STATUS "Looking for Physx core - ${LIBRARY_PHYSX_CORE}")
+message(STATUS "Looking for Physx commons - ${LIBRARY_PHYSX_COMMON}")
+message(STATUS "Looking for Physx extensions - ${LIBRARY_PHYSX_EXTENSIONS}")
+message(STATUS "Looking for Physx profile - ${LIBRARY_PHYSX_PROFILE}")
+message(STATUS "Looking for Physx character - ${LIBRARY_PHYSX_CHARACTER}")
+message(STATUS "Looking for Physx core debug - ${LIBRARY_PHYSX_CORE_D}")
+message(STATUS "Looking for Physx commons debug - ${LIBRARY_PHYSX_COMMON_D}")
+message(STATUS "Looking for Physx extensions debug - ${LIBRARY_PHYSX_EXTENSIONS_D}")
+message(STATUS "Looking for Physx profile debug - ${LIBRARY_PHYSX_PROFILE_D}")
+message(STATUS "Looking for Physx character debug - ${LIBRARY_PHYSX_CHARACTER_D}")
+
+# graphics libraries
+if (LIBRARY_PHYSX_CORE)
+  # debug sets lib for "debug" in VS and optimized sets lib for "release" mode in VS
+  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_CORE_D} optimized ${LIBRARY_PHYSX_CORE})
+  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_COMMON_D} optimized ${LIBRARY_PHYSX_COMMON})
+  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_EXTENSIONS_D} optimized ${LIBRARY_PHYSX_EXTENSIONS})
+  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_PROFILE_D} optimized ${LIBRARY_PHYSX_PROFILE})
+  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_CHARACTER_D} optimized ${LIBRARY_PHYSX_CHARACTER})
+endif()
 
 # select libraries
 # graphics
