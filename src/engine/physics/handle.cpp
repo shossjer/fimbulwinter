@@ -1,6 +1,12 @@
 
 #include <config.h>
 
+//   this needs to be first
+// vvvvvvvvvvvvvvvvvvvvvvvvvv
+#include "PhysxContainer.hpp"
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^
+//   this needs to be first
+
 #include <core/debug.hpp>
 #include <core/maths/Vector.hpp>
 
@@ -8,8 +14,7 @@
 #include <engine/graphics/opengl/Font.hpp>
 #include <engine/graphics/opengl/Matrix.hpp>
 
-#include "PhysxContainer.hpp"
-
+#include <stdexcept>
 #include <iostream>
 
 #include <engine/hid/input.hpp>
@@ -182,7 +187,7 @@ namespace physics
 		if (self == nullptr)
 		{
 			context.printError();
-			throw std::exception("Could not create self!");
+			throw std::runtime_error("Could not create self!");
 		}
 	}
 
