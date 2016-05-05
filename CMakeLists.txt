@@ -47,7 +47,6 @@ set(TRIBUNAL_SOURCE
 	src/engine/application/window.cpp
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
-	src/engine/physics/collision.cpp
 	)
 
 # source listing
@@ -71,7 +70,6 @@ set(TRIBUNAL_HEADER
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/renderer.hpp
-	src/engine/physics/collision.hpp
 	src/gameplay/debug.hpp
 	src/utility/algorithm.hpp
 	src/utility/inaccessible.hpp
