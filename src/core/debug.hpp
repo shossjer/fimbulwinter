@@ -4,34 +4,30 @@
 
 #include <config.h>
 
-#include <core/sync/CriticalSection.hpp>
+#include <utility/functional.hpp>
+#include <utility/spinlock.hpp>
 #include <utility/stream.hpp>
 
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <mutex>
+
+#if defined(_MSC_VER)
+# include <intrin.h>
+#endif
+
+#if defined(__GNUG__)
+// GCC complains abount missing parentheses in `debug_assert` if the
+// expression contains arithmetics.
+# pragma GCC diagnostic ignored "-Wparentheses"
+#endif
 
 #if MODE_DEBUG
 /**
  * Asserts that the condition is true.
  */
-# ifdef __GNUG__
-#  define debug_assert(cond, ...) core::debug::instance().assert(__FILE__, __LINE__, #cond, cond, ##__VA_ARGS__)
-# else
-#  define debug_assert(cond, ...) core::debug::instance().assert(__FILE__, __LINE__, #cond, cond, __VA_ARGS__)
-# endif
-/**
- * Prints the arguments to the console (without a newline).
- *
- * \note Is thread-safe.
- *
- * \note Also prints the arguments to the debug log.
- */
-# ifdef __GNUG__
-#  define debug_print(channels, ...) core::debug::instance().print(__FILE__, __LINE__, channels, ##__VA_ARGS__)
-# else
-#  define debug_print(channels, ...) core::debug::instance().print(__FILE__, __LINE__, channels, __VA_ARGS__)
-# endif
+# define debug_assert(expr) core::debug::instance().assert(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{})
 /**
  * Prints the arguments to the console (with a newline).
  *
@@ -55,6 +51,7 @@
  */
 # define debug_unreachable() \
 	do { \
+		/*__builtin_unreachable();*/ \
 		debug_assert(false); \
 		std::terminate(); \
 	} while(false)
@@ -62,11 +59,7 @@
 /**
  * Does nothing.
  */
-# define debug_assert(cond, ...)
-/**
- * Does nothing.
- */
-# define debug_print(channels, ...)
+# define debug_assert(expr)
 /**
  * Does nothing.
  */
@@ -82,11 +75,9 @@
 #endif
 
 #ifdef __GNUG__
-# define core_debug_print(...)     debug_print(core::core_channel, ##__VA_ARGS__)
 # define core_debug_printline(...) debug_printline(core::core_channel, ##__VA_ARGS__)
 # define core_debug_trace(...)     debug_trace(core::core_channel, ##__VA_ARGS__)
 #else
-# define core_debug_print(...)     debug_print(core::core_channel, __VA_ARGS__)
 # define core_debug_printline(...) debug_printline(core::core_channel, __VA_ARGS__)
 # define core_debug_trace(...)     debug_trace(core::core_channel, __VA_ARGS__)
 #endif
@@ -98,20 +89,93 @@ namespace core
 		core_channel = 1 << 0,
 		n_channels  = 1
 	};
-	
+
 	/**
 	 */
 	class debug
 	{
 	public:
+		struct empty_t {};
+		template <typename T>
+		struct value_t
+		{
+			T value;
+
+			value_t(T value) :
+				value(std::forward<T>(value))
+			{}
+		};
+
+		template <typename L>
+		struct compare_unary_t
+		{
+			using this_type = compare_unary_t<L>;
+
+			L left;
+
+			compare_unary_t(L left) :
+				left(left)
+			{}
+
+			auto operator () () ->
+				decltype(left.value)
+			{
+				return left.value;
+			}
+
+			friend std::ostream & operator << (std::ostream & stream, const this_type & comp)
+			{
+				return stream << "failed with value: " << utility::try_stream(comp.left.value);
+			}
+		};
+		template <typename L, typename R, typename F>
+		struct compare_binary_t
+		{
+			L left;
+			R right;
+
+			compare_binary_t(L left, R right) :
+				left(left),
+				right(right)
+			{}
+
+			auto operator () () ->
+				decltype(F{}(left.value, right.value))
+			{
+				return F{}(left.value, right.value);
+			}
+
+			friend std::ostream & operator << (std::ostream & stream, const compare_binary_t<L, R, F> & comp)
+			{
+				return stream << "failed with lhs: " << utility::try_stream(comp.left.value) << "\n"
+				              << "            rhs: " << utility::try_stream(comp.right.value);
+			}
+		};
+
+		template <typename L, typename R>
+		using compare_eq_t = compare_binary_t<L, R, utility::equal_to<>>;
+		template <typename L, typename R>
+		using compare_ne_t = compare_binary_t<L, R, utility::not_equal_to<>>;
+		template <typename L, typename R>
+		using compare_lt_t = compare_binary_t<L, R, utility::less<>>;
+		template <typename L, typename R>
+		using compare_le_t = compare_binary_t<L, R, utility::less_equal<>>;
+		template <typename L, typename R>
+		using compare_gt_t = compare_binary_t<L, R, utility::greater<>>;
+		template <typename L, typename R>
+		using compare_ge_t = compare_binary_t<L, R, utility::greater_equal<>>;
+	private:
+		using lock_t = utility::spinlock;
+
+	public:
 		/**
 		 */
 		using channel_t = unsigned int;
-		
+
 	private:
 		/**
 		 */
-		core::sync::CriticalSection cs;
+		lock_t lock;
 		/**
 		 */
 		channel_t mask;
@@ -127,78 +191,116 @@ namespace core
 	public:
 		/**
 		 */
-		template <std::size_t N, std::size_t M>
-		void assert(const char (&file_name)[N], const int line_number, const char (&cond_string)[M], const bool cond_value)
-			{
-				if (cond_value) return;
-				
-				std::lock_guard<core::sync::CriticalSection>(this->cs);
-				utility::to_stream(std::cerr, file_name, "@", line_number, ": ", cond_string, "\n");
-				std::cerr.flush();
-#if _MSC_VER
-				std::terminate();
+		template <std::size_t N, std::size_t M, typename C>
+		void assert(const char (&file_name)[N], const int line_number, const char (&expr)[M], C && comp)
+		{
+			if (comp()) return;
+
+			std::lock_guard<lock_t> guard{this->lock};
+			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", expr, "\n", comp, "\n");
+			std::cerr.flush();
+#if defined(__GNUG__)
+			__builtin_trap();
+#elif defined(_MSC_VER)
+			__debugbreak();
 #else
-				std::terminate();
+			std::terminate();
 #endif
-			}
-		/**
-		 */
-		template <std::size_t N, std::size_t M>
-		void assert(const char (&file_name)[N], const int line_number, const char (&cond_string)[M], const bool cond_value, const std::string &comment)
-			{
-				if (cond_value) return;
-				
-				std::lock_guard<core::sync::CriticalSection>(this->cs);
-				utility::to_stream(std::cerr, file_name, "@", line_number, ": ", cond_string, "\n", comment, "\n");
-				std::cerr.flush();
-				
-				std::terminate();
-			}
+		}
 		/**
 		 */
 		template <std::size_t N, typename ...Ts>
-		void print(const char (&file_name)[N], const int line_number, const channel_t channels, Ts &&...ts)
-			{
-				// TODO:
-				if ((this->mask & channels) == 0) return;
-				
-				std::lock_guard<core::sync::CriticalSection>(this->cs);
-				utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ts>(ts)...);
-				std::cout.flush();
-			}
-		/**
-		 */
-		template <std::size_t N, typename ...Ts>
-		void printline(const char (&file_name)[N], const int line_number, const channel_t channels, Ts &&...ts)
-			{
-				// TODO:
-				if ((this->mask & channels) == 0) return;
-				
-				std::lock_guard<core::sync::CriticalSection>(this->cs);
-				utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
-				std::cout.flush();
-			}
+		void printline(const char (&file_name)[N], const int line_number, const channel_t channels, Ts && ...ts)
+		{
+			// TODO:
+			if ((this->mask & channels) == 0) return;
+
+			std::lock_guard<lock_t> guard{this->lock};
+			utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
+			std::cout.flush();
+		}
 		/**
 		 */
 		template <std::size_t N, typename ...Ts>
 		void trace(const char (&file_name)[N], const int line_number, const channel_t channels, Ts &&...ts)
-			{
-				// TODO:
-				std::lock_guard<core::sync::CriticalSection>(this->cs);
-				utility::to_stream(std::cerr, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
-				std::cerr.flush();
-			}
+		{
+			// TODO:
+			std::lock_guard<lock_t> guard{this->lock};
+			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
+			std::cerr.flush();
+		}
 
 	public:
 		/**
 		 */
-		static debug &instance()
-			{
-				static debug var;
+		static debug & instance()
+		{
+			static debug var;
 
-				return var;
-			}
+			return var;
+		}
 	};
+
+	template <typename T,
+	          typename = mpl::disable_if_t<std::is_fundamental<mpl::decay_t<T>>::value>>
+	debug::value_t<T &&> operator >> (debug::empty_t &&, T && value)
+	{
+		return debug::value_t<T &&>{std::forward<T>(value)};
+	}
+	template <typename T,
+	          typename = mpl::enable_if_t<std::is_fundamental<T>::value>>
+	debug::value_t<T> operator >> (debug::empty_t &&, T value)
+	{
+		return debug::value_t<T>{value};
+	}
+	template <typename T,
+	          typename = mpl::disable_if_t<std::is_fundamental<mpl::decay_t<T>>::value>>
+	debug::value_t<T &&> operator << (T && value, debug::empty_t &&)
+	{
+		return debug::value_t<T &&>{std::forward<T>(value)};
+	}
+	template <typename T,
+	          typename = mpl::enable_if_t<std::is_fundamental<T>::value>>
+	debug::value_t<T> operator << (T value, debug::empty_t &&)
+	{
+		return debug::value_t<T>{value};
+	}
+
+	template <typename L>
+	debug::compare_unary_t<debug::value_t<L>> operator << (debug::value_t<L> && v, debug::empty_t &&)
+	{
+		return debug::compare_unary_t<debug::value_t<L>>{v};
+	}
+	template <typename L, typename R>
+	debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>> operator == (debug::value_t<L> && left, debug::value_t<R> && right)
+	{
+		return debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+	}
+	template <typename L, typename R>
+	debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>> operator != (debug::value_t<L> && left, debug::value_t<R> && right)
+	{
+		return debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+	}
+	template <typename L, typename R>
+	debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>> operator < (debug::value_t<L> && left, debug::value_t<R> && right)
+	{
+		return debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+	}
+	template <typename L, typename R>
+	debug::compare_le_t<debug::value_t<L>, debug::value_t<R>> operator <= (debug::value_t<L> && left, debug::value_t<R> && right)
+	{
+		return debug::compare_le_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+	}
+	template <typename L, typename R>
+	debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>> operator > (debug::value_t<L> && left, debug::value_t<R> && right)
+	{
+		return debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+	}
+	template <typename L, typename R>
+	debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>> operator >= (debug::value_t<L> && left, debug::value_t<R> && right)
+	{
+		return debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+	}
 }
 
 #endif /* CORE_DEBUG_HPP */

@@ -15,6 +15,10 @@ namespace mpl
 	//  std-extensions
 	//
 	//////////////////////////////////////////////////////////////////
+	// true/false type
+	using std::true_type;
+	using std::false_type;
+
 	// integral_constant
 	using std::integral_constant;
 
@@ -37,6 +41,10 @@ namespace mpl
 	template <typename T, typename U>
 	using is_different = boolean_constant<!is_same<T, U>::value>;
 
+	using std::remove_reference;
+	template <typename T>
+	using remove_reference_t = typename remove_reference<T>::type;
+
 	using std::decay;
 	template <typename T>
 	using decay_t = typename decay<T>::type;
@@ -51,6 +59,11 @@ namespace mpl
 	{
 		using type = T;
 	};
+
+	template <typename ...>
+	struct void_impl : type_is<void> {};
+	template <typename ...Ps>
+	using void_t = typename void_impl<Ps...>::type;
 
 	////////////////////////////////////////////////////////////////////////////
 	//

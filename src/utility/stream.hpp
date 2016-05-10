@@ -2,11 +2,23 @@
 #ifndef UTILITY_STREAM_HPP
 #define UTILITY_STREAM_HPP
 
+#include "type_traits.hpp"
+
 #include <istream>
 #include <ostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+namespace mpl
+{
+	template <typename T, typename = void>
+	struct is_ostreamable_impl : mpl::false_type {};
+	template <typename T>
+	struct is_ostreamable_impl<T, mpl::void_t<decltype(std::declval<std::ostream &>() << std::declval<T>())>> : mpl::true_type {};
+	template <typename T>
+	using is_ostreamable = is_ostreamable_impl<T>;
+}
 
 namespace utility
 {
@@ -52,6 +64,34 @@ namespace utility
 		throw std::invalid_argument("");
 	}
 
+	template <typename T, typename = void>
+	struct try_stream_t
+	{
+		try_stream_t(T t) {}
+
+		friend std::ostream & operator << (std::ostream & stream, try_stream_t<T> t)
+		{
+			return stream << "???";
+		}
+	};
+	template <typename T>
+	struct try_stream_t<T, mpl::enable_if_t<mpl::is_ostreamable<T>{}>>
+	{
+		T t;
+
+		try_stream_t(T t) : t(t) {}
+
+		friend std::ostream & operator << (std::ostream & stream, try_stream_t<T> t)
+		{
+			return stream << t.t;
+		}
+	};
+	template <typename T>
+	try_stream_t<T &&> try_stream(T && t)
+	{
+		return try_stream_t<T &&>{std::forward<T>(t)};
+	}
+
 	/**
 	 */
 	inline std::vector<std::string> &split(std::istream &stream, const char delimiter, std::vector<std::string> &words, const bool remove_whitespaces = false)
@@ -63,9 +103,9 @@ namespace utility
 				words.emplace_back();
 		}
 		while (std::getline(stream, words.back(), delimiter));
-		
+
 		words.pop_back();
-		
+
 		return words;
 	}
 }

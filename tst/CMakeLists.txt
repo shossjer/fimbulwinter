@@ -24,6 +24,7 @@ include_directories("${CMAKE_BINARY_DIR}/catch/src/catch/include")
 set(TRIBUNAL_TEST_SOURCE
 	main.cpp
 	core/async/delayTest.cpp
+	core/debug.cpp
 	core/maths/Matrix.cpp
 	core/maths/Quaternion.cpp
 	core/maths/Vector.cpp
