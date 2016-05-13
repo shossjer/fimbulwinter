@@ -19,9 +19,6 @@ endif()
 if (MSVC)
   set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
   set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
-else()
-  # gcc -xc++ -E -v /dev/null
-  set(CMAKE_INCLUDE_PATH "/usr/include/c++/4.8;/usr/include/x86_64-linux-gnu/c++/4.8;/usr/include/c++/4.8/backward;/usr/lib/gcc/x86_64-linux-gnu/4.8/include;/usr/local/include;/usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed;/usr/include/x86_64-linux-gnu;/usr/include")
 endif()
 
 # project information
@@ -110,19 +107,6 @@ foreach(FILE ${TRIBUNAL_FILES})
 endforeach()
 
 add_executable(Tribunal ${TRIBUNAL_FILES})
-
-# compiler flags
-if (MSVC)
-#  set(CMAKE_CXX_FLAGS "/W ${CMAKE_CXX_FLAGS}")
-
-#  set(CMAKE_CXX_FLAGS_DEBUG "")
-#  set(CMAKE_CXX_FLAGS_RELEASE "")
-else()
-  set(CMAKE_CXX_FLAGS "-std=c++11 -Wall ${CMAKE_CXX_FLAGS}")
-
-  set(CMAKE_CXX_FLAGS_DEBUG "-g")
-  set(CMAKE_CXX_FLAGS_RELEASE "")
-endif()
 
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")

@@ -82,7 +82,7 @@ namespace core
 				template <typename ...Ps,
 				          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
 				Vector(Ps && ...ps) :
-					values{value_type{std::forward<Ps>(ps)}...}
+					values{{value_type{std::forward<Ps>(ps)}...}}
 				{
 				}
 
@@ -154,7 +154,7 @@ namespace core
 				          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
 				void set(Ps && ...ps)
 				{
-					this->values = {std::forward<Ps>(ps)...};
+					this->values = {{std::forward<Ps>(ps)...}};
 				}
 				void set(const array_type & buffer)
 				{
@@ -179,7 +179,7 @@ namespace core
 			using value_type = typename base_type::value_type;
 
 		public:
-			using base_type::Vector;
+			using base_type::base_type;
 
 		public:
 			friend this_type operator * (const Scalar<value_type> & s1, const this_type & v2)
@@ -223,7 +223,7 @@ namespace core
 			using value_type = typename base_type::value_type;
 
 		public:
-			using base_type::Vector;
+			using base_type::base_type;
 
 		public:
 			friend this_type operator * (const Scalar<value_type> & s1, const this_type & v2)
@@ -299,7 +299,7 @@ namespace core
 			using value_type = typename base_type::value_type;
 
 		public:
-			using base_type::Vector;
+			using base_type::base_type;
 
 		public:
 			friend this_type operator * (const Scalar<value_type> & s1, const this_type & v2)

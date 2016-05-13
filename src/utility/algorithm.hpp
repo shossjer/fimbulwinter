@@ -177,9 +177,9 @@ namespace utl
 	template <typename Array, std::size_t ...Is>
 	inline auto shuffle(Array && array,
 	                    mpl::index_sequence<Is...>) ->
-		decltype(mpl::decay_t<Array>{std::get<Is>(array)...})
+		decltype(mpl::decay_t<Array>{{std::get<Is>(array)...}})
 	{
-		return mpl::decay_t<Array>{std::get<Is>(array)...};
+		return mpl::decay_t<Array>{{std::get<Is>(array)...}};
 	}
 
 	template <std::size_t N, typename Array>

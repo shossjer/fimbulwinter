@@ -62,32 +62,32 @@ TEST_CASE( "vector copy construction", "[maths]" )
 	{
 		core::maths::Vector2f vec1{1.f, 2.f};
 		core::maths::Vector2f vec2{vec1};
-		require(vec2, {1, 2});
+		require(vec2, {{1, 2}});
 	}
 	{
 		core::maths::Vector3f vec1{1.f, 2.f, 3.f};
 		core::maths::Vector3f vec2{vec1};
-		require(vec2, {1, 2, 3});
+		require(vec2, {{1, 2, 3}});
 	}
 	{
 		core::maths::Vector4f vec1{1.f, 2.f, 3.f, 4.f};
 		core::maths::Vector4f vec2{vec1};
-		require(vec2, {1, 2, 3, 4});
+		require(vec2, {{1, 2, 3, 4}});
 	}
 	{
 		core::maths::Vector2d vec1{1., 2.};
 		core::maths::Vector2d vec2{vec1};
-		require(vec2, {1, 2});
+		require(vec2, {{1, 2}});
 	}
 	{
 		core::maths::Vector3d vec1{1., 2., 3.};
 		core::maths::Vector3d vec2{vec1};
-		require(vec2, {1, 2, 3});
+		require(vec2, {{1, 2, 3}});
 	}
 	{
 		core::maths::Vector4d vec1{1., 2., 3., 4.};
 		core::maths::Vector4d vec2{vec1};
-		require(vec2, {1, 2, 3, 4});
+		require(vec2, {{1, 2, 3, 4}});
 	}
 }
 
@@ -95,27 +95,27 @@ TEST_CASE( "vector construction", "[maths]" )
 {
 	{
 		core::maths::Vector2f vec{1.f, 2.f};
-		require(vec, {1, 2});
+		require(vec, {{1, 2}});
 	}
 	{
 		core::maths::Vector3f vec{1.f, 2.f, 3.f};
-		require(vec, {1, 2, 3});
+		require(vec, {{1, 2, 3}});
 	}
 	{
 		core::maths::Vector4f vec{1.f, 2.f, 3.f, 4.f};
-		require(vec, {1, 2, 3, 4});
+		require(vec, {{1, 2, 3, 4}});
 	}
 	{
 		core::maths::Vector2d vec{1., 2.};
-		require(vec, {1, 2});
+		require(vec, {{1, 2}});
 	}
 	{
 		core::maths::Vector3d vec{1., 2., 3.};
-		require(vec, {1, 2, 3});
+		require(vec, {{1, 2, 3}});
 	}
 	{
 		core::maths::Vector4d vec{1., 2., 3., 4.};
-		require(vec, {1, 2, 3, 4});
+		require(vec, {{1, 2, 3, 4}});
 	}
 }
 
@@ -124,32 +124,32 @@ TEST_CASE( "vector copy assignment", "[maths]" )
 	{
 		core::maths::Vector2f vec;
 		vec = core::maths::Vector2f{1.f, 2.f};
-		require(vec, {1, 2});
+		require(vec, {{1, 2}});
 	}
 	{
 		core::maths::Vector3f vec;
 		vec = core::maths::Vector3f{1.f, 2.f, 3.f};
-		require(vec, {1, 2, 3});
+		require(vec, {{1, 2, 3}});
 	}
 	{
 		core::maths::Vector4f vec;
 		vec = core::maths::Vector4f{1.f, 2.f, 3.f, 4.f};
-		require(vec, {1, 2, 3, 4});
+		require(vec, {{1, 2, 3, 4}});
 	}
 	{
 		core::maths::Vector2d vec;
 		vec = core::maths::Vector2d{1., 2.};
-		require(vec, {1, 2});
+		require(vec, {{1, 2}});
 	}
 	{
 		core::maths::Vector3d vec;
 		vec = core::maths::Vector3d{1., 2., 3.};
-		require(vec, {1, 2, 3});
+		require(vec, {{1, 2, 3}});
 	}
 	{
 		core::maths::Vector4d vec;
 		vec = core::maths::Vector4d{1., 2., 3., 4.};
-		require(vec, {1, 2, 3, 4});
+		require(vec, {{1, 2, 3, 4}});
 	}
 }
 
@@ -169,10 +169,10 @@ namespace
 		core::maths::Vector<N, T> vec1{T(N1s)...};
 		core::maths::Vector<N, T> vec2{T(N2s)...};
 
-		require(vec1 + vec2, {T(N3s)...});
+		require(vec1 + vec2, {{T(N3s)...}});
 
 		vec1 += vec2;
-		require(vec1, {T(N3s)...});
+		require(vec1, {{T(N3s)...}});
 	}
 	template <typename T, std::size_t N>
 	void vector_addition()
@@ -206,10 +206,10 @@ namespace
 		core::maths::Vector<N, T> vec1{T(N1s)...};
 		core::maths::Vector<N, T> vec2{T(N2s)...};
 
-		require(vec1 - vec2, {T(N3s)...});
+		require(vec1 - vec2, {{T(N3s)...}});
 
 		vec1 -= vec2;
-		require(vec1, {T(N3s)...});
+		require(vec1, {{T(N3s)...}});
 	}
 	template <typename T, std::size_t N>
 	void vector_subtraction()
@@ -243,11 +243,11 @@ namespace
 	{
 		core::maths::Vector<N, T> vec1{T(N1s)...};
 
-		require(vec1 * T(2), {T(N2s)...});
-		require(T(3) * vec1, {T(N3s)...});
+		require(vec1 * T(2), {{T(N2s)...}});
+		require(T(3) * vec1, {{T(N3s)...}});
 
 		vec1 *= T(5);
-		require(vec1, {T(N4s)...});
+		require(vec1, {{T(N4s)...}});
 	}
 	template <typename T, std::size_t N>
 	void vector_multiplication()
@@ -283,11 +283,11 @@ namespace
 	{
 		core::maths::Vector<N, T> vec1{T(N1s)...};
 
-		require(vec1 / T(2), {T(N2s)...});
+		require(vec1 / T(2), {{T(N2s)...}});
 		// require(T(3) / vec1, {T(N3s)...}); // TODO: make it compile
 
 		vec1 /= T(5);
-		require(vec1, {T(N4s)...});
+		require(vec1, {{T(N4s)...}});
 	}
 	template <typename T, std::size_t N>
 	void vector_division()
@@ -328,16 +328,16 @@ namespace
 	{
 		core::maths::Vector<N, T> vec;
 		vec.set(T(N1s)...);
-		require(vec, {N1s...});
+		require(vec, {{N1s...}});
 
 		typename core::maths::Vector<N, T>::array_type buffer = {N2s...};
 		vec.set(buffer);
-		require(vec, {N2s...});
+		require(vec, {{N2s...}});
 
 		// TODO: make aligned
 		typename core::maths::Vector<N, T>::array_type aligned_buffer = {N3s...};
 		vec.set_aligned(aligned_buffer);
-		require(vec, {N3s...});
+		require(vec, {{N3s...}});
 	}
 	template <typename T, std::size_t N>
 	void vector_set()
@@ -371,13 +371,13 @@ TEST_CASE( "vector cross", "[maths]" )
 {
 	using namespace core::maths;
 
-	require(cross(Vector3f{1.f, 0.f, 0.f}, Vector3f{0.f, 1.f, 0.f}), {0.f, 0.f, 1.f});
-	require(cross(Vector3f{0.f, 1.f, 0.f}, Vector3f{0.f, 0.f, 1.f}), {1.f, 0.f, 0.f});
-	require(cross(Vector3f{0.f, 0.f, 1.f}, Vector3f{1.f, 0.f, 0.f}), {0.f, 1.f, 0.f});
+	require(cross(Vector3f{1.f, 0.f, 0.f}, Vector3f{0.f, 1.f, 0.f}), {{0.f, 0.f, 1.f}});
+	require(cross(Vector3f{0.f, 1.f, 0.f}, Vector3f{0.f, 0.f, 1.f}), {{1.f, 0.f, 0.f}});
+	require(cross(Vector3f{0.f, 0.f, 1.f}, Vector3f{1.f, 0.f, 0.f}), {{0.f, 1.f, 0.f}});
 
-	require(cross(Vector3d{1., 0., 0.}, Vector3d{0., 1., 0.}), {0., 0., 1.});
-	require(cross(Vector3d{0., 1., 0.}, Vector3d{0., 0., 1.}), {1., 0., 0.});
-	require(cross(Vector3d{0., 0., 1.}, Vector3d{1., 0., 0.}), {0., 1., 0.});
+	require(cross(Vector3d{1., 0., 0.}, Vector3d{0., 1., 0.}), {{0., 0., 1.}});
+	require(cross(Vector3d{0., 1., 0.}, Vector3d{0., 0., 1.}), {{1., 0., 0.}});
+	require(cross(Vector3d{0., 0., 1.}, Vector3d{1., 0., 0.}), {{0., 1., 0.}});
 }
 
 TEST_CASE( "vector dot", "[maths]" )
@@ -397,11 +397,11 @@ TEST_CASE( "vector lerp", "[maths]" )
 {
 	using namespace core::maths;
 
-	require(lerp(Vector2f{1.f, 2.f}          , Vector2f{2.f, 3.f}          , .5f), {1.5f, 2.5f});
-	require(lerp(Vector3f{1.f, 2.f, 3.f}     , Vector3f{2.f, 3.f, 5.f}     , .5f), {1.5f, 2.5f, 4.f});
-	require(lerp(Vector4f{1.f, 2.f, 3.f, 4.f}, Vector4f{2.f, 3.f, 5.f, 7.f}, .5f), {1.5f, 2.5f, 4.f, 5.5f});
+	require(lerp(Vector2f{1.f, 2.f}          , Vector2f{2.f, 3.f}          , .5f), {{1.5f, 2.5f}});
+	require(lerp(Vector3f{1.f, 2.f, 3.f}     , Vector3f{2.f, 3.f, 5.f}     , .5f), {{1.5f, 2.5f, 4.f}});
+	require(lerp(Vector4f{1.f, 2.f, 3.f, 4.f}, Vector4f{2.f, 3.f, 5.f, 7.f}, .5f), {{1.5f, 2.5f, 4.f, 5.5f}});
 
-	require(lerp(Vector2d{1., 2.}        , Vector2d{2., 3.}        , .5), {1.5, 2.5});
-	require(lerp(Vector3d{1., 2., 3.}    , Vector3d{2., 3., 5.}    , .5), {1.5, 2.5, 4.});
-	require(lerp(Vector4d{1., 2., 3., 4.}, Vector4d{2., 3., 5., 7.}, .5), {1.5, 2.5, 4., 5.5});
+	require(lerp(Vector2d{1., 2.}        , Vector2d{2., 3.}        , .5), {{1.5, 2.5}});
+	require(lerp(Vector3d{1., 2., 3.}    , Vector3d{2., 3., 5.}    , .5), {{1.5, 2.5, 4.}});
+	require(lerp(Vector4d{1., 2., 3., 4.}, Vector4d{2., 3., 5., 7.}, .5), {{1.5, 2.5, 4., 5.5}});
 }

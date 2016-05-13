@@ -50,12 +50,12 @@ TEST_CASE( "quaternion copy construction", "[maths]" )
 	{
 		Quaternionf quat1{2.f, 3.f, 5.f, 7.f};
 		Quaternionf quat2{quat1};
-		require(quat2, {2.f, 3.f, 5.f, 7.f});
+		require(quat2, {{2.f, 3.f, 5.f, 7.f}});
 	}
 	{
 		Quaterniond quat1{2., 3., 5., 7.};
 		Quaterniond quat2{quat1};
-		require(quat2, {2., 3., 5., 7.});
+		require(quat2, {{2., 3., 5., 7.}});
 	}
 }
 
@@ -64,11 +64,11 @@ TEST_CASE( "quaternion construction", "[maths]" )
 	using namespace core::maths;
 	{
 		Quaternionf quat1{2.f, 3.f, 5.f, 7.f};
-		require(quat1, {2.f, 3.f, 5.f, 7.f});
+		require(quat1, {{2.f, 3.f, 5.f, 7.f}});
 	}
 	{
 		Quaterniond quat1{2., 3., 5., 7.};
-		require(quat1, {2., 3., 5., 7.});
+		require(quat1, {{2., 3., 5., 7.}});
 	}
 }
 
@@ -78,12 +78,12 @@ TEST_CASE( "quaternion copy assignment", "[maths]" )
 	{
 		Quaternionf quat1;
 		quat1 = Quaternionf{2.f, 3.f, 5.f, 7.f};
-		require(quat1, {2.f, 3.f, 5.f, 7.f});
+		require(quat1, {{2.f, 3.f, 5.f, 7.f}});
 	}
 	{
 		Quaternionf quat1;
 		quat1 = Quaternionf{2., 3., 5., 7.};
-		require(quat1, {2., 3., 5., 7.});
+		require(quat1, {{2., 3., 5., 7.}});
 	}
 }
 

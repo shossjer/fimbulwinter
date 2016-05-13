@@ -58,10 +58,10 @@ TEST_CASE( "matrix copy construction", "[maths]" )
 	                                -13.f,  14.f, -15.f,  16.f};
 	core::maths::Matrix4x4f matrix2{matrix1};
 	require(matrix2,
-	        {  1.f,  -2.f,   3.f,  -4.f,
-	          -5.f,   6.f,  -7.f,   8.f,
-	           9.f, -10.f,  11.f, -12.f,
-	         -13.f,  14.f, -15.f,  16.f});
+	        {{  1.f,  -2.f,   3.f,  -4.f,
+	           -5.f,   6.f,  -7.f,   8.f,
+	            9.f, -10.f,  11.f, -12.f,
+	          -13.f,  14.f, -15.f,  16.f}});
 }
 
 TEST_CASE( "matrix construction", "[maths]" )
@@ -71,10 +71,10 @@ TEST_CASE( "matrix construction", "[maths]" )
 	                                 9.f, -10.f,  11.f, -12.f,
 	                               -13.f,  14.f, -15.f,  16.f};
 	require(matrix,
-	        {  1.f,  -2.f,   3.f,  -4.f,
-	          -5.f,   6.f,  -7.f,   8.f,
-	           9.f, -10.f,  11.f, -12.f,
-	         -13.f,  14.f, -15.f,  16.f});
+	        {{  1.f,  -2.f,   3.f,  -4.f,
+	           -5.f,   6.f,  -7.f,   8.f,
+	            9.f, -10.f,  11.f, -12.f,
+	          -13.f,  14.f, -15.f,  16.f}});
 }
 
 TEST_CASE( "matrix copy assignment", "[maths]")
@@ -85,10 +85,10 @@ TEST_CASE( "matrix copy assignment", "[maths]")
 	                                   9.f, -10.f,  11.f, -12.f,
 	                                 -13.f,  14.f, -15.f,  16.f};
 	require(matrix,
-	        {  1.f,  -2.f,   3.f,  -4.f,
-	          -5.f,   6.f,  -7.f,   8.f,
-	           9.f, -10.f,  11.f, -12.f,
-	         -13.f,  14.f, -15.f,  16.f});
+	        {{  1.f,  -2.f,   3.f,  -4.f,
+	           -5.f,   6.f,  -7.f,   8.f,
+	            9.f, -10.f,  11.f, -12.f,
+	          -13.f,  14.f, -15.f,  16.f}});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,15 +108,15 @@ TEST_CASE( "matrix multiplication", "[maths]" )
 	                                 23.f,  29.f,  31.f,  37.f,
 	                                 41.f,  43.f,  47.f,  53.f};
 	require(matrix1 * matrix2,
-	        {-115.f, -108.f, -124.f, -132.f,
-	          223.f,  204.f,  236.f,  244.f,
-	         -331.f, -300.f, -348.f, -356.f,
-	          439.f,  396.f,  460.f,  468.f});
+	        {{-115.f, -108.f, -124.f, -132.f,
+	           223.f,  204.f,  236.f,  244.f,
+	          -331.f, -300.f, -348.f, -356.f,
+	           439.f,  396.f,  460.f,  468.f}});
 	require(matrix1 *= matrix2,
-	        {-115.f, -108.f, -124.f, -132.f,
-	          223.f,  204.f,  236.f,  244.f,
-	         -331.f, -300.f, -348.f, -356.f,
-	          439.f,  396.f,  460.f,  468.f});
+	        {{-115.f, -108.f, -124.f, -132.f,
+	           223.f,  204.f,  236.f,  244.f,
+	          -331.f, -300.f, -348.f, -356.f,
+	           439.f,  396.f,  460.f,  468.f}});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,10 +133,10 @@ TEST_CASE( "matrix set", "[maths]")
 	            9.f, 10.f, 11.f, 12.f,
 	           13.f, 14.f, 15.f, 16.f);
 	require(matrix,
-	        { 1.f,  2.f,  3.f,  4.f,
-	          5.f,  6.f,  7.f,  8.f,
-	          9.f, 10.f, 11.f, 12.f,
-	         13.f, 14.f, 15.f, 16.f});
+	        {{ 1.f,  2.f,  3.f,  4.f,
+	           5.f,  6.f,  7.f,  8.f,
+	           9.f, 10.f, 11.f, 12.f,
+	          13.f, 14.f, 15.f, 16.f}});
 
 	core::maths::Matrix4x4f::array_type buffer = { 1.f, -5.f,   9.f, -13.f,
 	                                              -2.f,  6.f, -10.f,  14.f,
@@ -144,10 +144,10 @@ TEST_CASE( "matrix set", "[maths]")
 	                                              -4.f,  8.f, -12.f,  16.f};
 	matrix.set(buffer);
 	require(matrix,
-	        {  1.f,  -2.f,   3.f,  -4.f,
-	          -5.f,   6.f,  -7.f,   8.f,
-	           9.f, -10.f,  11.f, -12.f,
-	         -13.f,  14.f, -15.f,  16.f});
+	        {{  1.f,  -2.f,   3.f,  -4.f,
+	           -5.f,   6.f,  -7.f,   8.f,
+	            9.f, -10.f,  11.f, -12.f,
+	          -13.f,  14.f, -15.f,  16.f}});
 
 	// TODO: make aligned
 	core::maths::Matrix4x4f::array_type aligned_buffer = {2.f, 11.f, 23.f, 41.f,
@@ -156,10 +156,10 @@ TEST_CASE( "matrix set", "[maths]")
 	                                                      7.f, 19.f, 37.f, 53.f};
 	matrix.set_aligned(aligned_buffer);
 	require(matrix,
-	        {  2.f,  3.f,  5.f,  7.f,
-	          11.f, 13.f, 17.f, 19.f,
-	          23.f, 29.f, 31.f, 37.f,
-	          41.f, 43.f, 47.f, 53.f});
+	        {{  2.f,  3.f,  5.f,  7.f,
+	           11.f, 13.f, 17.f, 19.f,
+	           23.f, 29.f, 31.f, 37.f,
+	           41.f, 43.f, 47.f, 53.f}});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -171,44 +171,44 @@ TEST_CASE( "matrix set", "[maths]")
 TEST_CASE( "matrix identity", "[maths]" )
 {
 	require(core::maths::Matrix4x4f::identity(),
-	        {1.f, 0.f, 0.f, 0.f,
-	         0.f, 1.f, 0.f, 0.f,
-	         0.f, 0.f, 1.f, 0.f,
-	         0.f, 0.f, 0.f, 1.f});
+	        {{1.f, 0.f, 0.f, 0.f,
+	          0.f, 1.f, 0.f, 0.f,
+	          0.f, 0.f, 1.f, 0.f,
+	          0.f, 0.f, 0.f, 1.f}});
 }
 
 TEST_CASE( "matrix ortho", "[maths]" )
 {
 	require(core::maths::Matrix4x4f::ortho(-2, 3, -5, 7, -11, 13),
-	        {0.4f, 0.f     ,  0.f     , -0.2f    ,
-	         0.f , 0.16667f,  0.f     , -0.16667f,
-	         0.f , 0.f     , -0.08333f, -0.08333f,
-	         0.f , 0.f     ,  0.f     ,  1.f     });
+	        {{0.4f, 0.f     ,  0.f     , -0.2f    ,
+	          0.f , 0.16667f,  0.f     , -0.16667f,
+	          0.f , 0.f     , -0.08333f, -0.08333f,
+	          0.f , 0.f     ,  0.f     ,  1.f     }});
 }
 
 TEST_CASE( "matrix perspective", "[maths]" )
 {
 	require(core::maths::Matrix4x4f::perspective(core::maths::make_degree(90.f), 4.f / 3.f, 1, 128),
-	        {0.75f, 0.f,  0.f     ,  0.f     ,
-	         0.f  , 1.f,  0.f     ,  0.f     ,
-	         0.f  , 0.f, -1.01575f, -2.01575f,
-	         0.f  , 0.f, -1.f     ,  0.f     });
+	        {{0.75f, 0.f,  0.f     ,  0.f     ,
+	          0.f  , 1.f,  0.f     ,  0.f     ,
+	          0.f  , 0.f, -1.01575f, -2.01575f,
+	          0.f  , 0.f, -1.f     ,  0.f     }});
 }
 
 TEST_CASE( "matrix rotation", "[maths]" )
 {
 	require(core::maths::Matrix4x4f::rotation(core::maths::make_degree(90.f), 1, 1, 1),
-	        { 0.33333f, -0.24402f,  0.91068f, 0.f,
-	          0.91068f,  0.33333f, -0.24402f, 0.f,
-	         -0.24402f,  0.91068f,  0.33333f, 0.f,
-	          0.f     ,  0.f     ,  0.f     , 1.f});
+	        {{ 0.33333f, -0.24402f,  0.91068f, 0.f,
+	           0.91068f,  0.33333f, -0.24402f, 0.f,
+	          -0.24402f,  0.91068f,  0.33333f, 0.f,
+	           0.f     ,  0.f     ,  0.f     , 1.f}});
 }
 
 TEST_CASE( "matrix translation", "[maths]" )
 {
 	require(core::maths::Matrix4x4f::translation(2, 3, 5),
-	        {1.f, 0.f, 0.f, 2.f,
-	         0.f, 1.f, 0.f, 3.f,
-	         0.f, 0.f, 1.f, 5.f,
-	         0.f, 0.f, 0.f, 1.f});
+	        {{1.f, 0.f, 0.f, 2.f,
+	          0.f, 1.f, 0.f, 3.f,
+	          0.f, 0.f, 1.f, 5.f,
+	          0.f, 0.f, 0.f, 1.f}});
 }

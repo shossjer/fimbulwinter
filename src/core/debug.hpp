@@ -114,7 +114,7 @@ namespace core
 			L left;
 
 			compare_unary_t(L left) :
-				left(left)
+				left(std::move(left))
 			{}
 
 			auto operator () () ->
@@ -135,8 +135,8 @@ namespace core
 			R right;
 
 			compare_binary_t(L left, R right) :
-				left(left),
-				right(right)
+				left(std::move(left)),
+				right(std::move(right))
 			{}
 
 			auto operator () () ->
@@ -185,8 +185,8 @@ namespace core
 		 */
 		debug() :
 			mask(0xffffffff)
-			{
-			}
+		{
+		}
 
 	public:
 		/**
@@ -269,37 +269,37 @@ namespace core
 	template <typename L>
 	debug::compare_unary_t<debug::value_t<L>> operator << (debug::value_t<L> && v, debug::empty_t &&)
 	{
-		return debug::compare_unary_t<debug::value_t<L>>{v};
+		return debug::compare_unary_t<debug::value_t<L>>{std::move(v)};
 	}
 	template <typename L, typename R>
 	debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>> operator == (debug::value_t<L> && left, debug::value_t<R> && right)
 	{
-		return debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+		return debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
 	}
 	template <typename L, typename R>
 	debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>> operator != (debug::value_t<L> && left, debug::value_t<R> && right)
 	{
-		return debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+		return debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
 	}
 	template <typename L, typename R>
 	debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>> operator < (debug::value_t<L> && left, debug::value_t<R> && right)
 	{
-		return debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+		return debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
 	}
 	template <typename L, typename R>
 	debug::compare_le_t<debug::value_t<L>, debug::value_t<R>> operator <= (debug::value_t<L> && left, debug::value_t<R> && right)
 	{
-		return debug::compare_le_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+		return debug::compare_le_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
 	}
 	template <typename L, typename R>
 	debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>> operator > (debug::value_t<L> && left, debug::value_t<R> && right)
 	{
-		return debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+		return debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
 	}
 	template <typename L, typename R>
 	debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>> operator >= (debug::value_t<L> && left, debug::value_t<R> && right)
 	{
-		return debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>>{left, right};
+		return debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
 	}
 }
 

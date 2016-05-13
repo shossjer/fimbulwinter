@@ -169,7 +169,7 @@ namespace core
 			template <typename ...Ps,
 			          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
 			Matrix(Ps && ...ps) :
-				values(utl::transpose<value_type, N, M>({value_type{std::forward<Ps>(ps)}...}))
+				values(utl::transpose<value_type, N, M>({{value_type{std::forward<Ps>(ps)}...}}))
 			{
 			}
 
@@ -214,7 +214,7 @@ namespace core
 			          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
 			void set(Ps && ...ps)
 			{
-				this->values = utl::transpose<value_type, N, M>({value_type{std::forward<Ps>(ps)}...});
+				this->values = utl::transpose<value_type, N, M>({{value_type{std::forward<Ps>(ps)}...}});
 			}
 			void set(const array_type & buffer)
 			{

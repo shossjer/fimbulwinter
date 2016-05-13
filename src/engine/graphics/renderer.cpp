@@ -317,7 +317,7 @@ namespace
 
 			if (!data.load("consolas", 12))
 			{
-				debug_assert(("COULD NOT LOAD THE FONT: maybe it is missing?", false));
+				debug_assert(false);
 			}
 			normal_font.compile(data);
 
