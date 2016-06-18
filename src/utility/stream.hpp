@@ -74,18 +74,18 @@ namespace utility
 			return stream << "???";
 		}
 	};
-	template <typename T>
-	struct try_stream_t<T, mpl::enable_if_t<mpl::is_ostreamable<T>{}>>
-	{
-		T t;
+	//template <typename T>
+	//struct try_stream_t<T, mpl::enable_if_t<mpl::is_ostreamable<T>{}>>
+	//{
+	//	T t;
 
-		try_stream_t(T t) : t(t) {}
+	//	try_stream_t(T t) : t(t) {}
 
-		friend std::ostream & operator << (std::ostream & stream, try_stream_t<T> t)
-		{
-			return stream << t.t;
-		}
-	};
+	//	friend std::ostream & operator << (std::ostream & stream, try_stream_t<T> t)
+	//	{
+	//		return stream << t.t;
+	//	}
+	//};
 	template <typename T>
 	try_stream_t<T &&> try_stream(T && t)
 	{

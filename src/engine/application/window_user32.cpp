@@ -3,6 +3,7 @@
 
 #include <windowsx.h>
 #include <windows.h>
+#include <VersionHelpers.h>
 
 namespace engine
 {
@@ -154,8 +155,9 @@ namespace engine
 					ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
 					osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
 				}
-				GetVersionEx(&osvi);
-				application_debug_trace("GetVersionEx: ", osvi.dwMajorVersion, " ", osvi.dwMinorVersion);
+
+				//GetVersionEx(&osvi);
+				//application_debug_trace("GetVersionEx: ", osvi.dwMajorVersion, " ", osvi.dwMinorVersion);
 
 				// register window class
 				const WNDCLASSEX WndClass = {sizeof(WNDCLASSEX),

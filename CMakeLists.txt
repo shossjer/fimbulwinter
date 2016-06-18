@@ -16,10 +16,10 @@ else()
 endif()
 
 # set include paths
-if (MSVC)
-  set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
-  set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
-endif()
+#if (MSVC)
+ # set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
+#  set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
+#endif()
 
 # project information
 message(STATUS "Using compiler ${CMAKE_CXX_COMPILER}")

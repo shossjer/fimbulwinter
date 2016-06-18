@@ -11,7 +11,7 @@ namespace core
 		template <typename T>
 		struct constant
 		{
-			static const constexpr T pi = 3.141592653589793238462643383279502884;
+			static const constexpr T pi = T(3.141592653589793238462643383279502884);
 		};
 
 		using constantd = constant<double>;

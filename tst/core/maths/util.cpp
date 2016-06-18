@@ -21,9 +21,11 @@ TEST_CASE( "degree default construction", "[maths]" )
 {
 	{
 		core::maths::degreef deg;
+		deg.get();	// to remove warning from VS (unref value)
 	}
 	{
 		core::maths::degreed deg;
+		deg.get();	// to remove warning from VS (unref value)
 	}
 }
 
@@ -140,9 +142,11 @@ TEST_CASE( "radian default construction", "[maths]" )
 {
 	{
 		core::maths::radianf rad;
+		rad.get();	// to remove warning from VS (unref value)
 	}
 	{
 		core::maths::radiand rad;
+		rad.get();	// to remove warning from VS (unref value)
 	}
 }
 
