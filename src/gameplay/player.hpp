@@ -4,7 +4,7 @@
 
 namespace gameplay
 {
-	namespace player
+	namespace input
 	{
 		void create();
 		void destroy();
