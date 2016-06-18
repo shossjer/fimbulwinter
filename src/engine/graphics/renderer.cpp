@@ -44,11 +44,19 @@ namespace engine
 			extern void swap_buffers();
 		}
 	}
+	
 	namespace graphics
 	{
 		extern void poll_messages();
 	}
-
+	
+	namespace model
+	{
+		extern void init();
+		extern void draw();
+		extern void update();
+	}
+	
 	namespace player
 	{
 		extern void update();
@@ -380,6 +388,7 @@ namespace
 			data.free();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
+		engine::model::init(); // WAT
 	}
 
 	void render_update()
@@ -455,6 +464,10 @@ namespace
 
 		// TEMP
 		engine::physics::render();
+		
+		engine::model::update();
+		engine::model::draw();
+		glLoadMatrix(modelview_matrix);
 
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);

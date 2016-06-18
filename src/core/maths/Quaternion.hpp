@@ -138,9 +138,16 @@ namespace core
 
 				return std::sqrt(w * w + x * x + y * y + z * z);
 			}
-			void normalize()
+			this_type & conjugate()
 			{
-				*this *= inverse(this->length());
+				this->values[1] = -this->values[1];
+				this->values[2] = -this->values[2];
+				this->values[3] = -this->values[3];
+				return *this;
+			}
+			this_type & normalize()
+			{
+				return *this *= inverse(this->length());
 			}
 
 		public:
@@ -161,16 +168,22 @@ namespace core
 				const auto yz = y * z;
 				const auto zz = z * z;
 
-				return Matrix<4, 4, value_type>{1 - 2 * (yy + zz),     2 * (xy + wz),     2 * (xz - wy), 0,
-				                                    2 * (xy - wz), 1 - 2 * (xx + zz),     2 * (yz + wx), 0,
-				                                    2 * (xz + wy),     2 * (yz - wx), 1 - 2 * (xx + yy), 0,
-				                                        0        ,         0        ,         0        , 1};
+				return Matrix<4, 4, value_type>{
+					1 - 2 * (yy + zz),     2 * (xy + wz),     2 * (xz - wy), value_type{0},
+					    2 * (xy - wz), 1 - 2 * (xx + zz),     2 * (yz + wx), value_type{0},
+					    2 * (xz + wy),     2 * (yz - wx), 1 - 2 * (xx + yy), value_type{0},
+					value_type{0}    , value_type{0}    , value_type{0}    , value_type{1}
+				};
 			}
 
 			friend this_type lerp(const this_type & q1, const this_type & q2,
 			                      const Scalar<value_type> s)
 			{
 				return q1 * s.get() + q2 * (value_type{1} - s.get());
+			}
+			friend this_type conjugate(const this_type & q)
+			{
+				return this_type{q.values[0], -q.values[1], -q.values[2], -q.values[3]};
 			}
 			friend this_type normalize(const this_type & q)
 			{

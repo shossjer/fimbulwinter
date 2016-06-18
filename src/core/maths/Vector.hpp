@@ -332,6 +332,20 @@ namespace core
 
 			template <std::size_t D_, typename T_>
 			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
+
+			friend Matrix<4, 4, value_type> make_scale_matrix(const this_type & v)
+			{
+				return Matrix<4, 4, value_type>{
+					  v.values[0], value_type{0}, value_type{0}, value_type{0},
+					value_type{0},   v.values[1], value_type{0}, value_type{0},
+					value_type{0}, value_type{0},   v.values[2], value_type{0},
+					value_type{0}, value_type{0}, value_type{0}, value_type{1}
+				};
+			}
+			friend Matrix<4, 4, value_type> make_translation_matrix(const this_type & v)
+			{
+				return Matrix<4, 4, value_type>::translation(v.values[0], v.values[1], v.values[2]);
+			}
 		};
 
 		template <typename T>

@@ -15,12 +15,6 @@ else()
   message(FATAL_ERROR "Build type ${CMAKE_BUILD_TYPE} not supported")
 endif()
 
-# set include paths
-#if (MSVC)
- # set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
-#  set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
-#endif()
-
 # project information
 message(STATUS "Using compiler ${CMAKE_CXX_COMPILER}")
 
@@ -54,6 +48,7 @@ set(TRIBUNAL_SOURCE
 	src/gameplay/game-menu.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/player.cpp
+	src/engine/model/armature.cpp
 	)
 
 # source listing
@@ -86,10 +81,13 @@ set(TRIBUNAL_HEADER
 	src/engine/physics/PhysxScene.hpp
 	src/engine/physics/PhysxSDK.hpp
 	src/gameplay/CharacterState.hpp
+	src/engine/graphics/renderer.hpp
+	src/engine/model/armature.hpp
 	src/gameplay/debug.hpp
 	src/gameplay/game-menu.hpp
 	src/gameplay/player.hpp
 	src/utility/algorithm.hpp
+	src/utility/array.hpp
 	src/utility/inaccessible.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
@@ -117,10 +115,10 @@ foreach(FILE ${TRIBUNAL_FILES})
 	source_group("${GROUP}" FILES "${FILE}")
 endforeach()
 
-add_executable(Tribunal ${TRIBUNAL_FILES})
-
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
+
+add_executable(Tribunal ${TRIBUNAL_FILES})
 
 enable_testing (true)
 add_subdirectory (tst)
