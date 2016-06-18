@@ -8,12 +8,17 @@
 
 #include <config.h>
 
+#include <engine/debug.hpp>
+#include <engine/graphics/Camera.hpp>
+// temp
+#include <engine/physics/physics.hpp>
+
 #include <core/async/delay.hpp>
-#include <core/async/Thread.hpp>
+//#include <core/async/Thread.hpp>
 #include <core/color.hpp>
 #include <core/container/Stack.hpp>
 #include <core/maths/Matrix.hpp>
-#include <engine/debug.hpp>
+
 #include <utility/type_traits.hpp>
 
 #include <atomic>
@@ -26,8 +31,8 @@ namespace engine
 {
 	namespace physics
 	{
-		extern void setup();
-		extern void update();
+	//	extern void setup();
+	//	extern void update();
 		extern void render();
 	}
 
@@ -42,6 +47,11 @@ namespace engine
 	namespace graphics
 	{
 		extern void poll_messages();
+	}
+
+	namespace player
+	{
+		extern void update();
 	}
 }
 
@@ -116,8 +126,10 @@ namespace
 		int32_t width, height;
 	};
 
-	std::atomic_bool active;
-	core::async::Thread render_thread;
+//	std::atomic_bool active;
+//	core::async::Thread render_thread;
+
+	const engine::graphics::Camera * activeCamera;
 
 	dimension_t resizes[3];
 	bool masks[3] = {false, false, false};
@@ -320,7 +332,7 @@ namespace
 		glEnable(GL_LIGHT0);                        // MUST enable each light source after configuration
 	}
 
-	void render_callback()
+	void render_setup()
 	{
 		graphics_debug_trace("render_callback starting");
 		engine::application::window::make_current();
@@ -368,121 +380,124 @@ namespace
 			data.free();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
+	}
 
-		engine::physics::setup();
-
-		while (active)
+	void render_update()
+	{
+		// handle notifications
+		read_resize = latest_resize.exchange(read_resize); // std::memory_order_acquire?
+		if (masks[read_resize])
 		{
-			// handle notifications
-			read_resize = latest_resize.exchange(read_resize); // std::memory_order_acquire?
-			if (masks[read_resize])
-			{
-				dimension = resizes[read_resize];
-				masks[read_resize] = false;
+			dimension = resizes[read_resize];
+			masks[read_resize] = false;
 
-				glViewport(0, 0, dimension.width, dimension.height);
+			glViewport(0, 0, dimension.width, dimension.height);
 
-				// these calculations do not need opengl context
-				projection2D = core::maths::Matrix4x4f::ortho(0.f, dimension.width, dimension.height, 0.f, -1.f, 1.f);
-				projection3D = core::maths::Matrix4x4f::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
-			}
-			//
-			engine::graphics::poll_messages();
-			// setup frame
-			static core::color::hsv_t<float> tmp1{0, 1, 1};
-			tmp1 += core::color::hue_t<float>{1};
-			const auto tmp2 = make_rgb(tmp1);
-			// glClearColor(tmp2.red(), tmp2.green(), tmp2.blue(), 0.f);
-			glClearColor(0.f, 0.f, .1f, 0.f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			// these calculations do not need opengl context
+			projection2D = core::maths::Matrix4x4f::ortho(0.f, dimension.width, dimension.height, 0.f, -1.f, 1.f);
+			projection3D = core::maths::Matrix4x4f::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
+		}
+		//
+		engine::graphics::poll_messages();
+		// setup frame
+		static core::color::hsv_t<float> tmp1{0, 1, 1};
+		tmp1 += core::color::hue_t<float>{1};
+		const auto tmp2 = make_rgb(tmp1);
+		// glClearColor(tmp2.red(), tmp2.green(), tmp2.blue(), 0.f);
+		glClearColor(0.f, 0.f, .1f, 0.f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			// setup 3D
-			glMatrixMode(GL_PROJECTION);
-			glLoadMatrix(projection3D);
-			glMatrixMode(GL_MODELVIEW);
-			// vvvvvvvv tmp vvvvvvvv
-			view3D = core::maths::Matrix4x4f::translation(0.f, -1.f, -20.f);
-			// ^^^^^^^^ tmp ^^^^^^^^
-			modelview_matrix.load(view3D);
+		// setup 3D
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrix(projection3D);
+		glMatrixMode(GL_MODELVIEW);
+		// vvvvvvvv tmp vvvvvvvv
+		//view3D = core::maths::Matrix4x4f::translation(0.f, -5.f, -20.f);
+		view3D = core::maths::Matrix4x4f::translation(-activeCamera->getX(), -activeCamera->getY(), -activeCamera->getZ());
+		// ^^^^^^^^ tmp ^^^^^^^^
+		modelview_matrix.load(view3D);
 
-			glEnable(GL_DEPTH_TEST);
+		glEnable(GL_DEPTH_TEST);
 
-			// 3d
-			for (auto && point : collection.get<engine::graphics::Point>())
-			{
-				glPointSize(point.size);
+		// 3d
+		for (auto && point : collection.get<engine::graphics::Point>())
+		{
+			glPointSize(point.size);
 
-				modelview_matrix.push();
-				modelview_matrix.mult(point.matrix);
-				glLoadMatrix(modelview_matrix);
-
-				glColor3f(tmp2.red(), tmp2.green(), tmp2.blue());
-				glBegin(GL_POINTS);
-				glVertex3f(0.f, 0.f, 0.f);
-				glEnd();
-
-				modelview_matrix.pop();
-			}
-
+			modelview_matrix.push();
+			modelview_matrix.mult(point.matrix);
 			glLoadMatrix(modelview_matrix);
-			// tmp rotating thing
-			static double deg = 0.;
-			if ((deg += 1.) >= 360.) deg -= 360.;
-			glRotated(deg, 0.f, 1.f, 0.f);
-			glBegin(GL_LINES);
-			glColor3ub(255, 0, 0);
+
+			glColor3f(tmp2.red(), tmp2.green(), tmp2.blue());
+			glBegin(GL_POINTS);
 			glVertex3f(0.f, 0.f, 0.f);
-			glVertex3f(100.f, 0.f, 0.f);
-			glColor3ub(0, 255, 0);
-			glVertex3f(0.f, 0.f, 0.f);
-			glVertex3f(0.f, 100.f, 0.f);
-			glColor3ub(0, 0, 255);
-			glVertex3f(0.f, 0.f, 0.f);
-			glVertex3f(0.f, 0.f, 100.f);
 			glEnd();
 
-			engine::physics::update();
-			engine::physics::render();
-
-			// setup 2D
-			glMatrixMode(GL_PROJECTION);
-			glLoadMatrix(projection2D);
-			glMatrixMode(GL_MODELVIEW);
-			modelview_matrix.load(core::maths::Matrix4x4f::identity());
-
-			// glDisable(GL_DEPTH_TEST);
-			glEnable(GL_DEPTH_TEST);
-
-			// draw gui
-			// ...
-			glLoadMatrix(modelview_matrix);
-			glColor3ub(255, 255, 255);
-			glRasterPos2i(10, 10 + 12);
-			normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
-			// 2d
-			for (auto && rectangle : collection.get<engine::graphics::Rectangle>())
-			{
-				modelview_matrix.push();
-				modelview_matrix.translate(dimension.width / 2.f, dimension.height / 2.f, rectangle.z);
-				glLoadMatrix(modelview_matrix);
-
-				glColor3f(rectangle.red, rectangle.green, rectangle.blue);
-				glBegin(GL_QUADS);
-				glVertex3f(rectangle.x                  , rectangle.y                   , 0.f);
-				glVertex3f(rectangle.x                  , rectangle.y + rectangle.height, 0.f);
-				glVertex3f(rectangle.x + rectangle.width, rectangle.y + rectangle.height, 0.f);
-				glVertex3f(rectangle.x + rectangle.width, rectangle.y                   , 0.f);
-				glEnd();
-
-				modelview_matrix.pop();
-			}
-
-			// something temporary that delays
-			core::async::delay(10);
-
-			// swap buffers
-			engine::application::window::swap_buffers();
+			modelview_matrix.pop();
 		}
+
+		glLoadMatrix(modelview_matrix);
+		// tmp rotating thing
+	//	static double deg = 0.;
+	//	if ((deg += 1.) >= 360.) deg -= 360.;
+	//	glRotated(deg, 0.f, 1.f, 0.f);
+		glBegin(GL_LINES);
+		glColor3ub(255, 0, 0);
+		glVertex3f(0.f, 0.f, 0.f);
+		glVertex3f(100.f, 0.f, 0.f);
+		glColor3ub(0, 255, 0);
+		glVertex3f(0.f, 0.f, 0.f);
+		glVertex3f(0.f, 100.f, 0.f);
+		glColor3ub(0, 0, 255);
+		glVertex3f(0.f, 0.f, 0.f);
+		glVertex3f(0.f, 0.f, 100.f);
+		glEnd();
+
+		// TEMP
+		engine::physics::render();
+
+		// setup 2D
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrix(projection2D);
+		glMatrixMode(GL_MODELVIEW);
+		modelview_matrix.load(core::maths::Matrix4x4f::identity());
+
+		// glDisable(GL_DEPTH_TEST);
+		glEnable(GL_DEPTH_TEST);
+
+		// draw gui
+		// ...
+		glLoadMatrix(modelview_matrix);
+		glColor3ub(255, 255, 255);
+		glRasterPos2i(10, 10 + 12);
+		normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
+		// 2d
+		for (auto && rectangle : collection.get<engine::graphics::Rectangle>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.translate(dimension.width / 2.f, dimension.height / 2.f, rectangle.z);
+			glLoadMatrix(modelview_matrix);
+
+			glColor3f(rectangle.red, rectangle.green, rectangle.blue);
+			glBegin(GL_QUADS);
+			glVertex3f(rectangle.x                  , rectangle.y                   , 0.f);
+			glVertex3f(rectangle.x                  , rectangle.y + rectangle.height, 0.f);
+			glVertex3f(rectangle.x + rectangle.width, rectangle.y + rectangle.height, 0.f);
+			glVertex3f(rectangle.x + rectangle.width, rectangle.y                   , 0.f);
+			glEnd();
+
+			modelview_matrix.pop();
+		}
+
+		// something temporary that delays
+		core::async::delay(10);
+
+		// swap buffers
+		engine::application::window::swap_buffers();
+	}
+
+	void render_teardown()
+	{
 		graphics_debug_trace("render_callback stopping");
 		// vvvvvvvv tmp vvvvvvvv
 		{
@@ -491,26 +506,50 @@ namespace
 		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 }
-
+namespace gameplay
+{
+namespace looper
+{
+	void run();
+	
+	void exit();
+}
+}
 namespace engine
 {
 	namespace graphics
 	{
 		namespace renderer
 		{
-			void create()
+			void create(const Camera & camera)
 			{
-				active = true;
+				activeCamera = &camera;
 
-				core::async::Thread render_thread{render_callback};
-
-				::render_thread = std::move(render_thread);
+				render_setup();
 			}
-			void destroy()
-			{
-				active = false;
 
-				render_thread.join();
+			//void create()
+			//{
+			//	core::async::Thread looperThread{ gameplay::looper::run };
+
+			//	::render_thread = std::move(looperThread);
+			//}
+
+			void update()
+			{
+				render_update();
+			}
+
+			//void destroy()
+			//{
+			//	gameplay::looper::exit();
+
+			//	render_thread.join();
+			//}
+
+			void destroy2()
+			{
+				render_teardown();
 			}
 
 			template <typename T>

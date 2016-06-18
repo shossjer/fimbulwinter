@@ -51,9 +51,11 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
-	src/engine/physics/handle.cpp
-	src/engine/physics/PhysxContainer.cpp
+	src/engine/physics/physics.cpp
+	src/engine/physics/PhysxSDK.cpp
+	src/engine/physics/physxQueries.cpp
 	src/gameplay/game-menu.cpp
+	src/gameplay/looper.cpp
 	src/gameplay/player.cpp
 	)
 
@@ -75,12 +77,18 @@ set(TRIBUNAL_HEADER
 	src/core/sync/Mutex.hpp
 	src/engine/debug.hpp
 	src/engine/application/window.hpp
+	src/engine/graphics/Camera.hpp
+	src/engine/graphics/events.hpp
+	src/engine/graphics/renderer.hpp
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
-	src/engine/graphics/renderer.hpp
-	src/engine/graphics/events.hpp
 	src/engine/hid/input.hpp
-	src/engine/physics/PhysxContainer.hpp
+	src/engine/physics/defines.hpp
+	src/engine/physics/physics.hpp
+	src/engine/physics/PhysxCallback.hpp
+	src/engine/physics/PhysxScene.hpp
+	src/engine/physics/PhysxSDK.hpp
+	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp
 	src/gameplay/game-menu.hpp
 	src/gameplay/player.hpp

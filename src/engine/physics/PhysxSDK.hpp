@@ -1,11 +1,13 @@
  
+#include "defines.hpp"
+
 #include <physx/PxPhysicsAPI.h>
 
 #include <core/debug.hpp>
 
 namespace engine
 {
-	class PhysxContainer
+	class PhysxSDK
 	{
 	private:
 		physx::PxDefaultErrorCallback gDefaultErrorCallback;
@@ -21,47 +23,51 @@ namespace engine
 		physx::PxPhysics * mPhysics;
 
 		physx::PxDefaultCpuDispatcher * mCpuDispatcher;
+
+	public:
+
+		physx::PxPhysics * get() { return this->mPhysics; }
+
+		physx::PxDefaultCpuDispatcher * dispatcher() { return this->mCpuDispatcher; }
 		
 	public:
 
-		PhysxContainer(const unsigned int numThreads = 1);
+		PhysxSDK(const unsigned int numThreads = 1);
 
 	public:
 
-		void printError()
-		{
-		//	gDefaultErrorCallback
-		}
-
 		physx::PxScene * createScene();
 
-		physx::PxMaterial * createMaterial()
+		physx::PxMaterial * createMaterial(const float friction, const float restitution)
 		{
 			// setup default material...
-			physx::PxMaterial *const mMaterial = mPhysics->createMaterial(0.5f, 0.5f, 0.1f);
+			physx::PxMaterial *const material = mPhysics->createMaterial(friction, friction, restitution);
 			
-			if (!mMaterial)
+			if (!material)
 			{
 				throw std::runtime_error("createMaterial failed!");
 			}
 
-			return mMaterial;
+			return material;
 		}
 
-		void createPlane(const physx::PxPlane & plane, physx::PxMaterial *const material, physx::PxScene *const scene)
+		physx::PxRigidActor * createPlane(const physx::PxPlane & plane, physx::PxMaterial *const material, physx::PxScene *const scene)
 		{
-			scene->addActor(*physx::PxCreatePlane(*this->mPhysics, plane, *material));
+			physx::PxRigidStatic *const actor = physx::PxCreatePlane(*this->mPhysics, plane, *material);
+
+			scene->addActor(*actor);
+
+			return actor;
 		}
 
 		physx::PxShape * createShape(const physx::PxGeometry &geometry, const physx::PxMaterial *const material)
 		{
-			// physx::PxBoxGeometry(2.f, 2.f, 2.f)
 			physx::PxShape *const shape = mPhysics->createShape(geometry, *material);
 
 			return shape;
 		}
 
-		physx::PxRigidDynamic * createRigidDynamic(const physx::PxTransform & position, physx::PxShape *const shape, physx::PxScene *const scene)
+		physx::PxRigidActor * createRigidDynamic(const physx::PxTransform & position, physx::PxShape *const shape, physx::PxScene *const scene)
 		{
 			physx::PxRigidDynamic *const body = this->mPhysics->createRigidDynamic(position);
 

@@ -3,267 +3,204 @@
 
 //   this needs to be first
 // vvvvvvvvvvvvvvvvvvvvvvvvvv
-#include "PhysxContainer.hpp"
+#include "PhysxSDK.hpp"
+#include "PhysxScene.hpp"
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^
 //   this needs to be first
 
 #include <core/debug.hpp>
 #include <core/maths/Vector.hpp>
 
+#include <engine/physics/physics.hpp>
 #include <engine/graphics/opengl.hpp>
 #include <engine/graphics/opengl/Font.hpp>
 #include <engine/graphics/opengl/Matrix.hpp>
 
+#include <array>
 #include <stdexcept>
 #include <iostream>
-
-#include <engine/hid/input.hpp>
 
 namespace engine
 {
 namespace physics
 {
-	class ShapeBox
-	{
-	public:
-		const physx::PxRigidDynamic *const body;
-		const physx::PxShape *const shape;
-
-	public:
-		ShapeBox(const physx::PxRigidDynamic *const body, const physx::PxShape *const shape)
-			: body(body), shape(shape)
-		{
-		}
-
-		static void getColumnMajor(physx::PxMat33 m, physx::PxVec3 t, float* mat)
-		{
-			mat[0] = m.column0[0];
-			mat[1] = m.column0[1];
-			mat[2] = m.column0[2];
-			mat[3] = 0;
-
-			mat[4] = m.column1[0];
-			mat[5] = m.column1[1];
-			mat[6] = m.column1[2];
-			mat[7] = 0;
-
-			mat[8] = m.column2[0];
-			mat[9] = m.column2[1];
-			mat[10] = m.column2[2];
-			mat[11] = 0;
-
-			mat[12] = t[0];
-			mat[13] = t[1];
-			mat[14] = t[2];
-			mat[15] = 1;
-		}
-	};
-
-	class ShapeSphere
-	{
-		const float r;
-
-		ShapeSphere(const float r)
-			: r(r)
-		{}
-	};
-
-	namespace
-	{
-		PhysxContainer context{};
-
-		physx::PxScene * scene = nullptr;
-
-		std::vector<physx::PxPlane> planes;
-		std::vector<ShapeBox> shapesBoxes;
-		std::vector<ShapeSphere> shapeSpheres;
-	}
-
-	namespace
-	{
-		physx::PxController * self = nullptr;
-	}
-	
-	float dx = 0.f;
-	float dy = 0.f;
-	float dz = 0.f;
-
-	using engine::hid::Input;
-
-	void dispatch(const Input & input)
-	{
-		switch (input.getState())
-		{
-		case Input::State::DOWN:
-			switch (input.getButton())
-			{
-			case Input::Button::KEY_ARROWDOWN:
-			{
-				dz = 0.1f;
-				break;
-			}
-			case Input::Button::KEY_ARROWUP:
-			{
-				dz = -0.1f;
-				break;
-			}
-
-			case Input::Button::KEY_ARROWLEFT:
-			{
-				dx = -0.1f;
-				break;
-			}
-			case Input::Button::KEY_ARROWRIGHT:
-			{
-				dx = +0.1f;
-				break;
-			}
-
-			case Input::Button::KEY_SPACEBAR:
-			{
-				dy = 0.1f;
-			//	self->getActor()->addForce(physx::PxVec3(0.f, 200.f, 0.f), physx::PxForceMode::eIMPULSE);
-				break;
-			}
-			default:
-				;
-			}
-			break;
-		case Input::State::UP:
-			switch (input.getButton())
-			{
-			case Input::Button::KEY_ARROWDOWN:
-			{
-				dz = 0.0f;
-				break;
-			}
-			case Input::Button::KEY_ARROWUP:
-			{
-				dz = 0.0f;
-				break;
-			}
-			case Input::Button::KEY_ARROWLEFT:
-			{
-				dx = 0.0f;
-				break;
-			}
-			case Input::Button::KEY_ARROWRIGHT:
-			{
-				dx = 0.0f;
-				break;
-			}
-			default:
-				break;
-			}
-		default:
-			;
-		}
-	}
-
-	const float gScaleFactor = 1.5f;
-	const float gStandingSize = 1.0f * gScaleFactor;
-	const float gCrouchingSize = 0.25f * gScaleFactor;
-	const float gControllerRadius = 0.3f * gScaleFactor;
-
-	void character(const physx::PxExtendedVec3 & pos, physx::PxMaterial * material)
-	{
-		physx::PxControllerManager *const controllerManager = PxCreateControllerManager(*scene);
-
-		physx::PxCapsuleControllerDesc desc;
-
-		// TODO: add desc
-		desc.height = gStandingSize;
-		desc.position = pos;
-		desc.radius = gControllerRadius;
-		desc.material = material;
-
-		if (desc.isValid())
-		{
-			printf("desc is valid");
-		}
-		self = controllerManager->createController(desc);
-		
-
-		if (self == nullptr)
-		{
-			context.printError();
-			throw std::runtime_error("Could not create self!");
-		}
-	}
-
-	void setup()
-	{
-		scene = context.createScene();
-
-		physx::PxMaterial *const material = context.createMaterial();
-		physx::PxShape *const shape = context.createShape(physx::PxBoxGeometry(2.f, 2.f, 2.f), material);
-
-		shapesBoxes.reserve(100);
-		shapeSpheres.reserve(100);
-
-		planes.reserve(10);
-
-		planes.push_back(physx::PxPlane(physx::PxVec3(0, 1, 0), 0));
-
-		// create the Ground plane
-		context.createPlane(planes.back(), material, scene);
-
-		// 
-		shapesBoxes.push_back(ShapeBox(
-			context.createRigidDynamic(physx::PxTransform(0.f, 20.f, 0.f), shape, scene),
-			shape));
-
-		shapesBoxes.push_back(ShapeBox(
-			context.createRigidDynamic(physx::PxTransform(0.f, 30.f, 0.f), shape, scene),
-			shape));
-
-		shapesBoxes.push_back(ShapeBox(
-			context.createRigidDynamic(physx::PxTransform(0.f, 40.f, 0.f), shape, scene),
-			shape));
-
-		shapesBoxes.push_back(ShapeBox(
-			context.createRigidDynamic(physx::PxTransform(0.f, 50.f, 0.f), shape, scene),
-			shape));
-
-		character(physx::PxExtendedVec3(10.f, 10.f, 0.f), material);
-	}	
-
 	const float mStepSize = 1.0f / 60.0f;
+	
+	void nearby(const PhysxScene & scene, const physx::PxVec3 & pos, const double radie, std::vector<Id> & objects);
+		
+	namespace
+	{
+		PhysxSDK context{};
+
+		PhysxScene scene{ context.createScene() };
+
+		std::unordered_map<Material, physx::PxMaterial*> materials;
+	}
+
+	void initialize()
+	{
+		//scene->setSimulationEventCallback(&simulationEventCallback);
+
+		// setup materials
+		materials.emplace(Material::MEETBAG, context.createMaterial(.5f, .4f));
+		materials.emplace(Material::STONE, context.createMaterial(.4f, .05f));
+		materials.emplace(Material::SUPER_RUBBER, context.createMaterial(1.0f, 1.0f));
+		materials.emplace(Material::WOOD, context.createMaterial(.35f, .2f));
+
+		{
+			// create the Ground plane
+			context.createPlane(physx::PxPlane(physx::PxVec3(0, 1, 0), 0), materials.at(Material::STONE), scene.instance);
+		}
+	}
+
+	void teardown()
+	{
+
+	}
+
+	void nearby(const Point & pos, const double radius, std::vector<Id> & objects)
+	{
+		// 
+		nearby(scene, physx::PxVec3(pos[0], pos[1], pos[2]), radius, objects);
+	}
 
 	void update()
 	{
-		scene->simulate(mStepSize);
-		scene->fetchResults(true);
+		scene.instance->simulate(mStepSize);
+		scene.instance->fetchResults(true);
+	}
 
-		const physx::PxVec3 vel = self->getActor()->getLinearVelocity();
-		const float deltaY = vel.y*mStepSize - 9.82f*mStepSize*mStepSize*0.5f;
+	MoveResult update(const Id id, const MoveData & moveData)
+	{
+		physx::PxController *const actor = reinterpret_cast<physx::PxController *>(scene.controller(id));
 
-		self->move(physx::PxVec3(dx, dy + deltaY, dz), 0.001f, mStepSize, physx::PxControllerFilters());
+		const float ACC = -9.82f;
 
-		dy = 0.f;
+		const float dY = moveData.velY*mStepSize + ACC*mStepSize*mStepSize*0.5f;
+
+		physx::PxControllerFilters collisionFilters;
+
+		//physx::PxControllerCollisionFlags collisionFlags
+		const physx::PxU32 flags = actor->move(physx::PxVec3(moveData.velXZ[0] * mStepSize * 10.f, dY, moveData.velXZ[1] * mStepSize * 10.f), 0.001f, mStepSize, collisionFilters);
+
+		const physx::PxExtendedVec3 & pos = actor->getPosition();
+
+		if (flags & physx::PxControllerCollisionFlag::eCOLLISION_DOWN)
+		{
+			// 
+			return MoveResult(true, Point{pos.x, pos.y, pos.z}, 0.f);
+		}
+		else
+		{
+			// 
+			return MoveResult(false, Point{pos.x, pos.y, pos.z}, moveData.velY + ACC*mStepSize);
+		}
+	}
+
+	physx::PxTransform convert(const Point & point)
+	{
+		return physx::PxTransform(point[0], point[1], point[2]);
+	}
+
+	void create(const Id id, const BoxData & data)
+	{
+		physx::PxMaterial *const material = materials.at(data.material);
+		physx::PxBoxGeometry geometry(data.size[0], data.size[1], data.size[2]);
+		
+		physx::PxShape *const shape = context.createShape(geometry, material);
+		
+		physx::PxRigidActor *const actor = context.createRigidDynamic(convert(data.pos), shape, scene.instance);
+
+		//shapesBoxes.back().body->setActorFlag(physx::PxActorFlag::eSEND_SLEEP_NOTIFIES, true);
+
+		scene.actors.emplace(id, actor);
+	}
+
+	void create(const Id id, const CharacterData & data)
+	{
+		physx::PxMaterial *const material = materials.at(data.material);
+		physx::PxCapsuleControllerDesc desc;
+
+		desc.height = data.height;
+		desc.position = physx::PxExtendedVec3(data.pos[0], data.pos[1], data.pos[2]);
+		desc.radius = data.radius;
+		desc.material = material;
+	
+		if (!desc.isValid())
+		{
+			throw std::runtime_error("Controller description is not valid!");
+		}
+
+		physx::PxController *const controller = scene.controllerManager->createController(desc);
+
+		if (controller == nullptr)
+		{
+			throw std::runtime_error("Could not create controller!");
+		}
+
+		scene.controllers.emplace(id, controller);
+	}
+
+	void remove(const Id id)
+	{
+		scene.remove(id);
+	}
+
+	/**
+	 *	Temp Rendering stuff!
+	 */
+
+	static void getColumnMajor(physx::PxMat33 m, physx::PxVec3 t, float* mat)
+	{
+		mat[0] = m.column0[0];
+		mat[1] = m.column0[1];
+		mat[2] = m.column0[2];
+		mat[3] = 0;
+
+		mat[4] = m.column1[0];
+		mat[5] = m.column1[1];
+		mat[6] = m.column1[2];
+		mat[7] = 0;
+
+		mat[8] = m.column2[0];
+		mat[9] = m.column2[1];
+		mat[10] = m.column2[2];
+		mat[11] = 0;
+
+		mat[12] = t[0];
+		mat[13] = t[1];
+		mat[14] = t[2];
+		mat[15] = 1;
 	}
 
 	void draw_box(const physx::PxBoxGeometry & size);
 
 	void render()
 	{
-		for (const auto & rb : shapesBoxes)
+		for (const auto & rb : scene.actors)
 		{
 			// TODO: try to get pos updates when objects are moved (and post as pos-event)
-			physx::PxTransform pT = physx::PxShapeExt::getGlobalPose(*rb.shape, *rb.body);
+		//	physx::PxTransform pT = rb.second->getGlobalPose();//physx::PxShapeExt::getGlobalPose(*rb.second->getShapes()[0], *rb);
+
+			physx::PxShape* shapes[1];
+			rb.second->getShapes(shapes, 1);
+			
 			physx::PxBoxGeometry bg;
-			rb.shape->getBoxGeometry(bg);
+			shapes[0]->getBoxGeometry(bg);
+
+			physx::PxTransform pT = rb.second->getGlobalPose();//physx::PxShapeExt::getGlobalPose(*shapes[0], *rb.second);
+			
 
 			physx::PxMat33 m = physx::PxMat33(pT.q);
 			float mat[16];
-			
-			ShapeBox::getColumnMajor(m, pT.p, mat);
 
-			if (rb.body->isSleeping())
-			{
-				glColor3f(1, 0, 0);
-			}
-			else
+			getColumnMajor(m, pT.p, mat);
+
+			//if (rb.second-> ->isSleeping())
+			//{
+			//	glColor3f(1, 0, 0);
+			//}
+			//else
 			{
 				glColor3f(1, 1, 1);
 			}
@@ -276,14 +213,26 @@ namespace physics
 			glPopMatrix();
 		}
 
-		const auto pos = self->getPosition();
-
-		glPushMatrix();
+		for(const auto & controller : scene.controllers)
 		{
-			glTranslated(pos.x, pos.y, pos.z);
-			draw_box(physx::PxBoxGeometry(gControllerRadius, gStandingSize, gControllerRadius));
+			const auto pos = controller.second->getPosition();//self->getPosition();
+
+			physx::PxShape* shapes[1];
+			controller.second->getActor()->getShapes(shapes, 1);
+
+			glPushMatrix();
+			{
+				physx::PxCapsuleGeometry geometry;
+
+				if (shapes[0]->getCapsuleGeometry(geometry))
+				{
+					glTranslated(pos.x, pos.y, pos.z);
+					draw_box(physx::PxBoxGeometry(geometry.radius, 2*geometry.halfHeight, geometry.radius));
+					//draw_box(physx::PxBoxGeometry(gControllerRadius, gStandingSize, gControllerRadius));
+				}
+			}
+			glPopMatrix();
 		}
-		glPopMatrix();
 	}
 
 	//void draw_plane(const btCollisionShape * const shape)

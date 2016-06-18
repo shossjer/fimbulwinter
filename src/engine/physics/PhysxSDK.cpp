@@ -1,10 +1,10 @@
-#include "PhysxContainer.hpp"
+#include "PhysxSDK.hpp"
 
 #include <iostream>
 
 namespace engine
 {
-	PhysxContainer::PhysxContainer(const unsigned int numThreads)
+	PhysxSDK::PhysxSDK(const unsigned int numThreads)
 		:
 		gDefaultAllocatorCallback(),
 		gDefaultErrorCallback()
@@ -44,11 +44,11 @@ namespace engine
 		}
 	}
 
-	physx::PxScene * PhysxContainer::createScene()
+	physx::PxScene * PhysxSDK::createScene()
 	{
 		physx::PxSceneDesc sceneDesc(mPhysics->getTolerancesScale());
 		sceneDesc.gravity = physx::PxVec3(0.0f, -9.81f, 0.0f);
-
+		
 		if (!sceneDesc.cpuDispatcher)
 		{
 			sceneDesc.cpuDispatcher = mCpuDispatcher;
@@ -67,14 +67,6 @@ namespace engine
 		{
 			throw std::runtime_error("createScene failed!");
 		}
-
-		physx::PxSceneWriteLock scopedLock(*mScene);
-
-		physx::PxSceneFlags flag = mScene->getFlags();
-
-		PX_UNUSED(flag);
-	//	mScene->setVisualizationParameter(physx::PxVisualizationParameter::eSCALE, false ? 1.0f : 0.0f);
-	//	mScene->setVisualizationParameter(physx::PxVisualizationParameter::eCOLLISION_SHAPES, 1.0f);
 
 		return mScene;
 	}

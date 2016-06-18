@@ -1,7 +1,8 @@
 
 #include <core/debug.hpp>
 #include <engine/application/window.hpp>
-#include <engine/graphics/renderer.hpp>
+//#include <engine/graphics/renderer.hpp>
+
 #include <gameplay/game-menu.hpp>
 #include <gameplay/player.hpp>
 
@@ -10,6 +11,16 @@
 #if WINDOW_USE_USER32
 #include <windows.h>
 #endif
+
+namespace gameplay
+{
+	namespace looper
+	{
+		extern void create();
+
+		extern void destroy();
+	}
+}
 
 #if WINDOW_USE_USER32
 # if MODE_DEBUG
@@ -25,9 +36,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 {
 # endif
 	engine::application::window::create(hInstance, nCmdShow);
-	engine::graphics::renderer::create();
+	//engine::graphics::renderer::create();
+	gameplay::looper::create();
 
-	gameplay::player::create();
+	gameplay::input::create();
 	gameplay::gamemenu::create();
 
 	const int ret = engine::application::window::execute();
@@ -35,9 +47,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	debug_printline(0xffffffff, "loop is no more");
 
 	gameplay::gamemenu::destroy();
-	gameplay::player::destroy();
+	gameplay::input::destroy();
 
-	engine::graphics::renderer::destroy();
+	//engine::graphics::renderer::destroy();
+	gameplay::looper::destroy();
 	engine::application::window::destroy(hInstance);
 
 	return ret;
@@ -46,9 +59,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 int main(const int argc, const char *const argv[])
 {
 	engine::application::window::create();
-	engine::graphics::renderer::create();
+//	engine::graphics::renderer::create();
+	gameplay::looper::create();
 
-	gameplay::player::create();
+	gameplay::input::create();
 	gameplay::gamemenu::create();
 
 	const int ret = engine::application::window::execute();
@@ -56,9 +70,10 @@ int main(const int argc, const char *const argv[])
 	debug_printline(0xffffffff, "loop is no more");
 
 	gameplay::gamemenu::destroy();
-	gameplay::player::destroy();
+	gameplay::input::destroy();
 
-	engine::graphics::renderer::destroy();
+	//engine::graphics::renderer::destroy();
+	gameplay::looper::destroy();
 	engine::application::window::destroy();
 
 	return ret;
