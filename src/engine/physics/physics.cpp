@@ -5,7 +5,6 @@
 // vvvvvvvvvvvvvvvvvvvvvvvvvv
 #include "PhysxSDK.hpp"
 #include "PhysxScene.hpp"
-#include "MaterialData.hpp"
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^
 //   this needs to be first
 
