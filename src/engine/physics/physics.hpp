@@ -11,7 +11,7 @@ namespace physics
 	/**
 	 *	get all Objects within radie of a pos
 	 */
-	void nearby(const Point & pos, const double radie, std::vector<Id> & objects);
+	void nearby(const Point & pos, const float radie, std::vector<Id> & objects);
 	/**
 	 *	steps physics engine forward
 	 */
@@ -20,9 +20,9 @@ namespace physics
 	struct MoveData
 	{
 		const Vec2 velXZ;
-		const double velY;
+		const float velY;
 
-		MoveData(const Vec2 velXZ, const double velY)
+		MoveData(const Vec2 velXZ, const float velY)
 			:
 			velXZ(velXZ), velY(velY)
 		{}
@@ -64,12 +64,13 @@ namespace physics
 
 		const Point pos;
 		const Material material;
+		const float solidity;
 
 	protected:
 
-		ObjectData(const Point & pos, const Material material)
+		ObjectData(const Point & pos, const Material material, const float solidity)
 			:
-			pos(pos), material(material)
+			pos(pos), material(material), solidity(solidity)
 		{}
 	};
 
@@ -78,9 +79,9 @@ namespace physics
 		const Size size;
 
 		BoxData(const Point & pos, 
-			const Material material, const Size & size)
+			const Material material, const float solidity, const Size & size)
 			:
-			ObjectData(pos, material),
+			ObjectData(pos, material, solidity),
 			size(size)
 		{}
 	};
@@ -92,9 +93,9 @@ namespace physics
 		const float height;
 		const float radius;
 
-		CharacterData(const Point & pos, const Material material, const float height, const float radius)
+		CharacterData(const Point & pos, const Material material, const float solidity, const float height, const float radius)
 			:
-			ObjectData(pos, material),
+			ObjectData(pos, material, solidity),
 			height(height),
 			radius(radius)
 		{}
@@ -104,12 +105,12 @@ namespace physics
 
 	struct CylinderData : public ObjectData
 	{
-		const double height;
-		const double radie;
+		const float height;
+		const float radie;
 
-		CylinderData(const Point & pos, const Material material, const double height, const double radie)
+		CylinderData(const Point & pos, const Material material, const float solidity, const float height, const float radie)
 			:
-			ObjectData(pos, material),
+			ObjectData(pos, material, solidity),
 			height(height),
 			radie(radie)
 		{}
@@ -119,11 +120,11 @@ namespace physics
 
 	struct SphereData : public ObjectData
 	{
-		const double radie;
+		const float radie;
 
-		SphereData(const Point & pos, const Material material, const double radie)
+		SphereData(const Point & pos, const Material material, const float solidity, const float radie)
 			:
-			ObjectData(pos, material),
+			ObjectData(pos, material, solidity),
 			radie(radie)
 		{}
 	};

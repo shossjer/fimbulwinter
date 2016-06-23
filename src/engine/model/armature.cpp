@@ -150,6 +150,11 @@ namespace
 
 		std::vector<Joint> joints;
 		std::vector<Action> actions;
+
+		Armature()
+			:
+			matrix{ 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f }
+		{}
 	};
 
 	void read_armature(std::ifstream & stream, Armature & armature)
@@ -204,6 +209,11 @@ namespace
 		std::vector<core::maths::Vector4f> vertices;
 		std::vector<std::pair<uint16_t, uint16_t>> edges;
 		std::vector<Weight> weights;
+
+		Mesh()
+			:
+			matrix{ 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f }
+		{}
 	};
 
 	void read_mesh(std::ifstream & stream, Mesh & mesh)

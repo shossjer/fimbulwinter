@@ -11,7 +11,7 @@ namespace engine
 {
 namespace physics
 {
-	void nearby(const PhysxScene & scene, const physx::PxVec3 & pos, const double radie, std::vector<Id> & objects)
+	void nearby(const PhysxScene & scene, const physx::PxVec3 & pos, const float radie, std::vector<Id> & objects)
 	{
 		const physx::PxU32 bufferSize = 32;
 		physx::PxOverlapHit overlapBuffer[bufferSize];

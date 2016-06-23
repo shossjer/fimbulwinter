@@ -38,9 +38,11 @@ TEST_CASE( "quaternion default construction", "[maths]" )
 	using namespace core::maths;
 	{
 		Quaternionf quat1;
+		quat1.axis_x();	// remove VS unused warning
 	}
 	{
 		Quaterniond quat1;
+		quat1.axis_x();	// remove VS unused warning
 	}
 }
 

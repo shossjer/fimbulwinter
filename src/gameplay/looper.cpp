@@ -75,24 +75,26 @@ namespace looper
 
 		{	// temp
 			{
-				::engine::physics::CharacterData capsule{ ::engine::physics::Point{ 10.f, 10.f, 0.f }, ::engine::physics::Material::MEETBAG, 2.f, 0.5f };
+				::engine::physics::CharacterData capsule{ ::engine::physics::Point{ 10.f, 10.f, 0.f }, ::engine::physics::Material::MEETBAG, 0.6f, 1.8f, 0.4f };
 				::engine::physics::create(1, capsule);
 			}
-			const float S = 1.8;
+			const float S = 1.0f;
+			const float SOLIDITY = 0.1f;
+			const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
 			{
-				::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 10.f, 0.f }, ::engine::physics::Material::SUPER_RUBBER, ::engine::physics::Size{ S, S, S } };
+				::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 10.f, 0.f }, M, SOLIDITY, ::engine::physics::Size{ S, S, S } };
 				::engine::physics::create(2, data);
 			}
 			{
-				::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 20.f, 0.f }, ::engine::physics::Material::SUPER_RUBBER, ::engine::physics::Size{ S, S, S } };
+				::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 20.f, 0.f }, ::engine::physics::Material::STONE, 0.5f, ::engine::physics::Size{ S, S, S } };
 				create(3, data);
 			}
 			{
-				::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 30.f, 0.f }, ::engine::physics::Material::SUPER_RUBBER, ::engine::physics::Size{ S, S, S } };
+				::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 30.f, 0.f }, M, SOLIDITY, ::engine::physics::Size{ S, S, S } };
 				::engine::physics::create(4, data);
 			}
 			{
-				::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 40.f, 0.f }, ::engine::physics::Material::SUPER_RUBBER, ::engine::physics::Size{ S, S, S } };
+				::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 40.f, 0.f }, M, SOLIDITY, ::engine::physics::Size{ S, S, S } };
 				::engine::physics::create(5, data);
 			}
 		}

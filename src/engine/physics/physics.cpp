@@ -5,6 +5,7 @@
 // vvvvvvvvvvvvvvvvvvvvvvvvvv
 #include "PhysxSDK.hpp"
 #include "PhysxScene.hpp"
+#include "MaterialData.hpp"
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^
 //   this needs to be first
 
@@ -26,7 +27,7 @@ namespace physics
 {
 	const float mStepSize = 1.0f / 60.0f;
 	
-	void nearby(const PhysxScene & scene, const physx::PxVec3 & pos, const double radie, std::vector<Id> & objects);
+	void nearby(const PhysxScene & scene, const physx::PxVec3 & pos, const float radie, std::vector<Id> & objects);
 		
 	namespace
 	{
@@ -34,7 +35,30 @@ namespace physics
 
 		PhysxScene scene{ context.createScene() };
 
-		std::unordered_map<Material, physx::PxMaterial*> materials;
+		struct MaterialData
+		{
+			physx::PxMaterial *const pxMaterial;
+
+			const float density;
+
+			MaterialData(physx::PxMaterial *const pxMaterial, const float density)
+				:
+				pxMaterial(pxMaterial),
+				density(density)
+			{
+			}
+		};
+
+		/**
+		Water (salt)	1,030
+		Plastics	1,175
+		Concrete	2,000
+		Iron	7, 870
+		Lead	11,340
+
+		*/
+	//	std::unordered_map<Material, physx::PxMaterial*> materials;
+		std::unordered_map<Material, MaterialData> materials;
 	}
 
 	void initialize()
@@ -42,14 +66,14 @@ namespace physics
 		//scene->setSimulationEventCallback(&simulationEventCallback);
 
 		// setup materials
-		materials.emplace(Material::MEETBAG, context.createMaterial(.5f, .4f));
-		materials.emplace(Material::STONE, context.createMaterial(.4f, .05f));
-		materials.emplace(Material::SUPER_RUBBER, context.createMaterial(1.0f, 1.0f));
-		materials.emplace(Material::WOOD, context.createMaterial(.35f, .2f));
+		materials.emplace(Material::MEETBAG, MaterialData(context.createMaterial(.5f, .4f), 1000.f));
+		materials.emplace(Material::STONE, MaterialData(context.createMaterial(.4f, .05f), 2000.f));
+		materials.emplace(Material::SUPER_RUBBER, MaterialData(context.createMaterial(1.0f, 1.0f), 1200.f));
+		materials.emplace(Material::WOOD, MaterialData(context.createMaterial(.35f, .2f), 700.f));
 
 		{
 			// create the Ground plane
-			context.createPlane(physx::PxPlane(physx::PxVec3(0, 1, 0), 0), materials.at(Material::STONE), scene.instance);
+			context.createPlane(physx::PxPlane(physx::PxVec3(0, 1, 0), 0), materials.at(Material::STONE).pxMaterial, scene.instance);
 		}
 	}
 
@@ -58,7 +82,7 @@ namespace physics
 
 	}
 
-	void nearby(const Point & pos, const double radius, std::vector<Id> & objects)
+	void nearby(const Point & pos, const float radius, std::vector<Id> & objects)
 	{
 		// 
 		nearby(scene, physx::PxVec3(pos[0], pos[1], pos[2]), radius, objects);
@@ -88,12 +112,12 @@ namespace physics
 		if (flags & physx::PxControllerCollisionFlag::eCOLLISION_DOWN)
 		{
 			// 
-			return MoveResult(true, Point{pos.x, pos.y, pos.z}, 0.f);
+			return MoveResult(true, Point{(float)pos.x, (float)pos.y, (float)pos.z}, 0.f);
 		}
 		else
 		{
 			// 
-			return MoveResult(false, Point{pos.x, pos.y, pos.z}, moveData.velY + ACC*mStepSize);
+			return MoveResult(false, Point{ (float)pos.x, (float)pos.y, (float)pos.z}, moveData.velY + ACC*mStepSize);
 		}
 	}
 
@@ -104,12 +128,14 @@ namespace physics
 
 	void create(const Id id, const BoxData & data)
 	{
-		physx::PxMaterial *const material = materials.at(data.material);
+		MaterialData & material = materials.at(data.material);
 		physx::PxBoxGeometry geometry(data.size[0], data.size[1], data.size[2]);
 		
-		physx::PxShape *const shape = context.createShape(geometry, material);
+		physx::PxShape *const shape = context.createShape(geometry, material.pxMaterial);
+
+		const float mass = material.density * (data.size[0] * data.size[1] * data.size[2]) * data.solidity;
 		
-		physx::PxRigidActor *const actor = context.createRigidDynamic(convert(data.pos), shape, scene.instance);
+		physx::PxRigidActor *const actor = context.createRigidDynamic(convert(data.pos), shape, scene.instance, mass);
 
 		//shapesBoxes.back().body->setActorFlag(physx::PxActorFlag::eSEND_SLEEP_NOTIFIES, true);
 
@@ -118,14 +144,16 @@ namespace physics
 
 	void create(const Id id, const CharacterData & data)
 	{
-		physx::PxMaterial *const material = materials.at(data.material);
+		MaterialData & material = materials.at(data.material);
 		physx::PxCapsuleControllerDesc desc;
 
 		desc.height = data.height;
 		desc.position = physx::PxExtendedVec3(data.pos[0], data.pos[1], data.pos[2]);
 		desc.radius = data.radius;
-		desc.material = material;
+		desc.material = material.pxMaterial;
 	
+		const float mass = material.density * (data.height * data.radius*(data.radius*0.5f)) * data.solidity;
+		
 		if (!desc.isValid())
 		{
 			throw std::runtime_error("Controller description is not valid!");
@@ -137,6 +165,8 @@ namespace physics
 		{
 			throw std::runtime_error("Could not create controller!");
 		}
+
+		controller->getActor()->setMass(mass);
 
 		scene.controllers.emplace(id, controller);
 	}

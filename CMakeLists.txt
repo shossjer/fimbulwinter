@@ -80,6 +80,7 @@ set(TRIBUNAL_HEADER
 	src/engine/physics/PhysxCallback.hpp
 	src/engine/physics/PhysxScene.hpp
 	src/engine/physics/PhysxSDK.hpp
+	src/engine/physics/MaterialData.hpp
 	src/gameplay/CharacterState.hpp
 	src/engine/graphics/renderer.hpp
 	src/engine/model/armature.hpp

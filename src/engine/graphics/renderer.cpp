@@ -87,7 +87,7 @@ namespace
 	public:
 		void pop()
 		{
-			debug_assert(this->stack.size() > 1);
+			debug_assert(this->stack.size() > (unsigned int)1);
 			this->stack.pop();
 		}
 		void push()
@@ -223,7 +223,7 @@ namespace
 			constexpr std::size_t I = mpl::index_of<mpl::decay_t<T>,
 			                                        mpl::type_list<Ts...>>::value;
 			auto & collection = std::get<I>(this->collections);
-			debug_assert(collection.size < collection.capacity);
+			debug_assert(std::size_t(collection.size) < std::size_t(collection.capacity));
 
 			const std::size_t bucket = hash(object);
 			debug_assert(indices[bucket] == std::size_t(-1));

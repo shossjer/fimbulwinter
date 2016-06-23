@@ -63,15 +63,17 @@ namespace engine
 		physx::PxShape * createShape(const physx::PxGeometry &geometry, const physx::PxMaterial *const material)
 		{
 			physx::PxShape *const shape = mPhysics->createShape(geometry, *material);
-
+	
 			return shape;
 		}
 
-		physx::PxRigidActor * createRigidDynamic(const physx::PxTransform & position, physx::PxShape *const shape, physx::PxScene *const scene)
+		physx::PxRigidActor * createRigidDynamic(const physx::PxTransform & position, physx::PxShape *const shape, physx::PxScene *const scene, const float mass)
 		{
 			physx::PxRigidDynamic *const body = this->mPhysics->createRigidDynamic(position);
 
 			body->attachShape(*shape);
+
+			physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, mass);
 
 			scene->addActor(*body);
 
