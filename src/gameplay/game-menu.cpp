@@ -2,7 +2,6 @@
 #include "game-menu.hpp"
 
 #include <core/debug.hpp>
-#include <engine/graphics/events.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/hid/input.hpp>
 
@@ -29,30 +28,30 @@ namespace
 				{
 					engine::hid::replace(this_object, opened_dev);
 					engine::hid::set_focus(this_object);
-					const engine::graphics::RectangleMessage window_rectangle = {
-						this_object, {
-							0.1f, 0.1f, 0.2f,
-							200.f, 100.f,
-							-100.f, -50.f, 0.f
-						}
-					};
-					engine::graphics::post_message(window_rectangle);
-					const engine::graphics::RectangleMessage continue_rectangle = {
-						continue_object, {
-							0.1f, 0.2f, 0.1f,
-							100.f, 20.f,
-							-50.f, -25.f, 0.1f
-						}
-					};
-					engine::graphics::post_message(continue_rectangle);
-					const engine::graphics::RectangleMessage exit_rectangle = {
-						exit_object, {
-							0.2f, 0.1f, 0.1f,
-							100.f, 20.f,
-							-50.f, 5.f, 0.1f
-						}
-					};
-					engine::graphics::post_message(exit_rectangle);
+					// const engine::graphics::RectangleMessage window_rectangle = {
+					// 	this_object, {
+					// 		0.1f, 0.1f, 0.2f,
+					// 		200.f, 100.f,
+					// 		-100.f, -50.f, 0.f
+					// 	}
+					// };
+					// engine::graphics::post_message(window_rectangle);
+					// const engine::graphics::RectangleMessage continue_rectangle = {
+					// 	continue_object, {
+					// 		0.1f, 0.2f, 0.1f,
+					// 		100.f, 20.f,
+					// 		-50.f, -25.f, 0.1f
+					// 	}
+					// };
+					// engine::graphics::post_message(continue_rectangle);
+					// const engine::graphics::RectangleMessage exit_rectangle = {
+					// 	exit_object, {
+					// 		0.2f, 0.1f, 0.1f,
+					// 		100.f, 20.f,
+					// 		-50.f, 5.f, 0.1f
+					// 	}
+					// };
+					// engine::graphics::post_message(exit_rectangle);
 					return true;
 				}
 			}
@@ -68,18 +67,18 @@ namespace
 			{
 				if (input.getButton() == Input::Button::KEY_ESCAPE)
 				{
-					const engine::graphics::RemoveMessage exit_remove = {
-						exit_object
-					};
-					engine::graphics::post_message(exit_remove);
-					const engine::graphics::RemoveMessage continue_remove = {
-						continue_object
-					};
-					engine::graphics::post_message(continue_remove);
-					const engine::graphics::RemoveMessage window_remove = {
-						this_object
-					};
-					engine::graphics::post_message(window_remove);
+					// const engine::graphics::RemoveMessage exit_remove = {
+					// 	exit_object
+					// };
+					// engine::graphics::post_message(exit_remove);
+					// const engine::graphics::RemoveMessage continue_remove = {
+					// 	continue_object
+					// };
+					// engine::graphics::post_message(continue_remove);
+					// const engine::graphics::RemoveMessage window_remove = {
+					// 	this_object
+					// };
+					// engine::graphics::post_message(window_remove);
 					engine::hid::replace(this_object, closed_dev);
 					return true;
 				}

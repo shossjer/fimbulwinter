@@ -2,49 +2,64 @@
 #ifndef ENGINE_GRAPHICS_RENDERER_HPP
 #define ENGINE_GRAPHICS_RENDERER_HPP
 
+#include <core/container/Buffer.hpp>
 #include <core/maths/Matrix.hpp>
-//#include <engine/graphics/Camera.hpp>
-// #include <engine/graphics/opengl/Color.hpp>
-// #include <engine/graphics/opengl/VertexBufferObject.hpp>
+
+#include <engine/Entity.hpp>
 
 namespace engine
 {
 	namespace graphics
 	{
-		/**  */
-		struct DrawArrays
+		namespace data
 		{
-			core::maths::Matrix4x4f matrix;
-			// opengl::Color4f color;
-			// GLuint vbo;
-			// opengl::VertexBufferObject vbo;
-		};
-		/**  */
-		struct Point
-		{
-			core::maths::Matrix4x4f matrix;
-			float size;
-		};
+			// Color
+			using Color = uint32_t;
 
-		/**  */
-		struct Rectangle
-		{
-			float red, green, blue;
-			float width, height;
-			float x, y, z; // offset from center
-		};
+			// cuboid with color
+			struct CuboidC
+			{
+				core::maths::Matrix4x4f modelview;
+				float width, height, depth;
+				Color color;
+			};
+			// line segments with color
+			struct LineC
+			{
+				core::container::Buffer vertices;
+				core::container::Buffer edges;
+				Color color;
+			};
+			// mesh with color
+			struct MeshC
+			{
+				core::container::Buffer vertices;
+				core::container::Buffer triangles;
+				core::container::Buffer normals;
+				Color color;
+			};
+
+
+			// Data
+			struct Data {};
+
+			// modelview matrix
+			struct ModelviewMatrix : Data
+			{
+				core::maths::Matrix4x4f matrix;
+			};
+		}
 
 		namespace renderer
 		{
 			void create();
 			void destroy();
 
-			template <typename T>
-			void add(const std::size_t object, const T & component);
-			void remove(std::size_t object);
-
-			template <typename T>
-			void set(const T & message);
+			void add(engine::Entity entity, data::CuboidC data);
+			void add(engine::Entity entity, data::LineC data);
+			void add(engine::Entity entity, data::MeshC data);
+			void remove(engine::Entity entity);
+			void update(engine::Entity entity, data::ModelviewMatrix data);
 		}
 	}
 }

@@ -4,6 +4,7 @@
 #include <physx/PxPhysicsAPI.h>
 
 #include <core/debug.hpp>
+#include <engine/Entity.hpp>
 
 #include <unordered_map>
 
@@ -22,25 +23,34 @@ namespace physics
 		physx::PxControllerManager *const controllerManager;
 
 //	private:
+		// this is a hacky workaround  for entities and them not being
+		// the same as integer types
+		struct entityhash
+		{
+			std::size_t operator () (engine::Entity entity) const
+			{
+				return std::hash<std::size_t>{}(entity);
+			}
+		};
 		/**
 		 *
 		 */
-		std::unordered_map<Id, physx::PxRigidActor*> actors;
-		std::unordered_map<Id, physx::PxController*> controllers;
+		std::unordered_map<engine::Entity, physx::PxRigidActor*, entityhash> actors;
+		std::unordered_map<engine::Entity, physx::PxController*, entityhash> controllers;
 
 	public:
 
-		physx::PxRigidActor* actor(const Id id)
+		physx::PxRigidActor* actor(const engine::Entity id)
 		{
 			return this->actors.at(id);
 		}
 
-		physx::PxController* controller(const Id id)
+		physx::PxController* controller(const engine::Entity id)
 		{
 			return this->controllers.at(id);
 		}
 
-		void remove(const Id id)
+		void remove(const engine::Entity id)
 		{
 			auto t = this->actors.find(id);
 

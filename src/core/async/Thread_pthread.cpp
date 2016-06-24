@@ -34,12 +34,12 @@ namespace core
 		}
 		Thread::~Thread()
 		{
-			debug_assert(this->pthread == 0);
+			debug_assert(this->pthread == std::size_t{0});
 		}
 
 		Thread &Thread::operator = (Thread &&thread)
 		{
-			debug_assert(this->pthread == 0);
+			debug_assert(this->pthread == std::size_t{0});
 
 			this->pthread = thread.pthread;
 			thread.pthread = 0;

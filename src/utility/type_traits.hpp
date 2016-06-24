@@ -37,6 +37,10 @@ namespace mpl
 	template <bool Cond, typename T = void>
 	using disable_if_t = typename disable_if<Cond, T>::type;
 
+	// conditional
+	template <bool Cond, typename TrueType, typename FalseType>
+	using conditional_t = typename std::conditional<Cond, TrueType, FalseType>::type;
+
 	using std::is_same;
 	template <typename T, typename U>
 	using is_different = boolean_constant<!is_same<T, U>::value>;
@@ -71,7 +75,24 @@ namespace mpl
 	//
 	//////////////////////////////////////////////////////////////////
 	template <typename ...Ts>
-	struct type_list {};
+	struct type_list
+	{
+		enum { size = sizeof...(Ts) };
+	};
+
+	template <typename List>
+	struct type_head_impl;
+	template <typename Head, typename ...Tail>
+	struct type_head_impl<type_list<Head, Tail...>> : type_is<Head> {};
+	template <typename List>
+	using type_head = typename type_head_impl<List>::type;
+
+	template <typename List>
+	struct type_tail_impl;
+	template <typename Head, typename ...Tail>
+	struct type_tail_impl<type_list<Head, Tail...>> : type_is<type_list<Tail...>> {};
+	template <typename List>
+	using type_tail = typename type_tail_impl<List>::type;
 
 	////////////////////////////////////////////////////////////////////////////
 	//
@@ -102,6 +123,59 @@ namespace mpl
 
 	template <std::size_t ...Ns>
 	using index_sequence = integral_sequence<std::size_t, Ns...>;
+
+	//
+	template <typename S, typename U>
+	struct integral_convert_impl;
+	template <typename T, T ...Ns, typename U>
+	struct integral_convert_impl<integral_sequence<T, Ns...>, U> : type_is<integral_sequence<U, U(Ns)...>> {};
+	template <typename S, typename T>
+	using integral_convert = typename integral_convert_impl<S, T>::type;
+
+	// integral_concat
+	template <typename S1, typename S2>
+	struct integral_concat_impl;
+	template <typename T, T ...N1s, T ...N2s>
+	struct integral_concat_impl<integral_sequence<T, N1s...>, integral_sequence<T, N2s...>> : type_is<integral_sequence<T, N1s..., N2s...>> {};
+	template <typename S1, typename S2>
+	using integral_concat = typename integral_concat_impl<S1, S2>::type;
+
+	// integral_scale
+	template <typename T, typename S, T Amount>
+	struct integral_scale_impl;
+	template <typename T, T ...Ns, T Amount>
+	struct integral_scale_impl<T, integral_sequence<T, Ns...>, Amount> : type_is<integral_sequence<T, (Ns * Amount)...>> {};
+	template <typename T, typename S, T Amount>
+	using integral_scale = typename integral_scale_impl<T, S, Amount>::type;
+	// integral_shift
+	template <typename T, typename S, T Amount>
+	struct integral_shift_impl;
+	template <typename T, T ...Ns, T Amount>
+	struct integral_shift_impl<T, integral_sequence<T, Ns...>, Amount> : type_is<integral_sequence<T, (Ns + Amount)...>> {};
+	template <typename T, typename S, T Amount>
+	using integral_shift = typename integral_shift_impl<T, S, Amount>::type;
+	// integral_mod
+	template <typename T, typename S, T Amount>
+	struct integral_mod_impl;
+	template <typename T, T ...Ns, T Amount>
+	struct integral_mod_impl<T, integral_sequence<T, Ns...>, Amount> : type_is<integral_sequence<T, (Ns % Amount)...>> {};
+	template <typename T, typename S, T Amount>
+	using integral_mod = typename integral_mod_impl<T, S, Amount>::type;
+
+	//
+	template <std::size_t ...Is>
+	struct make_index_sequence_impl;
+	template <std::size_t N>
+	struct make_index_sequence_impl<N> : type_is<integral_concat<typename make_index_sequence_impl<(N / 2)>::type, integral_shift<std::size_t, typename make_index_sequence_impl<(N - (N / 2))>::type, (N / 2)>>> {};
+	template <>
+	struct make_index_sequence_impl<0> : type_is<index_sequence<>> {};
+	template <>
+	struct make_index_sequence_impl<1> : type_is<index_sequence<0>> {};
+	template <std::size_t N>
+	using make_index_sequence = typename make_index_sequence_impl<N>::type;
+
+	template <typename T, T N>
+	using make_integral_sequence = integral_convert<make_index_sequence<N>, T>;
 
 	// integral_head
 	template <typename T, typename S>
@@ -150,41 +224,42 @@ namespace mpl
 	using integral_take = integral_subsequence<T, S, 0, N>;
 
 	// integral_enumerate
-	template <typename T, T B, T E, T D, typename S, typename = void>
-	struct integral_enumerate_impl;
-	template <typename T, T B, T E, T D, typename S>
-	struct integral_enumerate_impl<T, B, E, D, S, enable_if_t<(B < E)>> : type_is<typename integral_enumerate_impl<T, B + D, E, D, integral_append<T, S, B>>::type> {};
-	template <typename T, T B, T E, T D, typename S>
-	struct integral_enumerate_impl<T, B, E, D, S, enable_if_t<(B >= E)>> : type_is<S> {};
 	template <typename T, T B, T E, T D = 1>
-	using integral_enumerate = typename integral_enumerate_impl<T, B, E, D, integral_sequence<T>>::type;
+	using integral_enumerate = integral_shift<T, integral_scale<T, make_integral_sequence<T, ((E - B) / D)>, D>, B>;
 
 	// make_*_sequence
-	template <typename T, T N>
-	using make_integral_sequence = integral_enumerate<T, 0, N>;
-	template <std::size_t N>
-	using make_index_sequence = make_integral_sequence<std::size_t, N>;
-
 	template <typename T>
 	using make_tuple_sequence = make_index_sequence<std::tuple_size<T>::value>;
 	template <typename T>
 	using make_array_sequence = make_tuple_sequence<T>;
 
-	// integral_concat
-	template <typename S1, typename S2>
-	struct integral_concat_impl;
-	template <typename T, T ...N1s, T ...N2s>
-	struct integral_concat_impl<integral_sequence<T, N1s...>, integral_sequence<T, N2s...>> : type_is<integral_sequence<T, N1s..., N2s...>> {};
-	template <typename S1, typename S2>
-	using integral_concat = typename integral_concat_impl<S1, S2>::type;
-
-	// transpose_sequence
-	template <typename T, std::size_t R, std::size_t C, std::size_t I, typename S_out>
-	struct transpose_sequence : type_is<typename transpose_sequence<T, R, C, I + 1, integral_concat<S_out, integral_enumerate<T, I, R * C, C>>>::type> {};
-	template <typename T, std::size_t R, std::size_t C, typename S_out>
-	struct transpose_sequence<T, R, C, C, S_out> : type_is<S_out> {};
+	/** transpose_sequence
+	 * \tparam R Number of rows in resulting matrix, or number of columns in existing matrix.
+	 * \tparam C Number of columns in resulting matrix, or number of rows in existing matrix.
+	 */
 	template <std::size_t R, std::size_t C>
-	using make_transpose_sequence = typename transpose_sequence<std::size_t, R, C, 0, index_sequence<>>::type;
+	using make_transpose_sequence = integral_append<std::size_t, integral_mod<std::size_t, integral_scale<std::size_t, make_index_sequence<(R * C - 1)>, R>, (R * C - 1)>, (R * C - 1)>;
+
+	// what follows is an example of how make_transpose_sequence works:
+	// given:
+	// 0 1 2 3
+	// 4 5 6 7
+	// we reshape and compute:
+	//        x4   mod7
+	// 0 1   0  4  0 4
+	// 2 3   8 12  1 5
+	// 4 5  16 20  2 6
+	// 6 7  24 28  3 0 <-- replace ending zero with 7
+
+	// sum
+	template <typename S>
+	struct integral_sum;
+	template <typename T>
+	struct integral_sum<integral_sequence<T>> : integral_constant<T, 0> {};
+	template <typename T, T N1>
+	struct integral_sum<integral_sequence<T, N1>> : integral_constant<T, N1> {};
+	template <typename T, T N1, T N2, T ...Ns>
+	struct integral_sum<integral_sequence<T, N1, N2, Ns...>> : integral_sum<integral_sequence<T, (N1 + N2), Ns...>> {};
 
 	////////////////////////////////////////////////////////////////////////////
 	//

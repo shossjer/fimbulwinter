@@ -5,9 +5,6 @@
 namespace engine
 {
 	PhysxSDK::PhysxSDK(const unsigned int numThreads)
-		:
-		gDefaultAllocatorCallback(),
-		gDefaultErrorCallback()
 	{
 		this->mFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, this->gDefaultAllocatorCallback, this->gDefaultErrorCallback);
 

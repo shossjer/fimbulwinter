@@ -2,7 +2,6 @@
 #include "input.hpp"
 
 #include <core/debug.hpp>
-#include <engine/graphics/events.hpp>
 
 namespace
 {

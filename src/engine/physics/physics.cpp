@@ -8,13 +8,12 @@
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^
 //   this needs to be first
 
+#include "physics.hpp"
+
 #include <core/debug.hpp>
 #include <core/maths/Vector.hpp>
 
-#include <engine/physics/physics.hpp>
-#include <engine/graphics/opengl.hpp>
-#include <engine/graphics/opengl/Font.hpp>
-#include <engine/graphics/opengl/Matrix.hpp>
+#include <engine/graphics/renderer.hpp>
 
 #include <array>
 #include <stdexcept>
@@ -26,7 +25,7 @@ namespace physics
 {
 	const float mStepSize = 1.0f / 60.0f;
 	
-	void nearby(const PhysxScene & scene, const physx::PxVec3 & pos, const float radie, std::vector<Id> & objects);
+	void nearby(const PhysxScene & scene, const physx::PxVec3 & pos, const float radie, std::vector<engine::Entity> & objects);
 		
 	namespace
 	{
@@ -81,7 +80,7 @@ namespace physics
 
 	}
 
-	void nearby(const Point & pos, const float radius, std::vector<Id> & objects)
+	void nearby(const Point & pos, const float radius, std::vector<engine::Entity> & objects)
 	{
 		// 
 		nearby(scene, physx::PxVec3(pos[0], pos[1], pos[2]), radius, objects);
@@ -91,9 +90,23 @@ namespace physics
 	{
 		scene.instance->simulate(mStepSize);
 		scene.instance->fetchResults(true);
+
+		for (const auto & rb : scene.actors)
+		{
+			physx::PxTransform pT = rb.second->getGlobalPose();
+
+			physx::PxMat33 m = physx::PxMat33(pT.q);
+
+			engine::graphics::data::ModelviewMatrix modelview;
+			modelview.matrix = core::maths::Matrix4x4f{m.column0[0], m.column1[0], m.column2[0], pT.p[0],
+			                                           m.column0[1], m.column1[1], m.column2[1], pT.p[1],
+			                                           m.column0[2], m.column1[2], m.column2[2], pT.p[2],
+			                                           0.f, 0.f, 0.f, 1.f};
+			engine::graphics::renderer::update(rb.first, modelview);
+		}
 	}
 
-	MoveResult update(const Id id, const MoveData & moveData)
+	MoveResult update(const engine::Entity id, const MoveData & moveData)
 	{
 		physx::PxController *const actor = reinterpret_cast<physx::PxController *>(scene.controller(id));
 
@@ -107,6 +120,13 @@ namespace physics
 		const physx::PxU32 flags = actor->move(physx::PxVec3(moveData.velXZ[0] * mStepSize * 10.f, dY, moveData.velXZ[1] * mStepSize * 10.f), 0.001f, mStepSize, collisionFilters);
 
 		const physx::PxExtendedVec3 & pos = actor->getPosition();
+
+		engine::graphics::data::ModelviewMatrix modelview;
+		modelview.matrix = core::maths::Matrix4x4f{1.f, 0.f, 0.f, float(pos.x),
+		                                           0.f, 1.f, 0.f, float(pos.y),
+		                                           0.f, 0.f, 1.f, float(pos.z),
+		                                           0.f, 0.f, 0.f, 1.f};
+		engine::graphics::renderer::update(id, modelview);
 
 		if (flags & physx::PxControllerCollisionFlag::eCOLLISION_DOWN)
 		{
@@ -125,7 +145,7 @@ namespace physics
 		return physx::PxTransform(point[0], point[1], point[2]);
 	}
 
-	void create(const Id id, const BoxData & data)
+	void create(const engine::Entity id, const BoxData & data)
 	{
 		MaterialData & material = materials.at(data.material);
 		physx::PxBoxGeometry geometry(data.size[0], data.size[1], data.size[2]);
@@ -139,9 +159,16 @@ namespace physics
 		//shapesBoxes.back().body->setActorFlag(physx::PxActorFlag::eSEND_SLEEP_NOTIFIES, true);
 
 		scene.actors.emplace(id, actor);
+
+		engine::graphics::data::CuboidC cuboid = {
+			core::maths::Matrix4x4f::translation(data.pos[0], data.pos[1], data.pos[2]),
+			float(data.size[0]), float(data.size[1]), float(data.size[2]),
+			0xffffffff
+		};
+		engine::graphics::renderer::add(id, cuboid);
 	}
 
-	void create(const Id id, const CharacterData & data)
+	void create(const engine::Entity id, const CharacterData & data)
 	{
 		MaterialData & material = materials.at(data.material);
 		physx::PxCapsuleControllerDesc desc;
@@ -168,275 +195,18 @@ namespace physics
 		controller->getActor()->setMass(mass);
 
 		scene.controllers.emplace(id, controller);
+
+		engine::graphics::data::CuboidC cuboid = {
+			core::maths::Matrix4x4f::translation(data.pos[0], data.pos[1], data.pos[2]),
+			data.radius, data.height, data.radius,
+			0xffffffff
+		};
+		engine::graphics::renderer::add(id, cuboid);
 	}
 
-	void remove(const Id id)
+	void remove(const engine::Entity id)
 	{
 		scene.remove(id);
-	}
-
-	/**
-	 *	Temp Rendering stuff!
-	 */
-
-	static void getColumnMajor(physx::PxMat33 m, physx::PxVec3 t, float* mat)
-	{
-		mat[0] = m.column0[0];
-		mat[1] = m.column0[1];
-		mat[2] = m.column0[2];
-		mat[3] = 0;
-
-		mat[4] = m.column1[0];
-		mat[5] = m.column1[1];
-		mat[6] = m.column1[2];
-		mat[7] = 0;
-
-		mat[8] = m.column2[0];
-		mat[9] = m.column2[1];
-		mat[10] = m.column2[2];
-		mat[11] = 0;
-
-		mat[12] = t[0];
-		mat[13] = t[1];
-		mat[14] = t[2];
-		mat[15] = 1;
-	}
-
-	void draw_box(const physx::PxBoxGeometry & size);
-
-	void render()
-	{
-		for (const auto & rb : scene.actors)
-		{
-			// TODO: try to get pos updates when objects are moved (and post as pos-event)
-		//	physx::PxTransform pT = rb.second->getGlobalPose();//physx::PxShapeExt::getGlobalPose(*rb.second->getShapes()[0], *rb);
-
-			physx::PxShape* shapes[1];
-			rb.second->getShapes(shapes, 1);
-			
-			physx::PxBoxGeometry bg;
-			shapes[0]->getBoxGeometry(bg);
-
-			physx::PxTransform pT = rb.second->getGlobalPose();//physx::PxShapeExt::getGlobalPose(*shapes[0], *rb.second);
-			
-
-			physx::PxMat33 m = physx::PxMat33(pT.q);
-			float mat[16];
-
-			getColumnMajor(m, pT.p, mat);
-
-			//if (rb.second-> ->isSleeping())
-			//{
-			//	glColor3f(1, 0, 0);
-			//}
-			//else
-			{
-				glColor3f(1, 1, 1);
-			}
-
-			glPushMatrix();
-			glMultMatrixf(mat);
-
-			draw_box(bg);
-
-			glPopMatrix();
-		}
-
-		for(const auto & controller : scene.controllers)
-		{
-			const auto pos = controller.second->getPosition();//self->getPosition();
-
-			physx::PxShape* shapes[1];
-			controller.second->getActor()->getShapes(shapes, 1);
-
-			glPushMatrix();
-			{
-				physx::PxCapsuleGeometry geometry;
-
-				if (shapes[0]->getCapsuleGeometry(geometry))
-				{
-					glTranslated(pos.x, pos.y, pos.z);
-					draw_box(physx::PxBoxGeometry(geometry.radius, 2*geometry.halfHeight, geometry.radius));
-					//draw_box(physx::PxBoxGeometry(gControllerRadius, gStandingSize, gControllerRadius));
-				}
-			}
-			glPopMatrix();
-		}
-	}
-
-	//void draw_plane(const btCollisionShape * const shape)
-	//{
-	//	const btStaticPlaneShape* staticPlaneShape = static_cast<const btStaticPlaneShape*>(shape);
-	//	btScalar planeConst = staticPlaneShape->getPlaneConstant();
-	//	const btVector3& planeNormal = staticPlaneShape->getPlaneNormal();
-	//	btVector3 planeOrigin = planeNormal * planeConst;
-	//	btVector3 vec0, vec1;
-	//	btPlaneSpace1(planeNormal, vec0, vec1);
-	//	btScalar vecLen = 100.f;
-	//	btVector3 pt0 = planeOrigin + vec0*vecLen;
-	//	btVector3 pt1 = planeOrigin - vec0*vecLen;
-	//	btVector3 pt2 = planeOrigin + vec1*vecLen;
-	//	btVector3 pt3 = planeOrigin - vec1*vecLen;
-	//	glBegin(GL_LINES);
-	//	glVertex3f(pt0.getX(), pt0.getY(), pt0.getZ());
-	//	glVertex3f(pt1.getX(), pt1.getY(), pt1.getZ());
-	//	glVertex3f(pt2.getX(), pt2.getY(), pt2.getZ());
-	//	glVertex3f(pt3.getX(), pt3.getY(), pt3.getZ());
-	//	glEnd();
-	//}
-
-	//void draw_plane(const physx::PxPlane & plane)
-	//{
-	//	physx::PxVec3 planeOrigin = plane.n*plane.d;
-	//	
-	//	btVector3 vec0, vec1;
-	//	btPlaneSpace1(planeNormal, vec0, vec1);
-	//	btScalar vecLen = 100.f;
-	//	btVector3 pt0 = planeOrigin + vec0*vecLen;
-	//	btVector3 pt1 = planeOrigin - vec0*vecLen;
-	//	btVector3 pt2 = planeOrigin + vec1*vecLen;
-	//	btVector3 pt3 = planeOrigin - vec1*vecLen;
-	//	glBegin(GL_LINES);
-	//	glVertex3f(pt0.getX(), pt0.getY(), pt0.getZ());
-	//	glVertex3f(pt1.getX(), pt1.getY(), pt1.getZ());
-	//	glVertex3f(pt2.getX(), pt2.getY(), pt2.getZ());
-	//	glVertex3f(pt3.getX(), pt3.getY(), pt3.getZ());
-	//	glEnd();
-	//}
-
-	//void draw_sphere(const btScalar radius, const unsigned int lats, const unsigned int longs)
-	//{
-	//	int i, j;
-	//	for (i = 0; i <= lats; i++) {
-	//		btScalar lat0 = SIMD_PI * (-btScalar(0.5) + (btScalar)(i - 1) / lats);
-	//		btScalar z0 = radius*sin(lat0);
-	//		btScalar zr0 = radius*cos(lat0);
-
-	//		btScalar lat1 = SIMD_PI * (-btScalar(0.5) + (btScalar)i / lats);
-	//		btScalar z1 = radius*sin(lat1);
-	//		btScalar zr1 = radius*cos(lat1);
-
-	//		glBegin(GL_QUAD_STRIP);
-	//		for (j = 0; j <= longs; j++) {
-	//			btScalar lng = 2 * SIMD_PI * (btScalar)(j - 1) / longs;
-	//			btScalar x = cos(lng);
-	//			btScalar y = sin(lng);
-	//			glNormal3f(x * zr1, y * zr1, z1);
-	//			glVertex3f(x * zr1, y * zr1, z1);
-	//			glNormal3f(x * zr0, y * zr0, z0);
-	//			glVertex3f(x * zr0, y * zr0, z0);
-	//		}
-	//		glEnd();
-	//	}
-	//}
-
-	void draw_box(const physx::PxBoxGeometry & size)
-	{
-		glScalef(size.halfExtents.x, size.halfExtents.y, size.halfExtents.z);
-
-		glBegin(GL_TRIANGLES);
-		// front faces
-		glNormal3f(0, 0, 1);
-		// face v0-v1-v2
-		//glColor3f(1, 1, 1);
-		glVertex3f(1, 1, 1);
-		//glColor3f(1, 1, 0);
-		glVertex3f(-1, 1, 1);
-		//glColor3f(1, 0, 0);
-		glVertex3f(-1, -1, 1);
-		// face v2-v3-v0
-		//glColor3f(1, 0, 0);
-		glVertex3f(-1, -1, 1);
-		//glColor3f(1, 0, 1);
-		glVertex3f(1, -1, 1);
-		//glColor3f(1, 1, 1);
-		glVertex3f(1, 1, 1);
-
-		// right faces
-		glNormal3f(1, 0, 0);
-		// face v0-v3-v4
-		//glColor3f(1, 1, 1);
-		glVertex3f(1, 1, 1);
-		//glColor3f(1, 0, 1);
-		glVertex3f(1, -1, 1);
-		//glColor3f(0, 0, 1);
-		glVertex3f(1, -1, -1);
-		// face v4-v5-v0
-		//glColor3f(0, 0, 1);
-		glVertex3f(1, -1, -1);
-		//glColor3f(0, 1, 1);
-		glVertex3f(1, 1, -1);
-		//glColor3f(1, 1, 1);
-		glVertex3f(1, 1, 1);
-
-		// top faces
-		glNormal3f(0, 1, 0);
-		// face v0-v5-v6
-		//glColor3f(1, 1, 1);
-		glVertex3f(1, 1, 1);
-		//glColor3f(0, 1, 1);
-		glVertex3f(1, 1, -1);
-		//glColor3f(0, 1, 0);
-		glVertex3f(-1, 1, -1);
-		// face v6-v1-v0
-		//glColor3f(0, 1, 0);
-		glVertex3f(-1, 1, -1);
-		//glColor3f(1, 1, 0);
-		glVertex3f(-1, 1, 1);
-		//glColor3f(1, 1, 1);
-		glVertex3f(1, 1, 1);
-
-		// left faces
-		glNormal3f(-1, 0, 0);
-		// face  v1-v6-v7
-		//glColor3f(1, 1, 0);
-		glVertex3f(-1, 1, 1);
-		//glColor3f(0, 1, 0);
-		glVertex3f(-1, 1, -1);
-		//glColor3f(0, 0, 0);
-		glVertex3f(-1, -1, -1);
-		// face v7-v2-v1
-		//glColor3f(0, 0, 0);
-		glVertex3f(-1, -1, -1);
-		//glColor3f(1, 0, 0);
-		glVertex3f(-1, -1, 1);
-		//glColor3f(1, 1, 0);
-		glVertex3f(-1, 1, 1);
-
-		// bottom faces
-		glNormal3f(0, -1, 0);
-		// face v7-v4-v3
-		//glColor3f(0, 0, 0);
-		glVertex3f(-1, -1, -1);
-		//glColor3f(0, 0, 1);
-		glVertex3f(1, -1, -1);
-		//glColor3f(1, 0, 1);
-		glVertex3f(1, -1, 1);
-		// face v3-v2-v7
-		//glColor3f(1, 0, 1);
-		glVertex3f(1, -1, 1);
-		//glColor3f(1, 0, 0);
-		glVertex3f(-1, -1, 1);
-		//glColor3f(0, 0, 0);
-		glVertex3f(-1, -1, -1);
-
-		// back faces
-		glNormal3f(0, 0, -1);
-		// face v4-v7-v6
-		//glColor3f(0, 0, 1);
-		glVertex3f(1, -1, -1);
-		//glColor3f(0, 0, 0);
-		glVertex3f(-1, -1, -1);
-		//glColor3f(0, 1, 0);
-		glVertex3f(-1, 1, -1);
-		// face v6-v5-v4
-		//glColor3f(0, 1, 0);
-		glVertex3f(-1, 1, -1);
-		//glColor3f(0, 1, 1);
-		glVertex3f(1, 1, -1);
-		//glColor3f(0, 0, 1);
-		glVertex3f(1, -1, -1);
-		glEnd();
 	}
 }
 }

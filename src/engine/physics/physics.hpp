@@ -1,6 +1,8 @@
 
 #include "defines.hpp"
 
+#include <engine/Entity.hpp>
+
 #include <array>
 #include <vector>
 
@@ -11,7 +13,7 @@ namespace physics
 	/**
 	 *	get all Objects within radie of a pos
 	 */
-	void nearby(const Point & pos, const float radie, std::vector<Id> & objects);
+	void nearby(const Point & pos, const float radie, std::vector<engine::Entity> & objects);
 	/**
 	 *	steps physics engine forward
 	 */
@@ -42,7 +44,7 @@ namespace physics
 	/**
 	 *	updates a single character Object with Movement data
 	 */
-	MoveResult update(const Id id, const MoveData & moveData);
+	MoveResult update(const engine::Entity id, const MoveData & moveData);
 
 	enum class Material
 	{
@@ -86,7 +88,7 @@ namespace physics
 		{}
 	};
 
-	void create(const Id id, const BoxData & data);
+	void create(const engine::Entity id, const BoxData & data);
 
 	struct CharacterData : public ObjectData
 	{
@@ -101,7 +103,7 @@ namespace physics
 		{}
 	};
 
-	void create(const Id id, const CharacterData & data);
+	void create(const engine::Entity id, const CharacterData & data);
 
 	struct CylinderData : public ObjectData
 	{
@@ -116,7 +118,7 @@ namespace physics
 		{}
 	};
 
-	void create(const Id id, const CylinderData & data);
+	void create(const engine::Entity id, const CylinderData & data);
 
 	struct SphereData : public ObjectData
 	{
@@ -129,8 +131,8 @@ namespace physics
 		{}
 	};
 
-	void create(const Id id, const SphereData & data);
+	void create(const engine::Entity id, const SphereData & data);
 
-	void remove(const Id id);
+	void remove(const engine::Entity id);
 }
 }

@@ -49,12 +49,12 @@
 /**
  * Asserts that this path is never reached.
  */
-# define debug_unreachable() \
-	do { \
-		/*__builtin_unreachable();*/ \
-		debug_assert(false); \
-		std::terminate(); \
-	} while(false)
+# ifdef __GNUG__
+#  define debug_unreachable() __builtin_unreachable()
+# else
+#  define debug_unreachable() \
+	do { debug_assert(false); std::terminate(); } while(false)
+# endif
 #else
 /**
  * Does nothing.

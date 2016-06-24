@@ -35,29 +35,33 @@ set(TRIBUNAL_VERSION_MINOR 1)
 set(TRIBUNAL_SOURCE
 	src/main.cpp
 	src/core/async/Thread.cpp
+	src/core/crypto/crc.cpp
 	src/engine/application/window.cpp
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
-	src/engine/graphics/events.cpp
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
+	src/engine/model/armature.cpp
 	src/engine/physics/physics.cpp
 	src/engine/physics/PhysxSDK.cpp
 	src/engine/physics/physxQueries.cpp
 	src/gameplay/game-menu.cpp
+	src/gameplay/level.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/player.cpp
-	src/engine/model/armature.cpp
 	)
 
 # source listing
 set(TRIBUNAL_HEADER
-	src/core/color.hpp
-	src/core/debug.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
+	src/core/color.hpp
+	src/core/container/Buffer.hpp
 	src/core/container/Stack.hpp
+	src/core/crypto/crc.hpp
+	src/core/debug.hpp
+	src/core/format.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp
@@ -67,24 +71,26 @@ set(TRIBUNAL_HEADER
 	src/core/maths/util.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Mutex.hpp
-	src/engine/debug.hpp
+	src/engine/Collection.hpp
+	src/engine/Entity.hpp
 	src/engine/application/window.hpp
+	src/engine/debug.hpp
+	src/engine/extras/Asset.hpp
 	src/engine/graphics/Camera.hpp
-	src/engine/graphics/events.hpp
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/hid/input.hpp
+	src/engine/model/armature.hpp
 	src/engine/physics/defines.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/PhysxCallback.hpp
 	src/engine/physics/PhysxScene.hpp
 	src/engine/physics/PhysxSDK.hpp
 	src/gameplay/CharacterState.hpp
-	src/engine/graphics/renderer.hpp
-	src/engine/model/armature.hpp
 	src/gameplay/debug.hpp
 	src/gameplay/game-menu.hpp
+	src/gameplay/level.hpp
 	src/gameplay/player.hpp
 	src/utility/algorithm.hpp
 	src/utility/array.hpp

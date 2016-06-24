@@ -3,7 +3,6 @@
 
 #include <gameplay/CharacterState.hpp>
 
-#include <engine/graphics/events.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/hid/input.hpp>
 
@@ -29,7 +28,7 @@ namespace
 	{
 		std::array<bool, sizeof...(Ns)> keyMap;
 
-		MapWrapper() : keyMap{(Ns, false)...}
+		MapWrapper() : keyMap{((void)Ns, false)...}
 		{}
 	};
 
@@ -222,27 +221,6 @@ namespace
 	Device testDevice;
 }
 
-//namespace engine
-//{
-//	namespace player
-//	{
-//		void update()
-//		{
-//			stateHID.update();
-//
-//			engine::physics::MoveResult res = engine::physics::update(0, playerState.movement(), playerState.fallVel);
-//
-//			playerState.grounded = res.isGrounded;
-//			playerState.fallVel = res.fallVel;
-//		}
-//
-//		//void input(const std::size_t object, const bool grounded)
-//		//{
-//		//	playerState.grounded = grounded;
-//		//}
-//	}
-//}
-
 namespace gameplay
 {
 	namespace input
@@ -256,11 +234,6 @@ namespace gameplay
 		{
 			stateHID.characterState = &emptyState;
 		}
-
-		//void update()
-		//{
-		//	stateHID.update();
-		//}
 
 		void create()
 		{

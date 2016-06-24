@@ -1,10 +1,10 @@
 
 #include <core/debug.hpp>
 #include <engine/application/window.hpp>
-//#include <engine/graphics/renderer.hpp>
 
 #include <gameplay/game-menu.hpp>
 #include <gameplay/player.hpp>
+// #include <gameplay/level.hpp>
 
 #include <config.h>
 
@@ -17,7 +17,6 @@ namespace gameplay
 	namespace looper
 	{
 		extern void create();
-
 		extern void destroy();
 	}
 }
@@ -36,21 +35,21 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 {
 # endif
 	engine::application::window::create(hInstance, nCmdShow);
-	//engine::graphics::renderer::create();
-	gameplay::looper::create();
 
+	gameplay::looper::create();
 	gameplay::input::create();
 	gameplay::gamemenu::create();
+	// gameplay::level::create("res/box.lvl");
 
 	const int ret = engine::application::window::execute();
 
 	debug_printline(0xffffffff, "loop is no more");
 
+	// gameplay::level::destroy();
 	gameplay::gamemenu::destroy();
 	gameplay::input::destroy();
-
-	//engine::graphics::renderer::destroy();
 	gameplay::looper::destroy();
+
 	engine::application::window::destroy(hInstance);
 
 	return ret;
@@ -59,21 +58,21 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 int main(const int argc, const char *const argv[])
 {
 	engine::application::window::create();
-//	engine::graphics::renderer::create();
-	gameplay::looper::create();
 
+	gameplay::looper::create();
 	gameplay::input::create();
 	gameplay::gamemenu::create();
+	// gameplay::level::create("res/box.lvl");
 
 	const int ret = engine::application::window::execute();
 
 	debug_printline(0xffffffff, "loop is no more");
 
+	// gameplay::level::destroy();
 	gameplay::gamemenu::destroy();
 	gameplay::input::destroy();
-
-	//engine::graphics::renderer::destroy();
 	gameplay::looper::destroy();
+
 	engine::application::window::destroy();
 
 	return ret;
