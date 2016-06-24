@@ -44,8 +44,6 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input_x11.cpp
 	src/engine/model/armature.cpp
 	src/engine/physics/physics.cpp
-	src/engine/physics/PhysxSDK.cpp
-	src/engine/physics/physxQueries.cpp
 	src/gameplay/game-menu.cpp
 	src/gameplay/level.cpp
 	src/gameplay/looper.cpp
@@ -84,9 +82,6 @@ set(TRIBUNAL_HEADER
 	src/engine/model/armature.hpp
 	src/engine/physics/defines.hpp
 	src/engine/physics/physics.hpp
-	src/engine/physics/PhysxCallback.hpp
-	src/engine/physics/PhysxScene.hpp
-	src/engine/physics/PhysxSDK.hpp
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp
 	src/gameplay/game-menu.hpp
@@ -175,67 +170,31 @@ message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
 find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
-# Check that Physx header files exist
-find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
-get_filename_component(DIRECTORY_OF_PHYSX "${FILE_PHYSX_HEADERS}" DIRECTORY)
-include_directories("${DIRECTORY_OF_PHYSX}")
+# Check that BOX2d header files exist
+find_file(FILE_PHYSICS_BOX_HEADERS Box2D/Box2D.h)
+message(STATUS "Looking for Physics Box header files - ${FILE_PHYSICS_BOX_HEADERS}")
+
+get_filename_component(DIRECTORY_OF_PHYSICS_BOX "${FILE_PHYSICS_BOX_HEADERS}" DIRECTORY)
+include_directories("${DIRECTORY_OF_PHYSICS_BOX}")
 if (MODE_DEBUG)
   add_definitions(-D_DEBUG)
 elseif (MODE_RELEASE)
   add_definitions(-DNDEBUG)
 endif()
 
-message(STATUS "Looking for Physx header files - ${FILE_PHYSX_HEADERS}")
-
-find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x64)
-if (NOT LIBRARY_PHYSX_CORE_D)
-  find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x86)
-endif()
-find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x64)
-if (NOT LIBRARY_PHYSX_COMMON_D)
-  find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x86)
-endif()
-find_library(LIBRARY_PHYSX_EXTENSIONS_D PhysX3ExtensionsDEBUG)
-find_library(LIBRARY_PHYSX_PROFILE_D PhysXProfileSDKDEBUG)
-find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x64)
-if (NOT LIBRARY_PHYSX_CHARACTER_D)
-  find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x86)
-endif()
-find_library(LIBRARY_PHYSX_CORE PhysX3_x64)
-if (NOT LIBRARY_PHYSX_CORE)
-  find_library(LIBRARY_PHYSX_CORE PhysX3_x86)
-endif()
-find_library(LIBRARY_PHYSX_COMMON PhysX3Common_x64)
-if (NOT LIBRARY_PHYSX_COMMON)
-  find_library(LIBRARY_PHYSX_COMMON PhysX3Common_x86)
-endif()
-find_library(LIBRARY_PHYSX_EXTENSIONS PhysX3Extensions)
-find_library(LIBRARY_PHYSX_PROFILE PhysXProfileSDK)
-find_library(LIBRARY_PHYSX_CHARACTER PhysX3CharacterKinematic_x64)
-if (NOT LIBRARY_PHYSX_CHARACTER)
-  find_library(LIBRARY_PHYSX_CHARACTER PhysX3CharacterKinematic_x86)
+find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
+if (NOT LIBRARY_PHYSICS_BOX_CORE_D)
+  find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
 endif()
 
-message(STATUS "Looking for Physx core - ${LIBRARY_PHYSX_CORE}")
-message(STATUS "Looking for Physx commons - ${LIBRARY_PHYSX_COMMON}")
-message(STATUS "Looking for Physx extensions - ${LIBRARY_PHYSX_EXTENSIONS}")
-message(STATUS "Looking for Physx profile - ${LIBRARY_PHYSX_PROFILE}")
-message(STATUS "Looking for Physx character - ${LIBRARY_PHYSX_CHARACTER}")
-message(STATUS "Looking for Physx core debug - ${LIBRARY_PHYSX_CORE_D}")
-message(STATUS "Looking for Physx commons debug - ${LIBRARY_PHYSX_COMMON_D}")
-message(STATUS "Looking for Physx extensions debug - ${LIBRARY_PHYSX_EXTENSIONS_D}")
-message(STATUS "Looking for Physx profile debug - ${LIBRARY_PHYSX_PROFILE_D}")
-message(STATUS "Looking for Physx character debug - ${LIBRARY_PHYSX_CHARACTER_D}")
-
-# graphics libraries
-if (LIBRARY_PHYSX_CORE)
-  # debug sets lib for "debug" in VS and optimized sets lib for "release" mode in VS
-  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_CORE_D} optimized ${LIBRARY_PHYSX_CORE})
-  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_COMMON_D} optimized ${LIBRARY_PHYSX_COMMON})
-  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_EXTENSIONS_D} optimized ${LIBRARY_PHYSX_EXTENSIONS})
-  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_PROFILE_D} optimized ${LIBRARY_PHYSX_PROFILE})
-  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_CHARACTER_D} optimized ${LIBRARY_PHYSX_CHARACTER})
+find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
+if (NOT LIBRARY_PHYSICS_BOX_CORE)
+  find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
 endif()
+
+message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
+
+target_link_libraries(Tribunal debug ${LIBRARY_PHYSICS_BOX_CORE_D} optimized ${LIBRARY_PHYSICS_BOX_CORE})
 
 # select libraries
 # graphics

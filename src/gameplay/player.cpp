@@ -64,7 +64,7 @@ namespace
 			if (!this->characterState->grounded)
 				return;
 
-			this->characterState->fallVel = 10.f;
+			this->characterState->fallVel = 6.f;
 		}
 
 		void update()
