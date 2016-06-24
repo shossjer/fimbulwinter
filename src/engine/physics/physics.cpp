@@ -23,6 +23,9 @@ namespace engine
 namespace physics
 {
 	const float timeStep = 1.f / 60.f;
+
+	b2Vec2 convert(const Point & point) { return b2Vec2{ point[0], point[1] }; }
+	Point convert(const b2Vec2 & point) { return Point{ point.x, point.y, 0.f }; }
 	/**
 	 *	Contact counter for characters to determine falling / grounded
 	 */
@@ -85,6 +88,17 @@ namespace physics
 		 */
 		b2World world{ b2Vec2{0.f, -9.82f} };
 		/**
+		 *	Helper function to also set id!
+		 */
+		b2Body * createBody(const engine::Entity id, b2BodyDef & def)
+		{
+			b2Body * body = world.CreateBody(&def);
+
+			body->SetUserData((void*)static_cast<engine::Entity::value_type>(id));
+
+			return body;
+		}
+		/**
 		 *	Material properties, used when creating actors 
 		 */
 		struct MaterialData
@@ -102,8 +116,8 @@ namespace physics
 			}
 		};
 
-		std::unordered_map<engine::Entity::value_type, b2Body* > actors;
-		std::unordered_map<engine::Entity::value_type, ShapeContactCounter > characterContactCounters;
+		std::unordered_map<engine::Entity, b2Body*> actors;
+		std::unordered_map<engine::Entity, ShapeContactCounter> characterContactCounters;
 
 		std::unordered_map<Material, MaterialData> materials;
 	}
@@ -112,6 +126,7 @@ namespace physics
 	{
 		world.SetContactListener(&contactCallback);
 		{
+			const engine::Entity id{ 0 };
 			// This a chain shape with isolated vertices
 			std::vector<b2Vec2> vertices;
 		
@@ -129,7 +144,7 @@ namespace physics
 			b2BodyDef bodyDef;
 			bodyDef.type = b2_staticBody;
 			bodyDef.position.Set(0.f, 0.f);
-			b2Body* body = world.CreateBody(&bodyDef);
+			b2Body* body = createBody(id, bodyDef);
 
 			b2FixtureDef fixtureDef;
 			fixtureDef.shape = &chain;
@@ -138,7 +153,7 @@ namespace physics
 
 			body->CreateFixture(&fixtureDef);
 
-			actors.emplace(0, body);
+			actors.emplace(id, body);
 		}
 		/**
 			Water (salt)	1,030
@@ -162,8 +177,57 @@ namespace physics
 	void nearby(const Point & pos, const float radius, std::vector<engine::Entity> & objects)
 	{
 		// 
-	//	nearby(scene, physx::PxVec3(pos[0], pos[1], pos[2]), radius, objects);
+		class AABBQuery : public b2QueryCallback
+		{
+			std::vector<engine::Entity> & objects;
+		public:
+			AABBQuery(std::vector<engine::Entity> & objects) : objects(objects)	{}
+
+			bool ReportFixture(b2Fixture* fixture)
+			{
+				const b2Body *const body = fixture->GetBody();
+
+				objects.push_back(engine::Entity{ reinterpret_cast<engine::Entity::value_type>(body->GetUserData()) });
+
+				// Return true to continue the query.
+				return true;
+			}
+
+		} query{ objects };
+
+		b2AABB aabb{};
+
+		aabb.lowerBound.Set(pos[0] - radius, pos[1] - radius);
+		aabb.upperBound.Set(pos[0] + radius, pos[1] + radius);
+
+		world.QueryAABB(&query, aabb);
 	}
+
+	//class RayCast
+	//{
+	//public:
+	//	virtual float callback(const Id id, const Point & point, const Point & normal, const float fraction) = 0;
+
+	//	void rayCast(const Point & from, const Point & to);
+	//};
+
+	//void RayCast::execute(const Point & from, const Point & to)
+	//{
+	//	// This class captures the closest hit shape.
+	//	class MyRayCastCallback : public b2RayCastCallback
+	//	{
+	//		RayCast & reporter;
+	//	public:
+	//		MyRayCastCallback(RayCast & reporter) : reporter(reporter) {}
+
+	//		float32 ReportFixture(b2Fixture* fixture, const b2Vec2& point, const b2Vec2& normal, float32 fraction)
+	//		{
+	//			return reporter.callback((Id)fixture->GetBody()->GetUserData(), convert(point), convert(normal), fraction);
+	//		}
+	//	} query{ *this };
+
+	//	world.RayCast(&query, convert(from), convert(to));
+	//}
 
 	void update()
 	{
@@ -204,7 +268,8 @@ namespace physics
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_dynamicBody;
 		bodyDef.position.Set(data.pos[0], data.pos[1]);
-		b2Body* body = world.CreateBody(&bodyDef);
+		
+		b2Body*const body = createBody(id, bodyDef);
 
 		b2PolygonShape dynamicBox;
 		dynamicBox.SetAsBox(data.size[0], data.size[1]);
@@ -231,7 +296,8 @@ namespace physics
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_dynamicBody;
 		bodyDef.position.Set(data.pos[0], data.pos[1]);
-		b2Body* body = world.CreateBody(&bodyDef);
+		
+		b2Body*const body = createBody(id, bodyDef);
 		{
 			b2PolygonShape shape;
 			shape.SetAsBox(halfRadius, halfHeight - halfRadius);

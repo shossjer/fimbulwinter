@@ -47,4 +47,15 @@ namespace engine
 	};
 }
 
+namespace std
+{
+	template<> struct hash<engine::Entity>
+	{
+		std::size_t operator () (const engine::Entity entity) const
+		{
+			return std::hash<std::size_t>{}(entity);
+		}
+	};
+}
+
 #endif /* ENGINE_ENTITY_HPP */

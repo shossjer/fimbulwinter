@@ -10,6 +10,13 @@ namespace engine
 {
 namespace physics
 {
+	//class RayCast
+	//{
+	//public:
+	//	virtual float callback(const Id id, const Point & point, const Point & normal, const float fraction) = 0;
+
+	//	void execute(const Point & from, const Point & to);
+	//};
 	/**
 	 *	get all Objects within radie of a pos
 	 */

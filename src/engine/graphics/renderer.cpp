@@ -37,6 +37,11 @@ namespace engine
 		extern void draw();
 		extern void update();
 	}
+
+	namespace physics
+	{
+		void render();
+	}
 }
 
 namespace
@@ -511,6 +516,7 @@ namespace
 
 		// TEMP
 		glLoadMatrix(modelview_matrix);
+		engine::physics::render();
 		engine::model::update();
 		engine::model::draw();
 		glLoadMatrix(modelview_matrix);
