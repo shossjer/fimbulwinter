@@ -42,7 +42,7 @@ namespace effects
 			// update physics
 
 			engine::physics::effect::acceleration(
-				::engine::physics::Vector{ 0.f, 20.f, 0.f }, 
+				::engine::physics::Vector{{ 0.f, 20.f, 0.f }}, 
 				point,
 				10.f);
 		}

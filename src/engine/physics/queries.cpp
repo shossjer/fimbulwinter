@@ -25,7 +25,7 @@ namespace physics
 	namespace
 	{
 		b2Vec2 convert(const Point & point) { return b2Vec2{ point[0], point[1] }; }
-		Point convert(const b2Vec2 & point) { return Point{ point.x, point.y, 0.f }; }
+		Point convert(const b2Vec2 & point) { return Point{{ point.x, point.y, 0.f }}; }
 	}
 
 	extern const b2World & getWorld();

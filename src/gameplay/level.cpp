@@ -56,12 +56,6 @@ namespace
 		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
 		matrix.set_aligned(buffer);
 	}
-	void read_vector(std::ifstream & stream, core::maths::Vector3f & vec)
-	{
-		core::maths::Vector3f::array_type buffer;
-		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
-		vec.set_aligned(buffer);
-	}
 
 	void read_vertices(std::ifstream & ifile, core::container::Buffer & vertices)
 	{
@@ -78,16 +72,6 @@ namespace
 
 		edges.resize<uint16_t>(2 * std::size_t{nedges});
 		ifile.read(edges.data(), edges.size());
-	}
-	void read_triangles(std::ifstream & ifile, core::container::Buffer & triangles, core::container::Buffer & normals)
-	{
-		uint16_t ntriangles;
-		read_count(ifile, ntriangles);
-
-		triangles.resize<uint16_t>(3 * std::size_t{ntriangles});
-		ifile.read(triangles.data(), triangles.size());
-		normals.resize<float>(3 * std::size_t{ntriangles});
-		ifile.read(normals.data(), normals.size());
 	}
 
 	void read_mesh(std::ifstream & ifile, core::container::Buffer & vertices, core::container::Buffer & normals, core::container::Buffer & triangles)

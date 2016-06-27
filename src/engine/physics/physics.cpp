@@ -91,7 +91,7 @@ namespace physics
 		{
 			b2Body * body = world.CreateBody(&def);
 
-			body->SetUserData((void*)static_cast<engine::Entity::value_type>(id));
+			body->SetUserData((void*)(std::size_t)static_cast<engine::Entity::value_type>(id));
 
 			return body;
 		}
@@ -123,7 +123,7 @@ namespace physics
 	{
 		const b2Vec2 point = actors.at(id)->GetPosition();
 
-		return Point{ point.x, point.y, 0.f };
+		return Point{{ point.x, point.y, 0.f }};
 	}
 
 	namespace query
@@ -257,12 +257,12 @@ namespace physics
 			// I check the velY < 0.f since otherwise jumps are interrupted. Contact updating is too slow.
 			if (vel.y < 0.f)
 			{
-				return MoveResult(true, Point{ (float)pos.x, (float)pos.y, (float)0.f }, 0.f);
+				return MoveResult(true, Point{{ (float)pos.x, (float)pos.y, (float)0.f }}, 0.f);
 			}
 		}
 
 		// 
-		return MoveResult(false, Point{ (float)pos.x, (float)pos.y, (float)0.f}, vel.y);
+		return MoveResult(false, Point{{ (float)pos.x, (float)pos.y, (float)0.f}}, vel.y);
 	}
 
 	void create(const engine::Entity id, const BoxData & data)
@@ -284,7 +284,7 @@ namespace physics
 		fixtureDef.friction = material.friction;
 		fixtureDef.restitution = material.restitution;
 
-		b2Fixture *const fixture = body->CreateFixture(&fixtureDef);
+		/*b2Fixture *const fixture = */body->CreateFixture(&fixtureDef); // not used
 		
 		actors.emplace(id, body);
 	}

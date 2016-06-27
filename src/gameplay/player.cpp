@@ -29,7 +29,7 @@ namespace
 	{
 		std::array<bool, sizeof...(Ns)> keyMap;
 
-		MapWrapper() : keyMap{((void)Ns, false)...}
+		MapWrapper() : keyMap{{((void)Ns, false)...}}
 		{}
 	};
 

@@ -12,8 +12,8 @@ namespace
 	using engine::hid::Input;
 
 	constexpr std::size_t this_object = 11;
-	constexpr std::size_t continue_object = 12;
-	constexpr std::size_t exit_object = 13;
+	// constexpr std::size_t continue_object = 12; // not used
+	// constexpr std::size_t exit_object = 13; // not used
 
 	Device closed_dev;
 	Device opened_dev;

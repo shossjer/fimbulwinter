@@ -17,11 +17,11 @@ namespace graphics
 		Vec pos;
 		/**
 		 */
-		Vec dir;
+		// Vec dir; // not used
 
 	public:
 
-		Camera() : pos{0.f, 0.f, -20.f}
+		Camera() : pos{{0.f, 0.f, -20.f}}
 		{
 
 		}
