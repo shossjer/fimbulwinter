@@ -18,10 +18,18 @@ namespace
 		core::maths::Matrix4x4f matrix;
 		core::container::Buffer vertices;
 		core::container::Buffer edges;
+
+		theline_t()
+		{
+		}
 	};
 	struct player_t
 	{
 		core::maths::Matrix4x4f matrix;
+
+		player_t()
+		{
+		}
 	};
 	struct mesh_t
 	{
