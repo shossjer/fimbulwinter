@@ -411,7 +411,7 @@ namespace
 			data.free();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
-		engine::model::init(); // WAT
+		// engine::model::init(); // WAT
 	}
 
 	void render_update()
@@ -517,8 +517,8 @@ namespace
 		// TEMP
 		glLoadMatrix(modelview_matrix);
 		engine::physics::render();
-		engine::model::update();
-		engine::model::draw();
+		// engine::model::update();
+		// engine::model::draw();
 		glLoadMatrix(modelview_matrix);
 
 		// setup 2D

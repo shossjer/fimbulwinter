@@ -212,7 +212,7 @@ namespace physics
 			{
 				const b2Body *const body = fixture->GetBody();
 
-				objects.push_back(engine::Entity{ reinterpret_cast<engine::Entity::value_type>(body->GetUserData()) });
+				objects.push_back(engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)body->GetUserData()) });
 
 				// Return true to continue the query.
 				return true;

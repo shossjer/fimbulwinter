@@ -47,7 +47,7 @@ namespace physics
 				{
 					b2Body *const body = fixture->GetBody();
 
-					const engine::Entity id = engine::Entity{ reinterpret_cast<engine::Entity::value_type>(body->GetUserData()) };
+					const engine::Entity id = engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)body->GetUserData()) };
 
 					objects.push_back(Actor{ id, body });
 
@@ -79,7 +79,7 @@ namespace physics
 				float32 ReportFixture(b2Fixture* fixture, const b2Vec2& point, const b2Vec2& normal, float32 fraction)
 				{
 					return reporter.callback(
-						engine::Entity{ reinterpret_cast<engine::Entity::value_type>(fixture->GetBody()->GetUserData()) }, 
+						engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)fixture->GetBody()->GetUserData()) }, 
 						convert(point),
 						convert(normal), 
 						fraction);
