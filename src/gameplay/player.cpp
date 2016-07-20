@@ -2,6 +2,7 @@
 #include "player.hpp"
 
 #include <gameplay/CharacterState.hpp>
+#include <gameplay/effects.hpp>
 
 #include <engine/graphics/renderer.hpp>
 #include <engine/hid/input.hpp>
@@ -32,11 +33,13 @@ namespace
 		{}
 	};
 
-	gameplay::CharacterState emptyState;
+	gameplay::CharacterState emptyState {0};
 
 	class StateHID : public Context
 	{
 		using KeyMapT = MapWrapper<std::make_index_sequence<256>>;
+
+		gameplay::effects::Id effectId;
 
 	public:
 
@@ -53,7 +56,7 @@ namespace
 
 	public:
 
-		StateHID(gameplay::CharacterState * player) : dirFlags(0), characterState(player)
+		StateHID(gameplay::CharacterState * player) : effectId{ 0 }, dirFlags(0), characterState(player)
 		{
 		}
 
@@ -128,6 +131,11 @@ namespace
 		{
 			switch (input.getState())
 			{
+			case Input::State::MOVE:
+				{
+				//	this->characterState->mousePos();
+				}
+				break;
 			case Input::State::DOWN:
 
 				if (this->keyMap.keyMap[(unsigned int)input.getButton()])
@@ -137,6 +145,11 @@ namespace
 
 				switch (input.getButton())
 				{
+				case Input::Button::MOUSE_LEFT:
+
+				//	this->characterState->gravy(true);
+					break;
+
 				case Input::Button::KEY_ARROWDOWN:
 				{
 					this->dirFlags += StateHID::DIR_OUT;
@@ -161,7 +174,8 @@ namespace
 
 				case Input::Button::KEY_SPACEBAR:
 				{
-					this->inputJump();
+				//	this->inputJump();
+					this->effectId = gameplay::effects::create(gameplay::effects::Type::PLAYER_GRAVITY, characterState->id);
 					break;
 				}
 				default:
@@ -181,6 +195,11 @@ namespace
 
 				switch (input.getButton())
 				{
+				case Input::Button::MOUSE_LEFT:
+
+				//	this->characterState->gravy(false);
+					break;
+
 				case Input::Button::KEY_ARROWDOWN:
 				{
 					this->dirFlags -= StateHID::DIR_OUT;
@@ -200,6 +219,11 @@ namespace
 				case Input::Button::KEY_ARROWRIGHT:
 				{
 					this->dirFlags -= StateHID::DIR_RIGHT;
+					break;
+				}
+				case Input::Button::KEY_SPACEBAR:
+				{
+					gameplay::effects::remove(this->effectId);
 					break;
 				}
 				default:

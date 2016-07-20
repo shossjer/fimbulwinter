@@ -2,6 +2,7 @@
 #include "player.hpp"
 
 #include <gameplay/CharacterState.hpp>
+#include <gameplay/effects.hpp>
 
 #include <engine/graphics/Camera.hpp>
 #include <engine/physics/physics.hpp>
@@ -26,7 +27,6 @@ namespace physics
 {
 	extern void initialize();
 	extern void teardown();
-//	extern MoveResult update(const std::size_t object, const std::array<float, 2> vXZ, const float vY);
 	extern void render();
 }
 }
@@ -37,7 +37,6 @@ namespace input
 {
 	extern void setup();
 	extern void setup(CharacterState * player);
-//	extern void update();
 }
 }
 
@@ -47,6 +46,8 @@ namespace
 
 	core::async::Thread looperThread;
 }
+using ::engine::physics::Point;
+using ::engine::physics::Vector;
 
 namespace gameplay
 {
@@ -111,20 +112,37 @@ namespace looper
 		/**
 		 * create Player object
 		 */
-		CharacterState playerState;
+		CharacterState playerState{ 1 };
 
 		input::setup(&playerState);
 
 		// 
 		while (active)
 		{
+			//if (playerState.movementState == playerState.UP)
+			//{
+			//	std::vector<::engine::physics::Id> objects;
+			//	::engine::physics::nearby(::engine::physics::Point{ 0.f, 0.f, 0.f }, 10.f, objects);
+
+			//	printf("updating: %d objects\n", objects.size());
+			//	for (const auto id : objects)
+			//	{
+			//		// acc = m / (s*s)
+
+			//		//	::engine::physics::applyForce(id, ::engine::physics::Vector{ 10.f, 10.f, 0.f });
+			//		::engine::physics::applyAcceleration(id, ::engine::physics::Vector{ 10.f, 20.f, 0.f });
+			//	}
+			//}
+
+			// update effects
+			::gameplay::effects::update();
+
 			// update fysix
 			::engine::physics::update();
 
 			// update player
 			{
 			//	input::update();
-
 				
 				engine::physics::MoveResult res =
 					engine::physics::update(1, engine::physics::MoveData(playerState.movement(), playerState.fallVel));

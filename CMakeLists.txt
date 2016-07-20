@@ -43,7 +43,10 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
 	src/engine/model/armature.cpp
+	src/engine/physics/effects.cpp
 	src/engine/physics/physics.cpp
+	src/engine/physics/queries.cpp
+	src/gameplay/effects.cpp
 	src/gameplay/game-menu.cpp
 	src/gameplay/level.cpp
 	src/gameplay/looper.cpp
@@ -81,9 +84,14 @@ set(TRIBUNAL_HEADER
 	src/engine/hid/input.hpp
 	src/engine/model/armature.hpp
 	src/engine/physics/defines.hpp
+	src/engine/physics/effects.hpp
+	src/engine/physics/helper.hpp
 	src/engine/physics/physics.hpp
+	src/engine/physics/queries.hpp
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp
+	src/gameplay/Effect.hpp
+	src/gameplay/effects.hpp
 	src/gameplay/game-menu.hpp
 	src/gameplay/level.hpp
 	src/gameplay/player.hpp

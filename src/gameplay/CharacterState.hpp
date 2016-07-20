@@ -9,6 +9,8 @@ namespace gameplay
 	{
 	public:
 
+		const unsigned int id;
+
 		using Type = engine::physics::Vec2;//std::array<float, 2>;
 
 		enum MovementState
@@ -25,21 +27,25 @@ namespace gameplay
 			LEFT_DOWN
 		}   movementState;
 
+		bool mouseDown;
+		int mouseX;
+		int mouseY;
+
 	public:
 
 		bool grounded;
 		float fallVel;
 		Type vec;
 
-		CharacterState() : movementState(NONE), grounded(false), fallVel(0.f), vec{0.f, 0.f}
+		CharacterState(unsigned int id) : id(id), movementState(NONE), grounded(false), fallVel(0.f), vec{0.f, 0.f}
 		{
+			mouseDown = false;
+			mouseX = 0;
+			mouseY = 0;
 		}
 
 	public:
 
-		void inputPhysxGrounded()
-		{
-		}
 
 		Type movement()
 		{

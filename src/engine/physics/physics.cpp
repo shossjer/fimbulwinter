@@ -2,6 +2,7 @@
 #include <config.h>
 
 #include "physics.hpp"
+#include "queries.hpp"
 
 #include <Box2D/Box2D.h>
 
@@ -10,8 +11,6 @@
 #include <engine/graphics/opengl.hpp>
 #include <engine/graphics/opengl/Font.hpp>
 #include <engine/graphics/opengl/Matrix.hpp>
-
-//#include <core/debug.hpp>
 
 #include <array>
 #include <stdexcept>
@@ -24,8 +23,6 @@ namespace physics
 {
 	const float timeStep = 1.f / 60.f;
 
-	b2Vec2 convert(const Point & point) { return b2Vec2{ point[0], point[1] }; }
-	Point convert(const b2Vec2 & point) { return Point{ point.x, point.y, 0.f }; }
 	/**
 	 *	Contact counter for characters to determine falling / grounded
 	 */
@@ -122,6 +119,34 @@ namespace physics
 		std::unordered_map<Material, MaterialData> materials;
 	}
 
+	Point load(const engine::Entity id)
+	{
+		const b2Vec2 point = actors.at(id)->GetPosition();
+
+		return Point{ point.x, point.y, 0.f };
+	}
+
+	namespace query
+	{
+		std::vector<query::Actor> load(const std::vector<engine::Entity> & targets)
+		{
+			std::vector<query::Actor> reply;
+			reply.reserve(targets.size());
+
+			for (const auto val : targets)
+			{
+				reply.emplace_back(query::Actor{ val, actors.at(val) } );
+			}
+
+			return reply;
+		}
+	}
+
+	const b2World & getWorld()
+	{
+		return world;
+	}
+
 	void initialize()
 	{
 		world.SetContactListener(&contactCallback);
@@ -157,10 +182,10 @@ namespace physics
 		}
 		/**
 			Water (salt)	1,030
-			Plastics	1,175
-			Concrete	2,000
-			Iron	7, 870
-			Lead	11,340
+			Plastics		1,175
+			Concrete		2,000
+			Iron			7, 870
+			Lead			11,340
 		 */
 		// setup materials
 		materials.emplace(Material::MEETBAG, MaterialData(1000.f, .5f, .4f));
@@ -203,32 +228,6 @@ namespace physics
 		world.QueryAABB(&query, aabb);
 	}
 
-	//class RayCast
-	//{
-	//public:
-	//	virtual float callback(const Id id, const Point & point, const Point & normal, const float fraction) = 0;
-
-	//	void rayCast(const Point & from, const Point & to);
-	//};
-
-	//void RayCast::execute(const Point & from, const Point & to)
-	//{
-	//	// This class captures the closest hit shape.
-	//	class MyRayCastCallback : public b2RayCastCallback
-	//	{
-	//		RayCast & reporter;
-	//	public:
-	//		MyRayCastCallback(RayCast & reporter) : reporter(reporter) {}
-
-	//		float32 ReportFixture(b2Fixture* fixture, const b2Vec2& point, const b2Vec2& normal, float32 fraction)
-	//		{
-	//			return reporter.callback((Id)fixture->GetBody()->GetUserData(), convert(point), convert(normal), fraction);
-	//		}
-	//	} query{ *this };
-
-	//	world.RayCast(&query, convert(from), convert(to));
-	//}
-
 	void update()
 	{
 		const int32 velocityIterations = 6;
@@ -241,24 +240,29 @@ namespace physics
 	{
 		b2Body *const body = actors.at(id);
 
-		const float ACC = -9.82f;
-		const float velY = moveData.velY + ACC*timeStep;
+	//	body->SetAngularVelocity(2);
 
-		body->SetLinearVelocity(b2Vec2(moveData.velXZ[0] * 4.f, velY));
+		//const float ACC = -9.82f;
+		//const float velY = moveData.velY + ACC*timeStep;
+		b2Vec2 vel = body->GetLinearVelocity();
+
+		vel.x += moveData.velXZ[0]*4.f;
+
+		body->SetLinearVelocity(vel);//b2Vec2(moveData.velXZ[0] * 4.f, velY));
 
 		const b2Vec2 & pos = body->GetPosition();
 
 		if (characterContactCounters.at(id).isGrounded())
 		{
 			// I check the velY < 0.f since otherwise jumps are interrupted. Contact updating is too slow.
-			if (velY < 0.f)
+			if (vel.y < 0.f)
 			{
 				return MoveResult(true, Point{ (float)pos.x, (float)pos.y, (float)0.f }, 0.f);
 			}
 		}
 
 		// 
-		return MoveResult(false, Point{ (float)pos.x, (float)pos.y, (float)0.f}, velY);
+		return MoveResult(false, Point{ (float)pos.x, (float)pos.y, (float)0.f}, vel.y);
 	}
 
 	void create(const engine::Entity id, const BoxData & data)
@@ -281,7 +285,7 @@ namespace physics
 		fixtureDef.restitution = material.restitution;
 
 		b2Fixture *const fixture = body->CreateFixture(&fixtureDef);
-
+		
 		actors.emplace(id, body);
 	}
 
@@ -333,8 +337,8 @@ namespace physics
 			b2FixtureDef fixtureDef;
 			fixtureDef.shape = &shape;
 			fixtureDef.density = material.density;
-			fixtureDef.friction = 1.f;//material.friction;
-			fixtureDef.restitution = 1.f;//material.restitution;
+			fixtureDef.friction = 10.f;//material.friction;
+			fixtureDef.restitution = .1f;//material.restitution;
 			//fixtureDef.isSensor = true;	// lower spape keeps track of contacts
 			b2Fixture *const feets = body->CreateFixture(&fixtureDef);
 
@@ -343,6 +347,7 @@ namespace physics
 			feets->SetUserData(&characterContactCounters.at(id));
 		}
 
+		body->ResetMassData();
 		body->SetFixedRotation(true);
 
 		actors.emplace(id, body);
@@ -467,210 +472,6 @@ namespace physics
 		{
 			draw_debug(item.second);
 		}
-	}
-
-
-
-	//void draw_plane(const btCollisionShape * const shape)
-	//{
-	//	const btStaticPlaneShape* staticPlaneShape = static_cast<const btStaticPlaneShape*>(shape);
-	//	btScalar planeConst = staticPlaneShape->getPlaneConstant();
-	//	const btVector3& planeNormal = staticPlaneShape->getPlaneNormal();
-	//	btVector3 planeOrigin = planeNormal * planeConst;
-	//	btVector3 vec0, vec1;
-	//	btPlaneSpace1(planeNormal, vec0, vec1);
-	//	btScalar vecLen = 100.f;
-	//	btVector3 pt0 = planeOrigin + vec0*vecLen;
-	//	btVector3 pt1 = planeOrigin - vec0*vecLen;
-	//	btVector3 pt2 = planeOrigin + vec1*vecLen;
-	//	btVector3 pt3 = planeOrigin - vec1*vecLen;
-	//	glBegin(GL_LINES);
-	//	glVertex3f(pt0.getX(), pt0.getY(), pt0.getZ());
-	//	glVertex3f(pt1.getX(), pt1.getY(), pt1.getZ());
-	//	glVertex3f(pt2.getX(), pt2.getY(), pt2.getZ());
-	//	glVertex3f(pt3.getX(), pt3.getY(), pt3.getZ());
-	//	glEnd();
-	//}
-
-	//void draw_plane(const physx::PxPlane & plane)
-	//{
-	//	physx::PxVec3 planeOrigin = plane.n*plane.d;
-	//	
-	//	btVector3 vec0, vec1;
-	//	btPlaneSpace1(planeNormal, vec0, vec1);
-	//	btScalar vecLen = 100.f;
-	//	btVector3 pt0 = planeOrigin + vec0*vecLen;
-	//	btVector3 pt1 = planeOrigin - vec0*vecLen;
-	//	btVector3 pt2 = planeOrigin + vec1*vecLen;
-	//	btVector3 pt3 = planeOrigin - vec1*vecLen;
-	//	glBegin(GL_LINES);
-	//	glVertex3f(pt0.getX(), pt0.getY(), pt0.getZ());
-	//	glVertex3f(pt1.getX(), pt1.getY(), pt1.getZ());
-	//	glVertex3f(pt2.getX(), pt2.getY(), pt2.getZ());
-	//	glVertex3f(pt3.getX(), pt3.getY(), pt3.getZ());
-	//	glEnd();
-	//}
-
-	//void draw_sphere(const btScalar radius, const unsigned int lats, const unsigned int longs)
-	//{
-	//	int i, j;
-	//	for (i = 0; i <= lats; i++) {
-	//		btScalar lat0 = SIMD_PI * (-btScalar(0.5) + (btScalar)(i - 1) / lats);
-	//		btScalar z0 = radius*sin(lat0);
-	//		btScalar zr0 = radius*cos(lat0);
-
-	//		btScalar lat1 = SIMD_PI * (-btScalar(0.5) + (btScalar)i / lats);
-	//		btScalar z1 = radius*sin(lat1);
-	//		btScalar zr1 = radius*cos(lat1);
-
-	//		glBegin(GL_QUAD_STRIP);
-	//		for (j = 0; j <= longs; j++) {
-	//			btScalar lng = 2 * SIMD_PI * (btScalar)(j - 1) / longs;
-	//			btScalar x = cos(lng);
-	//			btScalar y = sin(lng);
-	//			glNormal3f(x * zr1, y * zr1, z1);
-	//			glVertex3f(x * zr1, y * zr1, z1);
-	//			glNormal3f(x * zr0, y * zr0, z0);
-	//			glVertex3f(x * zr0, y * zr0, z0);
-	//		}
-	//		glEnd();
-	//	}
-	//}
-
-	void draw_chain(const b2Transform & transform, const b2Vec2 *const vertices, const int32 verticesNum)
-	{
-		glPushMatrix();
-		{
-			glTranslatef(transform.p.x, transform.p.y, 0.f);
-		//	glScalef(0.5f, 0.5f, 0.5f);
-			glRotatef(transform.q.GetAngle(), 0.f, 0.f, 1.f);
-
-			glBegin(GL_LINE_STRIP);
-			{
-				for (int32 i = 0; i < verticesNum; i++)
-				{
-					const b2Vec2 point = *(vertices + i);
-					glVertex3f(point.x, point.y, 0.f);
-				}
-			}
-			glEnd();
-		}
-		glPopMatrix();
-	}
-
-	void draw_box(const b2Transform & transform, const b2Vec2 & scale)
-	{
-		glPushMatrix();
-		{
-			glTranslatef(transform.p.x, transform.p.y, 0.f);
-			glScalef(scale.x, scale.y, scale.x);
-			glRotatef(transform.q.GetAngle()*180.f/ 3.14159f, 0.f, 0.f, 1.f);
-
-			glBegin(GL_TRIANGLES);
-			// front faces
-			glNormal3f(0, 0, 1);
-			// face v0-v1-v2
-			//glColor3f(1, 1, 1);
-			glVertex3f(1, 1, 1);
-			//glColor3f(1, 1, 0);
-			glVertex3f(-1, 1, 1);
-			//glColor3f(1, 0, 0);
-			glVertex3f(-1, -1, 1);
-			// face v2-v3-v0
-			//glColor3f(1, 0, 0);
-			glVertex3f(-1, -1, 1);
-			//glColor3f(1, 0, 1);
-			glVertex3f(1, -1, 1);
-			//glColor3f(1, 1, 1);
-			glVertex3f(1, 1, 1);
-
-			// right faces
-			glNormal3f(1, 0, 0);
-			// face v0-v3-v4
-			//glColor3f(1, 1, 1);
-			glVertex3f(1, 1, 1);
-			//glColor3f(1, 0, 1);
-			glVertex3f(1, -1, 1);
-			//glColor3f(0, 0, 1);
-			glVertex3f(1, -1, -1);
-			// face v4-v5-v0
-			//glColor3f(0, 0, 1);
-			glVertex3f(1, -1, -1);
-			//glColor3f(0, 1, 1);
-			glVertex3f(1, 1, -1);
-			//glColor3f(1, 1, 1);
-			glVertex3f(1, 1, 1);
-
-			// top faces
-			glNormal3f(0, 1, 0);
-			// face v0-v5-v6
-			//glColor3f(1, 1, 1);
-			glVertex3f(1, 1, 1);
-			//glColor3f(0, 1, 1);
-			glVertex3f(1, 1, -1);
-			//glColor3f(0, 1, 0);
-			glVertex3f(-1, 1, -1);
-			// face v6-v1-v0
-			//glColor3f(0, 1, 0);
-			glVertex3f(-1, 1, -1);
-			//glColor3f(1, 1, 0);
-			glVertex3f(-1, 1, 1);
-			//glColor3f(1, 1, 1);
-			glVertex3f(1, 1, 1);
-
-			// left faces
-			glNormal3f(-1, 0, 0);
-			// face  v1-v6-v7
-			//glColor3f(1, 1, 0);
-			glVertex3f(-1, 1, 1);
-			//glColor3f(0, 1, 0);
-			glVertex3f(-1, 1, -1);
-			//glColor3f(0, 0, 0);
-			glVertex3f(-1, -1, -1);
-			// face v7-v2-v1
-			//glColor3f(0, 0, 0);
-			glVertex3f(-1, -1, -1);
-			//glColor3f(1, 0, 0);
-			glVertex3f(-1, -1, 1);
-			//glColor3f(1, 1, 0);
-			glVertex3f(-1, 1, 1);
-
-			// bottom faces
-			glNormal3f(0, -1, 0);
-			// face v7-v4-v3
-			//glColor3f(0, 0, 0);
-			glVertex3f(-1, -1, -1);
-			//glColor3f(0, 0, 1);
-			glVertex3f(1, -1, -1);
-			//glColor3f(1, 0, 1);
-			glVertex3f(1, -1, 1);
-			// face v3-v2-v7
-			//glColor3f(1, 0, 1);
-			glVertex3f(1, -1, 1);
-			//glColor3f(1, 0, 0);
-			glVertex3f(-1, -1, 1);
-			//glColor3f(0, 0, 0);
-			glVertex3f(-1, -1, -1);
-
-			// back faces
-			glNormal3f(0, 0, -1);
-			// face v4-v7-v6
-			//glColor3f(0, 0, 1);
-			glVertex3f(1, -1, -1);
-			//glColor3f(0, 0, 0);
-			glVertex3f(-1, -1, -1);
-			//glColor3f(0, 1, 0);
-			glVertex3f(-1, 1, -1);
-			// face v6-v5-v4
-			//glColor3f(0, 1, 0);
-			glVertex3f(-1, 1, -1);
-			//glColor3f(0, 1, 1);
-			glVertex3f(1, 1, -1);
-			//glColor3f(0, 0, 1);
-			glVertex3f(1, -1, -1);
-			glEnd();
-		}
-		glPopMatrix();
 	}
 }
 }

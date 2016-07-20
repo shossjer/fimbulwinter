@@ -10,17 +10,10 @@ namespace engine
 {
 namespace physics
 {
-	//class RayCast
-	//{
-	//public:
-	//	virtual float callback(const Id id, const Point & point, const Point & normal, const float fraction) = 0;
-
-	//	void execute(const Point & from, const Point & to);
-	//};
-	/**
-	 *	get all Objects within radie of a pos
+	/**	 
+	 *
 	 */
-	void nearby(const Point & pos, const float radie, std::vector<engine::Entity> & objects);
+	Point load(const engine::Entity id);
 	/**
 	 *	steps physics engine forward
 	 */
