@@ -140,6 +140,11 @@ namespace physics
 
 			return reply;
 		}
+
+		Actor load(const engine::Entity id)
+		{
+			return query::Actor{ id, actors.at(id) };
+		}
 	}
 
 	const b2World & getWorld()

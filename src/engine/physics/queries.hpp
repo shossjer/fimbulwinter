@@ -1,4 +1,7 @@
 
+#ifndef ENGINE_PHYSICS_QUERIES_HPP
+#define ENGINE_PHYSICS_QUERIES_HPP
+
 #include "defines.hpp"
 
 #include <Box2D/Box2D.h>
@@ -26,6 +29,8 @@ namespace physics
 
 		// 
 		std::vector<Actor> load(const std::vector<engine::Entity> & targets);
+		
+		Actor load(const engine::Entity id);
 
 		/**
 		 *
@@ -45,3 +50,5 @@ namespace physics
 	}
 }
 }
+
+#endif // ENGINE_PHYSICS_QUERIES_HPP

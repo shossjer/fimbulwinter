@@ -356,9 +356,6 @@ namespace
 	core::maths::Matrix4x4f view3D;
 	Stack modelview_matrix;
 
-	// this is totally unsafe!
-	const engine::graphics::Camera * activeCamera;
-
 	engine::graphics::opengl::Font normal_font;
 
 	void initLights()
@@ -414,7 +411,7 @@ namespace
 		// engine::model::init(); // WAT
 	}
 
-	void render_update()
+	void render_update(const engine::graphics::Camera & camera)
 	{
 		// handle notifications
 		read_resize = latest_resize.exchange(read_resize); // std::memory_order_acquire?
@@ -428,7 +425,7 @@ namespace
 			// these calculations do not need opengl context
 			projection2D = core::maths::Matrix4x4f::ortho(0.f, (float)dimension.width, (float)dimension.height, 0.f, -1.f, 1.f);
 			projection3D = core::maths::Matrix4x4f::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
-		}
+		}	
 		// poll events
 		poll_add_queue();
 		poll_update_queue();
@@ -443,7 +440,7 @@ namespace
 		glLoadMatrix(projection3D);
 		glMatrixMode(GL_MODELVIEW);
 		// vvvvvvvv tmp vvvvvvvv
-		view3D = core::maths::Matrix4x4f::translation(-activeCamera->getX(), -activeCamera->getY(), -activeCamera->getZ());
+		view3D = core::maths::Matrix4x4f::translation(-camera.getX(), -camera.getY(), -camera.getZ());
 		// ^^^^^^^^ tmp ^^^^^^^^
 		modelview_matrix.load(view3D);
 
@@ -560,19 +557,17 @@ namespace engine
 	{
 		namespace renderer
 		{
-			void create(const Camera & camera)
+			void create()
 			{
-				activeCamera = &camera;
-
 				render_setup();
 			}
 
-			void update()
+			void update(const Camera & camera)
 			{
-				render_update();
+				render_update(camera);
 			}
 
-			void destroy2()
+			void destroy()
 			{
 				render_teardown();
 			}

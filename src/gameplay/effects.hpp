@@ -1,4 +1,7 @@
 
+#ifndef GAMEPLAY_EFFECTS_HPP
+#define GAMEPLAY_EFFECTS_HPP
+
 namespace gameplay
 {
 namespace effects
@@ -17,3 +20,5 @@ namespace effects
 	void remove(const Id id);
 }
 }
+
+#endif // GAMEPLAY_EFFECTS_HPP

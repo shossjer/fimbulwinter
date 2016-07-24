@@ -1,7 +1,12 @@
 
+#ifndef GAMEPLAY_CHARACTER_STATE_HPP
+#define GAMEPLAY_CHARACTER_STATE_HPP
+
 #include <core/maths/Vector.hpp>
 
+#include <engine/Entity.hpp>
 #include <engine/physics/defines.hpp>
+
 
 namespace gameplay
 {
@@ -9,9 +14,9 @@ namespace gameplay
 	{
 	public:
 
-		const unsigned int id;
+		//const engine::Entity id;
 
-		using Type = engine::physics::Vec2;//std::array<float, 2>;
+		using Type = engine::physics::Vec2;
 
 		enum MovementState
 		{
@@ -27,35 +32,27 @@ namespace gameplay
 			LEFT_DOWN
 		}   movementState;
 
-		bool mouseDown;
-		int mouseX;
-		int mouseY;
-
 	public:
 
 		bool grounded;
 		float fallVel;
 		Type vec;
 
-		CharacterState(unsigned int id) : id(id), movementState(NONE), grounded(false), fallVel(0.f), vec{{0.f, 0.f}}
+		CharacterState() : //unsigned int id) : id(id), 
+			movementState(NONE), grounded(false), fallVel(0.f), vec{{0.f, 0.f}}
 		{
-			mouseDown = false;
-			mouseX = 0;
-			mouseY = 0;
 		}
 
 	public:
 
 
-		Type movement()
+		Type movement() const
 		{
 			return this->vec;
 		}
 
 		void update()
 		{
-		//	Type vec;
-
 			switch (this->movementState)	// check key press's for movement
 			{
 			case LEFT:
@@ -103,9 +100,9 @@ namespace gameplay
 				vec = {{ 0.f, 0.f }};
 				break;
 			}
-
-		//	return vec;
 		}
 
 	};
 }
+
+#endif // GAMEPLAY_CHARACTER_STATE_HPP

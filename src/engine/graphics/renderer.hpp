@@ -52,8 +52,8 @@ namespace engine
 
 		namespace renderer
 		{
-			void create();
-			void destroy();
+		//	void create();
+		//	void destroy();
 
 			void add(engine::Entity entity, data::CuboidC data);
 			void add(engine::Entity entity, data::LineC data);

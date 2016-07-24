@@ -1,4 +1,7 @@
 
+#ifndef ENGINE_CAMERA_HPP
+#define ENGINE_CAMERA_HPP
+
 #include <core/maths/Vector.hpp>
 
 #include <array>
@@ -21,7 +24,7 @@ namespace graphics
 
 	public:
 
-		Camera() : pos{{0.f, 0.f, -20.f}}
+		Camera() : pos{{0.f, 0.f, 0.f}}
 		{
 
 		}
@@ -40,7 +43,7 @@ namespace graphics
 		{
 			this->pos[0] = x;
 			this->pos[1] = y;
-			this->pos[2] = z + 20.f;
+			this->pos[2] = z;
 		}
 		///**
 		// */
@@ -51,3 +54,5 @@ namespace graphics
 	};
 }
 }
+
+#endif // ENGINE_CAMERA_HPP
