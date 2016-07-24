@@ -2,6 +2,7 @@
 #include <config.h>
 
 #include "defines.hpp"
+#include "helper.hpp"
 #include "queries.hpp"
 
 #include <Box2D/Box2D.h>

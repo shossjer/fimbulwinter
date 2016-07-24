@@ -16,7 +16,7 @@ namespace gameplay
 
 		//const engine::Entity id;
 
-		using Type = engine::physics::Vec2;
+		using Type = Vec2;
 
 		enum MovementState
 		{

@@ -38,8 +38,6 @@ namespace
 
 	core::async::Thread looperThread;
 }
-using ::engine::physics::Point;
-using ::engine::physics::Vector;
 
 namespace gameplay
 {
@@ -70,7 +68,7 @@ namespace looper
 			 */
 			const engine::Entity id{ 1 };
 			::gameplay::characters::create(id);
-			::engine::physics::CharacterData capsule{ ::engine::physics::Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, 0.6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
+			::engine::physics::CharacterData capsule{ Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, 0.6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
 			::engine::physics::create(id, capsule);
 
 			gameplay::player::set(id);
@@ -97,7 +95,7 @@ namespace looper
 
 		for (unsigned int i = 2; i < 50; i++)
 		{
-			::engine::physics::BoxData data{ ::engine::physics::Point{ { 0.f, i*10.f, 0.f } }, M, SOLIDITY, ::engine::physics::Size{ { S, S, S } } };
+			::engine::physics::BoxData data{ Point{ { 0.f, i*10.f, 0.f } }, M, SOLIDITY, Size{ { S, S, S } } };
 			::engine::physics::create(i, data);
 		}
 	}

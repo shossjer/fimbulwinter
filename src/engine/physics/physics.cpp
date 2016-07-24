@@ -1,6 +1,7 @@
 
 #include <config.h>
 
+#include "helper.hpp"
 #include "physics.hpp"
 #include "queries.hpp"
 
@@ -119,23 +120,39 @@ namespace physics
 		std::unordered_map<Material, MaterialData> materials;
 	}
 
-	Point load(const engine::Entity id)
-	{
-		const b2Vec2 point = actors.at(id)->GetPosition();
-
-		return Point{{ point.x, point.y, 0.f }};
-	}
-
 	namespace query
 	{
-		std::vector<query::Actor> load(const std::vector<engine::Entity> & targets)
+		Point positionOf(const engine::Entity id)
 		{
-			std::vector<query::Actor> reply;
+			const b2Vec2 point = actors.at(id)->GetPosition();
+
+			return Point{ { point.x, point.y, 0.f } };
+		}
+
+		void positionOf(const engine::Entity id, Point & pos, Vector & velocity)
+		{
+			const b2Body * body = actors.at(id);
+
+			const b2Vec2 point = actors.at(id)->GetPosition();
+			const b2Vec2 vel = actors.at(id)->GetLinearVelocity();
+
+			pos[0] = point.x;
+			pos[1] = point.y;
+			pos[2] = 0.f;
+
+			velocity[0] = vel.x;
+			velocity[1] = vel.y;
+			velocity[2] = 0.f;
+		}
+
+		std::vector<Actor> load(const std::vector<engine::Entity> & targets)
+		{
+			std::vector<Actor> reply;
 			reply.reserve(targets.size());
 
 			for (const auto val : targets)
 			{
-				reply.emplace_back(query::Actor{ val, actors.at(val) } );
+				reply.emplace_back(Actor{ val, actors.at(val) } );
 			}
 
 			return reply;
@@ -143,7 +160,7 @@ namespace physics
 
 		Actor load(const engine::Entity id)
 		{
-			return query::Actor{ id, actors.at(id) };
+			return Actor{ id, actors.at(id) };
 		}
 	}
 

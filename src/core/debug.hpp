@@ -27,7 +27,7 @@
 /**
  * Asserts that the condition is true.
  */
-# define debug_assert(expr) core::debug::instance().assert(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{})
+# define debug_assert(expr) core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{})
 /**
  * Prints the arguments to the console (with a newline).
  *
@@ -192,7 +192,7 @@ namespace core
 		/**
 		 */
 		template <std::size_t N, std::size_t M, typename C>
-		void assert(const char (&file_name)[N], const int line_number, const char (&expr)[M], C && comp)
+		void affirm(const char (&file_name)[N], const int line_number, const char (&expr)[M], C && comp)
 		{
 			if (comp()) return;
 

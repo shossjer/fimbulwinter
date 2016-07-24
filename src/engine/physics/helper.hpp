@@ -1,10 +1,14 @@
 
+#ifndef ENGINE_PHYSICS_HELPER_HPP
+#define ENGINE_PHYSICS_HELPER_HPP
+
 #include <config.h>
+
+#include "defines.hpp"
 
 #include <Box2D/Box2D.h>
 
 #include <core/debug.hpp>
-
 
 namespace engine
 {
@@ -32,16 +36,16 @@ namespace physics
 		}
 	}
 
-	void applyForce(b2Body *const body, const b2Vec2 force)
+	inline void applyForce(b2Body *const body, const b2Vec2 force)
 	{
 		body->ApplyForceToCenter(force, true);
 	}
-	void applyForce(b2Body *const body, const b2Vec2 force, const b2Vec2 atPosiiton)
+	inline void applyForce(b2Body *const body, const b2Vec2 force, const b2Vec2 atPosiiton)
 	{
 		body->ApplyForce(force, atPosiiton, true);
 	}
 
-	void applyAcceleration(b2Body *const body, b2Vec2 acceleration)
+	inline void applyAcceleration(b2Body *const body, b2Vec2 acceleration)
 	{
 		// count number of fixtures to solve strange issue in box2D
 		const unsigned int num = countLinkedList(body->GetFixtureList());
@@ -51,7 +55,7 @@ namespace physics
 
 		body->ApplyForceToCenter(force, true);
 	}
-	void applyAcceleration(b2Body *const body, const b2Vec2 acceleration, const b2Vec2 atPosiiton)
+	inline void applyAcceleration(b2Body *const body, const b2Vec2 acceleration, const b2Vec2 atPosiiton)
 	{
 		// count number of fixtures to solve strange issue in box2D
 		const unsigned int num = countLinkedList(body->GetFixtureList());
@@ -60,6 +64,30 @@ namespace physics
 		force *= (body->GetMass() / num);
 
 		body->ApplyForce(force, atPosiiton, true);
+	}
+
+	namespace query
+	{
+		struct Actor
+		{
+			const engine::Entity id;
+			b2Body *const body;
+
+			Actor(const engine::Entity id, b2Body *const body)
+				:
+				id{ id },
+				body{ body }
+			{}
+		};
+
+		// define queries
+		std::vector<Actor> nearby(const b2Vec2 centre, const float halfX, const float halfY);
+
+		// 
+		std::vector<Actor> load(const std::vector<engine::Entity> & targets);
+
+		// 
+		Actor load(const engine::Entity id);
 	}
 
 	//std::vector<Id> nearbyAABB(const b2World & world, const b2Vec2 centre, const float halfX, const float halfY)
@@ -123,3 +151,5 @@ namespace physics
 	//}
 }
 }
+
+#endif // ENGINE_PHYSICS_HELPER_HPP

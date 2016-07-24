@@ -4,7 +4,7 @@
 #include "Effect.hpp"
 
 #include <engine/physics/effects.hpp>
-#include <engine/physics/physics.hpp>
+#include <engine/physics/queries.hpp>
 
 #include <atomic>
 #include <memory>
@@ -35,14 +35,14 @@ namespace effects
 		void update() override
 		{
 			// get centre position
-			const engine::physics::Point point = engine::physics::load(callerId);
+			const Point point = engine::physics::query::positionOf(callerId);
 
 			// get mouse coordinates in the world
 
 			// update physics
 
 			engine::physics::effect::acceleration(
-				::engine::physics::Vector{{ 0.f, 20.f, 0.f }}, 
+				Vector{{ 0.f, 20.f, 0.f }}, 
 				point,
 				10.f);
 		}

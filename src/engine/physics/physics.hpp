@@ -1,8 +1,6 @@
 
 #include "defines.hpp"
 
-#include <engine/Entity.hpp>
-
 #include <array>
 #include <vector>
 
@@ -10,10 +8,6 @@ namespace engine
 {
 namespace physics
 {
-	/**	 
-	 *
-	 */
-	Point load(const engine::Entity id);
 	/**
 	 *	steps physics engine forward
 	 */

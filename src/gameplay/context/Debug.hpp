@@ -15,7 +15,7 @@ namespace context
 	class Debug : public Context
 	{
 	private:
-		engine::physics::Vec2 vec;
+		Vec2 vec;
 	public:
 		/**
 		 *	update camera position based on player input

@@ -4,37 +4,23 @@
 
 #include "defines.hpp"
 
-#include <Box2D/Box2D.h>
-
 namespace engine
 {
 namespace physics
 {
 	namespace query
 	{
-		struct Actor
-		{
-			const engine::Entity id;
-			b2Body *const body;
-
-			Actor(const engine::Entity id, b2Body *const body)
-				:
-				id{ id },
-				body{ body }
-			{}
-		};
-
-		// define queries
-		std::vector<Actor> nearby(const b2Vec2 centre, const float halfX, const float halfY);
-
-		// 
-		std::vector<Actor> load(const std::vector<engine::Entity> & targets);
-		
-		Actor load(const engine::Entity id);
-
+		/**	 
+		 *
+		 */
+		Point positionOf(const engine::Entity id);
 		/**
 		 *
 		 */
+		void positionOf(const engine::Entity id, Point & pos, Vector & vel);
+		/**
+		 *
+		 */ 
 		class RayCast
 		{
 		public:

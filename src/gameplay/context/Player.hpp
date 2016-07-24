@@ -117,19 +117,22 @@ namespace context
 
 			if (id == engine::Entity::INVALID) return;
 
-			engine::physics::query::Actor actor = engine::physics::query::load(id);
+			Point pos;
+			Vector vec;
 
-			const b2Vec2 pos = actor.body->GetPosition();
-			b2Vec2 vec = actor.body->GetLinearVelocity();
-			vec *= 0.25f;
+			engine::physics::query::positionOf(id, pos, vec);
 
-			const b2Vec2 goal = pos + vec;
+			vec[0] *= 0.25f;
+			vec[1] *= 0.25f;
+			vec[2] *= 0.25f;
 
-			const b2Vec2 current{ this->camera.getX(), this->camera.getY() };
+			const Vector goal{ pos[0] + vec[0], pos[1] + vec[1], pos[2] + vec[2] };
 
-			const b2Vec2 delta = goal - current;
+			const Point current{ this->camera.getX(), this->camera.getY() };
 
-			this->camera.position(current.x + delta.x*.1f, current.y + delta.y*.1f, 20.f);
+			const Vector delta{ goal[0] - current[0], goal[1] - current[1], goal[2] - current[2] };
+
+			this->camera.position(current[0] + delta[0]*.1f, current[1] + delta[1]*.1f, 20.f);
 		}
 
 		void onMove(const Input & input) override
