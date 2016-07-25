@@ -2,14 +2,28 @@
 #ifndef CORE_CONTAINER_CIRCLEQUEUE_HPP
 #define CORE_CONTAINER_CIRCLEQUEUE_HPP
 
+#include <utility/spinlock.hpp>
+
 #include <atomic>
+#include <thread>
 
 namespace core
 {
 	namespace container
 	{
+		struct single_read_single_write;
+		struct single_read_multiple_write;
+
+		/**
+		 * \tparam T      Type.
+		 * \tparam N      Count.
+		 * \tparam Policy Synchronization mechanism between threads.
+		 */
+		template <typename T, std::size_t N, typename Policy = single_read_single_write>
+		class CircleQueue;
+
 		template <typename T, std::size_t N>
-		class CircleQueue
+		class CircleQueue<T, N, single_read_single_write>
 		{
 		public:
 			static constexpr int capacity = N;
@@ -45,7 +59,7 @@ namespace core
 				int next_begini = begini + 1;
 				if (next_begini == this->capacity)
 					next_begini = 0;
-				this->begini.store(next_begini, std::memory_order_release);
+				this->begini.store(next_begini, std::memory_order_relaxed);
 				return true;
 			}
 			/**
@@ -56,7 +70,7 @@ namespace core
 			 */
 			bool try_push(const T & item)
 			{
-				const int begini = this->begini.load(std::memory_order_acquire);
+				const int begini = this->begini.load(std::memory_order_relaxed);
 				const int endi = this->endi.load(std::memory_order_relaxed);
 
 				int next_endi = endi + 1;
@@ -69,6 +83,78 @@ namespace core
 				return true;
 			}
 		};
+
+		template <typename T, std::size_t N>
+		class CircleQueue<T, N, single_read_multiple_write>
+		{
+		public:
+			static constexpr int capacity = N;
+
+		public:
+			std::atomic_int begini;
+			std::atomic_int endi;
+			utility::spinlock writelock;
+			T buffer[N];
+
+		public:
+			CircleQueue() :
+				begini{0},
+				endi{0}
+			{
+			}
+
+		public:
+			/**
+			 * \note May only be called one thread at a time.
+			 *
+			 * \param[out] item Where to write on success.
+			 * \return True on success, false otherwise.
+			 */
+			bool try_pop(T & item)
+			{
+				const int begini = this->begini.load(std::memory_order_relaxed);
+				const int endi = this->endi.load(std::memory_order_acquire);
+				if (begini == endi)
+					return false;
+
+				item = this->buffer[begini];
+
+				int next_begini = begini + 1;
+				if (next_begini == this->capacity)
+					next_begini = 0;
+				this->begini.store(next_begini, std::memory_order_relaxed);
+				return true;
+			}
+			/**
+			 * \param[in] item The thing to push.
+			 * \return True on success, false otherwise.
+			 */
+			bool try_push(const T & item)
+			{
+				// I had planed to  do something more complicated than
+				// this, but  it took a  lot of time and  was possibly
+				// wrong  also  so  I   did  this  very  simple  thing
+				// instead. -- shossjer
+				std::lock_guard<utility::spinlock> lock{this->writelock};
+
+				const int begini = this->begini.load(std::memory_order_relaxed);
+				const int endi = this->endi.load(std::memory_order_relaxed);
+
+				int next_endi = endi + 1;
+				if (next_endi == this->capacity) next_endi = 0;
+				if (begini == next_endi)
+					return false;
+
+				this->buffer[endi] = item;
+				this->endi.store(next_endi, std::memory_order_release);
+				return true;
+			}
+		};
+
+		template <typename T, std::size_t N>
+		using CircleQueueSRSW = CircleQueue<T, N, single_read_single_write>;
+		template <typename T, std::size_t N>
+		using CircleQueueSRMW = CircleQueue<T, N, single_read_multiple_write>;
 	}
 }
 

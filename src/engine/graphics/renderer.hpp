@@ -7,6 +7,8 @@
 
 #include <engine/Entity.hpp>
 
+#include <vector>
+
 namespace engine
 {
 	namespace graphics
@@ -52,11 +54,38 @@ namespace engine
 
 		namespace renderer
 		{
+			namespace asset
+			{
+				struct CharacterMesh
+				{
+					std::string mshfile;
+
+					CharacterMesh() = default;
+					CharacterMesh(std::string mshfile) :
+						mshfile(mshfile)
+					{}
+				};
+			}
+			struct CharacterSkinning
+			{
+				std::vector<core::maths::Matrix4x4f> matrix_pallet;
+
+				CharacterSkinning() = default;
+				CharacterSkinning(std::vector<core::maths::Matrix4x4f> matrix_pallet) :
+					matrix_pallet(std::move(matrix_pallet))
+				{}
+			};
+
+			void create();
+			void destroy();
+
 			void add(engine::Entity entity, data::CuboidC data);
 			void add(engine::Entity entity, data::LineC data);
 			void add(engine::Entity entity, data::MeshC data);
+			void add(engine::Entity entity, asset::CharacterMesh data);
 			void remove(engine::Entity entity);
 			void update(engine::Entity entity, data::ModelviewMatrix data);
+			// void update(engine::Entity entity, CharacterSkinning data);
 		}
 	}
 }

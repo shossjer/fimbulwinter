@@ -1,17 +1,31 @@
 
 #include "armature.hpp"
 
+#include <core/container/CircleQueue.hpp>
+#include <core/container/Collection.hpp>
 #include <core/debug.hpp>
 #include <core/maths/Matrix.hpp>
 #include <core/maths/Quaternion.hpp>
 #include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
-#include <engine/graphics/opengl.hpp>
-#include <engine/graphics/opengl/Matrix.hpp>
+#include <engine/extras/Asset.hpp>
+#include <engine/graphics/renderer.hpp>
 
 #include <cstdint>
 #include <fstream>
+#include <utility>
 #include <vector>
+
+namespace engine
+{
+	namespace graphics
+	{
+		namespace renderer
+		{
+			void update(engine::Entity entity, CharacterSkinning data);
+		}
+	}
+}
 
 namespace
 {
@@ -37,12 +51,6 @@ namespace
 		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
 		vec.set_aligned(buffer);
 	}
-	void read_vector(std::ifstream & stream, core::maths::Vector4f & vec)
-	{
-		core::maths::Vector3f::array_type buffer;
-		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
-		vec.set(buffer[0], buffer[1], buffer[2], 1.f);
-	}
 	template <std::size_t N>
 	void read_string(std::ifstream & stream, char (&buffer)[N])
 	{
@@ -57,12 +65,11 @@ namespace
 	{
 		char name[16]; // arbitrary
 
-		core::maths::Matrix4x4f rel_matrix;
+		core::maths::Matrix4x4f matrix; // unused
 		core::maths::Matrix4x4f inv_matrix;
 
 		uint16_t parenti;
 		uint16_t nchildren;
-		// uint16_t childreni[6]; // arbitrary
 	};
 
 	void read_joint_chain(std::ifstream & stream, std::vector<Joint> & joints, const int parenti)
@@ -72,15 +79,13 @@ namespace
 		Joint & me = joints.back();
 
 		read_string(stream, me.name);
-		// debug_printline(0xffffffff, me.name);
 
-		read_matrix(stream, me.rel_matrix);
+		read_matrix(stream, me.matrix);
 		read_matrix(stream, me.inv_matrix);
 
 		me.parenti = parenti;
 
 		read_count(stream, me.nchildren);
-		// debug_printline(0xffffffff, me.nchildren, " children");
 		for (int i = 0; i < static_cast<int>(me.nchildren); i++)
 			read_joint_chain(stream, joints, mei);
 	}
@@ -108,11 +113,16 @@ namespace
 		int32_t length;
 
 		std::vector<Frame> frames;
+		std::vector<core::maths::Vector3f> positions;
+
+		bool operator == (const std::string & name) const
+		{
+			return name == this->name;
+		}
 	};
 
 	void read_action(std::ifstream & stream, std::vector<Action> & actions, const int njoints)
 	{
-		// const int mei = actions.size();
 		actions.emplace_back();
 		Action & me = actions.back();
 
@@ -136,25 +146,30 @@ namespace
 				read_vector(stream, me.frames.back().channels[index].scale);
 			}
 		}
+
+		uint8_t has_positions;
+		stream.read(reinterpret_cast<char *>(& has_positions), sizeof(uint8_t));
+		debug_printline(0xffffffff, has_positions ? "has positions" : "has NOT positions");
+
+		if (has_positions)
+		{
+			me.positions.resize(me.length + 1);
+			for (int framei = 0; framei <= me.length; framei++)
+			{
+				read_vector(stream, me.positions[framei]);
+			}
+		}
 	}
 
 	struct Armature
 	{
 		char name[64]; // arbitrary
 
-		core::maths::Matrix4x4f matrix;
-
 		uint16_t njoints;
-		// uint16_t nroots;
 		uint16_t nactions;
 
 		std::vector<Joint> joints;
 		std::vector<Action> actions;
-
-		Armature()
-			:
-			matrix{ 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f }
-		{}
 	};
 
 	void read_armature(std::ifstream & stream, Armature & armature)
@@ -162,17 +177,14 @@ namespace
 		read_string(stream, armature.name);
 		debug_printline(0xffffffff, "armature name: ", armature.name);
 
-		read_matrix(stream, armature.matrix);
-
 		read_count(stream, armature.njoints);
 		debug_printline(0xffffffff, "armature njoints: ", armature.njoints);
 
 		uint16_t nroots;
-		read_count(stream, /*armature.*/nroots);
-		debug_printline(0xffffffff, "armature nroots: ", /*armature.*/nroots);
+		read_count(stream, nroots);
+		debug_printline(0xffffffff, "armature nroots: ", nroots);
 
 		armature.joints.reserve(armature.njoints);
-		// for (int i = 0; i < static_cast<int>(armature.nroots); i++)
 		while (armature.joints.size() < armature.njoints)
 			read_joint_chain(stream, armature.joints, -1);
 
@@ -184,131 +196,78 @@ namespace
 			read_action(stream, armature.actions, armature.njoints);
 	}
 
-	struct Weight
-	{
-		uint16_t index;
-		float value;
-	};
-
-	void read_weight(std::ifstream & stream, Weight & weight)
-	{
-		read_count(stream, weight.index);
-
-		stream.read(reinterpret_cast<char *>(& weight.value), sizeof(float));
-	}
-
-	struct Mesh
-	{
-		char name[64]; // arbitrary
-
-		core::maths::Matrix4x4f matrix;
-
-		uint16_t nvertices;
-		uint16_t nedges;
-
-		std::vector<core::maths::Vector4f> vertices;
-		std::vector<std::pair<uint16_t, uint16_t>> edges;
-		std::vector<Weight> weights;
-
-		Mesh()
-			:
-			matrix{ 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f }
-		{}
-	};
-
-	void read_mesh(std::ifstream & stream, Mesh & mesh)
-	{
-		read_string(stream, mesh.name);
-		debug_printline(0xffffffff, "mesh name: ", mesh.name);
-
-		read_matrix(stream, mesh.matrix);
-
-		read_count(stream, mesh.nvertices);
-		debug_printline(0xffffffff, "mesh nvertices: ", mesh.nvertices);
-
-		mesh.vertices.resize(mesh.nvertices);
-		for (auto && vertex : mesh.vertices)
-			read_vector(stream, vertex);
-
-		read_count(stream, mesh.nedges);
-		debug_printline(0xffffffff, "mesh nedges: ", mesh.nedges);
-
-		mesh.edges.resize(mesh.nedges);
-		for (auto && edge : mesh.edges)
-		{
-			read_count(stream, edge.first);
-			read_count(stream, edge.second);
-		}
-
-		mesh.weights.resize(mesh.nvertices);
-		for (int i = 0; i < static_cast<int>(mesh.nvertices); i++)
-		{
-			uint16_t ngroups;
-			read_count(stream, ngroups);
-			debug_assert(ngroups == 1);
-
-			read_weight(stream, mesh.weights[i]);
-			// debug_printline(0xffffffff, "vertex ", i, ": ", mesh.weights[i].index, ", ", mesh.weights[i].value);
-		}
-	}
-
 	struct Character
 	{
-		const Armature & armature;
-		const Mesh & mesh;
+		struct SetAction
+		{
+			std::string name;
+
+			SetAction(std::string name) : name(name) {}
+		};
+		struct SetArmature
+		{
+			const Armature & armature;
+
+			SetArmature(const Armature & armature) : armature(armature) {}
+		};
+
+		const Armature * armature;
+
+		const Action * current_action;
 
 		std::vector<core::maths::Matrix4x4f> matrices;
 		std::vector<core::maths::Matrix4x4f> matrix_pallet;
 
-		std::vector<core::maths::Vector4f> vertices;
-
-		Character(const Armature & armature,
-		          const Mesh & mesh) :
-			armature(armature),
-			mesh(mesh),
-			matrices(armature.njoints),
-			matrix_pallet(armature.njoints),
-			vertices(mesh.nvertices)
+		Character(SetArmature && data) :
+			armature(&data.armature),
+			current_action(nullptr),
+			matrices(data.armature.njoints),
+			matrix_pallet(data.armature.njoints)
 		{}
 
-		void draw()
+		Character & operator = (const SetAction & data)
 		{
-			for (int i = 0; i < static_cast<int>(mesh.nvertices); i++)
-				vertices[i] = matrix_pallet[mesh.weights[i].index] * mesh.vertices[i];
-
-			glLineWidth(2.f);
-			glBegin(GL_LINES);
-			for (auto && edge : mesh.edges)
+			auto action = std::find(this->armature->actions.begin(),
+			                        this->armature->actions.end(),
+			                        data.name);
+			if (action == this->armature->actions.end())
 			{
-				core::maths::Vector4f::array_type buffer1;
-				vertices[edge.first].get_aligned(buffer1);
-				glVertex4fv(buffer1);
-				core::maths::Vector4f::array_type buffer2;
-				vertices[edge.second].get_aligned(buffer2);
-				glVertex4fv(buffer2);
+				debug_printline(0xffffffff, "Could not find action ", data.name, " in armature ", armature->name);
+				this->current_action = nullptr;
 			}
-			glEnd();
+			else
+			{
+				this->current_action = &*action;
+			}
+			return *this;
 		}
 
 		void update()
 		{
+			if (current_action == nullptr)
+			{
+				for (int i = 0; i < static_cast<int>(armature->njoints); i++)
+					matrix_pallet[i] = core::maths::Matrix4x4f::identity();
+				return;
+			}
+			const auto & action = *current_action;
+
 			static int framei = 0;
 			framei += 1;
-			if (framei >= armature.actions[0].length) framei = 0;
+			if (framei >= action.length) framei = 0;
 
 			int rooti = 0;
-			while (rooti < static_cast<int>(armature.njoints))
-				// rooti = update(rooti, core::maths::Matrix4x4f::rotation(core::maths::degreef{-90.f}, 1.f, 0.f, 0.f), framei);
-				rooti = update(rooti, core::maths::Matrix4x4f::identity(), framei);
+			while (rooti < static_cast<int>(armature->njoints))
+				rooti = update(action, rooti, core::maths::Matrix4x4f::identity(), framei);
 
-			for (int i = 0; i < static_cast<int>(armature.njoints); i++)
-				matrix_pallet[i] = matrices[i] * armature.joints[i].inv_matrix;
+			for (int i = 0; i < static_cast<int>(armature->njoints); i++)
+				matrix_pallet[i] = matrices[i] * armature->joints[i].inv_matrix;
 		}
-		int update(const int mei, const core::maths::Matrix4x4f & parent_matrix, const int framei)
+		int update(const Action & action, const int mei, const core::maths::Matrix4x4f & parent_matrix, const int framei)
 		{
-			const auto pos = armature.actions[0].frames[framei].channels[mei].translation;
-			const auto rot = armature.actions[0].frames[framei].channels[mei].rotation;
-			const auto scale = armature.actions[0].frames[framei].channels[mei].scale;
+			const auto pos = action.frames[framei].channels[mei].translation;
+			const auto rot = action.frames[framei].channels[mei].rotation;
+			const auto scale = action.frames[framei].channels[mei].scale;
 
 			const auto pose =
 				make_translation_matrix(pos) *
@@ -318,59 +277,103 @@ namespace
 			matrices[mei] = parent_matrix * pose;
 
 			int childi = mei + 1;
-			for (int i = 0; i < static_cast<int>(armature.joints[mei].nchildren); i++)
-				childi = update(childi, matrices[mei], framei);
+			for (int i = 0; i < static_cast<int>(armature->joints[mei].nchildren); i++)
+				childi = update(action, childi, matrices[mei], framei);
 			return childi;
 		}
 	};
 
-	Armature armature;
-	Mesh mesh;
-	std::vector<Character> characters;
+	core::container::UnorderedCollection
+	<
+		engine::extras::Asset,
+		101,
+		std::array<Armature, 50>,
+		// clang errors on collections with only one array, so here is
+		// a dummy array to satisfy it
+		std::array<int, 0>
+	>
+	resources;
+
+	core::container::Collection
+	<
+		engine::Entity,
+		201,
+		std::array<Character, 100>,
+		// clang errors on collections with only one array, so here is
+		// a dummy array to satisfy it
+		std::array<int, 0>
+	>
+	components;
+
+	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::model::armature>,
+	                                 20> queue_add_armature;
+	core::container::CircleQueueSRMW<engine::Entity,
+	                                 20> queue_remove;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::model::action>,
+	                                 50> queue_update_action;
 }
 
 namespace engine
 {
 	namespace model
 	{
-		void init()
-		{
-			{
-				std::ifstream file("res/my_armature", std::ifstream::binary | std::ifstream::in);
-
-				read_armature(file, armature);
-			}
-			{
-				std::ifstream file("res/my_mesh", std::ifstream::binary | std::ifstream::in);
-
-				read_mesh(file, mesh);
-			}
-			characters.emplace_back(armature, mesh);
-		}
-
-		void draw()
-		{
-			glTranslatef(0.f, 0.f, 0.f);
-			//glRotatef(90.f, 0.f, 1.f, 0.f);
-			static double deg = 0.;
-			if ((deg += .5) >= 360.) deg -= 360.;
-			glRotated(deg, 0., 1., 0.);
-			glScalef(3.f, 3.f, 3.f);
-
-			glRotatef(-90.f, 1.f, 0.f, 0.f);
-
-			for (auto && character : characters)
-			{
-				character.draw();
-			}
-		}
-
 		void update()
 		{
-			for (auto && character : characters)
+			// receive messages
+			std::pair<engine::Entity, armature> message_add_armature;
+			while (queue_add_armature.try_pop(message_add_armature))
+			{
+				// TODO: this should be done in a loader thread somehow
+				const engine::extras::Asset armasset{message_add_armature.second.armfile};
+				if (!resources.contains(armasset))
+				{
+					std::ifstream file(message_add_armature.second.armfile, std::ifstream::binary | std::ifstream::in);
+					Armature arm;
+					read_armature(file, arm);
+					resources.add(armasset, std::move(arm));
+				}
+				components.add(message_add_armature.first, Character::SetArmature{resources.get<Armature>(armasset)});
+			}
+			engine::Entity message_remove;
+			while (queue_remove.try_pop(message_remove))
+			{
+				// TODO: remove assets that no one uses any more
+				components.remove(message_remove);
+			}
+			std::pair<engine::Entity, action> message_update_action;
+			while (queue_update_action.try_pop(message_update_action))
+			{
+				components.update(message_update_action.first, Character::SetAction{message_update_action.second.name});
+			}
+
+			// update stuff
+			for (auto && character : components.get<Character>())
 			{
 				character.update();
 			}
+
+			// send messages
+			for (auto && character : components.get<Character>())
+			{
+				engine::graphics::renderer::update(components.get_key(character),
+				                                   engine::graphics::renderer::CharacterSkinning{character.matrix_pallet});
+			}
+		}
+
+		void add(engine::Entity entity, const armature & data)
+		{
+			const auto res = queue_add_armature.try_push(std::make_pair(entity, data));
+			debug_assert(res);
+		}
+		void remove(engine::Entity entity)
+		{
+			const auto res = queue_remove.try_push(entity);
+			debug_assert(res);
+		}
+		void update(engine::Entity entity, const action & data)
+		{
+			const auto res = queue_update_action.try_push(std::make_pair(entity, data));
+			debug_assert(res);
 		}
 	}
 }

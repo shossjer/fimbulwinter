@@ -6,6 +6,8 @@
 #include <gameplay/effects.hpp>
 
 #include <engine/graphics/Camera.hpp>
+#include <engine/graphics/renderer.hpp>
+#include <engine/model/armature.hpp>
 #include <engine/physics/physics.hpp>
 
 #include <core/async/delay.hpp>
@@ -97,13 +99,24 @@ namespace looper
 
 		::engine::graphics::renderer::create();
 
+		// vvvv tmp vvvv
+		const auto modelentity = ::engine::Entity::create();
+		::engine::graphics::renderer::add(modelentity,
+		                                  ::engine::graphics::renderer::asset::CharacterMesh{"res/player.msh"});
+		::engine::model::add(modelentity, ::engine::model::armature{"res/player.arm"});
+		::engine::model::update(modelentity, ::engine::model::action{"idle-00"});
+		// ^^^^ tmp ^^^^
+
 		// 
 		while (active)
 		{
 			// update effects
 			::gameplay::effects::update();
 
-			// update fysix
+			// update animations
+			::engine::model::update();
+
+			// update physics
 			::engine::physics::update();
 
 			// update player - temp, should be part of generic Character update

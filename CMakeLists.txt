@@ -60,6 +60,8 @@ set(TRIBUNAL_HEADER
 	src/core/async/Thread.hpp
 	src/core/color.hpp
 	src/core/container/Buffer.hpp
+	src/core/container/CircleQueue.hpp
+	src/core/container/Collection.hpp
 	src/core/container/Stack.hpp
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
@@ -73,7 +75,6 @@ set(TRIBUNAL_HEADER
 	src/core/maths/util.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Mutex.hpp
-	src/engine/Collection.hpp
 	src/engine/Entity.hpp
 	src/engine/application/window.hpp
 	src/engine/debug.hpp

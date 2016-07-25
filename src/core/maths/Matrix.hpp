@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ostream>
 
 namespace core
 {
@@ -228,6 +229,21 @@ namespace core
 		public:
 			template <std::size_t M_, std::size_t N_, typename T_>
 			friend Vector<M_, T_> operator * (const Matrix<M_, N_, T_> & m, const Vector<N_, T_> & v);
+
+			friend std::ostream & operator << (std::ostream & stream, const this_type & m)
+			{
+				stream << "(\n";
+				for (std::size_t i = 0; i < M; i++)
+				{
+					for (std::size_t j = 0; j < N; j++)
+					{
+						stream << m.values[i + j * 4] << ", ";
+					}
+					stream << "\n";
+				}
+				stream << ")";
+				return stream;
+			}
 		};
 
 		using Matrix2x2d = Matrix<2, 2, double>;

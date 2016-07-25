@@ -21,6 +21,7 @@ namespace engine
 			value_type id;
 
 		public:
+			Asset() = default;
 			template <std::size_t N>
 			constexpr Asset(const char (&str)[N]) :
 				id{core::crypto::crc32(str)}

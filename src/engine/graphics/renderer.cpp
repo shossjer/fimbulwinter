@@ -11,13 +11,16 @@
 #include <core/async/delay.hpp>
 #include <core/color.hpp>
 #include <core/container/CircleQueue.hpp>
+#include <core/container/Collection.hpp>
 #include <core/container/Stack.hpp>
+#include <core/maths/algorithm.hpp>
 
-#include <engine/Collection.hpp>
 #include <engine/debug.hpp>
+#include <engine/extras/Asset.hpp>
 #include <engine/graphics/Camera.hpp>
 
 #include <atomic>
+#include <fstream>
 #include <utility>
 
 namespace engine
@@ -29,13 +32,6 @@ namespace engine
 			extern void make_current();
 			extern void swap_buffers();
 		}
-	}
-
-	namespace model
-	{
-		extern void init();
-		extern void draw();
-		extern void update();
 	}
 
 	namespace physics
@@ -136,10 +132,9 @@ namespace
 		static const std::array<uint16_t, 3 * 12> triangles;
 		static const std::array<float, 3 * 24> normals;
 
-		cuboidc_t & operator = (engine::graphics::data::CuboidC && data)
+		cuboidc_t(engine::graphics::data::CuboidC && data) :
+			modelview(std::move(data.modelview))
 		{
-			modelview = std::move(data.modelview);
-
 			const float xoffset = data.width / 2.f;
 			const float yoffset = data.height / 2.f;
 			const float zoffset = data.depth / 2.f;
@@ -172,16 +167,11 @@ namespace
 			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
 			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
 			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
-			return *this;
 		}
 		cuboidc_t & operator = (engine::graphics::data::ModelviewMatrix && data)
 		{
 			modelview = std::move(data.matrix);
 			return *this;
-		}
-		cuboidc_t & operator = (engine::graphics::data::Data && data)
-		{
-			debug_unreachable();
 		}
 	};
 	const std::array<uint16_t, 3 * 12> cuboidc_t::triangles = {{
@@ -232,16 +222,10 @@ namespace
 		core::container::Buffer edges;
 		// engine::graphics::opengl::Color color;
 
-		linec_t & operator = (engine::graphics::data::LineC && data)
-		{
-			vertices = std::move(data.vertices);
-			edges = std::move(data.edges);
-			return *this;
-		}
-		linec_t & operator = (engine::graphics::data::Data && data)
-		{
-			debug_unreachable();
-		}
+		linec_t(engine::graphics::data::LineC && data) :
+			vertices(std::move(data.vertices)),
+			edges(std::move(data.edges))
+		{}
 	};
 
 	struct meshc_t
@@ -252,84 +236,250 @@ namespace
 		core::container::Buffer normals;
 		// engine::graphics::opengl::Color color;
 
-		meshc_t & operator = (engine::graphics::data::MeshC && data)
+		meshc_t(engine::graphics::data::MeshC && data) :
+			vertices(std::move(data.vertices)),
+			triangles(std::move(data.triangles)),
+			normals(std::move(data.normals))
+		{}
+	};
+
+	struct Character
+	{
+		struct Mesh
 		{
-			vertices = std::move(data.vertices);
-			triangles = std::move(data.triangles);
-			normals = std::move(data.normals);
+			struct Weight
+			{
+				uint16_t index;
+				float value;
+			};
+
+			char name[64]; // arbitrary
+
+			uint16_t nvertices;
+			uint16_t nedges;
+
+			std::vector<core::maths::Vector4f> vertices;
+			std::vector<std::pair<uint16_t, uint16_t>> edges;
+			std::vector<Weight> weights;
+		};
+
+		struct SetMesh
+		{
+			Mesh & mesh;
+
+			SetMesh(Mesh & mesh) : mesh(mesh) {}
+		};
+
+		Mesh *mesh;
+
+		std::vector<core::maths::Matrix4x4f> matrix_pallet;
+		std::vector<core::maths::Vector4f> vertices;
+
+		Character(SetMesh && data) :
+			mesh(&data.mesh),
+			vertices(data.mesh.nvertices)
+		{}
+		Character & operator = (engine::graphics::renderer::CharacterSkinning && data)
+		{
+			this->matrix_pallet = std::move(data.matrix_pallet);
 			return *this;
 		}
-		meshc_t & operator = (engine::graphics::data::Data && data)
+
+		void draw()
 		{
-			debug_unreachable();
+			glColor3ub(255, 0, 255);
+			glLineWidth(2.f);
+			glBegin(GL_LINES);
+			for (auto && edge : mesh->edges)
+			{
+				core::maths::Vector4f::array_type buffer1;
+				vertices[edge.first].get_aligned(buffer1);
+				glVertex4fv(buffer1);
+				core::maths::Vector4f::array_type buffer2;
+				vertices[edge.second].get_aligned(buffer2);
+				glVertex4fv(buffer2);
+			}
+			glEnd();
+			glLineWidth(1.f);
+		}
+		void update()
+		{
+			debug_assert(!matrix_pallet.empty());
+			for (int i = 0; i < static_cast<int>(mesh->nvertices); i++)
+				vertices[i] = matrix_pallet[mesh->weights[i].index] * mesh->vertices[i];
 		}
 	};
 
-	engine::Collection
+	void read_count(std::ifstream & stream, uint16_t & count)
+	{
+		stream.read(reinterpret_cast<char *>(& count), sizeof(uint16_t));
+	}
+	void read_vector(std::ifstream & stream, core::maths::Vector4f & vec)
+	{
+		core::maths::Vector3f::array_type buffer;
+		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
+		vec.set(buffer[0], buffer[1], buffer[2], 1.f);
+	}
+	template <std::size_t N>
+	void read_string(std::ifstream & stream, char (&buffer)[N])
+	{
+		uint16_t len; // including null character
+		stream.read(reinterpret_cast<char *>(& len), sizeof(uint16_t));
+		debug_assert(len <= N);
+
+		stream.read(buffer, len);
+	}
+
+	void read_weight(std::ifstream & stream, Character::Mesh::Weight & weight)
+	{
+		read_count(stream, weight.index);
+
+		stream.read(reinterpret_cast<char *>(& weight.value), sizeof(float));
+	}
+	void read_mesh(std::ifstream & stream, Character::Mesh & mesh)
+	{
+		read_string(stream, mesh.name);
+		debug_printline(0xffffffff, "mesh name: ", mesh.name);
+
+		read_count(stream, mesh.nvertices);
+		debug_printline(0xffffffff, "mesh nvertices: ", mesh.nvertices);
+
+		mesh.vertices.resize(mesh.nvertices);
+		for (auto && vertex : mesh.vertices)
+			read_vector(stream, vertex);
+
+		read_count(stream, mesh.nedges);
+		debug_printline(0xffffffff, "mesh nedges: ", mesh.nedges);
+
+		mesh.edges.resize(mesh.nedges);
+		for (auto && edge : mesh.edges)
+		{
+			read_count(stream, edge.first);
+			read_count(stream, edge.second);
+		}
+
+		mesh.weights.resize(mesh.nvertices);
+		for (int i = 0; i < static_cast<int>(mesh.nvertices); i++)
+		{
+			uint16_t ngroups;
+			read_count(stream, ngroups);
+			debug_assert(ngroups == 1);
+
+			read_weight(stream, mesh.weights[i]);
+		}
+	}
+
+	core::container::UnorderedCollection
 	<
+		engine::extras::Asset,
+		101,
+		std::array<Character::Mesh, 50>,
+		// clang errors on collections with only one array, so here is
+		// a dummy array to satisfy it
+		std::array<int, 0>
+	>
+	resources;
+
+	core::container::Collection
+	<
+		engine::Entity,
 		1001,
+		std::array<Character, 100>,
 		std::array<cuboidc_t, 100>,
 		std::array<linec_t, 100>,
 		std::array<meshc_t, 100>
 	>
-	collection;
+	components;
 }
 
 namespace
 {
-	template <typename T>
-	using message_t = std::pair<engine::Entity, T>;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::CuboidC>,
+	                                 100> queue_add_cuboidc;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::LineC>,
+	                                 10> queue_add_linec;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::MeshC>,
+	                                 100> queue_add_meshc;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::renderer::asset::CharacterMesh>,
+	                                 100> queue_add_charactermesh;
 
-	core::container::CircleQueue<message_t<engine::graphics::data::CuboidC>,
-	                             100> add_queue_cuboidc;
-	core::container::CircleQueue<message_t<engine::graphics::data::LineC>,
-	                             10> add_queue_linec;
-	core::container::CircleQueue<message_t<engine::graphics::data::MeshC>,
-	                             100> add_queue_meshc;
+	core::container::CircleQueueSRMW<engine::Entity,
+	                                 100> queue_remove;
 
-	core::container::CircleQueue<engine::Entity,
-	                             100> remove_queue;
-
-	core::container::CircleQueue<message_t<engine::graphics::data::ModelviewMatrix>,
-	                             100> update_queue_modelviewmatrix;
-
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::ModelviewMatrix>,
+	                                 100> queue_update_modelviewmatrix;
+	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	                                           engine::graphics::renderer::CharacterSkinning>,
+	                                 100> queue_update_characterskinning;
 
 	void poll_add_queue()
 	{
-		message_t<engine::graphics::data::CuboidC> add_msg_cuboidc;
-		while (add_queue_cuboidc.try_pop(add_msg_cuboidc))
+		std::pair<engine::Entity,
+		          engine::graphics::data::CuboidC> message_add_cuboidc;
+		while (queue_add_cuboidc.try_pop(message_add_cuboidc))
 		{
-			collection.add(add_msg_cuboidc.first,
-			               std::move(add_msg_cuboidc.second));
+			components.add(message_add_cuboidc.first,
+			               std::move(message_add_cuboidc.second));
 		}
-		message_t<engine::graphics::data::LineC> add_msg_linec;
-		while (add_queue_linec.try_pop(add_msg_linec))
+		std::pair<engine::Entity,
+		          engine::graphics::data::LineC> message_add_linec;
+		while (queue_add_linec.try_pop(message_add_linec))
 		{
-			collection.add(add_msg_linec.first,
-			               std::move(add_msg_linec.second));
+			components.add(message_add_linec.first,
+			               std::move(message_add_linec.second));
 		}
-		message_t<engine::graphics::data::MeshC> add_msg_meshc;
-		while (add_queue_meshc.try_pop(add_msg_meshc))
+		std::pair<engine::Entity,
+		          engine::graphics::data::MeshC> message_add_meshc;
+		while (queue_add_meshc.try_pop(message_add_meshc))
 		{
-			collection.add(add_msg_meshc.first,
-			               std::move(add_msg_meshc.second));
+			components.add(message_add_meshc.first,
+			               std::move(message_add_meshc.second));
+		}
+		std::pair<engine::Entity,
+		          engine::graphics::renderer::asset::CharacterMesh> message_add_charactermesh;
+		while (queue_add_charactermesh.try_pop(message_add_charactermesh))
+		{
+			// TODO: this should be done in a loader thread somehow
+			const engine::extras::Asset mshasset{message_add_charactermesh.second.mshfile};
+			if (!resources.contains(mshasset))
+			{
+				std::ifstream file(message_add_charactermesh.second.mshfile, std::ifstream::binary | std::ifstream::in);
+				Character::Mesh msh;
+				read_mesh(file, msh);
+				resources.add(mshasset, std::move(msh));
+			}
+			components.add(message_add_charactermesh.first, Character::SetMesh{resources.get<Character::Mesh>(mshasset)});
 		}
 	}
 	void poll_remove_queue()
 	{
 		engine::Entity entity;
-		while (remove_queue.try_pop(entity))
+		while (queue_remove.try_pop(entity))
 		{
-			collection.remove(entity);
+			// TODO: remove assets that no one uses any more
+			components.remove(entity);
 		}
 	}
 	void poll_update_queue()
 	{
-		message_t<engine::graphics::data::ModelviewMatrix> update_msg_modelviewmatrix;
-		while (update_queue_modelviewmatrix.try_pop(update_msg_modelviewmatrix))
+		std::pair<engine::Entity,
+		          engine::graphics::data::ModelviewMatrix> message_update_modelviewmatrix;
+		while (queue_update_modelviewmatrix.try_pop(message_update_modelviewmatrix))
 		{
-			collection.update(update_msg_modelviewmatrix.first,
-			                  std::move(update_msg_modelviewmatrix.second));
+			components.update(message_update_modelviewmatrix.first,
+			                  std::move(message_update_modelviewmatrix.second));
+		}
+		std::pair<engine::Entity,
+		          engine::graphics::renderer::CharacterSkinning> message_update_characterskinning;
+		while (queue_update_characterskinning.try_pop(message_update_characterskinning))
+		{
+			components.update(message_update_characterskinning.first,
+			                  std::move(message_update_characterskinning.second));
 		}
 	}
 }
@@ -408,7 +558,6 @@ namespace
 			data.free();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
-		// engine::model::init(); // WAT
 	}
 
 	void render_update(const engine::graphics::Camera & camera)
@@ -447,7 +596,14 @@ namespace
 		// 3d
 		glEnable(GL_DEPTH_TEST);
 		//
-		for (const auto & component : collection.get<cuboidc_t>())
+		for (auto & component : components.get<Character>())
+		{
+			glLoadMatrix(modelview_matrix);
+
+			component.update();
+			component.draw();
+		}
+		for (const auto & component : components.get<cuboidc_t>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
@@ -472,7 +628,7 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : collection.get<linec_t>())
+		for (const auto & component : components.get<linec_t>())
 		{
 			glLoadMatrix(modelview_matrix);
 
@@ -489,7 +645,7 @@ namespace
 			               component.edges.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
 		}
-		for (const auto & component : collection.get<meshc_t>())
+		for (const auto & component : components.get<meshc_t>())
 		{
 			glLoadMatrix(modelview_matrix);
 
@@ -514,8 +670,6 @@ namespace
 		// TEMP
 		glLoadMatrix(modelview_matrix);
 		engine::physics::render();
-		// engine::model::update();
-		// engine::model::draw();
 		glLoadMatrix(modelview_matrix);
 
 		// setup 2D
@@ -582,23 +736,38 @@ namespace engine
 
 			void add(engine::Entity entity, data::CuboidC data)
 			{
-				add_queue_cuboidc.try_push(message_t<data::CuboidC>{entity, data});
+				const auto res = queue_add_cuboidc.try_push(std::make_pair(entity, data));
+				debug_assert(res);
 			}
 			void add(engine::Entity entity, data::LineC data)
 			{
-				add_queue_linec.try_push(message_t<data::LineC>{entity, data});
+				const auto res = queue_add_linec.try_push(std::make_pair(entity, data));
+				debug_assert(res);
 			}
 			void add(engine::Entity entity, data::MeshC data)
 			{
-				add_queue_meshc.try_push(message_t<data::MeshC>{entity, data});
+				const auto res = queue_add_meshc.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+			void add(engine::Entity entity, asset::CharacterMesh data)
+			{
+				const auto res = queue_add_charactermesh.try_push(std::make_pair(entity, data));
+				debug_assert(res);
 			}
 			void remove(engine::Entity entity)
 			{
-				remove_queue.try_push(entity);
+				const auto res = queue_remove.try_push(entity);
+				debug_assert(res);
 			}
 			void update(engine::Entity entity, data::ModelviewMatrix data)
 			{
-				update_queue_modelviewmatrix.try_push(message_t<data::ModelviewMatrix>{entity, data});
+				const auto res = queue_update_modelviewmatrix.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+			void update(engine::Entity entity, CharacterSkinning data)
+			{
+				const auto res = queue_update_characterskinning.try_push(std::make_pair(entity, data));
+				debug_assert(res);
 			}
 		}
 	}

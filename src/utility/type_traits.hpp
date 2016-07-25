@@ -69,6 +69,11 @@ namespace mpl
 	template <typename ...Ps>
 	using void_t = typename void_impl<Ps...>::type;
 
+	template <typename T, typename ...>
+	struct first_impl : type_is<T> {};
+	template <typename ...Ts>
+	using first_t = typename first_impl<Ts...>::type;
+
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  lists
@@ -93,6 +98,31 @@ namespace mpl
 	struct type_tail_impl<type_list<Head, Tail...>> : type_is<type_list<Tail...>> {};
 	template <typename List>
 	using type_tail = typename type_tail_impl<List>::type;
+
+	template <std::size_t N, typename List>
+	struct type_at_impl;
+	template <std::size_t N, typename T, typename ...Ts>
+	struct type_at_impl<N, type_list<T, Ts...>> : type_at_impl<(N - 1), type_list<Ts...>> {};
+	template <typename T, typename ...Ts>
+	struct type_at_impl<0, type_list<T, Ts...>> : type_is<T> {};
+	template <std::size_t N, typename List>
+	using type_at = typename type_at_impl<N, List>::type;
+
+	template <bool C, std::size_t N, typename List, typename Default>
+	struct type_at_or_impl : type_is<Default> {};
+	template <std::size_t N, typename List, typename Default>
+	struct type_at_or_impl<true, N, List, Default> : type_at_impl<N, List> {};
+	template <std::size_t N, typename List, typename Default = void>
+	using type_at_or = typename type_at_or_impl<(N < List::size), N, List, Default>::type;
+
+	template <template <typename ...> class P, typename Lin, typename Lout, typename ...Args>
+	struct type_filter_impl;
+	template <template <typename ...> class P, typename Lout, typename ...Args>
+	struct type_filter_impl<P, type_list<>, Lout, Args...> : type_is<Lout> {};
+	template <template <typename ...> class P, typename T, typename ...Tins, typename ...Touts, typename ...Args>
+	struct type_filter_impl<P, type_list<T, Tins...>, type_list<Touts...>, Args...> : type_filter_impl<P, type_list<Tins...>, std::conditional_t<P<T, Args...>::value, type_list<T, Touts...>, type_list<Touts...>>, Args...> {};
+	template <template <typename ...> class P, typename List, typename ...Args>
+	using type_filter = typename type_filter_impl<P, List, type_list<>, Args...>::type;
 
 	////////////////////////////////////////////////////////////////////////////
 	//

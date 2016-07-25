@@ -10,6 +10,21 @@ namespace core
 {
 	namespace maths
 	{
+		template <std::size_t, std::size_t, typename>
+		class Matrix;
+		template <std::size_t, typename>
+		class Plane;
+		template <typename>
+		class Scalar;
+		template <std::size_t, typename>
+		class Vector;
+	}
+}
+
+namespace core
+{
+	namespace maths
+	{
 		////////////////////////////////////////////////////////////////////////
 		//
 		// various functions
