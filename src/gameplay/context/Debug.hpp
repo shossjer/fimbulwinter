@@ -129,6 +129,8 @@ namespace context
 				//	this->effectId = gameplay::effects::create(gameplay::effects::Type::PLAYER_GRAVITY, player::get());
 					break;
 				}
+			default:
+				; // do nothing
 			}
 		}
 
@@ -166,6 +168,8 @@ namespace context
 				//	gameplay::effects::remove(this->effectId);
 					break;
 				}
+			default:
+				; // do nothing
 			}
 		}
 	};

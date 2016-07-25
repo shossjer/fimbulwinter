@@ -126,11 +126,11 @@ namespace context
 			vec[1] *= 0.25f;
 			vec[2] *= 0.25f;
 
-			const Vector goal{ pos[0] + vec[0], pos[1] + vec[1], pos[2] + vec[2] };
+			const Vector goal{{ pos[0] + vec[0], pos[1] + vec[1], pos[2] + vec[2] }};
 
-			const Point current{ this->camera.getX(), this->camera.getY() };
+			const Point current{{ this->camera.getX(), this->camera.getY() }};
 
-			const Vector delta{ goal[0] - current[0], goal[1] - current[1], goal[2] - current[2] };
+			const Vector delta{{ goal[0] - current[0], goal[1] - current[1], goal[2] - current[2] }};
 
 			this->camera.position(current[0] + delta[0]*.1f, current[1] + delta[1]*.1f, 20.f);
 		}
@@ -175,6 +175,8 @@ namespace context
 					this->effectId = gameplay::effects::create(gameplay::effects::Type::PLAYER_GRAVITY, player::get());
 					break;
 				}
+			default:
+				; // do nothing
 			}
 		}
 
@@ -212,6 +214,8 @@ namespace context
 					gameplay::effects::remove(this->effectId);
 					break;
 				}
+			default:
+				; // do nothing
 			}
 		}
 

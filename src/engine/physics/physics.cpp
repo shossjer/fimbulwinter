@@ -131,8 +131,6 @@ namespace physics
 
 		void positionOf(const engine::Entity id, Point & pos, Vector & velocity)
 		{
-			const b2Body * body = actors.at(id);
-
 			const b2Vec2 point = actors.at(id)->GetPosition();
 			const b2Vec2 vel = actors.at(id)->GetLinearVelocity();
 
