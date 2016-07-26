@@ -18,7 +18,7 @@ namespace gameplay
 	{
 		void updateInput();
 
-		const ::engine::graphics::Camera & 
+		const ::engine::graphics::Camera &
 			 updateCamera();
 
 		void create();

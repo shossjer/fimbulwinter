@@ -112,7 +112,7 @@ namespace context
 		 */
 		void updateCamera() override
 		{
-			// 
+			//
 			const engine::Entity id = player::get();
 
 			if (id == engine::Entity::INVALID) return;

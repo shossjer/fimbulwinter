@@ -73,30 +73,18 @@ namespace looper
 
 			gameplay::player::set(id);
 		}
-		const float S = 1.0f;
-		const float SOLIDITY = 0.1f;
-		const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
-		//{
-		//	::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 10.f, 0.f }, M, SOLIDITY, ::engine::physics::Size{ S, S, S } };
-		//	::engine::physics::create(2, data);
-		//}
-		//{
-		//	::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 20.f, 0.f }, ::engine::physics::Material::STONE, 0.5f, ::engine::physics::Size{ S, S, S } };
-		//	create(3, data);
-		//}
-		//{
-		//	::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 30.f, 0.f }, M, SOLIDITY, ::engine::physics::Size{ S, S, S } };
-		//	::engine::physics::create(4, data);
-		//}
-		//{
-		//	::engine::physics::BoxData data{ ::engine::physics::Point{ 0.f, 40.f, 0.f }, M, SOLIDITY, ::engine::physics::Size{ S, S, S } };
-		//	::engine::physics::create(5, data);
-		//}
-
-		for (unsigned int i = 2; i < 50; i++)
 		{
-			::engine::physics::BoxData data{ Point{ { 0.f, i*10.f, 0.f } }, M, SOLIDITY, Size{ { S, S, S } } };
-			::engine::physics::create(i, data);
+			/**
+			 * create Boxes
+			 */
+			const float S = 1.0f;
+			const float SOLIDITY = 0.1f;
+			const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
+			for (unsigned int i = 2; i < 50; i++)
+			{
+				::engine::physics::BoxData data{ Point{ { 0.f, i*10.f, 0.f } }, M, SOLIDITY, Size{ { S, S, S } } };
+				::engine::physics::create(i, data);
+			}
 		}
 	}
 

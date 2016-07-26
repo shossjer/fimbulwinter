@@ -10,7 +10,7 @@ namespace physics
 {
 	namespace query
 	{
-		/**	 
+		/**
 		 *
 		 */
 		Point positionOf(const engine::Entity id);
@@ -20,7 +20,7 @@ namespace physics
 		void positionOf(const engine::Entity id, Point & pos, Vector & vel);
 		/**
 		 *
-		 */ 
+		 */
 		class RayCast
 		{
 		public:

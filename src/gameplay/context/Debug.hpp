@@ -80,7 +80,7 @@ namespace context
 				break;
 			}
 
-			// 
+			//
 
 		}
 

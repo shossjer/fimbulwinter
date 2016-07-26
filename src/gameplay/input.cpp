@@ -46,7 +46,7 @@ namespace
 
 	::gameplay::context::Debug debugContext;
 	::gameplay::context::Player playerContext;
-	
+
 	::gameplay::Context * activeContext = &debugContext;
 
 
@@ -59,7 +59,7 @@ namespace
 		KeyMapT keyMap;
 
 	public:
-		 
+
 		bool translate(const Input & input)
 		{
 			switch (input.getState())
@@ -117,7 +117,7 @@ namespace
 		}
 
 	}	stateHID;
-	
+
 }
 
 namespace gameplay
@@ -153,7 +153,7 @@ namespace gameplay
 			// update movement
 			activeContext->updateInput();
 
-			// 
+			//
 		}
 
 		const ::engine::graphics::Camera & updateCamera()

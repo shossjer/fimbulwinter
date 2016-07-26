@@ -1,6 +1,6 @@
 
-#ifndef ENGINE_CAMERA_HPP
-#define ENGINE_CAMERA_HPP
+#ifndef ENGINE_GRAPHICS_CAMERA_HPP
+#define ENGINE_GRAPHICS_CAMERA_HPP
 
 #include <core/maths/Vector.hpp>
 
@@ -55,4 +55,4 @@ namespace graphics
 }
 }
 
-#endif // ENGINE_CAMERA_HPP
+#endif /* ENGINE_GRAPHICS_CAMERA_HPP */

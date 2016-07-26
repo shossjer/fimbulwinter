@@ -24,7 +24,7 @@ if(ENABLE_TEST)
 
 	# include catch headers
 	include_directories("${CMAKE_BINARY_DIR}/catch/src/catch/include")
-	   
+
 	# source listing
 	set(TRIBUNAL_TEST_SOURCE
 		main.cpp
@@ -67,7 +67,7 @@ if(ENABLE_TEST)
 
 	add_dependencies(TribunalTest Tribunal)
 	add_dependencies(TribunalTest catch)
-	
+
 else()
 	message(STATUS "Catch tests are disabled")
 endif(ENABLE_TEST)

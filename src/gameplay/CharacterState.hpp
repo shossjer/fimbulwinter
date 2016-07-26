@@ -13,9 +13,6 @@ namespace gameplay
 	class CharacterState
 	{
 	public:
-
-		//const engine::Entity id;
-
 		using Type = Vec2;
 
 		enum MovementState

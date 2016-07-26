@@ -51,4 +51,4 @@ namespace gameplay
 	};
 }
 
-#endif
+#endif /* GAMEPLAY_CONTEXT_HPP */

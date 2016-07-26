@@ -5,6 +5,7 @@
 #include <core/debug.hpp>
 
 #include <cstdint>
+#include <functional>
 
 namespace engine
 {

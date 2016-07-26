@@ -425,7 +425,7 @@ namespace
 			// these calculations do not need opengl context
 			projection2D = core::maths::Matrix4x4f::ortho(0.f, (float)dimension.width, (float)dimension.height, 0.f, -1.f, 1.f);
 			projection3D = core::maths::Matrix4x4f::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
-		}	
+		}
 		// poll events
 		poll_add_queue();
 		poll_update_queue();

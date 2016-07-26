@@ -83,10 +83,10 @@ namespace physics
 		// define queries
 		std::vector<Actor> nearby(const b2Vec2 centre, const float halfX, const float halfY);
 
-		// 
+		//
 		std::vector<Actor> load(const std::vector<engine::Entity> & targets);
 
-		// 
+		//
 		Actor load(const engine::Entity id);
 	}
 
@@ -95,7 +95,7 @@ namespace physics
 	//{
 	//	std::vector<Id> objects;
 	//
-	//	// 
+	//	//
 	//	class AABBQuery : public b2QueryCallback
 	//	{
 	//		std::vector<Id> & objects;
