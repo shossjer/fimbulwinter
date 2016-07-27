@@ -33,11 +33,6 @@ namespace engine
 			extern void swap_buffers();
 		}
 	}
-
-	namespace physics
-	{
-		void render();
-	}
 }
 
 namespace
@@ -127,13 +122,17 @@ namespace
 	{
 		core::maths::Matrix4x4f modelview;
 		std::array<float, 3 * 24> vertices;
-		// engine::graphics::opengl::Color color;
+		engine::graphics::opengl::Color4ub color;
 
 		static const std::array<uint16_t, 3 * 12> triangles;
 		static const std::array<float, 3 * 24> normals;
 
 		cuboidc_t(engine::graphics::data::CuboidC && data) :
-			modelview(std::move(data.modelview))
+			modelview(std::move(data.modelview)),
+			color((data.color & 0x000000ff) >>  0,
+			      (data.color & 0x0000ff00) >>  8,
+			      (data.color & 0x00ff0000) >> 16,
+			      (data.color & 0xff000000) >> 24)
 		{
 			const float xoffset = data.width / 2.f;
 			const float yoffset = data.height / 2.f;
@@ -217,15 +216,25 @@ namespace
 
 	struct linec_t
 	{
-		// core::maths::Matrix4x4f modelview;
+		core::maths::Matrix4x4f modelview;
 		core::container::Buffer vertices;
 		core::container::Buffer edges;
-		// engine::graphics::opengl::Color color;
+		engine::graphics::opengl::Color4ub color;
 
 		linec_t(engine::graphics::data::LineC && data) :
+			modelview(std::move(data.modelview)),
 			vertices(std::move(data.vertices)),
-			edges(std::move(data.edges))
+			edges(std::move(data.edges)),
+			color((data.color & 0x000000ff) >>  0,
+			      (data.color & 0x0000ff00) >>  8,
+			      (data.color & 0x00ff0000) >> 16,
+			      (data.color & 0xff000000) >> 24)
 		{}
+		linec_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
 	};
 
 	struct meshc_t
@@ -471,8 +480,15 @@ namespace
 		          engine::graphics::data::ModelviewMatrix> message_update_modelviewmatrix;
 		while (queue_update_modelviewmatrix.try_pop(message_update_modelviewmatrix))
 		{
-			components.update(message_update_modelviewmatrix.first,
-			                  std::move(message_update_modelviewmatrix.second));
+			if (components.contains(message_update_modelviewmatrix.first))
+			{
+				components.update(message_update_modelviewmatrix.first,
+				                  std::move(message_update_modelviewmatrix.second));
+			}
+			else
+			{
+				debug_printline(0xffffffff, "WARNING no component for entity ", message_update_modelviewmatrix.first);
+			}
 		}
 		std::pair<engine::Entity,
 		          engine::graphics::renderer::CharacterSkinning> message_update_characterskinning;
@@ -609,7 +625,7 @@ namespace
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
-			glColor3ub(0, 255, 0);
+			glColor(component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glVertexPointer(3, // TODO
@@ -630,10 +646,12 @@ namespace
 		}
 		for (const auto & component : components.get<linec_t>())
 		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
 			glLineWidth(2.f);
-			glColor3ub(255, 0, 0);
+			glColor(component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
 			                static_cast<GLenum>(component.vertices.format()), // TODO
@@ -644,6 +662,9 @@ namespace
 			               static_cast<GLenum>(component.edges.format()),
 			               component.edges.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
+			glLineWidth(1.f);
+
+			modelview_matrix.pop();
 		}
 		for (const auto & component : components.get<meshc_t>())
 		{
@@ -666,11 +687,6 @@ namespace
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
 		}
-
-		// TEMP
-		glLoadMatrix(modelview_matrix);
-		engine::physics::render();
-		glLoadMatrix(modelview_matrix);
 
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);

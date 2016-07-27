@@ -68,7 +68,7 @@ namespace looper
 			/**
 			 * create Player object
 			 */
-			const engine::Entity id{ 1 };
+			const auto id = engine::Entity::create();
 			::gameplay::characters::create(id);
 			::engine::physics::CharacterData capsule{ Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, 0.6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
 			::engine::physics::create(id, capsule);
@@ -84,8 +84,19 @@ namespace looper
 			const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
 			for (unsigned int i = 2; i < 50; i++)
 			{
-				::engine::physics::BoxData data{ Point{ { 0.f, i*10.f, 0.f } }, M, SOLIDITY, Size{ { S, S, S } } };
-				::engine::physics::create(i, data);
+				const auto id = engine::Entity::create();
+				{
+					::engine::physics::BoxData data{ Point{ { 0.f, i*10.f, 0.f } }, M, SOLIDITY, Size{ { S, S, S } } };
+					::engine::physics::create(id, data);
+				}
+				{
+					engine::graphics::data::CuboidC data = {
+						core::maths::Matrix4x4f::identity(),
+						S * 2.f, S * 2.f, S * 2.f,
+						0xff00ff00
+					};
+					engine::graphics::renderer::add(id, data);
+				}
 			}
 		}
 	}

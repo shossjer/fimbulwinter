@@ -7,11 +7,10 @@
 
 #include <Box2D/Box2D.h>
 
+#include <core/container/Collection.hpp>
 #include <core/maths/Vector.hpp>
 
-#include <engine/graphics/opengl.hpp>
-#include <engine/graphics/opengl/Font.hpp>
-#include <engine/graphics/opengl/Matrix.hpp>
+#include <engine/graphics/renderer.hpp>
 
 #include <array>
 #include <stdexcept>
@@ -118,6 +117,32 @@ namespace physics
 		std::unordered_map<engine::Entity, ShapeContactCounter> characterContactCounters;
 
 		std::unordered_map<Material, MaterialData> materials;
+
+		// We need more flexibility than  just the one actors array in
+		// order to send position data only to the entities that needs
+		// it, else it  is just wasteful.  These  example arrays store
+		// the entities used for boundingbox drawings. -- shossjer
+
+		// struct debug_immovable_t  // things  that do  not
+		// move { engine::Entity debug_id;
+
+		// 	debug_immovable_t(engine::Entity debug_id) : debug_id(debug_id) {}
+		// };
+		// struct debug_movable_t // things that move
+		// {
+		// 	engine::Entity debug_id;
+
+		// 	debug_movable_t(engine::Entity debug_id) : debug_id(debug_id) {}
+		// };
+
+		// core::container::Collection
+		// <
+		// 	engine::Entity,
+		// 	1001,
+		// 	std::array<debug_immovable_t, 100>,
+		// 	std::array<debug_movable_t, 400>
+		// >
+		// debug_entities;
 	}
 
 	namespace query
@@ -172,6 +197,12 @@ namespace physics
 		world.SetContactListener(&contactCallback);
 		{
 			const engine::Entity id{ 0 };
+			// const auto id = engine::Entity::create(); // does not work :/
+			// the above yields the following runtime error from somewhere at startup:
+			// > terminate called after throwing an instance of 'std::out_of_range'
+			// >   what():  _Map_base::at
+			// > Aborted
+
 			// This a chain shape with isolated vertices
 			std::vector<b2Vec2> vertices;
 		
@@ -198,7 +229,38 @@ namespace physics
 
 			body->CreateFixture(&fixtureDef);
 
-			actors.emplace(id, body);
+			// actors.emplace(id, body); // this was needed before when we drew the actors from this file, but we do not anymore
+
+			// debug graphics
+			{
+				// const auto debug_id = engine::Entity::create(); // add this one line and the program throws an exception somewhere else at some other time, yay!
+				// debug_entities.add(id, debug_immovable_t{debug_id});
+
+				core::container::Buffer vertices_;
+				vertices_.resize<float>(3 * vertices.size());
+				for (std::size_t i = 0; i < vertices.size(); i++)
+				{
+					vertices_.data_as<float>()[i * 3 + 0] = vertices[i].x;
+					vertices_.data_as<float>()[i * 3 + 1] = vertices[i].y;
+					vertices_.data_as<float>()[i * 3 + 2] = 0.f;
+				}
+				core::container::Buffer edges_;
+				edges_.resize<uint16_t>(2 * (vertices.size() - 1));
+				for (std::size_t i = 0; i < vertices.size() - 1; i++)
+				{
+					edges_.data_as<uint16_t>()[i * 2 + 0] = i;
+					edges_.data_as<uint16_t>()[i * 2 + 1] = i + 1;
+				}
+
+				engine::graphics::data::LineC data = {
+					core::maths::Matrix4x4f::identity(),
+					std::move(vertices_),
+					std::move(edges_),
+					0xffffffff
+				};
+				engine::graphics::renderer::add(id, std::move(data));
+				// engine::graphics::renderer::add(debug_id, std::move(data));
+			}
 		}
 		/**
 			Water (salt)	1,030
@@ -254,6 +316,17 @@ namespace physics
 		const int32 positionIterations = 2;
 
 		world.Step(timeStep, velocityIterations, positionIterations);
+
+		// for (auto && movable : components.get<movables>()) // or something like that
+		for (auto && actor : actors)
+		{
+			const auto & transform = actor.second->GetTransform();
+			engine::graphics::data::ModelviewMatrix data = {
+				core::maths::Matrix4x4f::translation(transform.p.x, transform.p.y, 0.f) *
+				core::maths::Matrix4x4f::rotation(core::maths::radianf{transform.q.GetAngle()}, 0.f, 0.f, 1.f)
+			};
+			engine::graphics::renderer::update(actor.first, std::move(data));
+		}
 	}
 
 	MoveResult update(const engine::Entity id, const MoveData & moveData)
@@ -371,127 +444,94 @@ namespace physics
 		body->SetFixedRotation(true);
 
 		actors.emplace(id, body);
+
+		// debug graphics
+		{
+			const std::size_t detail = 16;
+			// this is awful...
+			core::container::Buffer vertices_;
+			vertices_.resize<float>(3 * (4 + (detail + 1) + (detail + 1)));
+			std::size_t vertexi = 0;
+			core::container::Buffer edges_;
+			edges_.resize<uint16_t>(2 * (4 + detail + detail));
+			std::size_t edgei = 0;
+			// box
+			const auto vertexboxi = vertexi;
+			vertices_.data_as<float>()[vertexi * 3 + 0] = -halfRadius;
+			vertices_.data_as<float>()[vertexi * 3 + 1] = -(halfHeight - halfRadius);
+			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
+			edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+			vertexi++;
+			edgei++;
+			vertices_.data_as<float>()[vertexi * 3 + 0] = +halfRadius;
+			vertices_.data_as<float>()[vertexi * 3 + 1] = -(halfHeight - halfRadius);
+			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
+			edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+			vertexi++;
+			edgei++;
+			vertices_.data_as<float>()[vertexi * 3 + 0] = +halfRadius;
+			vertices_.data_as<float>()[vertexi * 3 + 1] = +(halfHeight - halfRadius);
+			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
+			edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+			vertexi++;
+			edgei++;
+			vertices_.data_as<float>()[vertexi * 3 + 0] = -halfRadius;
+			vertices_.data_as<float>()[vertexi * 3 + 1] = +(halfHeight - halfRadius);
+			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
+			edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexboxi;
+			vertexi++;
+			edgei++;
+			// top hemisphere
+			for (std::size_t i = 0; i < detail; i++)
+			{
+				const auto angle = float(i) / float(detail) * core::maths::constantf::pi;
+				vertices_.data_as<float>()[vertexi * 3 + 0] = halfRadius * std::cos(angle);
+				vertices_.data_as<float>()[vertexi * 3 + 1] = halfRadius * std::sin(angle) + (halfHeight - halfRadius);
+				vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
+				edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
+				edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+				vertexi++;
+				edgei++;
+			}
+			vertices_.data_as<float>()[vertexi * 3 + 0] = halfRadius * std::cos(core::maths::constantf::pi);
+			vertices_.data_as<float>()[vertexi * 3 + 1] = halfRadius * std::sin(core::maths::constantf::pi) + (halfHeight - halfRadius);
+			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
+			vertexi++;
+			// bottom hemisphere
+			for (std::size_t i = 0; i < detail; i++)
+			{
+				const auto angle = float(i) / float(detail) * core::maths::constantf::pi + core::maths::constantf::pi;
+				vertices_.data_as<float>()[vertexi * 3 + 0] = halfRadius * std::cos(angle);
+				vertices_.data_as<float>()[vertexi * 3 + 1] = halfRadius * std::sin(angle) - (halfHeight - halfRadius);
+				vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
+				edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
+				edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+				vertexi++;
+				edgei++;
+			}
+			vertices_.data_as<float>()[vertexi * 3 + 0] = halfRadius * std::cos(0.f);
+			vertices_.data_as<float>()[vertexi * 3 + 1] = halfRadius * std::sin(0.f) + (halfHeight - halfRadius);
+			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
+			vertexi++;
+
+			engine::graphics::data::LineC data = {
+				core::maths::Matrix4x4f::identity(),
+				std::move(vertices_),
+				std::move(edges_),
+				0xffff8844
+			};
+			engine::graphics::renderer::add(id, std::move(data)); // TODO: boundingbox_id
+		}
 	}
 
 	void remove(const engine::Entity id)
 	{
 		actors.erase(id);
 		characterContactCounters.erase(id);
-
-		//auto t = characterContactCounters.find(id);
-
-		//if (t != characterContactCounters.end())
-		//{
-		//	characterContactCounters.erase(id);
-		//}
-	}
-
-	/**
-	 *	Temp Rendering stuff!
-	 */
-
-	const float DEGTORAD = 3.14f / 180.f;
-	const float RADTODEG = 180.f / 3.14f;
-
-	void draw_debug(const b2Body *const body)
-	{
-		const b2Transform & transform = body->GetTransform();
-
-		glPushMatrix();
-		{
-			glTranslatef(transform.p.x, transform.p.y, 0.f);
-		//	glScalef(scale.x, scale.y, scale.x);
-			glRotatef(transform.q.GetAngle()*RADTODEG, 0.f, 0.f, 1.f);
-
-			for (const b2Fixture *f = body->GetFixtureList(); f != nullptr; f = f->GetNext())
-			{
-				switch (f->GetType())
-				{
-				case b2Shape::Type::e_circle:
-					{
-						const b2CircleShape *const shape = reinterpret_cast<const b2CircleShape *>(f->GetShape());
-
-						glPushMatrix();
-						{
-							glTranslatef(shape->m_p.x, shape->m_p.y, 0.f);
-							glScalef(shape->m_radius, shape->m_radius, 1.f);
-
-							glBegin(GL_LINE_STRIP);
-							{
-								for (float a = 0; a < 360 * DEGTORAD; a += 30 * DEGTORAD)
-								{
-									glVertex2f(sinf(a), cosf(a));
-								}
-
-								glVertex2f(0.f, 1.f); // last point on top
-								glVertex2f(0.f, 0.f); // to centre
-								glVertex2f(1.f, 0.f); // and right
-							}
-							glEnd();
-
-						}
-						glPopMatrix();
-					}
-					break;
-
-				case b2Shape::Type::e_polygon:
-					{
-						const b2PolygonShape *const shape = reinterpret_cast<const b2PolygonShape *>(f->GetShape());
-
-						glBegin(GL_LINE_LOOP);
-						{
-							for (int i = 0; i < shape->GetVertexCount(); i++)
-							{
-								const b2Vec2 & point = shape->GetVertex(i);
-
-								glVertex2f(point.x, point.y);
-							}
-						}
-						glEnd();
-					}
-					break;
-
-				case b2Shape::Type::e_chain:
-					{
-						const b2ChainShape *const shape = reinterpret_cast<const b2ChainShape *>(f->GetShape());
-					
-						glPushMatrix();
-						{
-							glTranslatef(transform.p.x, transform.p.y, 0.f);
-							//	glScalef(0.5f, 0.5f, 0.5f);
-							glRotatef(transform.q.GetAngle(), 0.f, 0.f, 1.f);
-
-							glBegin(GL_LINE_STRIP);
-							{
-								for (int32 i = 0; i < shape->m_count; i++)
-								{
-									const b2Vec2 point = *(shape->m_vertices + i);
-
-									glVertex3f(point.x, point.y, 0.f);
-								}
-							}
-							glEnd();
-						}
-						glPopMatrix();
-					}
-					break;
-
-				default:
-					break;
-				}
-			}
-		}
-		glPopMatrix();
-	}
-
-	void render()
-	{
-		glColor3ub(255, 255, 255);
-
-		for (const auto & item : actors)
-		{
-			draw_debug(item.second);
-		}
 	}
 }
 }

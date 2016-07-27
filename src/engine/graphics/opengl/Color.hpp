@@ -146,7 +146,7 @@ namespace engine
 				template <class ...Ps,
 				          class = typename std::enable_if<sizeof...(Ps) == D>::type>
 				Color(Ps &&...ps) :
-					channels{T(std::forward<Ps>(ps))...}
+					channels{{T(std::forward<Ps>(ps))...}}
 				{
 				}
 

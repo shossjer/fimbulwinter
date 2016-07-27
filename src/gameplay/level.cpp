@@ -142,9 +142,12 @@ namespace gameplay
 			// theline
 			entities.push_back(engine::Entity::create());
 			{
-				engine::graphics::data::LineC data;
-				data.vertices = std::move(level.theline.vertices);
-				data.edges = std::move(level.theline.edges);
+				engine::graphics::data::LineC data = {
+					core::maths::Matrix4x4f::identity(),
+					std::move(level.theline.vertices),
+					std::move(level.theline.edges),
+					0xffffffff
+				};
 				engine::graphics::renderer::add(entities.back(), data);
 			}
 			// meshes

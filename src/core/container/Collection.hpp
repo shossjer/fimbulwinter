@@ -135,6 +135,10 @@ namespace core
 			K keys[M];
 
 		public:
+			bool contains(K key)
+			{
+				return try_find(key) != bucket_t(-1);
+			}
 			template <typename C>
 			auto get() ->
 				decltype(std::get<mpl::index_of<C, mpl::type_list<Cs...>>::value>(arrays))
@@ -256,6 +260,24 @@ namespace core
 				       keys[bucket] != key) // ... this is not the right one!
 				{
 					debug_assert(count++ < std::size_t{4});
+					if (bucket++ >= M - 1)
+						bucket -= M;
+				}
+				return bucket;
+			}
+			/**
+			 * Find the bucket where the key resides.
+			 */
+			bucket_t try_find(K key)
+			{
+				auto bucket = hash(key);
+				std::size_t count = 0;
+				// search again if...
+				while (slots[bucket].empty() || // ... this bucket is empty, or
+				       keys[bucket] != key) // ... this is not the right one!
+				{
+					if (count++ >= 4)
+						return bucket_t(-1);
 					if (bucket++ >= M - 1)
 						bucket -= M;
 				}

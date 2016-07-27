@@ -4,6 +4,7 @@
 
 #include <core/debug.hpp>
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 
@@ -42,10 +43,12 @@ namespace engine
 	public:
 		static Entity create()
 		{
-			static value_type next_id = 1; // reserve 0 as a special id
-			debug_assert(next_id < 0xffffffff);
+			static std::atomic<value_type> next_id{1}; // reserve 0 as a special id
 
-			return Entity(next_id++);
+			const auto id = next_id.fetch_add(1, std::memory_order_relaxed);
+			debug_assert(id < 0xffffffff);
+
+			return Entity{id};
 		}
 	};
 }

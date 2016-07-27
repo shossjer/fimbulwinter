@@ -28,6 +28,7 @@ namespace engine
 			// line segments with color
 			struct LineC
 			{
+				core::maths::Matrix4x4f modelview;
 				core::container::Buffer vertices;
 				core::container::Buffer edges;
 				Color color;
@@ -41,12 +42,8 @@ namespace engine
 				Color color;
 			};
 
-
-			// Data
-			struct Data {};
-
 			// modelview matrix
-			struct ModelviewMatrix : Data
+			struct ModelviewMatrix
 			{
 				core::maths::Matrix4x4f matrix;
 			};
