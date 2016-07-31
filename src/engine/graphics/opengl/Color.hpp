@@ -140,7 +140,10 @@ namespace engine
 			public:
 				/**
 				 */
-				Color() = default;
+			//	Color() = default;
+				// Because Visual Studio does not know default
+				Color() {}
+				
 				/**
 				 */
 				template <class ...Ps,

@@ -290,7 +290,7 @@ namespace
 		std::array<Armature, 50>,
 		// clang errors on collections with only one array, so here is
 		// a dummy array to satisfy it
-		std::array<int, 0>
+		std::array<int, 1>
 	>
 	resources;
 
@@ -301,7 +301,7 @@ namespace
 		std::array<Character, 100>,
 		// clang errors on collections with only one array, so here is
 		// a dummy array to satisfy it
-		std::array<int, 0>
+		std::array<int, 1>
 	>
 	components;
 

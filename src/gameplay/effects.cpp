@@ -6,6 +6,8 @@
 #include <engine/physics/effects.hpp>
 #include <engine/physics/queries.hpp>
 
+#include <core/container/CircleQueue.hpp>
+
 #include <atomic>
 #include <memory>
 #include <unordered_map>
@@ -19,11 +21,11 @@ namespace effects
 	{
 	private:
 
-		const unsigned int callerId;
+		const engine::Entity callerId;
 
 	public:
 
-		PlayerGravity(const unsigned int id) : callerId(id) {}
+		PlayerGravity(const engine::Entity id) : callerId(id) {}
 
 	public:
 
@@ -50,14 +52,31 @@ namespace effects
 
 	namespace
 	{
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, std::unique_ptr<Effect> >, 20> queueAdd;
+
+		core::container::CircleQueueSRMW<engine::Entity, 20> queueRemove;
+
 		std::unordered_map<Id, std::unique_ptr<Effect> > items;
 	}
 
 	void update()
 	{
-		// create
-
-		// remove
+		{
+			// create
+			std::pair<engine::Entity, std::unique_ptr<Effect>> addEffect;
+			while (queueAdd.try_pop2(addEffect))
+			{
+				items.emplace(addEffect.first, std::move(addEffect.second));
+			}
+		}
+		{
+			// remove
+			engine::Entity remId;
+			while (queueRemove.try_pop(remId))
+			{
+				items.erase(remId);
+			}
+		}
 
 		// update
 		for (auto i = items.begin(); i!= items.end();)
@@ -75,30 +94,28 @@ namespace effects
 		}
 	}
 
-	Id create(const Type type, const Id callerId)
+	engine::Entity create(const Type type, const engine::Entity callerId)
 	{
 		printf("Player ability CREATING!\n");
 
-		static std::atomic<unsigned int> seed{ 1 };
-
-		const unsigned int id = seed++;
+		const engine::Entity id = engine::Entity::create();
 
 		switch (type)
 		{
 		case Type::PLAYER_GRAVITY:
-
-			items.emplace(id, std::unique_ptr<Effect>(new PlayerGravity(callerId)));
+			
+			queueAdd.try_push(std::make_pair(id, std::unique_ptr<Effect>(new PlayerGravity(callerId))));
 			break;
 		}
 
 		return id;
 	}
 
-	void remove(const Id id)
+	void remove(const engine::Entity id)
 	{
 		printf("Player ability REMOVING!\n");
 
-		items.erase(id);
+		queueRemove.try_push(id);
 	}
 }
 }

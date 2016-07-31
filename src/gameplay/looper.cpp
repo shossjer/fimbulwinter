@@ -65,15 +65,22 @@ namespace looper
 	void temp()
 	{
 		{
+			// vvvv tmp vvvv
+			const auto modelentity = ::engine::Entity::create();
+			::engine::graphics::renderer::add(modelentity,
+				::engine::graphics::renderer::asset::CharacterMesh{ "res/player.msh" });
+			::engine::model::add(modelentity, ::engine::model::armature{ "res/player.arm" });
+			::engine::model::update(modelentity, ::engine::model::action{ "idle-00" });
+			// ^^^^ tmp ^^^^
 			/**
 			 * create Player object
 			 */
-			const auto id = engine::Entity::create();
-			::gameplay::characters::create(id);
+		//	const auto id = engine::Entity::create();
+			::gameplay::characters::create(modelentity);
 			::engine::physics::CharacterData capsule{ Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, 0.6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
-			::engine::physics::create(id, capsule);
+			::engine::physics::create(modelentity, capsule);
 
-			gameplay::player::set(id);
+			gameplay::player::set(modelentity);
 		}
 		{
 			/**
@@ -110,14 +117,6 @@ namespace looper
 
 		::engine::graphics::renderer::create();
 
-		// vvvv tmp vvvv
-		const auto modelentity = ::engine::Entity::create();
-		::engine::graphics::renderer::add(modelentity,
-		                                  ::engine::graphics::renderer::asset::CharacterMesh{"res/player.msh"});
-		::engine::model::add(modelentity, ::engine::model::armature{"res/player.arm"});
-		::engine::model::update(modelentity, ::engine::model::action{"idle-00"});
-		// ^^^^ tmp ^^^^
-
 		// 
 		while (active)
 		{
@@ -137,7 +136,7 @@ namespace looper
 				CharacterState & character = characters::get(player::get());
 
 				engine::physics::MoveResult res =
-					engine::physics::update(1, engine::physics::MoveData(character.movement(), character.fallVel));
+					engine::physics::update(gameplay::player::get(), engine::physics::MoveData(character.movement(), character.fallVel));
 
 				character.grounded = res.grounded;
 				character.fallVel = res.velY;

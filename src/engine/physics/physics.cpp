@@ -113,7 +113,20 @@ namespace physics
 			}
 		};
 
-		std::unordered_map<engine::Entity, b2Body*> actors;
+		struct PhysicsActor
+		{
+			b2Body *const body;
+			::engine::Entity debugRenderId;
+
+			PhysicsActor(b2Body *const body, const ::engine::Entity debugRenderId)
+				:
+				body(body),
+				debugRenderId(debugRenderId)
+			{}
+		};
+
+	//	std::unordered_map<engine::Entity, b2Body*> actors;
+		std::unordered_map<engine::Entity, PhysicsActor> actors;
 		std::unordered_map<engine::Entity, ShapeContactCounter> characterContactCounters;
 
 		std::unordered_map<Material, MaterialData> materials;
@@ -149,15 +162,15 @@ namespace physics
 	{
 		Point positionOf(const engine::Entity id)
 		{
-			const b2Vec2 point = actors.at(id)->GetPosition();
+			const b2Vec2 point = actors.at(id).body->GetPosition();
 
 			return Point{ { point.x, point.y, 0.f } };
 		}
 
 		void positionOf(const engine::Entity id, Point & pos, Vector & velocity)
 		{
-			const b2Vec2 point = actors.at(id)->GetPosition();
-			const b2Vec2 vel = actors.at(id)->GetLinearVelocity();
+			const b2Vec2 point = actors.at(id).body->GetPosition();
+			const b2Vec2 vel = actors.at(id).body->GetLinearVelocity();
 
 			pos[0] = point.x;
 			pos[1] = point.y;
@@ -175,7 +188,7 @@ namespace physics
 
 			for (const auto val : targets)
 			{
-				reply.emplace_back(Actor{ val, actors.at(val) } );
+				reply.emplace_back(Actor{ val, actors.at(val).body } );
 			}
 
 			return reply;
@@ -183,7 +196,7 @@ namespace physics
 
 		Actor load(const engine::Entity id)
 		{
-			return Actor{ id, actors.at(id) };
+			return Actor{ id, actors.at(id).body };
 		}
 	}
 
@@ -233,7 +246,7 @@ namespace physics
 
 			// debug graphics
 			{
-				// const auto debug_id = engine::Entity::create(); // add this one line and the program throws an exception somewhere else at some other time, yay!
+				const auto debug_id = engine::Entity::create(); // add this one line and the program throws an exception somewhere else at some other time, yay!
 				// debug_entities.add(id, debug_immovable_t{debug_id});
 
 				core::container::Buffer vertices_;
@@ -248,8 +261,8 @@ namespace physics
 				edges_.resize<uint16_t>(2 * (vertices.size() - 1));
 				for (std::size_t i = 0; i < vertices.size() - 1; i++)
 				{
-					edges_.data_as<uint16_t>()[i * 2 + 0] = i;
-					edges_.data_as<uint16_t>()[i * 2 + 1] = i + 1;
+					edges_.data_as<uint16_t>()[i * 2 + 0] = (uint16_t)i;
+					edges_.data_as<uint16_t>()[i * 2 + 1] = (uint16_t)i + 1;
 				}
 
 				engine::graphics::data::LineC data = {
@@ -320,18 +333,21 @@ namespace physics
 		// for (auto && movable : components.get<movables>()) // or something like that
 		for (auto && actor : actors)
 		{
-			const auto & transform = actor.second->GetTransform();
+			const auto & transform = actor.second.body->GetTransform();
 			engine::graphics::data::ModelviewMatrix data = {
 				core::maths::Matrix4x4f::translation(transform.p.x, transform.p.y, 0.f) *
 				core::maths::Matrix4x4f::rotation(core::maths::radianf{transform.q.GetAngle()}, 0.f, 0.f, 1.f)
 			};
 			engine::graphics::renderer::update(actor.first, std::move(data));
+
+			if (actor.second.debugRenderId!= ::engine::Entity::INVALID)
+				engine::graphics::renderer::update(actor.second.debugRenderId, std::move(data));
 		}
 	}
 
 	MoveResult update(const engine::Entity id, const MoveData & moveData)
 	{
-		b2Body *const body = actors.at(id);
+		b2Body *const body = actors.at(id).body;
 
 	//	body->SetAngularVelocity(2);
 
@@ -379,7 +395,7 @@ namespace physics
 
 		/*b2Fixture *const fixture = */body->CreateFixture(&fixtureDef); // not used
 		
-		actors.emplace(id, body);
+		actors.emplace(id, PhysicsActor{ body, ::engine::Entity::INVALID });
 	}
 
 	void create(const engine::Entity id, const CharacterData & data)
@@ -443,7 +459,9 @@ namespace physics
 		body->ResetMassData();
 		body->SetFixedRotation(true);
 
-		actors.emplace(id, body);
+		const ::engine::Entity debugId = ::engine::Entity::create();
+
+		actors.emplace(id, PhysicsActor{body, debugId});
 
 		// debug graphics
 		{
@@ -460,29 +478,29 @@ namespace physics
 			vertices_.data_as<float>()[vertexi * 3 + 0] = -halfRadius;
 			vertices_.data_as<float>()[vertexi * 3 + 1] = -(halfHeight - halfRadius);
 			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
-			edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
-			edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+			edges_.data_as<uint16_t>()[edgei * 2 + 0] = (uint16_t)vertexi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 1] = (uint16_t)vertexi + 1;
 			vertexi++;
 			edgei++;
 			vertices_.data_as<float>()[vertexi * 3 + 0] = +halfRadius;
 			vertices_.data_as<float>()[vertexi * 3 + 1] = -(halfHeight - halfRadius);
 			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
-			edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
-			edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+			edges_.data_as<uint16_t>()[edgei * 2 + 0] = (uint16_t)vertexi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 1] = (uint16_t)vertexi + 1;
 			vertexi++;
 			edgei++;
 			vertices_.data_as<float>()[vertexi * 3 + 0] = +halfRadius;
 			vertices_.data_as<float>()[vertexi * 3 + 1] = +(halfHeight - halfRadius);
 			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
-			edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
-			edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+			edges_.data_as<uint16_t>()[edgei * 2 + 0] = (uint16_t)vertexi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 1] = (uint16_t)vertexi + 1;
 			vertexi++;
 			edgei++;
 			vertices_.data_as<float>()[vertexi * 3 + 0] = -halfRadius;
 			vertices_.data_as<float>()[vertexi * 3 + 1] = +(halfHeight - halfRadius);
 			vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
-			edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
-			edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexboxi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 0] = (uint16_t)vertexi;
+			edges_.data_as<uint16_t>()[edgei * 2 + 1] = (uint16_t)vertexboxi;
 			vertexi++;
 			edgei++;
 			// top hemisphere
@@ -492,8 +510,8 @@ namespace physics
 				vertices_.data_as<float>()[vertexi * 3 + 0] = halfRadius * std::cos(angle);
 				vertices_.data_as<float>()[vertexi * 3 + 1] = halfRadius * std::sin(angle) + (halfHeight - halfRadius);
 				vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
-				edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
-				edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+				edges_.data_as<uint16_t>()[edgei * 2 + 0] = (uint16_t)vertexi;
+				edges_.data_as<uint16_t>()[edgei * 2 + 1] = (uint16_t)vertexi + 1;
 				vertexi++;
 				edgei++;
 			}
@@ -508,8 +526,8 @@ namespace physics
 				vertices_.data_as<float>()[vertexi * 3 + 0] = halfRadius * std::cos(angle);
 				vertices_.data_as<float>()[vertexi * 3 + 1] = halfRadius * std::sin(angle) - (halfHeight - halfRadius);
 				vertices_.data_as<float>()[vertexi * 3 + 2] = 0.f;
-				edges_.data_as<uint16_t>()[edgei * 2 + 0] = vertexi;
-				edges_.data_as<uint16_t>()[edgei * 2 + 1] = vertexi + 1;
+				edges_.data_as<uint16_t>()[edgei * 2 + 0] = (uint16_t)vertexi;
+				edges_.data_as<uint16_t>()[edgei * 2 + 1] = (uint16_t)vertexi + 1;
 				vertexi++;
 				edgei++;
 			}
@@ -524,12 +542,18 @@ namespace physics
 				std::move(edges_),
 				0xffff8844
 			};
-			engine::graphics::renderer::add(id, std::move(data)); // TODO: boundingbox_id
+			engine::graphics::renderer::add(debugId, std::move(data)); // TODO: boundingbox_id
 		}
 	}
 
 	void remove(const engine::Entity id)
 	{
+		const PhysicsActor & actor = actors.at(id);
+		
+		// remove debug object from Renderer
+		if (actor.debugRenderId!= ::engine::Entity::INVALID)
+			engine::graphics::renderer::remove(actor.debugRenderId);
+		
 		actors.erase(id);
 		characterContactCounters.erase(id);
 	}

@@ -2,6 +2,8 @@
 #ifndef GAMEPLAY_EFFECTS_HPP
 #define GAMEPLAY_EFFECTS_HPP
 
+#include <engine/Entity.hpp>
+
 namespace gameplay
 {
 namespace effects
@@ -15,9 +17,9 @@ namespace effects
 		PLAYER_GRAVITY
 	};
 
-	Id create(const Type type, const Id callerId);
+	engine::Entity create(const Type type, const engine::Entity callerId);
 
-	void remove(const Id id);
+	void remove(const engine::Entity id);
 }
 }
 

@@ -32,6 +32,20 @@ namespace engine
 				core::container::Buffer vertices;
 				core::container::Buffer edges;
 				Color color;
+
+				LineC(const core::maths::Matrix4x4f & modelview, 
+					const core::container::Buffer & vertices, 
+					const core::container::Buffer & edges, 
+					const Color & color)
+					:
+					modelview(modelview),
+					vertices(vertices),
+					edges(edges),
+					color(color)
+				{}
+
+				LineC() 
+				{}
 			};
 			// mesh with color
 			struct MeshC

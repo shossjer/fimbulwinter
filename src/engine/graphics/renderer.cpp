@@ -281,13 +281,21 @@ namespace
 
 		Mesh *mesh;
 
+		core::maths::Matrix4x4f modelview;
 		std::vector<core::maths::Matrix4x4f> matrix_pallet;
 		std::vector<core::maths::Vector4f> vertices;
 
 		Character(SetMesh && data) :
 			mesh(&data.mesh),
+			modelview(core::maths::Matrix4x4f::identity()),
 			vertices(data.mesh.nvertices)
 		{}
+
+		Character & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			this->modelview = std::move(data.matrix);
+			return *this;
+		}
 		Character & operator = (engine::graphics::renderer::CharacterSkinning && data)
 		{
 			this->matrix_pallet = std::move(data.matrix_pallet);
@@ -385,7 +393,7 @@ namespace
 		std::array<Character::Mesh, 50>,
 		// clang errors on collections with only one array, so here is
 		// a dummy array to satisfy it
-		std::array<int, 0>
+		std::array<int, 1>
 	>
 	resources;
 
@@ -614,10 +622,14 @@ namespace
 		//
 		for (auto & component : components.get<Character>())
 		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
 			component.update();
 			component.draw();
+
+			modelview_matrix.pop();
 		}
 		for (const auto & component : components.get<cuboidc_t>())
 		{
@@ -626,6 +638,7 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			glColor(component.color);
+		//	glColor3ub(100, 255, 200);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glVertexPointer(3, // TODO
@@ -651,7 +664,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			glLineWidth(2.f);
-			glColor(component.color);
+		//	glColor3ub(255, 100, 100);
+				glColor(component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
 			                static_cast<GLenum>(component.vertices.format()), // TODO
