@@ -12,12 +12,14 @@
 #include <core/color.hpp>
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
+#include <core/container/ExchangeQueue.hpp>
 #include <core/container/Stack.hpp>
+#include <core/maths/Matrix.hpp>
+#include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
 
 #include <engine/debug.hpp>
 #include <engine/extras/Asset.hpp>
-#include <engine/graphics/Camera.hpp>
 
 #include <atomic>
 #include <fstream>
@@ -411,6 +413,10 @@ namespace
 
 namespace
 {
+	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera2D> queue_notify_camera2d;
+	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera3D> queue_notify_camera3d;
+	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Viewport> queue_notify_viewport;
+
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CuboidC>,
 	                                 100> queue_add_cuboidc;
@@ -510,24 +516,11 @@ namespace
 
 namespace
 {
-	struct dimension_t
-	{
-		int32_t width, height;
-	};
+	core::maths::Matrix4x4f projection2D = core::maths::Matrix4x4f::identity();
+	core::maths::Matrix4x4f projection3D = core::maths::Matrix4x4f::identity();
+	core::maths::Matrix4x4f view2D = core::maths::Matrix4x4f::identity();
+	core::maths::Matrix4x4f view3D = core::maths::Matrix4x4f::identity();
 
-	dimension_t resizes[3];
-	bool masks[3] = {false, false, false};
-	int read_resize = 0;
-	int write_resize = 1;
-	std::atomic_int latest_resize{2};
-
-	/** Current window dimensions */
-	dimension_t dimension = {100, 100}; // initialized to something positive
-
-	core::maths::Matrix4x4f projection2D;
-	core::maths::Matrix4x4f projection3D;
-
-	core::maths::Matrix4x4f view3D;
 	Stack modelview_matrix;
 
 	engine::graphics::opengl::Font normal_font;
@@ -584,25 +577,32 @@ namespace
 		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 
-	void render_update(const engine::graphics::Camera & camera)
+	void render_update()
 	{
-		// handle notifications
-		read_resize = latest_resize.exchange(read_resize); // std::memory_order_acquire?
-		if (masks[read_resize])
-		{
-			dimension = resizes[read_resize];
-			masks[read_resize] = false;
-
-			glViewport(0, 0, dimension.width, dimension.height);
-
-			// these calculations do not need opengl context
-			projection2D = core::maths::Matrix4x4f::ortho(0.f, (float)dimension.width, (float)dimension.height, 0.f, -1.f, 1.f);
-			projection3D = core::maths::Matrix4x4f::perspective(core::maths::make_degree(80.f), float(dimension.width) / float(dimension.height), .125f, 128.f);
-		}
 		// poll events
 		poll_add_queue();
 		poll_update_queue();
 		poll_remove_queue();
+		//
+		// read notifications
+		//
+		engine::graphics::renderer::Camera2D notification_camera2d;
+		if (queue_notify_camera2d.try_pop(notification_camera2d))
+		{
+			projection2D = notification_camera2d.projection;
+			view2D = notification_camera2d.view;
+		}
+		engine::graphics::renderer::Camera3D notification_camera3d;
+		if (queue_notify_camera3d.try_pop(notification_camera3d))
+		{
+			projection3D = notification_camera3d.projection;
+			view3D = notification_camera3d.view;
+		}
+		engine::graphics::renderer::Viewport notification_viewport;
+		if (queue_notify_viewport.try_pop(notification_viewport))
+		{
+			glViewport(notification_viewport.x, notification_viewport.y, notification_viewport.width, notification_viewport.height);
+		}
 
 		// setup frame
 		glClearColor(0.f, 0.f, .1f, 0.f);
@@ -612,9 +612,6 @@ namespace
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(projection3D);
 		glMatrixMode(GL_MODELVIEW);
-		// vvvvvvvv tmp vvvvvvvv
-		view3D = core::maths::Matrix4x4f::translation(-camera.getX(), -camera.getY(), -camera.getZ());
-		// ^^^^^^^^ tmp ^^^^^^^^
 		modelview_matrix.load(view3D);
 
 		// 3d
@@ -746,9 +743,9 @@ namespace engine
 				render_setup();
 			}
 
-			void update(const Camera & camera)
+			void update()
 			{
-				render_update(camera);
+				render_update();
 			}
 
 			void destroy()
@@ -756,12 +753,17 @@ namespace engine
 				render_teardown();
 			}
 
-			void notify_resize(const int width, const int height)
+			void notify(Camera2D && data)
 			{
-				resizes[write_resize].width = width;
-				resizes[write_resize].height = height;
-				masks[write_resize] = true;
-				write_resize = latest_resize.exchange(write_resize); // std::memory_order_release?
+				queue_notify_camera2d.try_push(std::move(data));
+			}
+			void notify(Camera3D && data)
+			{
+				queue_notify_camera3d.try_push(std::move(data));
+			}
+			void notify(Viewport && data)
+			{
+				queue_notify_viewport.try_push(std::move(data));
 			}
 
 			void add(engine::Entity entity, data::CuboidC data)

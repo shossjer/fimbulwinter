@@ -9,7 +9,7 @@ namespace engine
 {
 	namespace graphics
 	{
-		namespace renderer
+		namespace viewer
 		{
 			extern void notify_resize(const int width, const int height);
 		}
@@ -117,8 +117,8 @@ namespace
 			PostQuitMessage(0);
 			break;
 		case WM_SIZE:
-			engine::graphics::renderer::notify_resize((int_fast16_t)LOWORD(lParam),
-			                                          (int_fast16_t)HIWORD(lParam));
+			engine::graphics::viewer::notify_resize((int_fast16_t)LOWORD(lParam),
+			                                        (int_fast16_t)HIWORD(lParam));
 			break;
 
 		default:

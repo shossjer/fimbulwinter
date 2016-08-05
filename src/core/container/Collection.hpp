@@ -170,7 +170,7 @@ namespace core
 				using Components = mpl::type_filter<std::is_constructible,
 				                                    mpl::type_list<Cs...>,
 				                                    D &&>;
-				static_assert(Components::size == 1, "");
+				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
 				using Component = mpl::type_head<Components>;
 
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
@@ -451,7 +451,7 @@ namespace core
 				using Components = mpl::type_filter<std::is_constructible,
 				                                    mpl::type_list<Cs...>,
 				                                    D &&>;
-				static_assert(Components::size == 1, "");
+				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
 				using Component = mpl::type_head<Components>;
 
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;

@@ -26,7 +26,7 @@ namespace engine
 {
 	namespace graphics
 	{
-		namespace renderer
+		namespace viewer
 		{
 			extern void notify_resize(const int width, const int height);
 		}
@@ -233,8 +233,8 @@ namespace
 			// case DestroyNotify:
 			// 	break;
 			case Expose:
-				engine::graphics::renderer::notify_resize(event.xexpose.width,
-				                                          event.xexpose.height);
+				engine::graphics::viewer::notify_resize(event.xexpose.width,
+				                                        event.xexpose.height);
 				break;
 			case KeyPress:
 				engine::hid::key_press(event.xkey.keycode,

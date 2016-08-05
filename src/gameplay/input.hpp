@@ -3,7 +3,6 @@
 #define GAMEPLAY_PLAYER_HPP
 
 #include <engine/Entity.hpp>
-#include <engine/graphics/Camera.hpp>
 
 namespace gameplay
 {
@@ -18,8 +17,7 @@ namespace gameplay
 	{
 		void updateInput();
 
-		const ::engine::graphics::Camera &
-			 updateCamera();
+		void updateCamera();
 
 		void create();
 		void destroy();

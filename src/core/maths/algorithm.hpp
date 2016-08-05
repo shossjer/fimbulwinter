@@ -6,6 +6,8 @@
 
 #include <utility/algorithm.hpp>
 
+#include <core/debug.hpp>
+
 namespace core
 {
 	namespace maths
@@ -37,6 +39,35 @@ namespace core
 		inline auto square(T && x) -> decltype(x * x)
 		{
 			return x * x;
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		//
+		//  friend hack
+		//
+		////////////////////////////////////////////////////////////////////////
+		struct algorithm
+		{
+			template <std::size_t M, std::size_t N, typename T>
+			void set_column_impl(Matrix<M, N, T> & m, std::size_t c, const Vector<M, T> & v)
+			{
+				debug_assert(c < N);
+				for (std::size_t i = 0; i < M; i++)
+				{
+					m.values[M * c + i] = v.values[i];
+				}
+			}
+		};
+
+		////////////////////////////////////////////////////////////////////////
+		//
+		//  member functions
+		//
+		////////////////////////////////////////////////////////////////////////
+		template <std::size_t M, std::size_t N, typename T>
+		inline void Matrix<M, N, T>::set_column(std::size_t c, const Vector<M, T> & v)
+		{
+			algorithm{}.set_column_impl(*this, c, v);
 		}
 
 		////////////////////////////////////////////////////////////////////////

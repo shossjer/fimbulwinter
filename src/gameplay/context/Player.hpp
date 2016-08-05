@@ -5,6 +5,8 @@
 #include <gameplay/input.hpp>
 #include <gameplay/context/Context.hpp>
 
+#include <engine/Entity.hpp>
+#include <engine/graphics/viewer.hpp>
 #include <engine/hid/input.hpp>
 #include <engine/physics/queries.hpp>
 
@@ -23,17 +25,27 @@ namespace context
 	class Player : public Context
 	{
 	private:
-
 		bool jumpPressed;
 		unsigned int effectId;
 
-	public:
-
-		Player() : jumpPressed(false), effectId(0)
-		{}
+		engine::Entity camera;
 
 	public:
+		Player() :
+			jumpPressed(false),
+			effectId(0),
+			camera(engine::Entity::create())
+		{
+			engine::graphics::viewer::add(camera,
+			                              engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
+			                                                               core::maths::Vector3f(0.f, 0.f, 0.f)));
+		}
+		~Player()
+		{
+			engine::graphics::viewer::remove(camera);
+		}
 
+	public:
 		/**
 		 *	Updates CharacterState of Player character
 		 */
@@ -126,13 +138,13 @@ namespace context
 			vec[1] *= 0.25f;
 			vec[2] *= 0.25f;
 
-			const Vector goal{{ pos[0] + vec[0], pos[1] + vec[1], pos[2] + vec[2] }};
+			const core::maths::Vector3f goal{pos[0] + vec[0], pos[1] + vec[1], 20.f};
+			static core::maths::Vector3f current{0.f, 0.f, 20.f};
+			const auto delta = goal - current;
 
-			const Point current{{ this->camera.getX(), this->camera.getY() }};
-
-			const Vector delta{{ goal[0] - current[0], goal[1] - current[1], goal[2] - current[2] }};
-
-			this->camera.position(current[0] + delta[0]*.1f, current[1] + delta[1]*.1f, 20.f);
+			current += delta * .1f;
+			engine::graphics::viewer::update(camera, engine::graphics::viewer::translation(current));
+			engine::graphics::viewer::set_active_3d(camera); // this should not be done every time
 		}
 
 		void onMove(const Input & input) override

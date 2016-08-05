@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <thread>
+#include <type_traits>
 
 namespace core
 {
@@ -118,9 +119,9 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			utility::spinlock writelock;
 			//T buffer[N];
 			std::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
+			utility::spinlock writelock;
 
 		public:
 			CircleQueue() :

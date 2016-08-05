@@ -156,11 +156,9 @@ namespace gameplay
 			//
 		}
 
-		const ::engine::graphics::Camera & updateCamera()
+		void updateCamera()
 		{
 			activeContext->updateCamera();
-
-			return activeContext->getCamera();
 		}
 
 		void create()

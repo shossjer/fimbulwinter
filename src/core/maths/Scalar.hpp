@@ -115,6 +115,12 @@ namespace core
 			}
 		};
 
+		template <typename T>
+		inline Scalar<T> make_scalar(T value)
+		{
+			return Scalar<T>{value};
+		}
+
 		using Scalarf = Scalar<float>;
 		using Scalard = Scalar<double>;
 	}

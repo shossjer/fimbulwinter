@@ -20,6 +20,8 @@ namespace core
 		template <std::size_t N, typename T>
 		class Vector;
 
+		struct algorithm;
+
 		template <std::size_t M, std::size_t N, typename T>
 		Vector<M, T> operator * (const Matrix<M, N, T> & m, const Vector<N, T> & v);
 	}
@@ -117,6 +119,25 @@ namespace core
 					                    T{0}, T{0}, (zFar + zNear) * inv_depth, T{2} * zFar * zNear * inv_depth,
 					                    T{0}, T{0}, T{-1}, T{0}};
 				}
+				static derived_type perspective(const radian<T> fovy,
+				                                const T aspect,
+				                                const T zNear,
+				                                const T zFar,
+				                                derived_type & inv)
+				{
+					const T f = T{1} / std::tan(fovy.get() / T{2});
+					const T inv_depth = T{1} / (zNear - zFar);
+
+					inv = derived_type{aspect / f, T{0}, T{0}, T{0},
+					                   T{0}, T{1} / f, T{0}, T{0},
+					                   T{0}, T{0}, T{0}, T{-1},
+					                   T{0}, T{0}, (zNear - zFar) / (T{2} * zFar * zNear), (zFar + zNear) / (T{2} * zFar * zNear)};
+
+					return derived_type{f / aspect, T{0}, T{0}, T{0},
+					                    T{0}, f, T{0}, T{0},
+					                    T{0}, T{0}, (zFar + zNear) * inv_depth, T{2} * zFar * zNear * inv_depth,
+					                    T{0}, T{0}, T{-1}, T{0}};
+				}
 
 				/**
 				 */
@@ -153,6 +174,10 @@ namespace core
 		template <std::size_t M, std::size_t N, typename T>
 		class Matrix : public detail::Matrix<M, N, T, Matrix<M, N, T>>
 		{
+			friend struct algorithm;
+			template <std::size_t M_, std::size_t N_, typename T_>
+			friend class Matrix;
+
 		public:
 			using array_type = T[M * N];
 			using this_type = Matrix<M,  N, T>;
@@ -206,6 +231,15 @@ namespace core
 				std::copy(std::begin(this->values), std::end(this->values), std::begin(buffer));
 				return buffer;
 			}
+			template <std::size_t I>
+			Vector<M, T> get_column() const
+			{
+				return utl::unpack_for(this->values,
+				                       mpl::integral_shift<std::size_t,
+				                                           mpl::make_index_sequence<M>,
+				                                           (I * M + 0)>{},
+				                       utl::constructor<Vector<M, T>>{});
+			}
 			array_type & get_aligned(array_type & buffer) const
 			{
 				return this->get(buffer);
@@ -225,6 +259,8 @@ namespace core
 			{
 				this->set(buffer);
 			}
+			// implemented in 'algorithm.hpp'
+			void set_column(std::size_t i, const Vector<M, T> & v);
 
 		public:
 			template <std::size_t M_, std::size_t N_, typename T_>
@@ -248,6 +284,10 @@ namespace core
 
 		using Matrix2x2d = Matrix<2, 2, double>;
 		using Matrix2x2f = Matrix<2, 2, float>;
+		using Matrix2x4d = Matrix<2, 4, double>;
+		using Matrix2x4f = Matrix<2, 4, float>;
+		using Matrix3x4d = Matrix<3, 4, double>;
+		using Matrix3x4f = Matrix<3, 4, float>;
 		using Matrix4x4d = Matrix<4, 4, double>;
 		using Matrix4x4f = Matrix<4, 4, float>;
 	}

@@ -19,9 +19,9 @@ namespace utl
 	inline auto map_for(const std::array<T, N> & array,
 	                    mpl::index_sequence<Is...>,
 	                    F && f) ->
-		decltype(std::array<decltype(f(std::declval<T>())), N>{f(std::get<Is>(array))...})
+		decltype(std::array<decltype(f(std::declval<T>())), N>{{f(std::get<Is>(array))...}})
 	{
-		return std::array<decltype(f(std::declval<T>())), N>{f(std::get<Is>(array))...};
+		return std::array<decltype(f(std::declval<T>())), N>{{f(std::get<Is>(array))...}};
 	}
 	template <typename ...Ts, std::size_t ...Is, typename F>
 	inline auto map_for(const std::tuple<Ts...> & array,

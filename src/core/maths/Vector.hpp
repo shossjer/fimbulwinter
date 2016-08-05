@@ -25,6 +25,8 @@ namespace core
 		template <std::size_t N, typename T>
 		class Vector;
 
+		struct algorithm;
+
 		template <std::size_t M, std::size_t N, typename T>
 		Vector<M, T> operator * (const Matrix<M, N, T> & m, const Vector<N, T> & v);
 
@@ -52,6 +54,11 @@ namespace core
 		Vector<2, T> cross(attribute_up<Vector<1, T>> && v1, const Vector<2, T> & v2);
 		template <typename T>
 		Vector<2, T> cross(const Vector<2, T> & v1, attribute_up<Vector<1, T>> && v2);
+
+		namespace detail
+		{
+			struct vector_swizzling;
+		}
 	}
 }
 
@@ -76,9 +83,7 @@ namespace core
 				std::array<value_type, capacity> values;
 
 			public:
-				Vector()// = default
-				{
-				}
+				Vector() {}
 				template <typename ...Ps,
 				          typename = mpl::enable_if_t<sizeof...(Ps) == capacity>>
 				Vector(Ps && ...ps) :
@@ -170,6 +175,9 @@ namespace core
 		template <std::size_t N, typename T>
 		class Vector : public detail::Vector<N, T, Vector<N, T>>
 		{
+			friend struct algorithm;
+			friend struct detail::vector_swizzling;
+
 		private:
 			using base_type = detail::Vector<N, T, Vector<N, T>>;
 
@@ -214,6 +222,9 @@ namespace core
 		template <typename T>
 		class Vector<2, T> : public detail::Vector<2, T, Vector<2, T>>
 		{
+			friend struct algorithm;
+			friend struct detail::vector_swizzling;
+
 		private:
 			using base_type = detail::Vector<2, T, Vector<2, T>>;
 
@@ -290,6 +301,9 @@ namespace core
 		template <typename T>
 		class Vector<3, T> : public detail::Vector<3, T, Vector<3, T>>
 		{
+			friend struct algorithm;
+			friend struct detail::vector_swizzling;
+
 		private:
 			using base_type = detail::Vector<3, T, Vector<3, T>>;
 
@@ -333,6 +347,11 @@ namespace core
 			template <std::size_t D_, typename T_>
 			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
 
+			friend std::ostream & operator << (std::ostream & stream, const this_type & v)
+			{
+				return stream << "(" << v.values[0] << ", " << v.values[1] << ", " << v.values[2] << ")";
+			}
+
 			friend Matrix<4, 4, value_type> make_scale_matrix(const this_type & v)
 			{
 				return Matrix<4, 4, value_type>{
@@ -349,17 +368,66 @@ namespace core
 		};
 
 		template <typename T>
-		Vector<2, T> cross(attribute_up<Vector<1, T>> && v1, const Vector<2, T> & v2)
+		inline Vector<2, T> cross(attribute_up<Vector<1, T>> && v1, const Vector<2, T> & v2)
 		{
 			return Vector<2, T>{- v1.v.values[0] * v2.values[1],
 			                    + v1.v.values[0] * v2.values[0]};
 		}
 		template <typename T>
-		Vector<2, T> cross(const Vector<2, T> & v1, attribute_up<Vector<1, T>> && v2)
+		inline Vector<2, T> cross(const Vector<2, T> & v1, attribute_up<Vector<1, T>> && v2)
 		{
 			return Vector<2, T>{+ v1.values[1] * v2.v.values[0],
 			                    - v1.values[0] * v2.v.values[0]};
 		}
+
+		namespace detail
+		{
+			struct vector_swizzling
+			{
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<2, T> to_xy(const core::maths::Vector<N, T> & v) { return {v.values[0], v.values[1]}; }
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<3, T> to_xyz(const core::maths::Vector<N, T> & v) { return {v.values[0], v.values[1], v.values[2]}; }
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<4, T> to_xyzw(const core::maths::Vector<N, T> & v) { return {v.values[0], v.values[1], v.values[2], v.values[3]}; }
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<4, T> to_x000(const core::maths::Vector<N, T> & v) { return {v.values[0], T{0}, T{0}, T{0}}; }
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<4, T> to_x001(const core::maths::Vector<N, T> & v) { return {v.values[0], T{0}, T{0}, T{1}}; }
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<4, T> to_xy00(const core::maths::Vector<N, T> & v) { return {v.values[0], v.values[1], T{0}, T{0}}; }
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<4, T> to_xy01(const core::maths::Vector<N, T> & v) { return {v.values[0], v.values[1], T{0}, T{1}}; }
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<4, T> to_xyz0(const core::maths::Vector<N, T> & v) { return {v.values[0], v.values[1], v.values[2], T{0}}; }
+				template <std::size_t N, typename T>
+				inline core::maths::Vector<4, T> to_xyz1(const core::maths::Vector<N, T> & v) { return {v.values[0], v.values[1], v.values[2], T{1}}; }
+
+				template <typename T>
+				inline core::maths::Vector<2, T> to_xy(const core::maths::Vector<4, T> & v) { const auto inv_scale = v.values[3] == T{0} ? T{1} : T{1} / v.values[3]; return {v.values[0] * inv_scale, v.values[1] * inv_scale}; }
+				template <typename T>
+				inline core::maths::Vector<3, T> to_xyz(const core::maths::Vector<4, T> & v) { const auto inv_scale = v.values[3] == T{0} ? T{1} : T{1} / v.values[3]; return {v.values[0] * inv_scale, v.values[1] * inv_scale, v.values[2] * inv_scale}; }
+			};
+		}
+
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 2)>>
+		inline Vector<2, T> to_xy(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xy(v); }
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 3)>>
+		inline Vector<3, T> to_xyz(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xyz(v); }
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 4)>>
+		inline Vector<4, T> to_xyzw(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xyzw(v); }
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 1)>>
+		inline Vector<4, T> to_x000(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_x000(v); }
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 1)>>
+		inline Vector<4, T> to_x001(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_x001(v); }
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 2)>>
+		inline Vector<4, T> to_xy00(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xy00(v); }
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 2)>>
+		inline Vector<4, T> to_xy01(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xy01(v); }
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 3)>>
+		inline Vector<4, T> to_xyz0(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xyz0(v); }
+		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 3)>>
+		inline Vector<4, T> to_xyz1(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xyz1(v); }
 
 		using Vector2f = Vector<2, float>;
 		using Vector2d = Vector<2, double>;

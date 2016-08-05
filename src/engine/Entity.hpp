@@ -50,6 +50,10 @@ namespace engine
 
 			return Entity{id};
 		}
+		static Entity null()
+		{
+			return Entity{0};
+		}
 	};
 }
 

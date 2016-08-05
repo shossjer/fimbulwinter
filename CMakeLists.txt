@@ -39,6 +39,7 @@ set(TRIBUNAL_SOURCE
 	src/engine/application/window.cpp
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
+	src/engine/graphics/viewer.cpp
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
@@ -62,6 +63,7 @@ set(TRIBUNAL_HEADER
 	src/core/container/Buffer.hpp
 	src/core/container/CircleQueue.hpp
 	src/core/container/Collection.hpp
+	src/core/container/ExchangeQueue.hpp
 	src/core/container/Stack.hpp
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
@@ -79,10 +81,10 @@ set(TRIBUNAL_HEADER
 	src/engine/application/window.hpp
 	src/engine/debug.hpp
 	src/engine/extras/Asset.hpp
-	src/engine/graphics/Camera.hpp
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
+	src/engine/graphics/viewer.hpp
 	src/engine/hid/input.hpp
 	src/engine/model/armature.hpp
 	src/engine/physics/defines.hpp
@@ -102,6 +104,7 @@ set(TRIBUNAL_HEADER
 	src/gameplay/context/Debug.hpp
 	src/gameplay/context/Player.hpp
 	src/utility/algorithm.hpp
+	src/utility/aligned_array.hpp
 	src/utility/array.hpp
 	src/utility/inaccessible.hpp
 	src/utility/stream.hpp

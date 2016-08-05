@@ -1,6 +1,8 @@
 
 #include <gameplay/context/Context.hpp>
 
+#include <engine/Entity.hpp>
+#include <engine/graphics/viewer.hpp>
 #include <engine/hid/input.hpp>
 
 namespace gameplay
@@ -16,6 +18,22 @@ namespace context
 	{
 	private:
 		Vec2 vec;
+
+		engine::Entity camera;
+
+	public:
+		Debug() :
+			camera(engine::Entity::create())
+		{
+			engine::graphics::viewer::add(camera,
+			                              engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
+			                                                               core::maths::Vector3f(0.f, 0.f, 0.f)));
+		}
+		~Debug()
+		{
+			engine::graphics::viewer::remove(camera);
+		}
+
 	public:
 		/**
 		 *	update camera position based on player input
@@ -86,7 +104,9 @@ namespace context
 
 		void updateCamera() override
 		{
-			this->camera.position(this->camera.getX() + vec[0], this->camera.getY(), this->camera.getZ() + vec[1]);
+			engine::graphics::viewer::update(camera,
+			                                 engine::graphics::viewer::translate(core::maths::Vector3f(vec[0], 0.f, vec[1])));
+			engine::graphics::viewer::set_active_3d(camera); // this should not be done every time
 		}
 
 		void onMove(const Input & input) override

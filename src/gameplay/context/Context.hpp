@@ -2,7 +2,6 @@
 #ifndef GAMEPLAY_CONTEXT_HPP
 #define GAMEPLAY_CONTEXT_HPP
 
-#include <engine/graphics/Camera.hpp>
 #include <engine/hid/input.hpp>
 
 namespace gameplay
@@ -19,11 +18,6 @@ namespace gameplay
 		static const signed int DIR_OUT = -4;
 
 		signed int dirFlags;
-
-		/**
-		 *
-		 */
-		engine::graphics::Camera camera;
 
 	public:
 
@@ -43,10 +37,6 @@ namespace gameplay
 		 *
 		 */
 		virtual void updateCamera() = 0;
-		
-	public:
-
-		const engine::graphics::Camera & getCamera() const { return this->camera; }
 		
 	};
 }

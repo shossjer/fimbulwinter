@@ -5,8 +5,8 @@
 #include <gameplay/CharacterState.hpp>
 #include <gameplay/effects.hpp>
 
-#include <engine/graphics/Camera.hpp>
 #include <engine/graphics/renderer.hpp>
+#include <engine/graphics/viewer.hpp>
 #include <engine/model/armature.hpp>
 #include <engine/physics/physics.hpp>
 
@@ -21,9 +21,13 @@ namespace renderer
 {
 	extern void create();
 
-	extern void update(const ::engine::graphics::Camera & camera);
+	extern void update();
 
 	extern void destroy();
+}
+namespace viewer
+{
+	extern void update();
 }
 }
 namespace physics
@@ -146,10 +150,11 @@ namespace looper
 
 
 			// get the active Camera
-			const ::engine::graphics::Camera & camera = input::updateCamera();
+			input::updateCamera();
 
-			// 
-			::engine::graphics::renderer::update(camera);
+			//
+			::engine::graphics::viewer::update();
+			::engine::graphics::renderer::update();
 
 			// something temporary that delays
 			core::async::delay(10);
