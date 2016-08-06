@@ -3,6 +3,9 @@
 
 #include "Effect.hpp"
 
+#include <gameplay/input.hpp>
+
+#include <engine/graphics/viewer.hpp>
 #include <engine/physics/effects.hpp>
 #include <engine/physics/queries.hpp>
 
@@ -17,6 +20,9 @@ namespace gameplay
 {
 namespace effects
 {
+	using core::maths::Vector2f;
+	using core::maths::Vector3f;
+
 	class PlayerGravity : public Effect
 	{
 	private:
@@ -37,16 +43,59 @@ namespace effects
 		void update() override
 		{
 			// get centre position
-			const Point point = engine::physics::query::positionOf(callerId);
-
-			// get mouse coordinates in the world
+			const auto pp = engine::physics::query::positionOf(callerId);
 
 			// update physics
-
 			engine::physics::effect::acceleration(
-				Vector{{ 0.f, 20.f, 0.f }},
-				point,
+				core::maths::Vector3f{ 0.f, 20.f, 0.f },
+				pp,
 				10.f);
+		}
+	};
+
+	class MouseForce : public Effect
+	{
+	private:
+
+		const engine::Entity callerId;
+
+	public:
+
+		MouseForce(const engine::Entity id)
+			:
+			callerId(id)
+		{
+		}
+
+	public:
+
+		bool finished() override
+		{
+			return false;
+		}
+
+		void update() override
+		{
+			// get centre position
+			const auto pp = engine::physics::query::positionOf(callerId);
+
+			// get mouse coordinates
+			const input::coords_t mc = input::mouseCoords();
+
+			Vector3f mp;
+			engine::graphics::viewer::from_screen_to_world(Vector2f{ (float)mc.x, (float)mc.y }, mp);
+
+			// delta from player to cursor
+			const core::maths::Vector3f d = mp - pp;
+
+			// multiplier to get value in force range (~10kN)
+			const float S = 1000.f;
+
+			// using the cursor distance as radius for AoE
+			const auto radius = length(d);
+
+			// update physics
+			engine::physics::effect::force(d*S, pp, radius);
 		}
 	};
 
@@ -105,6 +154,11 @@ namespace effects
 		case Type::PLAYER_GRAVITY:
 			
 			queueAdd.try_push(std::make_pair(id, std::unique_ptr<Effect>(new PlayerGravity(callerId))));
+			break;
+
+		case Type::PLAYER_MOUSE_FORCE:
+
+			queueAdd.try_push(std::make_pair(id, std::unique_ptr<Effect>(new MouseForce(callerId))));
 			break;
 		}
 

@@ -13,7 +13,7 @@ namespace physics
 		/**
 		 *
 		 */
-		Point positionOf(const engine::Entity id);
+		::core::maths::Vector3f positionOf(const engine::Entity id);
 		/**
 		 *
 		 */

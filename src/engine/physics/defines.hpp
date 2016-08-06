@@ -4,6 +4,8 @@
 
 #include <engine/Entity.hpp>
 
+#include <core/maths/Vector.hpp>
+
 typedef std::array<float, 3> Point;
 typedef std::array<float, 3> Vector;
 typedef std::array<float, 3> Size;

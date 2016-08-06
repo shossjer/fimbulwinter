@@ -365,6 +365,16 @@ namespace core
 			{
 				return Matrix<4, 4, value_type>::translation(v.values[0], v.values[1], v.values[2]);
 			}
+
+			friend value_type length(const this_type & v)
+			{
+				return std::sqrt(v.values[0] * v.values[0] + v.values[1] * v.values[1] + v.values[2] * v.values[2]);
+			}
+
+			friend value_type square(const this_type & v)
+			{
+				return (v.values[0] * v.values[0] + v.values[1] * v.values[1] + v.values[2] * v.values[2]);
+			}
 		};
 
 		template <typename T>

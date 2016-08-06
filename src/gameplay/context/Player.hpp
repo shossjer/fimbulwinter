@@ -10,6 +10,8 @@
 #include <engine/hid/input.hpp>
 #include <engine/physics/queries.hpp>
 
+#include <unordered_map>
+
 
 namespace gameplay
 {
@@ -26,14 +28,32 @@ namespace context
 	{
 	private:
 		bool jumpPressed;
-		unsigned int effectId;
+		
+		//engine::Entity effectId;
+		std::unordered_map<Input::Button, engine::Entity> activeEffects;
+
+		void remEffect(const Input::Button key)
+		{
+			const auto itr = activeEffects.find(key);
+
+			if (itr != activeEffects.end())
+			{
+				effects::remove(itr->second);
+				activeEffects.erase(itr);
+			}
+
+			//if (this->effectId!= engine::Entity::INVALID)
+			//{
+			//	effects::remove(this->effectId);
+			//	this->effectId = engine::Entity::INVALID;
+			//}
+		}
 
 		engine::Entity camera;
 
 	public:
 		Player() :
 			jumpPressed(false),
-			effectId(0),
 			camera(engine::Entity::create())
 		{
 			engine::graphics::viewer::add(camera,
@@ -158,6 +178,7 @@ namespace context
 			{
 				case Input::Button::MOUSE_LEFT:
 				{
+					this->activeEffects.emplace(Input::Button::MOUSE_LEFT, gameplay::effects::create(gameplay::effects::Type::PLAYER_MOUSE_FORCE, player::get()));
 					break;
 				}
 				case Input::Button::KEY_ARROWDOWN:
@@ -184,7 +205,8 @@ namespace context
 
 				case Input::Button::KEY_SPACEBAR:
 				{
-					this->effectId = gameplay::effects::create(gameplay::effects::Type::PLAYER_GRAVITY, player::get());
+				//	this->effectId = gameplay::effects::create(gameplay::effects::Type::PLAYER_GRAVITY, player::get());
+					this->activeEffects.emplace(Input::Button::KEY_SPACEBAR, gameplay::effects::create(gameplay::effects::Type::PLAYER_GRAVITY, player::get()));
 					break;
 				}
 			default:
@@ -198,6 +220,7 @@ namespace context
 			{
 				case Input::Button::MOUSE_LEFT:
 				{
+					remEffect(Input::Button::MOUSE_LEFT);
 					break;
 				}
 				case Input::Button::KEY_ARROWDOWN:
@@ -223,14 +246,14 @@ namespace context
 				}
 				case Input::Button::KEY_SPACEBAR:
 				{
-					gameplay::effects::remove(this->effectId);
+				//	gameplay::effects::remove(this->effectId);
+					remEffect(Input::Button::KEY_SPACEBAR);
 					break;
 				}
 			default:
 				; // do nothing
 			}
 		}
-
 	};
 }
 }

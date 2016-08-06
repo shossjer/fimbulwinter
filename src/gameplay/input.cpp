@@ -23,12 +23,22 @@ namespace
 	using engine::hid::Context;
 	using engine::hid::Device;
 	using engine::hid::Input;
+	using gameplay::input::coords_t;
 
 	constexpr std::size_t this_object = 17;
 	/**
 	 *
 	 */
 	::engine::Entity playerId{ 0 };
+
+	namespace mouse
+	{
+		coords_t frameCoords{0, 0};
+
+		coords_t frameDelta{ 0, 0 };
+
+		coords_t updatedCoords{ 0, 0 };
+	}
 
 	template<typename>
 	struct MapWrapper;
@@ -66,6 +76,8 @@ namespace
 			{
 				case Input::State::MOVE:
 				{
+					mouse::updatedCoords = coords_t{ input.getCursor().x, input.getCursor().y };
+
 					activeContext->onMove(input);
 					break;
 				}
@@ -148,12 +160,27 @@ namespace gameplay
 
 	namespace input
 	{
+		coords_t mouseCoords()
+		{
+			return mouse::frameCoords;
+		}
+
+		coords_t mouseDelta()
+		{
+			return mouse::frameDelta;
+		}
+
 		void updateInput()
 		{
+			// update input state data
+			const coords_t uc = mouse::updatedCoords;
+
+			// 
+			mouse::frameDelta = coords_t{ uc.x - mouse::frameCoords.x, uc.y - mouse::frameCoords.y };
+			mouse::frameCoords = uc;
+
 			// update movement
 			activeContext->updateInput();
-
-			//
 		}
 
 		void updateCamera()

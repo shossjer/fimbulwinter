@@ -14,7 +14,8 @@ namespace effects
 
 	enum class Type
 	{
-		PLAYER_GRAVITY
+		PLAYER_GRAVITY,
+		PLAYER_MOUSE_FORCE
 	};
 
 	engine::Entity create(const Type type, const engine::Entity callerId);

@@ -34,7 +34,6 @@ namespace physics
 {
 	extern void initialize();
 	extern void teardown();
-	extern void render();
 }
 }
 
@@ -81,7 +80,7 @@ namespace looper
 			 */
 		//	const auto id = engine::Entity::create();
 			::gameplay::characters::create(modelentity);
-			::engine::physics::CharacterData capsule{ Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, 0.6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
+			::engine::physics::CharacterData capsule{ Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, .6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
 			::engine::physics::create(modelentity, capsule);
 
 			gameplay::player::set(modelentity);
@@ -90,8 +89,8 @@ namespace looper
 			/**
 			 * create Boxes
 			 */
-			const float S = 1.0f;
-			const float SOLIDITY = 0.1f;
+			const float S = 0.5f;
+			const float SOLIDITY = 0.06f;
 			const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
 			for (unsigned int i = 2; i < 50; i++)
 			{

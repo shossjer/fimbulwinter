@@ -160,11 +160,11 @@ namespace physics
 
 	namespace query
 	{
-		Point positionOf(const engine::Entity id)
+		::core::maths::Vector3f positionOf(const engine::Entity id)
 		{
 			const b2Vec2 point = actors.at(id).body->GetPosition();
 
-			return Point{ { point.x, point.y, 0.f } };
+			return ::core::maths::Vector3f{ point.x, point.y, 0.f };
 		}
 
 		void positionOf(const engine::Entity id, Point & pos, Vector & velocity)

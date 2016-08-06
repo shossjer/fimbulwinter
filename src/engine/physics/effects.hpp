@@ -11,26 +11,22 @@ namespace effect
 	 *	Apply acceleration on every object inside radius
 	 *	Returns list of targets
 	 */
-	std::vector<engine::Entity> acceleration(const Vector amount, const Point centre, const float radius);
+	std::vector<engine::Entity> acceleration(const core::maths::Vector3f amount, const core::maths::Vector3f centre, const float radius);
 	/**
 	 *	Apply acceleration on targets from prev query
 	 */
-	void acceleration(const Vector amount, const std::vector<engine::Entity> & targets);
-	///**
-	// *	Apply force on every object inside radius
-	// *	Returns list of targets
-	// */
-	//std::vector<Id> & force(const Vector amount, const Point centre, const float radius)
-	//{
+	void acceleration(const core::maths::Vector3f amount, const std::vector<engine::Entity> & targets);
 
-	//}
-	///**
-	// *	Apply acceleration on targets from prev query
-	// */
-	//void force(const Vector amount, const std::vector<Id>& targets)
-	//{
 
-	//}
+	/**
+	 *	Apply force on every object inside radius
+	 *	Returns list of targets
+	 */
+	std::vector<engine::Entity> force(const core::maths::Vector3f amount, const core::maths::Vector3f centre, const float radius);
+	/**
+	 *	Apply force on targets from prev query
+	 */
+	void force(const core::maths::Vector3f amount, const std::vector<engine::Entity> & targets);
 }
 }
 }

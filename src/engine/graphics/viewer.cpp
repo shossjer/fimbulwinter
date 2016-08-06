@@ -359,7 +359,7 @@ namespace engine
 				// debug_printline(0xffffffff, "world origin => ", spos);
 				core::maths::Vector3f wpos;
 				from_screen_to_world(core::maths::Vector2f{dimension.width / 2.f, dimension.height / 2.f}, wpos);
-				debug_printline(0xffffffff, "screen center => ", wpos);
+				//debug_printline(0xffffffff, "screen center => ", wpos);
 				// ^^^^ testing ^^^^
 			}
 
