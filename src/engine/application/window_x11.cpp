@@ -33,6 +33,12 @@ namespace engine
 	}
 	namespace hid
 	{
+		extern void button_press(const unsigned int buttoncode,
+		                         const unsigned int state,
+		                         const ::Time time);
+		extern void button_release(const unsigned int buttoncode,
+		                           const unsigned int state,
+		                           const ::Time time);
 		extern void key_press(const unsigned int keycode,
 		                      const unsigned int state,
 		                      const ::Time time);
@@ -218,16 +224,16 @@ namespace
 		{
 			switch (event.type)
 			{
-			// case ButtonPress:
-			// 	// cronus::core::dispatch_button_press(event.xbutton.button,
-			// 	//                                     event.xbutton.state,
-			// 	//                                     event.xbutton.time);
-			// 	break;
-			// case ButtonRelease:
-			// 	// cronus::core::dispatch_button_release(event.xbutton.button,
-			// 	//                                       event.xbutton.state,
-			// 	//                                       event.xbutton.time);
-			// 	break;
+			case ButtonPress:
+				engine::hid::button_press(event.xbutton.button,
+				                          event.xbutton.state,
+				                          event.xbutton.time);
+				break;
+			case ButtonRelease:
+				engine::hid::button_release(event.xbutton.button,
+				                            event.xbutton.state,
+				                            event.xbutton.time);
+				break;
 			case ConfigureNotify:
 				break;
 			// case DestroyNotify:

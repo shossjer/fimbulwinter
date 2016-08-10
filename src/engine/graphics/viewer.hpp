@@ -82,7 +82,21 @@ namespace engine
 			void update(engine::Entity entity, translate && data);
 			void update(engine::Entity entity, translation && data);
 
+			/**
+			 * Transforms screen coordinate to world coordinate.
+			 *
+			 * The origin in  screen space is located at  the top left
+			 * corner of the window. X  increases towards the right, y
+			 * increases downwards.
+			 */
 			void from_screen_to_world(core::maths::Vector2f spos, core::maths::Vector3f & wpos);
+			/**
+			 * Transforms world coordinate to screen coordinate.
+			 *
+			 * The origin in  screen space is located at  the top left
+			 * corner of the window. X  increases towards the right, y
+			 * increases downwards.
+			 */
 			void from_world_to_screen(core::maths::Vector3f wpos, core::maths::Vector2f & spos);
 		}
 	}

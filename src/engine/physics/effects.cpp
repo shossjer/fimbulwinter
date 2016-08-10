@@ -58,7 +58,6 @@ namespace effect
 			applyAcceleration(item.body, acc);
 		}
 	}
-	
 
 	/**
 	 *	Apply force on every object inside radius

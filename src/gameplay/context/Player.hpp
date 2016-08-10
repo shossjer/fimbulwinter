@@ -28,7 +28,7 @@ namespace context
 	{
 	private:
 		bool jumpPressed;
-		
+
 		//engine::Entity effectId;
 		std::unordered_map<Input::Button, engine::Entity> activeEffects;
 

@@ -33,7 +33,7 @@ namespace engine
 		                       LONG time);
 		extern void mouse_wheel(const int_fast16_t delta,
 		                        LONG time);
-	
+
 		extern void syskey_down(BYTE virtual_key,
 		                        BYTE scan_code,
 		                        LONG time);
@@ -59,9 +59,6 @@ namespace
 	 */
 	LRESULT CALLBACK WinProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
-		// used to make mouse cursor have same axis directions as openGL (lower left as origo)
-		static int_fast16_t window_size_y = 0;
-
 		switch (msg)
 		{
 			// case WM_CHAR:
@@ -86,43 +83,35 @@ namespace
 			// 	break;
 
 		case WM_MOUSEMOVE:
-			engine::hid::mouse_move((int_fast16_t)GET_X_LPARAM(lParam), (window_size_y - (int_fast16_t)GET_Y_LPARAM(lParam)), GetMessageTime());
+			engine::hid::mouse_move((int_fast16_t)GET_X_LPARAM(lParam), (int_fast16_t)GET_Y_LPARAM(lParam), GetMessageTime());
 			break;
-		 case WM_LBUTTONDOWN:
-		 	// cronus::core::dispatch<cronus::user::State::DOWN>(0x01, GetMessageTime());
-		 	engine::hid::lbutton_down(GetMessageTime());
-		 	break;
-		 case WM_LBUTTONUP:
-		 	// cronus::core::dispatch<cronus::user::State::UP>(0x01, GetMessageTime());
-		 	engine::hid::lbutton_up(GetMessageTime());
-		 	break;
-		 case WM_RBUTTONDOWN:
-		 	// cronus::core::dispatch<cronus::user::State::DOWN>(0x02, GetMessageTime());
-		 	engine::hid::rbutton_down(GetMessageTime());
-		 	break;
-		 case WM_RBUTTONUP:
-		 	// cronus::core::dispatch<cronus::user::State::UP>(0x02, GetMessageTime());
-		 	engine::hid::rbutton_up(GetMessageTime());
-		 	break;
-		 case WM_MBUTTONDOWN:
-		 	// cronus::core::dispatch<cronus::user::State::DOWN>(0x04, GetMessageTime());
-		 	engine::hid::mbutton_down(GetMessageTime());
-		 	break;
-		 case WM_MBUTTONUP:
-		 	// cronus::core::dispatch<cronus::user::State::UP>(0x04, GetMessageTime());
-		 	engine::hid::mbutton_up(GetMessageTime());
-		 	break;
-		 case WM_MOUSEWHEEL:
-		 	// cronus::core::dispatch_wheel((int)((int16_t)HIWORD(wParam) / WHEEL_DELTA), GetMessageTime());
-		 	engine::hid::mouse_wheel((int_fast16_t)HIWORD(wParam), GetMessageTime());
-		 	break;
+		case WM_LBUTTONDOWN:
+			engine::hid::lbutton_down(GetMessageTime());
+			break;
+		case WM_LBUTTONUP:
+			engine::hid::lbutton_up(GetMessageTime());
+			break;
+		case WM_RBUTTONDOWN:
+			engine::hid::rbutton_down(GetMessageTime());
+			break;
+		case WM_RBUTTONUP:
+			engine::hid::rbutton_up(GetMessageTime());
+			break;
+		case WM_MBUTTONDOWN:
+			engine::hid::mbutton_down(GetMessageTime());
+			break;
+		case WM_MBUTTONUP:
+			engine::hid::mbutton_up(GetMessageTime());
+			break;
+		case WM_MOUSEWHEEL:
+			// cronus::core::dispatch_wheel((int)((int16_t)HIWORD(wParam) / WHEEL_DELTA), GetMessageTime());
+			engine::hid::mouse_wheel((int_fast16_t)HIWORD(wParam), GetMessageTime());
+			break;
 
 		case WM_CLOSE:
 			PostQuitMessage(0);
 			break;
 		case WM_SIZE:
-
-			window_size_y = (int_fast16_t)HIWORD(lParam);
 			engine::graphics::viewer::notify_resize((int_fast16_t)LOWORD(lParam),
 			                                        (int_fast16_t)HIWORD(lParam));
 			break;

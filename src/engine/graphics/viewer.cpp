@@ -340,27 +340,18 @@ namespace engine
 					};
 					screen = core::maths::Matrix4x4f{
 						data.width / 2.f, 0.f, 0.f, data.x + data.width / 2.f,
-						0.f, data.height / 2.f, 0.f, data.y + data.height / 2.f,
+						0.f, data.height / -2.f, 0.f, data.y + data.height / 2.f,
 						0.f, 0.f, 0.f, 0.f,
 						0.f, 0.f, 0.f, 1.f
 					};
 					inv_screen = core::maths::Matrix4x4f{
 						2.f / data.width, 0.f, 0.f, -(data.x * 2.f / data.width + 1.f),
-						0.f, 2.f / data.height, 0.f, -(data.y * 2.f / data.height + 1.f),
+						0.f, -2.f / data.height, 0.f, 1.f - data.y * 2.f / data.height,
 						0.f, 0.f, 0.f, 0.f,
 						0.f, 0.f, 0.f, 1.f
 					};
 					notify(std::move(data));
 				}
-
-				// vvvv testing vvvv
-				// core::maths::Vector2f spos;
-				// from_world_to_screen(core::maths::Vector3f{0.f, 0.f, 0.f}, spos);
-				// debug_printline(0xffffffff, "world origin => ", spos);
-				core::maths::Vector3f wpos;
-				from_screen_to_world(core::maths::Vector2f{dimension.width / 2.f, dimension.height / 2.f}, wpos);
-				//debug_printline(0xffffffff, "screen center => ", wpos);
-				// ^^^^ testing ^^^^
 			}
 
 			void notify_resize(const int width, const int height)

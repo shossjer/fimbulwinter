@@ -24,6 +24,22 @@ namespace engine
 {
 	namespace hid
 	{
+		void button_press(const unsigned int buttoncode,
+		                  const unsigned int state,
+		                  const ::Time time)
+		{
+			input.setDown(buttoncode, state);
+
+			dispatch(input);
+		}
+		void button_release(const unsigned int buttoncode,
+		                    const unsigned int state,
+		                    const ::Time time)
+		{
+			input.setUp(buttoncode, state);
+
+			dispatch(input);
+		}
 		void key_press(const unsigned int keycode,
 		               const unsigned int state,
 		               const ::Time time)

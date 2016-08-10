@@ -40,39 +40,39 @@ namespace engine
 		}
 		void lbutton_down(LONG time)
 		{
-		 	input.setDown(0x1, 0);
+			input.setDown(0x1, 0);
 
-		 	dispatch(input);
+			dispatch(input);
 		}
 		void lbutton_up(LONG time)
 		{
-		 	input.setUp(0x1, 0);
+			input.setUp(0x1, 0);
 
-		 	dispatch(input);
+			dispatch(input);
 		}
 		void mbutton_down(LONG time)
 		{
-		 	input.setDown(0x4, 0);
+			input.setDown(0x4, 0);
 
-		 	dispatch(input);
+			dispatch(input);
 		}
 		void mbutton_up(LONG time)
 		{
-		 	input.setUp(0x4, 0);
+			input.setUp(0x4, 0);
 
-		 	dispatch(input);
+			dispatch(input);
 		}
 		void rbutton_down(LONG time)
 		{
-		 	input.setDown(0x2, 0);
+			input.setDown(0x2, 0);
 
-		 	dispatch(input);
+			dispatch(input);
 		}
 		void rbutton_up(LONG time)
 		{
-		 	input.setUp(0x2, 0);
+			input.setUp(0x2, 0);
 
-		 	dispatch(input);
+			dispatch(input);
 		}
 		void mouse_move(const int_fast16_t x,
 		                const int_fast16_t y,
@@ -84,12 +84,12 @@ namespace engine
 
 			dispatch(input);
 		}
-		 void mouse_wheel(const int_fast16_t delta,
-		                  LONG time)
-		 {
-		 	// TODO:
-		 }
-	
+		void mouse_wheel(const int_fast16_t delta,
+		                 LONG time)
+		{
+			// TODO:
+		}
+
 		void syskey_down(BYTE virtual_key,
 		                 BYTE scan_code,
 		                 LONG time)

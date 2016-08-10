@@ -175,8 +175,8 @@ namespace gameplay
 			// update input state data
 			const coords_t uc = mouse::updatedCoords;
 
-			// 
-			mouse::frameDelta = coords_t{ uc.x - mouse::frameCoords.x, uc.y - mouse::frameCoords.y };
+			//
+			mouse::frameDelta = coords_t{ static_cast<short>(uc.x - mouse::frameCoords.x), static_cast<short>(uc.y - mouse::frameCoords.y) };
 			mouse::frameCoords = uc;
 
 			// update movement
