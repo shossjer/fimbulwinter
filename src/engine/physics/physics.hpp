@@ -1,6 +1,8 @@
 
 #include "defines.hpp"
 
+#include <core/maths/Vector.hpp>
+
 #include <array>
 #include <vector>
 
@@ -15,10 +17,10 @@ namespace physics
 
 	struct MoveData
 	{
-		const Vec2 velXZ;
+		const core::maths::Vector3f velXZ;
 		const float velY;
 
-		MoveData(const Vec2 velXZ, const float velY)
+		MoveData(const core::maths::Vector3f velXZ, const float velY)
 			:
 			velXZ(velXZ), velY(velY)
 		{}

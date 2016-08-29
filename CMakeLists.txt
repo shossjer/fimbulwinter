@@ -92,6 +92,7 @@ set(TRIBUNAL_HEADER
 	src/engine/physics/helper.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/queries.hpp
+	src/engine/physics/Callbacks.hpp
 	src/gameplay/characters.hpp
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp

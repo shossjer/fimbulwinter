@@ -1,6 +1,7 @@
 
 #include <config.h>
 
+#include "Callbacks.hpp"
 #include "helper.hpp"
 #include "physics.hpp"
 #include "queries.hpp"
@@ -23,6 +24,16 @@ namespace physics
 {
 	const float timeStep = 1.f / 60.f;
 
+	b2Vec2 convert(const core::maths::Vector3f val)
+	{
+		core::maths::Vector3f::array_type buffer;
+		val.get_aligned(buffer);
+		return b2Vec2{ buffer[0], buffer[1] };
+	}
+	core::maths::Vector3f convert(const b2Vec2 val)
+	{
+		return core::maths::Vector3f{ val.x, val.y, 0.f };
+	}
 	/**
 	 *	Contact counter for characters to determine falling / grounded
 	 */
@@ -46,40 +57,11 @@ namespace physics
 		void increment() { this->contacts++; }
 		void decrement() { this->contacts--; }
 	};
-	/**
-	 *	Contact change Callback
-	 */
-	class MyContactListener : public b2ContactListener
-	{
-		void BeginContact(b2Contact* contact)
-		{
-			if (contact->GetFixtureA()->GetUserData())
-			{
-				reinterpret_cast<ShapeContactCounter*>(contact->GetFixtureA()->GetUserData())->increment();
-			}
-
-			if (contact->GetFixtureB()->GetUserData())
-			{
-				reinterpret_cast<ShapeContactCounter*>(contact->GetFixtureB()->GetUserData())->increment();
-			}
-		}
-
-		void EndContact(b2Contact* contact)
-		{
-			if (contact->GetFixtureA()->GetUserData())
-			{
-				reinterpret_cast<ShapeContactCounter*>(contact->GetFixtureA()->GetUserData())->decrement();
-			}
-
-			if (contact->GetFixtureB()->GetUserData())
-			{
-				reinterpret_cast<ShapeContactCounter*>(contact->GetFixtureB()->GetUserData())->decrement();
-			}
-		}
-	}	contactCallback;
+	
 		
 	namespace
 	{
+		const Callbacks * pCallbacks;
 		/**
 		 *	The World
 		 */
@@ -127,7 +109,7 @@ namespace physics
 
 	//	std::unordered_map<engine::Entity, b2Body*> actors;
 		std::unordered_map<engine::Entity, PhysicsActor> actors;
-		std::unordered_map<engine::Entity, ShapeContactCounter> characterContactCounters;
+		std::unordered_map<engine::Entity, ShapeContactCounter> contactCounter;
 
 		std::unordered_map<Material, MaterialData> materials;
 
@@ -157,6 +139,84 @@ namespace physics
 		// >
 		// debug_entities;
 	}
+
+	/**
+	 *	Contact change Callback
+	 */
+	class MyContactListener : public b2ContactListener
+	{
+	private:
+
+		void BeginContact(const b2Fixture *const fixA, const b2Fixture *const fixB, const b2Contact *const contact)
+		{
+			auto id = engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)fixA->GetUserData()) };
+
+			auto itr = contactCounter.find(id);
+
+			if (itr != contactCounter.end())
+			{
+				itr->second.increment();
+
+				// TODO: calculate ground normal if more then one contact
+				pCallbacks->onGrounded(id, convert(contact->GetManifold()->localNormal));
+			}
+		}
+
+		void EndContact(const b2Fixture *const fixA, const b2Fixture *const fixB, const b2Contact *const contact)
+		{
+			auto id = engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)fixA->GetUserData()) };
+
+			auto itr = contactCounter.find(id);
+
+			if (itr != contactCounter.end())
+			{
+				itr->second.decrement();
+
+				if (itr->second.isGrounded())
+				{
+					// TODO: calculate ground normal if more then one contact
+					pCallbacks->onGrounded(id, convert(contact->GetManifold()->localNormal));
+				}
+				else
+				{
+					pCallbacks->onFalling(id);
+				}
+			}
+		}
+
+	public:
+
+		void BeginContact(b2Contact* contact)
+		{
+			if (contact->GetFixtureA()->GetUserData())
+			{
+				BeginContact(contact->GetFixtureA(), contact->GetFixtureB(), contact);
+			}
+
+			if (contact->GetFixtureB()->GetUserData())
+			{
+				BeginContact(contact->GetFixtureB(), contact->GetFixtureA(), contact);
+			}
+
+			printf("contact type: %d, normal: %f, %f, points: %d (grounded)\n", contact->GetManifold()->type, contact->GetManifold()->localNormal.x, contact->GetManifold()->localNormal.y, contact->GetManifold()->pointCount);
+		}
+
+		void EndContact(b2Contact* contact)
+		{
+			if (contact->GetFixtureA()->GetUserData())
+			{
+				EndContact(contact->GetFixtureA(), contact->GetFixtureB(), contact);
+			}
+
+			if (contact->GetFixtureB()->GetUserData())
+			{
+				EndContact(contact->GetFixtureB(), contact->GetFixtureA(), contact);
+			}
+
+			printf("contact type: %d, normal: %f, %f, points: %d (falling)\n", contact->GetManifold()->type, contact->GetManifold()->localNormal.x, contact->GetManifold()->localNormal.y, contact->GetManifold()->pointCount);
+		}
+
+	}	contactCallback;
 
 	namespace query
 	{
@@ -205,11 +265,14 @@ namespace physics
 		return world;
 	}
 
-	void initialize()
+	void initialize(const Callbacks & callbacks)
 	{
+		pCallbacks = &callbacks;
+	
 		world.SetContactListener(&contactCallback);
 		{
-			const engine::Entity id{ 0 };
+
+			const engine::Entity id = engine::Entity::create();
 			// const auto id = engine::Entity::create(); // does not work :/
 			// the above yields the following runtime error from somewhere at startup:
 			// > terminate called after throwing an instance of 'std::out_of_range'
@@ -355,13 +418,14 @@ namespace physics
 		//const float velY = moveData.velY + ACC*timeStep;
 		b2Vec2 vel = body->GetLinearVelocity();
 
-		vel.x += moveData.velXZ[0]*4.f;
+		b2Vec2 currentVel = convert(moveData.velXZ);
+		vel.x += currentVel.x*1.f;
 
-		body->SetLinearVelocity(vel);//b2Vec2(moveData.velXZ[0] * 4.f, velY));
+		body->SetLinearVelocity(vel);
 
 		const b2Vec2 & pos = body->GetPosition();
 
-		if (characterContactCounters.at(id).isGrounded())
+		if (contactCounter.at(id).isGrounded())
 		{
 			// I check the velY < 0.f since otherwise jumps are interrupted. Contact updating is too slow.
 			if (vel.y < 0.f)
@@ -451,9 +515,10 @@ namespace physics
 			//fixtureDef.isSensor = true;	// lower spape keeps track of contacts
 			b2Fixture *const feets = body->CreateFixture(&fixtureDef);
 
-			characterContactCounters.emplace(id, ShapeContactCounter{ feets });
+			contactCounter.emplace(id, ShapeContactCounter{ feets });
 
-			feets->SetUserData(&characterContactCounters.at(id));
+			feets->SetUserData((void*)(std::size_t)static_cast<engine::Entity::value_type>(id));
+			//feets->SetUserData(&contactCounter.at(id));
 		}
 
 		body->ResetMassData();
@@ -555,7 +620,7 @@ namespace physics
 			engine::graphics::renderer::remove(actor.debugRenderId);
 		
 		actors.erase(id);
-		characterContactCounters.erase(id);
+		contactCounter.erase(id);
 	}
 }
 }

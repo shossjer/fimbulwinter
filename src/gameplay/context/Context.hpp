@@ -32,7 +32,7 @@ namespace gameplay
 
 		virtual void onUp(const Input & input) = 0;
 
-		virtual void updateInput() = 0;
+		//virtual void updateInput() = 0;
 		/**
 		 *
 		 */

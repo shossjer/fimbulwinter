@@ -65,80 +65,38 @@ namespace context
 			engine::graphics::viewer::remove(camera);
 		}
 
-	public:
-		/**
-		 *	Updates CharacterState of Player character
-		 */
-		void updateInput() override
+	private:
+
+		void updateMovement()
 		{
-			// get player Character
-			const engine::Entity id = player::get();
-
-			::gameplay::CharacterState & character = characters::get(id);
-
-			// check if jump button has been pressed
-			if (this->jumpPressed)
-			{
-				this->jumpPressed = false;
-
-				// attempt a jump!
-				if (character.grounded)
-				{
-					character.fallVel = 6.f;
-				}
-			}
+			::gameplay::characters::MovementState state;
 
 			switch (this->dirFlags)	// check key press's for movement
 			{
 			case 0:
 
-				character.movementState = ::gameplay::CharacterState::MovementState::NONE;
+				state = ::gameplay::characters::MovementState::NONE;
 				break;
 
 			case DIR_LEFT:
 
-				character.movementState = ::gameplay::CharacterState::MovementState::LEFT;
-				break;
-
-			case DIR_IN + DIR_LEFT:
-
-				character.movementState = ::gameplay::CharacterState::MovementState::LEFT_UP;
-				break;
-
-			case DIR_IN:
-
-				character.movementState = ::gameplay::CharacterState::MovementState::UP;
-				break;
-
-			case DIR_IN + DIR_RIGHT:
-
-				character.movementState = ::gameplay::CharacterState::MovementState::RIGHT_UP;
+				state = ::gameplay::characters::MovementState::LEFT;
 				break;
 
 			case DIR_RIGHT:
 
-				character.movementState = ::gameplay::CharacterState::MovementState::RIGHT;
+				state = ::gameplay::characters::MovementState::RIGHT;
 				break;
 
-			case DIR_OUT + DIR_RIGHT:
+			default:
 
-				character.movementState = ::gameplay::CharacterState::MovementState::RIGHT_DOWN;
-				break;
-
-			case DIR_OUT:
-
-				character.movementState = ::gameplay::CharacterState::MovementState::DOWN;
-				break;
-
-			case DIR_OUT + DIR_LEFT:
-
-				character.movementState = ::gameplay::CharacterState::MovementState::LEFT_DOWN;
-				break;
+				return;
 			}
 
-			character.update();
+			gameplay::characters::postMovement(player::get(), state);
 		}
 
+	public:
 		/**
 		 *	update camera position based on player character and movement
 		 */
@@ -210,8 +168,11 @@ namespace context
 					break;
 				}
 			default:
-				; // do nothing
+				// do nothing
+				return;
 			}
+
+			updateMovement();
 		}
 
 		void onUp(const Input & input) override
@@ -251,8 +212,11 @@ namespace context
 					break;
 				}
 			default:
-				; // do nothing
+				// do nothing
+				return;
 			}
+
+			updateMovement();
 		}
 	};
 }

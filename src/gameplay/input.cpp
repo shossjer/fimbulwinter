@@ -179,8 +179,8 @@ namespace gameplay
 			mouse::frameDelta = coords_t{ static_cast<short>(uc.x - mouse::frameCoords.x), static_cast<short>(uc.y - mouse::frameCoords.y) };
 			mouse::frameCoords = uc;
 
-			// update movement
-			activeContext->updateInput();
+		//	// update movement
+		//	activeContext->updateInput();
 		}
 
 		void updateCamera()

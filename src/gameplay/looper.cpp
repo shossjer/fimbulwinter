@@ -8,6 +8,7 @@
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 #include <engine/model/armature.hpp>
+#include <engine/physics/Callbacks.hpp>
 #include <engine/physics/physics.hpp>
 
 #include <core/async/delay.hpp>
@@ -32,7 +33,7 @@ namespace viewer
 }
 namespace physics
 {
-	extern void initialize();
+	extern void initialize(const engine::physics::Callbacks & callback);
 	extern void teardown();
 }
 }
@@ -48,7 +49,6 @@ namespace gameplay
 {
 namespace looper
 {
-	void update(CharacterState & state);
 	void run();
 
 	void create()
@@ -86,34 +86,50 @@ namespace looper
 			gameplay::player::set(modelentity);
 		}
 		{
-			/**
-			 * create Boxes
-			 */
-			const float S = 0.5f;
-			const float SOLIDITY = 0.06f;
-			const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
-			for (unsigned int i = 2; i < 50; i++)
-			{
-				const auto id = engine::Entity::create();
-				{
-					::engine::physics::BoxData data{ Point{ { 0.f, i*10.f, 0.f } }, M, SOLIDITY, Size{ { S, S, S } } };
-					::engine::physics::create(id, data);
-				}
-				{
-					engine::graphics::data::CuboidC data = {
-						core::maths::Matrix4x4f::identity(),
-						S * 2.f, S * 2.f, S * 2.f,
-						0xff00ff00
-					};
-					engine::graphics::renderer::add(id, data);
-				}
-			}
+			///**
+			// * create Boxes
+			// */
+			//const float S = 0.5f;
+			//const float SOLIDITY = 0.06f;
+			//const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
+			//for (unsigned int i = 2; i < 50; i++)
+			//{
+			//	const auto id = engine::Entity::create();
+			//	{
+			//		::engine::physics::BoxData data{ Point{ { 0.f, i*10.f, 0.f } }, M, SOLIDITY, Size{ { S, S, S } } };
+			//		::engine::physics::create(id, data);
+			//	}
+			//	{
+			//		engine::graphics::data::CuboidC data = {
+			//			core::maths::Matrix4x4f::identity(),
+			//			S * 2.f, S * 2.f, S * 2.f,
+			//			0xff00ff00
+			//		};
+			//		engine::graphics::renderer::add(id, data);
+			//	}
+			//}
 		}
 	}
 
 	void run()
 	{
-		::engine::physics::initialize();
+		class PhysicsCallback : public ::engine::physics::Callbacks
+		{
+		public:
+
+			void onGrounded(const engine::Entity id, const core::maths::Vector3f & groundNormal) const
+			{
+				characters::postGrounded(id, groundNormal);
+			}
+
+			void onFalling(const engine::Entity id) const
+			{
+				characters::postFalling(id);
+			}
+
+		} callbacks;
+
+		::engine::physics::initialize(callbacks);
 
 		// temp
 		temp();
@@ -132,21 +148,11 @@ namespace looper
 			// update physics
 			::engine::physics::update();
 
-			// update player - temp, should be part of generic Character update
-			{
-				input::updateInput();
-				
-				CharacterState & character = characters::get(player::get());
-
-				engine::physics::MoveResult res =
-					engine::physics::update(gameplay::player::get(), engine::physics::MoveData(character.movement(), character.fallVel));
-
-				character.grounded = res.grounded;
-				character.fallVel = res.velY;
-			}
-
-			// update npc's
-
+			// 
+			input::updateInput();
+		
+			// update characters
+			::gameplay::characters::update();
 
 			// get the active Camera
 			input::updateCamera();
@@ -160,16 +166,6 @@ namespace looper
 		}
 
 		::engine::graphics::renderer::destroy();
-	}
-
-	void update(CharacterState & state)
-	{
-		engine::physics::MoveResult res = 
-			engine::physics::update(0, engine::physics::MoveData(state.movement(), state.fallVel));
-	//	engine::physics::update(0, state.movement(), state.fallVel);
-		
-		state.grounded = res.grounded;
-		state.fallVel = res.velY;
 	}
 }
 }
