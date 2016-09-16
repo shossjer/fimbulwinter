@@ -6,9 +6,8 @@
 #include <engine/physics/physics.hpp>
 
 #include <core/container/CircleQueue.hpp>
+#include <core/container/Collection.hpp>
 #include <core/debug.hpp>
-
-#include <unordered_map>
 
 using core::maths::Vector2f;
 using core::maths::Vector3f;
@@ -24,7 +23,52 @@ namespace
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueFalling;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, MovementState>, 100> queueMovement;
 
-	std::unordered_map<engine::Entity, CharacterState> items;
+	core::container::Collection
+	<
+		engine::Entity,
+		101,
+		std::array<CharacterState, 50>,
+		// clang errors on collections with only one array, so here is
+		// a dummy array to satisfy it
+		std::array<int, 1>
+	>
+	components;
+
+	struct clear_ground_state
+	{
+		void operator () (CharacterState & x)
+		{
+			x.clrGrounded();
+		}
+		template <typename X>
+		void operator () (X & x) {}
+	};
+	struct update_ground_state
+	{
+		const Vector3f & normal;
+
+		update_ground_state(const Vector3f & normal) : normal(normal) {}
+
+		void operator () (CharacterState & x)
+		{
+			x.setGrounded(normal);
+		}
+		template <typename X>
+		void operator () (X & x) {}
+	};
+	struct update_movement_state
+	{
+		const MovementState & state;
+
+		update_movement_state(const MovementState & state) : state(state) {}
+
+		void operator () (CharacterState & x)
+		{
+			x.update(state);
+		}
+		template <typename X>
+		void operator () (X & x) {}
+	};
 }
 
 namespace gameplay
@@ -37,93 +81,78 @@ namespace characters
 			engine::Entity id;
 
 			// create
-			while (queueCreate.try_pop2(id))
+			while (queueCreate.try_pop(id))
 			{
-				items.emplace(id, CharacterState());
+				components.add(id, CharacterState());
 			}
 
 			// remove
 			while (queueRemove.try_pop(id))
 			{
-				items.erase(id);
+				components.remove(id);
 			}
 
 			std::pair<engine::Entity, Vector3f> data;
-		
-			// update grounded state
-			while (queueGrounded.try_pop2(data))
-			{
-				auto itr = items.find(data.first);
 
-				if (itr != items.end())
-				{
-					itr->second.setGrounded(data.second);
-				}
+			// update grounded state
+			while (queueGrounded.try_pop(data))
+			{
+				components.call(data.first, update_ground_state{data.second});
 			}
 
 			// update falling state
 			while (queueFalling.try_pop(id))
 			{
-				auto itr = items.find(id);
-
-				if (itr != items.end())
-				{
-					itr->second.clrGrounded();
-				}
+				components.call(id, clear_ground_state{});
 			}
 
 			std::pair<engine::Entity, MovementState> state;
 
 			// update movement state
-			while (queueMovement.try_pop2(state))
+			while (queueMovement.try_pop(state))
 			{
-				auto itr = items.find(state.first);
-
-				if (itr != items.end())
-				{
-					// update characters movement vector based on input
-					itr->second.update(state.second);
-				}
+				components.call(state.first, update_movement_state{state.second});
 			}
 		}
 
 		// update the characters
-		for (auto & item : items)
+		for (auto & component : components.get<CharacterState>())
 		{
-			engine::physics::MoveResult res =
-				engine::physics::update(
-					item.first, 
-					engine::physics::MoveData(
-						item.second.movement(), 
-						item.second.fallVel));
-
-			item.second.fallVel = res.velY;
+			auto res = engine::physics::update(components.get_key(component),
+			                                   engine::physics::MoveData(component.movement(),
+			                                                             component.fallVel));
+			component.fallVel = res.velY;
 		}
 	}
 
 	void create(const engine::Entity id)
 	{
-		queueCreate.try_push(id);
+		const auto res = queueCreate.try_push(id);
+		debug_assert(res);
 	}
 
 	void remove(const engine::Entity id)
 	{
-		queueRemove.try_push(id);
+		const auto res = queueRemove.try_push(id);
+		debug_assert(res);
 	}
 
 	void postGrounded(const engine::Entity id, const core::maths::Vector3f normal)
 	{
-		queueGrounded.try_push(std::pair<engine::Entity, Vector3f>(id, normal));
+		const auto res = queueGrounded.try_emplace(id, normal);
+		debug_assert(res);
 	}
 
 	void postFalling(const engine::Entity id)
 	{
-		queueFalling.try_push(id);
+		const auto res = queueFalling.try_push(id);
+		debug_assert(res);
 	}
 
 	void postMovement(const engine::Entity id, const MovementState state)
 	{
-		queueMovement.try_push(std::pair<engine::Entity, MovementState>(id, state));
+		const auto res = queueMovement.try_emplace(id, state);
+		debug_assert(res);
 	}
 }
 }

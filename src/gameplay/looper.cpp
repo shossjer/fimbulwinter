@@ -9,7 +9,9 @@
 #include <engine/graphics/viewer.hpp>
 #include <engine/model/armature.hpp>
 #include <engine/physics/Callbacks.hpp>
+// #include <engine/physics/effects.hpp>
 #include <engine/physics/physics.hpp>
+#include <engine/physics/queries.hpp>
 
 #include <core/async/delay.hpp>
 #include <core/async/Thread.hpp>
@@ -153,6 +155,27 @@ namespace looper
 		
 			// update characters
 			::gameplay::characters::update();
+
+			// update player - temp, should be part of generic Character update
+			// {
+			// 	input::updateInput();
+				
+			// 	CharacterState & character = characters::get(player::get());
+
+			// 	debug_printline(0xffffffff, "(", character.movement()[0], ", ", character.movement()[1], ")");
+			// 	engine::physics::MoveResult res =
+			// 		engine::physics::update(gameplay::player::get(), engine::physics::MoveData(character.movement(), character.fallVel, character.angvel));
+
+			// 	character.grounded = res.grounded;
+			// 	character.fallVel = res.velY;
+
+			// 	Point pos;
+			// 	Vector vec;
+			// 	float angle;
+			// 	engine::physics::query::positionOf(player::get(), pos, vec, angle);
+
+			// 	engine::physics::effect::acceleration(core::maths::Vector3f{0.f + 9.82f * std::cos(angle - 3.14f / 2.f), 9.82f + 9.82f * std::sin(angle - 3.14f / 2.f), 0.f}, core::maths::Vector3f{pos[0], pos[1], 0.f}, 2.f);
+			// }
 
 			// get the active Camera
 			input::updateCamera();

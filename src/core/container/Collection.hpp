@@ -226,6 +226,26 @@ namespace core
 					debug_unreachable();
 				}
 			}
+
+			template <typename F>
+			auto call(K key, F && func)
+			{
+				const auto bucket = find(key);
+				const auto index = slots[bucket].get_index();
+
+				switch (slots[bucket].get_type())
+				{
+#define CASE(n) case (n):	  \
+					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
+					                 index, std::forward<F>(func))
+
+					EXPAND_256_TIMES(CASE, 0);
+#undef CASE
+				default:
+					return call_impl(mpl::index_constant<std::size_t(-1)>{},
+					                 index, std::forward<F>(func));
+				}
+			}
 		private:
 			// not great
 			bucket_t hash(K key) const
@@ -319,6 +339,23 @@ namespace core
 
 				array.get(index) = std::forward<D>(data);
 			}
+
+			template <typename F>
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func)
+			{
+				debug_unreachable();
+				// this is used to deduce the return type correctly
+				// we should never get here
+				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
+			}
+			template <std::size_t type, typename F>
+			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func)
+			{
+				auto & array = std::get<type>(arrays);
+				debug_assert(index < array.size);
+
+				return func(array.get(index));
+			}
 		};
 
 		/**
@@ -327,7 +364,7 @@ namespace core
 		 * \tparam Arrays  A std::array for each type (with count) to store.
 
 		 * The unordered collection has the following properties:
-		 * - does not move the components around, and
+		 * - does not move around the components, and
 		 * - the components cannot be iterated
 		 */
 		template <typename Key, std::size_t Maximum, typename ...Arrays>
@@ -492,18 +529,38 @@ namespace core
 				switch (slots[bucket].get_type())
 				{
 #define CASE(n) case (n):	  \
-					set_impl(mpl::index_constant<(std::is_assignable<mpl::type_at_or<(n), \
-					                                                                 mpl::type_list<Cs...>>, \
-					                                                 D>::value ? \
-					                              (n) : \
-					                              std::size_t(-1))>{}, \
-					         index, std::forward<D>(data)); \
+					update_impl(mpl::index_constant<(std::is_assignable<mpl::type_at_or<(n), \
+					                                                                    mpl::type_list<Cs...>>, \
+					                                                    D>::value ? \
+					                                 (n) : \
+					                                 std::size_t(-1))>{}, \
+					            index, std::forward<D>(data)); \
 					break
 
 					EXPAND_256_TIMES(CASE, 0);
 #undef CASE
 				default:
 					debug_unreachable();
+				}
+			}
+
+			template <typename F>
+			auto call(K key, F && func)
+			{
+				const auto bucket = find(key);
+				const auto index = slots[bucket].get_index();
+
+				switch (slots[bucket].get_type())
+				{
+#define CASE(n) case (n):	  \
+					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
+					                 index, std::forward<F>(func))
+
+					EXPAND_256_TIMES(CASE, 0);
+#undef CASE
+				default:
+					return call_impl(mpl::index_constant<std::size_t(-1)>{},
+					                 index, std::forward<F>(func));
 				}
 			}
 		private:
@@ -580,17 +637,34 @@ namespace core
 				array.size--;
 			}
 			template <typename D>
-			void set_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, D && data)
+			void update_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, D && data)
 			{
 				debug_unreachable();
 			}
 			template <std::size_t type, typename D>
-			void set_impl(mpl::index_constant<type>, uint24_t index, D && data)
+			void update_impl(mpl::index_constant<type>, uint24_t index, D && data)
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
 
 				array.get(index) = std::forward<D>(data);
+			}
+
+			template <typename F>
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func)
+			{
+				debug_unreachable();
+				// this is used to deduce the return type correctly
+				// we should never get here
+				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
+			}
+			template <std::size_t type, typename F>
+			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func)
+			{
+				auto & array = std::get<type>(arrays);
+				debug_assert(index < array.size);
+
+				return func(array.get(index));
 			}
 		};
 	}

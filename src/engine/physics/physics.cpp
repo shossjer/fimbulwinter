@@ -227,10 +227,13 @@ namespace physics
 			return ::core::maths::Vector3f{ point.x, point.y, 0.f };
 		}
 
-		void positionOf(const engine::Entity id, Point & pos, Vector & velocity)
+		void positionOf(const engine::Entity id, Point & pos, Vector & velocity, float & angle)
 		{
-			const b2Vec2 point = actors.at(id).body->GetPosition();
-			const b2Vec2 vel = actors.at(id).body->GetLinearVelocity();
+			const auto & body = actors.at(id).body;
+
+			const b2Vec2 point = body->GetPosition();
+			const b2Vec2 vel = body->GetLinearVelocity();
+			angle = body->GetAngle();
 
 			pos[0] = point.x;
 			pos[1] = point.y;
@@ -309,9 +312,6 @@ namespace physics
 
 			// debug graphics
 			{
-				const auto debug_id = engine::Entity::create(); // add this one line and the program throws an exception somewhere else at some other time, yay!
-				// debug_entities.add(id, debug_immovable_t{debug_id});
-
 				core::container::Buffer vertices_;
 				vertices_.resize<float>(3 * vertices.size());
 				for (std::size_t i = 0; i < vertices.size(); i++)
@@ -420,8 +420,11 @@ namespace physics
 
 		b2Vec2 currentVel = convert(moveData.velXZ);
 		vel.x += currentVel.x*1.f;
+		// vel.x += moveData.velXZ[0]*2.f;
+		// vel.y += moveData.velXZ[1]*2.f;
 
 		body->SetLinearVelocity(vel);
+		// body->SetAngularVelocity(moveData.angvel);
 
 		const b2Vec2 & pos = body->GetPosition();
 

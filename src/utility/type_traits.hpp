@@ -41,10 +41,6 @@ namespace mpl
 	template <bool Cond, typename TrueType, typename FalseType>
 	using conditional_t = typename std::conditional<Cond, TrueType, FalseType>::type;
 
-	using std::is_same;
-	template <typename T, typename U>
-	using is_different = boolean_constant<!is_same<T, U>::value>;
-
 	using std::remove_reference;
 	template <typename T>
 	using remove_reference_t = typename remove_reference<T>::type;
@@ -124,23 +120,24 @@ namespace mpl
 	template <template <typename ...> class P, typename List, typename ...Args>
 	using type_filter = typename type_filter_impl<P, List, type_list<>, Args...>::type;
 
-	////////////////////////////////////////////////////////////////////////////
-	//
-	//  index of
-	//
-	//////////////////////////////////////////////////////////////////
+	template <typename T, typename List>
+	struct member_of
+		: member_of<T, type_tail<List>> {};
+	template <typename T>
+	struct member_of<T, type_list<>>
+		: false_type {};
+	template <typename T, typename ...Ts>
+	struct member_of<T, type_list<T, Ts...>>
+		: true_type {};
+
 	template <typename T, typename List>
 	struct index_of;
-
 	template <typename T, typename ...Ts>
-	struct index_of<T, type_list<T, Ts...> > : index_constant<0>
-	{
-	};
-
+	struct index_of<T, type_list<T, Ts...>>
+		: index_constant<0> {};
 	template <typename T, typename U, typename ...Ts>
-	struct index_of<T, type_list<U, Ts...> > : index_constant<index_of<T, type_list<Ts...> >::value + 1>
-	{
-	};
+	struct index_of<T, type_list<U, Ts...>>
+		: index_constant<index_of<T, type_list<Ts...>>::value + 1> {};
 
 	////////////////////////////////////////////////////////////////////////////
 	//
@@ -290,6 +287,55 @@ namespace mpl
 	struct integral_sum<integral_sequence<T, N1>> : integral_constant<T, N1> {};
 	template <typename T, T N1, T N2, T ...Ns>
 	struct integral_sum<integral_sequence<T, N1, N2, Ns...>> : integral_sum<integral_sequence<T, (N1 + N2), Ns...>> {};
+
+	///////////////////
+	//
+	//
+	//
+	/////////////////
+
+	template <bool ...Bs>
+	struct boolean_and;
+	template <>
+	struct boolean_and<>
+		: std::true_type {};
+	template <bool ...Bs>
+	struct boolean_and<false, Bs...>
+		: std::false_type {};
+	template <bool ...Bs>
+	struct boolean_and<true, Bs...>
+		: boolean_and<Bs...> {};
+
+	template <bool B>
+	struct boolean_not
+		: true_type {};
+	template <>
+	struct boolean_not<true>
+		: false_type {};
+
+	template <typename ...Ts>
+	struct is_same_impl;
+	template <>
+	struct is_same_impl<>
+		: std::true_type {};
+	template <typename T0, typename ...Ts>
+	struct is_same_impl<T0, Ts...>
+		: boolean_and<std::is_same<T0, Ts>::value...> {};
+	template <typename ...Ts>
+	using is_same = is_same_impl<Ts...>;
+
+	// template <typename List1, typename List2 = type_list<>>
+	// struct is_different_impl;
+	// template <typename T0, typename ...Ts, typename ...Us>
+	// struct is_different_impl<type_list<T0, Ts...>, type_list<Us...>>
+	// 	: std::conditional_t<member_of<T0, type_list<Us...>>::value,
+	// 	                     false_type,
+	// 	                     is_different_impl<type_list<Ts...>,
+	// 	                                       type_list<T0, Us...>>> {};
+	// template <typename ...Ts>
+	// using is_different = is_different_impl<type_list<Ts...>>;
+	template <typename T, typename U>
+	using is_different = boolean_not<std::is_same<T, U>::value>;
 
 	////////////////////////////////////////////////////////////////////////////
 	//

@@ -17,7 +17,7 @@ namespace physics
 		/**
 		 *
 		 */
-		void positionOf(const engine::Entity id, Point & pos, Vector & vel);
+		void positionOf(const engine::Entity id, Point & pos, Vector & vel, float & angle);
 		/**
 		 *
 		 */

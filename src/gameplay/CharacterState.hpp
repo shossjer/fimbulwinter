@@ -6,8 +6,12 @@
 
 #include <engine/Entity.hpp>
 #include <engine/physics/defines.hpp>
+#include <engine/physics/queries.hpp>
 
+// #include <core/debug.hpp>
 #include <core/maths/Vector.hpp>
+
+// #include <gameplay/input.hpp>
 
 namespace gameplay
 {
@@ -28,7 +32,7 @@ namespace characters
 
 		using Flag = unsigned int;
 
-		const Flag BIT_GROUNDED = 0x1;
+		static constexpr Flag BIT_GROUNDED = 0x1;
 
 		Flag flags;
 
@@ -57,8 +61,12 @@ namespace characters
 
 		float fallVel;
 		Vector3f vec;
+		// Type vec;
+		// float angvel;
 
 		CharacterState() : flags(0), fallVel(0.f), vec{0.f, 0.f, 0.f}
+		// CharacterState() : //unsigned int id) : id(id), 
+		// 	movementState(NONE), grounded(false), fallVel(0.f), vec{{0.f, 0.f}}, angvel(0.f)
 		{
 		}
 
@@ -72,50 +80,45 @@ namespace characters
 		void update(const MovementState state)
 		{
 			switch (state)	// check key press's for movement
+			// Point pos;
+			// Vector vec;
+			// float angle;
+			// engine::physics::query::positionOf(player::get(), pos, vec, angle);
+
+			// const auto vx = std::cos(angle);
+			// const auto vy = std::sin(angle);
+
+			// switch (this->movementState)	// check key press's for movement
 			{
 			case LEFT:
-
 				vec = { -1.f, 0.f, 0.f };
+				// this->vec = {{ -vx, -vy }};
 				break;
-
 			case LEFT_UP:
-
 				vec = { -1.f, -1.f, 0.f };
 				break;
-
 			case UP:
-
 				vec = { 0.f, -1.f, 0.f };
 				break;
-
 			case RIGHT_UP:
-
 				vec = { 1.f, -1.f, 0.f };
 				break;
-
 			case RIGHT:
-				
 				vec = { 1.f, 0.f, 0.f };
+				// this->vec = {{ vx, vy }};
 				break;
-
 			case RIGHT_DOWN:
-
 				vec = { 1.f, 1.f, 0.f };
 				break;
-
 			case DOWN:
-
 				vec = { 0.f, 1.f, 0.f };
 				break;
-
 			case LEFT_DOWN:
-
 				vec = { -1.f, 1.f, 0.f };
 				break;
-
 			default:
-
 				vec = { 0.f, 0.f, 0.f };
+				// this->vec = {{ 0.f, 0.f }};
 				break;
 			}
 		}

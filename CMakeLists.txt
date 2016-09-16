@@ -36,6 +36,8 @@ set(TRIBUNAL_SOURCE
 	src/main.cpp
 	src/core/async/Thread.cpp
 	src/core/crypto/crc.cpp
+	src/engine/animation/Armature.cpp
+	src/engine/animation/mixer.cpp
 	src/engine/application/window.cpp
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
@@ -78,6 +80,8 @@ set(TRIBUNAL_HEADER
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Mutex.hpp
 	src/engine/Entity.hpp
+	src/engine/animation/Armature.hpp
+	src/engine/animation/mixer.hpp
 	src/engine/application/window.hpp
 	src/engine/debug.hpp
 	src/engine/extras/Asset.hpp
@@ -108,6 +112,7 @@ set(TRIBUNAL_HEADER
 	src/utility/aligned_array.hpp
 	src/utility/array.hpp
 	src/utility/inaccessible.hpp
+	src/utility/optional.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
 	src/utility/type_traits.hpp

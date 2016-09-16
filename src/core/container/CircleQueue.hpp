@@ -32,7 +32,6 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			//T buffer[N];
 			std::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
 
 		public:
@@ -46,6 +45,27 @@ namespace core
 			/**
 			 * \note May only be called one thread at a time.
 			 *
+			 * \param[in] ps Construction parameters.
+			 * \return True on success, false otherwise.
+			 */
+			template <typename ...Ps>
+			bool try_emplace(Ps && ...ps)
+			{
+				const int begini = this->begini.load(std::memory_order_relaxed);
+				const int endi = this->endi.load(std::memory_order_relaxed);
+
+				int next_endi = endi + 1;
+				if (next_endi == this->capacity) next_endi = 0;
+				if (begini == next_endi)
+					return false;
+
+				new (this->buffer + endi) T(std::forward<Ps>(ps)...);
+				this->endi.store(next_endi, std::memory_order_release);
+				return true;
+			}
+			/**
+			 * \note May only be called one thread at a time.
+			 *
 			 * \param[out] item Where to write on success.
 			 * \return True on success, false otherwise.
 			 */
@@ -56,7 +76,6 @@ namespace core
 				if (begini == endi)
 					return false;
 
-				//item = this->buffer[begini];
 				item = *reinterpret_cast<T *>(this->buffer + begini);
 				reinterpret_cast<T *>(this->buffer + begini)->~T();
 
@@ -74,18 +93,7 @@ namespace core
 			 */
 			bool try_push(const T & item)
 			{
-				const int begini = this->begini.load(std::memory_order_relaxed);
-				const int endi = this->endi.load(std::memory_order_relaxed);
-
-				int next_endi = endi + 1;
-				if (next_endi == this->capacity) next_endi = 0;
-				if (begini == next_endi)
-					return false;
-
-				new (this->buffer + endi) T(item);
-				//this->buffer[endi] = new (this->buffer + endi) T(item);
-				this->endi.store(next_endi, std::memory_order_release);
-				return true;
+				return try_emplace(item);
 			}
 			/**
 			 * \note May only be called one thread at a time.
@@ -95,18 +103,7 @@ namespace core
 			 */
 			bool try_push(T && item)
 			{
-				const int begini = this->begini.load(std::memory_order_relaxed);
-				const int endi = this->endi.load(std::memory_order_relaxed);
-
-				int next_endi = endi + 1;
-				if (next_endi == this->capacity) next_endi = 0;
-				if (begini == next_endi)
-					return false;
-
-				new (this->buffer + endi) T(std::move(item));
-				//this->buffer[endi] = new (this->buffer + endi) T(item);
-				this->endi.store(next_endi, std::memory_order_release);
-				return true;
+				return try_emplace(std::move(item));
 			}
 		};
 		
@@ -119,7 +116,6 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			//T buffer[N];
 			std::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
 			utility::spinlock writelock;
 
@@ -131,6 +127,31 @@ namespace core
 			}
 
 		public:
+			/**
+			 * \param[in] ps Construction parameters.
+			 * \return True on success, false otherwise.
+			 */
+			template <typename ...Ps>
+			bool try_emplace(Ps && ...ps)
+			{
+				// I had planed to  do something more complicated than
+				// this, but  it took a  lot of time and  was possibly
+				// wrong  also  so  I   did  this  very  simple  thing
+				// instead. -- shossjer
+				std::lock_guard<utility::spinlock> lock{this->writelock};
+
+				const int begini = this->begini.load(std::memory_order_relaxed);
+				const int endi = this->endi.load(std::memory_order_relaxed);
+
+				int next_endi = endi + 1;
+				if (next_endi == this->capacity) next_endi = 0;
+				if (begini == next_endi)
+					return false;
+
+				new (this->buffer + endi) T(std::forward<Ps>(ps)...);
+				this->endi.store(next_endi, std::memory_order_release);
+				return true;
+			}
 			/**
 			 * \note May only be called one thread at a time.
 			 *
@@ -144,25 +165,8 @@ namespace core
 				if (begini == endi)
 					return false;
 
-				//item = this->buffer[begini];
-				item = *reinterpret_cast<T *>(this->buffer + begini);
-				reinterpret_cast<T *>(this->buffer + begini)->~T();
-
-				int next_begini = begini + 1;
-				if (next_begini == this->capacity)
-					next_begini = 0;
-				this->begini.store(next_begini, std::memory_order_relaxed);
-				return true;
-			}
-			bool try_pop2(T & item)
-			{
-				const int begini = this->begini.load(std::memory_order_relaxed);
-				const int endi = this->endi.load(std::memory_order_acquire);
-				if (begini == endi)
-					return false;
-
-				//item = this->buffer[begini];
 				item = std::move(*reinterpret_cast<T *>(this->buffer + begini));
+				reinterpret_cast<T *>(this->buffer + begini)->~T();
 
 				int next_begini = begini + 1;
 				if (next_begini == this->capacity)
@@ -176,24 +180,7 @@ namespace core
 			 */
 			bool try_push(const T & item)
 			{
-				// I had planed to  do something more complicated than
-				// this, but  it took a  lot of time and  was possibly
-				// wrong  also  so  I   did  this  very  simple  thing
-				// instead. -- shossjer
-				std::lock_guard<utility::spinlock> lock{this->writelock};
-
-				const int begini = this->begini.load(std::memory_order_relaxed);
-				const int endi = this->endi.load(std::memory_order_relaxed);
-
-				int next_endi = endi + 1;
-				if (next_endi == this->capacity) next_endi = 0;
-				if (begini == next_endi)
-					return false;
-
-				new (this->buffer + endi) T(item);
-				//this->buffer[endi] = item;
-				this->endi.store(next_endi, std::memory_order_release);
-				return true;
+				return try_emplace(item);
 			}
 			/**
 			 * \param[in] item The thing to push.
@@ -201,24 +188,7 @@ namespace core
 			 */
 			bool try_push(T && item)
 			{
-				// I had planed to  do something more complicated than
-				// this, but  it took a  lot of time and  was possibly
-				// wrong  also  so  I   did  this  very  simple  thing
-				// instead. -- shossjer
-				std::lock_guard<utility::spinlock> lock{this->writelock};
-
-				const int begini = this->begini.load(std::memory_order_relaxed);
-				const int endi = this->endi.load(std::memory_order_relaxed);
-
-				int next_endi = endi + 1;
-				if (next_endi == this->capacity) next_endi = 0;
-				if (begini == next_endi)
-					return false;
-
-				new (this->buffer + endi) T(std::move(item));
-				//this->buffer[endi] = item;
-				this->endi.store(next_endi, std::memory_order_release);
-				return true;
+				return try_emplace(std::move(item));
 			}
 		};
 

@@ -19,10 +19,12 @@ namespace physics
 	{
 		const core::maths::Vector3f velXZ;
 		const float velY;
+		// float angvel;
 
 		MoveData(const core::maths::Vector3f velXZ, const float velY)
+        // MoveData(const Vec2 velXZ, const float velY, float angvel)
 			:
-			velXZ(velXZ), velY(velY)
+			velXZ(velXZ), velY(velY)// , angvel(angvel)
 		{}
 	};
 

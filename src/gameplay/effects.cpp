@@ -113,7 +113,7 @@ namespace effects
 		{
 			// create
 			std::pair<engine::Entity, std::unique_ptr<Effect>> addEffect;
-			while (queueAdd.try_pop2(addEffect))
+			while (queueAdd.try_pop(addEffect))
 			{
 				items.emplace(addEffect.first, std::move(addEffect.second));
 			}

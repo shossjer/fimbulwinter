@@ -36,6 +36,7 @@ if(ENABLE_TEST)
 		core/maths/Vector.cpp
 		core/maths/util.cpp
 		utility/array.cpp
+		utility/optional.cpp
 		)
 
 	# source listing

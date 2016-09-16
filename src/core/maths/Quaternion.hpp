@@ -95,6 +95,9 @@ namespace core
 			}
 
 		public:
+			/*
+			 * The x-axis points towards the right.
+			 */
 			Vector<3, value_type> axis_x() const
 			{
 				const auto w = this->values[0];
@@ -106,6 +109,9 @@ namespace core
 				                             2 * (w * z + x * y),
 				                             2 * (x * z - w * y)};
 			}
+			/*
+			 * The y-axis points upwards.
+			 */
 			Vector<3, value_type> axis_y() const
 			{
 				const auto w = this->values[0];
@@ -117,6 +123,9 @@ namespace core
 				                             w * w - x * x + y * y - z * z,
 				                             2 * (w * x + y * z)};
 			}
+			/*
+			 * The z-axis points out of the screen.
+			 */
 			Vector<3, value_type> axis_z() const
 			{
 				const auto w = this->values[0];

@@ -6,6 +6,12 @@
 
 #include <string>
 
+// the animation system needs to handle the direction of things:
+//   "in which direction are we running?"
+// this means that the physics system gets the correct position but
+// the rendering system does not get the direction:
+//   "in which direction does it look like we are running?"
+
 namespace engine
 {
 	namespace model
