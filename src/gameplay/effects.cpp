@@ -3,7 +3,7 @@
 
 #include "Effect.hpp"
 
-#include <gameplay/input.hpp>
+#include <gameplay/ui.hpp>
 
 #include <engine/graphics/viewer.hpp>
 #include <engine/physics/effects.hpp>
@@ -80,7 +80,7 @@ namespace effects
 			const auto pp = engine::physics::query::positionOf(callerId);
 
 			// get mouse coordinates
-			const input::coords_t mc = input::mouseCoords();
+			const auto mc = gameplay::ui::mouseCoords(); // input::mouseCoords();
 
 			Vector3f mp;
 			engine::graphics::viewer::from_screen_to_world(Vector2f{ (float)mc.x, (float)mc.y }, mp);

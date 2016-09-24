@@ -8,10 +8,7 @@
 #include <engine/physics/defines.hpp>
 #include <engine/physics/queries.hpp>
 
-// #include <core/debug.hpp>
 #include <core/maths/Vector.hpp>
-
-// #include <gameplay/input.hpp>
 
 namespace gameplay
 {
@@ -29,6 +26,8 @@ namespace characters
 	public:
 
 	private:
+
+		MovementState state;
 
 		using Flag = unsigned int;
 
@@ -64,20 +63,41 @@ namespace characters
 		// Type vec;
 		// float angvel;
 
-		CharacterState() : flags(0), fallVel(0.f), vec{0.f, 0.f, 0.f}
+		CharacterState() : state(NONE), flags(0), fallVel(0.f), vec{0.f, 0.f, 0.f}
 		// CharacterState() : //unsigned int id) : id(id), 
 		// 	movementState(NONE), grounded(false), fallVel(0.f), vec{{0.f, 0.f}}, angvel(0.f)
 		{
 		}
 
 	public:
+		CharacterState & operator = (Command command)
+		{
+			switch (command)
+			{
+			case Command::JUMP:
+				break;
+			case Command::GO_LEFT:
+				state = ::gameplay::characters::MovementState::LEFT;
+				break;
+			case Command::GO_RIGHT:
+				state = ::gameplay::characters::MovementState::RIGHT;
+				break;
+			case Command::STOP_ITS_HAMMER_TIME:
+				state = ::gameplay::characters::MovementState::NONE;
+				break;
+			default:
+				// do nothing
+				break;
+			}
+			return *this;
+		}
 
 		Vector3f movement() const
 		{
 			return this->vec;
 		}
 
-		void update(const MovementState state)
+		void update()
 		{
 			switch (state)	// check key press's for movement
 			// Point pos;

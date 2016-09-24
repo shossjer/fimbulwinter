@@ -10,6 +10,14 @@ namespace gameplay
 {
 namespace characters
 {
+	enum struct Command
+	{
+		JUMP,
+		GO_LEFT,
+		GO_RIGHT,
+		STOP_ITS_HAMMER_TIME
+	};
+
 	enum MovementState
 	{
 		NONE,	// no active movement (can still be falling etc)
@@ -29,6 +37,8 @@ namespace characters
 	void create(const engine::Entity id);
 
 	void remove(const engine::Entity id);
+
+	void post_command(engine::Entity id, Command command);
 	/**
 	 *	Entity grounded/falling state- or its ground normal- has changed
 	 */
@@ -37,10 +47,8 @@ namespace characters
 	 *	Entity state is changed to falling
 	 */
 	void postFalling(const engine::Entity id);
-	/**
-	 *	Entity movement state has changed
-	 */
-	void postMovement(const engine::Entity id, const MovementState state);
+
+	void post_add_camera(engine::Entity id, engine::Entity target);
 }
 }
 

@@ -51,10 +51,9 @@ set(TRIBUNAL_SOURCE
 	src/engine/physics/queries.cpp
 	src/gameplay/characters.cpp
 	src/gameplay/effects.cpp
-	src/gameplay/game-menu.cpp
 	src/gameplay/level.cpp
 	src/gameplay/looper.cpp
-	src/gameplay/input.cpp
+	src/gameplay/ui.cpp
 	)
 
 # source listing
@@ -102,12 +101,8 @@ set(TRIBUNAL_HEADER
 	src/gameplay/debug.hpp
 	src/gameplay/Effect.hpp
 	src/gameplay/effects.hpp
-	src/gameplay/game-menu.hpp
 	src/gameplay/level.hpp
-	src/gameplay/input.hpp
-	src/gameplay/context/Context.hpp
-	src/gameplay/context/Debug.hpp
-	src/gameplay/context/Player.hpp
+	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
 	src/utility/aligned_array.hpp
 	src/utility/array.hpp

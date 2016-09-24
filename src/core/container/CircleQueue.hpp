@@ -5,6 +5,7 @@
 #include <utility/spinlock.hpp>
 
 #include <atomic>
+#include <mutex>
 #include <thread>
 #include <type_traits>
 

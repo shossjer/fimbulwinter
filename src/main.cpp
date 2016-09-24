@@ -2,10 +2,6 @@
 #include <core/debug.hpp>
 #include <engine/application/window.hpp>
 
-#include <gameplay/game-menu.hpp>
-#include <gameplay/input.hpp>
-// #include <gameplay/level.hpp>
-
 #include <config.h>
 
 #if WINDOW_USE_USER32
@@ -37,17 +33,11 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	engine::application::window::create(hInstance, nCmdShow);
 
 	gameplay::looper::create();
-	gameplay::input::create();
-	gameplay::gamemenu::create();
-	// gameplay::level::create("res/box.lvl");
 
 	const int ret = engine::application::window::execute();
 
 	debug_printline(0xffffffff, "loop is no more");
 
-	// gameplay::level::destroy();
-	gameplay::gamemenu::destroy();
-	gameplay::input::destroy();
 	gameplay::looper::destroy();
 
 	engine::application::window::destroy(hInstance);
@@ -60,17 +50,11 @@ int main(const int argc, const char *const argv[])
 	engine::application::window::create();
 
 	gameplay::looper::create();
-	gameplay::input::create();
-	gameplay::gamemenu::create();
-	// gameplay::level::create("res/box.lvl");
 
 	const int ret = engine::application::window::execute();
 
 	debug_printline(0xffffffff, "loop is no more");
 
-	// gameplay::level::destroy();
-	gameplay::gamemenu::destroy();
-	gameplay::input::destroy();
 	gameplay::looper::destroy();
 
 	engine::application::window::destroy();

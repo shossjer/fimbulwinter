@@ -165,14 +165,18 @@ namespace core
 			}
 
 			template <typename D>
-			void add(K key, D && data)
+			decltype(auto) add(K key, D && data)
 			{
 				using Components = mpl::type_filter<std::is_constructible,
 				                                    mpl::type_list<Cs...>,
 				                                    D &&>;
 				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
-				using Component = mpl::type_head<Components>;
 
+				return emplace<mpl::type_head<Components>>(key, std::forward<D>(data));
+			}
+			template <typename Component, typename ...Ps>
+			Component & emplace(K key, Ps && ...ps)
+			{
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
 
 				const auto bucket = place(key);
@@ -182,9 +186,11 @@ namespace core
 
 				slots[bucket].set(type, index);
 				keys[bucket] = key;
-				array.construct(index, std::forward<D>(data));
+				array.construct(index, std::forward<Ps>(ps)...);
 				array.buckets[index] = bucket;
 				array.size++;
+
+				return array.get(index);
 			}
 			void remove(K key)
 			{
@@ -228,7 +234,7 @@ namespace core
 			}
 
 			template <typename F>
-			auto call(K key, F && func)
+			decltype(auto) call(K key, F && func)
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -341,7 +347,7 @@ namespace core
 			}
 
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func)
+			decltype(auto) call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func)
 			{
 				debug_unreachable();
 				// this is used to deduce the return type correctly
@@ -349,7 +355,7 @@ namespace core
 				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
 			}
 			template <std::size_t type, typename F>
-			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func)
+			decltype(auto) call_impl(mpl::index_constant<type>, uint24_t index, F && func)
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
@@ -483,14 +489,18 @@ namespace core
 			}
 
 			template <typename D>
-			void add(K key, D && data)
+			decltype(auto) add(K key, D && data)
 			{
 				using Components = mpl::type_filter<std::is_constructible,
 				                                    mpl::type_list<Cs...>,
 				                                    D &&>;
 				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
-				using Component = mpl::type_head<Components>;
 
+				return emplace<mpl::type_head<Components>>(key, std::forward<D>(data));
+			}
+			template <typename Component, typename ...Ps>
+			Component & emplace(K key, Ps && ...ps)
+			{
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
 
 				const auto bucket = place(key);
@@ -500,8 +510,10 @@ namespace core
 
 				slots[bucket].set(type, index);
 				keys[bucket] = key;
-				array.construct(index, std::forward<D>(data));
+				array.construct(index, std::forward<Ps>(ps)...);
 				array.size++;
+
+				return array.get(index);
 			}
 			void remove(K key)
 			{
@@ -529,12 +541,12 @@ namespace core
 				switch (slots[bucket].get_type())
 				{
 #define CASE(n) case (n):	  \
-					update_impl(mpl::index_constant<(std::is_assignable<mpl::type_at_or<(n), \
-					                                                                    mpl::type_list<Cs...>>, \
-					                                                    D>::value ? \
-					                                 (n) : \
-					                                 std::size_t(-1))>{}, \
-					            index, std::forward<D>(data)); \
+					set_impl(mpl::index_constant<(std::is_assignable<mpl::type_at_or<(n), \
+					                                                                 mpl::type_list<Cs...>>, \
+					                                                 D>::value ? \
+					                              (n) : \
+					                              std::size_t(-1))>{}, \
+					         index, std::forward<D>(data)); \
 					break
 
 					EXPAND_256_TIMES(CASE, 0);
@@ -545,7 +557,7 @@ namespace core
 			}
 
 			template <typename F>
-			auto call(K key, F && func)
+			decltype(auto) call(K key, F && func)
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -637,12 +649,12 @@ namespace core
 				array.size--;
 			}
 			template <typename D>
-			void update_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, D && data)
+			void set_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, D && data)
 			{
 				debug_unreachable();
 			}
 			template <std::size_t type, typename D>
-			void update_impl(mpl::index_constant<type>, uint24_t index, D && data)
+			void set_impl(mpl::index_constant<type>, uint24_t index, D && data)
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
@@ -651,7 +663,7 @@ namespace core
 			}
 
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func)
+			decltype(auto) call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func)
 			{
 				debug_unreachable();
 				// this is used to deduce the return type correctly
@@ -659,7 +671,7 @@ namespace core
 				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
 			}
 			template <std::size_t type, typename F>
-			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func)
+			decltype(auto) call_impl(mpl::index_constant<type>, uint24_t index, F && func)
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);

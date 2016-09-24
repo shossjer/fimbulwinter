@@ -4,8 +4,6 @@
 
 #include <config.h>
 
-#include "Context.hpp"
-
 #include <cstdint>
 #include <cstddef>
 
@@ -428,18 +426,6 @@ namespace engine
 
 		public:
 			/**
-			 */
-			Input() = default;
-			/**
-			 */
-			Input(const Input & input) = delete;
-
-			/**
-			 */
-			Input & operator = (const Input & input) = delete;
-
-		public:
-			/**
 			 * Gets the additional keys.
 			 */
 			Additional getAdditional() const { return this->additional; }
@@ -589,34 +575,6 @@ namespace engine
 				// data.wheel.set(delta);
 			}
 		};
-
-		/**
-		 */
-		struct Device
-		{
-			Context * context;
-		};
-
-		/**
-		 */
-		void add(std::size_t object, Device device);
-		/**
-		 */
-		void remove(std::size_t object);
-		/**
-		 */
-		void replace(std::size_t object, Device device);
-
-		/**
-		 * Makes the object get the focus.
-		 *
-		 * \param[in] object Object that must already exist.
-		 */
-		void set_focus(std::size_t object);
-
-		/**
-		 */
-		void dispatch(const Input & input);
 	}
 }
 

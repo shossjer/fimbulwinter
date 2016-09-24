@@ -1,9 +1,6 @@
 
-#include "input.hpp"
-
-#include <gameplay/characters.hpp>
-#include <gameplay/CharacterState.hpp>
-#include <gameplay/effects.hpp>
+#include <core/async/delay.hpp>
+#include <core/async/Thread.hpp>
 
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
@@ -13,31 +10,40 @@
 #include <engine/physics/physics.hpp>
 #include <engine/physics/queries.hpp>
 
-#include <core/async/delay.hpp>
-#include <core/async/Thread.hpp>
+#include <gameplay/characters.hpp>
+#include <gameplay/CharacterState.hpp>
+#include <gameplay/effects.hpp>
+#include <gameplay/ui.hpp>
 
 namespace engine
 {
-namespace graphics
-{
-namespace renderer
-{
-	extern void create();
+	namespace graphics
+	{
+		namespace renderer
+		{
+			extern void create();
 
-	extern void update();
+			extern void update();
 
-	extern void destroy();
+			extern void destroy();
+		}
+		namespace viewer
+		{
+			extern void update();
+		}
+	}
+	namespace physics
+	{
+		extern void initialize(const engine::physics::Callbacks & callback);
+		extern void teardown();
+	}
 }
-namespace viewer
+namespace gameplay
 {
-	extern void update();
-}
-}
-namespace physics
-{
-	extern void initialize(const engine::physics::Callbacks & callback);
-	extern void teardown();
-}
+	namespace ui
+	{
+		extern void update();
+	}
 }
 
 namespace
@@ -85,7 +91,13 @@ namespace looper
 			::engine::physics::CharacterData capsule{ Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, .6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
 			::engine::physics::create(modelentity, capsule);
 
-			gameplay::player::set(modelentity);
+			gameplay::ui::post_add_player(modelentity);
+
+			const auto cameraentity = engine::Entity::create();
+			engine::graphics::viewer::add(cameraentity,
+			                              engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
+			                                                               core::maths::Vector3f(0.f, 0.f, 0.f)));
+			gameplay::characters::post_add_camera(cameraentity, modelentity);
 		}
 		{
 			///**
@@ -151,7 +163,7 @@ namespace looper
 			::engine::physics::update();
 
 			// 
-			input::updateInput();
+			gameplay::ui::update();
 		
 			// update characters
 			::gameplay::characters::update();
@@ -176,9 +188,6 @@ namespace looper
 
 			// 	engine::physics::effect::acceleration(core::maths::Vector3f{0.f + 9.82f * std::cos(angle - 3.14f / 2.f), 9.82f + 9.82f * std::sin(angle - 3.14f / 2.f), 0.f}, core::maths::Vector3f{pos[0], pos[1], 0.f}, 2.f);
 			// }
-
-			// get the active Camera
-			input::updateCamera();
 
 			//
 			::engine::graphics::viewer::update();
