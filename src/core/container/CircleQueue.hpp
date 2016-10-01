@@ -3,11 +3,11 @@
 #define CORE_CONTAINER_CIRCLEQUEUE_HPP
 
 #include <utility/spinlock.hpp>
+#include <utility/type_traits.hpp>
 
 #include <atomic>
 #include <mutex>
 #include <thread>
-#include <type_traits>
 
 namespace core
 {
@@ -33,7 +33,7 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			std::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
+			mpl::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
 
 		public:
 			CircleQueue() :
@@ -117,7 +117,7 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			std::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
+			mpl::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
 			utility::spinlock writelock;
 
 		public:

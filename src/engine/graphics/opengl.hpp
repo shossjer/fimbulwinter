@@ -6,7 +6,7 @@
 
 #if WINDOW_USE_USER32
 // windows needs its header before any opengl header
-# include <Windows.h>
+# include <windows.h>
 # include <GL/gl.h>
 // # include <GL/glext.h>
 #elif WINDOW_USE_X11

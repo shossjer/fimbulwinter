@@ -45,7 +45,6 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
-	src/engine/model/armature.cpp
 	src/engine/physics/effects.cpp
 	src/engine/physics/physics.cpp
 	src/engine/physics/queries.cpp
@@ -89,7 +88,6 @@ set(TRIBUNAL_HEADER
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/viewer.hpp
 	src/engine/hid/input.hpp
-	src/engine/model/armature.hpp
 	src/engine/physics/defines.hpp
 	src/engine/physics/effects.hpp
 	src/engine/physics/helper.hpp
@@ -291,6 +289,15 @@ endif()
 # 	"${CMAKE_SOURCE_DIR}/try/xmmintrin.h.cpp")
 #   message(STATUS "Looking for SSE - ${HAVE_XMMINTRIN_H}")
 # endif()
+# version helpers (Windows only)
+if (WINDOW_USE_USER32)
+  message(STATUS "Looking for versionhelpers.h")
+  find_file(FILE_VERSIONHELPERS_H versionhelpers.h)
+  message(STATUS "Looking for versionhelpers.h - ${FILE_VERSIONHELPERS_H}")
+  if (FILE_VERSIONHELPERS_H)
+    set(HAVE_VERSIONHELPERS_H 1)
+  endif()
+endif()
 
 # write config
 configure_file(

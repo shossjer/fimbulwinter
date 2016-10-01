@@ -47,7 +47,7 @@ namespace core
 				static constexpr std::size_t capacity = N;
 
 				std::size_t size;
-				std::aligned_storage_t<sizeof(C), alignof(C)> components[N];
+				mpl::aligned_storage_t<sizeof(C), alignof(C)> components[N];
 				bucket_t buckets[N];
 
 				array_t() :
@@ -165,14 +165,14 @@ namespace core
 			}
 
 			template <typename D>
-			decltype(auto) add(K key, D && data)
+			void add(K key, D && data)
 			{
 				using Components = mpl::type_filter<std::is_constructible,
 				                                    mpl::type_list<Cs...>,
 				                                    D &&>;
 				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
 
-				return emplace<mpl::type_head<Components>>(key, std::forward<D>(data));
+				emplace<mpl::type_head<Components>>(key, std::forward<D>(data));
 			}
 			template <typename Component, typename ...Ps>
 			Component & emplace(K key, Ps && ...ps)
@@ -234,7 +234,8 @@ namespace core
 			}
 
 			template <typename F>
-			decltype(auto) call(K key, F && func)
+			auto call(K key, F && func) ->
+				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -347,7 +348,8 @@ namespace core
 			}
 
 			template <typename F>
-			decltype(auto) call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func)
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func) ->
+				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
 				debug_unreachable();
 				// this is used to deduce the return type correctly
@@ -355,7 +357,8 @@ namespace core
 				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
 			}
 			template <std::size_t type, typename F>
-			decltype(auto) call_impl(mpl::index_constant<type>, uint24_t index, F && func)
+			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func) ->
+				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
@@ -389,7 +392,7 @@ namespace core
 				static constexpr std::size_t capacity = N;
 
 				std::size_t size;
-				std::aligned_storage_t<sizeof(C), alignof(C)> components[N];
+				mpl::aligned_storage_t<sizeof(C), alignof(C)> components[N];
 				uint24_t free_indices[N];
 
 				array_t() :
@@ -489,14 +492,14 @@ namespace core
 			}
 
 			template <typename D>
-			decltype(auto) add(K key, D && data)
+			void add(K key, D && data)
 			{
 				using Components = mpl::type_filter<std::is_constructible,
 				                                    mpl::type_list<Cs...>,
 				                                    D &&>;
 				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
 
-				return emplace<mpl::type_head<Components>>(key, std::forward<D>(data));
+				emplace<mpl::type_head<Components>>(key, std::forward<D>(data));
 			}
 			template <typename Component, typename ...Ps>
 			Component & emplace(K key, Ps && ...ps)
@@ -557,7 +560,8 @@ namespace core
 			}
 
 			template <typename F>
-			decltype(auto) call(K key, F && func)
+			auto call(K key, F && func) ->
+				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -663,7 +667,8 @@ namespace core
 			}
 
 			template <typename F>
-			decltype(auto) call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func)
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func) ->
+				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
 				debug_unreachable();
 				// this is used to deduce the return type correctly
@@ -671,7 +676,8 @@ namespace core
 				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
 			}
 			template <std::size_t type, typename F>
-			decltype(auto) call_impl(mpl::index_constant<type>, uint24_t index, F && func)
+			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func) ->
+				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);

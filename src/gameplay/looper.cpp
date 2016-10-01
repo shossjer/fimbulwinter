@@ -2,9 +2,9 @@
 #include <core/async/delay.hpp>
 #include <core/async/Thread.hpp>
 
+#include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
-#include <engine/model/armature.hpp>
 #include <engine/physics/Callbacks.hpp>
 // #include <engine/physics/effects.hpp>
 #include <engine/physics/physics.hpp>
@@ -80,12 +80,8 @@ namespace looper
 			const auto modelentity = ::engine::Entity::create();
 			::engine::graphics::renderer::add(modelentity,
 				::engine::graphics::renderer::asset::CharacterMesh{ "res/player.msh" });
-			::engine::model::add(modelentity, ::engine::model::armature{ "res/player.arm" });
-			::engine::model::update(modelentity, ::engine::model::action{ "idle-00" });
-			// ^^^^ tmp ^^^^
-			/**
-			 * create Player object
-			 */
+			::engine::animation::add(modelentity, ::engine::animation::armature{ "res/player.arm" });
+			::engine::animation::update(modelentity, ::engine::animation::action{ "stand-00" });
 		//	const auto id = engine::Entity::create();
 			::gameplay::characters::create(modelentity);
 			::engine::physics::CharacterData capsule{ Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, .6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
@@ -98,6 +94,7 @@ namespace looper
 			                              engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
 			                                                               core::maths::Vector3f(0.f, 0.f, 0.f)));
 			gameplay::characters::post_add_camera(cameraentity, modelentity);
+			// ^^^^ tmp ^^^^
 		}
 		{
 			///**
@@ -157,7 +154,7 @@ namespace looper
 			::gameplay::effects::update();
 
 			// update animations
-			::engine::model::update();
+			::engine::animation::update();
 
 			// update physics
 			::engine::physics::update();

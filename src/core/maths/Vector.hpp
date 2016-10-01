@@ -420,23 +420,23 @@ namespace core
 			};
 		}
 
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 2)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 2)>>
 		inline Vector<2, T> to_xy(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xy(v); }
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 3)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 3)>>
 		inline Vector<3, T> to_xyz(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xyz(v); }
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 4)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 4)>>
 		inline Vector<4, T> to_xyzw(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xyzw(v); }
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 1)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 1)>>
 		inline Vector<4, T> to_x000(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_x000(v); }
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 1)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 1)>>
 		inline Vector<4, T> to_x001(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_x001(v); }
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 2)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 2)>>
 		inline Vector<4, T> to_xy00(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xy00(v); }
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 2)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 2)>>
 		inline Vector<4, T> to_xy01(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xy01(v); }
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 3)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 3)>>
 		inline Vector<4, T> to_xyz0(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xyz0(v); }
-		template <std::size_t N, typename T, typename = std::enable_if_t<(N >= 3)>>
+		template <std::size_t N, typename T, typename = mpl::enable_if_t<(N >= 3)>>
 		inline Vector<4, T> to_xyz1(const Vector<N, T> & v) { return detail::vector_swizzling{}.to_xyz1(v); }
 
 		using Vector2f = Vector<2, float>;

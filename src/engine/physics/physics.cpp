@@ -8,6 +8,7 @@
 
 #include <Box2D/Box2D.h>
 
+#include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 #include <core/maths/Vector.hpp>
 
@@ -99,45 +100,31 @@ namespace physics
 		{
 			b2Body *const body;
 			::engine::Entity debugRenderId;
+			/**
+			 * Rotation along the y-axis (yaw).
+			 *
+			 * This value  is not used  by the underlaying  2D physics
+			 * since  it  only  handles  rotations  along  the  z-axis
+			 * (roll). It is however used in the modelview matrix sent
+			 * to the renderer to help create the illusion of 3D.
+			 */
+			core::maths::radianf heading;
 
 			PhysicsActor(b2Body *const body, const ::engine::Entity debugRenderId)
 				:
 				body(body),
-				debugRenderId(debugRenderId)
+				debugRenderId(debugRenderId),
+				heading(0.f)
 			{}
 		};
 
-	//	std::unordered_map<engine::Entity, b2Body*> actors;
 		std::unordered_map<engine::Entity, PhysicsActor> actors;
 		std::unordered_map<engine::Entity, ShapeContactCounter> contactCounter;
 
 		std::unordered_map<Material, MaterialData> materials;
 
-		// We need more flexibility than  just the one actors array in
-		// order to send position data only to the entities that needs
-		// it, else it  is just wasteful.  These  example arrays store
-		// the entities used for boundingbox drawings. -- shossjer
-
-		// struct debug_immovable_t  // things  that do  not
-		// move { engine::Entity debug_id;
-
-		// 	debug_immovable_t(engine::Entity debug_id) : debug_id(debug_id) {}
-		// };
-		// struct debug_movable_t // things that move
-		// {
-		// 	engine::Entity debug_id;
-
-		// 	debug_movable_t(engine::Entity debug_id) : debug_id(debug_id) {}
-		// };
-
-		// core::container::Collection
-		// <
-		// 	engine::Entity,
-		// 	1001,
-		// 	std::array<debug_immovable_t, 100>,
-		// 	std::array<debug_movable_t, 400>
-		// >
-		// debug_entities;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, core::maths::radianf>, 100> queue_set_headings;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, core::maths::Vector3f>, 100> queue_movements;
 	}
 
 	/**
@@ -276,11 +263,6 @@ namespace physics
 		{
 
 			const engine::Entity id = engine::Entity::create();
-			// const auto id = engine::Entity::create(); // does not work :/
-			// the above yields the following runtime error from somewhere at startup:
-			// > terminate called after throwing an instance of 'std::out_of_range'
-			// >   what():  _Map_base::at
-			// > Aborted
 
 			// This a chain shape with isolated vertices
 			std::vector<b2Vec2> vertices;
@@ -307,8 +289,6 @@ namespace physics
 			fixtureDef.friction = .3f;
 
 			body->CreateFixture(&fixtureDef);
-
-			// actors.emplace(id, body); // this was needed before when we drew the actors from this file, but we do not anymore
 
 			// debug graphics
 			{
@@ -388,6 +368,36 @@ namespace physics
 
 	void update()
 	{
+		// poll heading queue
+		{
+			std::pair<engine::Entity, core::maths::radianf> data;
+			while (queue_set_headings.try_pop(data))
+			{
+				auto & actor = actors.at(data.first);
+				actor.heading = data.second;
+			}
+		}
+		// poll movement queue
+		{
+			std::pair<engine::Entity, core::maths::Vector3f> data;
+			while (queue_movements.try_pop(data))
+			{
+				auto & actor = actors.at(data.first);
+				// actor.movement = data.second;
+				auto vel = actor.body->GetLinearVelocity();
+				// vel.x = convert(data.second).x;
+				core::maths::Vector3f::array_type buffer;
+				data.second.get_aligned(buffer);
+				// return b2Vec2{ buffer[0], buffer[1] };
+				// vel.x = std::sqrt(buffer[0] * buffer[0] + buffer[1] * buffer[1]);
+				// vel.x = buffer[1];
+				// vel.x = buffer[1] * std::sin(core::maths::constantf::pi - actor.heading.get());
+				// debug_printline(0xffffffff, actor.heading.get());
+				vel.x = -10.0f * buffer[1] * std::sin(actor.heading.get());
+				actor.body->SetLinearVelocity(vel);
+			}
+		}
+		
 		const int32 velocityIterations = 6;
 		const int32 positionIterations = 2;
 
@@ -399,7 +409,8 @@ namespace physics
 			const auto & transform = actor.second.body->GetTransform();
 			engine::graphics::data::ModelviewMatrix data = {
 				core::maths::Matrix4x4f::translation(transform.p.x, transform.p.y, 0.f) *
-				core::maths::Matrix4x4f::rotation(core::maths::radianf{transform.q.GetAngle()}, 0.f, 0.f, 1.f)
+				core::maths::Matrix4x4f::rotation(core::maths::radianf{transform.q.GetAngle()}, 0.f, 0.f, 1.f) *
+				core::maths::Matrix4x4f::rotation(actor.second.heading, 0.f, 1.f, 0.f)
 			};
 			engine::graphics::renderer::update(actor.first, std::move(data));
 
@@ -408,37 +419,15 @@ namespace physics
 		}
 	}
 
-	MoveResult update(const engine::Entity id, const MoveData & moveData)
+	void post_movement(engine::Entity id, core::maths::Vector3f movement)
 	{
-		b2Body *const body = actors.at(id).body;
-
-	//	body->SetAngularVelocity(2);
-
-		//const float ACC = -9.82f;
-		//const float velY = moveData.velY + ACC*timeStep;
-		b2Vec2 vel = body->GetLinearVelocity();
-
-		b2Vec2 currentVel = convert(moveData.velXZ);
-		vel.x += currentVel.x*1.f;
-		// vel.x += moveData.velXZ[0]*2.f;
-		// vel.y += moveData.velXZ[1]*2.f;
-
-		body->SetLinearVelocity(vel);
-		// body->SetAngularVelocity(moveData.angvel);
-
-		const b2Vec2 & pos = body->GetPosition();
-
-		if (contactCounter.at(id).isGrounded())
-		{
-			// I check the velY < 0.f since otherwise jumps are interrupted. Contact updating is too slow.
-			if (vel.y < 0.f)
-			{
-				return MoveResult(true, Point{{ (float)pos.x, (float)pos.y, (float)0.f }}, 0.f);
-			}
-		}
-
-		// 
-		return MoveResult(false, Point{{ (float)pos.x, (float)pos.y, (float)0.f}}, vel.y);
+		const auto res = queue_movements.try_emplace(id, movement);
+		debug_assert(res);
+	}
+	void post_set_heading(engine::Entity id, core::maths::radianf rotation)
+	{
+		const auto res = queue_set_headings.try_emplace(id, rotation);
+		debug_assert(res);
 	}
 
 	void create(const engine::Entity id, const BoxData & data)

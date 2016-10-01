@@ -113,6 +113,19 @@ namespace
 	>
 	components;
 
+	struct translate_input
+	{
+		const engine::hid::Input & input;
+
+		translate_input(const engine::hid::Input & input) : input(input) {}
+
+		template <typename X>
+		bool operator () (X & x)
+		{
+			return x.translate(input);
+		}
+	};
+
 	constexpr std::size_t max_entities = 10;
 	std::size_t n_entities = 0;
 	engine::Entity entities[max_entities];
@@ -184,8 +197,8 @@ namespace gameplay
 				{
 					for (std::size_t i = 0; i < n_entities; i++)
 					{
-						// if (components.call(entities[i], translate_input{input}))
-						if (components.call(entities[i], [&input](auto & x){ return x.translate(input); }))
+						if (components.call(entities[i], translate_input{input}))
+						// if (components.call(entities[i], [&input](auto & x){ return x.translate(input); }))
 							break;
 					}
 				}

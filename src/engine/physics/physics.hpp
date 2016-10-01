@@ -1,6 +1,10 @@
 
+#ifndef ENGINE_PHYSICS_PHYSICS_HPP
+#define ENGINE_PHYSICS_PHYSICS_HPP
+
 #include "defines.hpp"
 
+#include <core/maths/util.hpp>
 #include <core/maths/Vector.hpp>
 
 #include <array>
@@ -15,34 +19,12 @@ namespace physics
 	 */
 	void update();
 
-	struct MoveData
-	{
-		const core::maths::Vector3f velXZ;
-		const float velY;
-		// float angvel;
-
-		MoveData(const core::maths::Vector3f velXZ, const float velY)
-        // MoveData(const Vec2 velXZ, const float velY, float angvel)
-			:
-			velXZ(velXZ), velY(velY)// , angvel(angvel)
-		{}
-	};
-
-	struct MoveResult
-	{
-		const bool grounded;
-		const Point pos;
-		const float velY;
-
-		MoveResult(const bool grounded, const Point & pos, const float velY)
-			: 
-			grounded(grounded), pos(pos), velY(velY)
-		{}
-	};
 	/**
-	 *	updates a single character Object with Movement data
 	 */
-	MoveResult update(const engine::Entity id, const MoveData & moveData);
+	void post_movement(engine::Entity id, core::maths::Vector3f movement);
+	/**
+	 */
+	void post_set_heading(engine::Entity id, core::maths::radianf rotation);
 
 	enum class Material
 	{
@@ -134,3 +116,16 @@ namespace physics
 	void remove(const engine::Entity id);
 }
 }
+
+namespace std
+{
+	template<> struct hash<engine::physics::Material>
+	{
+		std::size_t operator () (const engine::physics::Material material) const
+		{
+			return std::hash<std::size_t>{}(static_cast<std::size_t>(material));
+		}
+	};
+}
+
+#endif /* ENGINE_PHYSICS_PHYSICS_HPP */

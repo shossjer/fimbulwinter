@@ -8,7 +8,7 @@
 #include <cstddef>
 
 #if WINDOW_USE_USER32
-# include <Windows.h>
+# include <windows.h>
 #endif
 
 namespace engine

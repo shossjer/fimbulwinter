@@ -122,7 +122,7 @@ namespace characters
 			// create
 			while (queueCreate.try_pop(id))
 			{
-				components.emplace<CharacterState>(id);
+				components.emplace<CharacterState>(id, id);
 			}
 
 			// remove
@@ -164,18 +164,18 @@ namespace characters
 		}
 
 		// update the characters
-		for (auto & component : components.get<CharacterState>())
-		{
-			component.update();
-		}
+		// for (auto & component : components.get<CharacterState>())
+		// {
+		// 	component.update();
+		// }
 
-		for (auto & component : components.get<CharacterState>())
-		{
-			auto res = engine::physics::update(components.get_key(component),
-			                                   engine::physics::MoveData(component.movement(),
-			                                                             component.fallVel));
-			component.fallVel = res.velY;
-		}
+		// for (auto & component : components.get<CharacterState>())
+		// {
+		// 	auto res = engine::physics::update(components.get_key(component),
+		// 	                                   engine::physics::MoveData(component.movement(),
+		// 	                                                             component.fallVel));
+		// 	component.fallVel = res.velY;
+		// }
 
 		// update the cameras
 		for (auto & component : more_components.get<Camera>())

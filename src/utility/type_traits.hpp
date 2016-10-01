@@ -49,6 +49,10 @@ namespace mpl
 	template <typename T>
 	using decay_t = typename decay<T>::type;
 
+	// align
+	template <std::size_t Len, std::size_t Align>
+	using aligned_storage_t = typename std::aligned_storage<Len, Align>::type;
+
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  helper classes
@@ -116,7 +120,7 @@ namespace mpl
 	template <template <typename ...> class P, typename Lout, typename ...Args>
 	struct type_filter_impl<P, type_list<>, Lout, Args...> : type_is<Lout> {};
 	template <template <typename ...> class P, typename T, typename ...Tins, typename ...Touts, typename ...Args>
-	struct type_filter_impl<P, type_list<T, Tins...>, type_list<Touts...>, Args...> : type_filter_impl<P, type_list<Tins...>, std::conditional_t<P<T, Args...>::value, type_list<T, Touts...>, type_list<Touts...>>, Args...> {};
+	struct type_filter_impl<P, type_list<T, Tins...>, type_list<Touts...>, Args...> : type_filter_impl<P, type_list<Tins...>, conditional_t<P<T, Args...>::value, type_list<T, Touts...>, type_list<Touts...>>, Args...> {};
 	template <template <typename ...> class P, typename List, typename ...Args>
 	using type_filter = typename type_filter_impl<P, List, type_list<>, Args...>::type;
 

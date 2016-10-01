@@ -4,8 +4,10 @@
 
 #include "characters.hpp"
 
+#include <engine/animation/mixer.hpp>
 #include <engine/Entity.hpp>
 #include <engine/physics/defines.hpp>
+#include <engine/physics/physics.hpp>
 #include <engine/physics/queries.hpp>
 
 #include <core/maths/Vector.hpp>
@@ -26,6 +28,8 @@ namespace characters
 	public:
 
 	private:
+
+		engine::Entity me;
 
 		MovementState state;
 
@@ -63,7 +67,7 @@ namespace characters
 		// Type vec;
 		// float angvel;
 
-		CharacterState() : state(NONE), flags(0), fallVel(0.f), vec{0.f, 0.f, 0.f}
+		CharacterState(engine::Entity me) : me(me), state(NONE), flags(0), fallVel(0.f), vec{0.f, 0.f, 0.f}
 		// CharacterState() : //unsigned int id) : id(id), 
 		// 	movementState(NONE), grounded(false), fallVel(0.f), vec{{0.f, 0.f}}, angvel(0.f)
 		{
@@ -78,17 +82,23 @@ namespace characters
 				break;
 			case Command::GO_LEFT:
 				state = ::gameplay::characters::MovementState::LEFT;
+				engine::physics::post_set_heading(me, core::maths::degreef{90.f});
+				engine::animation::update(me, ::engine::animation::action{"sprint-00"});
 				break;
 			case Command::GO_RIGHT:
 				state = ::gameplay::characters::MovementState::RIGHT;
+				engine::physics::post_set_heading(me, core::maths::degreef{270.f});
+				engine::animation::update(me, ::engine::animation::action{"sprint-00"});
 				break;
 			case Command::STOP_ITS_HAMMER_TIME:
 				state = ::gameplay::characters::MovementState::NONE;
+				engine::animation::update(me, ::engine::animation::action{"stand-00"});
 				break;
 			default:
 				// do nothing
 				break;
 			}
+			
 			return *this;
 		}
 

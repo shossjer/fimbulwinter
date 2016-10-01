@@ -3,7 +3,9 @@
 
 #include <windowsx.h>
 #include <windows.h>
-#include <VersionHelpers.h>
+#if HAVE_VERSIONHELPERS_H
+# include <versionhelpers.h>
+#endif
 
 namespace engine
 {

@@ -2,6 +2,8 @@
 #ifndef UTILITY_ALIGNED_ARRAY_HPP
 #define UTILITY_ALIGNED_ARRAY_HPP
 
+#include <utility/type_traits.hpp>
+
 #include <array>
 
 namespace utility
@@ -10,7 +12,7 @@ namespace utility
 	class aligned_array
 	{
 	private:
-		std::array<std::aligned_storage_t<sizeof(T), alignof(T)>, N> buffer;
+		std::array<mpl::aligned_storage_t<sizeof(T), alignof(T)>, N> buffer;
 
 	public:
 		T & operator [] (const std::size_t i)
