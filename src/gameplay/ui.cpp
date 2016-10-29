@@ -52,6 +52,7 @@ namespace
 		{
 			static bool is_down_left = false;
 			static bool is_down_right = false;
+			static bool is_down_space = false;
 
 			switch (input.getState())
 			{
@@ -70,6 +71,13 @@ namespace
 					{
 						is_down_right = true;
 						gameplay::characters::post_command(entity, gameplay::characters::Command::GO_RIGHT);
+					}
+					return true;
+				case engine::hid::Input::Button::KEY_SPACEBAR:
+					if (!is_down_space)
+					{
+						is_down_space = true;
+						gameplay::characters::post_command(entity, gameplay::characters::Command::JUMP);
 					}
 					return true;
 				default:
@@ -94,6 +102,9 @@ namespace
 					{
 						gameplay::characters::post_command(entity, gameplay::characters::Command::STOP_ITS_HAMMER_TIME);
 					}
+					return true;
+				case engine::hid::Input::Button::KEY_SPACEBAR:
+					is_down_space = false;
 					return true;
 				default:
 					return false;

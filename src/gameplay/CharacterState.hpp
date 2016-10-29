@@ -76,9 +76,17 @@ namespace characters
 	public:
 		CharacterState & operator = (Command command)
 		{
+			static int tmpswitch = 0;
 			switch (command)
 			{
 			case Command::JUMP:
+				if (tmpswitch == 0)
+					engine::animation::update(me, ::engine::animation::action{"jump-00"});
+				else if (tmpswitch == 1)
+					engine::animation::update(me, ::engine::animation::action{"fall-00"});
+				else if (tmpswitch == 2)
+					engine::animation::update(me, ::engine::animation::action{"land-00"});
+				tmpswitch = (tmpswitch + 1) % 3;
 				break;
 			case Command::GO_LEFT:
 				state = ::gameplay::characters::MovementState::LEFT;
