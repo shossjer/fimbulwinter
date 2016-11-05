@@ -2,6 +2,7 @@
 #include "mixer.hpp"
 
 #include "Armature.hpp"
+#include "Callbacks.hpp"
 
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
@@ -38,6 +39,8 @@ namespace
 	using Armature = engine::animation::Armature;
 	using Joint = engine::animation::Armature::Joint;
 	using Mixer = unsigned int;
+
+	const engine::animation::Callbacks * pCallbacks;
 
 	core::container::UnorderedCollection
 	<
@@ -79,21 +82,37 @@ namespace
 		float length_;
 		int times_to_play;
 
+		bool repeat;
+		bool finished;
+		int framei;
+
 		// vvvvvvvv tmp
 		std::vector<core::maths::Matrix4x4f> matrices;
 		core::maths::Vector3f movement;
 
-		Playback(const Armature & armature) : armature(&armature), action(nullptr), matrices(armature.njoints), movement(0.f, 0.f, 0.f) {}
+		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), matrices(armature.njoints), movement(0.f, 0.f, 0.f), repeat(repeat), framei(0) {}
 		// ^^^"^^^^ tmp
+
+		bool isFinished() const
+		{
+			return finished;
+		}
 
 		void update()
 		{
 			if (action == nullptr)
 				return;
 			
-			static int framei = 0;
 			framei += 1;
-			if (framei >= action->length) framei %= action->length;// framei = 0;
+			if (framei >= action->length)
+			{
+				if (!repeat)
+				{
+					finished = true;
+				}
+
+				framei %= action->length;// framei = 0;
+			}
 
 			int rooti = 0;
 			while (rooti < static_cast<int>(armature->njoints))
@@ -189,6 +208,18 @@ namespace
 			debug_unreachable();
 		}
 	};
+	struct is_finished
+	{
+		bool operator () (Playback & x)
+		{
+			return x.isFinished();
+		}
+		template <typename X>
+		bool operator () (X & x)
+		{
+			debug_unreachable();
+		}
+	};
 
 	struct Character
 	{
@@ -214,6 +245,11 @@ namespace
 			if (this->mixer == Mixer(-1))
 				return;
 			
+			if (mixers.call(mixer, is_finished{}))
+			{
+				pCallbacks->onFinish(this->me);
+			}
+
 			mixers.call(mixer, extract_pallet{matrix_pallet});
 			mixers.call(mixer, extract_movement{movement});
 			engine::graphics::renderer::update(me,
@@ -275,6 +311,14 @@ namespace engine
 {
 	namespace animation
 	{
+		/**
+		 * Sets callback instance, called from looper during setup
+		 */
+		void initialize(const Callbacks & callbacks)
+		{
+			pCallbacks = &callbacks;
+		}
+
 		void update()
 		{
 			// receive messages
@@ -307,7 +351,7 @@ namespace engine
 				// YUCK!
 				const auto & armature = components.call(message_update_action.first, get_armature{});
 				const Mixer mixer = next_mixer_key++;
-				auto & playback = mixers.emplace<Playback>(mixer, armature);
+				auto & playback = mixers.emplace<Playback>(mixer, armature, message_update_action.second.repetative);
 				{
 					auto action = std::find(armature.actions.begin(),
 					                        armature.actions.end(),
@@ -321,6 +365,7 @@ namespace engine
 						playback.action = &*action;
 					}
 				}
+
 				components.call(message_update_action.first, set_action{mixer});
 			}
 

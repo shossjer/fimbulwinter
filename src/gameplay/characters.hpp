@@ -12,7 +12,10 @@ namespace characters
 {
 	enum struct Command
 	{
+		ANIMATION_FINISHED,
 		JUMP,
+		PHYSICS_FALLING,
+		PHYSICS_GROUNDED,
 		GO_LEFT,
 		GO_RIGHT,
 		STOP_ITS_HAMMER_TIME
@@ -49,6 +52,8 @@ namespace characters
 	void postFalling(const engine::Entity id);
 
 	void post_add_camera(engine::Entity id, engine::Entity target);
+
+	void post_animation_finish(engine::Entity id);
 }
 }
 

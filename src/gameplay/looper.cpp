@@ -3,6 +3,7 @@
 #include <core/async/Thread.hpp>
 
 #include <engine/animation/mixer.hpp>
+#include <engine/animation/Callbacks.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 #include <engine/physics/Callbacks.hpp>
@@ -32,6 +33,11 @@ namespace engine
 			extern void update();
 		}
 	}
+	namespace animation
+	{
+		extern void initialize(const engine::animation::Callbacks & callback);
+	}
+
 	namespace physics
 	{
 		extern void initialize(const engine::physics::Callbacks & callback);
@@ -138,9 +144,22 @@ namespace looper
 				characters::postFalling(id);
 			}
 
-		} callbacks;
+		} physicsCallback;
 
-		::engine::physics::initialize(callbacks);
+		::engine::physics::initialize(physicsCallback);
+
+		class AnimationCallback : public ::engine::animation::Callbacks
+		{
+		public:
+
+			void onFinish(const engine::Entity id) const
+			{
+				characters::post_animation_finish(id);
+			}
+
+		} animationCallbacks;
+
+		::engine::animation::initialize(animationCallbacks);
 
 		// temp
 		temp();

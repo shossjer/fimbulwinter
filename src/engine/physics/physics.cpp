@@ -134,7 +134,7 @@ namespace physics
 	{
 	private:
 
-		void BeginContact(const b2Fixture *const fixA, const b2Fixture *const fixB, const b2Contact *const contact)
+		void BeginContact(const b2Fixture *const fixA, const b2Fixture *const fixB, b2Contact *const contact)
 		{
 			auto id = engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)fixA->GetUserData()) };
 
@@ -142,6 +142,9 @@ namespace physics
 
 			if (itr != contactCounter.end())
 			{
+				// change the restitution to prevent bounce
+				contact->SetRestitution(0.f);
+
 				itr->second.increment();
 
 				// TODO: calculate ground normal if more then one contact
@@ -394,6 +397,8 @@ namespace physics
 				// vel.x = buffer[1] * std::sin(core::maths::constantf::pi - actor.heading.get());
 				// debug_printline(0xffffffff, actor.heading.get());
 				vel.x = -10.0f * buffer[1] * std::sin(actor.heading.get());
+				vel.y+= 1.0f * buffer[2];
+
 				actor.body->SetLinearVelocity(vel);
 			}
 		}

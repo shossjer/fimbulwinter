@@ -24,6 +24,7 @@ namespace
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueRemove;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, Vector3f>, 100> queueGrounded;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueFalling;
+	core::container::CircleQueueSRMW<engine::Entity, 100> queueAnimationFinished;
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::Entity>, 10> queue_add_cameras;
 
@@ -43,6 +44,7 @@ namespace
 		void operator () (CharacterState & x)
 		{
 			x.clrGrounded();
+			x = gameplay::characters::Command::PHYSICS_FALLING;
 		}
 		template <typename X>
 		void operator () (X & x) {}
@@ -56,6 +58,17 @@ namespace
 		void operator () (CharacterState & x)
 		{
 			x.setGrounded(normal);
+			x = gameplay::characters::Command::PHYSICS_GROUNDED;
+		}
+		template <typename X>
+		void operator () (X & x) {}
+	};
+
+	struct animation_finished
+	{
+		void operator () (CharacterState & x)
+		{
+			x = gameplay::characters::Command::ANIMATION_FINISHED;
 		}
 		template <typename X>
 		void operator () (X & x) {}
@@ -153,6 +166,12 @@ namespace characters
 			{
 				components.call(id, clear_ground_state{});
 			}
+
+			// animation finished
+			while (queueAnimationFinished.try_pop(id))
+			{
+				components.call(id, animation_finished());
+			}
 		}
 		{
 			std::pair<engine::Entity, engine::Entity> camera;
@@ -217,6 +236,12 @@ namespace characters
 	void post_add_camera(engine::Entity id, engine::Entity target)
 	{
 		const auto res = queue_add_cameras.try_emplace(id, target);
+		debug_assert(res);
+	}
+
+	void post_animation_finish(engine::Entity id)
+	{
+		const auto res = queueAnimationFinished.try_emplace(id);
 		debug_assert(res);
 	}
 }

@@ -49,6 +49,7 @@ set(TRIBUNAL_SOURCE
 	src/engine/physics/physics.cpp
 	src/engine/physics/queries.cpp
 	src/gameplay/characters.cpp
+	src/gameplay/CharacterState.cpp
 	src/gameplay/effects.cpp
 	src/gameplay/level.cpp
 	src/gameplay/looper.cpp
@@ -79,6 +80,7 @@ set(TRIBUNAL_HEADER
 	src/core/sync/Mutex.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
+	src/engine/animation/Callbacks.hpp
 	src/engine/animation/mixer.hpp
 	src/engine/application/window.hpp
 	src/engine/debug.hpp

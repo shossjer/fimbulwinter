@@ -20,6 +20,7 @@ namespace engine
 		struct action
 		{
 			std::string name;
+			bool repetative;
 		};
 
 		void add(engine::Entity entity, const armature & data);
