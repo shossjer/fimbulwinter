@@ -248,6 +248,20 @@ namespace
 				                       event.xkey.time);
 				break;
 			case KeyRelease:
+				// http://stackoverflow.com/questions/2100654/ignore-auto-repeat-in-x11-applications
+				// ^^^ comment to this ^^^
+				// it is not perfect, every now and then I get a key release anyway, I guess the time can be different? or maybe it is not always the next event?
+				// vvv comment to that vvv
+				if (XEventsQueued(event_display, QueuedAfterReading))
+				{
+					XEvent next_event;
+					XPeekEvent(event_display, &next_event);
+
+					if (next_event.type == KeyPress &&
+					    next_event.xkey.time == event.xkey.time &&
+					    next_event.xkey.keycode == event.xkey.keycode)
+						break;
+				}
 				engine::hid::key_release(event.xkey.keycode,
 				                         event.xkey.state,
 				                         event.xkey.time);
@@ -421,6 +435,8 @@ namespace engine
 				}
 
 				XSelectInput(event_display, render_window, ButtonPressMask | ButtonReleaseMask | ExposureMask | KeyPressMask | KeyReleaseMask | PointerMotionMask | StructureNotifyMask);
+
+				// XAutoRepeatOff(event_display); // dangerous!
 
 				XMapWindow(render_display, render_window);
 				//

@@ -90,7 +90,7 @@ namespace
 		std::vector<core::maths::Matrix4x4f> matrices;
 		core::maths::Vector3f movement;
 
-		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), matrices(armature.njoints), movement(0.f, 0.f, 0.f), repeat(repeat), framei(0) {}
+		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), repeat(repeat), finished(false), framei(0), matrices(armature.njoints), movement(0.f, 0.f, 0.f) {}
 		// ^^^"^^^^ tmp
 
 		bool isFinished() const
