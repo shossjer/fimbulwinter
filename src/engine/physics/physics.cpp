@@ -387,19 +387,81 @@ namespace physics
 			{
 				auto & actor = actors.at(data.first);
 				// actor.movement = data.second;
-				auto vel = actor.body->GetLinearVelocity();
+				const auto vel = actor.body->GetLinearVelocity();
 				// vel.x = convert(data.second).x;
 				core::maths::Vector3f::array_type buffer;
 				data.second.get_aligned(buffer);
-				// return b2Vec2{ buffer[0], buffer[1] };
-				// vel.x = std::sqrt(buffer[0] * buffer[0] + buffer[1] * buffer[1]);
-				// vel.x = buffer[1];
-				// vel.x = buffer[1] * std::sin(core::maths::constantf::pi - actor.heading.get());
-				// debug_printline(0xffffffff, actor.heading.get());
-				vel.x = -10.0f * buffer[1] * std::sin(actor.heading.get());
-				vel.y+= 1.0f * buffer[2];
 
-				actor.body->SetLinearVelocity(vel);
+				const float mx = -buffer[1] * std::sin(actor.heading.get()) / 8;
+				const float my = buffer[2] / 8;
+
+				if (mx == 0.f && my == 0.f) continue;
+				
+				const auto mass = actor.body->GetMass();
+
+				// use the Force
+				const bool cheat = true;
+
+				if (cheat)
+				// use half speed
+				{
+					// calculate needed speed to maintain animation movement
+					const b2Vec2 goalVel(mx/timeStep, my/timeStep);
+					const b2Vec2 deltaVel = goalVel - vel;
+
+					const b2Vec2 acc(deltaVel.x / timeStep, deltaVel.y / timeStep);
+
+					printf("acc: %f %f\n", acc.x, acc.y);
+
+					actor.body->ApplyForceToCenter(b2Vec2(acc.x*mass, acc.y*mass), true);
+				}
+				else
+				// use full speed
+				{
+					// calculate needed accelleration to achieve movement
+					// s = v0 * t + a * t * t / 2
+					// a = 1/t*t (2*s - 2*v0*t)
+					// a = 2*s/(t*t) - 2*v0/t
+					b2Vec2 acc;
+					acc.x = 2.f*mx / (timeStep*timeStep) - 2.f*vel.x / timeStep;
+					acc.y = 2.f*my / (timeStep*timeStep) - 2.f*vel.y / timeStep;
+
+					printf("acc: %f %f\n", acc.x, acc.y);
+
+					actor.body->ApplyForceToCenter(b2Vec2(acc.x*mass, acc.y*mass), true);
+				}
+
+
+
+				//// calculate expected movement vs. velocity
+				//const auto dx = mx - vel.x*timeStep;
+				//const auto dy = my - vel.y*timeStep;
+
+				//// the Impulse way
+				//b2Vec2 impulse;
+			
+				//impulse.x = 10 * dx*actor.body->GetMass();
+				//impulse.y = 10 * dy*actor.body->GetMass();
+
+				//actor.body->ApplyLinearImpulseToCenter(impulse, true);
+
+				//// the Velocity way
+				//b2Vec2 velocity;
+
+				//velocity.x = vel.x + dx / timeStep;
+
+				//if (buffer[2] != 0.)
+				//	velocity.y = vel.y + dy / timeStep;
+				//else
+				//	velocity.y = vel.y;
+
+				//actor.body->SetLinearVelocity(velocity);
+
+
+				//vel.x = -10.0f * buffer[1] * std::sin(actor.heading.get());
+				//vel.y+= 1.0f * buffer[2];
+
+				//actor.body->SetLinearVelocity(vel);
 			}
 		}
 		
