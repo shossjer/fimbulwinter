@@ -31,6 +31,10 @@ message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
 set(TRIBUNAL_VERSION_MAJOR 0)
 set(TRIBUNAL_VERSION_MINOR 1)
 
+# the physics used
+set(PHYSICS_USE_BOX2D 1)
+set(PHYSICS_USE_PHYSX 0)
+
 # source listing
 set(TRIBUNAL_SOURCE
 	src/main.cpp
@@ -47,6 +51,7 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input_x11.cpp
 	src/engine/physics/effects.cpp
 	src/engine/physics/physics.cpp
+	src/engine/physics/WorldBox2d.cpp
 	src/engine/physics/queries.cpp
 	src/gameplay/characters.cpp
 	src/gameplay/CharacterState.cpp
@@ -96,6 +101,9 @@ set(TRIBUNAL_HEADER
 	src/engine/physics/physics.hpp
 	src/engine/physics/queries.hpp
 	src/engine/physics/Callbacks.hpp
+	src/engine/physics/MaterialData.hpp
+	src/engine/physics/WorldBase.hpp
+	src/engine/physics/WorldBox2d.hpp
 	src/gameplay/characters.hpp
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp

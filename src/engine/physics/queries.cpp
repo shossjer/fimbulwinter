@@ -29,66 +29,66 @@ namespace physics
 		Point convert(const b2Vec2 & point) { return Point{{ point.x, point.y, 0.f }}; }
 	}
 
-	extern const b2World & getWorld();
+	//extern const b2World & getWorld();
 
 	namespace query
 	{
-		std::vector<Actor> nearby(const b2Vec2 centre, const float halfX, const float halfY)
-		{
-			std::vector<Actor> objects;
+		//std::vector<Actor> nearby(const b2Vec2 centre, const float halfX, const float halfY)
+		//{
+		//	std::vector<Actor> objects;
 
-			// 
-			class AABBQuery : public b2QueryCallback
-			{
-				std::vector<Actor> & objects;
-			public:
-				AABBQuery(std::vector<Actor> & objects) : objects(objects) {}
+		//	//
+		//	class AABBQuery : public b2QueryCallback
+		//	{
+		//		std::vector<Actor> & objects;
+		//	public:
+		//		AABBQuery(std::vector<Actor> & objects) : objects(objects) {}
 
-				bool ReportFixture(b2Fixture* fixture)
-				{
-					b2Body *const body = fixture->GetBody();
+		//		bool ReportFixture(b2Fixture* fixture)
+		//		{
+		//			b2Body *const body = fixture->GetBody();
 
-					const engine::Entity id = engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)body->GetUserData()) };
+		//			const engine::Entity id = engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)body->GetUserData()) };
 
-					objects.push_back(Actor{ id, body });
+		//			objects.push_back(Actor{ id, body });
 
-					// Return true to continue the query.
-					return true;
-				}
+		//			// Return true to continue the query.
+		//			return true;
+		//		}
 
-			} query{ objects };
+		//	} query{ objects };
 
-			b2AABB aabb{};
+		//	b2AABB aabb{};
 
-			aabb.lowerBound.Set(centre.x - halfX, centre.y - halfY);
-			aabb.upperBound.Set(centre.x + halfX, centre.y + halfY);
+		//	aabb.lowerBound.Set(centre.x - halfX, centre.y - halfY);
+		//	aabb.upperBound.Set(centre.x + halfX, centre.y + halfY);
 
-			getWorld().QueryAABB(&query, aabb);
+		//	getWorld().QueryAABB(&query, aabb);
 
-			return objects;
-		}
+		//	return objects;
+		//}
 
-		void RayCast::execute(const Point & from, const Point & to)
-		{
-			// This class captures the closest hit shape.
-			class MyRayCastCallback : public b2RayCastCallback
-			{
-				RayCast & reporter;
-			public:
-				MyRayCastCallback(RayCast & reporter) : reporter(reporter) {}
+		//void RayCast::execute(const Point & from, const Point & to)
+		//{
+		//	// This class captures the closest hit shape.
+		//	class MyRayCastCallback : public b2RayCastCallback
+		//	{
+		//		RayCast & reporter;
+		//	public:
+		//		MyRayCastCallback(RayCast & reporter) : reporter(reporter) {}
 
-				float32 ReportFixture(b2Fixture* fixture, const b2Vec2& point, const b2Vec2& normal, float32 fraction)
-				{
-					return reporter.callback(
-						engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)fixture->GetBody()->GetUserData()) }, 
-						convert(point),
-						convert(normal), 
-						fraction);
-				}
-			} query{ *this };
+		//		float32 ReportFixture(b2Fixture* fixture, const b2Vec2& point, const b2Vec2& normal, float32 fraction)
+		//		{
+		//			return reporter.callback(
+		//				engine::Entity{ static_cast<engine::Entity::value_type>((std::size_t)fixture->GetBody()->GetUserData()) },
+		//				convert(point),
+		//				convert(normal),
+		//				fraction);
+		//		}
+		//	} query{ *this };
 
-			getWorld().RayCast(&query, convert(from), convert(to));
-		}
+		//	getWorld().RayCast(&query, convert(from), convert(to));
+		//}
 
 		//std::vector<Id> nearbyAABB(const b2World & world, const b2Vec2 centre, const float halfX, const float halfY)
 		////const Point & pos, const float radius, std::vector<Id> & objects)

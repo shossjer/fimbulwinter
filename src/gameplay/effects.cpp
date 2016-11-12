@@ -42,14 +42,14 @@ namespace effects
 
 		void update() override
 		{
-			// get centre position
-			const auto pp = engine::physics::query::positionOf(callerId);
+			//// get centre position
+			//const auto pp = engine::physics::query::positionOf(callerId);
 
-			// update physics
-			engine::physics::effect::acceleration(
-				core::maths::Vector3f{ 0.f, 20.f, 0.f },
-				pp,
-				10.f);
+			//// update physics
+			//engine::physics::effect::acceleration(
+			//	core::maths::Vector3f{ 0.f, 20.f, 0.f },
+			//	pp,
+			//	10.f);
 		}
 	};
 
@@ -76,26 +76,26 @@ namespace effects
 
 		void update() override
 		{
-			// get centre position
-			const auto pp = engine::physics::query::positionOf(callerId);
+			//// get centre position
+			//const auto pp = engine::physics::query::positionOf(callerId);
 
-			// get mouse coordinates
-			const auto mc = gameplay::ui::mouseCoords(); // input::mouseCoords();
+			//// get mouse coordinates
+			//const auto mc = gameplay::ui::mouseCoords(); // input::mouseCoords();
 
-			Vector3f mp;
-			engine::graphics::viewer::from_screen_to_world(Vector2f{ (float)mc.x, (float)mc.y }, mp);
+			//Vector3f mp;
+			//engine::graphics::viewer::from_screen_to_world(Vector2f{ (float)mc.x, (float)mc.y }, mp);
 
-			// delta from player to cursor
-			const core::maths::Vector3f d = mp - pp;
+			//// delta from player to cursor
+			//const core::maths::Vector3f d = mp - pp;
 
-			// multiplier to get value in force range (~10kN)
-			const float S = 1000.f;
+			//// multiplier to get value in force range (~10kN)
+			//const float S = 1000.f;
 
-			// using the cursor distance as radius for AoE
-			const auto radius = length(d);
+			//// using the cursor distance as radius for AoE
+			//const auto radius = length(d);
 
-			// update physics
-			engine::physics::effect::force(d*S, pp, radius);
+			//// update physics
+			//engine::physics::effect::force(d*S, pp, radius);
 		}
 	};
 
