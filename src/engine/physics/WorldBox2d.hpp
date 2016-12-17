@@ -113,7 +113,7 @@ namespace physics
 			return ::core::maths::Vector3f(pos.x, pos.y, 0.f);
 		}
 
-		void positionOf(const engine::Entity id, Point & pos, Vector & velocity, float & angle)
+		void positionOf(const engine::Entity id, Vector3f & pos, Vector3f & velocity, float & angle)
 		{
 			const auto * const body = getBody(id);
 
@@ -121,13 +121,9 @@ namespace physics
 			const auto vel = body->GetLinearVelocity();
 			angle = body->GetAngle();
 
-			pos[0] = point.x;
-			pos[1] = point.y;
-			pos[2] = 0.f;
+			pos = Vector3f {point.x, point.y, 0.f};
 
-			velocity[0] = vel.x;
-			velocity[1] = vel.y;
-			velocity[2] = 0.f;
+			velocity = Vector3f {vel.x, vel.y, 0.f};
 		}
 
 	private:

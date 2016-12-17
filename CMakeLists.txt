@@ -49,10 +49,8 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
-	src/engine/physics/effects.cpp
 	src/engine/physics/physics.cpp
 	src/engine/physics/WorldBox2d.cpp
-	src/engine/physics/queries.cpp
 	src/gameplay/characters.cpp
 	src/gameplay/CharacterState.cpp
 	src/gameplay/effects.cpp
@@ -96,7 +94,6 @@ set(TRIBUNAL_HEADER
 	src/engine/graphics/viewer.hpp
 	src/engine/hid/input.hpp
 	src/engine/physics/defines.hpp
-	src/engine/physics/effects.hpp
 	src/engine/physics/helper.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/queries.hpp

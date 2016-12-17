@@ -6,14 +6,7 @@
 
 #include <core/maths/Vector.hpp>
 
-#include <array>
-#include <vector>
-
-
-typedef std::array<float, 3> Point;
-typedef std::array<float, 3> Vector;
-typedef std::array<float, 3> Size;
-typedef std::array<float, 2> Vec2;
+using Vector3f = core::maths::Vector3f;
 
 namespace engine
 {
@@ -37,13 +30,13 @@ namespace physics
 
 		//}	type;
 
-		const Point pos;
+		const Vector3f pos;
 		const Material material;
 		const float solidity;
 
 	protected:
 
-		ObjectData(const Point & pos, const Material material, const float solidity)
+		ObjectData(const Vector3f & pos, const Material material, const float solidity)
 			:
 			pos(pos), material(material), solidity(solidity)
 		{}
@@ -51,10 +44,10 @@ namespace physics
 
 	struct BoxData : public ObjectData
 	{
-		const Size size;
+		const Vector3f size;
 
-		BoxData(const Point & pos,
-			const Material material, const float solidity, const Size & size)
+		BoxData(const Vector3f & pos,
+			const Material material, const float solidity, const Vector3f & size)
 			:
 			ObjectData(pos, material, solidity),
 			size(size)
@@ -66,7 +59,7 @@ namespace physics
 		const float height;
 		const float radius;
 
-		CharacterData(const Point & pos, const Material material, const float solidity, const float height, const float radius)
+		CharacterData(const Vector3f & pos, const Material material, const float solidity, const float height, const float radius)
 			:
 			ObjectData(pos, material, solidity),
 			height(height),
@@ -79,7 +72,7 @@ namespace physics
 		const float height;
 		const float radie;
 
-		CylinderData(const Point & pos, const Material material, const float solidity, const float height, const float radie)
+		CylinderData(const Vector3f & pos, const Material material, const float solidity, const float height, const float radie)
 			:
 			ObjectData(pos, material, solidity),
 			height(height),
@@ -91,7 +84,7 @@ namespace physics
 	{
 		const float radie;
 
-		SphereData(const Point & pos, const Material material, const float solidity, const float radie)
+		SphereData(const Vector3f & pos, const Material material, const float solidity, const float radie)
 			:
 			ObjectData(pos, material, solidity),
 			radie(radie)

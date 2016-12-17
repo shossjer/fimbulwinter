@@ -9,6 +9,13 @@ namespace engine
 {
 namespace physics
 {
+	static b2Vec2 convert(const core::maths::Vector3f val)
+	{
+		core::maths::Vector3f::array_type buffer;
+		val.get_aligned(buffer);
+		return b2Vec2 {buffer[0], buffer[1]};
+	}
+
 	void WorldBox2d::update(const float timeStep)
 	{
 		constexpr int32 velocityIterations = 6;
@@ -97,12 +104,14 @@ namespace physics
 	{
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_dynamicBody;
-		bodyDef.position.Set(data.pos[0], data.pos[1]);
+		const auto pos = convert(data.pos);
+		bodyDef.position.Set(pos.x, pos.y);
 
 		b2Body*const body = createBody(id, bodyDef);
 
 		b2PolygonShape dynamicBox;
-		dynamicBox.SetAsBox(data.size[0], data.size[1]);
+		const auto size = convert(data.size);
+		dynamicBox.SetAsBox(size.x, size.y);
 
 		b2FixtureDef fixtureDef;
 		fixtureDef.shape = &dynamicBox;
@@ -122,7 +131,8 @@ namespace physics
 
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_dynamicBody;
-		bodyDef.position.Set(data.pos[0], data.pos[1]);
+		const auto pos = convert(data.pos);
+		bodyDef.position.Set(pos.x, pos.y);
 
 		b2Body*const body = createBody(id, bodyDef);
 		{

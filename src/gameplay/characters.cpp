@@ -85,27 +85,27 @@ namespace
 
 		void update()
 		{
-			Point pos;
-			Vector vec;
+			core::maths::Vector3f pos;
+			core::maths::Vector3f vec;
 			float angle;
 			engine::physics::query::positionOf(target, pos, vec, angle);
 
-			vec[0] *= 0.25f;
-			vec[1] *= 0.25f;
-			vec[2] *= 0.25f;
+			core::maths::Vector3f goal;
 
-			const core::maths::Vector3f goal{pos[0] + vec[0], pos[1] + vec[1], 5.f};
-			static core::maths::Vector3f current{0.f, 0.f, 20.f};
-			const auto delta = goal - current;
+			vec *= 0.25f;
+			goal = pos+vec+core::maths::Vector3f {0.f, 0.f, 5.f};
+
+			static core::maths::Vector3f current {0.f, 0.f, 20.f};
+			const auto delta = goal-current;
 
 			current += delta * .1f;
 			engine::graphics::viewer::update(camera, engine::graphics::viewer::translation(current));
 
-			const auto qw = std::cos(angle / 2.f);
+			const auto qw = std::cos(angle/2.f);
 			const auto qx = 0.f;
 			const auto qy = 0.f;
-			const auto qz = 1.f * std::sin(angle / 2.f);
-			engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation(core::maths::Quaternionf{qw, qx, qy, qz}));
+			const auto qz = 1.f * std::sin(angle/2.f);
+			engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation(core::maths::Quaternionf {qw, qx, qy, qz}));
 
 			engine::graphics::viewer::set_active_3d(camera); // this should not be done every time
 		}

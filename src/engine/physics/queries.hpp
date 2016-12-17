@@ -17,22 +17,7 @@ namespace physics
 		/**
 		 *
 		 */
-		void positionOf(const engine::Entity id, Point & pos, Vector & vel, float & angle);
-		/**
-		 *
-		 */
-		class RayCast
-		{
-		public:
-			/**
-			 *	Callback for RayCast result
-			 */
-			virtual float callback(const engine::Entity id, const Point & point, const Point & normal, const float fraction) = 0;
-			/**
-			 *
-			 */
-			void execute(const Point & from, const Point & to);
-		};
+		void positionOf(const engine::Entity id, Vector3f & pos, Vector3f & vel, float & angle);
 	}
 }
 }

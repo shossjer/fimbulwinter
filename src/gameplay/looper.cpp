@@ -90,7 +90,7 @@ namespace looper
 			::engine::animation::update(modelentity, ::engine::animation::action{ "stand-00" });
 		//	const auto id = engine::Entity::create();
 			::gameplay::characters::create(modelentity);
-			::engine::physics::CharacterData capsule{ Point{ { 12.f, 15.f, 0.f } }, ::engine::physics::Material::MEETBAG, .6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
+			::engine::physics::CharacterData capsule{ Vector3f{ 12.f, 15.f, 0.f }, ::engine::physics::Material::MEETBAG, .6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
 			::engine::physics::create(modelentity, capsule);
 
 			gameplay::ui::post_add_player(modelentity);
@@ -98,7 +98,7 @@ namespace looper
 			const auto cameraentity = engine::Entity::create();
 			engine::graphics::viewer::add(cameraentity,
 			                              engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
-			                                                               core::maths::Vector3f(0.f, 0.f, 0.f)));
+			                                                               Vector3f(0.f, 0.f, 0.f)));
 			gameplay::characters::post_add_camera(cameraentity, modelentity);
 			// ^^^^ tmp ^^^^
 		}

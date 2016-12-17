@@ -59,7 +59,7 @@ namespace physics
 			return world.positionOf(id);
 		}
 
-		void positionOf(const engine::Entity id, Point & pos, Vector & velocity, float & angle)
+		void positionOf(const engine::Entity id, Vector3f & pos, Vector3f & velocity, float & angle)
 		{
 			world.positionOf(id, pos, velocity, angle);
 		}
