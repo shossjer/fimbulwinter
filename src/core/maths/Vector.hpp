@@ -378,7 +378,7 @@ namespace core
 
 			value_type volume() const
 			{
-				return values[0] * values[1] * values[2];
+				return this->values[0] * this->values[1] * this->values[2];
 			}
 		};
 
