@@ -1,6 +1,6 @@
  
-#ifndef ENGINE_PHYSICS_CALLBACKS_HPP
-#define ENGINE_PHYSICS_CALLBACKS_HPP
+#ifndef ENGINE_PHYSICS_CALLBACK_HPP
+#define ENGINE_PHYSICS_CALLBACK_HPP
 
 #include <engine/Entity.hpp>
 
@@ -10,7 +10,7 @@ namespace engine
 {
 namespace physics
 {
-	class Callbacks
+	class Callback
 	{
 	public:
 		/**

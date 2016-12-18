@@ -6,10 +6,8 @@
 #include <engine/animation/Callbacks.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
-#include <engine/physics/Callbacks.hpp>
-// #include <engine/physics/effects.hpp>
+#include <engine/physics/Callback.hpp>
 #include <engine/physics/physics.hpp>
-#include <engine/physics/queries.hpp>
 
 #include <gameplay/characters.hpp>
 #include <gameplay/CharacterState.hpp>
@@ -40,8 +38,11 @@ namespace engine
 
 	namespace physics
 	{
-		extern void initialize(const engine::physics::Callbacks & callback);
+		extern void setup();
+
 		extern void teardown();
+
+		extern void subscribe(const engine::physics::Callback & callback);
 	}
 }
 namespace gameplay
@@ -79,7 +80,7 @@ namespace looper
 		looperThread.join();
 	}
 
-	void temp()
+	void add_some_stuff()
 	{
 		{
 			// vvvv tmp vvvv
@@ -130,7 +131,7 @@ namespace looper
 
 	void run()
 	{
-		class PhysicsCallback : public ::engine::physics::Callbacks
+		class PhysicsCallback : public ::engine::physics::Callback
 		{
 		public:
 
@@ -146,7 +147,7 @@ namespace looper
 
 		} physicsCallback;
 
-		::engine::physics::initialize(physicsCallback);
+		::engine::physics::subscribe(physicsCallback);
 
 		class AnimationCallback : public ::engine::animation::Callbacks
 		{
@@ -161,10 +162,13 @@ namespace looper
 
 		::engine::animation::initialize(animationCallbacks);
 
-		// temp
-		temp();
+
+		::engine::physics::setup();
 
 		::engine::graphics::renderer::create();
+
+		// temp
+		add_some_stuff();
 
 		// 
 		while (active)
@@ -184,27 +188,6 @@ namespace looper
 			// update characters
 			::gameplay::characters::update();
 
-			// update player - temp, should be part of generic Character update
-			// {
-			// 	input::updateInput();
-				
-			// 	CharacterState & character = characters::get(player::get());
-
-			// 	debug_printline(0xffffffff, "(", character.movement()[0], ", ", character.movement()[1], ")");
-			// 	engine::physics::MoveResult res =
-			// 		engine::physics::update(gameplay::player::get(), engine::physics::MoveData(character.movement(), character.fallVel, character.angvel));
-
-			// 	character.grounded = res.grounded;
-			// 	character.fallVel = res.velY;
-
-			// 	Point pos;
-			// 	Vector vec;
-			// 	float angle;
-			// 	engine::physics::query::positionOf(player::get(), pos, vec, angle);
-
-			// 	engine::physics::effect::acceleration(core::maths::Vector3f{0.f + 9.82f * std::cos(angle - 3.14f / 2.f), 9.82f + 9.82f * std::sin(angle - 3.14f / 2.f), 0.f}, core::maths::Vector3f{pos[0], pos[1], 0.f}, 2.f);
-			// }
-
 			//
 			::engine::graphics::viewer::update();
 			::engine::graphics::renderer::update();
@@ -214,6 +197,8 @@ namespace looper
 		}
 
 		::engine::graphics::renderer::destroy();
+
+		::engine::physics::teardown();
 	}
 }
 }

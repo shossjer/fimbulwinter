@@ -88,7 +88,7 @@ namespace
 			core::maths::Vector3f pos;
 			core::maths::Vector3f vec;
 			float angle;
-			engine::physics::query::positionOf(target, pos, vec, angle);
+			engine::physics::query_position(target, pos, vec, angle);
 
 			core::maths::Vector3f goal;
 

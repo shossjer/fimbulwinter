@@ -8,7 +8,6 @@
 #include <engine/Entity.hpp>
 #include <engine/physics/defines.hpp>
 #include <engine/physics/physics.hpp>
-#include <engine/physics/queries.hpp>
 
 #include <core/maths/Vector.hpp>
 

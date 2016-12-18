@@ -27,7 +27,7 @@ namespace characters
 		case Command::GO_LEFT:
 
 			setFlag(BIT_MOVE_LEFT);
-			engine::physics::post_set_heading(this->me, core::maths::degreef{ 90.f });
+			engine::physics::post_heading(this->me, core::maths::degreef{ 90.f });
 			engine::animation::update(this->me, ::engine::animation::action{ "sprint-00", true });
 			debug_printline(0xffffffff, "action: Chillin -> Movin");
 			this->pActionFunc = &CharacterState::updateMovin;
@@ -35,7 +35,7 @@ namespace characters
 		case Command::GO_RIGHT:
 
 			setFlag(BIT_MOVE_RIGHT);
-			engine::physics::post_set_heading(this->me, core::maths::degreef{ 270.f });
+			engine::physics::post_heading(this->me, core::maths::degreef{ 270.f });
 			engine::animation::update(this->me, ::engine::animation::action{ "sprint-00", true });
 			debug_printline(0xffffffff, "action: Chillin -> Movin");
 			this->pActionFunc = &CharacterState::updateMovin;
@@ -69,13 +69,13 @@ namespace characters
 		case Command::GO_LEFT:
 
 			setFlag(BIT_MOVE_LEFT);
-			engine::physics::post_set_heading(this->me, core::maths::degreef{ 90.f });
+			engine::physics::post_heading(this->me, core::maths::degreef{ 90.f });
 			engine::animation::update(this->me, ::engine::animation::action{ "sprint-00", true });
 			break;
 		case Command::GO_RIGHT:
 
 			setFlag(BIT_MOVE_RIGHT);
-			engine::physics::post_set_heading(this->me, core::maths::degreef{ 270.f });
+			engine::physics::post_heading(this->me, core::maths::degreef{ 270.f });
 			engine::animation::update(this->me, ::engine::animation::action{ "sprint-00", true });
 			break;
 

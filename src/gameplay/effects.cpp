@@ -6,7 +6,6 @@
 #include <gameplay/ui.hpp>
 
 #include <engine/graphics/viewer.hpp>
-#include <engine/physics/queries.hpp>
 
 #include <core/container/CircleQueue.hpp>
 
