@@ -69,8 +69,6 @@ namespace looper
 	void create()
 	{
 		looperThread = core::async::Thread{ gameplay::looper::run };
-
-	//	looperThread = std::move(looperThread);
 	}
 		
 	void destroy()
@@ -91,8 +89,8 @@ namespace looper
 			::engine::animation::update(modelentity, ::engine::animation::action{ "stand-00" });
 		//	const auto id = engine::Entity::create();
 			::gameplay::characters::create(modelentity);
-			::engine::physics::CharacterData capsule{ Vector3f{ 12.f, 15.f, 0.f }, ::engine::physics::Material::MEETBAG, .6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
-			::engine::physics::create(modelentity, capsule);
+			::engine::physics::CharacterData capsule{ engine::physics::BodyType::CHARACTER, Vector3f{ 12.f, 15.f, 0.f }, ::engine::physics::Material::MEETBAG, .6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
+			::engine::physics::post_create(modelentity, capsule);
 
 			gameplay::ui::post_add_player(modelentity);
 
@@ -179,8 +177,11 @@ namespace looper
 			// update animations
 			::engine::animation::update();
 
-			// update physics
-			::engine::physics::update();
+			// update actors in engine
+			::engine::physics::update_begin();
+
+			// update physics world
+			::engine::physics::update_end();
 
 			// 
 			gameplay::ui::update();

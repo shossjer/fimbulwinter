@@ -254,7 +254,7 @@ namespace
 			mixers.call(mixer, extract_movement{movement});
 			engine::graphics::renderer::update(me,
 			                                   engine::graphics::renderer::CharacterSkinning{matrix_pallet});
-			engine::physics::post_movement(me, movement);
+			engine::physics::post_update_movement(me, movement);
 		}
 	};
 

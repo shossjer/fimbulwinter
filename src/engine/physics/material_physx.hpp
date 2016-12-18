@@ -8,6 +8,8 @@
 
 #include <PxPhysicsAPI.h>
 
+#include <unordered_map>
+
 /**
  *	\note Should be used by physics implementation only.
  */
@@ -20,7 +22,9 @@ namespace physics
 		extern ::physx::PxPhysics * pWorld;
 	}
 
-	// Material properties, used when creating actors
+	/**
+	 *	\note Material properties, used when creating actors
+	 */
 	struct MaterialDef
 	{
 		const float density;
@@ -33,7 +37,23 @@ namespace physics
 		{
 		}
 	};
+
+	/**
+	 *	\note Defined in physics_physx.cpp
+	 */
+	extern std::unordered_map<Material, MaterialDef> materials;
 }
+}
+
+namespace std
+{
+	template<> struct hash<engine::physics::Material>
+	{
+		std::size_t operator () (const engine::physics::Material material) const
+		{
+			return std::hash<std::size_t>{}(static_cast<std::size_t>(material));
+		}
+	};
 }
 
 #endif // PHYSICS_USE_PHYSX

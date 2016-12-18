@@ -17,23 +17,23 @@ namespace engine
 namespace physics
 {
 	/**
-	 *	steps physics engine forward
+	 *	\note manages creation and removal of actors
 	 */
-	void update();
+	void update_begin();
+	/**
+	 *	\note steps physics engine forward
+	 */
+	void update_end();
 
-	void create(const engine::Entity id, const BoxData & data);
+	void post_create(const engine::Entity id, const BoxData & data);
 
-	void create(const engine::Entity id, const CharacterData & data);
+	void post_create(const engine::Entity id, const CharacterData & data);
 
-	void create(const engine::Entity id, const CylinderData & data);
+	void post_remove(const engine::Entity id);
 
-	void create(const engine::Entity id, const SphereData & data);
+	void post_update_movement(const engine::Entity id, const core::maths::Vector3f movement);
 
-	void remove(const engine::Entity id);
-
-	void post_movement(engine::Entity id, core::maths::Vector3f movement);
-
-	void post_heading(engine::Entity id, core::maths::radianf rotation);
+	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation);
 
 	void query_position(const engine::Entity id, Vector3f & pos, Vector3f & vel, float & angle);
 }

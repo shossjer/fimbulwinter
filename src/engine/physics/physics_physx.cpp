@@ -3,9 +3,9 @@
 
 #if PHYSICS_USE_PHYSX
 
-#include "physics.hpp"
-
 #include <PxPhysicsAPI.h>
+
+#include "physics.hpp"
 
 #include "actor_physx.hpp"
 #include "helper_physx.hpp"
@@ -15,7 +15,6 @@
 #include <engine/graphics/renderer.hpp>
 
 #include <core/container/CircleQueue.hpp>
-#include <core/container/Collection.hpp>
 
 #include <unordered_map>
 
@@ -24,8 +23,6 @@ namespace engine
 namespace physics
 {
 	constexpr float TIME_STEP = 1.f/60.f;
-	constexpr unsigned int ACTORS_MAX = 100;
-	constexpr unsigned int ACTORS_GROUP = 20;
 
 	namespace physx2
 	{
@@ -52,26 +49,26 @@ namespace physics
 		::physx::PxControllerManager * pControllerManager;
 	}
 
+	// Collecation containing all Actors in the world.
+	::core::container::Collection
+		<
+		engine::Entity,
+		ACTORS_MAX,
+		std::array<ActorCharacter, ACTORS_GROUP>,
+		std::array<ActorDynamic, ACTORS_GROUP>,
+		std::array<ActorStatic, ACTORS_GROUP>
+		>
+		actors;
+
+	// All defined physics materials. Contains density, friction and restitution
+	std::unordered_map<Material, MaterialDef> materials;
+
 	namespace
 	{
 		// Callback instance for engine notifications
 		//	* onFalling - called when Actor start falling
 		//	* onGrounded - called when Actor is grounded after falling
 		const Callback * pCallback;
-
-		// Collecation containing all Actors in the world.
-		::core::container::Collection
-		<
-			engine::Entity,
-			ACTORS_MAX,
-			std::array<ActorCharacter, ACTORS_GROUP>,
-			std::array<ActorDynamic, ACTORS_GROUP>,
-			std::array<ActorStatic, ACTORS_GROUP>
-		>
-		actors;
-
-		// All defined physics materials. Contains density, friction and restitution
-		std::unordered_map<Material, MaterialDef> materials;
 
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, core::maths::radianf>, 100> queue_headings;
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, core::maths::Vector3f>, 100> queue_movements;
@@ -194,12 +191,6 @@ namespace physics
 		{
 
 		}
-
-		template <typename X>
-		void operator () (X & x)
-		{
-			debug_unreachable();
-		}
 	};
 
 	struct actor_header
@@ -222,15 +213,9 @@ namespace physics
 		{
 			x.heading = heading;
 		}
-
-		template <typename X>
-		void operator () (X & x)
-		{
-			debug_unreachable();
-		}
 	};
 
-	void update()
+	void update_end()
 	{
 		// poll heading queue
 		{
@@ -285,100 +270,6 @@ namespace physics
 	}
 
 	/**
-	 *	\note Helper method when creating dynamic objects
-	 */
-	physx::PxRigidDynamic * create(const physx::PxTransform & position, physx::PxShape *const shape, const float mass)
-	{
-		physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(position);
-
-		body->attachShape(*shape);
-
-		physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, mass);
-
-		physx2::pScene->addActor(*body);
-
-		return body;
-	}
-
-	void create(const engine::Entity id, const BoxData & data)
-	{
-		const MaterialDef & materialDef = materials.at(data.material);
-
-		physx::PxBoxGeometry geometry(convert<physx::PxVec3>(data.size));
-
-		physx::PxShape *const shape = physx2::pWorld->createShape(geometry, *materialDef.material);
-
-		const float mass = materialDef.density * data.size.volume() * data.solidity;
-
-		physx::PxRigidDynamic *const actor = create(convert<physx::PxTransform>(data.pos), shape, mass);
-
-		actors.emplace<ActorDynamic>(id, ActorDynamic {actor});
-	}
-
-	void create(const engine::Entity id, const CharacterData & data)
-	{
-		const MaterialDef & materialDef = materials.at(data.material);
-
-		physx::PxCapsuleControllerDesc desc;
-
-		desc.height = data.height;
-		desc.position = convert<physx::PxExtendedVec3>(data.pos);
-		desc.radius = data.radius;
-		desc.material = materialDef.material;
-
-		if (!desc.isValid())
-		{
-			throw std::runtime_error("Controller description is not valid!");
-		}
-
-		physx::PxController *const controller = physx2::pControllerManager->createController(desc);
-
-		if (controller==nullptr)
-		{
-			throw std::runtime_error("Could not create controller!");
-		}
-
-		controller->setUserData((void*) (std::size_t)static_cast<engine::Entity::value_type>(id));
-
-		actors.emplace<ActorCharacter>(id, ActorCharacter {controller});
-	}
-
-	struct remove_actor
-	{
-		void operator () (const ActorCharacter & x)
-		{
-			x.body->release();
-		}
-
-		void operator () (const ActorDynamic & x)
-		{
-			x.body->release();
-		}
-
-		void operator () (const ActorStatic & x)
-		{
-			x.body->release();
-		}
-
-		template <typename X>
-		void operator () (const X & x)
-		{
-			debug_unreachable();
-		}
-	};
-
-	void remove(const engine::Entity id)
-	{
-		actors.call(id, remove_actor {});
-
-		actors.remove(id);
-
-		//// remove debug object from Renderer
-		//if (actor.debugRenderId!= ::engine::Entity::INVALID)
-		//	engine::graphics::renderer::remove(actor.debugRenderId);
-	}
-
-	/**
 	 * \note Declared and called from gameplay.
 	 */
 	void subscribe(const Callback & callback)
@@ -413,12 +304,6 @@ namespace physics
 		void operator () (const ActorStatic & x)
 		{
 		}
-
-		template <typename X>
-		void operator () (const X & x)
-		{
-			debug_unreachable();
-		}
 	};
 
 	void query_position(const engine::Entity id, Vector3f & position, Vector3f & velocity, float & angle)
@@ -432,12 +317,12 @@ namespace physics
 		angle = data.angle;
 	}
 
-	void post_movement(engine::Entity id, core::maths::Vector3f movement)
+	void post_update_movement(const engine::Entity id, const core::maths::Vector3f movement)
 	{
 		const auto res = queue_movements.try_emplace(id, movement);
 		debug_assert(res);
 	}
-	void post_heading(engine::Entity id, core::maths::radianf rotation)
+	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation)
 	{
 		const auto res = queue_headings.try_emplace(id, rotation);
 		debug_assert(res);

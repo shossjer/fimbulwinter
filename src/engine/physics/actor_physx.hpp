@@ -8,6 +8,8 @@
 
 #include <PxPhysicsAPI.h>
 
+#include <core/container/Collection.hpp>
+
 /**
  *	\note Should be used by physics implementation only.
  */
@@ -15,6 +17,9 @@ namespace engine
 {
 namespace physics
 {
+	constexpr unsigned int ACTORS_MAX = 100;
+	constexpr unsigned int ACTORS_GROUP = 20;
+
 	template<class T>
 	struct Actor
 	{
@@ -42,17 +47,43 @@ namespace physics
 	struct ActorCharacter : Actor<::physx::PxController>
 	{
 		ActorCharacter(::physx::PxController * const body) : Actor(body) {}
+
+		~ActorCharacter()
+		{
+			body->release();
+		}
 	};
 
 	struct ActorDynamic : Actor<::physx::PxRigidDynamic>
 	{
 		ActorDynamic(::physx::PxRigidDynamic * const body) : Actor(body) {}
+
+		~ActorDynamic()
+		{
+			body->release();
+		}
 	};
 
 	struct ActorStatic : Actor<::physx::PxRigidStatic>
 	{
 		ActorStatic(::physx::PxRigidStatic * const body) : Actor(body) {}
+
+		~ActorStatic()
+		{
+			body->release();
+		}
 	};
+
+	// Collecation containing all Actors in the world.
+	extern ::core::container::Collection
+		<
+		engine::Entity,
+		ACTORS_MAX,
+		std::array<ActorCharacter, ACTORS_GROUP>,
+		std::array<ActorDynamic, ACTORS_GROUP>,
+		std::array<ActorStatic, ACTORS_GROUP>
+		>
+		actors;
 }
 }
 
