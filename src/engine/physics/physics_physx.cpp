@@ -15,6 +15,7 @@
 #include <engine/graphics/renderer.hpp>
 
 #include <core/container/CircleQueue.hpp>
+#include <core/maths/Quaternion.hpp>
 
 #include <unordered_map>
 
@@ -204,18 +205,14 @@ namespace physics
 			x.heading = heading;
 		}
 
-		void operator () (ActorDynamic & x)
+		template<typename X>
+		void operator () (X & x)
 		{
-			x.heading = heading;
-		}
-
-		void operator () (ActorStatic & x)
-		{
-			x.heading = heading;
+			debug_unreachable();
 		}
 	};
 
-	void update_end()
+	void update_finish()
 	{
 		// poll heading queue
 		{
@@ -239,30 +236,37 @@ namespace physics
 		physx2::pScene->fetchResults(true);
 
 		// Get movement from all characters
-		for (auto && actor:actors.get<ActorCharacter>())
+		for (auto && actor : actors.get<ActorCharacter>())
 		{
 			auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)actor.body->getUserData())};
 
-			core::maths::Vector3f pos;
-			core::maths::Vector3f vel;
-			float angle;
-
-			query_position(id, pos, vel, angle);
-
-			core::maths::Vector3f::array_type pb;
-			pos.get_aligned(pb);
-
-			core::maths::Vector3f::array_type vb;
-			vel.get_aligned(vb);
+			const auto pose = actor.body->getActor()->getGlobalPose();
 
 			engine::graphics::data::ModelviewMatrix data = {
-				core::maths::Matrix4x4f::translation(pb[0], pb[1], pb[2]) *
-				core::maths::Matrix4x4f::rotation(core::maths::radianf {angle}, 0.f, 0.f, 1.f) *
+				core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
+			//	make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z)) *
 				core::maths::Matrix4x4f::rotation(actor.heading, 0.f, 1.f, 0.f)
 			};
 
 			engine::graphics::renderer::update(id, std::move(data));
 
+			if (actor.debugRenderId!=::engine::Entity::INVALID)
+				engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
+		}
+
+		// Get movement from all dynamic bodies
+		for (auto && actor : actors.get<ActorDynamic>())
+		{
+			auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)actor.body->userData)};
+
+			const auto pose = actor.body->getGlobalPose();
+
+			engine::graphics::data::ModelviewMatrix data = {
+				core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
+				make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z))
+			};
+
+			engine::graphics::renderer::update(id, std::move(data));
 
 			if (actor.debugRenderId!=::engine::Entity::INVALID)
 				engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
@@ -285,7 +289,7 @@ namespace physics
 
 		void operator () (const ActorCharacter & x)
 		{
-			const auto body = x.body;
+			const auto body = x.body.get();
 
 			this->position = convert(body->getPosition());
 			this->velocity = convert(body->getActor()->getLinearVelocity());
@@ -294,7 +298,7 @@ namespace physics
 
 		void operator () (const ActorDynamic & x)
 		{
-			const auto body = x.body;
+			const auto body = x.body.get();
 
 			this->position = convert(body->getGlobalPose());
 			this->velocity = convert(body->getLinearVelocity());

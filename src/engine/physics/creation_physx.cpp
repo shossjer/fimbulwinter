@@ -31,13 +31,26 @@ namespace physics
 	/**
 	 *	\note Helper method when creating dynamic objects
 	 */
-	physx::PxRigidDynamic * create(const physx::PxTransform & position, physx::PxShape *const shape, const float mass)
+	physx::PxRigidDynamic * rigidDynamic(const physx::PxTransform & position, physx::PxShape *const shape, const float mass)
 	{
 		physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(position);
 
 		body->attachShape(*shape);
 
 		physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, mass);
+
+		physx2::pScene->addActor(*body);
+
+		return body;
+	}
+	/**
+	 *	\note Helper method when creating static objects
+	 */
+	physx::PxRigidStatic * rigidStatic(const physx::PxTransform & position, physx::PxShape *const shape)
+	{
+		physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(position);
+
+		body->attachShape(*shape);
 
 		physx2::pScene->addActor(*body);
 
@@ -52,11 +65,29 @@ namespace physics
 
 		physx::PxShape *const shape = physx2::pWorld->createShape(geometry, *materialDef.material);
 
-		const float mass = materialDef.density * data.size.volume() * data.solidity;
+		switch (data.type)
+		{
+			case BodyType::DYNAMIC:
+			{
+				const float mass = materialDef.density * data.size.volume() * data.solidity;
 
-		physx::PxRigidDynamic *const actor = create(convert<physx::PxTransform>(data.pos), shape, mass);
+				physx::PxRigidDynamic *const actor = rigidDynamic(convert<physx::PxTransform>(data.pos), shape, mass);
+				actor->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
 
-		actors.emplace<ActorDynamic>(id, actor);
+				actors.emplace<ActorDynamic>(id, actor);
+				break;
+			}
+			case BodyType::STATIC:
+			{
+				physx::PxRigidStatic *const actor = rigidStatic(convert<physx::PxTransform>(data.pos), shape);
+				actor->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+
+				actors.emplace<ActorStatic>(id, actor);
+				break;
+			}
+			default:
+				throw std::runtime_error("Box objects must be Dynamic or Static");
+		}
 	}
 
 	void create(const engine::Entity id, const CharacterData & data)
@@ -90,7 +121,7 @@ namespace physics
 	/**
 	 *	\note Called during update.
 	 */
-	void update_begin()
+	void update_start()
 	{
 		// poll remove queue
 		{

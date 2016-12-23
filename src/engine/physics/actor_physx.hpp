@@ -10,6 +10,8 @@
 
 #include <core/container/Collection.hpp>
 
+#include <memory>
+
 /**
  *	\note Should be used by physics implementation only.
  */
@@ -20,11 +22,31 @@ namespace physics
 	constexpr unsigned int ACTORS_MAX = 100;
 	constexpr unsigned int ACTORS_GROUP = 20;
 
+	struct actor_delete
+	{
+		template <typename T>
+		void operator () (T * data)
+		{
+			data->release();
+		}
+	};
+
 	template<class T>
 	struct Actor
 	{
-		T * body;
+		std::unique_ptr<T, actor_delete> body;
 		::engine::Entity debugRenderId;
+
+		Actor(T *const body)
+			:
+			body(body),
+			debugRenderId(engine::Entity::INVALID)
+		{
+		}
+	};
+
+	struct ActorCharacter : Actor<::physx::PxController>
+	{
 		/**
 		 * Rotation along the y-axis (yaw).
 		 *
@@ -35,43 +57,22 @@ namespace physics
 		 */
 		core::maths::radianf heading;
 
-		Actor(T *const body)
+		ActorCharacter(::physx::PxController * const body)
 			:
-			body(body),
-			debugRenderId(engine::Entity::INVALID),
+			Actor(body),
 			heading(0.f)
 		{
-		}
-	};
-
-	struct ActorCharacter : Actor<::physx::PxController>
-	{
-		ActorCharacter(::physx::PxController * const body) : Actor(body) {}
-
-		~ActorCharacter()
-		{
-			body->release();
 		}
 	};
 
 	struct ActorDynamic : Actor<::physx::PxRigidDynamic>
 	{
 		ActorDynamic(::physx::PxRigidDynamic * const body) : Actor(body) {}
-
-		~ActorDynamic()
-		{
-			body->release();
-		}
 	};
 
 	struct ActorStatic : Actor<::physx::PxRigidStatic>
 	{
 		ActorStatic(::physx::PxRigidStatic * const body) : Actor(body) {}
-
-		~ActorStatic()
-		{
-			body->release();
-		}
 	};
 
 	// Collecation containing all Actors in the world.

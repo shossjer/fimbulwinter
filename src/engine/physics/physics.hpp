@@ -19,11 +19,11 @@ namespace physics
 	/**
 	 *	\note manages creation and removal of actors
 	 */
-	void update_begin();
+	void update_start();
 	/**
 	 *	\note steps physics engine forward
 	 */
-	void update_end();
+	void update_finish();
 
 	void post_create(const engine::Entity id, const BoxData & data);
 
