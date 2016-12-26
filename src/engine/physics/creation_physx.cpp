@@ -114,6 +114,7 @@ namespace physics
 		}
 
 		controller->setUserData((void*) (std::size_t)static_cast<engine::Entity::value_type>(id));
+		controller->getActor()->userData = ((void*) (std::size_t)static_cast<engine::Entity::value_type>(id));
 
 		actors.emplace<ActorCharacter>(id, controller);
 	}

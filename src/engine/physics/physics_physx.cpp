@@ -180,7 +180,17 @@ namespace physics
 
 		void operator () (ActorCharacter & x)
 		{
+			// movement needs to be rotated acording to character heading.. hope this can be done better
+			core::maths::Vector3f::array_type buffer;
+			vec.get_aligned(buffer);
 
+			// is this really the scale? /8
+			const float mx = -buffer[1]*std::sin(x.heading.get())/8;
+			const float my = buffer[2]/8;
+
+			const auto val = physx::PxVec3 {mx, my + 0.5f*(TIME_STEP*-9.82f), 0.f};
+
+			x.body->move(val, 0.0f, TIME_STEP, physx::PxControllerFilters {});
 		}
 
 		void operator () (ActorDynamic & x)
@@ -234,6 +244,30 @@ namespace physics
 		// Update the physics world
 		physx2::pScene->simulate(TIME_STEP);
 		physx2::pScene->fetchResults(true);
+
+		//// retrieve array of actors that moved
+		//physx::PxU32 nbActiveTransforms;
+		//const physx::PxActiveTransform* activeTransforms = physx2::pScene->getActiveTransforms(nbActiveTransforms);
+
+		//// update each render object with the new transform
+		//for (physx::PxU32 i = 0; i < nbActiveTransforms; ++i)
+		//{
+		//	const auto item = activeTransforms[i];
+
+		//	auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)item.userData)};
+
+		//	const auto pose = item.actor2World;
+
+		//	engine::graphics::data::ModelviewMatrix data = {
+		//		core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
+		//		make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z))
+		//	};
+
+		//	engine::graphics::renderer::update(id, std::move(data));
+
+		////	if (actor.debugRenderId!=::engine::Entity::INVALID)
+		////		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
+		//}
 
 		// Get movement from all characters
 		for (auto && actor : actors.get<ActorCharacter>())
