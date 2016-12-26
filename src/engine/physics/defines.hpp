@@ -14,6 +14,7 @@ namespace physics
 {
 	enum class Material
 	{
+		LOW_FRICTION,
 		MEETBAG,
 		STONE,
 		SUPER_RUBBER,
@@ -67,6 +68,14 @@ namespace physics
 		float solidity;
 
 		float radie;
+	};
+
+	struct PlaneData
+	{
+		BodyType type;
+		Vector3f point;
+		Vector3f normal;
+		Material material;
 	};
 }
 }

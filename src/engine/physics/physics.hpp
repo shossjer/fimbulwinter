@@ -29,6 +29,8 @@ namespace physics
 
 	void post_create(const engine::Entity id, const CharacterData & data);
 
+	void post_create(const engine::Entity id, const PlaneData & data);
+
 	void post_remove(const engine::Entity id);
 
 	void post_update_movement(const engine::Entity id, const core::maths::Vector3f movement);

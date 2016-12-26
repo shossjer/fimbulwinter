@@ -146,9 +146,12 @@ namespace physics
 		// Iron			7, 870
 		// Lead			11,340
 		// setup materials
+		materials.emplace(Material::LOW_FRICTION, MaterialDef(1000.f, .0f, .0f));
 		materials.emplace(Material::MEETBAG, MaterialDef(1000.f, .5f, .4f));
 		materials.emplace(Material::STONE, MaterialDef(2000.f, .4f, .05f));
 		materials.emplace(Material::SUPER_RUBBER, MaterialDef(1200.f, 1.0f, 1.0f));
+		materials.emplace(Material::WOOD, MaterialDef(700.f, .6f, .2f));
+
 		materials.emplace(Material::WOOD, MaterialDef(700.f, .6f, .2f));
 	}
 

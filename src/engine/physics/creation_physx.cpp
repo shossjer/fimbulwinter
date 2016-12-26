@@ -25,6 +25,7 @@ namespace physics
 	{
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, BoxData>, 100> queue_create_boxes;
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, CharacterData>, 100> queue_create_characters;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, PlaneData>, 100> queue_create_planes;
 		core::container::CircleQueueSRMW<engine::Entity, 100> queue_remove;
 	}
 
@@ -119,6 +120,16 @@ namespace physics
 		actors.emplace<ActorCharacter>(id, controller);
 	}
 
+	void create(const engine::Entity id, const PlaneData & data)
+	{
+		const MaterialDef & materialDef = materials.at(data.material);
+
+		physx::PxPlane plane {
+			physx::PxVec3 {convert<physx::PxVec3>(data.point)},
+			physx::PxVec3 {convert<physx::PxVec3>(data.normal)}};
+
+		physx2::pScene->addActor(*physx::PxCreatePlane(*physx2::pWorld, plane, *materialDef.material));
+	}
 	/**
 	 *	\note Called during update.
 	 */
@@ -134,6 +145,15 @@ namespace physics
 				//// remove debug object from Renderer
 				//if (actor.debugRenderId!= ::engine::Entity::INVALID)
 				//	engine::graphics::renderer::remove(actor.debugRenderId);
+			}
+		}
+
+		// poll planes to create
+		{
+			std::pair<engine::Entity, PlaneData> data;
+			while (queue_create_planes.try_pop(data))
+			{
+				create(data.first, data.second);
 			}
 		}
 
@@ -164,6 +184,11 @@ namespace physics
 	void post_create(const engine::Entity id, const CharacterData & data)
 	{
 		queue_create_characters.try_push(std::pair<engine::Entity, CharacterData>(id, data));
+	}
+
+	void post_create(const engine::Entity id, const PlaneData & data)
+	{
+		queue_create_planes.try_push(std::pair<engine::Entity, PlaneData>(id, data));
 	}
 
 	void post_remove(const engine::Entity id)

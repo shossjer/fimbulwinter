@@ -103,15 +103,35 @@ namespace looper
 		}
 		{
 			/**
+			 *	create limiting planes
+			 */
+			const auto depth = 0.50f;
+			{
+				const auto id = engine::Entity::create();
+				const Vector3f point{0.f, 0.f, depth};
+				const Vector3f normal {0.f, 0.f, -1.f};
+				::engine::physics::PlaneData data {::engine::physics::BodyType::STATIC, point, normal, engine::physics::Material::LOW_FRICTION};
+				engine::physics::post_create(id, data);
+			}
+			{
+				const auto id = engine::Entity::create();
+				const Vector3f point {0.f, 0.f, -depth};
+				const Vector3f normal {0.f, 0.f, 1.f};
+				::engine::physics::PlaneData data {::engine::physics::BodyType::STATIC, point, normal, engine::physics::Material::LOW_FRICTION};
+				engine::physics::post_create(id, data);
+			}
+		}
+		{
+			/**
 			 * create Boxes
 			 */
-			const float S = 0.5f;
+			const float S = 0.4f;
 			const float SOLIDITY = 0.06f;
 			const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
-			for (unsigned int i = 0; i < 10; i++)
+			for (unsigned int i = 0; i < 20; i++)
 			{
 				const float x = 10.f;
-				const float y = i*10.f;
+				const float y = i*2.f + 1.f;
 				const float z = 0.f;
 
 				const auto id = engine::Entity::create();
@@ -137,8 +157,6 @@ namespace looper
 					engine::graphics::renderer::update(id, std::move(data));
 				}
 			}
-
-
 
 			for (unsigned int i = 0; i < 10; i++)
 			{
