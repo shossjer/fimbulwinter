@@ -78,6 +78,9 @@ namespace looper
 		looperThread.join();
 	}
 
+	engine::Entity platformId;
+	engine::Entity spinnerId;
+
 	void add_some_stuff()
 	{
 		{
@@ -119,6 +122,72 @@ namespace looper
 				const Vector3f normal {0.f, 0.f, 1.f};
 				::engine::physics::PlaneData data {::engine::physics::BodyType::STATIC, point, normal, engine::physics::Material::LOW_FRICTION};
 				engine::physics::post_create(id, data);
+			}
+		}
+		{
+			// add an Kinematic object for platform
+			const float w = 2.f*0.5f;
+			const float h = 0.5*0.5f;
+			const float d = 1.f*0.5f;
+
+			const float x = 13.f;
+			const float y = 4.f;
+			const float z = 0.f;
+
+			platformId = engine::Entity::create();
+			{
+				::engine::physics::BoxData data {::engine::physics::BodyType::KINEMATIC, Vector3f {x, y, z}, ::engine::physics::Material::STONE, 1.f, Vector3f {w, h, d}};
+				::engine::physics::post_create(platformId, data);
+			}
+			{
+				engine::graphics::data::CuboidC data = {
+					core::maths::Matrix4x4f::identity(),
+					w * 2.f, h * 2.f, d * 2.f,
+					0xff00ff00
+				};
+				engine::graphics::renderer::add(platformId, data);
+			}
+			{
+				engine::graphics::data::ModelviewMatrix data = {
+					core::maths::Matrix4x4f::translation(x, y, z) *
+					core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 0.f, 1.f) *
+					core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 1.f, 0.f)
+				};
+
+				engine::graphics::renderer::update(platformId, std::move(data));
+			}
+		}
+		{
+			// add an Kinematic object for spinner
+			const float w = 7.f*0.5f;
+			const float h = 0.2f*0.5f;
+			const float d = 1.f*0.5f;
+
+			const float x = 8.f;
+			const float y = 4.f;
+			const float z = 0.f;
+
+			spinnerId = engine::Entity::create();
+			{
+				::engine::physics::BoxData data {::engine::physics::BodyType::KINEMATIC, Vector3f {x, y, z}, ::engine::physics::Material::STONE, 1.f, Vector3f {w, h, d}};
+				::engine::physics::post_create(spinnerId, data);
+			}
+			{
+				engine::graphics::data::CuboidC data = {
+					core::maths::Matrix4x4f::identity(),
+					w * 2.f, h * 2.f, d * 2.f,
+					0xff00ff00
+				};
+				engine::graphics::renderer::add(spinnerId, data);
+			}
+			{
+				engine::graphics::data::ModelviewMatrix data = {
+					core::maths::Matrix4x4f::translation(x, y, z) *
+					core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 0.f, 1.f) *
+					core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 1.f, 0.f)
+				};
+
+				engine::graphics::renderer::update(spinnerId, std::move(data));
 			}
 		}
 		{
@@ -193,6 +262,38 @@ namespace looper
 		}
 	}
 
+	void temp_update()
+	{
+		{
+			// update moving platform
+			static int count = 0;
+			static float direction = 1.f;
+			static Vector3f position {13.f, 4.f, 0.f};
+
+			engine::physics::post_update_movement(platformId, engine::physics::translation_data {position, Quaternionf{1.f, 0.f, 0.f, 0.f}});
+
+			if (count++>3*50) count = 0, direction = -direction;
+
+			position += Vector3f {direction, 0.f, 0.f}*(1/50.f);
+		}
+		{
+			// update rotating beam
+			static float angle = 0.f;
+
+			angle += 0.5f*(1/50.f);
+
+			const float w = cos(angle * 0.5f);
+			const float x = 0.f;
+			const float y = 0.f;
+			const float z = sin(angle * 0.5f);
+
+			Vector3f p {8.f, 4.f, 0.f};
+			core::maths::Quaternionf q {w, x, y, z};
+
+			engine::physics::post_update_movement(spinnerId, engine::physics::translation_data {p, q});
+		}
+	}
+
 	void run()
 	{
 		class PhysicsCallback : public ::engine::physics::Callback
@@ -242,6 +343,8 @@ namespace looper
 
 			// update animations
 			::engine::animation::update();
+
+			temp_update();
 
 			// update actors in engine
 			::engine::physics::update_start();

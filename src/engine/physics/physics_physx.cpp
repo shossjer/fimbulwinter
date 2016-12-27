@@ -72,7 +72,8 @@ namespace physics
 		const Callback * pCallback;
 
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, core::maths::radianf>, 100> queue_headings;
-		core::container::CircleQueueSRMW<std::pair<engine::Entity, core::maths::Vector3f>, 100> queue_movements;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, movement_data>, 100> queue_movements;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, translation_data>, 100> queue_translations;
 	}
 
 	/**
@@ -177,15 +178,15 @@ namespace physics
 
 	struct actor_mover
 	{
-		const ::core::maths::Vector3f vec;
+		const movement_data movement;
 
-		actor_mover(const Vector3f vec) : vec(vec) {}
+		actor_mover(const movement_data movement) : movement(movement) {}
 
 		void operator () (ActorCharacter & x)
 		{
 			// movement needs to be rotated acording to character heading.. hope this can be done better
 			core::maths::Vector3f::array_type buffer;
-			vec.get_aligned(buffer);
+			movement.vec.get_aligned(buffer);
 
 			// is this really the scale? /8
 			const float mx = -buffer[1]*std::sin(x.heading.get())/8;
@@ -198,12 +199,55 @@ namespace physics
 
 		void operator () (ActorDynamic & x)
 		{
+			core::maths::Vector3f::array_type buffer;
+			movement.vec.get_aligned(buffer);
 
+			switch (this->movement.type)
+			{
+				case movement_data::Type::IMPULSE:
+				{
+					x.body->addForce(convert<physx::PxVec3>(this->movement.vec), physx::PxForceMode::eIMPULSE);
+					break;
+				}
+				case movement_data::Type::FORCE:
+				{
+					x.body->addForce(convert<physx::PxVec3>(this->movement.vec), physx::PxForceMode::eFORCE);
+					break;
+				}
+			}
 		}
 
 		void operator () (ActorStatic & x)
 		{
+			// should not move
+			debug_unreachable();
+		}
+	};
 
+	struct actor_translate
+	{
+		const translation_data translation;
+
+		actor_translate(const translation_data translation) : translation(translation) {}
+
+		void operator () (ActorCharacter & x)
+		{
+		}
+
+		void operator () (ActorDynamic & x)
+		{
+			// make sure object is Kinematic
+			debug_assert(x.body->getRigidBodyFlags().isSet(physx::PxRigidBodyFlag::eKINEMATIC));
+
+			physx::PxTransform t {convert<physx::PxVec3>(this->translation.pos), convert(this->translation.quat) };
+
+			x.body->setKinematicTarget(t);
+		}
+
+		void operator () (ActorStatic & x)
+		{
+			// should not move
+			debug_unreachable();
 		}
 	};
 
@@ -237,10 +281,18 @@ namespace physics
 		}
 		// poll movement queue
 		{
-			std::pair<engine::Entity, core::maths::Vector3f> data;
+			std::pair<engine::Entity, movement_data> data;
 			while (queue_movements.try_pop(data))
 			{
 				actors.call(data.first, actor_mover {data.second});
+			}
+		}
+		// poll translation queue
+		{
+			std::pair<engine::Entity, translation_data> data;
+			while (queue_translations.try_pop(data))
+			{
+				actors.call(data.first, actor_translate {data.second});
 			}
 		}
 
@@ -263,7 +315,7 @@ namespace physics
 
 		//	engine::graphics::data::ModelviewMatrix data = {
 		//		core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
-		//		make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z))
+		//		make_matrix(core::maths::Quaternionf(-pose.q.w, pose.q.x, pose.q.y, pose.q.z))
 		//	};
 
 		//	engine::graphics::renderer::update(id, std::move(data));
@@ -300,7 +352,7 @@ namespace physics
 
 			engine::graphics::data::ModelviewMatrix data = {
 				core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
-				make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z))
+				make_matrix(core::maths::Quaternionf(-pose.q.w, pose.q.x, pose.q.y, pose.q.z))
 			};
 
 			engine::graphics::renderer::update(id, std::move(data));
@@ -358,9 +410,14 @@ namespace physics
 		angle = data.angle;
 	}
 
-	void post_update_movement(const engine::Entity id, const core::maths::Vector3f movement)
+	void post_update_movement(const engine::Entity id, const movement_data movement)
 	{
 		const auto res = queue_movements.try_emplace(id, movement);
+		debug_assert(res);
+	}
+	void post_update_movement(const engine::Entity id, const translation_data translation)
+	{
+		const auto res = queue_translations.try_emplace(id, translation);
 		debug_assert(res);
 	}
 	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation)

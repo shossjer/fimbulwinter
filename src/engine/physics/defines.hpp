@@ -5,8 +5,10 @@
 #include <engine/Entity.hpp>
 
 #include <core/maths/Vector.hpp>
+#include <core/maths/Quaternion.hpp>
 
 using Vector3f = core::maths::Vector3f;
+using Quaternionf = core::maths::Quaternionf;
 
 namespace engine
 {
@@ -23,9 +25,20 @@ namespace physics
 
 	enum class BodyType
 	{
+		// special character type of dynamic body.
+		// it is managed through a character controller which makes better
+		// movement for characters.
+		// when moving a Character body the Character move should be used.
 		CHARACTER,
+		// normal dynamic rigid bodies
+		// when moving a Dynamic body the Force or Impulse move should be used.
 		DYNAMIC,
+		// static objects should never be moved.
 		STATIC,
+		// used for movable objects that are not affected by physics.
+		// platforms and moving beams should be Kinematic.
+		// when moving an Kinematic object the Kinematic move should be used.
+		KINEMATIC
 	};
 
 	struct BoxData

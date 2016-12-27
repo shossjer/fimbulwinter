@@ -25,6 +25,13 @@ namespace physics
 		return T {buffer[0], buffer[1], buffer[2]};
 	}
 
+	static physx::PxQuat convert(const core::maths::Quaternionf val)
+	{
+		core::maths::Quaternionf::array_type buffer;
+		val.get_aligned(buffer);
+		return physx::PxQuat { buffer[1], buffer[2], buffer[3], buffer[0] };
+	}
+
 	static core::maths::Vector3f convert(const physx::PxVec3 val)
 	{
 		return core::maths::Vector3f {val.x, val.y, val.z};

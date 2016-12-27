@@ -33,7 +33,32 @@ namespace physics
 
 	void post_remove(const engine::Entity id);
 
-	void post_update_movement(const engine::Entity id, const core::maths::Vector3f movement);
+	struct movement_data
+	{
+		enum class Type
+		{
+			FORCE,
+			IMPULSE,
+			CHARACTER,
+		};
+
+		Type type;
+		core::maths::Vector3f vec;
+	};
+	/**
+	 *	\note update Character or Dynamic object with delta movement or force.
+	 */
+	void post_update_movement(const engine::Entity id, const movement_data movement);
+
+	struct translation_data
+	{
+		core::maths::Vector3f pos;
+		core::maths::Quaternionf quat;
+	};
+	/**
+	 *	\note update Kinematic object with position and rotation
+	 */
+	void post_update_movement(const engine::Entity id, const translation_data translation);
 
 	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation);
 

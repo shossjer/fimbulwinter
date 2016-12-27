@@ -78,6 +78,19 @@ namespace physics
 				actors.emplace<ActorDynamic>(id, actor);
 				break;
 			}
+			case BodyType::KINEMATIC:
+			{
+				const float mass = materialDef.density * data.size.volume() * data.solidity;
+
+				physx::PxRigidDynamic *const actor = rigidDynamic(convert<physx::PxTransform>(data.pos), shape, mass);
+				actor->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+
+				// make it an kinematic object
+				actor->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
+
+				actors.emplace<ActorDynamic>(id, actor);
+				break;
+			}
 			case BodyType::STATIC:
 			{
 				physx::PxRigidStatic *const actor = rigidStatic(convert<physx::PxTransform>(data.pos), shape);

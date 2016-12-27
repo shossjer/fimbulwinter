@@ -19,8 +19,8 @@ namespace engine
 {
 namespace physics
 {
-	constexpr unsigned int ACTORS_MAX = 100;
-	constexpr unsigned int ACTORS_GROUP = 20;
+	constexpr unsigned int ACTORS_MAX = 500;
+	constexpr unsigned int ACTORS_GROUP = 100;
 
 	struct actor_delete
 	{
