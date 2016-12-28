@@ -64,6 +64,10 @@ namespace gameplay
 {
 namespace looper
 {
+	using ActorData = engine::physics::ActorData;
+	using ShapeData = engine::physics::ShapeData;
+	using Material = engine::physics::Material;
+
 	void run();
 
 	void create()
@@ -78,31 +82,67 @@ namespace looper
 		looperThread.join();
 	}
 
-	engine::Entity platformId;
-	engine::Entity spinnerId;
+	engine::Entity playerId {engine::Entity::INVALID};
+	engine::Entity platformId {engine::Entity::INVALID};
+	engine::Entity spinnerId {engine::Entity::INVALID};
+
+	void physics_box(const engine::Entity id, const ActorData::Type type, const ActorData::Behaviour behaviour, const Material material, const float solidity, const float x, const float y, const float z, const float w, const float h, const float d)
+	{
+		std::vector<ShapeData> shapes;
+		shapes.push_back(ShapeData {
+			ShapeData::Type::BOX,
+			material,
+			solidity,
+			Vector3f{0.f, 0.f, 0.f},
+			Quaternionf{1.f, 0.f, 0.f, 0.f},
+			ShapeData::Geometry{ShapeData::Geometry::Box{w*0.5f, h*0.5f, d*0.5f} } });
+
+		ActorData data {type, behaviour, x, y, z, shapes};
+
+		::engine::physics::post_create(id, data);
+	}
+
+	void renderer_box(const engine::Entity id, const engine::graphics::data::Color color, const float x, const float y, const float z, const float w, const float h, const float d)
+	{
+		engine::graphics::data::CuboidC dataShape = {
+			core::maths::Matrix4x4f::identity(), w, h, d, color
+		};
+		engine::graphics::renderer::add(id, dataShape);
+
+		engine::graphics::data::ModelviewMatrix dataMatrix = {
+			core::maths::Matrix4x4f::translation(x, y, z)
+		};
+		engine::graphics::renderer::update(id, std::move(dataMatrix));
+	}
 
 	void add_some_stuff()
 	{
 		{
-			// vvvv tmp vvvv
-			const auto modelentity = ::engine::Entity::create();
-			::engine::graphics::renderer::add(modelentity,
-				::engine::graphics::renderer::asset::CharacterMesh{ "res/player.msh" });
-			::engine::animation::add(modelentity, ::engine::animation::armature{ "res/player.arm" });
-			::engine::animation::update(modelentity, ::engine::animation::action{ "stand-00" });
-		//	const auto id = engine::Entity::create();
-			::gameplay::characters::create(modelentity);
-			::engine::physics::CharacterData capsule{ engine::physics::BodyType::CHARACTER, Vector3f{ 12.f, 2.f, 0.f }, ::engine::physics::Material::MEETBAG, .6f, 2.f, .5f }; // 0.6f, 1.8f, 0.4f
-			::engine::physics::post_create(modelentity, capsule);
+			playerId = engine::Entity::create();
+			::gameplay::characters::create(playerId);
 
-			gameplay::ui::post_add_player(modelentity);
+			{
+				const float w = 1.2f;
+				const float h = 0.8f;
+				const float d = 1.f;
 
-			const auto cameraentity = engine::Entity::create();
-			engine::graphics::viewer::add(cameraentity,
-			                              engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
-			                                                               Vector3f(0.f, 0.f, 0.f)));
-			gameplay::characters::post_add_camera(cameraentity, modelentity);
-			// ^^^^ tmp ^^^^
+				const float x = 14.f;
+				const float y = 3.f;
+				const float z = 0.f;
+
+				physics_box(playerId, ActorData::Type::DYNAMIC, ActorData::Behaviour::PLAYER, Material::MEETBAG, .75f, x, y, z, w, h, d);
+				renderer_box(playerId, 0x00ff00ff, x, y, z, w, h, d);
+			}
+
+			gameplay::ui::post_add_player(playerId);
+
+			{
+				const auto cameraId = engine::Entity::create();
+				engine::graphics::viewer::add(cameraId,
+					engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
+						Vector3f(0.f, 0.f, 0.f)));
+				gameplay::characters::post_add_camera(cameraId, playerId);
+			}
 		}
 		{
 			/**
@@ -113,22 +153,22 @@ namespace looper
 				const auto id = engine::Entity::create();
 				const Vector3f point{0.f, 0.f, depth};
 				const Vector3f normal {0.f, 0.f, -1.f};
-				::engine::physics::PlaneData data {::engine::physics::BodyType::STATIC, point, normal, engine::physics::Material::LOW_FRICTION};
+				::engine::physics::PlaneData data {point, normal, engine::physics::Material::LOW_FRICTION};
 				engine::physics::post_create(id, data);
 			}
 			{
 				const auto id = engine::Entity::create();
 				const Vector3f point {0.f, 0.f, -depth};
 				const Vector3f normal {0.f, 0.f, 1.f};
-				::engine::physics::PlaneData data {::engine::physics::BodyType::STATIC, point, normal, engine::physics::Material::LOW_FRICTION};
+				::engine::physics::PlaneData data {point, normal, engine::physics::Material::LOW_FRICTION};
 				engine::physics::post_create(id, data);
 			}
 		}
 		{
 			// add an Kinematic object for platform
-			const float w = 2.f*0.5f;
-			const float h = 0.5*0.5f;
-			const float d = 1.f*0.5f;
+			const float w = 2.f;
+			const float h = 0.5f;
+			const float d = 1.f;
 
 			const float x = 13.f;
 			const float y = 4.f;
@@ -136,32 +176,15 @@ namespace looper
 
 			platformId = engine::Entity::create();
 			{
-				::engine::physics::BoxData data {::engine::physics::BodyType::KINEMATIC, Vector3f {x, y, z}, ::engine::physics::Material::STONE, 1.f, Vector3f {w, h, d}};
-				::engine::physics::post_create(platformId, data);
-			}
-			{
-				engine::graphics::data::CuboidC data = {
-					core::maths::Matrix4x4f::identity(),
-					w * 2.f, h * 2.f, d * 2.f,
-					0xff00ff00
-				};
-				engine::graphics::renderer::add(platformId, data);
-			}
-			{
-				engine::graphics::data::ModelviewMatrix data = {
-					core::maths::Matrix4x4f::translation(x, y, z) *
-					core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 0.f, 1.f) *
-					core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 1.f, 0.f)
-				};
-
-				engine::graphics::renderer::update(platformId, std::move(data));
+				physics_box(platformId, ActorData::Type::KINEMATIC, ActorData::Behaviour::OBSTACLE, Material::STONE, 1.f, x, y, z, w, h, d);
+				renderer_box(platformId, 0x0000ff00, x, y, z, w, h, d);
 			}
 		}
 		{
 			// add an Kinematic object for spinner
-			const float w = 7.f*0.5f;
-			const float h = 0.2f*0.5f;
-			const float d = 1.f*0.5f;
+			const float w = 7.f;
+			const float h = 0.2f;
+			const float d = 1.f;
 
 			const float x = 8.f;
 			const float y = 4.f;
@@ -169,101 +192,54 @@ namespace looper
 
 			spinnerId = engine::Entity::create();
 			{
-				::engine::physics::BoxData data {::engine::physics::BodyType::KINEMATIC, Vector3f {x, y, z}, ::engine::physics::Material::STONE, 1.f, Vector3f {w, h, d}};
-				::engine::physics::post_create(spinnerId, data);
-			}
-			{
-				engine::graphics::data::CuboidC data = {
-					core::maths::Matrix4x4f::identity(),
-					w * 2.f, h * 2.f, d * 2.f,
-					0xff00ff00
-				};
-				engine::graphics::renderer::add(spinnerId, data);
-			}
-			{
-				engine::graphics::data::ModelviewMatrix data = {
-					core::maths::Matrix4x4f::translation(x, y, z) *
-					core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 0.f, 1.f) *
-					core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 1.f, 0.f)
-				};
-
-				engine::graphics::renderer::update(spinnerId, std::move(data));
+				physics_box(spinnerId, ActorData::Type::KINEMATIC, ActorData::Behaviour::OBSTACLE, Material::STONE, 1.f, x, y, z, w, h, d);
+				renderer_box(spinnerId, 0x0000ff00, x, y, z, w, h, d);
 			}
 		}
+
+		/**
+		 * create Boxes
+		 */
+		for (unsigned int i = 0; i < 20; i++)
 		{
-			/**
-			 * create Boxes
-			 */
-			const float S = 0.4f;
+			const float w = 0.8f;
+			const float h = 0.8f;
+			const float d = 1.f;
+
+			const float x = 10.f;
+			const float y = i*2.f + 1.f;
+			const float z = 0.f;
+
 			const float SOLIDITY = 0.06f;
-			const ::engine::physics::Material M = ::engine::physics::Material::WOOD;
-			for (unsigned int i = 0; i < 20; i++)
+
+			const auto id = engine::Entity::create();
 			{
-				const float x = 10.f;
-				const float y = i*2.f + 1.f;
-				const float z = 0.f;
-
-				const auto id = engine::Entity::create();
-				{
-					::engine::physics::BoxData data {::engine::physics::BodyType::DYNAMIC, Vector3f {x, y, z}, M, SOLIDITY, Vector3f {S, S, S}};
-					::engine::physics::post_create(id, data);
-				}
-				{
-					engine::graphics::data::CuboidC data = {
-						core::maths::Matrix4x4f::identity(),
-						S * 2.f, S * 2.f, S * 2.f,
-						0xff00ff00
-					};
-					engine::graphics::renderer::add(id, data);
-				}
-				{
-					engine::graphics::data::ModelviewMatrix data = {
-						core::maths::Matrix4x4f::translation(x, y, z) *
-						core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 0.f, 1.f) *
-						core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 1.f, 0.f)
-					};
-
-					engine::graphics::renderer::update(id, std::move(data));
-				}
+				physics_box(id, ActorData::Type::DYNAMIC, ActorData::Behaviour::DEFAULT, Material::WOOD, SOLIDITY, x, y, z, w, h, d);
+				renderer_box(id, 0xff00ff00, x, y, z, w, h, d);
 			}
+		}
 
-			for (unsigned int i = 0; i < 10; i++)
+		for (unsigned int i = 0; i < 10; i++)
+		{
+			const float w = 2.f;
+			const float h = .5f;
+			const float d = 1.f;
+
+			const float x = 0.f + i*(w + 0.2f);	// start x
+			const float y = 0.f;		// height
+			const float z = 0.f;		// depth
+
+			const auto id = engine::Entity::create();
 			{
-				const float w = 2.f;
-				const float h = .5f;
-
-				const float x = 0.f + i*(w + 0.2f);	// start x
-				const float y = 0.f;		// height
-				const float z = 0.f;		// depth
-
-				const auto id = engine::Entity::create();
-				{
-					::engine::physics::BoxData data {::engine::physics::BodyType::STATIC, Vector3f {x, y, z}, M, SOLIDITY, Vector3f {w*.5f, h*.5f, w*.5f}};
-					::engine::physics::post_create(id, data);
-				}
-				{
-					engine::graphics::data::CuboidC data = {
-						core::maths::Matrix4x4f::identity(),
-						w, h, w,
-						0xff00ff00
-					};
-					engine::graphics::renderer::add(id, data);
-				}
-				{
-					engine::graphics::data::ModelviewMatrix data = {
-						core::maths::Matrix4x4f::translation(x, y, z) *
-						core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 0.f, 1.f) *
-						core::maths::Matrix4x4f::rotation(core::maths::radianf {0.f}, 0.f, 1.f, 0.f)
-					};
-
-					engine::graphics::renderer::update(id, std::move(data));
-				}
+				physics_box(id, ActorData::Type::STATIC, ActorData::Behaviour::DEFAULT, Material::WOOD, 1.f, x, y, z, w, h, d);
+				renderer_box(id, 0xffffff00, x, y, z, w, h, d);
 			}
 		}
 	}
 
 	void temp_update()
 	{
+		if (platformId!= engine::Entity::INVALID)
 		{
 			// update moving platform
 			static int count = 0;
@@ -276,6 +252,8 @@ namespace looper
 
 			position += Vector3f {direction, 0.f, 0.f}*(1/50.f);
 		}
+
+		if (spinnerId!=engine::Entity::INVALID)
 		{
 			// update rotating beam
 			static float angle = 0.f;

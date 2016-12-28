@@ -25,9 +25,7 @@ namespace physics
 	 */
 	void update_finish();
 
-	void post_create(const engine::Entity id, const BoxData & data);
-
-	void post_create(const engine::Entity id, const CharacterData & data);
+	void post_create(const engine::Entity id, const ActorData & data);
 
 	void post_create(const engine::Entity id, const PlaneData & data);
 
@@ -39,7 +37,7 @@ namespace physics
 		{
 			FORCE,
 			IMPULSE,
-			CHARACTER,
+			CHARACTER
 		};
 
 		Type type;

@@ -211,7 +211,7 @@ namespace physics
 				}
 				case movement_data::Type::FORCE:
 				{
-					x.body->addForce(convert<physx::PxVec3>(this->movement.vec), physx::PxForceMode::eFORCE);
+					x.body->addForce(convert<physx::PxVec3>(this->movement.vec*x.body->getMass()), physx::PxForceMode::eFORCE);
 					break;
 				}
 			}
@@ -232,6 +232,7 @@ namespace physics
 
 		void operator () (ActorCharacter & x)
 		{
+			debug_unreachable();
 		}
 
 		void operator () (ActorDynamic & x)
@@ -300,55 +301,18 @@ namespace physics
 		physx2::pScene->simulate(TIME_STEP);
 		physx2::pScene->fetchResults(true);
 
-		//// retrieve array of actors that moved
-		//physx::PxU32 nbActiveTransforms;
-		//const physx::PxActiveTransform* activeTransforms = physx2::pScene->getActiveTransforms(nbActiveTransforms);
+		// retrieve array of actors that moved
+		physx::PxU32 nbActiveTransforms;
+		const physx::PxActiveTransform* activeTransforms = physx2::pScene->getActiveTransforms(nbActiveTransforms);
 
-		//// update each render object with the new transform
-		//for (physx::PxU32 i = 0; i < nbActiveTransforms; ++i)
-		//{
-		//	const auto item = activeTransforms[i];
-
-		//	auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)item.userData)};
-
-		//	const auto pose = item.actor2World;
-
-		//	engine::graphics::data::ModelviewMatrix data = {
-		//		core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
-		//		make_matrix(core::maths::Quaternionf(-pose.q.w, pose.q.x, pose.q.y, pose.q.z))
-		//	};
-
-		//	engine::graphics::renderer::update(id, std::move(data));
-
-		////	if (actor.debugRenderId!=::engine::Entity::INVALID)
-		////		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
-		//}
-
-		// Get movement from all characters
-		for (auto && actor : actors.get<ActorCharacter>())
+		// update each render object with the new transform
+		for (physx::PxU32 i = 0; i < nbActiveTransforms; ++i)
 		{
-			auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)actor.body->getUserData())};
+			const auto item = activeTransforms[i];
 
-			const auto pose = actor.body->getActor()->getGlobalPose();
+			auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)item.userData)};
 
-			engine::graphics::data::ModelviewMatrix data = {
-				core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
-			//	make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z)) *
-				core::maths::Matrix4x4f::rotation(actor.heading, 0.f, 1.f, 0.f)
-			};
-
-			engine::graphics::renderer::update(id, std::move(data));
-
-			if (actor.debugRenderId!=::engine::Entity::INVALID)
-				engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
-		}
-
-		// Get movement from all dynamic bodies
-		for (auto && actor : actors.get<ActorDynamic>())
-		{
-			auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)actor.body->userData)};
-
-			const auto pose = actor.body->getGlobalPose();
+			const auto pose = item.actor2World;
 
 			engine::graphics::data::ModelviewMatrix data = {
 				core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
@@ -357,9 +321,46 @@ namespace physics
 
 			engine::graphics::renderer::update(id, std::move(data));
 
-			if (actor.debugRenderId!=::engine::Entity::INVALID)
-				engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
+		//	if (actor.debugRenderId!=::engine::Entity::INVALID)
+		//		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
 		}
+
+		//// Get movement from all characters
+		//for (auto && actor : actors.get<ActorCharacter>())
+		//{
+		//	auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)actor.body->getUserData())};
+
+		//	const auto pose = actor.body->getActor()->getGlobalPose();
+
+		//	engine::graphics::data::ModelviewMatrix data = {
+		//		core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
+		//	//	make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z)) *
+		//		core::maths::Matrix4x4f::rotation(actor.heading, 0.f, 1.f, 0.f)
+		//	};
+
+		//	engine::graphics::renderer::update(id, std::move(data));
+
+		//	if (actor.debugRenderId!=::engine::Entity::INVALID)
+		//		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
+		//}
+
+		//// Get movement from all dynamic bodies
+		//for (auto && actor : actors.get<ActorDynamic>())
+		//{
+		//	auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)actor.body->userData)};
+
+		//	const auto pose = actor.body->getGlobalPose();
+
+		//	engine::graphics::data::ModelviewMatrix data = {
+		//		core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
+		//		make_matrix(core::maths::Quaternionf(-pose.q.w, pose.q.x, pose.q.y, pose.q.z))
+		//	};
+
+		//	engine::graphics::renderer::update(id, std::move(data));
+
+		//	if (actor.debugRenderId!=::engine::Entity::INVALID)
+		//		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
+		//}
 	}
 
 	/**

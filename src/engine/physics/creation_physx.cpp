@@ -21,116 +21,139 @@ namespace engine
 {
 namespace physics
 {
+	using namespace physx;
+
 	namespace
 	{
-		core::container::CircleQueueSRMW<std::pair<engine::Entity, BoxData>, 100> queue_create_boxes;
-		core::container::CircleQueueSRMW<std::pair<engine::Entity, CharacterData>, 100> queue_create_characters;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, ActorData>, 100> queue_create;
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, PlaneData>, 100> queue_create_planes;
 		core::container::CircleQueueSRMW<engine::Entity, 100> queue_remove;
 	}
 
 	/**
-	 *	\note Helper method when creating dynamic objects
+		\note create shapes for the Actor body.
+		\return float total mass of all shapes
 	 */
-	physx::PxRigidDynamic * rigidDynamic(const physx::PxTransform & position, physx::PxShape *const shape, const float mass)
+	float create(const std::vector<ShapeData> shapeDatas, PxRigidActor * body)
 	{
-		physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(position);
+		float totalMass = 0.f;
 
-		body->attachShape(*shape);
+		for (const ShapeData & shapeData :shapeDatas)
+		{
+			const MaterialDef & materialDef = materials.at(shapeData.material);
 
-		physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, mass);
+			physx::PxShape * shape;
 
-		physx2::pScene->addActor(*body);
+			switch (shapeData.type)
+			{
+				// TODO: set transform of the shape
 
-		return body;
+				case ShapeData::Type::BOX:
+				{
+					shape = physx2::pWorld->createShape(
+						PxBoxGeometry {physx::PxVec3 {shapeData.geometry.box.w, shapeData.geometry.box.h, shapeData.geometry.box.d}},
+						*materialDef.material);
+
+					// calculate mass of the shape
+					totalMass += (materialDef.density * shapeData.geometry.box.volume() * shapeData.solidity);
+					break;
+				}
+				case ShapeData::Type::SPHERE:
+				{
+					shape = physx2::pWorld->createShape(
+						PxSphereGeometry {shapeData.geometry.sphere.r},
+						*materialDef.material);
+
+					// calculate mass of the shape
+					totalMass += (materialDef.density * shapeData.geometry.sphere.volume() * shapeData.solidity);
+					break;
+				}
+				case ShapeData::Type::CAPSULE:
+				case ShapeData::Type::MESH:
+				default:
+
+				throw std::runtime_error("Shape type is not implemented");
+			}
+
+			body->attachShape(*shape);
+		}
+
+		return totalMass;
 	}
-	/**
-	 *	\note Helper method when creating static objects
-	 */
-	physx::PxRigidStatic * rigidStatic(const physx::PxTransform & position, physx::PxShape *const shape)
+
+	void create(const engine::Entity id, const ActorData & data)
 	{
-		physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(position);
-
-		body->attachShape(*shape);
-
-		physx2::pScene->addActor(*body);
-
-		return body;
-	}
-
-	void create(const engine::Entity id, const BoxData & data)
-	{
-		const MaterialDef & materialDef = materials.at(data.material);
-
-		physx::PxBoxGeometry geometry(convert<physx::PxVec3>(data.size));
-
-		physx::PxShape *const shape = physx2::pWorld->createShape(geometry, *materialDef.material);
+		// TODO: create collision filter flags
 
 		switch (data.type)
 		{
-			case BodyType::DYNAMIC:
+			case ActorData::Type::DYNAMIC:
 			{
-				const float mass = materialDef.density * data.size.volume() * data.solidity;
+				// create a dynamic body at position
+				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform {data.x, data.y, data.z});
 
-				physx::PxRigidDynamic *const actor = rigidDynamic(convert<physx::PxTransform>(data.pos), shape, mass);
-				actor->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+				// create and add shapes to body
+				// returns total mass of all shapes
+				const float totalMass = create(data.shapes, body);
 
-				actors.emplace<ActorDynamic>(id, actor);
+				// update mass for Actor for non-static body
+				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, totalMass);
+
+				// register it as an actor so we have access to the body from id
+				actors.emplace<ActorDynamic>(id, body);
+
+				// set entity id to the body for callback
+				body->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+
+				// finally add it to the scene
+				physx2::pScene->addActor(*body);
 				break;
 			}
-			case BodyType::KINEMATIC:
+			case ActorData::Type::KINEMATIC:
 			{
-				const float mass = materialDef.density * data.size.volume() * data.solidity;
-
-				physx::PxRigidDynamic *const actor = rigidDynamic(convert<physx::PxTransform>(data.pos), shape, mass);
-				actor->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+				// create a dynamic body at position
+				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform {data.x, data.y, data.z});
 
 				// make it an kinematic object
-				actor->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
+				body->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
 
-				actors.emplace<ActorDynamic>(id, actor);
+				// create and add shapes to body
+				// returns total mass of all shapes
+				const float totalMass = create(data.shapes, body);
+
+				// update mass for Actor for non-static body
+				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, totalMass);
+
+				// register it as an actor so we have access to the body from id
+				actors.emplace<ActorDynamic>(id, body);
+
+				// set entity id to the body for callback
+				body->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+
+				// finally add it to the scene
+				physx2::pScene->addActor(*body);
 				break;
 			}
-			case BodyType::STATIC:
+			case ActorData::Type::STATIC:
 			{
-				physx::PxRigidStatic *const actor = rigidStatic(convert<physx::PxTransform>(data.pos), shape);
-				actor->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+				// create a dynamic body at position
+				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform {data.x, data.y, data.z});
 
-				actors.emplace<ActorStatic>(id, actor);
+				// create and add shapes to body
+				// returns total mass of all shapes
+				create(data.shapes, body);
+
+				// register it as an actor so we have access to the body from id
+				actors.emplace<ActorStatic>(id, body);
+
+				// set entity id to the body for callback
+				body->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+
+				// finally add it to the scene
+				physx2::pScene->addActor(*body);
 				break;
 			}
-			default:
-				throw std::runtime_error("Box objects must be Dynamic or Static");
 		}
-	}
-
-	void create(const engine::Entity id, const CharacterData & data)
-	{
-		const MaterialDef & materialDef = materials.at(data.material);
-
-		physx::PxCapsuleControllerDesc desc;
-
-		desc.height = data.height;
-		desc.position = convert<physx::PxExtendedVec3>(data.pos);
-		desc.radius = data.radius;
-		desc.material = materialDef.material;
-
-		if (!desc.isValid())
-		{
-			throw std::runtime_error("Controller description is not valid!");
-		}
-
-		physx::PxController *const controller = physx2::pControllerManager->createController(desc);
-
-		if (controller==nullptr)
-		{
-			throw std::runtime_error("Could not create controller!");
-		}
-
-		controller->setUserData((void*) (std::size_t)static_cast<engine::Entity::value_type>(id));
-		controller->getActor()->userData = ((void*) (std::size_t)static_cast<engine::Entity::value_type>(id));
-
-		actors.emplace<ActorCharacter>(id, controller);
 	}
 
 	void create(const engine::Entity id, const PlaneData & data)
@@ -172,31 +195,17 @@ namespace physics
 
 		// poll boxes to create
 		{
-			std::pair<engine::Entity, BoxData> data;
-			while (queue_create_boxes.try_pop(data))
-			{
-				create(data.first, data.second);
-			}
-		}
-
-		// poll characters to create
-		{
-			std::pair<engine::Entity, CharacterData> data;
-			while (queue_create_characters.try_pop(data))
+			std::pair<engine::Entity, ActorData> data;
+			while (queue_create.try_pop(data))
 			{
 				create(data.first, data.second);
 			}
 		}
 	}
 
-	void post_create(const engine::Entity id, const BoxData & data)
+	void post_create(const engine::Entity id, const ActorData & data)
 	{
-		queue_create_boxes.try_push(std::pair<engine::Entity, BoxData>(id, data));
-	}
-
-	void post_create(const engine::Entity id, const CharacterData & data)
-	{
-		queue_create_characters.try_push(std::pair<engine::Entity, CharacterData>(id, data));
+		queue_create.try_push(std::pair<engine::Entity, ActorData>(id, data));
 	}
 
 	void post_create(const engine::Entity id, const PlaneData & data)
