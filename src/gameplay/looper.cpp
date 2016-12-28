@@ -130,7 +130,7 @@ namespace looper
 				const float y = 3.f;
 				const float z = 0.f;
 
-				physics_box(playerId, ActorData::Type::DYNAMIC, ActorData::Behaviour::PLAYER, Material::MEETBAG, .75f, x, y, z, w, h, d);
+				physics_box(playerId, ActorData::Type::DYNAMIC, ActorData::Behaviour::PLAYER, Material::OILY_ROBOT, .75f, x, y, z, w, h, d);
 				renderer_box(playerId, 0x00ff00ff, x, y, z, w, h, d);
 			}
 
@@ -215,7 +215,7 @@ namespace looper
 			const auto id = engine::Entity::create();
 			{
 				physics_box(id, ActorData::Type::DYNAMIC, ActorData::Behaviour::DEFAULT, Material::WOOD, SOLIDITY, x, y, z, w, h, d);
-				renderer_box(id, 0xff00ff00, x, y, z, w, h, d);
+				renderer_box(id, 0xff00ffff, x, y, z, w, h, d);
 			}
 		}
 

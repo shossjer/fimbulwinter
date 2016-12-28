@@ -35,6 +35,8 @@ namespace physics
 	{
 		enum class Type
 		{
+			// value is multiplied with actors mass to get amount of force
+			ACCELERATION,
 			FORCE,
 			IMPULSE,
 			CHARACTER
@@ -60,7 +62,7 @@ namespace physics
 
 	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation);
 
-	void query_position(const engine::Entity id, Vector3f & pos, Vector3f & vel, float & angle);
+	void query_position(const engine::Entity id, Vector3f & pos, Quaternionf & rotation, Vector3f & vel);
 }
 }
 

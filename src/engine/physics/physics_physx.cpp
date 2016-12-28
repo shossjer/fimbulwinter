@@ -148,11 +148,12 @@ namespace physics
 		// Lead			11,340
 		// setup materials
 		materials.emplace(Material::LOW_FRICTION, MaterialDef(1000.f, .0f, .0f));
+
+		materials.emplace(Material::OILY_ROBOT, MaterialDef(1000.f, .0f, .4f));
 		materials.emplace(Material::MEETBAG, MaterialDef(1000.f, .5f, .4f));
+
 		materials.emplace(Material::STONE, MaterialDef(2000.f, .4f, .05f));
 		materials.emplace(Material::SUPER_RUBBER, MaterialDef(1200.f, 1.0f, 1.0f));
-		materials.emplace(Material::WOOD, MaterialDef(700.f, .6f, .2f));
-
 		materials.emplace(Material::WOOD, MaterialDef(700.f, .6f, .2f));
 	}
 
@@ -204,6 +205,11 @@ namespace physics
 
 			switch (this->movement.type)
 			{
+				case movement_data::Type::ACCELERATION:
+				{
+					x.body->addForce(convert<physx::PxVec3>(this->movement.vec*x.body->getMass()), physx::PxForceMode::eFORCE);
+					break;
+				}
 				case movement_data::Type::IMPULSE:
 				{
 					x.body->addForce(convert<physx::PxVec3>(this->movement.vec), physx::PxForceMode::eIMPULSE);
@@ -211,7 +217,7 @@ namespace physics
 				}
 				case movement_data::Type::FORCE:
 				{
-					x.body->addForce(convert<physx::PxVec3>(this->movement.vec*x.body->getMass()), physx::PxForceMode::eFORCE);
+					x.body->addForce(convert<physx::PxVec3>(this->movement.vec), physx::PxForceMode::eFORCE);
 					break;
 				}
 			}
@@ -324,43 +330,6 @@ namespace physics
 		//	if (actor.debugRenderId!=::engine::Entity::INVALID)
 		//		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
 		}
-
-		//// Get movement from all characters
-		//for (auto && actor : actors.get<ActorCharacter>())
-		//{
-		//	auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)actor.body->getUserData())};
-
-		//	const auto pose = actor.body->getActor()->getGlobalPose();
-
-		//	engine::graphics::data::ModelviewMatrix data = {
-		//		core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
-		//	//	make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z)) *
-		//		core::maths::Matrix4x4f::rotation(actor.heading, 0.f, 1.f, 0.f)
-		//	};
-
-		//	engine::graphics::renderer::update(id, std::move(data));
-
-		//	if (actor.debugRenderId!=::engine::Entity::INVALID)
-		//		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
-		//}
-
-		//// Get movement from all dynamic bodies
-		//for (auto && actor : actors.get<ActorDynamic>())
-		//{
-		//	auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)actor.body->userData)};
-
-		//	const auto pose = actor.body->getGlobalPose();
-
-		//	engine::graphics::data::ModelviewMatrix data = {
-		//		core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
-		//		make_matrix(core::maths::Quaternionf(-pose.q.w, pose.q.x, pose.q.y, pose.q.z))
-		//	};
-
-		//	engine::graphics::renderer::update(id, std::move(data));
-
-		//	if (actor.debugRenderId!=::engine::Entity::INVALID)
-		//		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
-		//}
 	}
 
 	/**
@@ -374,8 +343,8 @@ namespace physics
 	struct get_transformation
 	{
 		core::maths::Vector3f position;
+		core::maths::Quaternionf quaternion;
 		core::maths::Vector3f velocity;
-		float angle;
 
 		void operator () (const ActorCharacter & x)
 		{
@@ -383,16 +352,16 @@ namespace physics
 
 			this->position = convert(body->getPosition());
 			this->velocity = convert(body->getActor()->getLinearVelocity());
-			this->angle = 0.f;// body->getActor()->get;
 		}
 
 		void operator () (const ActorDynamic & x)
 		{
 			const auto body = x.body.get();
+			const auto trans = body->getGlobalPose();
 
-			this->position = convert(body->getGlobalPose());
+			this->position = convert(trans.p);
+			this->quaternion = Quaternionf { trans.q.w, trans.q.x, trans.q.y, trans.q.z};
 			this->velocity = convert(body->getLinearVelocity());
-			this->angle = 0.f;//body->GetAngle();
 		}
 
 		void operator () (const ActorStatic & x)
@@ -400,15 +369,15 @@ namespace physics
 		}
 	};
 
-	void query_position(const engine::Entity id, Vector3f & position, Vector3f & velocity, float & angle)
+	void query_position(const engine::Entity id, Vector3f & position, Quaternionf & quaternion, Vector3f & velocity)
 	{
 		get_transformation data {};
 
 		actors.call(id, data);
 
 		position = data.position;
+		quaternion = data.quaternion;
 		velocity = data.velocity;
-		angle = data.angle;
 	}
 
 	void post_update_movement(const engine::Entity id, const movement_data movement)

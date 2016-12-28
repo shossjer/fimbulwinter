@@ -16,7 +16,7 @@ using core::maths::Vector3f;
 
 namespace
 {
-	using ::gameplay::characters::MovementState;
+//	using ::gameplay::characters::MovementState;
 	using ::gameplay::characters::CharacterState;
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, gameplay::characters::Command>, 100> queue_commands;
@@ -44,7 +44,7 @@ namespace
 		void operator () (CharacterState & x)
 		{
 			x.clrGrounded();
-			x = gameplay::characters::Command::PHYSICS_FALLING;
+		//	x = gameplay::characters::Command::PHYSICS_FALLING;
 		}
 		template <typename X>
 		void operator () (X & x) {}
@@ -58,7 +58,7 @@ namespace
 		void operator () (CharacterState & x)
 		{
 			x.setGrounded(normal);
-			x = gameplay::characters::Command::PHYSICS_GROUNDED;
+		//	x = gameplay::characters::Command::PHYSICS_GROUNDED;
 		}
 		template <typename X>
 		void operator () (X & x) {}
@@ -68,7 +68,7 @@ namespace
 	{
 		void operator () (CharacterState & x)
 		{
-			x = gameplay::characters::Command::ANIMATION_FINISHED;
+		//	x = gameplay::characters::Command::ANIMATION_FINISHED;
 		}
 		template <typename X>
 		void operator () (X & x) {}
@@ -85,12 +85,13 @@ namespace
 
 		void update()
 		{
-			core::maths::Vector3f pos;
-			core::maths::Vector3f vec;
-			float angle;
-			engine::physics::query_position(target, pos, vec, angle);
+			Vector3f pos;
+			Quaternionf rot;
+			Vector3f vec;
 
-			core::maths::Vector3f goal;
+			engine::physics::query_position(target, pos, rot, vec);
+
+			Vector3f goal;
 
 			vec *= 0.25f;
 			goal = pos+vec+core::maths::Vector3f {0.f, 0.f, 5.f};
@@ -101,11 +102,14 @@ namespace
 			current += delta * .1f;
 			engine::graphics::viewer::update(camera, engine::graphics::viewer::translation(current));
 
-			const auto qw = std::cos(angle/2.f);
-			const auto qx = 0.f;
-			const auto qy = 0.f;
-			const auto qz = 1.f * std::sin(angle/2.f);
-			engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation(core::maths::Quaternionf {qw, qx, qy, qz}));
+			//const auto qw = std::cos(angle/2.f);
+			//const auto qx = 0.f;
+			//const auto qy = 0.f;
+			//const auto qz = 1.f * std::sin(angle/2.f);
+
+			// using the rotation in the camera made me very dizzy...
+			//engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation(rot));
+			engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation(Quaternionf {1.f, 0.f, 0.f, 0.f}));
 
 			engine::graphics::viewer::set_active_3d(camera); // this should not be done every time
 		}
@@ -182,11 +186,13 @@ namespace characters
 			}
 		}
 
-		// update the characters
-		// for (auto & component : components.get<CharacterState>())
-		// {
-		// 	component.update();
-		// }
+		// update movement of player
+		for (CharacterState & component : components.get<CharacterState>())
+		{
+			engine::physics::post_update_movement(
+				component.id,
+				engine::physics::movement_data {engine::physics::movement_data::Type::ACCELERATION, component.movement} );
+		}
 
 		// for (auto & component : components.get<CharacterState>())
 		// {

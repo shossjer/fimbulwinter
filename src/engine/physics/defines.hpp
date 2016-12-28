@@ -19,6 +19,7 @@ namespace physics
 	enum class Material
 	{
 		LOW_FRICTION,
+		OILY_ROBOT,
 		MEETBAG,
 		STONE,
 		SUPER_RUBBER,

@@ -92,6 +92,13 @@ namespace physics
 				// create a dynamic body at position
 				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform {data.x, data.y, data.z});
 
+				if (data.behaviour==ActorData::Behaviour::PLAYER)
+				{
+					// setting more powerful damping if player
+					body->setAngularDamping(0.5f);
+					body->setLinearDamping(2.f);
+				}
+
 				// create and add shapes to body
 				// returns total mass of all shapes
 				const float totalMass = create(data.shapes, body);

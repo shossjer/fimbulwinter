@@ -12,28 +12,29 @@ namespace characters
 {
 	enum struct Command
 	{
-		ANIMATION_FINISHED,
-		JUMP,
-		PHYSICS_FALLING,
-		PHYSICS_GROUNDED,
-		GO_LEFT,
-		GO_RIGHT,
-		STOP_ITS_HAMMER_TIME
-	};
-
-	enum MovementState
-	{
-		NONE,	// no active movement (can still be falling etc)
-
-		LEFT,
+		LEFT_DOWN,
 		LEFT_UP,
-		UP,
-		RIGHT_UP,
-		RIGHT,
 		RIGHT_DOWN,
-		DOWN,
-		LEFT_DOWN
+		RIGHT_UP,
+		UP_DOWN,
+		UP_UP,
+		DOWN_DOWN,
+		DOWN_UP
 	};
+
+	//enum MovementState
+	//{
+	//	NONE,	// no active movement (can still be falling etc)
+
+	//	LEFT,
+	//	LEFT_UP,
+	//	UP,
+	//	RIGHT_UP,
+	//	RIGHT,
+	//	RIGHT_DOWN,
+	//	DOWN,
+	//	LEFT_DOWN
+	//};
 
 	void update();
 
