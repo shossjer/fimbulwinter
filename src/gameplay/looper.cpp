@@ -278,16 +278,15 @@ namespace looper
 		{
 		public:
 
-			void onGrounded(const engine::Entity id, const core::maths::Vector3f & groundNormal) const
+			void postContactFound(const ::engine::Entity ids[2], const ::engine::physics::Material materials[2]) const override
 			{
-				characters::postGrounded(id, groundNormal);
+				// TODO: add on queue
 			}
 
-			void onFalling(const engine::Entity id) const
+			void postContactLost(const ::engine::Entity ids[2]) const override
 			{
-				characters::postFalling(id);
+				// TODO: add on queue
 			}
-
 		} physicsCallback;
 
 		::engine::physics::subscribe(physicsCallback);

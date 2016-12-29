@@ -16,14 +16,11 @@ using core::maths::Vector3f;
 
 namespace
 {
-//	using ::gameplay::characters::MovementState;
 	using ::gameplay::characters::CharacterState;
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, gameplay::characters::Command>, 100> queue_commands;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueCreate;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueRemove;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity, Vector3f>, 100> queueGrounded;
-	core::container::CircleQueueSRMW<engine::Entity, 100> queueFalling;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueAnimationFinished;
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::Entity>, 10> queue_add_cameras;
@@ -159,18 +156,6 @@ namespace characters
 
 			std::pair<engine::Entity, Vector3f> data;
 
-			// update grounded state
-			while (queueGrounded.try_pop(data))
-			{
-				components.call(data.first, update_ground_state{data.second});
-			}
-
-			// update falling state
-			while (queueFalling.try_pop(id))
-			{
-				components.call(id, clear_ground_state{});
-			}
-
 			// animation finished
 			while (queueAnimationFinished.try_pop(id))
 			{
@@ -224,18 +209,6 @@ namespace characters
 	void post_command(engine::Entity id, Command command)
 	{
 		const auto res = queue_commands.try_emplace(id, command);
-		debug_assert(res);
-	}
-
-	void postGrounded(const engine::Entity id, const core::maths::Vector3f normal)
-	{
-		const auto res = queueGrounded.try_emplace(id, normal);
-		debug_assert(res);
-	}
-
-	void postFalling(const engine::Entity id)
-	{
-		const auto res = queueFalling.try_push(id);
 		debug_assert(res);
 	}
 

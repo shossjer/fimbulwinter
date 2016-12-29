@@ -22,20 +22,6 @@ namespace characters
 		DOWN_UP
 	};
 
-	//enum MovementState
-	//{
-	//	NONE,	// no active movement (can still be falling etc)
-
-	//	LEFT,
-	//	LEFT_UP,
-	//	UP,
-	//	RIGHT_UP,
-	//	RIGHT,
-	//	RIGHT_DOWN,
-	//	DOWN,
-	//	LEFT_DOWN
-	//};
-
 	void update();
 
 	void create(const engine::Entity id);
@@ -43,14 +29,6 @@ namespace characters
 	void remove(const engine::Entity id);
 
 	void post_command(engine::Entity id, Command command);
-	/**
-	 *	Entity grounded/falling state- or its ground normal- has changed
-	 */
-	void postGrounded(const engine::Entity id, const core::maths::Vector3f groundNormal);
-	/**
-	 *	Entity state is changed to falling
-	 */
-	void postFalling(const engine::Entity id);
 
 	void post_add_camera(engine::Entity id, engine::Entity target);
 

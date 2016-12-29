@@ -19,6 +19,14 @@ namespace engine
 {
 namespace physics
 {
+	enum class ActorType
+	{
+		STATIC,
+		DYNAMIC,
+		CHARACTER,
+		OBSTACLE
+	};
+
 	constexpr unsigned int ACTORS_MAX = 500;
 	constexpr unsigned int ACTORS_GROUP = 100;
 

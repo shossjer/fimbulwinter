@@ -8,6 +8,7 @@
 #include "physics.hpp"
 
 #include "actor_physx.hpp"
+#include "filter_physx.hpp"
 #include "helper_physx.hpp"
 #include "material_physx.hpp"
 #include "Callback.hpp"
@@ -24,6 +25,8 @@ namespace engine
 namespace physics
 {
 	constexpr float TIME_STEP = 1.f/60.f;
+
+	using namespace physx;
 
 	namespace physx2
 	{
@@ -76,6 +79,55 @@ namespace physics
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, translation_data>, 100> queue_translations;
 	}
 
+	class SimulationEventCallback : public physx::PxSimulationEventCallback
+	{
+		void onConstraintBreak(physx::PxConstraintInfo* constraints, physx::PxU32 count)
+		{
+		}
+
+		void onWake(physx::PxActor** actors, physx::PxU32 count)
+		{
+		}
+
+		void onSleep(physx::PxActor** actors, physx::PxU32 count)
+		{
+		}
+
+		void onContact(const physx::PxContactPairHeader & pairHeader, const physx::PxContactPair * pairs, physx::PxU32 nbPairs)
+		{
+			auto val = pairs[0];
+
+			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_FOUND))
+			{
+				Entity ids[2];
+				Material materials[2];
+
+				ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
+				ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
+
+				materials[0] = static_cast<Material>(pairs[0].shapes[0]->getSimulationFilterData().word2);
+				materials[1] = static_cast<Material>(pairs[0].shapes[1]->getSimulationFilterData().word2);
+
+				pCallback->postContactFound(ids, materials);
+			}
+			else
+			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_LOST))
+			{
+				Entity ids[2];
+
+				ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
+				ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
+
+				pCallback->postContactLost(ids);
+			}
+			//PxContactPairHeaderFlags;//pairHeader.flags
+		}
+
+		void onTrigger(physx::PxTriggerPair* pairs, physx::PxU32 count)
+		{
+		}
+	} simulationCallback;
+
 	/**
 	 * \note Declared and called from main.
 	 */
@@ -124,10 +176,7 @@ namespace physics
 			sceneDesc.cpuDispatcher = physx2::mCpuDispatcher;
 		}
 
-		if (!sceneDesc.filterShader)
-		{
-			sceneDesc.filterShader = physx::PxDefaultSimulationFilterShader;
-		}
+		sceneDesc.filterShader = filter::collisionShader;
 
 		sceneDesc.flags |= physx::PxSceneFlag::eENABLE_ACTIVETRANSFORMS;
 
@@ -155,6 +204,8 @@ namespace physics
 		materials.emplace(Material::STONE, MaterialDef(2000.f, .4f, .05f));
 		materials.emplace(Material::SUPER_RUBBER, MaterialDef(1200.f, 1.0f, 1.0f));
 		materials.emplace(Material::WOOD, MaterialDef(700.f, .6f, .2f));
+
+		physx2::pScene->setSimulationEventCallback(&simulationCallback);
 	}
 
 	/**

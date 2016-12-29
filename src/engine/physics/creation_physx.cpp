@@ -8,6 +8,7 @@
 #include "physics.hpp"
 
 #include "actor_physx.hpp"
+#include "filter_physx.hpp"
 #include "helper_physx.hpp"
 #include "material_physx.hpp"
 #include "physics_physx.hpp"
@@ -34,7 +35,7 @@ namespace physics
 		\note create shapes for the Actor body.
 		\return float total mass of all shapes
 	 */
-	float create(const std::vector<ShapeData> shapeDatas, PxRigidActor * body)
+	float create(const std::vector<ShapeData> shapeDatas, PxRigidActor * body, PxFilterData filterData)
 	{
 		float totalMass = 0.f;
 
@@ -75,16 +76,23 @@ namespace physics
 				throw std::runtime_error("Shape type is not implemented");
 			}
 
+			// save material enum id in filter
+			filterData.word2 = static_cast<physx::PxU32>(shapeData.material);
+
+			// set filtering data for the shape
+			shape->setSimulationFilterData(filterData);
+
 			body->attachShape(*shape);
 		}
 
 		return totalMass;
 	}
 
+	/**
+		\note Create Actor based on ActorData
+	 */
 	void create(const engine::Entity id, const ActorData & data)
 	{
-		// TODO: create collision filter flags
-
 		switch (data.type)
 		{
 			case ActorData::Type::DYNAMIC:
@@ -99,9 +107,12 @@ namespace physics
 					body->setLinearDamping(2.f);
 				}
 
+				// create collision filter flags
+				PxFilterData filterData = filter::dynamic(data);
+
 				// create and add shapes to body
 				// returns total mass of all shapes
-				const float totalMass = create(data.shapes, body);
+				const float totalMass = create(data.shapes, body, filterData);
 
 				// update mass for Actor for non-static body
 				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, totalMass);
@@ -124,9 +135,12 @@ namespace physics
 				// make it an kinematic object
 				body->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
 
+				// create collision filter flags
+				PxFilterData filterData = filter::kinematic(data);
+
 				// create and add shapes to body
 				// returns total mass of all shapes
-				const float totalMass = create(data.shapes, body);
+				const float totalMass = create(data.shapes, body, filterData);
 
 				// update mass for Actor for non-static body
 				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, totalMass);
@@ -146,9 +160,12 @@ namespace physics
 				// create a dynamic body at position
 				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform {data.x, data.y, data.z});
 
+				// create collision filter flags
+				PxFilterData filterData = filter::fixed(data);
+
 				// create and add shapes to body
 				// returns total mass of all shapes
-				create(data.shapes, body);
+				create(data.shapes, body, filterData);
 
 				// register it as an actor so we have access to the body from id
 				actors.emplace<ActorStatic>(id, body);

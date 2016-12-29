@@ -95,6 +95,7 @@ set(TRIBUNAL_HEADER
 	src/engine/hid/input.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/defines.hpp
+	src/engine/physics/filter_physx.hpp
 	src/engine/physics/helper_physx.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/physics_physx.hpp
