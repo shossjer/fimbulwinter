@@ -43,29 +43,16 @@ namespace physics
 		::physx::PxDefaultErrorCallback gDefaultErrorCallback;
 		::physx::PxDefaultAllocator gDefaultAllocatorCallback;
 
-		::physx::PxFoundation * mFoundation;
-		::physx::PxProfileZoneManager * mProfileZoneManager;
+		::physx::PxFoundation * pFoundation;
 
-		::physx::PxDefaultCpuDispatcher * mCpuDispatcher;
-
-		// Manager for character controllers
-		// used to create characters.
-		::physx::PxControllerManager * pControllerManager;
+		::physx::PxDefaultCpuDispatcher * pCpuDispatcher;
 	}
 
 	// Collecation containing all Actors in the world.
-	::core::container::Collection
-		<
-		engine::Entity,
-		ACTORS_MAX,
-		std::array<ActorCharacter, ACTORS_GROUP>,
-		std::array<ActorDynamic, ACTORS_GROUP>,
-		std::array<ActorStatic, ACTORS_GROUP>
-		>
-		actors;
+	ActorCollection actors;
 
 	// All defined physics materials. Contains density, friction and restitution
-	std::unordered_map<Material, MaterialDef> materials;
+	MaterialMap materials;
 
 	namespace
 	{
@@ -120,7 +107,6 @@ namespace physics
 
 				pCallback->postContactLost(ids);
 			}
-			//PxContactPairHeaderFlags;//pairHeader.flags
 		}
 
 		void onTrigger(physx::PxTriggerPair* pairs, physx::PxU32 count)
@@ -131,64 +117,64 @@ namespace physics
 	/**
 	 * \note Declared and called from main.
 	 */
-	void setup()
+	bool setup()
 	{
-		physx2::mFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, physx2::gDefaultAllocatorCallback, physx2::gDefaultErrorCallback);
+		physx_ptr<physx::PxFoundation> pFoundation {PxCreateFoundation(PX_PHYSICS_VERSION, physx2::gDefaultAllocatorCallback, physx2::gDefaultErrorCallback)};
 
-		if (!physx2::mFoundation)
+		if (pFoundation.get()==nullptr)
 		{
-			throw std::runtime_error("PxCreateFoundation failed!");
+			debug_printline(0xffffffff, "Could not create physx Foundation.");
+			return false;
 		}
 
-		physx2::mProfileZoneManager = &physx::PxProfileZoneManager::createProfileZoneManager(physx2::mFoundation);
+		physx_ptr<physx::PxPhysics> pWorld {PxCreatePhysics(PX_PHYSICS_VERSION, *pFoundation, physx::PxTolerancesScale())};
 
-		if (!physx2::mProfileZoneManager)
+		if (pWorld.get()==nullptr)
 		{
-			throw std::runtime_error("PxProfileZoneManager failed!");
+			debug_printline(0xffffffff, "Could not create physx World.");
+			return false;
 		}
 
-		const bool recordMemoryAllocations = true;
-		physx2::pWorld = PxCreatePhysics(PX_PHYSICS_VERSION, *physx2::mFoundation, physx::PxTolerancesScale(), recordMemoryAllocations, physx2::mProfileZoneManager);
-
-		if (!physx2::pWorld)
+		if (!PxInitExtensions(*pWorld))
 		{
-			throw std::runtime_error("PxCreateFoundation failed!");
+			debug_printline(0xffffffff, "Could not init extensions.");
+			return false;
 		}
 
-		if (!PxInitExtensions(*physx2::pWorld))
-		{
-			throw std::runtime_error("PxInitExtensions failed!");
-		}
+		physx_ptr<physx::PxDefaultCpuDispatcher> pCPUDispatcher {physx::PxDefaultCpuDispatcherCreate(1)};
 
-		physx2::mCpuDispatcher = physx::PxDefaultCpuDispatcherCreate(1);
-
-		if (!physx2::mCpuDispatcher)
+		if (pCPUDispatcher.get()==nullptr)
 		{
-			throw std::runtime_error("PxDefaultCpuDispatcherCreate failed!");
+			debug_printline(0xffffffff, "Could not create physx DefaultCpuDispatcher.");
+			return false;
 		}
 
 		// Create just one Scene for the PhysX world for now.
-		physx::PxSceneDesc sceneDesc(physx2::pWorld->getTolerancesScale());
+		physx::PxSceneDesc sceneDesc(pWorld->getTolerancesScale());
+
 		sceneDesc.gravity = physx::PxVec3(0.0f, -9.81f, 0.0f);
-
-		if (!sceneDesc.cpuDispatcher)
-		{
-			sceneDesc.cpuDispatcher = physx2::mCpuDispatcher;
-		}
-
+		sceneDesc.cpuDispatcher = pCPUDispatcher.get();
 		sceneDesc.filterShader = filter::collisionShader;
-
 		sceneDesc.flags |= physx::PxSceneFlag::eENABLE_ACTIVETRANSFORMS;
 
-		physx2::pScene = physx2::pWorld->createScene(sceneDesc);
+		physx_ptr<physx::PxScene> pScene {pWorld->createScene(sceneDesc)};
 
-		if (!physx2::pScene)
+		if (pScene.get()==nullptr)
 		{
-			throw std::runtime_error("createScene failed!");
+			debug_printline(0xffffffff, "Could not create physx Scene.");
+			return false;
 		}
 
-		// Create the Manager for character controllers used to create characters.
-		physx2::pControllerManager = PxCreateControllerManager(*physx2::pScene);
+		// register callback from physx simulation of contact events.
+		pScene->setSimulationEventCallback(&simulationCallback);
+
+		// steal unique ptr's pointers
+		physx2::pFoundation = pFoundation.release();
+		physx2::pCpuDispatcher = pCPUDispatcher.release();
+		physx2::pWorld = pWorld.release();
+		physx2::pScene = pScene.release();
+
+		debug_printline(0xffffffff, "Physx successfully created.");
 
 		// Water (salt)	1,030
 		// Plastics		1,175
@@ -205,7 +191,7 @@ namespace physics
 		materials.emplace(Material::SUPER_RUBBER, MaterialDef(1200.f, 1.0f, 1.0f));
 		materials.emplace(Material::WOOD, MaterialDef(700.f, .6f, .2f));
 
-		physx2::pScene->setSimulationEventCallback(&simulationCallback);
+		return true;
 	}
 
 	/**
@@ -213,19 +199,15 @@ namespace physics
 	 */
 	void teardown()
 	{
-		physx2::pControllerManager->release();
-
 		physx2::pScene->release();
 
 		physx2::pWorld->release();
 
 		PxCloseExtensions();
 
-		physx2::mCpuDispatcher->release();
+		physx2::pCpuDispatcher->release();
 
-		physx2::mProfileZoneManager->release();
-
-		physx2::mFoundation->release();
+		physx2::pFoundation->release();
 	}
 
 	struct actor_mover
@@ -377,9 +359,6 @@ namespace physics
 			};
 
 			engine::graphics::renderer::update(id, std::move(data));
-
-		//	if (actor.debugRenderId!=::engine::Entity::INVALID)
-		//		engine::graphics::renderer::update(actor.debugRenderId, std::move(data));
 		}
 	}
 

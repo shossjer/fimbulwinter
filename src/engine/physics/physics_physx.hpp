@@ -2,10 +2,6 @@
 #ifndef ENGINE_PHYSICS_PHYSICS_PHYSX_HPP
 #define ENGINE_PHYSICS_PHYSICS_PHYSX_HPP
 
-#include <config.h>
-
-#if PHYSICS_USE_PHYSX
-
 #include <PxPhysicsAPI.h>
 
 /**
@@ -27,21 +23,11 @@ namespace physics
 		// stick to one.
 		extern ::physx::PxScene * pScene;
 
-		//::physx::PxDefaultErrorCallback gDefaultErrorCallback;
-		//::physx::PxDefaultAllocator gDefaultAllocatorCallback;
-
-		//::physx::PxFoundation * mFoundation;
-		//::physx::PxProfileZoneManager * mProfileZoneManager;
-
-		//::physx::PxDefaultCpuDispatcher * mCpuDispatcher;
-
 		// Manager for character controllers
 		// used to create characters.
 		extern ::physx::PxControllerManager * pControllerManager;
 	}
 }
 }
-
-#endif // PHYSICS_USE_PHYSX
 
 #endif // ENGINE_PHYSICS_PHYSICS_PHYSX_HPP

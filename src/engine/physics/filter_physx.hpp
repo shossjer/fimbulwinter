@@ -2,10 +2,6 @@
 #ifndef ENGINE_PHYSICS_FILTER_PHYSX_HPP
 #define ENGINE_PHYSICS_FILTER_PHYSX_HPP
 
-#include <config.h>
-
-#if PHYSICS_USE_PHYSX
-
 #include <PxPhysicsAPI.h>
 
 /**
@@ -77,7 +73,8 @@ namespace physics
 				break;
 
 				default:
-				throw std::runtime_error("Behaviour is not valid for Actor type");
+				// Behaviour is not valid for Actor type
+				debug_unreachable();
 			}
 
 			return PxFilterData {flag, mask, PxU32 {0}, PxU32 {0}};
@@ -119,7 +116,8 @@ namespace physics
 				break;
 
 				default:
-				throw std::runtime_error("Behaviour is not valid for Actor type");
+				// Behaviour is not valid for Actor type
+				debug_unreachable();
 			}
 
 			return PxFilterData {flag, mask, PxU32 {0}, PxU32 {0}};
@@ -142,7 +140,8 @@ namespace physics
 				break;
 
 				default:
-				throw std::runtime_error("Behaviour is not valid for Actor type");
+				// Behaviour is not valid for Actor type
+				debug_unreachable();
 			}
 
 			return PxFilterData {flag, mask, PxU32 {0}, PxU32 {0}};
@@ -150,7 +149,5 @@ namespace physics
 	}
 }
 }
-
-#endif // PHYSICS_USE_PHYSX
 
 #endif // ENGINE_PHYSICS_FILTER_PHYSX_HPP

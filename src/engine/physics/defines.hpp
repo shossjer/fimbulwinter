@@ -4,6 +4,7 @@
 
 #include <engine/Entity.hpp>
 
+#include <core/maths/util.hpp>
 #include <core/maths/Vector.hpp>
 #include <core/maths/Quaternion.hpp>
 
@@ -14,8 +15,6 @@ namespace engine
 {
 namespace physics
 {
-	constexpr float PHYSICS_PI = (float)3.1415926535897932384626433832795;
-
 	enum class Material
 	{
 		LOW_FRICTION,
@@ -64,7 +63,7 @@ namespace physics
 
 				float volume() const
 				{
-					return (4.f / 3.f) * PHYSICS_PI * r*r*r;
+					return (4.f / 3.f) * core::maths::constantf::pi * r*r*r;
 				}
 
 			} sphere;
@@ -81,31 +80,6 @@ namespace physics
 				float * p;
 			} mesh;
 		} geometry;
-
-		//ShapeData()
-		//{
-		//}
-
-		//ShapeData(const ShapeData & data)
-		//	:
-		//	type(data.type),
-		//	material(data.material),
-		//	solidity(data.solidity),
-		//	pos(data.pos),
-		//	rot(data.rot)
-		//{
-		//}
-
-		//ShapeData(const Type type, const Material material, const float solidity, const Vector3f pos, const Quaternionf rot)
-		//	:
-		//	type(type),
-		//	material(material),
-		//	solidity(solidity),
-		//	pos(pos),
-		//	rot(rot),
-		//	geometry(geometry)
-		//{
-		//}
 	};
 
 	struct ActorData
@@ -147,31 +121,6 @@ namespace physics
 		float x, y, z;
 
 		std::vector<ShapeData> shapes;
-
-		//ActorData(const ActorData & data)
-		//	:
-		//	type(data.type),
-		//	behaviour(data.behaviour),
-		//	pos(data.pos),
-		//	shapes(data.shapes)
-		//{
-
-		//}
-
-		//ActorData()
-		//{
-
-		//}
-
-		//ActorData(Type type, Behaviour behaviour, Vector3f pos, std::vector<ShapeData> shapes)
-		//	:
-		//	type(type),
-		//	behaviour(behaviour),
-		//	pos(pos),
-		//	shapes(shapes)
-		//{
-
-		//}
 	};
 
 	struct PlaneData

@@ -38,7 +38,7 @@ namespace engine
 
 	namespace physics
 	{
-		extern void setup();
+		extern bool setup();
 
 		extern void teardown();
 
@@ -104,15 +104,10 @@ namespace looper
 
 	void renderer_box(const engine::Entity id, const engine::graphics::data::Color color, const float x, const float y, const float z, const float w, const float h, const float d)
 	{
-		engine::graphics::data::CuboidC dataShape = {
-			core::maths::Matrix4x4f::identity(), w, h, d, color
+		engine::graphics::data::CuboidC data = {
+			core::maths::Matrix4x4f::translation(x, y, z), w, h, d, color
 		};
-		engine::graphics::renderer::add(id, dataShape);
-
-		engine::graphics::data::ModelviewMatrix dataMatrix = {
-			core::maths::Matrix4x4f::translation(x, y, z)
-		};
-		engine::graphics::renderer::update(id, std::move(dataMatrix));
+		engine::graphics::renderer::add(id, data);
 	}
 
 	void add_some_stuff()

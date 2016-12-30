@@ -73,7 +73,7 @@ namespace physics
 				case ShapeData::Type::MESH:
 				default:
 
-				throw std::runtime_error("Shape type is not implemented");
+				debug_unreachable();
 			}
 
 			// save material enum id in filter
@@ -201,10 +201,6 @@ namespace physics
 			while (queue_remove.try_pop(id))
 			{
 				actors.remove(id);
-
-				//// remove debug object from Renderer
-				//if (actor.debugRenderId!= ::engine::Entity::INVALID)
-				//	engine::graphics::renderer::remove(actor.debugRenderId);
 			}
 		}
 
@@ -229,17 +225,20 @@ namespace physics
 
 	void post_create(const engine::Entity id, const ActorData & data)
 	{
-		queue_create.try_push(std::pair<engine::Entity, ActorData>(id, data));
+		const auto res = queue_create.try_push(std::pair<engine::Entity, ActorData>(id, data));
+		debug_assert(res);
 	}
 
 	void post_create(const engine::Entity id, const PlaneData & data)
 	{
-		queue_create_planes.try_push(std::pair<engine::Entity, PlaneData>(id, data));
+		const auto res = queue_create_planes.try_push(std::pair<engine::Entity, PlaneData>(id, data));
+		debug_assert(res);
 	}
 
 	void post_remove(const engine::Entity id)
 	{
-		queue_remove.try_push(id);
+		const auto res = queue_remove.try_push(id);
+		debug_assert(res);
 	}
 }
 }

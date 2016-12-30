@@ -1,10 +1,6 @@
 
-#ifndef ENGINE_PHYSICS_ACTOR_HPP
-#define ENGINE_PHYSICS_ACTOR_HPP
-
-#include <config.h>
-
-#if PHYSICS_USE_PHYSX
+#ifndef ENGINE_PHYSICS_ACTOR_PHYSX_HPP
+#define ENGINE_PHYSICS_ACTOR_PHYSX_HPP
 
 #include <PxPhysicsAPI.h>
 
@@ -19,18 +15,7 @@ namespace engine
 {
 namespace physics
 {
-	enum class ActorType
-	{
-		STATIC,
-		DYNAMIC,
-		CHARACTER,
-		OBSTACLE
-	};
-
-	constexpr unsigned int ACTORS_MAX = 500;
-	constexpr unsigned int ACTORS_GROUP = 100;
-
-	struct actor_delete
+	struct physx_guard
 	{
 		template <typename T>
 		void operator () (T * data)
@@ -39,10 +24,13 @@ namespace physics
 		}
 	};
 
+	template<typename T>
+	using physx_ptr = std::unique_ptr<T, physx_guard>;
+
 	template<class T>
 	struct Actor
 	{
-		std::unique_ptr<T, actor_delete> body;
+		physx_ptr<T> body;
 		::engine::Entity debugRenderId;
 
 		Actor(T *const body)
@@ -83,19 +71,18 @@ namespace physics
 		ActorStatic(::physx::PxRigidStatic * const body) : Actor(body) {}
 	};
 
-	// Collecation containing all Actors in the world.
-	extern ::core::container::Collection
-		<
+	using ActorCollection = ::core::container::Collection
+	<
 		engine::Entity,
-		ACTORS_MAX,
-		std::array<ActorCharacter, ACTORS_GROUP>,
-		std::array<ActorDynamic, ACTORS_GROUP>,
-		std::array<ActorStatic, ACTORS_GROUP>
-		>
-		actors;
+		500,
+		std::array<ActorCharacter, 100>,
+		std::array<ActorDynamic, 100>,
+		std::array<ActorStatic, 100>
+	>;
+
+	// Collecation containing all Actors in the world.
+	extern ActorCollection actors;
 }
 }
 
-#endif /* PHYSICS_USE_PHYSX */
-
-#endif /* ENGINE_PHYSICS_ACTOR_HPP */
+#endif /* ENGINE_PHYSICS_ACTOR_PHYSX_HPP */

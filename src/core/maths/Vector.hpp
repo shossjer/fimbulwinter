@@ -375,11 +375,6 @@ namespace core
 			{
 				return (v.values[0] * v.values[0] + v.values[1] * v.values[1] + v.values[2] * v.values[2]);
 			}
-
-			value_type volume() const
-			{
-				return this->values[0] * this->values[1] * this->values[2];
-			}
 		};
 
 		template <typename T>

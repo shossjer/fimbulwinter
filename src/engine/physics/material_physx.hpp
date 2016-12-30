@@ -1,10 +1,6 @@
 
-#ifndef ENGINE_PHYSICS_MATERIAL_DATA_HPP
-#define ENGINE_PHYSICS_MATERIAL_DATA_HPP
-
-#include <config.h>
-
-#if PHYSICS_USE_PHYSX
+#ifndef ENGINE_PHYSICS_MATERIAL_PHYSX_HPP
+#define ENGINE_PHYSICS_MATERIAL_PHYSX_HPP
 
 #include <PxPhysicsAPI.h>
 
@@ -38,10 +34,12 @@ namespace physics
 		}
 	};
 
+	using MaterialMap = std::unordered_map<Material, MaterialDef>;
+
 	/**
 	 *	\note Defined in physics_physx.cpp
 	 */
-	extern std::unordered_map<Material, MaterialDef> materials;
+	extern MaterialMap materials;
 }
 }
 
@@ -56,6 +54,4 @@ namespace std
 	};
 }
 
-#endif // PHYSICS_USE_PHYSX
-
-#endif // ENGINE_PHYSICS_MATERIAL_DATA_HPP
+#endif // ENGINE_PHYSICS_MATERIAL_PHYSX_HPP
