@@ -42,4 +42,15 @@
 #cmakedefine PHYSICS_USE_BOX2D 1
 /**
  */
-#cmakedefine PHYSICS_USE_PHYSX 0
+#cmakedefine PHYSICS_USE_PHYSX 1
+
+/**
+ * Hack that defines _DEBUG if NDEBUG is not defined, needed by PhysX
+ */
+#if PHYSICS_USE_PHYSX
+# ifndef NDEBUG
+#  ifndef _DEBUG
+#   define _DEBUG 1
+#  endif
+# endif
+#endif

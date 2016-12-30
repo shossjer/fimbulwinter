@@ -4,9 +4,12 @@
 
 #include <engine/Entity.hpp>
 
+#include <core/maths/util.hpp>
 #include <core/maths/Vector.hpp>
+#include <core/maths/Quaternion.hpp>
 
 using Vector3f = core::maths::Vector3f;
+using Quaternionf = core::maths::Quaternionf;
 
 namespace engine
 {
@@ -14,94 +17,119 @@ namespace physics
 {
 	enum class Material
 	{
+		LOW_FRICTION,
+		OILY_ROBOT,
 		MEETBAG,
 		STONE,
 		SUPER_RUBBER,
 		WOOD
 	};
 
-	struct ObjectData
+	struct ShapeData
 	{
-		//enum Type
-		//{
-		//	STATIC,
-		//	DYNAMIC,
-		//	CHARACTER
-
-		//}	type;
-
-		const Vector3f pos;
-		const Material material;
-		const float solidity;
-
-	protected:
-
-		ObjectData(const Vector3f & pos, const Material material, const float solidity)
-			:
-			pos(pos), material(material), solidity(solidity)
-		{}
-	};
-
-	struct BoxData : public ObjectData
-	{
-		const Vector3f size;
-
-		BoxData(const Vector3f & pos,
-			const Material material, const float solidity, const Vector3f & size)
-			:
-			ObjectData(pos, material, solidity),
-			size(size)
-		{}
-	};
-
-	struct CharacterData : public ObjectData
-	{
-		const float height;
-		const float radius;
-
-		CharacterData(const Vector3f & pos, const Material material, const float solidity, const float height, const float radius)
-			:
-			ObjectData(pos, material, solidity),
-			height(height),
-			radius(radius)
-		{}
-	};
-
-	struct CylinderData : public ObjectData
-	{
-		const float height;
-		const float radie;
-
-		CylinderData(const Vector3f & pos, const Material material, const float solidity, const float height, const float radie)
-			:
-			ObjectData(pos, material, solidity),
-			height(height),
-			radie(radie)
-		{}
-	};
-
-	struct SphereData : public ObjectData
-	{
-		const float radie;
-
-		SphereData(const Vector3f & pos, const Material material, const float solidity, const float radie)
-			:
-			ObjectData(pos, material, solidity),
-			radie(radie)
-		{}
-	};
-}
-}
-
-namespace std
-{
-	template<> struct hash<engine::physics::Material>
-	{
-		std::size_t operator () (const engine::physics::Material material) const
+		enum class Type
 		{
-			return std::hash<std::size_t>{}(static_cast<std::size_t>(material));
-		}
+			BOX,
+			SPHERE,
+			CAPSULE,
+			MESH
+		} type;
+
+		Material material;
+		// used during mass calculation
+		// value should be: 0.f < x <= 1.f
+		float solidity;
+
+		Vector3f pos;
+		Quaternionf rot;
+
+		union Geometry
+		{
+			struct Box
+			{
+				float w;
+				float h;
+				float d;
+
+				float volume() const
+				{
+					return h*w*d;
+				}
+
+			} box;
+			struct Sphere
+			{
+				float r;
+
+				float volume() const
+				{
+					return (4.f / 3.f) * core::maths::constantf::pi * r*r*r;
+				}
+
+			} sphere;
+			struct Capsule
+			{
+				float w;
+				float h;
+				float d;
+				float r;
+			} capsule;
+			struct Mesh
+			{
+				float size;
+				float * p;
+			} mesh;
+		} geometry;
 	};
+
+	struct ActorData
+	{
+		enum class Type
+		{
+			// static objects should never be moved.
+			STATIC,
+			// special character type of dynamic body.
+			// it is managed through a character controller which makes better
+			// movement for characters.
+			// when moving a Character body the Character move should be used.
+			// TODO: add back - CHARACTER,
+			// normal dynamic rigid bodies
+			// when moving a Dynamic body the Force or Impulse move should be used.
+			DYNAMIC,
+			// used for movable objects that are not affected by physics.
+			// platforms and moving beams should be Kinematic.
+			// when moving an Kinematic object the Kinematic move should be used.
+			KINEMATIC
+		} type;
+		/**
+		 *	/note Dictate how the Actor will be managed and in callbacks during collision.
+		 */
+		enum class Behaviour
+		{
+			// default behaviour will not receive any callbacks during collisions
+			// walls and most simple dynamic actors belong here
+			DEFAULT,
+			// player will receive callback for all collisions.
+			PLAYER,
+			// obstacle will receive callback for all collisions.
+			OBSTACLE,
+			// trigger will receive trigger notifications always
+			TRIGGER
+		} behaviour;
+
+		//Vector3f pos;
+		float x, y, z;
+
+		std::vector<ShapeData> shapes;
+	};
+
+	struct PlaneData
+	{
+		Vector3f point;
+		Vector3f normal;
+		Material material;
+	};
+}
 }
 
 #endif

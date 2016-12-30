@@ -8,7 +8,6 @@
 #include <engine/Entity.hpp>
 #include <engine/physics/defines.hpp>
 #include <engine/physics/physics.hpp>
-#include <engine/physics/queries.hpp>
 
 #include <core/maths/Vector.hpp>
 
@@ -16,6 +15,7 @@ namespace gameplay
 {
 namespace characters
 {
+	constexpr float SPEED = 20.f;
 	/**
 	 *	Should be used by gameplay::characters scope only
 	 */
@@ -27,9 +27,11 @@ namespace characters
 
 	public:
 
-	private:
+		engine::Entity id;
 
-		engine::Entity me;
+		Vector3f movement;
+
+	private:
 
 		using Flag = unsigned int;
 
@@ -48,7 +50,7 @@ namespace characters
 
 		const Vector3f & getGroundNormal() const { return this->groundNormal; }
 
-		void (CharacterState::* pActionFunc)(Command);
+		//void (CharacterState::* pActionFunc)(Command);
 
 	public:
 
@@ -77,28 +79,75 @@ namespace characters
 
 	public:
 
-		CharacterState(engine::Entity me) : me(me), flags(0), pActionFunc(&CharacterState::updateChillin)
+		CharacterState(engine::Entity id) : id(id), movement {0.f, 9.82f, 0.f}, flags(0)//, pActionFunc(&CharacterState::updateChillin)
 		{
 		}
 
 	public:
 
-		CharacterState & operator = (Command command)
+		void update(Command command)
 		{
-			(this->*pActionFunc)(command);
 
-			return *this;
 		}
 
-		void updateChillin(Command command);
+		void operator = (Command command)
+		{
+			switch (command)
+			{
+				case Command::LEFT_DOWN:
+					debug_printline(0xffffffff, "Moving left");
+					this->movement -= Vector3f {1.f, 0.f, 0.f}*SPEED;
+					break;
+				case Command::LEFT_UP:
+					debug_printline(0xffffffff, "Stop left");
+					this->movement += Vector3f {1.f, 0.f, 0.f}*SPEED;
+					break;
 
-		void updateMovin(const Command command);
+				case Command::RIGHT_DOWN:
+					debug_printline(0xffffffff, "Moving right");
+					this->movement += Vector3f {1.f, 0.f, 0.f}*SPEED;
+					break;
+				case Command::RIGHT_UP:
+					debug_printline(0xffffffff, "Stop right");
+					this->movement -= Vector3f {1.f, 0.f, 0.f}*SPEED;
+					break;
 
-		void updateJumping(const Command command);
+				case Command::UP_DOWN:
+					debug_printline(0xffffffff, "Moving up");
+					this->movement += Vector3f {0.f, 1.f, 0.f}*SPEED;
+					break;
+				case Command::UP_UP:
+					debug_printline(0xffffffff, "Stop up");
+					this->movement -= Vector3f {0.f, 1.f, 0.f}*SPEED;
+					break;
 
-		void updateFalling(const Command command);
+				case Command::DOWN_DOWN:
+					debug_printline(0xffffffff, "Moving down");
+					this->movement -= Vector3f {0.f, 1.f, 0.f}*SPEED;
+					break;
+				case Command::DOWN_UP:
+					debug_printline(0xffffffff, "Stop down");
+					this->movement += Vector3f {0.f, 1.f, 0.f}*SPEED;
+					break;
+			}
+		}
 
-		void updateLanding(const Command command);
+		//CharacterState & operator = (Command command)
+		//{
+		//	(this->*pActionFunc)(command);
+
+		//	return *this;
+		//}
+
+		//void updateChillin(Command command);
+
+		//void updateMovin(const Command command);
+
+		//void updateJumping(const Command command);
+
+		//void updateFalling(const Command command);
+
+		//void updateLanding(const Command command);
 	};
 }
 }

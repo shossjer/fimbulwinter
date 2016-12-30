@@ -52,7 +52,9 @@ namespace
 		{
 			static bool is_down_left = false;
 			static bool is_down_right = false;
-			static bool is_down_space = false;
+			static bool is_down_up = false;
+			static bool is_down_down = false;
+		//	static bool is_down_space = false;
 
 			switch (input.getState())
 			{
@@ -63,22 +65,33 @@ namespace
 					if (!is_down_left)
 					{
 						is_down_left = true;
-						gameplay::characters::post_command(entity, gameplay::characters::Command::GO_LEFT);
+						gameplay::characters::post_command(entity, gameplay::characters::Command::LEFT_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWRIGHT:
 					if (!is_down_right)
 					{
 						is_down_right = true;
-						gameplay::characters::post_command(entity, gameplay::characters::Command::GO_RIGHT);
+						gameplay::characters::post_command(entity, gameplay::characters::Command::RIGHT_DOWN);
+					}
+					return true;
+
+				case engine::hid::Input::Button::KEY_ARROWUP:
+					if (!is_down_up)
+					{
+						is_down_up = true;
+						gameplay::characters::post_command(entity, gameplay::characters::Command::UP_DOWN);
+					}
+					return true;
+				case engine::hid::Input::Button::KEY_ARROWDOWN:
+					if (!is_down_down)
+					{
+						is_down_down = true;
+						gameplay::characters::post_command(entity, gameplay::characters::Command::DOWN_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_SPACEBAR:
-					if (!is_down_space)
-					{
-						is_down_space = true;
-						gameplay::characters::post_command(entity, gameplay::characters::Command::JUMP);
-					}
+
 					return true;
 				default:
 					return false;
@@ -91,20 +104,23 @@ namespace
 				{
 				case engine::hid::Input::Button::KEY_ARROWLEFT:
 					is_down_left = false;
-					if (!is_down_right)
-					{
-						gameplay::characters::post_command(entity, gameplay::characters::Command::STOP_ITS_HAMMER_TIME);
-					}
+					gameplay::characters::post_command(entity, gameplay::characters::Command::LEFT_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWRIGHT:
 					is_down_right = false;
-					if (!is_down_left)
-					{
-						gameplay::characters::post_command(entity, gameplay::characters::Command::STOP_ITS_HAMMER_TIME);
-					}
+					gameplay::characters::post_command(entity, gameplay::characters::Command::RIGHT_UP);
+					return true;
+
+				case engine::hid::Input::Button::KEY_ARROWUP:
+					is_down_up = false;
+					gameplay::characters::post_command(entity, gameplay::characters::Command::UP_UP);
+					return true;
+				case engine::hid::Input::Button::KEY_ARROWDOWN:
+					is_down_down = false;
+					gameplay::characters::post_command(entity, gameplay::characters::Command::DOWN_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_SPACEBAR:
-					is_down_space = false;
+
 					return true;
 				default:
 					return false;

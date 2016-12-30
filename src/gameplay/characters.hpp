@@ -12,27 +12,14 @@ namespace characters
 {
 	enum struct Command
 	{
-		ANIMATION_FINISHED,
-		JUMP,
-		PHYSICS_FALLING,
-		PHYSICS_GROUNDED,
-		GO_LEFT,
-		GO_RIGHT,
-		STOP_ITS_HAMMER_TIME
-	};
-
-	enum MovementState
-	{
-		NONE,	// no active movement (can still be falling etc)
-
-		LEFT,
+		LEFT_DOWN,
 		LEFT_UP,
-		UP,
-		RIGHT_UP,
-		RIGHT,
 		RIGHT_DOWN,
-		DOWN,
-		LEFT_DOWN
+		RIGHT_UP,
+		UP_DOWN,
+		UP_UP,
+		DOWN_DOWN,
+		DOWN_UP
 	};
 
 	void update();
@@ -42,14 +29,6 @@ namespace characters
 	void remove(const engine::Entity id);
 
 	void post_command(engine::Entity id, Command command);
-	/**
-	 *	Entity grounded/falling state- or its ground normal- has changed
-	 */
-	void postGrounded(const engine::Entity id, const core::maths::Vector3f groundNormal);
-	/**
-	 *	Entity state is changed to falling
-	 */
-	void postFalling(const engine::Entity id);
 
 	void post_add_camera(engine::Entity id, engine::Entity target);
 

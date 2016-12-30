@@ -7,34 +7,62 @@
 #include <core/maths/util.hpp>
 #include <core/maths/Vector.hpp>
 
-#include <array>
-#include <vector>
-
+/**
+ *	\note Declare and call from creation context (main)
+ *		  extern void setup()
+ *		  extern void teardown()
+ */
 namespace engine
 {
 namespace physics
 {
 	/**
-	 *	steps physics engine forward
+	 *	\note manages creation and removal of actors
 	 */
-	void update();
-
+	void update_start();
 	/**
+	 *	\note steps physics engine forward
 	 */
-	void post_movement(engine::Entity id, core::maths::Vector3f movement);
+	void update_finish();
+
+	void post_create(const engine::Entity id, const ActorData & data);
+
+	void post_create(const engine::Entity id, const PlaneData & data);
+
+	void post_remove(const engine::Entity id);
+
+	struct movement_data
+	{
+		enum class Type
+		{
+			// value is multiplied with actors mass to get amount of force
+			ACCELERATION,
+			FORCE,
+			IMPULSE,
+			CHARACTER
+		};
+
+		Type type;
+		core::maths::Vector3f vec;
+	};
 	/**
+	 *	\note update Character or Dynamic object with delta movement or force.
 	 */
-	void post_set_heading(engine::Entity id, core::maths::radianf rotation);
+	void post_update_movement(const engine::Entity id, const movement_data movement);
 
-	void create(const engine::Entity id, const BoxData & data);
+	struct translation_data
+	{
+		core::maths::Vector3f pos;
+		core::maths::Quaternionf quat;
+	};
+	/**
+	 *	\note update Kinematic object with position and rotation
+	 */
+	void post_update_movement(const engine::Entity id, const translation_data translation);
 
-	void create(const engine::Entity id, const CharacterData & data);
+	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation);
 
-	void create(const engine::Entity id, const CylinderData & data);
-
-	void create(const engine::Entity id, const SphereData & data);
-
-	void remove(const engine::Entity id);
+	void query_position(const engine::Entity id, Vector3f & pos, Quaternionf & rotation, Vector3f & vel);
 }
 }
 
