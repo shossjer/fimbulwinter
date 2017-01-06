@@ -3,52 +3,80 @@
 
 #include <core/debug.hpp>
 #include <core/maths/Matrix.hpp>
+#include <core/maths/Quaternion.hpp>
 #include <core/maths/Vector.hpp>
 
 #include <engine/Entity.hpp>
 #include <engine/graphics/renderer.hpp>
+#include <engine/physics/physics.hpp>
 
 #include <fstream>
 #include <vector>
 
 namespace
 {
-	struct theline_t
+	struct box_t
 	{
 		core::maths::Matrix4x4f matrix;
-		core::container::Buffer vertices;
-		core::container::Buffer edges;
-
-		theline_t()
-		{
-		}
+		float dimensions[3];
 	};
-	struct player_t
-	{
-		core::maths::Matrix4x4f matrix;
 
-		player_t()
-		{
-		}
-	};
-	struct mesh_t
+	struct player_start_t
 	{
 		core::maths::Matrix4x4f matrix;
-		core::container::Buffer vertices;
-		core::container::Buffer triangles;
-		core::container::Buffer normals;
+	};
+	struct trigger_timer_t
+	{
+		box_t start;
+		box_t stop;
+	};
+
+	struct static_t
+	{
+		box_t box;
+	};
+	struct platform_t
+	{
+		struct action_t
+		{
+			struct key_t
+			{
+				core::maths::Vector3f translation;
+				core::maths::Quaternionf rotation;
+			};
+
+			char name[32];
+			int32_t length;
+			std::vector<key_t> keys;
+		};
+
+		box_t box;
+		std::vector<action_t> actions;
+	};
+
+	struct trigger_multiple_t
+	{
+		box_t box;
 	};
 
 	struct level_t
 	{
-		theline_t theline;
-		player_t player;
-		std::vector<mesh_t> meshes;
+		player_start_t player_start;
+		trigger_timer_t trigger_timer;
+
+		std::vector<static_t> statics;
+		std::vector<platform_t> platforms;
+
+		std::vector<trigger_multiple_t> trigger_multiples;
 	};
 
 	void read_count(std::ifstream & stream, uint16_t & count)
 	{
 		stream.read(reinterpret_cast<char *>(& count), sizeof(uint16_t));
+	}
+	void read_length(std::ifstream & stream, int32_t & length)
+	{
+		stream.read(reinterpret_cast<char *>(& length), sizeof(int32_t));
 	}
 	void read_matrix(std::ifstream & stream, core::maths::Matrix4x4f & matrix)
 	{
@@ -56,69 +84,113 @@ namespace
 		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
 		matrix.set_aligned(buffer);
 	}
-
-	void read_vertices(std::ifstream & ifile, core::container::Buffer & vertices)
+	void read_quaternion(std::ifstream & stream, core::maths::Quaternionf & quat)
 	{
-		uint16_t nvertices;
-		read_count(ifile, nvertices);
-
-		vertices.resize<float>(3 * std::size_t{nvertices});
-		ifile.read(vertices.data(), vertices.size());
+		core::maths::Quaternionf::array_type buffer;
+		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
+		quat.set_aligned(buffer);
 	}
-	void read_edges(std::ifstream & ifile, core::container::Buffer & edges)
+	template <std::size_t N>
+	void read_string(std::ifstream & stream, char (&buffer)[N])
 	{
-		uint16_t nedges;
-		read_count(ifile, nedges);
+		uint16_t len; // including null character
+		stream.read(reinterpret_cast<char *>(& len), sizeof(uint16_t));
+		debug_assert(len <= N);
 
-		edges.resize<uint16_t>(2 * std::size_t{nedges});
-		ifile.read(edges.data(), edges.size());
+		stream.read(buffer, len);
 	}
-
-	void read_mesh(std::ifstream & ifile, core::container::Buffer & vertices, core::container::Buffer & normals, core::container::Buffer & triangles)
+	void read_vector(std::ifstream & stream, float (&buffer)[3])
 	{
-		uint16_t nvertices;
-		read_count(ifile, nvertices);
-
-		vertices.resize<float>(3 * std::size_t{nvertices});
-		ifile.read(vertices.data(), vertices.size());
-		normals.resize<float>(3 * std::size_t{nvertices});
-		ifile.read(normals.data(), normals.size());
-
-		uint16_t ntriangles;
-		read_count(ifile, ntriangles);
-
-		triangles.resize<uint16_t>(3 * std::size_t{ntriangles});
-		ifile.read(triangles.data(), triangles.size());
+		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
+	}
+	void read_vector(std::ifstream & stream, core::maths::Vector3f & vec)
+	{
+		core::maths::Vector3f::array_type buffer;
+		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
+		vec.set_aligned(buffer);
 	}
 
-	void read_theline(std::ifstream & ifile, theline_t & theline)
+	void read_box(std::ifstream & ifile, box_t & box)
 	{
-		read_matrix(ifile, theline.matrix);
-		read_vertices(ifile, theline.vertices);
-		read_edges(ifile, theline.edges);
+		read_matrix(ifile, box.matrix);
+		read_vector(ifile, box.dimensions);
 	}
-	void read_player(std::ifstream & ifile, player_t & player)
-	{
-		read_matrix(ifile, player.matrix);
-	}
-	void read_meshes(std::ifstream & ifile, std::vector<mesh_t> & meshes)
-	{
-		uint16_t nmeshes;
-		read_count(ifile, nmeshes);
 
-		meshes.resize(nmeshes);
-		for (auto && mesh : meshes)
+	void read_player_start(std::ifstream & ifile, player_start_t & player_start)
+	{
+		read_matrix(ifile, player_start.matrix);
+	}
+	void read_trigger_timer(std::ifstream & ifile, trigger_timer_t & trigger_timer)
+	{
+		read_box(ifile, trigger_timer.start);
+		read_box(ifile, trigger_timer.stop);
+	}
+
+	void read_statics(std::ifstream & ifile, std::vector<static_t> & statics)
+	{
+		uint16_t nstatics;
+		read_count(ifile, nstatics);
+
+		statics.resize(nstatics);
+		for (auto & stat : statics)
 		{
-			read_matrix(ifile, mesh.matrix);
-			read_mesh(ifile, mesh.vertices, mesh.normals, mesh.triangles);
+			read_box(ifile, stat.box);
+		}
+	}
+	void read_platforms(std::ifstream & ifile, std::vector<platform_t> & platforms)
+	{
+		uint16_t nplatforms;
+		read_count(ifile, nplatforms);
+
+		platforms.resize(nplatforms);
+		for (auto & platform : platforms)
+		{
+			read_box(ifile, platform.box);
+
+			uint16_t nactions;
+			read_count(ifile, nactions);
+
+			debug_printline(0xffffffff, "platform have ", nactions, " actions:");
+
+			platform.actions.resize(nactions);
+			for (auto & action : platform.actions)
+			{
+				read_string(ifile, action.name);
+				read_length(ifile, action.length);
+
+				debug_printline(0xffffffff, "  ", action.name);
+
+				action.keys.resize(action.length + 1);
+				for (auto & key : action.keys)
+				{
+					read_vector(ifile, key.translation);
+					read_quaternion(ifile, key.rotation);
+				}
+			}
+		}
+	}
+
+	void read_trigger_multiples(std::ifstream & ifile, std::vector<trigger_multiple_t> & trigger_multiples)
+	{
+		uint16_t ntrigger_multiples;
+		read_count(ifile, ntrigger_multiples);
+
+		trigger_multiples.resize(ntrigger_multiples);
+		for (auto & trigger_multiple : trigger_multiples)
+		{
+			read_box(ifile, trigger_multiple.box);
 		}
 	}
 
 	void read_level(std::ifstream & ifile, level_t & level)
 	{
-		read_theline(ifile, level.theline);
-		read_player(ifile, level.player);
-		read_meshes(ifile, level.meshes);
+		read_player_start(ifile, level.player_start);
+		read_trigger_timer(ifile, level.trigger_timer);
+
+		read_statics(ifile, level.statics);
+		read_platforms(ifile, level.platforms);
+
+		read_trigger_multiples(ifile, level.trigger_multiples);
 	}
 
 	std::vector<engine::Entity> entities;
@@ -138,27 +210,88 @@ namespace gameplay
 				read_level(ifile, level);
 			}
 
-			entities.reserve(1 + level.meshes.size());
-			// theline
-			entities.push_back(engine::Entity::create());
-			{
-				engine::graphics::data::LineC data = {
-					core::maths::Matrix4x4f::identity(),
-					std::move(level.theline.vertices),
-					std::move(level.theline.edges),
-					0xffffffff
-				};
-				engine::graphics::renderer::add(entities.back(), data);
-			}
-			// meshes
-			for (std::size_t n = 0; n < level.meshes.size(); n++)
+			entities.reserve(0 + 2 + level.statics.size() + 0 + level.trigger_multiples.size());
+
+			// player start
+			// trigger timer
 			{
 				entities.push_back(engine::Entity::create());
 				{
-					engine::graphics::data::MeshC data;
-					data.vertices = std::move(level.meshes[n].vertices);
-					data.triangles = std::move(level.meshes[n].triangles);
-					data.normals = std::move(level.meshes[n].normals);
+					const auto & box = level.trigger_timer.start;
+					engine::graphics::data::CuboidC data = {
+						box.matrix,
+						box.dimensions[0],
+						box.dimensions[2], // annoying!!
+						box.dimensions[1],
+						0x8844cccc
+					};
+					engine::graphics::renderer::add(entities.back(), data);
+				}
+				entities.push_back(engine::Entity::create());
+				{
+					const auto & box = level.trigger_timer.stop;
+					engine::graphics::data::CuboidC data = {
+						box.matrix,
+						box.dimensions[0],
+						box.dimensions[2], // annoying!!
+						box.dimensions[1],
+						0x8844cccc
+					};
+					engine::graphics::renderer::add(entities.back(), data);
+				}
+			}
+			// statics
+			for (int i = 0; i < level.statics.size(); i++)
+			{
+				const auto & box = level.statics[i].box;
+
+				entities.push_back(engine::Entity::create());
+				{
+					const auto translation = box.matrix.get_column<3>();
+					core::maths::Vector4f::array_type buffer;
+					translation.get_aligned(buffer);
+
+					debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
+
+					std::vector<engine::physics::ShapeData> shapes;
+					shapes.push_back(engine::physics::ShapeData {
+							engine::physics::ShapeData::Type::BOX,
+							engine::physics::Material::WOOD,
+							1.f,
+							core::maths::Vector3f{0.f, 0.f, 0.f},
+							core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f},
+							engine::physics::ShapeData::Geometry{engine::physics::ShapeData::Geometry::Box{box.dimensions[0] * 0.5f, box.dimensions[1] * 0.5f, box.dimensions[2] * 0.5f} } });
+
+					engine::physics::ActorData data {engine::physics::ActorData::Type::STATIC, engine::physics::ActorData::Behaviour::DEFAULT, buffer[0], buffer[1], buffer[2], shapes};
+
+					::engine::physics::post_create(entities.back(), data);
+				}
+				{
+					engine::graphics::data::CuboidC data = {
+						box.matrix,
+						box.dimensions[0],
+						box.dimensions[2], // annoying!!
+						box.dimensions[1],
+						0xffcc4400
+					};
+					engine::graphics::renderer::add(entities.back(), data);
+				}
+			}
+			// platforms
+			// trigger multiples
+			for (int i = 0; i < level.trigger_multiples.size(); i++)
+			{
+				const auto & box = level.trigger_multiples[i].box;
+
+				entities.push_back(engine::Entity::create());
+				{
+					engine::graphics::data::CuboidC data = {
+						box.matrix,
+						box.dimensions[0],
+						box.dimensions[2], // annoying!!
+						box.dimensions[1],
+						0x8844cccc
+					};
 					engine::graphics::renderer::add(entities.back(), data);
 				}
 			}

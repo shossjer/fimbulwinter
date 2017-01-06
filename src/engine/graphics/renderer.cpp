@@ -125,6 +125,7 @@ namespace
 		core::maths::Matrix4x4f modelview;
 		std::array<float, 3 * 24> vertices;
 		engine::graphics::opengl::Color4ub color;
+		bool is_transparent; // ugh!!
 
 		static const std::array<uint16_t, 3 * 12> triangles;
 		static const std::array<float, 3 * 24> normals;
@@ -134,7 +135,8 @@ namespace
 			color((data.color & 0x000000ff) >>  0,
 			      (data.color & 0x0000ff00) >>  8,
 			      (data.color & 0x00ff0000) >> 16,
-			      (data.color & 0xff000000) >> 24)
+			      (data.color & 0xff000000) >> 24),
+			is_transparent{bool((data.color & 0xff000000) != 0xff000000)}
 		{
 			const float xoffset = data.width / 2.f;
 			const float yoffset = data.height / 2.f;
@@ -634,6 +636,13 @@ namespace
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
+			if (component.is_transparent)
+			{
+				glEnable(GL_BLEND);
+				//glDisable(GL_DEPTH_TEST);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_DST_COLOR);
+			}
+
 			glColor(component.color);
 		//	glColor3ub(100, 255, 200);
 			glEnableClientState(GL_VERTEX_ARRAY);
@@ -651,6 +660,12 @@ namespace
 			               component.triangles.data());
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
+
+			if (component.is_transparent)
+			{
+				//glEnable(GL_DEPTH_TEST);
+				glDisable(GL_BLEND);
+			}
 
 			modelview_matrix.pop();
 		}
