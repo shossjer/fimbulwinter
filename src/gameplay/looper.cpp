@@ -11,7 +11,6 @@
 
 #include <gameplay/characters.hpp>
 #include <gameplay/CharacterState.hpp>
-#include <gameplay/effects.hpp>
 #include <gameplay/level.hpp>
 #include <gameplay/ui.hpp>
 
@@ -295,9 +294,6 @@ namespace looper
 		// 
 		while (active)
 		{
-			// update effects
-			::gameplay::effects::update();
-
 			// update animations
 			::engine::animation::update();
 

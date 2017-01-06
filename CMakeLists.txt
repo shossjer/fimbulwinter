@@ -52,7 +52,6 @@ set(TRIBUNAL_SOURCE
 	src/engine/physics/creation_physx.cpp
 	src/engine/physics/physics_physx.cpp
 	src/gameplay/characters.cpp
-	src/gameplay/effects.cpp
 	src/gameplay/level.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/ui.cpp
@@ -103,8 +102,6 @@ set(TRIBUNAL_HEADER
 	src/gameplay/characters.hpp
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp
-	src/gameplay/Effect.hpp
-	src/gameplay/effects.hpp
 	src/gameplay/level.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
