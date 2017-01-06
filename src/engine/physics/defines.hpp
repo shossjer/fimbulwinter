@@ -8,6 +8,8 @@
 #include <core/maths/Vector.hpp>
 #include <core/maths/Quaternion.hpp>
 
+#include <vector>
+
 using Vector3f = core::maths::Vector3f;
 using Quaternionf = core::maths::Quaternionf;
 
@@ -43,7 +45,7 @@ namespace physics
 		Vector3f pos;
 		Quaternionf rot;
 
-		union Geometry
+		struct Geometry
 		{
 			struct Box
 			{
@@ -63,7 +65,7 @@ namespace physics
 
 				float volume() const
 				{
-					return (4.f / 3.f) * core::maths::constantf::pi * r*r*r;
+					return (4.f/3.f) * core::maths::constantf::pi * r*r*r;
 				}
 
 			} sphere;
@@ -76,9 +78,21 @@ namespace physics
 			} capsule;
 			struct Mesh
 			{
-				float size;
-				float * p;
+				// xyz value of all points.
+				std::vector<float> points;
+
+				uint32_t size() const
+				{
+					debug_assert((points.size() % 3)== 0);
+					return points.size()/3;
+				}
 			} mesh;
+
+			Geometry(Box & box) : box(box) {}
+			Geometry(Sphere & sphere) : sphere(sphere) {}
+			Geometry(Capsule & capsule) : capsule(capsule) {}
+			Geometry(Mesh & mesh) : mesh(mesh) {}
+
 		} geometry;
 	};
 

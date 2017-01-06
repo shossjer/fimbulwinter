@@ -88,13 +88,30 @@ namespace looper
 	void physics_box(const engine::Entity id, const ActorData::Type type, const ActorData::Behaviour behaviour, const Material material, const float solidity, const float x, const float y, const float z, const float w, const float h, const float d)
 	{
 		std::vector<ShapeData> shapes;
+
+		const auto w2 = w*0.5f;
+		const auto h2 = h*0.5f;
+		const auto d2 = d*0.5f;
+
+		std::vector<float> points
+		{
+			-w2, -h2, d2,	// front side left
+			-w2, h2, d2,
+			w2, h2, d2,		// front side right
+			w2, -h2, d2,
+			-w2, -h2, -d2,	// back side left
+			-w2, h2, -d2,
+			w2, h2, -d2,	// back side right
+			w2, -h2, -d2
+		};
+
 		shapes.push_back(ShapeData {
-			ShapeData::Type::BOX,
+			ShapeData::Type::MESH,
 			material,
 			solidity,
-			Vector3f{0.f, 0.f, 0.f},
-			Quaternionf{1.f, 0.f, 0.f, 0.f},
-			ShapeData::Geometry{ShapeData::Geometry::Box{w*0.5f, h*0.5f, d*0.5f} } });
+			Vector3f {0.f, 0.f, 0.f},
+			Quaternionf {1.f, 0.f, 0.f, 0.f},
+			ShapeData::Geometry {ShapeData::Geometry::Mesh {points} } });
 
 		ActorData data {type, behaviour, x, y, z, shapes};
 
@@ -161,10 +178,6 @@ namespace looper
 		level::create("res/level.lvl");
 	}
 
-	void temp_update()
-	{
-	}
-
 	void run()
 	{
 		class PhysicsCallback : public ::engine::physics::Callback
@@ -213,8 +226,6 @@ namespace looper
 
 			// update animations
 			::engine::animation::update();
-
-			temp_update();
 
 			// update actors in engine
 			::engine::physics::update_start();

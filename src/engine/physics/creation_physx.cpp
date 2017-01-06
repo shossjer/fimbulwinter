@@ -69,8 +69,48 @@ namespace physics
 					totalMass += (materialDef.density * shapeData.geometry.sphere.volume() * shapeData.solidity);
 					break;
 				}
-				case ShapeData::Type::CAPSULE:
 				case ShapeData::Type::MESH:
+				{
+					physx::PxConvexMeshDesc desc;
+
+					desc.points.data = shapeData.geometry.mesh.points.data();
+					desc.points.count = shapeData.geometry.mesh.size();
+					desc.points.stride = 3*sizeof(float);
+
+					desc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
+
+					PxDefaultMemoryOutputStream buf;
+					PxConvexMeshCookingResult::Enum result;
+
+					if (!desc.isValid())
+					{
+						throw std::runtime_error("Could not create mesh from complicated points.");
+					}
+
+					// cook the points into a nice mesh
+					if (!physx2::pCooking->cookConvexMesh(desc, buf, &result))
+					{
+						// possible to use more complicated method to calculate mesh...
+						throw std::runtime_error("Could not create mesh from complicated points.");
+					}
+
+					PxDefaultMemoryInputData input(buf.getData(), buf.getSize());
+					PxConvexMesh* convexMesh = physx2::pWorld->createConvexMesh(input);
+
+					shape = physx2::pWorld->createShape(PxConvexMeshGeometry(convexMesh), *materialDef.material);
+
+					// get the mass properties of the mesh shape
+					{
+						PxReal mass;
+						PxMat33 inertia;
+						PxVec3 centre;
+
+						convexMesh->getMassInformation(mass, inertia, centre);
+						totalMass += (mass * shapeData.solidity);
+					}
+					break;
+				}
+				case ShapeData::Type::CAPSULE:
 				default:
 
 				debug_unreachable();

@@ -44,6 +44,7 @@ namespace physics
 		::physx::PxDefaultAllocator gDefaultAllocatorCallback;
 
 		::physx::PxFoundation * pFoundation;
+		::physx::PxCooking * pCooking;
 
 		::physx::PxDefaultCpuDispatcher * pCpuDispatcher;
 	}
@@ -165,6 +166,15 @@ namespace physics
 			return false;
 		}
 
+		physx::PxCookingParams cookingParams {physx::PxTolerancesScale()};
+		physx_ptr<physx::PxCooking> pCooking {PxCreateCooking(PX_PHYSICS_VERSION, *pFoundation, cookingParams)};
+
+		if (pCooking.get()==nullptr)
+		{
+			debug_printline(0xffffffff, "Could not create physx Cooking.");
+			return false;
+		}
+
 		// register callback from physx simulation of contact events.
 		pScene->setSimulationEventCallback(&simulationCallback);
 
@@ -173,6 +183,7 @@ namespace physics
 		physx2::pCpuDispatcher = pCPUDispatcher.release();
 		physx2::pWorld = pWorld.release();
 		physx2::pScene = pScene.release();
+		physx2::pCooking = pCooking.release();
 
 		debug_printline(0xffffffff, "Physx successfully created.");
 

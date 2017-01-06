@@ -241,7 +241,7 @@ namespace gameplay
 				}
 			}
 			// statics
-			for (int i = 0; i < level.statics.size(); i++)
+			for (unsigned int i = 0; i < level.statics.size(); i++)
 			{
 				const auto & box = level.statics[i].box;
 
@@ -279,7 +279,7 @@ namespace gameplay
 			}
 			// platforms
 			// trigger multiples
-			for (int i = 0; i < level.trigger_multiples.size(); i++)
+			for (unsigned int i = 0; i < level.trigger_multiples.size(); i++)
 			{
 				const auto & box = level.trigger_multiples[i].box;
 
