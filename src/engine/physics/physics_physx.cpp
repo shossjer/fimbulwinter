@@ -71,47 +71,93 @@ namespace physics
 	{
 		void onConstraintBreak(physx::PxConstraintInfo* constraints, physx::PxU32 count)
 		{
+			debug_printline(0xffffffff, "onConstraintBreak");
 		}
 
 		void onWake(physx::PxActor** actors, physx::PxU32 count)
 		{
+			debug_printline(0xffffffff, "onWake");
 		}
 
 		void onSleep(physx::PxActor** actors, physx::PxU32 count)
 		{
+			debug_printline(0xffffffff, "onSleep");
 		}
 
 		void onContact(const physx::PxContactPairHeader & pairHeader, const physx::PxContactPair * pairs, physx::PxU32 nbPairs)
 		{
-			auto val = pairs[0];
+			const auto val = pairs[0];
 
-			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_FOUND))
+			Entity ids[2];
+			ActorData::Behaviour behaviours[2];
+			Material materials[2];
+
+			const auto & filterData1 = val.shapes[0]->getSimulationFilterData();
+			const auto & filterData2 = val.shapes[1]->getSimulationFilterData();
+
+			// find most prio object behaviour
+			if (filterData1.word0 < filterData2.word0)
 			{
-				Entity ids[2];
-				Material materials[2];
-
 				ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
 				ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
 
-				materials[0] = static_cast<Material>(pairs[0].shapes[0]->getSimulationFilterData().word2);
-				materials[1] = static_cast<Material>(pairs[0].shapes[1]->getSimulationFilterData().word2);
+				behaviours[0] = static_cast<ActorData::Behaviour>(filterData1.word0);
+				behaviours[1] = static_cast<ActorData::Behaviour>(filterData2.word0);
 
-				pCallback->postContactFound(ids, materials);
+				materials[0] = static_cast<Material>(filterData1.word2);
+				materials[1] = static_cast<Material>(filterData2.word2);
+			}
+			else
+			{
+				ids[1] = (std::size_t)(pairHeader.actors[0]->userData);
+				ids[0] = (std::size_t)(pairHeader.actors[1]->userData);
+
+				behaviours[1] = static_cast<ActorData::Behaviour>(filterData1.word0);
+				behaviours[0] = static_cast<ActorData::Behaviour>(filterData2.word0);
+
+				materials[1] = static_cast<Material>(filterData1.word2);
+				materials[0] = static_cast<Material>(filterData2.word2);
+			}
+
+			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_FOUND))
+			{
+				pCallback->postContactFound(ids, behaviours, materials);
 			}
 			else
 			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_LOST))
 			{
-				Entity ids[2];
-
-				ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
-				ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
-
-				pCallback->postContactLost(ids);
+				pCallback->postContactLost(ids, behaviours, materials);
 			}
 		}
 
 		void onTrigger(physx::PxTriggerPair* pairs, physx::PxU32 count)
 		{
+			const auto val = pairs[0];
+
+			Entity ids[2];
+			ActorData::Behaviour behaviours[2];
+			Material materials[2];
+
+			ids[0] = (std::size_t)(val.triggerActor->userData);
+			ids[1] = (std::size_t)(val.otherActor->userData);
+
+			const auto & filterData1 = val.triggerShape->getSimulationFilterData();
+			const auto & filterData2 = val.otherShape->getSimulationFilterData();
+
+			behaviours[0] = static_cast<ActorData::Behaviour>(filterData1.word0);
+			behaviours[1] = static_cast<ActorData::Behaviour>(filterData2.word0);
+
+			materials[0] = static_cast<Material>(filterData1.word2);
+			materials[1] = static_cast<Material>(filterData2.word2);
+
+			if (val.status==PxPairFlag::eNOTIFY_TOUCH_FOUND)
+			{
+				pCallback->postTriggerFound(ids, behaviours, materials);
+			}
+			else
+			{
+				pCallback->postTriggerLost(ids, behaviours, materials);
+			}
 		}
 	} simulationCallback;
 

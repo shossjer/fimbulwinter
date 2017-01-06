@@ -294,6 +294,28 @@ namespace gameplay
 					};
 					engine::graphics::renderer::add(entities.back(), data);
 				}
+
+				entities.push_back(engine::Entity::create());
+				{
+					const auto translation = box.matrix.get_column<3>();
+					core::maths::Vector4f::array_type buffer;
+					translation.get_aligned(buffer);
+
+					debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
+
+					std::vector<engine::physics::ShapeData> shapes;
+					shapes.push_back(engine::physics::ShapeData {
+						engine::physics::ShapeData::Type::BOX,
+						engine::physics::Material::WOOD,
+						1.f,
+						core::maths::Vector3f {0.f, 0.f, 0.f},
+						core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
+						engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f}}});
+
+					engine::physics::ActorData data {engine::physics::ActorData::Type::TRIGGER, engine::physics::ActorData::Behaviour::TRIGGER, buffer[0], buffer[1], buffer[2], shapes};
+
+					::engine::physics::post_create(entities.back(), data);
+				}
 			}
 		}
 		void destroy()

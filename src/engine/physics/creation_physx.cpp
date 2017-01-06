@@ -31,15 +31,22 @@ namespace physics
 		core::container::CircleQueueSRMW<engine::Entity, 100> queue_remove;
 	}
 
+	struct reply_shapes
+	{
+		float totalMass;
+		std::vector<physx::PxShape *> shapes;
+	};
+
 	/**
 		\note create shapes for the Actor body.
 		\return float total mass of all shapes
 	 */
-	float create(const std::vector<ShapeData> shapeDatas, PxRigidActor * body, PxFilterData filterData)
+	reply_shapes create(const std::vector<ShapeData> shapeDatas, PxFilterData filterData)
 	{
-		float totalMass = 0.f;
+		reply_shapes reply;
+		reply.totalMass = 0.f;
 
-		for (const ShapeData & shapeData :shapeDatas)
+		for (const ShapeData & shapeData : shapeDatas)
 		{
 			const MaterialDef & materialDef = materials.at(shapeData.material);
 
@@ -56,7 +63,7 @@ namespace physics
 						*materialDef.material);
 
 					// calculate mass of the shape
-					totalMass += (materialDef.density * shapeData.geometry.box.volume() * shapeData.solidity);
+					reply.totalMass += (materialDef.density * shapeData.geometry.box.volume() * shapeData.solidity);
 					break;
 				}
 				case ShapeData::Type::SPHERE:
@@ -66,7 +73,7 @@ namespace physics
 						*materialDef.material);
 
 					// calculate mass of the shape
-					totalMass += (materialDef.density * shapeData.geometry.sphere.volume() * shapeData.solidity);
+					reply.totalMass += (materialDef.density * shapeData.geometry.sphere.volume() * shapeData.solidity);
 					break;
 				}
 				case ShapeData::Type::MESH:
@@ -106,7 +113,7 @@ namespace physics
 						PxVec3 centre;
 
 						convexMesh->getMassInformation(mass, inertia, centre);
-						totalMass += (mass * shapeData.solidity);
+						reply.totalMass += (mass * shapeData.solidity);
 					}
 					break;
 				}
@@ -122,10 +129,59 @@ namespace physics
 			// set filtering data for the shape
 			shape->setSimulationFilterData(filterData);
 
-			body->attachShape(*shape);
+			reply.shapes.push_back(shape);
 		}
 
-		return totalMass;
+		return reply;
+	}
+
+	/**
+		\note Create Filter for Kinematic Actor based on behaviour
+	*/
+	PxFilterData createFilter(const ActorData::Behaviour behaviour)
+	{
+		const PxU32 flag = static_cast<PxU32>(behaviour);
+		PxU32 mask;
+
+		switch (behaviour)
+		{
+			case ActorData::Behaviour::TRIGGER:
+			{
+				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
+						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
+						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
+				break;
+			}
+			// obstacles should have full callback (temp disabled)
+			case ActorData::Behaviour::OBSTACLE:
+			{
+				mask = 0;
+				/*static_cast<PxU32>(Flag::DYNAMIC)|
+				static_cast<PxU32>(Flag::PLAYER)|
+				static_cast<PxU32>(Flag::OBSTACLE)|
+				static_cast<PxU32>(Flag::STATIC);*/
+				break;
+			}
+			// players should have full callback
+			case ActorData::Behaviour::PLAYER:
+			{
+				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
+						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
+						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
+				break;
+			}
+			// no callback is needed for dynamic default objects
+			case ActorData::Behaviour::DEFAULT:
+			{
+				mask =	static_cast<PxU32>(0);
+				break;
+			}
+			default:
+			// Behaviour is not valid for Actor type
+			debug_unreachable();
+		}
+
+		return PxFilterData {flag, mask, PxU32 {0}, PxU32 {0}};
 	}
 
 	/**
@@ -148,14 +204,19 @@ namespace physics
 				}
 
 				// create collision filter flags
-				PxFilterData filterData = filter::dynamic(data);
+				PxFilterData filterData = createFilter(data.behaviour);
 
-				// create and add shapes to body
-				// returns total mass of all shapes
-				const float totalMass = create(data.shapes, body, filterData);
+				// create shapes
+				reply_shapes reply = create(data.shapes, filterData);
+
+				// make the shapes trigger shapes.
+				for (auto shape:reply.shapes)
+				{
+					body->attachShape(*shape);
+				}
 
 				// update mass for Actor for non-static body
-				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, totalMass);
+				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, reply.totalMass);
 
 				// register it as an actor so we have access to the body from id
 				actors.emplace<ActorDynamic>(id, body);
@@ -176,14 +237,19 @@ namespace physics
 				body->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
 
 				// create collision filter flags
-				PxFilterData filterData = filter::kinematic(data);
+				PxFilterData filterData = createFilter(data.behaviour);
 
-				// create and add shapes to body
-				// returns total mass of all shapes
-				const float totalMass = create(data.shapes, body, filterData);
+				// create shapes
+				reply_shapes reply = create(data.shapes, filterData);
+
+				// make the shapes trigger shapes.
+				for (auto shape : reply.shapes)
+				{
+					body->attachShape(*shape);
+				}
 
 				// update mass for Actor for non-static body
-				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, totalMass);
+				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, reply.totalMass);
 
 				// register it as an actor so we have access to the body from id
 				actors.emplace<ActorDynamic>(id, body);
@@ -201,11 +267,16 @@ namespace physics
 				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform {data.x, data.y, data.z});
 
 				// create collision filter flags
-				PxFilterData filterData = filter::fixed(data);
+				PxFilterData filterData = createFilter(data.behaviour);
 
-				// create and add shapes to body
-				// returns total mass of all shapes
-				create(data.shapes, body, filterData);
+				// create shapes
+				reply_shapes reply = create(data.shapes, filterData);
+
+				// make the shapes trigger shapes.
+				for (auto shape : reply.shapes)
+				{
+					body->attachShape(*shape);
+				}
 
 				// register it as an actor so we have access to the body from id
 				actors.emplace<ActorStatic>(id, body);
@@ -215,6 +286,37 @@ namespace physics
 
 				// finally add it to the scene
 				physx2::pScene->addActor(*body);
+				break;
+			}
+			case ActorData::Type::TRIGGER:
+			{
+				// create a dynamic body at position
+				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform {data.x, data.y, data.z});
+
+				// create collision filter flags
+				PxFilterData filterData = createFilter(data.behaviour);
+
+				// create shapes
+				reply_shapes reply = create(data.shapes, filterData);
+
+				// make the shapes trigger shapes.
+				for (auto shape : reply.shapes)
+				{
+					shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, false);
+					shape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, true);
+
+					body->attachShape(*shape);
+				}
+
+				// register it as an actor so we have access to the body from id
+				actors.emplace<ActorStatic>(id, body);
+
+				// set entity id to the body for callback
+				body->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+
+				// finally add it to the scene
+				physx2::pScene->addActor(*body);
+
 				break;
 			}
 		}

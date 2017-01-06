@@ -113,22 +113,36 @@ namespace physics
 			// used for movable objects that are not affected by physics.
 			// platforms and moving beams should be Kinematic.
 			// when moving an Kinematic object the Kinematic move should be used.
-			KINEMATIC
+			KINEMATIC,
+			// special trigger object.
+			// triggers are not movable and does not have a solid shape.
+			// a trigger should always have trigger behaviour.
+			TRIGGER
 		} type;
+
 		/**
-		 *	/note Dictate how the Actor will be managed and in callbacks during collision.
+			/note Dictate how the Actor will be managed and in callbacks during collision.
+
+			During collisions the most "prio" behaviour object is reported as entity1.
+			So if a Default box or a Player collides with a Trigger it will count as a
+			trigger collision.
+			Lower value is higher "prio".
 		 */
 		enum class Behaviour
 		{
+			// trigger will receive trigger notifications always
+			// our gameplay can consider any object a "trigger", it does not need
+			// to be a physics-trigger.
+			// A visible pressure button/plate can be a static or kinematic or even
+			// a dynamic object in the physics module.
+			TRIGGER = 1<<0,
+			// player will receive callback for all collisions.
+			PLAYER = 1<<1,
+			// obstacle will receive callback for all collisions.
+			OBSTACLE = 1<<2,
 			// default behaviour will not receive any callbacks during collisions
 			// walls and most simple dynamic actors belong here
-			DEFAULT,
-			// player will receive callback for all collisions.
-			PLAYER,
-			// obstacle will receive callback for all collisions.
-			OBSTACLE,
-			// trigger will receive trigger notifications always
-			TRIGGER
+			DEFAULT = 1<<3
 		} behaviour;
 
 		//Vector3f pos;

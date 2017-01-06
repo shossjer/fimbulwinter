@@ -184,14 +184,88 @@ namespace looper
 		{
 		public:
 
-			void postContactFound(const ::engine::Entity ids[2], const ::engine::physics::Material materials[2]) const override
+			void postContactFound(const ::engine::Entity ids[2], const ::engine::physics::ActorData::Behaviour behaviours[2], const ::engine::physics::Material materials[2]) const override
 			{
 				// TODO: add on queue
+
+				switch (behaviours[0])
+				{
+					case ::engine::physics::ActorData::Behaviour::TRIGGER:
+					debug_printline(0xffffffff, "Trigger collision found (should not happen)");
+					break;
+					case ::engine::physics::ActorData::Behaviour::PLAYER:
+					debug_printline(0xffffffff, "Player collision found");
+					break;
+					case ::engine::physics::ActorData::Behaviour::OBSTACLE:
+					debug_printline(0xffffffff, "Obstacle collision found");
+					break;
+					case ::engine::physics::ActorData::Behaviour::DEFAULT:
+					debug_printline(0xffffffff, "Default collision found (should not happen)");
+					break;
+				}
 			}
 
-			void postContactLost(const ::engine::Entity ids[2]) const override
+			void postContactLost(const ::engine::Entity ids[2], const ::engine::physics::ActorData::Behaviour behaviours[2], const ::engine::physics::Material materials[2]) const override
 			{
 				// TODO: add on queue
+
+				switch (behaviours[0])
+				{
+					case ::engine::physics::ActorData::Behaviour::TRIGGER:
+					debug_printline(0xffffffff, "Trigger collision lost (should not happen)");
+					break;
+					case ::engine::physics::ActorData::Behaviour::PLAYER:
+					debug_printline(0xffffffff, "Player collision lost");
+					break;
+					case ::engine::physics::ActorData::Behaviour::OBSTACLE:
+					debug_printline(0xffffffff, "Obstacle collision lost");
+					break;
+					case ::engine::physics::ActorData::Behaviour::DEFAULT:
+					debug_printline(0xffffffff, "Default collision lost (should not happen)");
+					break;
+				}
+			}
+
+			void postTriggerFound(const ::engine::Entity ids[2], const ::engine::physics::ActorData::Behaviour behaviours[2], const ::engine::physics::Material materials[2]) const override
+			{
+				// TODO: add on queue
+
+				switch (behaviours[1])
+				{
+					case ::engine::physics::ActorData::Behaviour::TRIGGER:
+					debug_printline(0xffffffff, "Trigger collision found with: Trigger (should not happen)");
+					break;
+					case ::engine::physics::ActorData::Behaviour::PLAYER:
+					debug_printline(0xffffffff, "Trigger collision found with: Player");
+					break;
+					case ::engine::physics::ActorData::Behaviour::OBSTACLE:
+					debug_printline(0xffffffff, "Trigger collision found with: Obstacle");
+					break;
+					case ::engine::physics::ActorData::Behaviour::DEFAULT:
+					debug_printline(0xffffffff, "Trigger collision found with: Default");
+					break;
+				}
+			}
+
+			void postTriggerLost(const ::engine::Entity ids[2], const ::engine::physics::ActorData::Behaviour behaviours[2], const ::engine::physics::Material materials[2]) const override
+			{
+				// TODO: add on queue
+
+				switch (behaviours[1])
+				{
+					case ::engine::physics::ActorData::Behaviour::TRIGGER:
+					debug_printline(0xffffffff, "Trigger collision lost with: Trigger (should not happen)");
+					break;
+					case ::engine::physics::ActorData::Behaviour::PLAYER:
+					debug_printline(0xffffffff, "Trigger collision lost with: Player");
+					break;
+					case ::engine::physics::ActorData::Behaviour::OBSTACLE:
+					debug_printline(0xffffffff, "Trigger collision lost with: Obstacle");
+					break;
+					case ::engine::physics::ActorData::Behaviour::DEFAULT:
+					debug_printline(0xffffffff, "Trigger collision lost with: Default");
+					break;
+				}
 			}
 		} physicsCallback;
 
