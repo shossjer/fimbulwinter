@@ -108,6 +108,7 @@ set(TRIBUNAL_HEADER
 	src/utility/aligned_array.hpp
 	src/utility/array.hpp
 	src/utility/inaccessible.hpp
+	src/utility/json.hpp
 	src/utility/optional.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
@@ -188,6 +189,10 @@ find_file(FILE_X11_XLIB_H X11/Xlib.h)
 message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
 find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
+
+# look for JSON library hpp file
+find_file(FILE_JSON_HEADER nlohmann_json.hpp)
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
 
 # physics PHYSX
 #
