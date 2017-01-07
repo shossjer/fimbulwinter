@@ -88,10 +88,10 @@ namespace physics
 				}
 			} mesh;
 
-			Geometry(Box & box) : box(box) {}
-			Geometry(Sphere & sphere) : sphere(sphere) {}
-			Geometry(Capsule & capsule) : capsule(capsule) {}
-			Geometry(Mesh & mesh) : mesh(mesh) {}
+			Geometry(const Box & box) : box(box) {}
+			Geometry(const Sphere & sphere) : sphere(sphere) {}
+			Geometry(const Capsule & capsule) : capsule(capsule) {}
+			Geometry(const Mesh & mesh) : mesh(mesh) {}
 
 		} geometry;
 	};
