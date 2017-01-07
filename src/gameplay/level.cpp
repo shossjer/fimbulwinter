@@ -7,8 +7,11 @@
 #include <core/maths/Vector.hpp>
 
 #include <engine/Entity.hpp>
+#include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/physics/physics.hpp>
+
+#include <utility/string.hpp>
 
 #include <fstream>
 #include <vector>
@@ -37,21 +40,8 @@ namespace
 	};
 	struct platform_t
 	{
-		struct action_t
-		{
-			struct key_t
-			{
-				core::maths::Vector3f translation;
-				core::maths::Quaternionf rotation;
-			};
-
-			char name[32];
-			int32_t length;
-			std::vector<key_t> keys;
-		};
-
 		box_t box;
-		std::vector<action_t> actions;
+		engine::animation::object animation;
 	};
 
 	struct trigger_multiple_t
@@ -93,11 +83,12 @@ namespace
 	template <std::size_t N>
 	void read_string(std::ifstream & stream, char (&buffer)[N])
 	{
-		uint16_t len; // including null character
+		uint16_t len; // excluding null character
 		stream.read(reinterpret_cast<char *>(& len), sizeof(uint16_t));
-		debug_assert(len <= N);
+		debug_assert(len < N);
 
 		stream.read(buffer, len);
+		buffer[len] = '\0';
 	}
 	void read_vector(std::ifstream & stream, float (&buffer)[3])
 	{
@@ -143,24 +134,29 @@ namespace
 		read_count(ifile, nplatforms);
 
 		platforms.resize(nplatforms);
-		for (auto & platform : platforms)
+		for (int i = 0; i < platforms.size(); i++)
 		{
+			auto & platform = platforms[i];
+
 			read_box(ifile, platform.box);
+
+			platform.animation.name = utility::to_string("platform", i);
 
 			uint16_t nactions;
 			read_count(ifile, nactions);
-
 			debug_printline(0xffffffff, "platform have ", nactions, " actions:");
 
-			platform.actions.resize(nactions);
-			for (auto & action : platform.actions)
+			platform.animation.actions.resize(nactions);
+			for (auto & action : platform.animation.actions)
 			{
-				read_string(ifile, action.name);
-				read_length(ifile, action.length);
-
+				char name[32];
+				read_string(ifile, name);
+				action.name = name;
 				debug_printline(0xffffffff, "  ", action.name);
+				int length;
+				read_length(ifile, length);
 
-				action.keys.resize(action.length + 1);
+				action.keys.resize(length + 1);
 				for (auto & key : action.keys)
 				{
 					read_vector(ifile, key.translation);
@@ -278,6 +274,15 @@ namespace gameplay
 				}
 			}
 			// platforms
+			{
+				// vvvv tmp vvvv
+				const auto entity = engine::Entity::create();
+				const auto asset = engine::extras::Asset(level.platforms[2].animation.name);
+				engine::animation::add(asset, std::move(level.platforms[2].animation));
+				engine::animation::add_model(entity, asset);
+				engine::animation::update(entity, engine::animation::action{"open", false});
+				// ^^^^ tmp ^^^^
+			}
 			// trigger multiples
 			for (unsigned int i = 0; i < level.trigger_multiples.size(); i++)
 			{
