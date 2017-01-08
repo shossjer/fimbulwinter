@@ -88,9 +88,7 @@ namespace physics
 		{
 			const auto val = pairs[0];
 
-			Entity ids[2];
-			ActorData::Behaviour behaviours[2];
-			Material materials[2];
+			Callback::data_t data;
 
 			const auto & filterData1 = val.shapes[0]->getSimulationFilterData();
 			const auto & filterData2 = val.shapes[1]->getSimulationFilterData();
@@ -98,35 +96,35 @@ namespace physics
 			// find most prio object behaviour
 			if (filterData1.word0 < filterData2.word0)
 			{
-				ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
-				ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
+				data.ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
+				data.ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
 
-				behaviours[0] = static_cast<ActorData::Behaviour>(filterData1.word0);
-				behaviours[1] = static_cast<ActorData::Behaviour>(filterData2.word0);
+				data.behaviours[0] = static_cast<ActorData::Behaviour>(filterData1.word0);
+				data.behaviours[1] = static_cast<ActorData::Behaviour>(filterData2.word0);
 
-				materials[0] = static_cast<Material>(filterData1.word2);
-				materials[1] = static_cast<Material>(filterData2.word2);
+				data.materials[0] = static_cast<Material>(filterData1.word2);
+				data.materials[1] = static_cast<Material>(filterData2.word2);
 			}
 			else
 			{
-				ids[1] = (std::size_t)(pairHeader.actors[0]->userData);
-				ids[0] = (std::size_t)(pairHeader.actors[1]->userData);
+				data.ids[1] = (std::size_t)(pairHeader.actors[0]->userData);
+				data.ids[0] = (std::size_t)(pairHeader.actors[1]->userData);
 
-				behaviours[1] = static_cast<ActorData::Behaviour>(filterData1.word0);
-				behaviours[0] = static_cast<ActorData::Behaviour>(filterData2.word0);
+				data.behaviours[1] = static_cast<ActorData::Behaviour>(filterData1.word0);
+				data.behaviours[0] = static_cast<ActorData::Behaviour>(filterData2.word0);
 
-				materials[1] = static_cast<Material>(filterData1.word2);
-				materials[0] = static_cast<Material>(filterData2.word2);
+				data.materials[1] = static_cast<Material>(filterData1.word2);
+				data.materials[0] = static_cast<Material>(filterData2.word2);
 			}
 
 			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_FOUND))
 			{
-				pCallback->postContactFound(ids, behaviours, materials);
+				pCallback->postContactFound(data);
 			}
 			else
 			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_LOST))
 			{
-				pCallback->postContactLost(ids, behaviours, materials);
+				pCallback->postContactLost(data);
 			}
 		}
 
@@ -134,29 +132,27 @@ namespace physics
 		{
 			const auto val = pairs[0];
 
-			Entity ids[2];
-			ActorData::Behaviour behaviours[2];
-			Material materials[2];
+			Callback::data_t data;
 
-			ids[0] = (std::size_t)(val.triggerActor->userData);
-			ids[1] = (std::size_t)(val.otherActor->userData);
+			data.ids[0] = (std::size_t)(val.triggerActor->userData);
+			data.ids[1] = (std::size_t)(val.otherActor->userData);
 
 			const auto & filterData1 = val.triggerShape->getSimulationFilterData();
 			const auto & filterData2 = val.otherShape->getSimulationFilterData();
 
-			behaviours[0] = static_cast<ActorData::Behaviour>(filterData1.word0);
-			behaviours[1] = static_cast<ActorData::Behaviour>(filterData2.word0);
+			data.behaviours[0] = static_cast<ActorData::Behaviour>(filterData1.word0);
+			data.behaviours[1] = static_cast<ActorData::Behaviour>(filterData2.word0);
 
-			materials[0] = static_cast<Material>(filterData1.word2);
-			materials[1] = static_cast<Material>(filterData2.word2);
+			data.materials[0] = static_cast<Material>(filterData1.word2);
+			data.materials[1] = static_cast<Material>(filterData2.word2);
 
 			if (val.status==PxPairFlag::eNOTIFY_TOUCH_FOUND)
 			{
-				pCallback->postTriggerFound(ids, behaviours, materials);
+				pCallback->postTriggerFound(data);
 			}
 			else
 			{
-				pCallback->postTriggerLost(ids, behaviours, materials);
+				pCallback->postTriggerLost(data);
 			}
 		}
 	} simulationCallback;
@@ -263,6 +259,8 @@ namespace physics
 		PxCloseExtensions();
 
 		physx2::pCpuDispatcher->release();
+
+		physx2::pCooking->release();
 
 		physx2::pFoundation->release();
 	}

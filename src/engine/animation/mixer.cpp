@@ -162,6 +162,7 @@ namespace
 			movement = this->movement;
 		}
 	};
+
 	struct ObjectPlayback
 	{
 		const engine::animation::object * object;
@@ -205,9 +206,10 @@ namespace
 			}
 		}
 
-		auto extract_translation() const
+		engine::physics::translation_data extract_translation() const
 		{
-			return action->keys[framei].translation;
+			const auto & val = action->keys[framei];
+			return engine::physics::translation_data {val.translation, val.rotation};
 		}
 	};
 
@@ -259,12 +261,12 @@ namespace
 	};
 	struct extract_translation
 	{
-		core::maths::Vector3f operator () (const ObjectPlayback & x)
+		engine::physics::translation_data operator () (const ObjectPlayback & x)
 		{
 			return x.extract_translation();
 		}
 		template <typename X>
-		core::maths::Vector3f operator () (const X & x)
+		engine::physics::translation_data operator () (const X & x)
 		{
 			debug_unreachable();
 		}
@@ -342,9 +344,7 @@ namespace
 			if (this->mixer == Mixer(-1))
 				return;
 
-			const auto translation = mixers.call(mixer, extract_translation{});
-			// engine::physics::post_update_movement(me, engine::physics::movement_data {engine::physics::movement_data::Type::CHARACTER, movement});
-			debug_printline(0xffffffff, "entity ", me, ": ", translation);
+			engine::physics::post_update_movement(me, mixers.call(mixer, extract_translation {}));
 
 			if (mixers.call(mixer, is_finished{}))
 			{

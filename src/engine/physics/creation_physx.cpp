@@ -148,7 +148,7 @@ namespace physics
 			case ActorData::Behaviour::TRIGGER:
 			{
 				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
-						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
+						//static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
 						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
 				break;
 			}

@@ -22,6 +22,8 @@ namespace characters
 		DOWN_UP
 	};
 
+	void setup();
+
 	void update();
 
 	void create(const engine::Entity id);
@@ -33,6 +35,13 @@ namespace characters
 	void post_add_camera(engine::Entity id, engine::Entity target);
 
 	void post_animation_finish(engine::Entity id);
+
+	struct trigger_t
+	{
+		::engine::Entity id;
+		std::vector<::engine::Entity> targets;
+	};
+	void post_add_trigger(trigger_t trigger);
 }
 }
 

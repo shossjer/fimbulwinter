@@ -1,6 +1,8 @@
 
 #include "level.hpp"
 
+#include <gameplay/characters.hpp>
+
 #include <core/debug.hpp>
 #include <core/maths/Matrix.hpp>
 #include <core/maths/Quaternion.hpp>
@@ -134,7 +136,7 @@ namespace
 		read_count(ifile, nplatforms);
 
 		platforms.resize(nplatforms);
-		for (int i = 0; i < platforms.size(); i++)
+		for (unsigned int i = 0; i < platforms.size(); i++)
 		{
 			auto & platform = platforms[i];
 
@@ -206,7 +208,7 @@ namespace gameplay
 				read_level(ifile, level);
 			}
 
-			entities.reserve(0 + 2 + level.statics.size() + 0 + level.trigger_multiples.size());
+			entities.reserve(0 + 2 + level.statics.size() + level.platforms.size() + level.trigger_multiples.size());
 
 			// player start
 			// trigger timer
@@ -223,7 +225,6 @@ namespace gameplay
 					};
 					engine::graphics::renderer::add(entities.back(), data);
 				}
-				entities.push_back(engine::Entity::create());
 				{
 					const auto & box = level.trigger_timer.stop;
 					engine::graphics::data::CuboidC data = {
@@ -273,15 +274,69 @@ namespace gameplay
 					engine::graphics::renderer::add(entities.back(), data);
 				}
 			}
+
+			std::vector<engine::Entity> targets;
+
 			// platforms
+			for (unsigned int i = 0; i < level.platforms.size(); i++)
 			{
-				// vvvv tmp vvvv
 				const auto entity = engine::Entity::create();
-				const auto asset = engine::extras::Asset(level.platforms[2].animation.name);
-				engine::animation::add(asset, std::move(level.platforms[2].animation));
+				entities.push_back(entity);
+
+				auto platform = level.platforms[i];
+
+				const auto asset = engine::extras::Asset(platform.animation.name);
+
+				for (auto action : platform.animation.actions)
+				{
+					if (action.name=="loop")
+					{
+						// add looping animation if it has one
+						engine::animation::update(entity, engine::animation::action {"loop", true});
+						break;
+					}
+					else
+					{
+						targets.push_back(entity);
+						break;
+					}
+				}
+
+				engine::animation::add(asset, std::move(platform.animation));
 				engine::animation::add_model(entity, asset);
-				engine::animation::update(entity, engine::animation::action{"open", false});
-				// ^^^^ tmp ^^^^
+				//engine::animation::update(entity, engine::animation::action{"open", false});
+
+				const auto box = platform.box;
+				{
+					engine::graphics::data::CuboidC data = {
+						box.matrix,
+						box.dimensions[0],
+						box.dimensions[2], // annoying!!
+						box.dimensions[1],
+						0xff004488
+					};
+					engine::graphics::renderer::add(entity, data);
+				}
+				{
+					const auto translation = box.matrix.get_column<3>();
+					core::maths::Vector4f::array_type buffer;
+					translation.get_aligned(buffer);
+
+					debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
+
+					std::vector<engine::physics::ShapeData> shapes;
+					shapes.push_back(engine::physics::ShapeData {
+						engine::physics::ShapeData::Type::BOX,
+						engine::physics::Material::WOOD,
+						1.f,
+						core::maths::Vector3f {0.f, 0.f, 0.f},
+						core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
+						engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f}}});
+
+					engine::physics::ActorData data {engine::physics::ActorData::Type::KINEMATIC, engine::physics::ActorData::Behaviour::OBSTACLE, buffer[0], buffer[1], buffer[2], shapes};
+
+					::engine::physics::post_create(entity, data);
+				}
 			}
 			// trigger multiples
 			for (unsigned int i = 0; i < level.trigger_multiples.size(); i++)
@@ -295,12 +350,10 @@ namespace gameplay
 						box.dimensions[0],
 						box.dimensions[2], // annoying!!
 						box.dimensions[1],
-						0x8844cccc
+						0x4444cccc
 					};
 					engine::graphics::renderer::add(entities.back(), data);
 				}
-
-				entities.push_back(engine::Entity::create());
 				{
 					const auto translation = box.matrix.get_column<3>();
 					core::maths::Vector4f::array_type buffer;
@@ -321,6 +374,9 @@ namespace gameplay
 
 					::engine::physics::post_create(entities.back(), data);
 				}
+
+				// add trigger to "characters"
+				::gameplay::characters::post_add_trigger(::gameplay::characters::trigger_t {entities.back(), targets});
 			}
 		}
 		void destroy()

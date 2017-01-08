@@ -7,12 +7,28 @@
 
 #include <core/maths/Vector.hpp>
 
+#include <array>
+
 namespace engine
 {
 namespace physics
 {
 	class Callback
 	{
+	public:
+
+		struct data_t
+		{
+			Entity ids[2];
+			ActorData::Behaviour behaviours[2];
+			Material materials[2];
+
+			//std::array<Entity, 2> ids;
+			//std::array<ActorData::Behaviour, 2> behaviours;
+			//std::array<Material, 2> materials;
+			// const Entity(&ids)[2], const Behaviour(&behaviours)[2], const Material(&materials)[2]
+		};
+
 	public:
 		/**
 			\brief Post update from Physics simulation when new contact is found.
@@ -24,7 +40,7 @@ namespace physics
 			\param behaviours of the two Actors
 			\param material of each of the Shape in the contact.
 		 */
-		virtual void postContactFound(const Entity ids[2], const ActorData::Behaviour behaviours[2], const Material materials[2]) const = 0;
+		virtual void postContactFound(const data_t & data) const = 0;
 
 		/**
 			\brief Post update from Physics simulation when existing contact is lost
@@ -36,18 +52,17 @@ namespace physics
 			\param behaviours of the two Actors
 			\param material of each of the Shape in the contact.
 		 */
-		virtual void postContactLost(const Entity ids[2], const ActorData::Behaviour behaviours[2], const Material materials[2]) const = 0;
+		virtual void postContactLost(const data_t & data) const = 0;
 
 		/**
 			\brief Same as postContactFound but first element will always be a trigger
 		 */
-		virtual void postTriggerFound(const Entity ids[2], const ActorData::Behaviour behaviours[2], const Material materials[2]) const = 0;
+		virtual void postTriggerFound(const data_t & data) const = 0;
 
 		/**
 			\brief Same as postContactLost but first element will always be a trigger
 		 */
-		virtual void postTriggerLost(const Entity ids[2], const ActorData::Behaviour behaviours[2], const Material materials[2]) const = 0;
-
+		virtual void postTriggerLost(const data_t & data) const = 0;
 	};
 }
 }
