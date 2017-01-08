@@ -38,16 +38,19 @@ namespace
 
 	struct static_t
 	{
+		std::string name;
 		box_t box;
 	};
 	struct platform_t
 	{
+		std::string name;
 		box_t box;
 		engine::animation::object animation;
 	};
 
 	struct trigger_multiple_t
 	{
+		std::string name;
 		box_t box;
 	};
 
@@ -92,6 +95,12 @@ namespace
 		stream.read(buffer, len);
 		buffer[len] = '\0';
 	}
+	void read_string(std::ifstream & stream, std::string & str)
+	{
+		char buffer[64]; // arbitrary
+		read_string(stream, buffer);
+		str = buffer;
+	}
 	void read_vector(std::ifstream & stream, float (&buffer)[3])
 	{
 		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
@@ -127,6 +136,7 @@ namespace
 		statics.resize(nstatics);
 		for (auto & stat : statics)
 		{
+			read_string(ifile, stat.name);
 			read_box(ifile, stat.box);
 		}
 	}
@@ -136,24 +146,21 @@ namespace
 		read_count(ifile, nplatforms);
 
 		platforms.resize(nplatforms);
-		for (unsigned int i = 0; i < platforms.size(); i++)
+		for (auto & platform : platforms)
 		{
-			auto & platform = platforms[i];
-
+			read_string(ifile, platform.name);
 			read_box(ifile, platform.box);
 
-			platform.animation.name = utility::to_string("platform", i);
+			platform.animation.name = platform.name;
 
 			uint16_t nactions;
 			read_count(ifile, nactions);
-			debug_printline(0xffffffff, "platform have ", nactions, " actions:");
+			debug_printline(0xffffffff, platform.name, " have ", nactions, " actions:");
 
 			platform.animation.actions.resize(nactions);
 			for (auto & action : platform.animation.actions)
 			{
-				char name[32];
-				read_string(ifile, name);
-				action.name = name;
+				read_string(ifile, action.name);
 				debug_printline(0xffffffff, "  ", action.name);
 				int length;
 				read_length(ifile, length);
@@ -176,6 +183,7 @@ namespace
 		trigger_multiples.resize(ntrigger_multiples);
 		for (auto & trigger_multiple : trigger_multiples)
 		{
+			read_string(ifile, trigger_multiple.name);
 			read_box(ifile, trigger_multiple.box);
 		}
 	}
