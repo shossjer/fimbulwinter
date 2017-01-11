@@ -45,6 +45,11 @@ namespace
 		std::string name;
 		box_t box;
 	};
+	struct dynamic_t
+	{
+		std::string name;
+		box_t box;
+	};
 	struct platform_t
 	{
 		std::string name;
@@ -64,6 +69,7 @@ namespace
 		trigger_timer_t trigger_timer;
 
 		std::vector<static_t> statics;
+		std::vector<dynamic_t> dynamics;
 		std::vector<platform_t> platforms;
 
 		std::vector<trigger_multiple_t> trigger_multiples;
@@ -146,6 +152,18 @@ namespace
 			read_box(ifile, stat.box);
 		}
 	}
+	void read_dynamics(std::ifstream & ifile, std::vector<dynamic_t> & dynamics)
+	{
+		uint16_t ndynamics;
+		read_count(ifile, ndynamics);
+
+		dynamics.resize(ndynamics);
+		for (auto & dynamic : dynamics)
+		{
+			read_string(ifile, dynamic.name);
+			read_box(ifile, dynamic.box);
+		}
+	}
 	void read_platforms(std::ifstream & ifile, std::vector<platform_t> & platforms)
 	{
 		uint16_t nplatforms;
@@ -200,6 +218,7 @@ namespace
 		read_trigger_timer(ifile, level.trigger_timer);
 
 		read_statics(ifile, level.statics);
+		read_dynamics(ifile, level.dynamics);
 		read_platforms(ifile, level.platforms);
 
 		read_trigger_multiples(ifile, level.trigger_multiples);
@@ -258,7 +277,7 @@ namespace gameplay
 			}
 			{
 				// statics
-				for (unsigned int i = 0; i<level.statics.size(); i++)
+				for (unsigned int i = 0; i < level.statics.size(); i++)
 				{
 					const auto & box = level.statics[i].box;
 
@@ -290,6 +309,43 @@ namespace gameplay
 							box.dimensions[2], // annoying!!
 							box.dimensions[1],
 							0xffcc4400
+						};
+						engine::graphics::renderer::add(entities.back(), data);
+					}
+				}
+				// dynamic
+				for (unsigned int i = 0; i < level.dynamics.size(); i++)
+				{
+					const auto & box = level.dynamics[i].box;
+
+					entities.push_back(engine::Entity::create());
+					{
+						const auto translation = box.matrix.get_column<3>();
+						core::maths::Vector4f::array_type buffer;
+						translation.get_aligned(buffer);
+
+						debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
+
+						std::vector<engine::physics::ShapeData> shapes;
+						shapes.push_back(engine::physics::ShapeData {
+							engine::physics::ShapeData::Type::BOX,
+							engine::physics::Material::WOOD,
+							0.01f,
+							core::maths::Vector3f {0.f, 0.f, 0.f},
+							core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
+							engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.45f, box.dimensions[1]*0.45f, box.dimensions[2]*0.45f}}});
+
+						engine::physics::ActorData data {engine::physics::ActorData::Type::DYNAMIC, engine::physics::ActorData::Behaviour::DEFAULT, buffer[0], buffer[1], buffer[2], shapes};
+
+						::engine::physics::post_create(entities.back(), data);
+					}
+					{
+						engine::graphics::data::CuboidC data = {
+							box.matrix,
+							box.dimensions[0],
+							box.dimensions[1], // annoying!!
+							box.dimensions[2],
+							0xffcc44bb
 						};
 						engine::graphics::renderer::add(entities.back(), data);
 					}
