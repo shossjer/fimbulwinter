@@ -26,9 +26,9 @@ namespace characters
 
 	void update();
 
-	void create(const engine::Entity id);
+	void post_create_player(const engine::Entity id);
 
-	void remove(const engine::Entity id);
+	void post_remove_player(const engine::Entity id);
 
 	void post_command(engine::Entity id, Command command);
 
@@ -39,6 +39,12 @@ namespace characters
 	struct trigger_t
 	{
 		::engine::Entity id;
+
+		enum class Type
+		{
+			DOOR
+		} type;
+
 		std::vector<::engine::Entity> targets;
 	};
 	void post_add_trigger(trigger_t trigger);

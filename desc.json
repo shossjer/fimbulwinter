@@ -1,0 +1,28 @@
+{
+  "platforms": {
+    "platform": {
+    },
+    "platform.001": {
+    },
+    "platform.002": {
+    },
+    "platform.003": {
+    }
+  },
+  "triggers": {
+    "trigger.multiple": {
+      "targets": [ "platform.002", "platform.003" ],
+      "type": "door"
+    }
+  },
+  "activators": [
+    {
+      "name": "platform",
+      "animation": "loop"
+    },
+    {
+      "name": "platform.001",
+      "animation": "loop"
+    }
+  ]
+}

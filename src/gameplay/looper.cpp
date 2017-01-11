@@ -127,7 +127,7 @@ namespace looper
 	{
 		{
 			playerId = engine::Entity::create();
-			::gameplay::characters::create(playerId);
+			::gameplay::characters::post_create_player(playerId);
 
 			{
 				const float w = 1.2f;

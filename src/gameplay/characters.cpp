@@ -19,6 +19,7 @@ namespace
 {
 	using ::gameplay::characters::CharacterState;
 	using collision_t = ::engine::physics::Callback::data_t;
+	using trigger_t = ::gameplay::characters::trigger_t;
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, gameplay::characters::Command>, 100> queue_commands;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueCreate;
@@ -79,32 +80,58 @@ namespace
 		void operator () (X & x) {}
 	};
 
-	struct action_trigger_open
+	void send(const std::string & action, const bool repeat, std::vector<::engine::Entity> & targets)
 	{
-		void operator() (::gameplay::characters::trigger_t trigger)
+		for (auto & target : targets)
 		{
-			debug_printline(0xffffffff, "and here");
-			for (auto & target : trigger.targets)
+			::engine::animation::update(target, ::engine::animation::action {action, repeat});
+		}
+	}
+
+	struct action_collision_found
+	{
+		void operator() (trigger_t trigger)
+		{
+			switch (trigger.type)
 			{
-				::engine::animation::update(target, ::engine::animation::action {"open", false});
+				case trigger_t::Type::DOOR:
+				{
+					debug_printline(0xffffffff, "collision found for door type trigger");
+					send("open", false, trigger.targets);
+					break;
+				}
+				default:
+					debug_printline(0xffffffff, "collision found for unknown type trigger");
 			}
 		}
 		template <typename X>
-		void operator () (X & x) {}
+		void operator () (X & x)
+		{
+			debug_printline(0xffffffff, "collision found for unused class");
+		}
 	};
 
-	struct action_trigger_close
+	struct action_collision_lost
 	{
 		void operator() (::gameplay::characters::trigger_t trigger)
 		{
-			debug_printline(0xffffffff, "and here");
-			for (auto & target:trigger.targets)
+			switch (trigger.type)
 			{
-				::engine::animation::update(target, ::engine::animation::action {"close", false});
+				case trigger_t::Type::DOOR:
+				{
+					debug_printline(0xffffffff, "collision lost for door type trigger");
+					send("close", false, trigger.targets);
+					break;
+				}
+				default:
+					debug_printline(0xffffffff, "collision lost for unknown type trigger");
 			}
 		}
 		template <typename X>
-		void operator () (X & x) {}
+		void operator () (X & x)
+		{
+			debug_printline(0xffffffff, "collision lost for unused class");
+		}
 	};
 
 	struct Camera
@@ -178,8 +205,10 @@ namespace characters
 
 		void postContactFound(const data_t & data) const override
 		{
-			// TODO: add on queue
+			// add on queue
+			queueCollisionsFound.try_emplace(data);
 
+			// debug
 			switch (data.behaviours[0])
 			{
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
@@ -199,8 +228,10 @@ namespace characters
 
 		void postContactLost(const data_t & data) const override
 		{
-			// TODO: add on queue
+			// add on queue
+			queueCollisionsLeft.try_emplace(data);
 
+			// debug
 			switch (data.behaviours[0])
 			{
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
@@ -220,8 +251,10 @@ namespace characters
 
 		void postTriggerFound(const data_t & data) const override
 		{
-			// TODO: add on queue
+			// add on queue
+			queueCollisionsFound.try_emplace(data);
 
+			// debug
 			switch (data.behaviours[1])
 			{
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
@@ -237,14 +270,14 @@ namespace characters
 				debug_printline(0xffffffff, "Trigger collision found with: Default");
 				break;
 			}
-
-			queueCollisionsFound.try_emplace(data);
 		}
 
 		void postTriggerLost(const data_t & data) const override
 		{
-			// TODO: add on queue
+			// add on queue
+			queueCollisionsLeft.try_emplace(data);
 
+			// debug
 			switch (data.behaviours[1])
 			{
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
@@ -260,8 +293,6 @@ namespace characters
 				debug_printline(0xffffffff, "Trigger collision lost with: Default");
 				break;
 			}
-
-			queueCollisionsLeft.try_emplace(data);
 		}
 	} physicsCallback;
 
@@ -317,17 +348,13 @@ namespace characters
 			collision_t collision;
 			while (queueCollisionsFound.try_pop(collision))
 			{
-				debug_printline(0xffffffff, "collision found its way to character!");
-
 				// find trigger and change its door... totally not hardcoded at all
-				components.call(collision.ids[0], action_trigger_open ());
+				components.call(collision.ids[0], action_collision_found());
 			}
 			while (queueCollisionsLeft.try_pop(collision))
 			{
-				debug_printline(0xffffffff, "collision lost its way to character!");
-
 				// find trigger and change its door... totally not hardcoded at all
-				components.call(collision.ids[0], action_trigger_close());
+				components.call(collision.ids[0], action_collision_lost());
 			}
 		}
 		{
@@ -362,13 +389,13 @@ namespace characters
 		}
 	}
 
-	void create(const engine::Entity id)
+	void post_create_player(const engine::Entity id)
 	{
 		const auto res = queueCreate.try_push(id);
 		debug_assert(res);
 	}
 
-	void remove(const engine::Entity id)
+	void post_remove_player(const engine::Entity id)
 	{
 		const auto res = queueRemove.try_push(id);
 		debug_assert(res);
@@ -394,8 +421,8 @@ namespace characters
 
 	void post_animation_finish(engine::Entity id)
 	{
-	//	const auto res = queueAnimationFinished.try_emplace(id);
-	//	debug_assert(res);
+		const auto res = queueAnimationFinished.try_emplace(id);
+		debug_assert(res);
 	}
 }
 }
