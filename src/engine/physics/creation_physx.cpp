@@ -194,7 +194,7 @@ namespace physics
 			case ActorData::Type::DYNAMIC:
 			{
 				// create a dynamic body at position
-				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform {data.x, data.y, data.z});
+				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform{convert<physx::PxVec3>(data.pos), convert(data.rot)});
 
 				if (data.behaviour==ActorData::Behaviour::PLAYER)
 				{
@@ -231,7 +231,7 @@ namespace physics
 			case ActorData::Type::KINEMATIC:
 			{
 				// create a dynamic body at position
-				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform {data.x, data.y, data.z});
+				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform{convert<physx::PxVec3>(data.pos), convert(data.rot)});
 
 				// make it an kinematic object
 				body->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
@@ -264,7 +264,7 @@ namespace physics
 			case ActorData::Type::STATIC:
 			{
 				// create a dynamic body at position
-				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform {data.x, data.y, data.z});
+				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform{convert<physx::PxVec3>(data.pos), convert(data.rot)});
 
 				// create collision filter flags
 				PxFilterData filterData = createFilter(data.behaviour);
@@ -291,7 +291,7 @@ namespace physics
 			case ActorData::Type::TRIGGER:
 			{
 				// create a dynamic body at position
-				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform {data.x, data.y, data.z});
+				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform{convert<physx::PxVec3>(data.pos), convert(data.rot)});
 
 				// create collision filter flags
 				PxFilterData filterData = createFilter(data.behaviour);

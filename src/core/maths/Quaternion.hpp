@@ -9,6 +9,7 @@
 #include "Vector.hpp"
 
 #include <cmath>
+#include <ostream>
 
 namespace core
 {
@@ -178,9 +179,9 @@ namespace core
 				const auto zz = z * z;
 
 				return Matrix<4, 4, value_type>{
-					1 - 2 * (yy + zz),     2 * (xy + wz),     2 * (xz - wy), value_type{0},
-					    2 * (xy - wz), 1 - 2 * (xx + zz),     2 * (yz + wx), value_type{0},
-					    2 * (xz + wy),     2 * (yz - wx), 1 - 2 * (xx + yy), value_type{0},
+					1 - 2 * (yy + zz),     2 * (xy - wz),     2 * (xz + wy), value_type{0},
+					    2 * (xy + wz), 1 - 2 * (xx + zz),     2 * (yz - wx), value_type{0},
+					    2 * (xz - wy),     2 * (yz + wx), 1 - 2 * (xx + yy), value_type{0},
 					value_type{0}    , value_type{0}    , value_type{0}    , value_type{1}
 				};
 			}
@@ -197,6 +198,11 @@ namespace core
 			friend this_type normalize(const this_type & q)
 			{
 				return q * inverse(q.length());
+			}
+
+			friend std::ostream & operator << (std::ostream & stream, const this_type & q)
+			{
+				return stream << "(" << q.values[0] << ", " << q.values[1] << ", " << q.values[2] << ", " << q.values[3] << ")";
 			}
 
 		};

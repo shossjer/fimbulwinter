@@ -110,7 +110,7 @@ namespace looper
 			Quaternionf {1.f, 0.f, 0.f, 0.f},
 			ShapeData::Geometry {ShapeData::Geometry::Mesh {points} } });
 
-		ActorData data {type, behaviour, x, y, z, shapes};
+		ActorData data {type, behaviour, core::maths::Vector3f{x, y, z}, core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f}, shapes};
 
 		::engine::physics::post_create(id, data);
 	}

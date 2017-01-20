@@ -22,7 +22,9 @@ namespace
 {
 	struct box_t
 	{
-		core::maths::Matrix4x4f matrix;
+		core::maths::Matrix4x4f matrix; // either (matrix) or (translation and rotation) is enough
+		core::maths::Vector3f translation;
+		core::maths::Quaternionf rotation;
 		float dimensions[3];
 	};
 
@@ -115,6 +117,8 @@ namespace
 	void read_box(std::ifstream & ifile, box_t & box)
 	{
 		read_matrix(ifile, box.matrix);
+		read_vector(ifile, box.translation);
+		read_quaternion(ifile, box.rotation);
 		read_vector(ifile, box.dimensions);
 	}
 
@@ -227,8 +231,8 @@ namespace gameplay
 					engine::graphics::data::CuboidC data = {
 						box.matrix,
 						box.dimensions[0],
-						box.dimensions[2], // annoying!!
 						box.dimensions[1],
+						box.dimensions[2],
 						0x8844cccc
 					};
 					engine::graphics::renderer::add(entities.back(), data);
@@ -238,8 +242,8 @@ namespace gameplay
 					engine::graphics::data::CuboidC data = {
 						box.matrix,
 						box.dimensions[0],
-						box.dimensions[2], // annoying!!
 						box.dimensions[1],
+						box.dimensions[2],
 						0x8844cccc
 					};
 					engine::graphics::renderer::add(entities.back(), data);
@@ -252,12 +256,6 @@ namespace gameplay
 
 				entities.push_back(engine::Entity::create());
 				{
-					const auto translation = box.matrix.get_column<3>();
-					core::maths::Vector4f::array_type buffer;
-					translation.get_aligned(buffer);
-
-					debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
-
 					std::vector<engine::physics::ShapeData> shapes;
 					shapes.push_back(engine::physics::ShapeData {
 							engine::physics::ShapeData::Type::BOX,
@@ -267,7 +265,7 @@ namespace gameplay
 							core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f},
 							engine::physics::ShapeData::Geometry{engine::physics::ShapeData::Geometry::Box{box.dimensions[0] * 0.5f, box.dimensions[1] * 0.5f, box.dimensions[2] * 0.5f} } });
 
-					engine::physics::ActorData data {engine::physics::ActorData::Type::STATIC, engine::physics::ActorData::Behaviour::DEFAULT, buffer[0], buffer[1], buffer[2], shapes};
+					engine::physics::ActorData data {engine::physics::ActorData::Type::STATIC, engine::physics::ActorData::Behaviour::DEFAULT, box.translation, box.rotation, shapes};
 
 					::engine::physics::post_create(entities.back(), data);
 				}
@@ -275,8 +273,8 @@ namespace gameplay
 					engine::graphics::data::CuboidC data = {
 						box.matrix,
 						box.dimensions[0],
-						box.dimensions[2], // annoying!!
 						box.dimensions[1],
+						box.dimensions[2],
 						0xffcc4400
 					};
 					engine::graphics::renderer::add(entities.back(), data);
@@ -319,19 +317,13 @@ namespace gameplay
 					engine::graphics::data::CuboidC data = {
 						box.matrix,
 						box.dimensions[0],
-						box.dimensions[2], // annoying!!
 						box.dimensions[1],
+						box.dimensions[2],
 						0xff004488
 					};
 					engine::graphics::renderer::add(entity, data);
 				}
 				{
-					const auto translation = box.matrix.get_column<3>();
-					core::maths::Vector4f::array_type buffer;
-					translation.get_aligned(buffer);
-
-					debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
-
 					std::vector<engine::physics::ShapeData> shapes;
 					shapes.push_back(engine::physics::ShapeData {
 						engine::physics::ShapeData::Type::BOX,
@@ -341,7 +333,7 @@ namespace gameplay
 						core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
 						engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f}}});
 
-					engine::physics::ActorData data {engine::physics::ActorData::Type::KINEMATIC, engine::physics::ActorData::Behaviour::OBSTACLE, buffer[0], buffer[1], buffer[2], shapes};
+					engine::physics::ActorData data {engine::physics::ActorData::Type::KINEMATIC, engine::physics::ActorData::Behaviour::OBSTACLE, box.translation, box.rotation, shapes};
 
 					::engine::physics::post_create(entity, data);
 				}
@@ -356,19 +348,13 @@ namespace gameplay
 					engine::graphics::data::CuboidC data = {
 						box.matrix,
 						box.dimensions[0],
-						box.dimensions[2], // annoying!!
 						box.dimensions[1],
+						box.dimensions[2],
 						0x4444cccc
 					};
 					engine::graphics::renderer::add(entities.back(), data);
 				}
 				{
-					const auto translation = box.matrix.get_column<3>();
-					core::maths::Vector4f::array_type buffer;
-					translation.get_aligned(buffer);
-
-					debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
-
 					std::vector<engine::physics::ShapeData> shapes;
 					shapes.push_back(engine::physics::ShapeData {
 						engine::physics::ShapeData::Type::BOX,
@@ -378,7 +364,7 @@ namespace gameplay
 						core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
 						engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f}}});
 
-					engine::physics::ActorData data {engine::physics::ActorData::Type::TRIGGER, engine::physics::ActorData::Behaviour::TRIGGER, buffer[0], buffer[1], buffer[2], shapes};
+					engine::physics::ActorData data {engine::physics::ActorData::Type::TRIGGER, engine::physics::ActorData::Behaviour::TRIGGER, box.translation, box.rotation, shapes};
 
 					::engine::physics::post_create(entities.back(), data);
 				}

@@ -145,8 +145,8 @@ namespace physics
 			DEFAULT = 1<<3
 		} behaviour;
 
-		//Vector3f pos;
-		float x, y, z;
+		Vector3f pos;
+		Quaternionf rot;
 
 		std::vector<ShapeData> shapes;
 	};
