@@ -53,6 +53,7 @@ set(TRIBUNAL_SOURCE
 	src/engine/physics/physics_physx.cpp
 	src/gameplay/characters.cpp
 	src/gameplay/level.cpp
+	src/gameplay/level_placeholder.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/ui.cpp
 	)
@@ -103,6 +104,7 @@ set(TRIBUNAL_HEADER
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp
 	src/gameplay/level.hpp
+	src/gameplay/level_placeholder.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
 	src/utility/aligned_array.hpp

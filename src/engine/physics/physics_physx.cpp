@@ -334,9 +334,6 @@ namespace physics
 			// make sure object is Kinematic
 			debug_assert(x.body->getRigidBodyFlags().isSet(physx::PxRigidBodyFlag::eKINEMATIC));
 
-			physx::PxTransform target;
-			x.body->getKinematicTarget(target);
-
 			physx::PxTransform t {convert<physx::PxVec3>(this->translation.pos), convert(this->translation.quat) };
 
 			x.body->setKinematicTarget(t);

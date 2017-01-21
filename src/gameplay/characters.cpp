@@ -27,6 +27,7 @@ namespace
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueAnimationFinished;
 
 	core::container::CircleQueueSRMW<::gameplay::characters::trigger_t, 100> queueTriggers;
+	core::container::CircleQueueSRMW<::gameplay::characters::turret_t, 100> queueTurrets;
 
 	core::container::CircleQueueSRMW<collision_t, 100> queueCollisionsFound;
 	core::container::CircleQueueSRMW<collision_t, 100> queueCollisionsLeft;
@@ -38,7 +39,8 @@ namespace
 		engine::Entity,
 		101,
 		std::array<CharacterState, 20>,
-		std::array<::gameplay::characters::trigger_t, 20>
+		std::array<::gameplay::characters::trigger_t, 20>,
+		std::array<::gameplay::characters::turret_t, 20>
 		//// clang errors on collections with only one array, so here is
 		//// a dummy array to satisfy it
 		//std::array<int, 1>
@@ -80,9 +82,9 @@ namespace
 		void operator () (X & x) {}
 	};
 
-	void send(const std::string & action, const bool repeat, std::vector<::engine::Entity> & targets)
+	void send(const std::string & action, const bool repeat, const std::vector<::engine::Entity> & targets)
 	{
-		for (auto & target : targets)
+		for (const auto & target : targets)
 		{
 			::engine::animation::update(target, ::engine::animation::action {action, repeat});
 		}
@@ -90,7 +92,7 @@ namespace
 
 	struct action_collision_found
 	{
-		void operator() (trigger_t trigger)
+		void operator() (trigger_t & trigger)
 		{
 			switch (trigger.type)
 			{
@@ -113,7 +115,7 @@ namespace
 
 	struct action_collision_lost
 	{
-		void operator() (::gameplay::characters::trigger_t trigger)
+		void operator() (trigger_t & trigger)
 		{
 			switch (trigger.type)
 			{
@@ -344,6 +346,13 @@ namespace characters
 			}
 		}
 		{
+			turret_t turret;
+			while (queueTurrets.try_pop(turret))
+			{
+				components.emplace<turret_t>(turret.id, turret);
+			}
+		}
+		{
 			// collision callback
 			collision_t collision;
 			while (queueCollisionsFound.try_pop(collision))
@@ -372,6 +381,12 @@ namespace characters
 			engine::physics::post_update_movement(
 				component.id,
 				engine::physics::movement_data {engine::physics::movement_data::Type::ACCELERATION, component.movement} );
+		}
+
+		// update turrets!
+		for (auto & turret:components.get<turret_t>())
+		{
+
 		}
 
 		// for (auto & component : components.get<CharacterState>())
@@ -416,6 +431,12 @@ namespace characters
 	void post_add_trigger(trigger_t trigger)
 	{
 		const auto res = queueTriggers.try_emplace(trigger);
+		debug_assert(res);
+	}
+
+	void post_add_turret(turret_t turret)
+	{
+		const auto res = queueTurrets.try_emplace(turret);
 		debug_assert(res);
 	}
 

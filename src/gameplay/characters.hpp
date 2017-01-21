@@ -5,6 +5,7 @@
 #include <engine/Entity.hpp>
 
 #include <core/maths/Vector.hpp>
+#include <core/maths/Quaternion.hpp>
 
 namespace gameplay
 {
@@ -48,6 +49,37 @@ namespace characters
 		std::vector<::engine::Entity> targets;
 	};
 	void post_add_trigger(trigger_t trigger);
+
+	struct turret_t
+	{
+		::engine::Entity id;
+
+		struct pivot_t
+		{
+			core::maths::Vector3f pos;
+			core::maths::Quaternionf quat;
+		};
+
+		struct head_t
+		{
+			::engine::Entity id;
+			pivot_t pivot;
+		};
+
+		struct barrel_t
+		{
+			::engine::Entity id;
+			pivot_t pivot;
+		};
+
+		head_t head;
+
+		barrel_t barrel;
+
+		pivot_t projectile;
+	};
+
+	void post_add_turret(turret_t turret);
 }
 }
 

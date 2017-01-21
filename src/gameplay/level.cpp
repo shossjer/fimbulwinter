@@ -1,6 +1,8 @@
 
 #include "level.hpp"
 
+#include "level_placeholder.hpp"
+
 #include <gameplay/characters.hpp>
 
 #include <core/debug.hpp>
@@ -22,6 +24,8 @@
 
 namespace
 {
+	using namespace gameplay::level;
+
 	struct box_t
 	{
 		core::maths::Matrix4x4f matrix; // either (matrix) or (translation and rotation) is enough
@@ -50,6 +54,7 @@ namespace
 		std::string name;
 		box_t box;
 	};
+
 	struct platform_t
 	{
 		std::string name;
@@ -70,6 +75,7 @@ namespace
 
 		std::vector<static_t> statics;
 		std::vector<dynamic_t> dynamics;
+		std::vector<placeholder_t> placeholders;
 		std::vector<platform_t> platforms;
 
 		std::vector<trigger_multiple_t> trigger_multiples;
@@ -164,6 +170,19 @@ namespace
 			read_box(ifile, dynamic.box);
 		}
 	}
+	void read_placeholders(std::ifstream & ifile, std::vector<placeholder_t> & items)
+	{
+		uint16_t nitems;
+		read_count(ifile, nitems);
+
+		items.resize(nitems);
+		for (auto & item : items)
+		{
+			read_string(ifile, item.name);
+			read_vector(ifile, item.pos);
+			read_quaternion(ifile, item.quat);
+		}
+	}
 	void read_platforms(std::ifstream & ifile, std::vector<platform_t> & platforms)
 	{
 		uint16_t nplatforms;
@@ -219,6 +238,7 @@ namespace
 
 		read_statics(ifile, level.statics);
 		read_dynamics(ifile, level.dynamics);
+		read_placeholders(ifile, level.placeholders);
 		read_platforms(ifile, level.platforms);
 
 		read_trigger_multiples(ifile, level.trigger_multiples);
@@ -243,7 +263,7 @@ namespace gameplay
 
 			entities.reserve(0 + 2 + level.statics.size() + level.platforms.size() + level.trigger_multiples.size());
 
-			const json content {std::ifstream("desc.json")};
+			const json content = json::parse(std::ifstream("desc.json"));
 
 			// need a local map to connect name with entity
 			std::unordered_map<std::string, ::engine::Entity> objects;
@@ -306,15 +326,15 @@ namespace gameplay
 						engine::graphics::data::CuboidC data = {
 							box.matrix,
 							box.dimensions[0],
-							box.dimensions[2], // annoying!!
 							box.dimensions[1],
+							box.dimensions[2],
 							0xffcc4400
 						};
 						engine::graphics::renderer::add(entities.back(), data);
 					}
 				}
 				// dynamic
-				for (unsigned int i = 0; i < level.dynamics.size(); i++)
+				for (unsigned int i = 0; i<level.dynamics.size(); i++)
 				{
 					const auto & box = level.dynamics[i].box;
 
@@ -335,7 +355,7 @@ namespace gameplay
 							core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
 							engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.45f, box.dimensions[1]*0.45f, box.dimensions[2]*0.45f}}});
 
-						engine::physics::ActorData data {engine::physics::ActorData::Type::DYNAMIC, engine::physics::ActorData::Behaviour::DEFAULT, buffer[0], buffer[1], buffer[2], shapes};
+						engine::physics::ActorData data {engine::physics::ActorData::Type::DYNAMIC, engine::physics::ActorData::Behaviour::DEFAULT, box.translation, box.rotation, shapes};
 
 						::engine::physics::post_create(entities.back(), data);
 					}
@@ -343,12 +363,23 @@ namespace gameplay
 						engine::graphics::data::CuboidC data = {
 							box.matrix,
 							box.dimensions[0],
-							box.dimensions[1], // annoying!!
+							box.dimensions[1],
 							box.dimensions[2],
 							0xffcc44bb
 						};
 						engine::graphics::renderer::add(entities.back(), data);
 					}
+				}
+			}
+			// placeholders
+			{
+			//	const json list = content["placeholders"];
+
+				for (unsigned int i = 0; i < level.placeholders.size(); i++)
+				{
+					const auto placeholder = level.placeholders[i];
+
+					load(placeholder);
 				}
 			}
 			// platforms

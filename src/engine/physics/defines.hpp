@@ -149,6 +149,20 @@ namespace physics
 		Quaternionf rot;
 
 		std::vector<ShapeData> shapes;
+
+		ActorData(const Type type, const Behaviour behaviour, const Vector3f & pos, const Quaternionf & quat, const std::vector<ShapeData> & shapes)
+			:
+			type(type),
+			behaviour(behaviour),
+			pos(pos),
+			rot(quat),
+			shapes(shapes)
+		{
+		}
+
+		ActorData()
+		{
+		}
 	};
 
 	struct PlaneData

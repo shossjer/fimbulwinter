@@ -126,6 +126,9 @@ namespace physics
 			// save material enum id in filter
 			filterData.word2 = static_cast<physx::PxU32>(shapeData.material);
 
+			// apply delta tranform of shape relative to actors centre
+			shape->setLocalPose(PxTransform(convert<PxVec3>(shapeData.pos), convert(shapeData.rot)));
+
 			// set filtering data for the shape
 			shape->setSimulationFilterData(filterData);
 
