@@ -263,7 +263,7 @@ namespace gameplay
 
 			entities.reserve(0 + 2 + level.statics.size() + level.platforms.size() + level.trigger_multiples.size());
 
-			const json content = json::parse(std::ifstream("desc.json"));
+			const json content = json::parse(std::ifstream("res/desc.json"));
 
 			// need a local map to connect name with entity
 			std::unordered_map<std::string, ::engine::Entity> objects;

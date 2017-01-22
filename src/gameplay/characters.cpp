@@ -5,6 +5,7 @@
 #include <core/container/Collection.hpp>
 #include <core/debug.hpp>
 
+#include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 #include <engine/hid/input.hpp>
 #include <engine/physics/Callback.hpp>
@@ -12,8 +13,10 @@
 
 #include <gameplay/CharacterState.hpp>
 
-using core::maths::Vector2f;
-using core::maths::Vector3f;
+using Vector2f = core::maths::Vector2f;
+using Vector3f = core::maths::Vector3f;
+using Matrix4x4f = core::maths::Matrix4x4f;
+using Quaternionf = core::maths::Quaternionf;
 
 namespace
 {
@@ -156,9 +159,9 @@ namespace
 			Vector3f goal;
 
 			vec *= 0.25f;
-			goal = pos+vec+core::maths::Vector3f {0.f, 0.f, 25.f};
+			goal = pos+vec+core::maths::Vector3f {0.f, 0.f, 10.f};
 
-			static core::maths::Vector3f current {0.f, 0.f, 20.f};
+			static core::maths::Vector3f current {0.f, 0.f, 50.f};
 			const auto delta = goal-current;
 
 			current += delta * .1f;
@@ -207,6 +210,17 @@ namespace characters
 
 		void postContactFound(const data_t & data) const override
 		{
+			// must be a valid type of target
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				break;
+
+				default:
+				return;
+			}
+
 			// add on queue
 			queueCollisionsFound.try_emplace(data);
 
@@ -230,6 +244,17 @@ namespace characters
 
 		void postContactLost(const data_t & data) const override
 		{
+			// must be a valid type of target
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				break;
+
+				default:
+				return;
+			}
+
 			// add on queue
 			queueCollisionsLeft.try_emplace(data);
 
@@ -253,6 +278,17 @@ namespace characters
 
 		void postTriggerFound(const data_t & data) const override
 		{
+			// must be a valid type of target
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				break;
+
+				default:
+				return;
+			}
+
 			// add on queue
 			queueCollisionsFound.try_emplace(data);
 
@@ -276,6 +312,16 @@ namespace characters
 
 		void postTriggerLost(const data_t & data) const override
 		{
+			// must be a valid type of target
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				break;
+
+				default:
+				return;
+			}
 			// add on queue
 			queueCollisionsLeft.try_emplace(data);
 
@@ -305,6 +351,7 @@ namespace characters
 
 	void update()
 	{
+		static float timeFrame = 0;
 		{
 			engine::Entity id;
 
@@ -349,6 +396,7 @@ namespace characters
 			turret_t turret;
 			while (queueTurrets.try_pop(turret))
 			{
+				turret.timestamp = timeFrame + 3.f;
 				components.emplace<turret_t>(turret.id, turret);
 			}
 		}
@@ -384,9 +432,46 @@ namespace characters
 		}
 
 		// update turrets!
-		for (auto & turret:components.get<turret_t>())
+		for (auto & turret : components.get<turret_t>())
 		{
+			if (turret.timestamp > timeFrame) continue;
 
+			turret.timestamp = timeFrame + 1.f;
+
+			const Vector3f pos = turret.transform.pos + turret.projectile.pos;
+
+			const auto id = engine::Entity::create();
+			const float radie = 0.1f;
+
+			// Fire!
+			{
+				std::vector<engine::physics::ShapeData> shapes;
+				shapes.push_back(engine::physics::ShapeData {
+					engine::physics::ShapeData::Type::SPHERE,
+					engine::physics::Material::STONE,
+					0.5f,
+					Vector3f{0.f, 0.f, 0.f},
+					turret.projectile.quat,
+					engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Sphere {radie}}});
+
+				engine::physics::ActorData data {engine::physics::ActorData::Type::PROJECTILE, engine::physics::ActorData::Behaviour::PROJECTILE, pos, turret.transform.quat, shapes};
+				engine::physics::post_create(id, data);
+				engine::physics::post_update_movement(
+					id,
+					engine::physics::movement_data {
+						engine::physics::movement_data::Type::IMPULSE,
+						Vector3f{-200.f, 0.f, 0.f}});
+			}
+			{
+				engine::graphics::data::CuboidC data = {
+					make_translation_matrix(pos),
+					radie*2,
+					radie*2,
+					radie*2,
+					0xffffffff
+				};
+				engine::graphics::renderer::add(id, data);
+			}
 		}
 
 		// for (auto & component : components.get<CharacterState>())
@@ -402,6 +487,8 @@ namespace characters
 		{
 			component.update();
 		}
+
+		timeFrame += 1.f/50.f;
 	}
 
 	void post_create_player(const engine::Entity id)

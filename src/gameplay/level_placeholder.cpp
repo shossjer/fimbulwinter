@@ -23,6 +23,7 @@ namespace
 	using Quaternionf = core::maths::Quaternionf;
 	using Matrix4x4f = core::maths::Matrix4x4f;
 
+	using transform_t = gameplay::characters::transform_t;
 	using turret_t = gameplay::characters::turret_t;
 
 	std::vector<std::string> split(const std::string & name)
@@ -102,14 +103,14 @@ namespace
 		}
 	}
 
-	turret_t::pivot_t parse_pivot(const json jpivot)
+	transform_t parse_pivot(const json jpivot)
 	{
-		return turret_t::pivot_t {parse_pos(jpivot), parse_quat(jpivot)};
+		return transform_t {parse_pos(jpivot), parse_quat(jpivot)};
 	}
 
 	void load_turret(const placeholder_t & placeholder)
 	{
-		const json jcontent = json::parse(std::ifstream("turret.json"));
+		const json jcontent = json::parse(std::ifstream("res/turret.json"));
 
 		// for now add all shapes to the same actor...
 		std::vector<engine::physics::ShapeData> shapes;
@@ -117,6 +118,7 @@ namespace
 		turret_t turret;
 
 		turret.id = Entity::create();
+		turret.transform = transform_t {placeholder.pos, placeholder.quat};
 		// read platform
 		{
 			const json jgroup = jcontent["platform"];
@@ -141,6 +143,7 @@ namespace
 			turret.projectile = parse_pivot(jgroup["projectile"]);
 		}
 
+		gameplay::characters::post_add_turret(turret);
 
 		// use the same shapes for renderer for now.
 		for (const auto shape : shapes)

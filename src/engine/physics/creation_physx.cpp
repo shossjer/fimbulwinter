@@ -170,13 +170,21 @@ namespace physics
 			{
 				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
 						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
-						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
+						static_cast<PxU32>(ActorData::Behaviour::DEFAULT)|
+						static_cast<PxU32>(ActorData::Behaviour::PROJECTILE);
 				break;
 			}
 			// no callback is needed for dynamic default objects
 			case ActorData::Behaviour::DEFAULT:
 			{
 				mask =	static_cast<PxU32>(0);
+				break;
+			}
+			case ActorData::Behaviour::PROJECTILE:
+			{
+				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
+						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
+						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
 				break;
 			}
 			default:
@@ -228,6 +236,34 @@ namespace physics
 				body->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
 
 				// finally add it to the scene
+				physx2::pScene->addActor(*body);
+				break;
+			}
+			case ActorData::Type::PROJECTILE:
+			{
+				// create a dynamic body at position
+				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(
+					PxTransform {convert<physx::PxVec3>(data.pos), convert(data.rot)});
+
+				// create collision filter flags
+				PxFilterData filterData = createFilter(data.behaviour);
+
+				reply_shapes reply = create(data.shapes, filterData);
+
+				for (auto shape:reply.shapes)
+				{
+					body->attachShape(*shape);
+				}
+
+				// update mass for Actor for non-static body
+				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, reply.totalMass);
+
+				// register it as an actor so we have access to the body from id
+				actors.emplace<ActorDynamic>(id, body);
+
+				// set entity id to the body for callback
+				body->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+
 				physx2::pScene->addActor(*body);
 				break;
 			}

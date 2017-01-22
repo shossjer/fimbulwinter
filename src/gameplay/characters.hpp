@@ -50,33 +50,37 @@ namespace characters
 	};
 	void post_add_trigger(trigger_t trigger);
 
+	struct transform_t
+	{
+		core::maths::Vector3f pos;
+		core::maths::Quaternionf quat;
+	};
+
 	struct turret_t
 	{
-		::engine::Entity id;
-
-		struct pivot_t
-		{
-			core::maths::Vector3f pos;
-			core::maths::Quaternionf quat;
-		};
-
 		struct head_t
 		{
 			::engine::Entity id;
-			pivot_t pivot;
+			transform_t pivot;
 		};
 
 		struct barrel_t
 		{
 			::engine::Entity id;
-			pivot_t pivot;
+			transform_t pivot;
 		};
+
+		::engine::Entity id;
+
+		transform_t transform;
 
 		head_t head;
 
 		barrel_t barrel;
 
-		pivot_t projectile;
+		transform_t projectile;
+
+		float timestamp;
 	};
 
 	void post_add_turret(turret_t turret);
