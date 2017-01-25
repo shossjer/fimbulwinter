@@ -171,11 +171,6 @@ namespace
 			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
 			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
 		}
-		cuboidc_t & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			modelview = std::move(data.matrix);
-			return *this;
-		}
 	};
 	const std::array<uint16_t, 3 * 12> cuboidc_t::triangles = {{
 			0,  1,  3,
@@ -217,6 +212,32 @@ namespace
 			0.f, +1.f, 0.f,
 			0.f, +1.f, 0.f
 		}};
+
+	struct solidcube_t : cuboidc_t
+	{
+		solidcube_t(engine::graphics::data::CuboidC && data) :
+			cuboidc_t(std::move(data))
+		{ }
+
+		solidcube_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
+	};
+
+	struct wireframe_t : cuboidc_t
+	{
+		wireframe_t(engine::graphics::data::CuboidC && data) :
+			cuboidc_t(std::move(data))
+		{ }
+
+		wireframe_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
+	};
 
 	struct linec_t
 	{
@@ -406,7 +427,8 @@ namespace
 		engine::Entity,
 		1001,
 		std::array<Character, 100>,
-		std::array<cuboidc_t, 100>,
+		std::array<solidcube_t, 100>,
+		std::array<wireframe_t, 100>,
 		std::array<linec_t, 100>,
 		std::array<meshc_t, 100>
 	>
@@ -448,8 +470,16 @@ namespace
 		          engine::graphics::data::CuboidC> message_add_cuboidc;
 		while (queue_add_cuboidc.try_pop(message_add_cuboidc))
 		{
-			components.add(message_add_cuboidc.first,
-			               std::move(message_add_cuboidc.second));
+			if (!message_add_cuboidc.second.wireframe)
+			{
+				components.add(message_add_cuboidc.first,
+					solidcube_t {std::move(message_add_cuboidc.second)});
+			}
+			else
+			{
+				components.add(message_add_cuboidc.first,
+					wireframe_t {std::move(message_add_cuboidc.second)});
+			}
 		}
 		std::pair<engine::Entity,
 		          engine::graphics::data::LineC> message_add_linec;
@@ -630,7 +660,7 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<cuboidc_t>())
+		for (const auto & component : components.get<solidcube_t>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
@@ -644,20 +674,20 @@ namespace
 			}
 
 			glColor(component.color);
-		//	glColor3ub(100, 255, 200);
+			//	glColor3ub(100, 255, 200);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glVertexPointer(3, // TODO
-			                GL_FLOAT,
-			                0,
-			                component.vertices.data());
+				GL_FLOAT,
+				0,
+				component.vertices.data());
 			glNormalPointer(GL_FLOAT,
-			                0,
-			                component.normals.data());
+				0,
+				component.normals.data());
 			glDrawElements(GL_TRIANGLES,
-			               component.triangles.size(),
-			               GL_UNSIGNED_SHORT,
-			               component.triangles.data());
+				component.triangles.size(),
+				GL_UNSIGNED_SHORT,
+				component.triangles.data());
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
 
@@ -666,6 +696,35 @@ namespace
 				//glEnable(GL_DEPTH_TEST);
 				glDisable(GL_BLEND);
 			}
+
+			modelview_matrix.pop();
+		}
+		for (const auto & component:components.get<wireframe_t>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			{
+				glColor3ub(255, 255, 255);
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_NORMAL_ARRAY);
+				glVertexPointer(3, // TODO
+					GL_FLOAT,
+					0,
+					component.vertices.data());
+				glNormalPointer(GL_FLOAT,
+					0,
+					component.normals.data());
+				glDrawElements(GL_TRIANGLES,
+					component.triangles.size(),
+					GL_UNSIGNED_SHORT,
+					component.triangles.data());
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
+			}
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 			modelview_matrix.pop();
 		}

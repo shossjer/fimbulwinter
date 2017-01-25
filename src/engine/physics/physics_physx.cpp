@@ -414,6 +414,38 @@ namespace physics
 			};
 
 			engine::graphics::renderer::update(id, std::move(data));
+
+			// for debug purpose
+			{
+				physx::PxShape * shapes[10];
+
+				if (item.actor->getType()==PxActorType::eRIGID_DYNAMIC)
+				{
+					const PxRigidActor * actor = static_cast<PxRigidActor*>(item.actor);
+					const auto n = actor->getShapes(shapes, 10, 0);
+
+					const auto & t = actor->getGlobalPose();
+					const core::maths::Matrix4x4f actorMatrix =
+						make_translation_matrix(core::maths::Vector3f {t.p.x, t.p.y, t.p.z}) *
+						make_matrix(core::maths::Quaternionf {t.q.w, t.q.x, t.q.y, t.q.z});
+
+					for (unsigned int i = 0; i < n; i++)
+					{
+						const auto shape = shapes[i];
+						const ::engine::Entity renderId = (std::size_t)shape->userData;
+
+						const auto & r = shape->getLocalPose();
+
+						const core::maths::Matrix4x4f localMatrix =
+							make_translation_matrix(core::maths::Vector3f {r.p.x, r.p.y, r.p.z}) *
+							make_matrix(core::maths::Quaternionf {r.q.w, r.q.x, r.q.y, r.q.z});
+
+						const core::maths::Matrix4x4f matrix = actorMatrix*localMatrix;
+
+						engine::graphics::renderer::update(renderId, engine::graphics::data::ModelviewMatrix {matrix});
+					}
+				}
+			}
 		}
 	}
 

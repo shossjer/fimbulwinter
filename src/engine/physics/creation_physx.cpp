@@ -24,6 +24,8 @@ namespace physics
 {
 	using namespace physx;
 
+	using Matrix4x4f = core::maths::Matrix4x4f;
+
 	namespace
 	{
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, ActorData>, 100> queue_create;
@@ -41,7 +43,7 @@ namespace physics
 		\note create shapes for the Actor body.
 		\return float total mass of all shapes
 	 */
-	reply_shapes create(const std::vector<ShapeData> shapeDatas, PxFilterData filterData)
+	reply_shapes create(const Matrix4x4f actorMatrix, const std::vector<ShapeData> shapeDatas, PxFilterData filterData)
 	{
 		reply_shapes reply;
 		reply.totalMass = 0.f;
@@ -64,6 +66,27 @@ namespace physics
 
 					// calculate mass of the shape
 					reply.totalMass += (materialDef.density * shapeData.geometry.box.volume() * shapeData.solidity);
+
+					// add debug shape to renderer
+					{
+						const ::engine::Entity renderId = ::engine::Entity::create();
+
+						const core::maths::Matrix4x4f shapeMatrix =
+							make_translation_matrix(shapeData.pos) *
+							make_matrix(shapeData.rot);
+
+						engine::graphics::data::CuboidC data = {
+							actorMatrix * shapeMatrix,
+							shapeData.geometry.box.w*2,
+							shapeData.geometry.box.h*2,
+							shapeData.geometry.box.d*2,
+							0xffffffff,
+							true
+						};
+						engine::graphics::renderer::add(renderId, data);
+
+						shape->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(renderId);
+					}
 					break;
 				}
 				case ShapeData::Type::SPHERE:
@@ -74,6 +97,27 @@ namespace physics
 
 					// calculate mass of the shape
 					reply.totalMass += (materialDef.density * shapeData.geometry.sphere.volume() * shapeData.solidity);
+
+					// add debug shape to renderer
+					{
+						const ::engine::Entity renderId = ::engine::Entity::create();
+
+						const core::maths::Matrix4x4f shapeMatrix =
+							make_translation_matrix(shapeData.pos) *
+							make_matrix(shapeData.rot);
+
+						engine::graphics::data::CuboidC data = {
+							actorMatrix * shapeMatrix,
+							shapeData.geometry.sphere.r,
+							shapeData.geometry.sphere.r,
+							shapeData.geometry.sphere.r,
+							0xffffffff,
+							true
+						};
+						engine::graphics::renderer::add(renderId, data);
+
+						shape->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(renderId);
+					}
 					break;
 				}
 				case ShapeData::Type::MESH:
@@ -200,6 +244,10 @@ namespace physics
 	 */
 	void create(const engine::Entity id, const ActorData & data)
 	{
+		const core::maths::Matrix4x4f matrix =
+			make_translation_matrix(data.pos) *
+			make_matrix(data.rot);
+
 		switch (data.type)
 		{
 			case ActorData::Type::DYNAMIC:
@@ -218,7 +266,7 @@ namespace physics
 				PxFilterData filterData = createFilter(data.behaviour);
 
 				// create shapes
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape:reply.shapes)
@@ -248,7 +296,7 @@ namespace physics
 				// create collision filter flags
 				PxFilterData filterData = createFilter(data.behaviour);
 
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				for (auto shape:reply.shapes)
 				{
@@ -279,7 +327,7 @@ namespace physics
 				PxFilterData filterData = createFilter(data.behaviour);
 
 				// create shapes
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)
@@ -309,7 +357,7 @@ namespace physics
 				PxFilterData filterData = createFilter(data.behaviour);
 
 				// create shapes
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)
@@ -336,7 +384,7 @@ namespace physics
 				PxFilterData filterData = createFilter(data.behaviour);
 
 				// create shapes
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)

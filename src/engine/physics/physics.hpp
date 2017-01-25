@@ -6,6 +6,7 @@
 
 #include <core/maths/util.hpp>
 #include <core/maths/Vector.hpp>
+#include <core/maths/Matrix.hpp>
 
 /**
  *	\note Declare and call from creation context (main)

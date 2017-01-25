@@ -31,12 +31,10 @@ namespace physics
 	struct Actor
 	{
 		physx_ptr<T> body;
-		::engine::Entity debugRenderId;
 
 		Actor(T *const body)
 			:
-			body(body),
-			debugRenderId(engine::Entity::INVALID)
+			body(body)
 		{
 		}
 	};

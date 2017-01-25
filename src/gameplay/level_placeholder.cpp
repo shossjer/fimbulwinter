@@ -145,26 +145,26 @@ namespace
 
 		gameplay::characters::post_add_turret(turret);
 
-		// use the same shapes for renderer for now.
-		for (const auto shape : shapes)
-		{
-			auto id = Entity::create();
+		//// use the same shapes for renderer for now.
+		//for (const auto shape : shapes)
+		//{
+		//	auto id = Entity::create();
 
-			const engine::physics::ShapeData::Geometry::Box & b = shape.geometry.box;
+		//	const engine::physics::ShapeData::Geometry::Box & b = shape.geometry.box;
 
-			const Matrix4x4f matrix =
-				make_translation_matrix(placeholder.pos + shape.pos) *
-				make_matrix(shape.rot);
+		//	const Matrix4x4f matrix =
+		//		make_translation_matrix(placeholder.pos + shape.pos) *
+		//		make_matrix(shape.rot);
 
-			engine::graphics::data::CuboidC data = {
-				matrix,
-				b.w*2,
-				b.h*2,
-				b.d*2,
-				0xffffffff
-			};
-			engine::graphics::renderer::add(id, data);
-		}
+		//	engine::graphics::data::CuboidC data = {
+		//		matrix,
+		//		b.w*2,
+		//		b.h*2,
+		//		b.d*2,
+		//		0xffffffff
+		//	};
+		//	engine::graphics::renderer::add(id, data);
+		//}
 	}
 }
 
