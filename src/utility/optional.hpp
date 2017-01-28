@@ -2,12 +2,10 @@
 #ifndef UTILITY_OPTIONAL_HPP
 #define UTILITY_OPTIONAL_HPP
 
-#include <utility>
+#include <utility/utility.hpp>
 
 namespace utility
 {
-	struct in_place_t {} static in_place;
-
 	namespace detail
 	{
 		struct dummy_t

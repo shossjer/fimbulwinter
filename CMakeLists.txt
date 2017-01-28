@@ -1,6 +1,6 @@
 #
 cmake_minimum_required(VERSION 2.8)
-project(tribunal)
+project(dronesareus)
 
 # make debug build default
 if (NOT CMAKE_BUILD_TYPE)
@@ -10,6 +10,8 @@ endif()
 if (CMAKE_BUILD_TYPE STREQUAL Debug)
   set(MODE_DEBUG 1)
 elseif(CMAKE_BUILD_TYPE STREQUAL Release)
+  set(MODE_RELEASE 1)
+elseif(CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
   set(MODE_RELEASE 1)
 else()
   message(FATAL_ERROR "Build type ${CMAKE_BUILD_TYPE} not supported")
@@ -115,6 +117,7 @@ set(TRIBUNAL_HEADER
 	src/utility/stream.hpp
 	src/utility/string.hpp
 	src/utility/type_traits.hpp
+	src/utility/variant.hpp
 	)
 
 set(TRIBUNAL_FILES ${TRIBUNAL_SOURCE} ${TRIBUNAL_HEADER})
