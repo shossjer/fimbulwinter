@@ -61,12 +61,14 @@ namespace characters
 		struct head_t
 		{
 			::engine::Entity id;
+			::engine::Entity jointId;
 			transform_t pivot;
 		};
 
 		struct barrel_t
 		{
 			::engine::Entity id;
+			::engine::Entity jointId;
 			transform_t pivot;
 		};
 

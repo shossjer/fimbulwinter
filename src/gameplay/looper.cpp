@@ -153,24 +153,24 @@ namespace looper
 			}
 		}
 		{
-			/**
-			 *	create limiting planes
-			 */
-			const auto depth = 1.00f;
-			{
-				const auto id = engine::Entity::create();
-				const Vector3f point{0.f, 0.f, depth};
-				const Vector3f normal {0.f, 0.f, -1.f};
-				::engine::physics::PlaneData data {point, normal, engine::physics::Material::LOW_FRICTION};
-				engine::physics::post_create(id, data);
-			}
-			{
-				const auto id = engine::Entity::create();
-				const Vector3f point {0.f, 0.f, -depth};
-				const Vector3f normal {0.f, 0.f, 1.f};
-				::engine::physics::PlaneData data {point, normal, engine::physics::Material::LOW_FRICTION};
-				engine::physics::post_create(id, data);
-			}
+			///**
+			// *	create limiting planes
+			// */
+			//const auto depth = 1.00f;
+			//{
+			//	const auto id = engine::Entity::create();
+			//	const Vector3f point{0.f, 0.f, depth};
+			//	const Vector3f normal {0.f, 0.f, -1.f};
+			//	::engine::physics::PlaneData data {point, normal, engine::physics::Material::LOW_FRICTION};
+			//	engine::physics::post_create(id, data);
+			//}
+			//{
+			//	const auto id = engine::Entity::create();
+			//	const Vector3f point {0.f, 0.f, -depth};
+			//	const Vector3f normal {0.f, 0.f, 1.f};
+			//	::engine::physics::PlaneData data {point, normal, engine::physics::Material::LOW_FRICTION};
+			//	engine::physics::post_create(id, data);
+			//}
 		}
 		level::create("res/level.lvl");
 	}
@@ -207,6 +207,9 @@ namespace looper
 
 			// update actors in engine
 			::engine::physics::update_start();
+
+			//
+			::engine::physics::update_joints();
 
 			// update physics world
 			::engine::physics::update_finish();

@@ -69,9 +69,9 @@ namespace
 
 				shapes.push_back(
 					engine::physics::ShapeData {
-						engine::physics::ShapeData::Type::MESH,
+						engine::physics::ShapeData::Type::BOX,
 						engine::physics::Material::STONE,
-						0.2f,
+						0.1f,
 						pos,
 						quat,
 						engine::physics::ShapeData::Geometry {
@@ -92,13 +92,15 @@ namespace
 					points.push_back(jvert[2]);
 				}
 
-				shapes.push_back(engine::physics::ShapeData {
-					engine::physics::ShapeData::Type::MESH,
-					engine::physics::Material::STONE,
-					0.2f,
-					Vector3f {0.f, 0.f, 0.f},
-					Quaternionf {1.f, 0.f, 0.f, 0.f},
-					engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Mesh {points}}});
+				shapes.push_back(
+					engine::physics::ShapeData {
+						engine::physics::ShapeData::Type::MESH,
+						engine::physics::Material::STONE,
+						0.2f,
+						Vector3f {0.f, 0.f, 0.f},
+						Quaternionf {1.f, 0.f, 0.f, 0.f},
+						engine::physics::ShapeData::Geometry {
+							engine::physics::ShapeData::Geometry::Mesh {points}}});
 			}
 		}
 	}
@@ -112,59 +114,110 @@ namespace
 	{
 		const json jcontent = json::parse(std::ifstream("res/turret.json"));
 
-		// for now add all shapes to the same actor...
-		std::vector<engine::physics::ShapeData> shapes;
-
 		turret_t turret;
 
 		turret.id = Entity::create();
 		turret.transform = transform_t {placeholder.pos, placeholder.quat};
-		// read platform
+
+		// platform
 		{
 			const json jgroup = jcontent["platform"];
 
+			std::vector<engine::physics::ShapeData> shapes;
+
 			load_shapes(shapes, jgroup["shapes"]);
+
+			// create physics object
+			engine::physics::post_create(
+				turret.id,
+				engine::physics::ActorData(
+					engine::physics::ActorData::Type::STATIC,
+					engine::physics::ActorData::Behaviour::DEFAULT,
+					placeholder.pos,
+					placeholder.quat,
+					shapes));
+
+			// TODO: create renderer object
 		}
-		// read head
+		// head
 		{
 			const json jgroup = jcontent["head"];
 
+			std::vector<engine::physics::ShapeData> shapes;
+
 			load_shapes(shapes, jgroup["shapes"]);
 
-			turret.head = turret_t::head_t {Entity::create(), parse_pivot(jgroup["pivot"])};
+			turret.head = turret_t::head_t {
+				Entity::create(),
+				Entity::create(),
+				parse_pivot(jgroup["pivot"])};
+
+			// create physics object
+			engine::physics::post_create(
+				turret.head.id,
+				engine::physics::ActorData(
+					engine::physics::ActorData::Type::DYNAMIC,
+					engine::physics::ActorData::Behaviour::DEFAULT,
+					placeholder.pos,
+					placeholder.quat,
+					shapes));
+
+			// TODO: create renderer object
+
 		}
-		// read barrel
+		// barrel
 		{
 			const json jgroup = jcontent["barrel"];
 
+			std::vector<engine::physics::ShapeData> shapes;
+
 			load_shapes(shapes, jgroup["shapes"]);
 
-			turret.barrel = turret_t::barrel_t {Entity::create(), parse_pivot(jgroup["pivot"])};
+			turret.barrel = turret_t::barrel_t {
+				Entity::create(),
+				Entity::create(),
+				parse_pivot(jgroup["pivot"])};
+
 			turret.projectile = parse_pivot(jgroup["projectile"]);
+
+			// create physics object
+			engine::physics::post_create(
+				turret.barrel.id,
+				engine::physics::ActorData(
+					engine::physics::ActorData::Type::DYNAMIC,
+					engine::physics::ActorData::Behaviour::DEFAULT,
+					placeholder.pos,
+					placeholder.quat,
+					shapes));
+
+			// TODO: create renderer object
 		}
 
-		gameplay::characters::post_add_turret(turret);
+		// connect the platform with the head
+		engine::physics::post_joint(
+			engine::physics::joint_t {
+				turret.head.jointId,
+				engine::physics::joint_t::Type::HINGE,
+				turret.id,
+				turret.head.id,
+				engine::physics::transform_t{
+					turret.head.pivot.pos,
+					turret.head.pivot.quat}});
 
-		//// use the same shapes for renderer for now.
-		//for (const auto shape : shapes)
-		//{
-		//	auto id = Entity::create();
+		// connect the head with the barrel
+		engine::physics::post_joint(
+			engine::physics::joint_t {
+				turret.head.jointId,
+				engine::physics::joint_t::Type::FIXED,
+				turret.head.id,
+				turret.barrel.id,
+				engine::physics::transform_t{
+					turret.barrel.pivot.pos,
+					turret.barrel.pivot.quat}});
 
-		//	const engine::physics::ShapeData::Geometry::Box & b = shape.geometry.box;
-
-		//	const Matrix4x4f matrix =
-		//		make_translation_matrix(placeholder.pos + shape.pos) *
-		//		make_matrix(shape.rot);
-
-		//	engine::graphics::data::CuboidC data = {
-		//		matrix,
-		//		b.w*2,
-		//		b.h*2,
-		//		b.d*2,
-		//		0xffffffff
-		//	};
-		//	engine::graphics::renderer::add(id, data);
-		//}
+		// add the main turret entity to characters.
+		// this object contains all the sub-objects
+		//gameplay::characters::post_add_turret(turret);
 	}
 }
 

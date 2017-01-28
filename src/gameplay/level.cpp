@@ -353,7 +353,11 @@ namespace gameplay
 							0.01f,
 							core::maths::Vector3f {0.f, 0.f, 0.f},
 							core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
-							engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.45f, box.dimensions[1]*0.45f, box.dimensions[2]*0.45f}}});
+							engine::physics::ShapeData::Geometry {
+								engine::physics::ShapeData::Geometry::Box {
+									box.dimensions[0]*0.5f,
+									box.dimensions[1]*0.5f,
+									box.dimensions[2]*0.5f}}});
 
 						engine::physics::ActorData data {engine::physics::ActorData::Type::DYNAMIC, engine::physics::ActorData::Behaviour::DEFAULT, box.translation, box.rotation, shapes};
 

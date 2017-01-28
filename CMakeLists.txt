@@ -50,6 +50,7 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
 	src/engine/physics/creation_physx.cpp
+	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
 	src/gameplay/characters.cpp
 	src/gameplay/level.cpp

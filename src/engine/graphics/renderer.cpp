@@ -705,6 +705,8 @@ namespace
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
+			glEnable(GL_POLYGON_OFFSET_LINE);
+			glPolygonOffset(1.f, 1.f);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			{
 				glColor3ub(255, 255, 255);
@@ -725,6 +727,7 @@ namespace
 				glDisableClientState(GL_VERTEX_ARRAY);
 			}
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			glDisable(GL_POLYGON_OFFSET_LINE);
 
 			modelview_matrix.pop();
 		}

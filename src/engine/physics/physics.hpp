@@ -21,6 +21,8 @@ namespace physics
 	 *	\note manages creation and removal of actors
 	 */
 	void update_start();
+
+	void update_joints();
 	/**
 	 *	\note steps physics engine forward
 	 */
@@ -31,6 +33,36 @@ namespace physics
 	void post_create(const engine::Entity id, const PlaneData & data);
 
 	void post_remove(const engine::Entity id);
+
+	struct transform_t
+	{
+		core::maths::Vector3f pos;
+		core::maths::Quaternionf quat;
+	};
+
+	struct joint_t
+	{
+		enum class Type
+		{
+			DISCONNECT,
+			FIXED,
+			HINGE
+		};
+
+		engine::Entity id;
+
+		Type type;
+
+		/**
+		 \note can be "INVALID"-id if the second actor should be jointed with global space.
+		 */
+		engine::Entity actorId1;
+		engine::Entity actorId2;
+
+		transform_t transform;
+	};
+
+	void post_joint(const joint_t & joint);
 
 	struct movement_data
 	{
@@ -60,8 +92,6 @@ namespace physics
 	 *	\note update Kinematic object with position and rotation
 	 */
 	void post_update_movement(const engine::Entity id, const translation_data translation);
-
-	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation);
 
 	void query_position(const engine::Entity id, Vector3f & pos, Quaternionf & rotation, Vector3f & vel);
 }
