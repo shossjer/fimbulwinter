@@ -225,7 +225,7 @@ namespace looper
 			::engine::graphics::renderer::update();
 
 			// something temporary that delays
-			core::async::delay(10);
+			core::async::delay(15); // ~60 fps
 		}
 
 		::engine::graphics::renderer::destroy();
