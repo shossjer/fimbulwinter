@@ -528,7 +528,7 @@ namespace gameplay
 					const std::string name = activator["name"];
 					const std::string animatiton = activator["animation"];
 
-					auto & target = objects.find(name);
+					const auto & target = objects.find(name);
 					if (target!=objects.end())
 					{
 						engine::animation::update(target->second, engine::animation::action {animatiton, true});

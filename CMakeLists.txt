@@ -194,8 +194,17 @@ find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
 # look for JSON library hpp file
-find_file(FILE_JSON_HEADER nlohmann_json.hpp)
-message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
+find_file(FILE_JSON_HEADER_WITH_UNDERSCORE nlohmann_json.hpp)
+find_file(FILE_JSON_HEADER_WITH_DIRECTORY nlohmann/json.hpp)
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER_WITH_UNDERSCORE}")
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER_WITH_DIRECTORY}")
+if (FILE_JSON_HEADER_WITH_UNDERSCORE)
+  set(HAVE_NLOHMANN_JSON_HPP_WITH_UNDERSCORE 1)
+elseif (FILE_JSON_HEADER_WITH_DIRECTORY)
+  set(HAVE_NLOHMANN_JSON_HPP_WITH_DIRECTORY 1)
+else()
+  message(FATAL_ERROR "JSON parser - You need to get one!")
+endif()
 
 # physics PHYSX
 #
