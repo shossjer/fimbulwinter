@@ -681,10 +681,13 @@ namespace
 			glViewport(notification_viewport.x, notification_viewport.y, notification_viewport.width, notification_viewport.height);
 		}
 
+		glStencilMask(0x000000ff);
 		// setup frame
 		glClearColor(0.f, 0.f, .1f, 0.f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		glClearDepth(1.);
+		//glClearStencil(0x00000000);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		
 		// setup 3D
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(projection3D);
@@ -693,7 +696,53 @@ namespace
 
 		// 3d
 		glEnable(GL_DEPTH_TEST);
-		//
+		glEnable(GL_STENCIL_TEST);
+
+		// int i;
+		// glGetIntegerv(GL_STENCIL_BITS, &i);
+		// debug_printline(0xffffffff, i);
+		
+		//////////////////////////////////////////////////////////////
+		// wireframes
+		glStencilMask(0x00000001);
+		// glStencilFunc(GL_NEVER, 0x00000001, 0x00000001);
+		// glStencilOp(GL_REPLACE, GL_KEEP, GL_KEEP);
+		glStencilFunc(GL_ALWAYS, 0x00000001, 0x00000001);
+		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+		glDisable(GL_LIGHTING);
+		
+		for (const auto & component : components.get<cuboid_cw>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			glLineWidth(1.f);
+			glColor(component.color);
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, // TODO
+			                GL_FLOAT,
+			                0,
+			                component.vertices.data());
+			glDrawElements(GL_LINES,
+			               component.lines.size(),
+			               GL_UNSIGNED_SHORT,
+			               component.lines.data());
+			glDisableClientState(GL_VERTEX_ARRAY);
+			glLineWidth(1.f);
+
+			modelview_matrix.pop();
+		}
+
+		glEnable(GL_LIGHTING);
+		
+		//////////////////////////////////////////////////////////////
+		// solids
+		glStencilMask(0x00000000);
+		glStencilFunc(GL_EQUAL, 0x00000000, 0x00000001);
+		//glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+		
 		for (auto & component : components.get<Character>())
 		{
 			modelview_matrix.push();
@@ -717,8 +766,8 @@ namespace
 				//glDisable(GL_DEPTH_TEST);
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_DST_COLOR);
 			}
-			glEnable(GL_POLYGON_OFFSET_FILL); // necessary for wireframe
-			glPolygonOffset(2.f, 2.f);
+			// glEnable(GL_POLYGON_OFFSET_FILL); // necessary for wireframe
+			// glPolygonOffset(2.f, 2.f);
 
 			glColor(component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
@@ -737,38 +786,12 @@ namespace
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
 
-			glDisable(GL_POLYGON_OFFSET_FILL);
+			// glDisable(GL_POLYGON_OFFSET_FILL);
 			if (component.is_transparent)
 			{
 				//glEnable(GL_DEPTH_TEST);
 				glDisable(GL_BLEND);
 			}
-
-			modelview_matrix.pop();
-		}
-		for (const auto & component : components.get<cuboid_cw>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.modelview);
-			glLoadMatrix(modelview_matrix);
-
-			glDisable(GL_LIGHTING);
-
-			glLineWidth(1.f);
-			glColor(component.color);
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glVertexPointer(3, // TODO
-			                GL_FLOAT,
-			                0,
-			                component.vertices.data());
-			glDrawElements(GL_LINES,
-			               component.lines.size(),
-			               GL_UNSIGNED_SHORT,
-			               component.lines.data());
-			glDisableClientState(GL_VERTEX_ARRAY);
-			glLineWidth(1.f);
-
-			glEnable(GL_LIGHTING);
 
 			modelview_matrix.pop();
 		}
@@ -815,6 +838,9 @@ namespace
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
 		}
+
+		glDisable(GL_STENCIL_TEST);
+		glDisable(GL_DEPTH_TEST);
 
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);
