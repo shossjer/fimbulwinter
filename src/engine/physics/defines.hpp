@@ -110,6 +110,8 @@ namespace physics
 			// normal dynamic rigid bodies
 			// when moving a Dynamic body the Force or Impulse move should be used.
 			DYNAMIC,
+			// also an dynamic actor
+			PROJECTILE,
 			// used for movable objects that are not affected by physics.
 			// platforms and moving beams should be Kinematic.
 			// when moving an Kinematic object the Kinematic move should be used.
@@ -138,17 +140,33 @@ namespace physics
 			TRIGGER = 1<<0,
 			// player will receive callback for all collisions.
 			PLAYER = 1<<1,
+			//
+			PROJECTILE = 1<<2,
 			// obstacle will receive callback for all collisions.
-			OBSTACLE = 1<<2,
+			OBSTACLE = 1<<3,
 			// default behaviour will not receive any callbacks during collisions
 			// walls and most simple dynamic actors belong here
-			DEFAULT = 1<<3
+			DEFAULT = 1<<4
 		} behaviour;
 
 		Vector3f pos;
 		Quaternionf rot;
 
 		std::vector<ShapeData> shapes;
+
+		ActorData(const Type type, const Behaviour behaviour, const Vector3f & pos, const Quaternionf & quat, const std::vector<ShapeData> & shapes)
+			:
+			type(type),
+			behaviour(behaviour),
+			pos(pos),
+			rot(quat),
+			shapes(shapes)
+		{
+		}
+
+		ActorData()
+		{
+		}
 	};
 
 	struct PlaneData

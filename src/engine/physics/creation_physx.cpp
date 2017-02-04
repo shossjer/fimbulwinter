@@ -24,6 +24,8 @@ namespace physics
 {
 	using namespace physx;
 
+	using Matrix4x4f = core::maths::Matrix4x4f;
+
 	namespace
 	{
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, ActorData>, 100> queue_create;
@@ -41,7 +43,7 @@ namespace physics
 		\note create shapes for the Actor body.
 		\return float total mass of all shapes
 	 */
-	reply_shapes create(const std::vector<ShapeData> shapeDatas, PxFilterData filterData)
+	reply_shapes create(const Matrix4x4f actorMatrix, const std::vector<ShapeData> shapeDatas, PxFilterData filterData)
 	{
 		reply_shapes reply;
 		reply.totalMass = 0.f;
@@ -64,6 +66,27 @@ namespace physics
 
 					// calculate mass of the shape
 					reply.totalMass += (materialDef.density * shapeData.geometry.box.volume() * shapeData.solidity);
+
+					// add debug shape to renderer
+					{
+						const ::engine::Entity renderId = ::engine::Entity::create();
+
+						const core::maths::Matrix4x4f shapeMatrix =
+							make_translation_matrix(shapeData.pos) *
+							make_matrix(shapeData.rot);
+
+						engine::graphics::data::CuboidC data = {
+							actorMatrix * shapeMatrix,
+							shapeData.geometry.box.w*2,
+							shapeData.geometry.box.h*2,
+							shapeData.geometry.box.d*2,
+							0xffffffff,
+							true
+						};
+						engine::graphics::renderer::add(renderId, data);
+
+						shape->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(renderId);
+					}
 					break;
 				}
 				case ShapeData::Type::SPHERE:
@@ -74,6 +97,27 @@ namespace physics
 
 					// calculate mass of the shape
 					reply.totalMass += (materialDef.density * shapeData.geometry.sphere.volume() * shapeData.solidity);
+
+					// add debug shape to renderer
+					{
+						const ::engine::Entity renderId = ::engine::Entity::create();
+
+						const core::maths::Matrix4x4f shapeMatrix =
+							make_translation_matrix(shapeData.pos) *
+							make_matrix(shapeData.rot);
+
+						engine::graphics::data::CuboidC data = {
+							actorMatrix * shapeMatrix,
+							shapeData.geometry.sphere.r,
+							shapeData.geometry.sphere.r,
+							shapeData.geometry.sphere.r,
+							0xffffffff,
+							true
+						};
+						engine::graphics::renderer::add(renderId, data);
+
+						shape->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(renderId);
+					}
 					break;
 				}
 				case ShapeData::Type::MESH:
@@ -126,6 +170,9 @@ namespace physics
 			// save material enum id in filter
 			filterData.word2 = static_cast<physx::PxU32>(shapeData.material);
 
+			// apply delta tranform of shape relative to actors centre
+			shape->setLocalPose(PxTransform(convert<PxVec3>(shapeData.pos), convert(shapeData.rot)));
+
 			// set filtering data for the shape
 			shape->setSimulationFilterData(filterData);
 
@@ -167,13 +214,21 @@ namespace physics
 			{
 				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
 						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
-						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
+						static_cast<PxU32>(ActorData::Behaviour::DEFAULT)|
+						static_cast<PxU32>(ActorData::Behaviour::PROJECTILE);
 				break;
 			}
 			// no callback is needed for dynamic default objects
 			case ActorData::Behaviour::DEFAULT:
 			{
 				mask =	static_cast<PxU32>(0);
+				break;
+			}
+			case ActorData::Behaviour::PROJECTILE:
+			{
+				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
+						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
+						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
 				break;
 			}
 			default:
@@ -189,6 +244,10 @@ namespace physics
 	 */
 	void create(const engine::Entity id, const ActorData & data)
 	{
+		const core::maths::Matrix4x4f matrix =
+			make_translation_matrix(data.pos) *
+			make_matrix(data.rot);
+
 		switch (data.type)
 		{
 			case ActorData::Type::DYNAMIC:
@@ -207,7 +266,7 @@ namespace physics
 				PxFilterData filterData = createFilter(data.behaviour);
 
 				// create shapes
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape:reply.shapes)
@@ -228,6 +287,34 @@ namespace physics
 				physx2::pScene->addActor(*body);
 				break;
 			}
+			case ActorData::Type::PROJECTILE:
+			{
+				// create a dynamic body at position
+				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(
+					PxTransform {convert<physx::PxVec3>(data.pos), convert(data.rot)});
+
+				// create collision filter flags
+				PxFilterData filterData = createFilter(data.behaviour);
+
+				reply_shapes reply = create(matrix, data.shapes, filterData);
+
+				for (auto shape:reply.shapes)
+				{
+					body->attachShape(*shape);
+				}
+
+				// update mass for Actor for non-static body
+				physx::PxRigidBodyExt::setMassAndUpdateInertia(*body, reply.totalMass);
+
+				// register it as an actor so we have access to the body from id
+				actors.emplace<ActorDynamic>(id, body);
+
+				// set entity id to the body for callback
+				body->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(id);
+
+				physx2::pScene->addActor(*body);
+				break;
+			}
 			case ActorData::Type::KINEMATIC:
 			{
 				// create a dynamic body at position
@@ -240,7 +327,7 @@ namespace physics
 				PxFilterData filterData = createFilter(data.behaviour);
 
 				// create shapes
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)
@@ -270,7 +357,7 @@ namespace physics
 				PxFilterData filterData = createFilter(data.behaviour);
 
 				// create shapes
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)
@@ -297,7 +384,7 @@ namespace physics
 				PxFilterData filterData = createFilter(data.behaviour);
 
 				// create shapes
-				reply_shapes reply = create(data.shapes, filterData);
+				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)

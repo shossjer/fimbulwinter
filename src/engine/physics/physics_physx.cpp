@@ -52,6 +52,9 @@ namespace physics
 	// Collecation containing all Actors in the world.
 	ActorCollection actors;
 
+	// Collecation containing all Joints in the world.
+	JointCollection joints;
+
 	// All defined physics materials. Contains density, friction and restitution
 	MaterialMap materials;
 
@@ -62,7 +65,6 @@ namespace physics
 		//	* onGrounded - called when Actor is grounded after falling
 		const Callback * pCallback;
 
-		core::container::CircleQueueSRMW<std::pair<engine::Entity, core::maths::radianf>, 100> queue_headings;
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, movement_data>, 100> queue_movements;
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, translation_data>, 100> queue_translations;
 	}
@@ -273,17 +275,17 @@ namespace physics
 
 		void operator () (ActorCharacter & x)
 		{
-			// movement needs to be rotated acording to character heading.. hope this can be done better
-			core::maths::Vector3f::array_type buffer;
-			movement.vec.get_aligned(buffer);
+			//// movement needs to be rotated acording to character heading.. hope this can be done better
+			//core::maths::Vector3f::array_type buffer;
+			//movement.vec.get_aligned(buffer);
 
-			// is this really the scale? /8
-			const float mx = -buffer[1]*std::sin(x.heading.get())/8;
-			const float my = buffer[2]/8;
+			//// is this really the scale? /8
+			//const float mx = -buffer[1]*std::sin(x.heading.get())/8;
+			//const float my = buffer[2]/8;
 
-			const auto val = physx::PxVec3 {mx, my + 0.5f*(TIME_STEP*-9.82f), 0.f};
+			//const auto val = physx::PxVec3 {mx, my + 0.5f*(TIME_STEP*-9.82f), 0.f};
 
-			x.body->move(val, 0.0f, TIME_STEP, physx::PxControllerFilters {});
+			//x.body->move(val, 0.0f, TIME_STEP, physx::PxControllerFilters {});
 		}
 
 		void operator () (ActorDynamic & x)
@@ -334,9 +336,6 @@ namespace physics
 			// make sure object is Kinematic
 			debug_assert(x.body->getRigidBodyFlags().isSet(physx::PxRigidBodyFlag::eKINEMATIC));
 
-			physx::PxTransform target;
-			x.body->getKinematicTarget(target);
-
 			physx::PxTransform t {convert<physx::PxVec3>(this->translation.pos), convert(this->translation.quat) };
 
 			x.body->setKinematicTarget(t);
@@ -349,34 +348,8 @@ namespace physics
 		}
 	};
 
-	struct actor_header
-	{
-		const core::maths::radianf heading;
-
-		actor_header(const core::maths::radianf heading) : heading(heading) {}
-
-		void operator () (ActorCharacter & x)
-		{
-			x.heading = heading;
-		}
-
-		template<typename X>
-		void operator () (X & x)
-		{
-			debug_unreachable();
-		}
-	};
-
 	void update_finish()
 	{
-		// poll heading queue
-		{
-			std::pair<engine::Entity, core::maths::radianf> data;
-			while (queue_headings.try_pop(data))
-			{
-				actors.call(data.first, actor_header {data.second});
-			}
-		}
 		// poll movement queue
 		{
 			std::pair<engine::Entity, movement_data> data;
@@ -393,6 +366,9 @@ namespace physics
 				actors.call(data.first, actor_translate {data.second});
 			}
 		}
+
+	//	if (joint!=nullptr)
+	//		joint->setDriveVelocity(10);
 
 		// Update the physics world
 		physx2::pScene->simulate(TIME_STEP);
@@ -417,6 +393,39 @@ namespace physics
 			};
 
 			engine::graphics::renderer::update(id, std::move(data));
+
+			// for debug purpose
+			{
+				physx::PxShape * shapes[10];
+
+				if (item.actor->getType()==PxActorType::eRIGID_DYNAMIC)
+				{
+					const PxRigidActor * actor = static_cast<PxRigidActor*>(item.actor);
+					const auto n = actor->getShapes(shapes, 10, 0);
+
+					const auto & t = actor->getGlobalPose();
+					const core::maths::Matrix4x4f actorMatrix =
+						make_translation_matrix(core::maths::Vector3f {t.p.x, t.p.y, t.p.z}) *
+						make_matrix(core::maths::Quaternionf {t.q.w, t.q.x, t.q.y, t.q.z});
+
+					for (unsigned int i = 0; i < n; i++)
+					{
+						const auto shape = shapes[i];
+
+						const ::engine::Entity renderId = (std::size_t)shape->userData;
+
+						const auto & r = shape->getLocalPose();
+
+						const core::maths::Matrix4x4f localMatrix =
+							make_translation_matrix(core::maths::Vector3f {r.p.x, r.p.y, r.p.z}) *
+							make_matrix(core::maths::Quaternionf {r.q.w, r.q.x, r.q.y, r.q.z});
+
+						const core::maths::Matrix4x4f matrix = actorMatrix*localMatrix;
+
+						engine::graphics::renderer::update(renderId, engine::graphics::data::ModelviewMatrix {matrix});
+					}
+				}
+			}
 		}
 	}
 
@@ -476,11 +485,6 @@ namespace physics
 	void post_update_movement(const engine::Entity id, const translation_data translation)
 	{
 		const auto res = queue_translations.try_emplace(id, translation);
-		debug_assert(res);
-	}
-	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation)
-	{
-		const auto res = queue_headings.try_emplace(id, rotation);
 		debug_assert(res);
 	}
 }

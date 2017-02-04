@@ -90,25 +90,25 @@ namespace looper
 		const auto h2 = h*0.5f;
 		const auto d2 = d*0.5f;
 
-		std::vector<float> points
-		{
-			-w2, -h2, d2,	// front side left
-			-w2, h2, d2,
-			w2, h2, d2,		// front side right
-			w2, -h2, d2,
-			-w2, -h2, -d2,	// back side left
-			-w2, h2, -d2,
-			w2, h2, -d2,	// back side right
-			w2, -h2, -d2
-		};
+		//std::vector<float> points
+		//{
+		//	-w2, -h2, d2,	// front side left
+		//	-w2, h2, d2,
+		//	w2, h2, d2,		// front side right
+		//	w2, -h2, d2,
+		//	-w2, -h2, -d2,	// back side left
+		//	-w2, h2, -d2,
+		//	w2, h2, -d2,	// back side right
+		//	w2, -h2, -d2
+		//};
 
 		shapes.push_back(ShapeData {
-			ShapeData::Type::MESH,
+			ShapeData::Type::BOX,
 			material,
 			solidity,
 			Vector3f {0.f, 0.f, 0.f},
 			Quaternionf {1.f, 0.f, 0.f, 0.f},
-			ShapeData::Geometry {ShapeData::Geometry::Mesh {points} } });
+			ShapeData::Geometry {ShapeData::Geometry::Box {w2, h2, d2} } });
 
 		ActorData data {type, behaviour, core::maths::Vector3f{x, y, z}, core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f}, shapes};
 
@@ -127,7 +127,7 @@ namespace looper
 	{
 		{
 			playerId = engine::Entity::create();
-			::gameplay::characters::create(playerId);
+			::gameplay::characters::post_create_player(playerId);
 
 			{
 				const float w = 1.2f;
@@ -208,6 +208,9 @@ namespace looper
 			// update actors in engine
 			::engine::physics::update_start();
 
+			//
+			::engine::physics::update_joints();
+
 			// update physics world
 			::engine::physics::update_finish();
 
@@ -222,7 +225,7 @@ namespace looper
 			::engine::graphics::renderer::update();
 
 			// something temporary that delays
-			core::async::delay(10);
+			core::async::delay(15); // ~60 fps
 		}
 
 		::engine::graphics::renderer::destroy();

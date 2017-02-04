@@ -50,9 +50,11 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
 	src/engine/physics/creation_physx.cpp
+	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
 	src/gameplay/characters.cpp
 	src/gameplay/level.cpp
+	src/gameplay/level_placeholder.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/ui.cpp
 	)
@@ -103,11 +105,13 @@ set(TRIBUNAL_HEADER
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp
 	src/gameplay/level.hpp
+	src/gameplay/level_placeholder.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
 	src/utility/aligned_array.hpp
 	src/utility/array.hpp
 	src/utility/inaccessible.hpp
+	src/utility/json.hpp
 	src/utility/optional.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
@@ -188,6 +192,19 @@ find_file(FILE_X11_XLIB_H X11/Xlib.h)
 message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
 find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
+
+# look for JSON library hpp file
+find_file(FILE_JSON_HEADER_WITH_UNDERSCORE nlohmann_json.hpp)
+find_file(FILE_JSON_HEADER_WITH_DIRECTORY nlohmann/json.hpp)
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER_WITH_UNDERSCORE}")
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER_WITH_DIRECTORY}")
+if (FILE_JSON_HEADER_WITH_UNDERSCORE)
+  set(HAVE_NLOHMANN_JSON_HPP_WITH_UNDERSCORE 1)
+elseif (FILE_JSON_HEADER_WITH_DIRECTORY)
+  set(HAVE_NLOHMANN_JSON_HPP_WITH_DIRECTORY 1)
+else()
+  message(FATAL_ERROR "JSON parser - You need to get one!")
+endif()
 
 # physics PHYSX
 #
