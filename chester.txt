@@ -2,7 +2,8 @@ dev/export_level.py   113f67970222375eb8688265b2d42651a9e3596f265945bc1606f466e1
 dev/level.blend       8a9269ccfae7aabec405a5d20e3d94545b48b03b6384b3cdbb219446c46d007d
 dev/turret.export.py  33787c899ed5aee9f026b9c700b49b2586502e78e9167be9a3d12ec237da0671
 dev/turret.blend      e48282fecc6c94284ab43edd22bf4a2bacd8f9b1cfb36927b1d1b18d9feb9d5a
+res/beam.json         293c24fe5df3afea1dc4be7fe0a707b2137166c14ef0997fded94dc825935186
 res/desc.json         b40d0e1bada18541a5727a60f35a49b2a998b6c4c02ec9f5eec5d9033403391a
 res/font/consolas.ttf 45c14a49e0ba2edc00b72afad9a930cad5c1b9a93323b239a8c308efc5a65e8e
-res/level.lvl         6c0e90b7d53020a1a33a54bb88c88d586fdd7e7c5659dd404bdffd111b283f21
-res/turret.json       a3b5732d7d69f17bb9085c7d3ff42ae71074583360d71bf5728b1caa60dc67ac
+res/level.lvl         fdd712a0db7193d96d4f458b12d994d2d49a31bd1757798a4bd0d5cd1a4a8c95
+res/turret.json       e81874bf629b256d2286842472ec80f926d94e42f3f8a2d639164b2335f1bf60

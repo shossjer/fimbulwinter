@@ -454,7 +454,13 @@ namespace characters
 					turret.projectile.quat,
 					engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Sphere {radie}}});
 
-				engine::physics::ActorData data {engine::physics::ActorData::Type::PROJECTILE, engine::physics::ActorData::Behaviour::PROJECTILE, pos, turret.transform.quat, shapes};
+				engine::physics::ActorData data {
+					engine::physics::ActorData::Type::PROJECTILE,
+					engine::physics::ActorData::Behaviour::PROJECTILE,
+					pos,
+					turret.transform.quat,
+					shapes};
+
 				engine::physics::post_create(id, data);
 				engine::physics::post_update_movement(
 					id,

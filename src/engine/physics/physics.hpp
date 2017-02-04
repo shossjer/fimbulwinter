@@ -60,6 +60,9 @@ namespace physics
 		engine::Entity actorId2;
 
 		transform_t transform;
+
+		float driveSpeed;
+		float forceMax;
 	};
 
 	void post_joint(const joint_t & joint);

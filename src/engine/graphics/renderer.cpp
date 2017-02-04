@@ -533,7 +533,8 @@ namespace
 			}
 			else
 			{
-				debug_printline(0xffffffff, "WARNING no component for entity ", message_update_modelviewmatrix.first);
+				// TODO: bring back when all physics object has a rendered shape
+			//	debug_printline(0xffffffff, "WARNING no component for entity ", message_update_modelviewmatrix.first);
 			}
 		}
 		std::pair<engine::Entity,

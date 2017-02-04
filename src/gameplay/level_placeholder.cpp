@@ -26,6 +26,12 @@ namespace
 	using transform_t = gameplay::characters::transform_t;
 	using turret_t = gameplay::characters::turret_t;
 
+	struct beam_t
+	{
+		engine::Entity id;
+		engine::Entity jointId;
+	};
+
 	std::vector<std::string> split(const std::string & name)
 	{
 		std::vector<std::string> parts;
@@ -179,6 +185,8 @@ namespace
 				parse_pivot(jgroup["pivot"])};
 
 			turret.projectile = parse_pivot(jgroup["projectile"]);
+			turret.projectile.quat *= placeholder.quat;
+			turret.projectile.pos += turret.head.pivot.pos;
 
 			// create physics object
 			engine::physics::post_create(
@@ -219,6 +227,67 @@ namespace
 		// this object contains all the sub-objects
 		//gameplay::characters::post_add_turret(turret);
 	}
+
+	void load_beam(const placeholder_t & placeholder, const std::string name)
+	{
+		//  load file with additional data of the "beam" object
+		const json jcontent = json::parse(std::ifstream("res/beam.json"));
+
+		beam_t beam;
+
+		beam.id = Entity::create();
+		beam.jointId = Entity::create();
+
+		const auto trans = parse_pivot(jcontent["transform"]);
+
+		const auto jb = jcontent[name];
+		const float driveSpeed = jb["driveSpeed"];
+		const float forceMax = jb["forceMax"];
+
+		// create the beam object
+		{
+			std::vector<engine::physics::ShapeData> shapes;
+
+			core::maths::Vector3f::array_type b;
+			placeholder.scale.get_aligned(b);
+
+			shapes.emplace_back(
+				engine::physics::ShapeData {
+					engine::physics::ShapeData::Type::BOX,
+					engine::physics::Material::SUPER_RUBBER,
+					0.5f,
+					Vector3f {0.f, 0.f, 0.f},
+					Quaternionf {1.f, 0.f, 0.f, 0.f},
+					engine::physics::ShapeData::Geometry {
+						engine::physics::ShapeData::Geometry::Box {
+							b[0], b[1], b[2]}}});
+
+			// create physics object
+			engine::physics::post_create(
+				beam.id,
+				engine::physics::ActorData(
+					engine::physics::ActorData::Type::DYNAMIC,
+					engine::physics::ActorData::Behaviour::DEFAULT,
+					Vector3f {0.f, 0.f, 0.f},
+					placeholder.quat,
+					shapes));
+
+			// TODO: create renderer object
+		}
+
+		// make it an rotatable platform with a joint
+		engine::physics::post_joint(
+			engine::physics::joint_t {
+				beam.jointId,
+				engine::physics::joint_t::Type::HINGE,
+				engine::Entity::INVALID,
+				beam.id,
+				engine::physics::transform_t{
+					placeholder.pos,
+					trans.quat},
+				driveSpeed,
+				forceMax});
+	}
 }
 
 namespace gameplay
@@ -229,7 +298,7 @@ namespace level
 	{
 		std::vector<std::string> parts = split(placeholder.name);
 
-		if (parts.size()<=1)
+		if (parts.size()<=2)
 		{
 			debug_printline(0xffffffff, "Warning: Placeholder does not have a valid name: ", placeholder.name);
 			return;
@@ -238,6 +307,11 @@ namespace level
 		if (parts[1]=="turret")
 		{
 			load_turret(placeholder);
+		}
+		else
+		if (parts[1]=="beam")
+		{
+			load_beam(placeholder, parts[2]);
 		}
 		else
 		{

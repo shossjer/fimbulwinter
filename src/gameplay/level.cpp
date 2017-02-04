@@ -181,6 +181,7 @@ namespace
 			read_string(ifile, item.name);
 			read_vector(ifile, item.pos);
 			read_quaternion(ifile, item.quat);
+			read_vector(ifile, item.scale);
 		}
 	}
 	void read_platforms(std::ifstream & ifile, std::vector<platform_t> & platforms)

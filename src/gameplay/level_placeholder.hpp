@@ -16,6 +16,7 @@ namespace level
 		std::string name;
 		core::maths::Vector3f pos;
 		core::maths::Quaternionf quat;
+		core::maths::Vector3f scale;
 	};
 
 	void load(const placeholder_t & placeholder);

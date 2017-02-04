@@ -71,22 +71,34 @@ namespace physics
 				case joint_t::Type::HINGE:
 				{
 					// Quat{w, x, y, z} = 0.707, 0., 0., 0.707 for rotation along y axis
-					auto val = PxRevoluteJointCreate(
+					auto joint = PxRevoluteJointCreate(
 						*physx2::pWorld,
 						actor1.actor, PxTransform {convert<PxVec3>(data.transform.pos), convert(data.transform.quat)},
 						actor2.actor, PxTransform {PxVec3 {0.f, 0.f, 0.f}, convert(data.transform.quat)});
 
-					if (data.id!= engine::Entity::INVALID) joints.add(data.id, val);
+					if (data.id!= engine::Entity::INVALID) joints.add(data.id, joint);
+
+					if (data.driveSpeed!=0.f)
+					{
+						joint->setDriveVelocity(data.driveSpeed);
+						joint->setRevoluteJointFlag(PxRevoluteJointFlag::eDRIVE_ENABLED, true);
+
+						if (data.forceMax!=0.f)
+						{
+							joint->setConstraintFlag(PxConstraintFlag::eDRIVE_LIMITS_ARE_FORCES, true);
+							joint->setDriveForceLimit(5000);
+						}
+					}
 					break;
 				}
 				case joint_t::Type::FIXED:
 				{
-					auto val = PxFixedJointCreate(
+					auto joint = PxFixedJointCreate(
 						*physx2::pWorld,
 						actor1.actor, PxTransform {convert<PxVec3>(data.transform.pos), convert(data.transform.quat)},
 						actor2.actor, PxTransform {PxVec3 {0.f, 0.f, 0.f}, convert(data.transform.quat)});
 
-					if (data.id!=engine::Entity::INVALID) joints.add(data.id, val);
+					if (data.id!=engine::Entity::INVALID) joints.add(data.id, joint);
 					break;
 				}
 				default:

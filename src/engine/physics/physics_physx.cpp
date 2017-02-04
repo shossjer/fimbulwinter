@@ -411,6 +411,7 @@ namespace physics
 					for (unsigned int i = 0; i < n; i++)
 					{
 						const auto shape = shapes[i];
+
 						const ::engine::Entity renderId = (std::size_t)shape->userData;
 
 						const auto & r = shape->getLocalPose();
