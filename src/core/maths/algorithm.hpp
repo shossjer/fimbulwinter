@@ -17,6 +17,8 @@ namespace core
 		template <std::size_t, typename>
 		class Plane;
 		template <typename>
+		class Quaternion;
+		template <typename>
 		class Scalar;
 		template <std::size_t, typename>
 		class Vector;
@@ -56,6 +58,29 @@ namespace core
 				{
 					m.values[M * c + i] = v.values[i];
 				}
+			}
+
+			template <typename T>
+			Vector<3, T> rotate(const Vector<3, T> & vec, const Quaternion<T> & q)
+			{
+				const Quaternion<T> qec{0.f, vec.values[0], vec.values[1], vec.values[2]};
+				const auto pec = q * qec * conjugate(q);
+				return {pec.values[1], pec.values[2], pec.values[3]};
+			}
+
+			template <typename T>
+			Quaternion<T> rotation_of(const Vector<3, T> & vec)
+			{
+				if (vec.values[0] < T{-0.999}) // arbitrarily close to -1
+					return {T{}, T{}, T{}, T{1}}; // any axis in the yz-place is okey
+
+				const auto w2 = (vec.values[0] + 1) / 2;
+				const auto w = std::sqrt(w2);
+
+				const auto y = -vec.values[2] / (2 * w);
+				const auto z = vec.values[1] / (2 * w);
+
+				return {w, T{}, y, z};
 			}
 		};
 
@@ -120,6 +145,18 @@ namespace core
 			decltype(dot(plane, point))
 		{
 			return dot(plane, point);
+		}
+
+		template <typename T>
+		inline Vector<3, T> rotate(const Vector<3, T> & vec, const Quaternion<T> & q)
+		{
+			return algorithm{}.rotate(vec, q);
+		}
+
+		template <typename T>
+		inline Quaternion<T> rotation_of(const Vector<3, T> & vec)
+		{
+			return algorithm{}.rotation_of(vec);
 		}
 
 		////////////////////////////////////////////////////////////////////////

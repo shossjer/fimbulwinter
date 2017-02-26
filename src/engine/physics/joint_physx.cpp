@@ -70,11 +70,10 @@ namespace physics
 				}
 				case joint_t::Type::HINGE:
 				{
-					// Quat{w, x, y, z} = 0.707, 0., 0., 0.707 for rotation along y axis
 					auto joint = PxRevoluteJointCreate(
 						*physx2::pWorld,
-						actor1.actor, PxTransform {convert<PxVec3>(data.transform.pos), convert(data.transform.quat)},
-						actor2.actor, PxTransform {PxVec3 {0.f, 0.f, 0.f}, convert(data.transform.quat)});
+						actor1.actor, PxTransform{convert<PxVec3>(data.transform1.pos), convert(data.transform1.quat)},
+						actor2.actor, PxTransform{convert<PxVec3>(data.transform2.pos), convert(data.transform2.quat)});
 
 					if (data.id!= engine::Entity::INVALID) joints.add(data.id, joint);
 
@@ -95,8 +94,8 @@ namespace physics
 				{
 					auto joint = PxFixedJointCreate(
 						*physx2::pWorld,
-						actor1.actor, PxTransform {convert<PxVec3>(data.transform.pos), convert(data.transform.quat)},
-						actor2.actor, PxTransform {PxVec3 {0.f, 0.f, 0.f}, convert(data.transform.quat)});
+						actor1.actor, PxTransform{convert<PxVec3>(data.transform1.pos), convert(data.transform1.quat)},
+						actor2.actor, PxTransform{convert<PxVec3>(data.transform2.pos), convert(data.transform2.quat)});
 
 					if (data.id!=engine::Entity::INVALID) joints.add(data.id, joint);
 					break;

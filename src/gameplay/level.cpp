@@ -28,6 +28,12 @@ namespace
 
 	struct box_t
 	{
+		core::maths::Vector3f translation;
+		core::maths::Quaternionf rotation;
+		core::maths::Vector3f scalation;
+	};
+	struct box2_t
+	{
 		core::maths::Matrix4x4f matrix; // either (matrix) or (translation and rotation) is enough
 		core::maths::Vector3f translation;
 		core::maths::Quaternionf rotation;
@@ -40,8 +46,8 @@ namespace
 	};
 	struct trigger_timer_t
 	{
-		box_t start;
-		box_t stop;
+		box2_t start;
+		box2_t stop;
 	};
 
 	struct static_t
@@ -52,9 +58,8 @@ namespace
 	struct dynamic_t
 	{
 		std::string name;
-		box_t box;
+		box2_t box;
 	};
-
 	struct platform_t
 	{
 		std::string name;
@@ -65,7 +70,16 @@ namespace
 	struct trigger_multiple_t
 	{
 		std::string name;
-		box_t box;
+		box2_t box;
+	};
+
+	struct mesh_t
+	{
+		std::string name;
+		core::maths::Matrix4x4f matrix;
+		std::vector<float> vertices;
+		std::vector<uint16_t> triangles;
+		std::vector<float> normals;
 	};
 
 	struct level_t
@@ -75,10 +89,13 @@ namespace
 
 		std::vector<static_t> statics;
 		std::vector<dynamic_t> dynamics;
-		std::vector<placeholder_t> placeholders;
 		std::vector<platform_t> platforms;
 
 		std::vector<trigger_multiple_t> trigger_multiples;
+
+		std::vector<mesh_t> meshes;
+
+		std::vector<placeholder_t> placeholders;
 	};
 
 	void read_count(std::ifstream & stream, uint16_t & count)
@@ -130,6 +147,12 @@ namespace
 
 	void read_box(std::ifstream & ifile, box_t & box)
 	{
+		read_vector(ifile, box.translation);
+		read_quaternion(ifile, box.rotation);
+		read_vector(ifile, box.scalation);
+	}
+	void read_box2(std::ifstream & ifile, box2_t & box)
+	{
 		read_matrix(ifile, box.matrix);
 		read_vector(ifile, box.translation);
 		read_quaternion(ifile, box.rotation);
@@ -142,8 +165,8 @@ namespace
 	}
 	void read_trigger_timer(std::ifstream & ifile, trigger_timer_t & trigger_timer)
 	{
-		read_box(ifile, trigger_timer.start);
-		read_box(ifile, trigger_timer.stop);
+		read_box2(ifile, trigger_timer.start);
+		read_box2(ifile, trigger_timer.stop);
 	}
 
 	void read_statics(std::ifstream & ifile, std::vector<static_t> & statics)
@@ -167,21 +190,7 @@ namespace
 		for (auto & dynamic : dynamics)
 		{
 			read_string(ifile, dynamic.name);
-			read_box(ifile, dynamic.box);
-		}
-	}
-	void read_placeholders(std::ifstream & ifile, std::vector<placeholder_t> & items)
-	{
-		uint16_t nitems;
-		read_count(ifile, nitems);
-
-		items.resize(nitems);
-		for (auto & item : items)
-		{
-			read_string(ifile, item.name);
-			read_vector(ifile, item.pos);
-			read_quaternion(ifile, item.quat);
-			read_vector(ifile, item.scale);
+			read_box2(ifile, dynamic.box);
 		}
 	}
 	void read_platforms(std::ifstream & ifile, std::vector<platform_t> & platforms)
@@ -228,7 +237,54 @@ namespace
 		for (auto & trigger_multiple : trigger_multiples)
 		{
 			read_string(ifile, trigger_multiple.name);
-			read_box(ifile, trigger_multiple.box);
+			read_box2(ifile, trigger_multiple.box);
+		}
+	}
+
+	void read_meshes(std::ifstream & ifile, std::vector<mesh_t> & meshes)
+	{
+		uint16_t nmeshes;
+		read_count(ifile, nmeshes);
+
+		meshes.resize(nmeshes);
+		for (auto & mesh : meshes)
+		{
+			read_string(ifile, mesh.name);
+			read_matrix(ifile, mesh.matrix);
+
+			uint16_t nvertices;
+			read_count(ifile, nvertices);
+
+			mesh.vertices.resize(int(nvertices) * 3);
+			ifile.read(reinterpret_cast<char *>(mesh.vertices.data()), sizeof(float) * mesh.vertices.size());
+
+			uint16_t nnormals;
+			read_count(ifile, nnormals);
+			debug_assert(nvertices == nnormals);
+
+			mesh.normals.resize(int(nnormals) * 3);
+			ifile.read(reinterpret_cast<char *>(mesh.normals.data()), sizeof(float) * mesh.normals.size());
+
+			uint16_t ntriangles;
+			read_count(ifile, ntriangles);
+
+			mesh.triangles.resize(int(ntriangles) * 3);
+			ifile.read(reinterpret_cast<char *>(mesh.triangles.data()), sizeof(uint16_t) * mesh.triangles.size());
+		}
+	}
+
+	void read_placeholders(std::ifstream & ifile, std::vector<placeholder_t> & placeholders)
+	{
+		uint16_t nplaceholders;
+		read_count(ifile, nplaceholders);
+
+		placeholders.resize(nplaceholders);
+		for (auto & placeholder : placeholders)
+		{
+			read_string(ifile, placeholder.name);
+			read_vector(ifile, placeholder.pos);
+			read_quaternion(ifile, placeholder.quat);
+			read_vector(ifile, placeholder.scale);
 		}
 	}
 
@@ -239,10 +295,13 @@ namespace
 
 		read_statics(ifile, level.statics);
 		read_dynamics(ifile, level.dynamics);
-		read_placeholders(ifile, level.placeholders);
 		read_platforms(ifile, level.platforms);
 
 		read_trigger_multiples(ifile, level.trigger_multiples);
+
+		read_meshes(ifile, level.meshes);
+
+		read_placeholders(ifile, level.placeholders);
 	}
 
 	std::vector<engine::Entity> entities;
@@ -302,14 +361,11 @@ namespace gameplay
 				{
 					const auto & box = level.statics[i].box;
 
+					core::maths::Vector3f::array_type dimensions;
+					box.scalation.get_aligned(dimensions);
+
 					entities.push_back(engine::Entity::create());
 					{
-						const auto translation = box.matrix.get_column<3>();
-						core::maths::Vector4f::array_type buffer;
-						translation.get_aligned(buffer);
-
-						debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
-
 						std::vector<engine::physics::ShapeData> shapes;
 						shapes.push_back(engine::physics::ShapeData {
 								engine::physics::ShapeData::Type::BOX,
@@ -317,7 +373,7 @@ namespace gameplay
 								1.f,
 								core::maths::Vector3f{0.f, 0.f, 0.f},
 								core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f},
-								engine::physics::ShapeData::Geometry{engine::physics::ShapeData::Geometry::Box{box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f} }});
+								engine::physics::ShapeData::Geometry{engine::physics::ShapeData::Geometry::Box{dimensions[0], dimensions[1], dimensions[2]} }});
 
 						engine::physics::ActorData data {engine::physics::ActorData::Type::STATIC, engine::physics::ActorData::Behaviour::DEFAULT, box.translation, box.rotation, shapes};
 
@@ -325,10 +381,10 @@ namespace gameplay
 					}
 					{
 						engine::graphics::data::CuboidC data = {
-							box.matrix,
-							box.dimensions[0],
-							box.dimensions[1],
-							box.dimensions[2],
+							make_translation_matrix(box.translation) * make_matrix(box.rotation),
+							dimensions[0] * 2.f,
+							dimensions[1] * 2.f,
+							dimensions[2] * 2.f,
 							0xffcc4400
 						};
 						engine::graphics::renderer::add(entities.back(), data);
@@ -378,13 +434,14 @@ namespace gameplay
 			}
 			// placeholders
 			{
-			//	const json list = content["placeholders"];
+				const json & list = content["placeholders"];
 
 				for (unsigned int i = 0; i < level.placeholders.size(); i++)
 				{
-					const auto placeholder = level.placeholders[i];
+					const auto & placeholder = level.placeholders[i];
+					const std::string type = list[placeholder.name]["type"];
 
-					load(placeholder);
+					load(placeholder, type);
 				}
 			}
 			// platforms
@@ -415,24 +472,20 @@ namespace gameplay
 						engine::animation::add_model(entity, asset);
 					}
 
-					const auto box = platform.box;
+					const auto & box = platform.box;
+					core::maths::Vector3f::array_type dimensions;
+					box.scalation.get_aligned(dimensions);
 					{
 						engine::graphics::data::CuboidC data = {
-							box.matrix,
-							box.dimensions[0],
-							box.dimensions[1],
-							box.dimensions[2],
+							make_translation_matrix(box.translation) * make_matrix(box.rotation),
+							dimensions[0] * 2.f,
+							dimensions[1] * 2.f,
+							dimensions[2] * 2.f,
 							0xffcc4400
 						};
 						engine::graphics::renderer::add(entities.back(), data);
 					}
 					{
-						const auto translation = box.matrix.get_column<3>();
-						core::maths::Vector4f::array_type buffer;
-						translation.get_aligned(buffer);
-
-						debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
-
 						std::vector<engine::physics::ShapeData> shapes;
 						shapes.push_back(engine::physics::ShapeData {
 							engine::physics::ShapeData::Type::BOX,
@@ -440,7 +493,7 @@ namespace gameplay
 							1.f,
 							core::maths::Vector3f {0.f, 0.f, 0.f},
 							core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
-							engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f}}});
+							engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {dimensions[0], dimensions[1], dimensions[2]}}});
 
 						engine::physics::ActorData data {engine::physics::ActorData::Type::KINEMATIC, engine::physics::ActorData::Behaviour::OBSTACLE, box.translation, box.rotation, shapes};
 

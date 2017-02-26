@@ -1,6 +1,8 @@
 
 #include "level_placeholder.hpp"
 
+#include <core/maths/algorithm.hpp>
+
 #include <gameplay/characters.hpp>
 
 #include <engine/Entity.hpp>
@@ -31,21 +33,6 @@ namespace
 		engine::Entity id;
 		engine::Entity jointId;
 	};
-
-	std::vector<std::string> split(const std::string & name)
-	{
-		std::vector<std::string> parts;
-
-		std::stringstream ss;
-		ss.str(name);
-		std::string item;
-		while (std::getline(ss, item, '.'))
-		{
-			parts.push_back(item);
-		}
-
-		return parts;
-	}
 
 	Vector3f parse_pos(const json jtransform)
 	{
@@ -139,8 +126,8 @@ namespace
 				engine::physics::ActorData(
 					engine::physics::ActorData::Type::STATIC,
 					engine::physics::ActorData::Behaviour::DEFAULT,
-					placeholder.pos,
-					placeholder.quat,
+					placeholder.pos, // note: do not add pivot pos
+					placeholder.quat * parse_quat(jgroup["pivot"]),
 					shapes));
 
 			// TODO: create renderer object
@@ -164,8 +151,8 @@ namespace
 				engine::physics::ActorData(
 					engine::physics::ActorData::Type::DYNAMIC,
 					engine::physics::ActorData::Behaviour::DEFAULT,
-					placeholder.pos,
-					placeholder.quat,
+					Vector3f{0.f, 0.f, 0.f}, // note: anything is fine?
+					turret.head.pivot.quat,
 					shapes));
 
 			// TODO: create renderer object
@@ -194,8 +181,8 @@ namespace
 				engine::physics::ActorData(
 					engine::physics::ActorData::Type::DYNAMIC,
 					engine::physics::ActorData::Behaviour::DEFAULT,
-					placeholder.pos,
-					placeholder.quat,
+					Vector3f{0.f, 0.f, 0.f}, // note: anything is fine?
+					turret.barrel.pivot.quat,
 					shapes));
 
 			// TODO: create renderer object
@@ -210,7 +197,10 @@ namespace
 				turret.head.id,
 				engine::physics::transform_t{
 					turret.head.pivot.pos,
-					turret.head.pivot.quat}});
+					turret.head.pivot.quat * core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})},
+				engine::physics::transform_t{
+					Vector3f{0.f, 0.f, 0.f},
+					core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})}});
 
 		// connect the head with the barrel
 		engine::physics::post_joint(
@@ -221,14 +211,17 @@ namespace
 				turret.barrel.id,
 				engine::physics::transform_t{
 					turret.barrel.pivot.pos,
-					turret.barrel.pivot.quat}});
+					turret.barrel.pivot.quat * core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})},
+				engine::physics::transform_t{
+					Vector3f{0.f, 0.f, 0.f},
+					core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})}});
 
 		// add the main turret entity to characters.
 		// this object contains all the sub-objects
 		//gameplay::characters::post_add_turret(turret);
 	}
 
-	void load_beam(const placeholder_t & placeholder, const std::string name)
+	void load_beam(const placeholder_t & placeholder)
 	{
 		//  load file with additional data of the "beam" object
 		const json jcontent = json::parse(std::ifstream("res/beam.json"));
@@ -238,9 +231,7 @@ namespace
 		beam.id = Entity::create();
 		beam.jointId = Entity::create();
 
-		const auto trans = parse_pivot(jcontent["transform"]);
-
-		const auto jb = jcontent[name];
+		const auto jb = jcontent[placeholder.name];
 		const float driveSpeed = jb["driveSpeed"];
 		const float forceMax = jb["forceMax"];
 
@@ -268,7 +259,7 @@ namespace
 				engine::physics::ActorData(
 					engine::physics::ActorData::Type::DYNAMIC,
 					engine::physics::ActorData::Behaviour::DEFAULT,
-					Vector3f {0.f, 0.f, 0.f},
+					Vector3f{0.f, 0.f, 0.f},
 					placeholder.quat,
 					shapes));
 
@@ -284,7 +275,11 @@ namespace
 				beam.id,
 				engine::physics::transform_t{
 					placeholder.pos,
-					trans.quat},
+					core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})
+				},
+				engine::physics::transform_t{
+					Vector3f{0.f, 0.f, 0.f},
+					core::maths::rotation_of(rotate(Vector3f{0.f, 0.f, 1.f}, inverse(placeholder.quat)))},
 				driveSpeed,
 				forceMax});
 	}
@@ -294,24 +289,16 @@ namespace gameplay
 {
 namespace level
 {
-	void load(const placeholder_t & placeholder)
+	void load(const placeholder_t & placeholder, const std::string & type)
 	{
-		std::vector<std::string> parts = split(placeholder.name);
-
-		if (parts.size()<=2)
-		{
-			debug_printline(0xffffffff, "Warning: Placeholder does not have a valid name: ", placeholder.name);
-			return;
-		}
-
-		if (parts[1]=="turret")
+		if (type == "turret")
 		{
 			load_turret(placeholder);
 		}
 		else
-		if (parts[1]=="beam")
+		if (type == "beam")
 		{
-			load_beam(placeholder, parts[2]);
+			load_beam(placeholder);
 		}
 		else
 		{

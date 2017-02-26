@@ -59,7 +59,8 @@ namespace physics
 		engine::Entity actorId1;
 		engine::Entity actorId2;
 
-		transform_t transform;
+		transform_t transform1;
+		transform_t transform2;
 
 		float driveSpeed;
 		float forceMax;

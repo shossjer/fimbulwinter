@@ -15,9 +15,19 @@ namespace core
 {
 	namespace maths
 	{
+		struct algorithm;
+	}
+}
+
+namespace core
+{
+	namespace maths
+	{
 		template <typename T>
 		class Quaternion
 		{
+			friend struct algorithm;
+
 		public:
 			using array_type = T[4];
 			using this_type = Quaternion<T>;
@@ -209,6 +219,12 @@ namespace core
 
 		using Quaternionf = Quaternion<float>;
 		using Quaterniond = Quaternion<double>;
+
+		template <typename T>
+		Quaternion<T> inverse(const Quaternion<T> & q)
+		{
+			return conjugate(q);
+		}
 	}
 }
 

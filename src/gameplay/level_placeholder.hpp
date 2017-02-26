@@ -19,7 +19,7 @@ namespace level
 		core::maths::Vector3f scale;
 	};
 
-	void load(const placeholder_t & placeholder);
+	void load(const placeholder_t & placeholder, const std::string & type);
 }
 }
 
