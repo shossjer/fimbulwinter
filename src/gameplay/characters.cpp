@@ -5,23 +5,35 @@
 #include <core/container/Collection.hpp>
 #include <core/debug.hpp>
 
+#include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 #include <engine/hid/input.hpp>
+#include <engine/physics/Callback.hpp>
 #include <engine/physics/physics.hpp>
 
 #include <gameplay/CharacterState.hpp>
 
-using core::maths::Vector2f;
-using core::maths::Vector3f;
+using Vector2f = core::maths::Vector2f;
+using Vector3f = core::maths::Vector3f;
+using Matrix4x4f = core::maths::Matrix4x4f;
+using Quaternionf = core::maths::Quaternionf;
 
 namespace
 {
 	using ::gameplay::characters::CharacterState;
+	using collision_t = ::engine::physics::Callback::data_t;
+	using trigger_t = ::gameplay::characters::trigger_t;
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, gameplay::characters::Command>, 100> queue_commands;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueCreate;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueRemove;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueAnimationFinished;
+
+	core::container::CircleQueueSRMW<::gameplay::characters::trigger_t, 100> queueTriggers;
+	core::container::CircleQueueSRMW<::gameplay::characters::turret_t, 100> queueTurrets;
+
+	core::container::CircleQueueSRMW<collision_t, 100> queueCollisionsFound;
+	core::container::CircleQueueSRMW<collision_t, 100> queueCollisionsLeft;
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::Entity>, 10> queue_add_cameras;
 
@@ -29,10 +41,12 @@ namespace
 	<
 		engine::Entity,
 		101,
-		std::array<CharacterState, 50>,
-		// clang errors on collections with only one array, so here is
-		// a dummy array to satisfy it
-		std::array<int, 1>
+		std::array<CharacterState, 20>,
+		std::array<::gameplay::characters::trigger_t, 20>,
+		std::array<::gameplay::characters::turret_t, 20>
+		//// clang errors on collections with only one array, so here is
+		//// a dummy array to satisfy it
+		//std::array<int, 1>
 	>
 	components;
 
@@ -71,6 +85,60 @@ namespace
 		void operator () (X & x) {}
 	};
 
+	void send(const std::string & action, const bool repeat, const std::vector<::engine::Entity> & targets)
+	{
+		for (const auto & target : targets)
+		{
+			::engine::animation::update(target, ::engine::animation::action {action, repeat});
+		}
+	}
+
+	struct action_collision_found
+	{
+		void operator() (trigger_t & trigger)
+		{
+			switch (trigger.type)
+			{
+				case trigger_t::Type::DOOR:
+				{
+					debug_printline(0xffffffff, "collision found for door type trigger");
+					send("open", false, trigger.targets);
+					break;
+				}
+				default:
+					debug_printline(0xffffffff, "collision found for unknown type trigger");
+			}
+		}
+		template <typename X>
+		void operator () (X & x)
+		{
+			debug_printline(0xffffffff, "collision found for unused class");
+		}
+	};
+
+	struct action_collision_lost
+	{
+		void operator() (trigger_t & trigger)
+		{
+			switch (trigger.type)
+			{
+				case trigger_t::Type::DOOR:
+				{
+					debug_printline(0xffffffff, "collision lost for door type trigger");
+					send("close", false, trigger.targets);
+					break;
+				}
+				default:
+					debug_printline(0xffffffff, "collision lost for unknown type trigger");
+			}
+		}
+		template <typename X>
+		void operator () (X & x)
+		{
+			debug_printline(0xffffffff, "collision lost for unused class");
+		}
+	};
+
 	struct Camera
 	{
 		engine::Entity camera;
@@ -91,9 +159,9 @@ namespace
 			Vector3f goal;
 
 			vec *= 0.25f;
-			goal = pos+vec+core::maths::Vector3f {0.f, 0.f, 5.f};
+			goal = pos+vec+core::maths::Vector3f {0.f, 0.f, 10.f};
 
-			static core::maths::Vector3f current {0.f, 0.f, 20.f};
+			static core::maths::Vector3f current {0.f, 0.f, 50.f};
 			const auto delta = goal-current;
 
 			current += delta * .1f;
@@ -124,12 +192,166 @@ namespace
 	more_components;
 }
 
+namespace engine
+{
+	namespace physics
+	{
+		extern void subscribe(const engine::physics::Callback & callback);
+	}
+}
+
 namespace gameplay
 {
 namespace characters
 {
+	class PhysicsCallback : public ::engine::physics::Callback
+	{
+	public:
+
+		void postContactFound(const data_t & data) const override
+		{
+			// must be a valid type of target
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				break;
+
+				default:
+				return;
+			}
+
+			// add on queue
+			queueCollisionsFound.try_emplace(data);
+
+			// debug
+			switch (data.behaviours[0])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				debug_printline(0xffffffff, "Trigger collision found (should not happen)");
+				break;
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				debug_printline(0xffffffff, "Player collision found");
+				break;
+				case ::engine::physics::ActorData::Behaviour::OBSTACLE:
+				debug_printline(0xffffffff, "Obstacle collision found");
+				break;
+				case ::engine::physics::ActorData::Behaviour::DEFAULT:
+				debug_printline(0xffffffff, "Default collision found (should not happen)");
+				break;
+			}
+		}
+
+		void postContactLost(const data_t & data) const override
+		{
+			// must be a valid type of target
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				break;
+
+				default:
+				return;
+			}
+
+			// add on queue
+			queueCollisionsLeft.try_emplace(data);
+
+			// debug
+			switch (data.behaviours[0])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				debug_printline(0xffffffff, "Trigger collision lost (should not happen)");
+				break;
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				debug_printline(0xffffffff, "Player collision lost");
+				break;
+				case ::engine::physics::ActorData::Behaviour::OBSTACLE:
+				debug_printline(0xffffffff, "Obstacle collision lost");
+				break;
+				case ::engine::physics::ActorData::Behaviour::DEFAULT:
+				debug_printline(0xffffffff, "Default collision lost (should not happen)");
+				break;
+			}
+		}
+
+		void postTriggerFound(const data_t & data) const override
+		{
+			// must be a valid type of target
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				break;
+
+				default:
+				return;
+			}
+
+			// add on queue
+			queueCollisionsFound.try_emplace(data);
+
+			// debug
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				debug_printline(0xffffffff, "Trigger collision found with: Trigger (should not happen)");
+				break;
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				debug_printline(0xffffffff, "Trigger collision found with: Player");
+				break;
+				case ::engine::physics::ActorData::Behaviour::OBSTACLE:
+				debug_printline(0xffffffff, "Trigger collision found with: Obstacle");
+				break;
+				case ::engine::physics::ActorData::Behaviour::DEFAULT:
+				debug_printline(0xffffffff, "Trigger collision found with: Default");
+				break;
+			}
+		}
+
+		void postTriggerLost(const data_t & data) const override
+		{
+			// must be a valid type of target
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				break;
+
+				default:
+				return;
+			}
+			// add on queue
+			queueCollisionsLeft.try_emplace(data);
+
+			// debug
+			switch (data.behaviours[1])
+			{
+				case ::engine::physics::ActorData::Behaviour::TRIGGER:
+				debug_printline(0xffffffff, "Trigger collision lost with: Trigger (should not happen)");
+				break;
+				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				debug_printline(0xffffffff, "Trigger collision lost with: Player");
+				break;
+				case ::engine::physics::ActorData::Behaviour::OBSTACLE:
+				debug_printline(0xffffffff, "Trigger collision lost with: Obstacle");
+				break;
+				case ::engine::physics::ActorData::Behaviour::DEFAULT:
+				debug_printline(0xffffffff, "Trigger collision lost with: Default");
+				break;
+			}
+		}
+	} physicsCallback;
+
+	void setup()
+	{
+		::engine::physics::subscribe(physicsCallback);
+	}
+
 	void update()
 	{
+		static float timeFrame = 0;
 		{
 			engine::Entity id;
 
@@ -163,6 +385,36 @@ namespace characters
 			}
 		}
 		{
+			// create
+			trigger_t trigger;
+			while (queueTriggers.try_pop(trigger))
+			{
+				components.emplace<trigger_t>(trigger.id, trigger);
+			}
+		}
+		{
+			turret_t turret;
+			while (queueTurrets.try_pop(turret))
+			{
+				turret.timestamp = timeFrame + 3.f;
+				components.emplace<turret_t>(turret.id, turret);
+			}
+		}
+		{
+			// collision callback
+			collision_t collision;
+			while (queueCollisionsFound.try_pop(collision))
+			{
+				// find trigger and change its door... totally not hardcoded at all
+				components.call(collision.ids[0], action_collision_found());
+			}
+			while (queueCollisionsLeft.try_pop(collision))
+			{
+				// find trigger and change its door... totally not hardcoded at all
+				components.call(collision.ids[0], action_collision_lost());
+			}
+		}
+		{
 			std::pair<engine::Entity, engine::Entity> camera;
 			while (queue_add_cameras.try_pop(camera))
 			{
@@ -179,6 +431,55 @@ namespace characters
 				engine::physics::movement_data {engine::physics::movement_data::Type::ACCELERATION, component.movement} );
 		}
 
+		// update turrets!
+		for (auto & turret : components.get<turret_t>())
+		{
+			if (turret.timestamp > timeFrame) continue;
+
+			turret.timestamp = timeFrame + 1.f;
+
+			const Vector3f pos = turret.transform.pos + turret.projectile.pos;
+
+			const auto id = engine::Entity::create();
+			const float radie = 0.1f;
+
+			// Fire!
+			{
+				std::vector<engine::physics::ShapeData> shapes;
+				shapes.push_back(engine::physics::ShapeData {
+					engine::physics::ShapeData::Type::SPHERE,
+					engine::physics::Material::STONE,
+					0.5f,
+					Vector3f{0.f, 0.f, 0.f},
+					turret.projectile.quat,
+					engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Sphere {radie}}});
+
+				engine::physics::ActorData data {
+					engine::physics::ActorData::Type::PROJECTILE,
+					engine::physics::ActorData::Behaviour::PROJECTILE,
+					pos,
+					turret.transform.quat,
+					shapes};
+
+				engine::physics::post_create(id, data);
+				engine::physics::post_update_movement(
+					id,
+					engine::physics::movement_data {
+						engine::physics::movement_data::Type::IMPULSE,
+						Vector3f{-200.f, 0.f, 0.f}});
+			}
+			{
+				engine::graphics::data::CuboidC data = {
+					make_translation_matrix(pos),
+					radie*2,
+					radie*2,
+					radie*2,
+					0xffffffff
+				};
+				engine::graphics::renderer::add(id, data);
+			}
+		}
+
 		// for (auto & component : components.get<CharacterState>())
 		// {
 		// 	auto res = engine::physics::update(components.get_key(component),
@@ -192,15 +493,17 @@ namespace characters
 		{
 			component.update();
 		}
+
+		timeFrame += 1.f/50.f;
 	}
 
-	void create(const engine::Entity id)
+	void post_create_player(const engine::Entity id)
 	{
 		const auto res = queueCreate.try_push(id);
 		debug_assert(res);
 	}
 
-	void remove(const engine::Entity id)
+	void post_remove_player(const engine::Entity id)
 	{
 		const auto res = queueRemove.try_push(id);
 		debug_assert(res);
@@ -215,6 +518,18 @@ namespace characters
 	void post_add_camera(engine::Entity id, engine::Entity target)
 	{
 		const auto res = queue_add_cameras.try_emplace(id, target);
+		debug_assert(res);
+	}
+
+	void post_add_trigger(trigger_t trigger)
+	{
+		const auto res = queueTriggers.try_emplace(trigger);
+		debug_assert(res);
+	}
+
+	void post_add_turret(turret_t turret)
+	{
+		const auto res = queueTurrets.try_emplace(turret);
 		debug_assert(res);
 	}
 

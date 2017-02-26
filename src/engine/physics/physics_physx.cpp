@@ -44,12 +44,16 @@ namespace physics
 		::physx::PxDefaultAllocator gDefaultAllocatorCallback;
 
 		::physx::PxFoundation * pFoundation;
+		::physx::PxCooking * pCooking;
 
 		::physx::PxDefaultCpuDispatcher * pCpuDispatcher;
 	}
 
 	// Collecation containing all Actors in the world.
 	ActorCollection actors;
+
+	// Collecation containing all Joints in the world.
+	JointCollection joints;
 
 	// All defined physics materials. Contains density, friction and restitution
 	MaterialMap materials;
@@ -61,7 +65,6 @@ namespace physics
 		//	* onGrounded - called when Actor is grounded after falling
 		const Callback * pCallback;
 
-		core::container::CircleQueueSRMW<std::pair<engine::Entity, core::maths::radianf>, 100> queue_headings;
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, movement_data>, 100> queue_movements;
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, translation_data>, 100> queue_translations;
 	}
@@ -70,47 +73,89 @@ namespace physics
 	{
 		void onConstraintBreak(physx::PxConstraintInfo* constraints, physx::PxU32 count)
 		{
+			debug_printline(0xffffffff, "onConstraintBreak");
 		}
 
 		void onWake(physx::PxActor** actors, physx::PxU32 count)
 		{
+			debug_printline(0xffffffff, "onWake");
 		}
 
 		void onSleep(physx::PxActor** actors, physx::PxU32 count)
 		{
+			debug_printline(0xffffffff, "onSleep");
 		}
 
 		void onContact(const physx::PxContactPairHeader & pairHeader, const physx::PxContactPair * pairs, physx::PxU32 nbPairs)
 		{
-			auto val = pairs[0];
+			const auto val = pairs[0];
+
+			Callback::data_t data;
+
+			const auto & filterData1 = val.shapes[0]->getSimulationFilterData();
+			const auto & filterData2 = val.shapes[1]->getSimulationFilterData();
+
+			// find most prio object behaviour
+			if (filterData1.word0 < filterData2.word0)
+			{
+				data.ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
+				data.ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
+
+				data.behaviours[0] = static_cast<ActorData::Behaviour>(filterData1.word0);
+				data.behaviours[1] = static_cast<ActorData::Behaviour>(filterData2.word0);
+
+				data.materials[0] = static_cast<Material>(filterData1.word2);
+				data.materials[1] = static_cast<Material>(filterData2.word2);
+			}
+			else
+			{
+				data.ids[1] = (std::size_t)(pairHeader.actors[0]->userData);
+				data.ids[0] = (std::size_t)(pairHeader.actors[1]->userData);
+
+				data.behaviours[1] = static_cast<ActorData::Behaviour>(filterData1.word0);
+				data.behaviours[0] = static_cast<ActorData::Behaviour>(filterData2.word0);
+
+				data.materials[1] = static_cast<Material>(filterData1.word2);
+				data.materials[0] = static_cast<Material>(filterData2.word2);
+			}
 
 			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_FOUND))
 			{
-				Entity ids[2];
-				Material materials[2];
-
-				ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
-				ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
-
-				materials[0] = static_cast<Material>(pairs[0].shapes[0]->getSimulationFilterData().word2);
-				materials[1] = static_cast<Material>(pairs[0].shapes[1]->getSimulationFilterData().word2);
-
-				pCallback->postContactFound(ids, materials);
+				pCallback->postContactFound(data);
 			}
 			else
 			if (val.events.isSet(PxPairFlag::eNOTIFY_TOUCH_LOST))
 			{
-				Entity ids[2];
-
-				ids[0] = (std::size_t)(pairHeader.actors[0]->userData);
-				ids[1] = (std::size_t)(pairHeader.actors[1]->userData);
-
-				pCallback->postContactLost(ids);
+				pCallback->postContactLost(data);
 			}
 		}
 
 		void onTrigger(physx::PxTriggerPair* pairs, physx::PxU32 count)
 		{
+			const auto val = pairs[0];
+
+			Callback::data_t data;
+
+			data.ids[0] = (std::size_t)(val.triggerActor->userData);
+			data.ids[1] = (std::size_t)(val.otherActor->userData);
+
+			const auto & filterData1 = val.triggerShape->getSimulationFilterData();
+			const auto & filterData2 = val.otherShape->getSimulationFilterData();
+
+			data.behaviours[0] = static_cast<ActorData::Behaviour>(filterData1.word0);
+			data.behaviours[1] = static_cast<ActorData::Behaviour>(filterData2.word0);
+
+			data.materials[0] = static_cast<Material>(filterData1.word2);
+			data.materials[1] = static_cast<Material>(filterData2.word2);
+
+			if (val.status==PxPairFlag::eNOTIFY_TOUCH_FOUND)
+			{
+				pCallback->postTriggerFound(data);
+			}
+			else
+			{
+				pCallback->postTriggerLost(data);
+			}
 		}
 	} simulationCallback;
 
@@ -165,6 +210,15 @@ namespace physics
 			return false;
 		}
 
+		physx::PxCookingParams cookingParams {physx::PxTolerancesScale()};
+		physx_ptr<physx::PxCooking> pCooking {PxCreateCooking(PX_PHYSICS_VERSION, *pFoundation, cookingParams)};
+
+		if (pCooking.get()==nullptr)
+		{
+			debug_printline(0xffffffff, "Could not create physx Cooking.");
+			return false;
+		}
+
 		// register callback from physx simulation of contact events.
 		pScene->setSimulationEventCallback(&simulationCallback);
 
@@ -173,6 +227,7 @@ namespace physics
 		physx2::pCpuDispatcher = pCPUDispatcher.release();
 		physx2::pWorld = pWorld.release();
 		physx2::pScene = pScene.release();
+		physx2::pCooking = pCooking.release();
 
 		debug_printline(0xffffffff, "Physx successfully created.");
 
@@ -207,6 +262,8 @@ namespace physics
 
 		physx2::pCpuDispatcher->release();
 
+		physx2::pCooking->release();
+
 		physx2::pFoundation->release();
 	}
 
@@ -218,17 +275,17 @@ namespace physics
 
 		void operator () (ActorCharacter & x)
 		{
-			// movement needs to be rotated acording to character heading.. hope this can be done better
-			core::maths::Vector3f::array_type buffer;
-			movement.vec.get_aligned(buffer);
+			//// movement needs to be rotated acording to character heading.. hope this can be done better
+			//core::maths::Vector3f::array_type buffer;
+			//movement.vec.get_aligned(buffer);
 
-			// is this really the scale? /8
-			const float mx = -buffer[1]*std::sin(x.heading.get())/8;
-			const float my = buffer[2]/8;
+			//// is this really the scale? /8
+			//const float mx = -buffer[1]*std::sin(x.heading.get())/8;
+			//const float my = buffer[2]/8;
 
-			const auto val = physx::PxVec3 {mx, my + 0.5f*(TIME_STEP*-9.82f), 0.f};
+			//const auto val = physx::PxVec3 {mx, my + 0.5f*(TIME_STEP*-9.82f), 0.f};
 
-			x.body->move(val, 0.0f, TIME_STEP, physx::PxControllerFilters {});
+			//x.body->move(val, 0.0f, TIME_STEP, physx::PxControllerFilters {});
 		}
 
 		void operator () (ActorDynamic & x)
@@ -291,34 +348,8 @@ namespace physics
 		}
 	};
 
-	struct actor_header
-	{
-		const core::maths::radianf heading;
-
-		actor_header(const core::maths::radianf heading) : heading(heading) {}
-
-		void operator () (ActorCharacter & x)
-		{
-			x.heading = heading;
-		}
-
-		template<typename X>
-		void operator () (X & x)
-		{
-			debug_unreachable();
-		}
-	};
-
 	void update_finish()
 	{
-		// poll heading queue
-		{
-			std::pair<engine::Entity, core::maths::radianf> data;
-			while (queue_headings.try_pop(data))
-			{
-				actors.call(data.first, actor_header {data.second});
-			}
-		}
 		// poll movement queue
 		{
 			std::pair<engine::Entity, movement_data> data;
@@ -335,6 +366,9 @@ namespace physics
 				actors.call(data.first, actor_translate {data.second});
 			}
 		}
+
+	//	if (joint!=nullptr)
+	//		joint->setDriveVelocity(10);
 
 		// Update the physics world
 		physx2::pScene->simulate(TIME_STEP);
@@ -355,10 +389,43 @@ namespace physics
 
 			engine::graphics::data::ModelviewMatrix data = {
 				core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
-				make_matrix(core::maths::Quaternionf(-pose.q.w, pose.q.x, pose.q.y, pose.q.z))
+				make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z))
 			};
 
 			engine::graphics::renderer::update(id, std::move(data));
+
+			// for debug purpose
+			{
+				physx::PxShape * shapes[10];
+
+				if (item.actor->getType()==PxActorType::eRIGID_DYNAMIC)
+				{
+					const PxRigidActor * actor = static_cast<PxRigidActor*>(item.actor);
+					const auto n = actor->getShapes(shapes, 10, 0);
+
+					const auto & t = actor->getGlobalPose();
+					const core::maths::Matrix4x4f actorMatrix =
+						make_translation_matrix(core::maths::Vector3f {t.p.x, t.p.y, t.p.z}) *
+						make_matrix(core::maths::Quaternionf {t.q.w, t.q.x, t.q.y, t.q.z});
+
+					for (unsigned int i = 0; i < n; i++)
+					{
+						const auto shape = shapes[i];
+
+						const ::engine::Entity renderId = (std::size_t)shape->userData;
+
+						const auto & r = shape->getLocalPose();
+
+						const core::maths::Matrix4x4f localMatrix =
+							make_translation_matrix(core::maths::Vector3f {r.p.x, r.p.y, r.p.z}) *
+							make_matrix(core::maths::Quaternionf {r.q.w, r.q.x, r.q.y, r.q.z});
+
+						const core::maths::Matrix4x4f matrix = actorMatrix*localMatrix;
+
+						engine::graphics::renderer::update(renderId, engine::graphics::data::ModelviewMatrix {matrix});
+					}
+				}
+			}
 		}
 	}
 
@@ -418,11 +485,6 @@ namespace physics
 	void post_update_movement(const engine::Entity id, const translation_data translation)
 	{
 		const auto res = queue_translations.try_emplace(id, translation);
-		debug_assert(res);
-	}
-	void post_update_heading(const engine::Entity id, const core::maths::radianf rotation)
-	{
-		const auto res = queue_headings.try_emplace(id, rotation);
 		debug_assert(res);
 	}
 }

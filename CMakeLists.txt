@@ -50,10 +50,11 @@ set(TRIBUNAL_SOURCE
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
 	src/engine/physics/creation_physx.cpp
+	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
 	src/gameplay/characters.cpp
-	src/gameplay/effects.cpp
 	src/gameplay/level.cpp
+	src/gameplay/level_placeholder.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/ui.cpp
 	)
@@ -103,14 +104,14 @@ set(TRIBUNAL_HEADER
 	src/gameplay/characters.hpp
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp
-	src/gameplay/Effect.hpp
-	src/gameplay/effects.hpp
 	src/gameplay/level.hpp
+	src/gameplay/level_placeholder.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
 	src/utility/aligned_array.hpp
 	src/utility/array.hpp
 	src/utility/inaccessible.hpp
+	src/utility/json.hpp
 	src/utility/optional.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
@@ -192,6 +193,19 @@ message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
 find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
+# look for JSON library hpp file
+find_file(FILE_JSON_HEADER_WITH_UNDERSCORE nlohmann_json.hpp)
+find_file(FILE_JSON_HEADER_WITH_DIRECTORY nlohmann/json.hpp)
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER_WITH_UNDERSCORE}")
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER_WITH_DIRECTORY}")
+if (FILE_JSON_HEADER_WITH_UNDERSCORE)
+  set(HAVE_NLOHMANN_JSON_HPP_WITH_UNDERSCORE 1)
+elseif (FILE_JSON_HEADER_WITH_DIRECTORY)
+  set(HAVE_NLOHMANN_JSON_HPP_WITH_DIRECTORY 1)
+else()
+  message(FATAL_ERROR "JSON parser - You need to get one!")
+endif()
+
 # physics PHYSX
 #
 # Check that Physx header files exist
@@ -203,22 +217,6 @@ if (PHYSICS_USE_PHYSX)
 	message(STATUS "Looking for Physx header files - ${FILE_PHYSX_HEADERS}")
 
 	# release
-	find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x64)
-	if (NOT LIBRARY_PHYSX_CORE_D)
-	  find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x86)
-	endif()
-	find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x64)
-	if (NOT LIBRARY_PHYSX_COMMON_D)
-	  find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x86)
-	endif()
-	find_library(LIBRARY_PHYSX_EXTENSIONS_D PhysX3ExtensionsDEBUG)
-	find_library(LIBRARY_PHYSX_PROFILE_D PhysXProfileSDKDEBUG)
-	find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x64)
-	if (NOT LIBRARY_PHYSX_CHARACTER_D)
-	  find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x86)
-	endif()
-
-	# debug
 	find_library(LIBRARY_PHYSX_CORE PhysX3_x64)
 	if (NOT LIBRARY_PHYSX_CORE)
 	  find_library(LIBRARY_PHYSX_CORE PhysX3_x86)
@@ -233,17 +231,44 @@ if (PHYSICS_USE_PHYSX)
 	if (NOT LIBRARY_PHYSX_CHARACTER)
 	  find_library(LIBRARY_PHYSX_CHARACTER PhysX3CharacterKinematic_x86)
 	endif()
+	find_library(LIBRARY_PHYSX_COOKING PhysX3Cooking_x64)
+	if (NOT LIBRARY_PHYSX_COOKING)
+	  find_library(LIBRARY_PHYSX_COOKING PhysX3Cooking_x86)
+	endif()
+
+	# debug
+	find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x64)
+	if (NOT LIBRARY_PHYSX_CORE_D)
+	  find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x86)
+	endif()
+	find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x64)
+	if (NOT LIBRARY_PHYSX_COMMON_D)
+	  find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x86)
+	endif()
+	find_library(LIBRARY_PHYSX_EXTENSIONS_D PhysX3ExtensionsDEBUG)
+	find_library(LIBRARY_PHYSX_PROFILE_D PhysXProfileSDKDEBUG)
+	find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x64)
+	if (NOT LIBRARY_PHYSX_CHARACTER_D)
+	  find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x86)
+	endif()
+	find_library(LIBRARY_PHYSX_COOKING_D PhysX3CookingDEBUG_x64)
+	if (NOT LIBRARY_PHYSX_COOKING_D)
+	  find_library(LIBRARY_PHYSX_COOKING_D PhysX3CookingDEBUG_x86)
+	endif()
 
 	message(STATUS "Looking for Physx core - ${LIBRARY_PHYSX_CORE}")
 	message(STATUS "Looking for Physx commons - ${LIBRARY_PHYSX_COMMON}")
 	message(STATUS "Looking for Physx extensions - ${LIBRARY_PHYSX_EXTENSIONS}")
 	message(STATUS "Looking for Physx profile - ${LIBRARY_PHYSX_PROFILE}")
 	message(STATUS "Looking for Physx character - ${LIBRARY_PHYSX_CHARACTER}")
+	message(STATUS "Looking for Physx cooking - ${LIBRARY_PHYSX_COOKING}")
+
 	message(STATUS "Looking for Physx core debug - ${LIBRARY_PHYSX_CORE_D}")
 	message(STATUS "Looking for Physx commons debug - ${LIBRARY_PHYSX_COMMON_D}")
 	message(STATUS "Looking for Physx extensions debug - ${LIBRARY_PHYSX_EXTENSIONS_D}")
 	message(STATUS "Looking for Physx profile debug - ${LIBRARY_PHYSX_PROFILE_D}")
 	message(STATUS "Looking for Physx character debug - ${LIBRARY_PHYSX_CHARACTER_D}")
+	message(STATUS "Looking for Physx cooking debug - ${LIBRARY_PHYSX_COOKING_D}")
 
 	# graphics libraries
 	if (LIBRARY_PHYSX_CORE)
@@ -253,6 +278,7 @@ if (PHYSICS_USE_PHYSX)
 	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_EXTENSIONS_D} optimized ${LIBRARY_PHYSX_EXTENSIONS})
 	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_PROFILE_D} optimized ${LIBRARY_PHYSX_PROFILE})
 	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_CHARACTER_D} optimized ${LIBRARY_PHYSX_CHARACTER})
+	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_COOKING_D} optimized ${LIBRARY_PHYSX_COOKING})
 	endif()
 endif()
 

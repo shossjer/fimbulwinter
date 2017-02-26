@@ -23,6 +23,9 @@ namespace physics
 		// stick to one.
 		extern ::physx::PxScene * pScene;
 
+		// Cooking used during creation of Mesh shapes.
+		extern ::physx::PxCooking * pCooking;
+
 		// Manager for character controllers
 		// used to create characters.
 		extern ::physx::PxControllerManager * pControllerManager;

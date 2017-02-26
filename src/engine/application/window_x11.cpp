@@ -165,7 +165,7 @@ namespace
 			resource(glXChooseVisual(std::forward<Ps>(ps)...))
 			{
 				if (this->resource == nullptr)
-					throw std::runtime_error("glXGetVisualFromFBConfig failed");
+					throw std::runtime_error("glXChooseVisual failed");
 			}
 		~XVisualInfo_guard()
 			{
@@ -344,12 +344,15 @@ namespace engine
 #if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
 				// visual
 				int fb_attributes[] = {
-					GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
-					GLX_RENDER_TYPE,   GLX_RGBA_BIT,
 					GLX_DOUBLEBUFFER,  True,
-					GLX_RED_SIZE,      1,
-					GLX_GREEN_SIZE,    1,
-					GLX_BLUE_SIZE,     1,
+					GLX_RED_SIZE,      8,
+					GLX_GREEN_SIZE,    8,
+					GLX_BLUE_SIZE,     8,
+					GLX_ALPHA_SIZE,    8,
+					GLX_DEPTH_SIZE,    24,
+					GLX_STENCIL_SIZE,  8,
+					GLX_RENDER_TYPE,   GLX_RGBA_BIT,
+					GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
 					None
 				};
 				int n_buffers;
@@ -394,8 +397,13 @@ namespace engine
 				// visual
 				GLint visual_attributes[] = {
 					GLX_RGBA,
-					GLX_DEPTH_SIZE, 24,
 					GLX_DOUBLEBUFFER,
+					GLX_RED_SIZE, 8,
+					GLX_GREEN_SIZE, 8,
+					GLX_BLUE_SIZE, 8,
+					GLX_ALPHA_SIZE, 8,
+					GLX_DEPTH_SIZE, 24,
+					GLX_STENCIL_SIZE, 8,
 					None
 				};
 

@@ -24,6 +24,7 @@ namespace engine
 				core::maths::Matrix4x4f modelview;
 				float width, height, depth;
 				Color color;
+				bool wireframe;
 			};
 			// line segments with color
 			struct LineC

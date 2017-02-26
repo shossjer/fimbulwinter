@@ -8,7 +8,6 @@
 
 #include <config.h>
 
-#include <core/async/delay.hpp>
 #include <core/color.hpp>
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
@@ -103,7 +102,7 @@ namespace
 
 namespace
 {
-	// the vertices of a cuboid is numbered as followed:
+	// the vertices of cuboid_c are numbered as followed:
 	//              23--22
 	//             /    /
 	//            21--20
@@ -120,21 +119,23 @@ namespace
 	//   +----x
 	//  /
 	// z
-	struct cuboidc_t
+	struct cuboid_c
 	{
 		core::maths::Matrix4x4f modelview;
 		std::array<float, 3 * 24> vertices;
 		engine::graphics::opengl::Color4ub color;
+		bool is_transparent; // ugh!!
 
 		static const std::array<uint16_t, 3 * 12> triangles;
 		static const std::array<float, 3 * 24> normals;
 
-		cuboidc_t(engine::graphics::data::CuboidC && data) :
+		cuboid_c(engine::graphics::data::CuboidC && data) :
 			modelview(std::move(data.modelview)),
 			color((data.color & 0x000000ff) >>  0,
 			      (data.color & 0x0000ff00) >>  8,
 			      (data.color & 0x00ff0000) >> 16,
-			      (data.color & 0xff000000) >> 24)
+			      (data.color & 0xff000000) >> 24),
+			is_transparent{bool((data.color & 0xff000000) != 0xff000000)}
 		{
 			const float xoffset = data.width / 2.f;
 			const float yoffset = data.height / 2.f;
@@ -169,13 +170,14 @@ namespace
 			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
 			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
 		}
-		cuboidc_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+
+		cuboid_c & operator = (engine::graphics::data::ModelviewMatrix && data)
 		{
 			modelview = std::move(data.matrix);
 			return *this;
 		}
 	};
-	const std::array<uint16_t, 3 * 12> cuboidc_t::triangles = {{
+	const std::array<uint16_t, 3 * 12> cuboid_c::triangles = {{
 			0,  1,  3,
 			0,  3,  2,
 			4,  5,  7,
@@ -189,7 +191,7 @@ namespace
 			20, 21, 23,
 			20, 23, 22
 		}};
-	const std::array<float, 3 * 24> cuboidc_t::normals = {{
+	const std::array<float, 3 * 24> cuboid_c::normals = {{
 			0.f, -1.f, 0.f,
 			0.f, -1.f, 0.f,
 			0.f, -1.f, 0.f,
@@ -214,6 +216,71 @@ namespace
 			0.f, +1.f, 0.f,
 			0.f, +1.f, 0.f,
 			0.f, +1.f, 0.f
+		}};
+
+	// the vertices of cuboid_cw are numbered as followed:
+	//          2----3
+	//         /|   /|
+	//        6----7 |
+	//        | 0--|-1
+	//   y    |/   |/
+	//   |    4----5
+	//   |
+	//   +----x
+	//  /
+	// z
+	struct cuboid_cw
+	{
+		core::maths::Matrix4x4f modelview;
+		std::array<float, 3 * 8> vertices;
+		engine::graphics::opengl::Color4ub color;
+
+		static const std::array<uint16_t, 2 * 12> lines;
+
+		cuboid_cw(engine::graphics::data::CuboidC && data) :
+			modelview(std::move(data.modelview)),
+			color((data.color & 0x000000ff) >>  0,
+			      (data.color & 0x0000ff00) >>  8,
+			      (data.color & 0x00ff0000) >> 16,
+			      (data.color & 0xff000000) >> 24)
+		{
+			const float xoffset = data.width / 2.f;
+			const float yoffset = data.height / 2.f;
+			const float zoffset = data.depth / 2.f;
+			debug_assert(xoffset > 0.f);
+			debug_assert(yoffset > 0.f);
+			debug_assert(zoffset > 0.f);
+
+			std::size_t i = 0;
+			vertices[i++] = -xoffset; vertices[i++] = -yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = -yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = -yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = -yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
+		}
+
+		cuboid_cw & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
+	};
+	const std::array<uint16_t, 2 * 12> cuboid_cw::lines = {{
+			0, 1,
+			0, 2,
+			0, 4,
+			1, 3,
+			1, 5,
+			2, 3,
+			2, 6,
+			3, 7,
+			4, 5,
+			4, 6,
+			5, 7,
+			6, 7
 		}};
 
 	struct linec_t
@@ -404,7 +471,8 @@ namespace
 		engine::Entity,
 		1001,
 		std::array<Character, 100>,
-		std::array<cuboidc_t, 100>,
+		std::array<cuboid_c, 100>,
+		std::array<cuboid_cw, 100>,
 		std::array<linec_t, 100>,
 		std::array<meshc_t, 100>
 	>
@@ -446,8 +514,16 @@ namespace
 		          engine::graphics::data::CuboidC> message_add_cuboidc;
 		while (queue_add_cuboidc.try_pop(message_add_cuboidc))
 		{
-			components.add(message_add_cuboidc.first,
-			               std::move(message_add_cuboidc.second));
+			if (!message_add_cuboidc.second.wireframe)
+			{
+				components.emplace<cuboid_c>(message_add_cuboidc.first,
+				                             std::move(message_add_cuboidc.second));
+			}
+			else
+			{
+				components.emplace<cuboid_cw>(message_add_cuboidc.first,
+				                              std::move(message_add_cuboidc.second));
+			}
 		}
 		std::pair<engine::Entity,
 		          engine::graphics::data::LineC> message_add_linec;
@@ -501,7 +577,8 @@ namespace
 			}
 			else
 			{
-				debug_printline(0xffffffff, "WARNING no component for entity ", message_update_modelviewmatrix.first);
+				// TODO: bring back when all physics object has a rendered shape
+			//	debug_printline(0xffffffff, "WARNING no component for entity ", message_update_modelviewmatrix.first);
 			}
 		}
 		std::pair<engine::Entity,
@@ -604,10 +681,13 @@ namespace
 			glViewport(notification_viewport.x, notification_viewport.y, notification_viewport.width, notification_viewport.height);
 		}
 
+		glStencilMask(0x000000ff);
 		// setup frame
 		glClearColor(0.f, 0.f, .1f, 0.f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		glClearDepth(1.);
+		//glClearStencil(0x00000000);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		
 		// setup 3D
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(projection3D);
@@ -616,7 +696,53 @@ namespace
 
 		// 3d
 		glEnable(GL_DEPTH_TEST);
-		//
+		glEnable(GL_STENCIL_TEST);
+
+		// int i;
+		// glGetIntegerv(GL_STENCIL_BITS, &i);
+		// debug_printline(0xffffffff, i);
+		
+		//////////////////////////////////////////////////////////////
+		// wireframes
+		glStencilMask(0x00000001);
+		// glStencilFunc(GL_NEVER, 0x00000001, 0x00000001);
+		// glStencilOp(GL_REPLACE, GL_KEEP, GL_KEEP);
+		glStencilFunc(GL_ALWAYS, 0x00000001, 0x00000001);
+		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+		glDisable(GL_LIGHTING);
+		
+		for (const auto & component : components.get<cuboid_cw>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			glLineWidth(1.f);
+			glColor(component.color);
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, // TODO
+			                GL_FLOAT,
+			                0,
+			                component.vertices.data());
+			glDrawElements(GL_LINES,
+			               component.lines.size(),
+			               GL_UNSIGNED_SHORT,
+			               component.lines.data());
+			glDisableClientState(GL_VERTEX_ARRAY);
+			glLineWidth(1.f);
+
+			modelview_matrix.pop();
+		}
+
+		glEnable(GL_LIGHTING);
+		
+		//////////////////////////////////////////////////////////////
+		// solids
+		glStencilMask(0x00000000);
+		glStencilFunc(GL_EQUAL, 0x00000000, 0x00000001);
+		//glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+		
 		for (auto & component : components.get<Character>())
 		{
 			modelview_matrix.push();
@@ -628,14 +754,22 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<cuboidc_t>())
+		for (const auto & component : components.get<cuboid_c>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
+			if (component.is_transparent)
+			{
+				glEnable(GL_BLEND);
+				//glDisable(GL_DEPTH_TEST);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_DST_COLOR);
+			}
+			// glEnable(GL_POLYGON_OFFSET_FILL); // necessary for wireframe
+			// glPolygonOffset(2.f, 2.f);
+
 			glColor(component.color);
-		//	glColor3ub(100, 255, 200);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glVertexPointer(3, // TODO
@@ -652,6 +786,13 @@ namespace
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
 
+			// glDisable(GL_POLYGON_OFFSET_FILL);
+			if (component.is_transparent)
+			{
+				//glEnable(GL_DEPTH_TEST);
+				glDisable(GL_BLEND);
+			}
+
 			modelview_matrix.pop();
 		}
 		for (const auto & component : components.get<linec_t>())
@@ -661,8 +802,7 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			glLineWidth(2.f);
-		//	glColor3ub(255, 100, 100);
-				glColor(component.color);
+			glColor(component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
 			                static_cast<GLenum>(component.vertices.format()), // TODO
@@ -699,6 +839,9 @@ namespace
 			glDisableClientState(GL_VERTEX_ARRAY);
 		}
 
+		glDisable(GL_STENCIL_TEST);
+		glDisable(GL_DEPTH_TEST);
+
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(projection2D);
@@ -713,9 +856,6 @@ namespace
 		normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
 		// 2d
 		// ...
-
-		// something temporary that delays
-		core::async::delay(10);
 
 		// swap buffers
 		engine::application::window::swap_buffers();

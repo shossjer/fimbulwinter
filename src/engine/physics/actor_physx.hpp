@@ -31,34 +31,17 @@ namespace physics
 	struct Actor
 	{
 		physx_ptr<T> body;
-		::engine::Entity debugRenderId;
 
 		Actor(T *const body)
 			:
-			body(body),
-			debugRenderId(engine::Entity::INVALID)
+			body(body)
 		{
 		}
 	};
 
 	struct ActorCharacter : Actor<::physx::PxController>
 	{
-		/**
-		 * Rotation along the y-axis (yaw).
-		 *
-		 * This value  is not used  by the underlaying  2D physics
-		 * since  it  only  handles  rotations  along  the  z-axis
-		 * (roll). It is however used in the modelview matrix sent
-		 * to the renderer to help create the illusion of 3D.
-		 */
-		core::maths::radianf heading;
-
-		ActorCharacter(::physx::PxController * const body)
-			:
-			Actor(body),
-			heading(0.f)
-		{
-		}
+		ActorCharacter(::physx::PxController * const body) : Actor(body) {}
 	};
 
 	struct ActorDynamic : Actor<::physx::PxRigidDynamic>
@@ -74,7 +57,7 @@ namespace physics
 	using ActorCollection = ::core::container::Collection
 	<
 		engine::Entity,
-		500,
+		600,
 		std::array<ActorCharacter, 100>,
 		std::array<ActorDynamic, 100>,
 		std::array<ActorStatic, 100>
@@ -82,6 +65,38 @@ namespace physics
 
 	// Collecation containing all Actors in the world.
 	extern ActorCollection actors;
+
+	template<class T>
+	struct BaseJoint
+	{
+		physx_ptr<T> joint;
+
+		BaseJoint(T *const joint)
+			:
+			joint(joint)
+		{
+		}
+	};
+
+	struct RevoluteJoint : BaseJoint<::physx::PxRevoluteJoint>
+	{
+		RevoluteJoint(::physx::PxRevoluteJoint * const joint) : BaseJoint(joint) {}
+	};
+
+	struct FixedJoint : BaseJoint<::physx::PxFixedJoint>
+	{
+		FixedJoint(::physx::PxFixedJoint * const joint) : BaseJoint(joint) {}
+	};
+
+	using JointCollection = ::core::container::Collection
+	<
+		engine::Entity,
+		400,
+		std::array<RevoluteJoint, 100>,
+		std::array<FixedJoint, 100>
+	>;
+
+	extern JointCollection joints;
 }
 }
 

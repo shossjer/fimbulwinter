@@ -47,9 +47,9 @@ namespace
 		engine::extras::Asset,
 		201,
 		std::array<Armature, 101>,
-		std::array<int, 1> // because
+		std::array<engine::animation::object, 101>
 	>
-	resources;
+	sources;
 
 	struct Fade
 	{
@@ -102,7 +102,7 @@ namespace
 		{
 			if (action == nullptr)
 				return;
-			
+
 			framei += 1;
 			if (framei >= action->length)
 			{
@@ -118,7 +118,7 @@ namespace
 			while (rooti < static_cast<int>(armature->njoints))
 				rooti = update(*action, rooti, core::maths::Matrix4x4f::identity(), framei);
 				// rooti = update(*action, rooti, /*core::maths::Matrix4x4f::identity(), */framei);
-			
+
 			if (!action->positions.empty())
 			{
 			// 	debug_printline(0xffffffff, "running speed is: ", length(action->positions[framei + 1] - action->positions[framei]));
@@ -163,6 +163,56 @@ namespace
 		}
 	};
 
+	struct ObjectPlayback
+	{
+		const engine::animation::object * object;
+		const engine::animation::object::action * action;
+
+		bool repeat;
+		bool finished;
+		int framei;
+
+		ObjectPlayback(const engine::animation::object & object, bool repeat) :
+			object(& object),
+			action(nullptr),
+			repeat(repeat),
+			finished(false),
+			framei(0) {}
+
+		void update()
+		{
+			debug_assert(!finished);
+			if (action == nullptr)
+				return;
+
+			const auto framei_prev = framei;
+			const auto framei_next = framei + 1;
+
+			// movement = action->keys[framei_next].translation - action->keys[framei_prev].translation;
+
+			const auto action_length = action->keys.size() - 1;
+			if (framei_next < action_length)
+			{
+				framei = framei_next;
+			}
+			else if (repeat)
+			{
+				framei = framei_next % action_length;
+			}
+			else
+			{
+				finished = true;
+				framei = action_length;
+			}
+		}
+
+		engine::physics::translation_data extract_translation() const
+		{
+			const auto & val = action->keys[framei];
+			return engine::physics::translation_data {val.translation, val.rotation};
+		}
+	};
+
 	core::container::Collection
 	<
 		Mixer,
@@ -170,7 +220,8 @@ namespace
 		std::array<Fade, 101>,
 		std::array<Fadein, 101>,
 		std::array<Fadeout, 101>,
-		std::array<Playback, 101>
+		std::array<Playback, 101>,
+		std::array<ObjectPlayback, 101>
 	>
 	mixers;
 
@@ -208,11 +259,27 @@ namespace
 			debug_unreachable();
 		}
 	};
+	struct extract_translation
+	{
+		engine::physics::translation_data operator () (const ObjectPlayback & x)
+		{
+			return x.extract_translation();
+		}
+		template <typename X>
+		engine::physics::translation_data operator () (const X & x)
+		{
+			debug_unreachable();
+		}
+	};
 	struct is_finished
 	{
 		bool operator () (Playback & x)
 		{
 			return x.isFinished();
+		}
+		bool operator () (ObjectPlayback & x)
+		{
+			return x.finished;
 		}
 		template <typename X>
 		bool operator () (X & x)
@@ -224,7 +291,7 @@ namespace
 	struct Character
 	{
 		engine::Entity me;
-		
+
 		const Armature * armature;
 
 		Mixer mixer;
@@ -244,7 +311,7 @@ namespace
 		{
 			if (this->mixer == Mixer(-1))
 				return;
-			
+
 			if (mixers.call(mixer, is_finished{}))
 			{
 				pCallbacks->onFinish(this->me);
@@ -257,45 +324,96 @@ namespace
 			engine::physics::post_update_movement(me, engine::physics::movement_data {engine::physics::movement_data::Type::CHARACTER, movement});
 		}
 	};
+	struct Model
+	{
+		engine::Entity me;
+
+		const engine::animation::object * object;
+
+		Mixer mixer;
+
+		Model(engine::Entity me, const engine::animation::object & object) :
+			me(me),
+			object(& object),
+			mixer(-1)
+		{
+		}
+
+		void finalize()
+		{
+			if (this->mixer == Mixer(-1))
+				return;
+
+			engine::physics::post_update_movement(me, mixers.call(mixer, extract_translation {}));
+
+			if (mixers.call(mixer, is_finished{}))
+			{
+				//pCallbacks->onFinish(this->me);
+				// TODO: this needs to be changed when we start animation blending
+				mixers.remove(mixer);
+				mixer = Mixer(-1);
+			}
+		}
+	};
 
 	core::container::Collection
 	<
 		engine::Entity,
 		201,
 		std::array<Character, 101>,
-		std::array<int, 1> // because
+		std::array<Model, 101>
 	>
 	components;
 
-	struct get_armature
-	{
-		const Armature & operator () (const Character & x)
-		{
-			return *x.armature;
-		}
-		template <typename X>
-		const Armature & operator () (const X & x)
-		{
-			debug_unreachable();
-		}
-	};
 	struct set_action
 	{
-		Mixer mixer;
+		engine::animation::action data;
 
-		set_action(Mixer mixer) : mixer(mixer) {}
-		
+		set_action(engine::animation::action data) : data(data) {}
+
 		void operator () (Character & x)
 		{
+			const Mixer mixer = next_mixer_key++;
+			auto & playback = mixers.emplace<Playback>(mixer, *x.armature, data.repetative);
+			{
+				auto action = std::find(x.armature->actions.begin(),
+				                        x.armature->actions.end(),
+				                        data.name);
+				if (action == x.armature->actions.end())
+				{
+					debug_printline(0xffffffff, "Could not find action ", data.name, " in armature ", x.armature->name);
+				}
+				else
+				{
+					playback.action = &*action;
+				}
+			}
+			// set mixer
 			if (x.mixer != Mixer(-1))
 				mixers.remove(x.mixer);
-			
 			x.mixer = mixer;
 		}
-		template <typename X>
-		void operator () (X & x)
+		void operator () (Model & x)
 		{
-			debug_unreachable();
+			const Mixer mixer = next_mixer_key++;
+			auto & objectplayback = mixers.emplace<ObjectPlayback>(mixer, *x.object, data.repetative);
+			{
+				auto action = std::find(x.object->actions.begin(),
+				                        x.object->actions.end(),
+				                        data.name);
+				if (action == x.object->actions.end())
+				{
+					debug_printline(0xffffffff, "Could not find action ", data.name, " in object ", x.object->name);
+				}
+				else
+				{
+					objectplayback.action = &*action;
+				}
+			}
+			// set mixer
+			if (x.mixer != Mixer(-1))
+				mixers.remove(x.mixer);
+			x.mixer = mixer;
 		}
 	};
 
@@ -305,6 +423,13 @@ namespace
 	                                 20> queue_remove;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::animation::action>,
 	                                 50> queue_update_action;
+
+	core::container::CircleQueueSRMW<std::pair<engine::extras::Asset, engine::animation::object>,
+	                                 10> queue_add_asset_object;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::extras::Asset>,
+	                                 10> queue_add_model;
+	core::container::CircleQueueSRMW<engine::extras::Asset,
+	                                 10> queue_remove_asset;
 }
 
 namespace engine
@@ -322,63 +447,75 @@ namespace engine
 		void update()
 		{
 			// receive messages
+			// ====---- assets ----====
+			// add
+			std::pair<engine::extras::Asset, engine::animation::object> message_add_asset_object;
+			while (queue_add_asset_object.try_pop(message_add_asset_object))
+			{
+				sources.add(message_add_asset_object.first, std::move(message_add_asset_object.second));
+			}
+			// remove
+			engine::extras::Asset message_remove_asset;
+			while (queue_remove_asset.try_pop(message_remove_asset))
+			{
+				sources.remove(message_remove_asset);
+			}
+			// ====---- entities ----====
+			// add
 			std::pair<engine::Entity, armature> message_add_armature;
 			while (queue_add_armature.try_pop(message_add_armature))
 			{
 				// TODO: this should be done in a loader thread somehow
 				const engine::extras::Asset armasset{message_add_armature.second.armfile};
-				if (!resources.contains(armasset))
+				if (!sources.contains(armasset))
 				{
 					std::ifstream file(message_add_armature.second.armfile, std::ifstream::binary | std::ifstream::in);
 					Armature arm;
 					arm.read(file);
-					resources.add(armasset, std::move(arm));
+					sources.add(armasset, std::move(arm));
 				}
-				components.emplace<Character>(message_add_armature.first, message_add_armature.first, resources.get<Armature>(armasset));
+				components.emplace<Character>(message_add_armature.first,
+				                              message_add_armature.first, sources.get<Armature>(armasset));
 			}
+			std::pair<engine::Entity, engine::extras::Asset> message_add_model;
+			while (queue_add_model.try_pop(message_add_model))
+			{
+				auto & object = sources.get<engine::animation::object>(message_add_model.second);
+				components.emplace<Model>(message_add_model.first,
+				                          message_add_model.first, object);
+			}
+			// remove
 			engine::Entity message_remove;
 			while (queue_remove.try_pop(message_remove))
 			{
 				// TODO: remove assets that no one uses any more
 				components.remove(message_remove);
 			}
+			// update
 			std::pair<engine::Entity, action> message_update_action;
 			while (queue_update_action.try_pop(message_update_action))
 			{
-				// components.update(message_update_action.first, Character::SetAction{message_update_action.second.name});
-
-				// THIS IS SUPER UGLY
-				// YUCK!
-				const auto & armature = components.call(message_update_action.first, get_armature{});
-				const Mixer mixer = next_mixer_key++;
-				auto & playback = mixers.emplace<Playback>(mixer, armature, message_update_action.second.repetative);
-				{
-					auto action = std::find(armature.actions.begin(),
-					                        armature.actions.end(),
-					                        message_update_action.second.name);
-					if (action == armature.actions.end())
-					{
-						debug_printline(0xffffffff, "Could not find action ", message_update_action.second.name, " in armature ", armature.name);
-					}
-					else
-					{
-						playback.action = &*action;
-					}
-				}
-
-				components.call(message_update_action.first, set_action{mixer});
+				components.call(message_update_action.first, set_action{message_update_action.second});
 			}
 
 			// update stuff
-			for (auto && playback : mixers.get<Playback>())
+			for (auto & playback : mixers.get<Playback>())
 			{
 				playback.update();
 			}
+			for (auto & objectplayback : mixers.get<ObjectPlayback>())
+			{
+				objectplayback.update();
+			}
 
 			// send messages
-			for (auto && character : components.get<Character>())
+			for (auto & character : components.get<Character>())
 			{
 				character.finalize();
+			}
+			for (auto & model : components.get<Model>())
+			{
+				model.finalize();
 			}
 		}
 
@@ -395,6 +532,22 @@ namespace engine
 		void update(engine::Entity entity, const action & data)
 		{
 			const auto res = queue_update_action.try_emplace(entity, data);
+			debug_assert(res);
+		}
+
+		void add(engine::extras::Asset asset, object && data)
+		{
+			const auto res = queue_add_asset_object.try_emplace(asset, std::move(data));
+			debug_assert(res);
+		}
+		void add_model(engine::Entity entity, engine::extras::Asset asset)
+		{
+			const auto res = queue_add_model.try_emplace(entity, asset);
+			debug_assert(res);
+		}
+		void remove(engine::extras::Asset asset)
+		{
+			const auto res = queue_remove_asset.try_push(asset);
 			debug_assert(res);
 		}
 	}
