@@ -71,7 +71,7 @@ namespace core
 			template <typename T>
 			Quaternion<T> rotation_of(const Vector<3, T> & vec)
 			{
-				if (vec.values[0] < T{-0.999}) // arbitrarily close to -1
+				if (vec.values[0] < T(-0.999)) // arbitrarily close to -1
 					return {T{}, T{}, T{}, T{1}}; // any axis in the yz-place is okey
 
 				const auto w2 = (vec.values[0] + 1) / 2;

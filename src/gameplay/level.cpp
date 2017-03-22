@@ -80,6 +80,8 @@ namespace
 		std::vector<float> vertices;
 		std::vector<uint16_t> triangles;
 		std::vector<float> normals;
+
+		mesh_t() {}
 	};
 
 	struct level_t
