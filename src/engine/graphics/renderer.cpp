@@ -308,17 +308,27 @@ namespace
 
 	struct meshc_t
 	{
-		// core::maths::Matrix4x4f modelview;
+		core::maths::Matrix4x4f modelview;
 		core::container::Buffer vertices;
 		core::container::Buffer triangles;
 		core::container::Buffer normals;
-		// engine::graphics::opengl::Color color;
+		engine::graphics::opengl::Color4ub color;
 
 		meshc_t(engine::graphics::data::MeshC && data) :
 			vertices(std::move(data.vertices)),
 			triangles(std::move(data.triangles)),
-			normals(std::move(data.normals))
+			normals(std::move(data.normals)),
+			color((data.color&0x000000ff)>>0,
+			      (data.color&0x0000ff00)>>8,
+			      (data.color&0x00ff0000)>>16,
+			      (data.color&0xff000000)>>24)
 		{}
+
+		meshc_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
 	};
 
 	struct Character
@@ -819,9 +829,11 @@ namespace
 		}
 		for (const auto & component : components.get<meshc_t>())
 		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
-			glColor3ub(0, 255, 255);
+			glColor(component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glVertexPointer(3, // TODO
@@ -837,6 +849,8 @@ namespace
 			               component.triangles.data());
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
+
+			modelview_matrix.pop();
 		}
 
 		glDisable(GL_STENCIL_TEST);
