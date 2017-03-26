@@ -2,10 +2,9 @@
 #ifndef GAMEPLAY_CHARACTERS_HPP
 #define GAMEPLAY_CHARACTERS_HPP
 
-#include <engine/Entity.hpp>
+#include "assets.hpp"
 
-#include <core/maths/Vector.hpp>
-#include <core/maths/Quaternion.hpp>
+#include <engine/common.hpp>
 
 namespace gameplay
 {
@@ -50,42 +49,7 @@ namespace characters
 	};
 	void post_add_trigger(trigger_t trigger);
 
-	struct transform_t
-	{
-		core::maths::Vector3f pos;
-		core::maths::Quaternionf quat;
-	};
-
-	struct turret_t
-	{
-		struct head_t
-		{
-			::engine::Entity id;
-			::engine::Entity jointId;
-			transform_t pivot;
-		};
-
-		struct barrel_t
-		{
-			::engine::Entity id;
-			::engine::Entity jointId;
-			transform_t pivot;
-		};
-
-		::engine::Entity id;
-
-		transform_t transform;
-
-		head_t head;
-
-		barrel_t barrel;
-
-		transform_t projectile;
-
-		float timestamp;
-	};
-
-	void post_add_turret(turret_t turret);
+	void post_add_turret(asset::turret_t turret);
 }
 }
 

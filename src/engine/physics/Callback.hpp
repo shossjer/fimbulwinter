@@ -2,10 +2,8 @@
 #ifndef ENGINE_PHYSICS_CALLBACK_HPP
 #define ENGINE_PHYSICS_CALLBACK_HPP
 
-#include <engine/Entity.hpp>
+#include <engine/common.hpp>
 #include <engine/physics/defines.hpp>
-
-#include <core/maths/Vector.hpp>
 
 #include <array>
 
@@ -22,11 +20,6 @@ namespace physics
 			Entity ids[2];
 			ActorData::Behaviour behaviours[2];
 			Material materials[2];
-
-			//std::array<Entity, 2> ids;
-			//std::array<ActorData::Behaviour, 2> behaviours;
-			//std::array<Material, 2> materials;
-			// const Entity(&ids)[2], const Behaviour(&behaviours)[2], const Material(&materials)[2]
 		};
 
 	public:
@@ -63,6 +56,10 @@ namespace physics
 			\brief Same as postContactLost but first element will always be a trigger
 		 */
 		virtual void postTriggerLost(const data_t & data) const = 0;
+
+		virtual void postTransformation(
+				const Entity id,
+				const transform_t & translation) const = 0;
 	};
 }
 }

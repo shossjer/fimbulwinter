@@ -66,7 +66,7 @@ namespace physics
 		const Callback * pCallback;
 
 		core::container::CircleQueueSRMW<std::pair<engine::Entity, movement_data>, 100> queue_movements;
-		core::container::CircleQueueSRMW<std::pair<engine::Entity, translation_data>, 100> queue_translations;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, transform_t>, 100> queue_translations;
 	}
 
 	class SimulationEventCallback : public physx::PxSimulationEventCallback
@@ -322,9 +322,9 @@ namespace physics
 
 	struct actor_translate
 	{
-		const translation_data translation;
+		const transform_t translation;
 
-		actor_translate(const translation_data translation) : translation(translation) {}
+		actor_translate(const transform_t translation) : translation(translation) {}
 
 		void operator () (ActorCharacter & x)
 		{
@@ -360,15 +360,12 @@ namespace physics
 		}
 		// poll translation queue
 		{
-			std::pair<engine::Entity, translation_data> data;
+			std::pair<engine::Entity, transform_t> data;
 			while (queue_translations.try_pop(data))
 			{
 				actors.call(data.first, actor_translate {data.second});
 			}
 		}
-
-	//	if (joint!=nullptr)
-	//		joint->setDriveVelocity(10);
 
 		// Update the physics world
 		physx2::pScene->simulate(TIME_STEP);
@@ -381,18 +378,14 @@ namespace physics
 		// update each render object with the new transform
 		for (physx::PxU32 i = 0; i < nbActiveTransforms; ++i)
 		{
-			const auto item = activeTransforms[i];
+			const auto & item = activeTransforms[i];
 
 			auto id = engine::Entity {static_cast<engine::Entity::value_type>((std::size_t)item.userData)};
 
-			const auto pose = item.actor2World;
+			const auto & pose = item.actor2World;
 
-			engine::graphics::data::ModelviewMatrix data = {
-				core::maths::Matrix4x4f::translation(pose.p.x, pose.p.y, pose.p.z) *
-				make_matrix(core::maths::Quaternionf(pose.q.w, pose.q.x, pose.q.y, pose.q.z))
-			};
-
-			engine::graphics::renderer::update(id, std::move(data));
+			// notify system about transformation change
+			pCallback->postTransformation(id, transform_t {convert(pose.p), convert(pose.q)});
 
 			// for debug purpose
 			{
@@ -437,52 +430,12 @@ namespace physics
 		pCallback = &callback;
 	}
 
-	struct get_transformation
-	{
-		core::maths::Vector3f position;
-		core::maths::Quaternionf quaternion;
-		core::maths::Vector3f velocity;
-
-		void operator () (const ActorCharacter & x)
-		{
-			const auto body = x.body.get();
-
-			this->position = convert(body->getPosition());
-			this->velocity = convert(body->getActor()->getLinearVelocity());
-		}
-
-		void operator () (const ActorDynamic & x)
-		{
-			const auto body = x.body.get();
-			const auto trans = body->getGlobalPose();
-
-			this->position = convert(trans.p);
-			this->quaternion = Quaternionf { trans.q.w, trans.q.x, trans.q.y, trans.q.z};
-			this->velocity = convert(body->getLinearVelocity());
-		}
-
-		void operator () (const ActorStatic & x)
-		{
-		}
-	};
-
-	void query_position(const engine::Entity id, Vector3f & position, Quaternionf & quaternion, Vector3f & velocity)
-	{
-		get_transformation data {};
-
-		actors.call(id, data);
-
-		position = data.position;
-		quaternion = data.quaternion;
-		velocity = data.velocity;
-	}
-
 	void post_update_movement(const engine::Entity id, const movement_data movement)
 	{
 		const auto res = queue_movements.try_emplace(id, movement);
 		debug_assert(res);
 	}
-	void post_update_movement(const engine::Entity id, const translation_data translation)
+	void post_update_movement(const engine::Entity id, const transform_t translation)
 	{
 		const auto res = queue_translations.try_emplace(id, translation);
 		debug_assert(res);

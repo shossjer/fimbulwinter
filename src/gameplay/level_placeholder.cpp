@@ -17,16 +17,12 @@
 
 namespace
 {
+	using namespace gameplay;
 	using namespace gameplay::level;
 
 	using Entity = engine::Entity;
 
-	using Vector3f = core::maths::Vector3f;
-	using Quaternionf = core::maths::Quaternionf;
-	using Matrix4x4f = core::maths::Matrix4x4f;
-
-	using transform_t = gameplay::characters::transform_t;
-	using turret_t = gameplay::characters::turret_t;
+	using transform_t = ::engine::transform_t;
 
 	struct beam_t
 	{
@@ -107,7 +103,7 @@ namespace
 	{
 		const json jcontent = json::parse(std::ifstream("res/turret.json"));
 
-		turret_t turret;
+		asset::turret_t turret;
 
 		turret.id = Entity::create();
 		turret.transform = transform_t {placeholder.pos, placeholder.quat};
@@ -140,7 +136,7 @@ namespace
 
 			load_shapes(shapes, jgroup["shapes"]);
 
-			turret.head = turret_t::head_t {
+			turret.head = asset::turret_t::head_t {
 				Entity::create(),
 				Entity::create(),
 				parse_pivot(jgroup["pivot"])};
@@ -166,7 +162,7 @@ namespace
 
 			load_shapes(shapes, jgroup["shapes"]);
 
-			turret.barrel = turret_t::barrel_t {
+			turret.barrel = asset::turret_t::barrel_t {
 				Entity::create(),
 				Entity::create(),
 				parse_pivot(jgroup["pivot"])};
@@ -195,10 +191,10 @@ namespace
 				engine::physics::joint_t::Type::HINGE,
 				turret.id,
 				turret.head.id,
-				engine::physics::transform_t{
+				transform_t{
 					turret.head.pivot.pos,
 					turret.head.pivot.quat * core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})},
-				engine::physics::transform_t{
+				transform_t{
 					Vector3f{0.f, 0.f, 0.f},
 					core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})}});
 
@@ -209,10 +205,10 @@ namespace
 				engine::physics::joint_t::Type::FIXED,
 				turret.head.id,
 				turret.barrel.id,
-				engine::physics::transform_t{
+				transform_t{
 					turret.barrel.pivot.pos,
 					turret.barrel.pivot.quat * core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})},
-				engine::physics::transform_t{
+				transform_t{
 					Vector3f{0.f, 0.f, 0.f},
 					core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})}});
 
@@ -273,11 +269,11 @@ namespace
 				engine::physics::joint_t::Type::HINGE,
 				engine::Entity::INVALID,
 				beam.id,
-				engine::physics::transform_t{
+				transform_t{
 					placeholder.pos,
 					core::maths::rotation_of(Vector3f{0.f, 0.f, 1.f})
 				},
-				engine::physics::transform_t{
+				transform_t{
 					Vector3f{0.f, 0.f, 0.f},
 					core::maths::rotation_of(rotate(Vector3f{0.f, 0.f, 1.f}, inverse(placeholder.quat)))},
 				driveSpeed,

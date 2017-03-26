@@ -28,6 +28,11 @@ namespace physics
 		return physx::PxQuat { buffer[1], buffer[2], buffer[3], buffer[0] };
 	}
 
+	inline core::maths::Quaternionf convert(const physx::PxQuat val)
+	{
+		return core::maths::Quaternionf {val.w, val.x, val.y, val.z};
+	}
+
 	inline core::maths::Vector3f convert(const physx::PxVec3 val)
 	{
 		return core::maths::Vector3f {val.x, val.y, val.z};

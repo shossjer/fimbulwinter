@@ -30,7 +30,7 @@ namespace
 	core::container::CircleQueueSRMW<engine::Entity, 100> queueAnimationFinished;
 
 	core::container::CircleQueueSRMW<::gameplay::characters::trigger_t, 100> queueTriggers;
-	core::container::CircleQueueSRMW<::gameplay::characters::turret_t, 100> queueTurrets;
+	core::container::CircleQueueSRMW<::gameplay::asset::turret_t, 100> queueTurrets;
 
 	core::container::CircleQueueSRMW<collision_t, 100> queueCollisionsFound;
 	core::container::CircleQueueSRMW<collision_t, 100> queueCollisionsLeft;
@@ -43,36 +43,28 @@ namespace
 		101,
 		std::array<CharacterState, 20>,
 		std::array<::gameplay::characters::trigger_t, 20>,
-		std::array<::gameplay::characters::turret_t, 20>
+		std::array<::gameplay::asset::droid_t, 20>,
+		std::array<::gameplay::asset::turret_t, 20>
 		//// clang errors on collections with only one array, so here is
 		//// a dummy array to satisfy it
 		//std::array<int, 1>
 	>
 	components;
 
-	struct clear_ground_state
+	struct procedure_translate
 	{
-		void operator () (CharacterState & x)
-		{
-			x.clrGrounded();
-		//	x = gameplay::characters::Command::PHYSICS_FALLING;
-		}
-		template <typename X>
-		void operator () (X & x) {}
-	};
-	struct update_ground_state
-	{
-		const Vector3f & normal;
+		::engine::transform_t transform;
 
-		update_ground_state(const Vector3f & normal) : normal(normal) {}
-
-		void operator () (CharacterState & x)
+		void operator () (::gameplay::asset::asset_t & x)
 		{
-			x.setGrounded(normal);
-		//	x = gameplay::characters::Command::PHYSICS_GROUNDED;
+			x.transform.pos = transform.pos;
+			x.transform.quat = transform.quat;
 		}
+
 		template <typename X>
-		void operator () (X & x) {}
+		void operator () (X & x)
+		{
+		}
 	};
 
 	struct animation_finished
@@ -150,22 +142,24 @@ namespace
 
 		void update()
 		{
-			Vector3f pos;
-			Quaternionf rot;
-			Vector3f vec;
+			Vector3f pos {0.f, 0.f, 0.f};
+			Quaternionf rot {1.f, 0.f, 0.f, 0.f};
+			Vector3f vec {0.f, 0.f, 0.f};
 
-			engine::physics::query_position(target, pos, rot, vec);
+			//engine::physics::query_position(target, pos, rot, vec);
 
 			Vector3f goal;
 
 			vec *= 0.25f;
-			goal = pos+vec+core::maths::Vector3f {0.f, 0.f, 10.f};
+			goal = pos + vec + core::maths::Vector3f {0.f, 0.f, 10.f};
 
 			static core::maths::Vector3f current {0.f, 0.f, 50.f};
 			const auto delta = goal-current;
 
 			current += delta * .1f;
-			engine::graphics::viewer::update(camera, engine::graphics::viewer::translation(current));
+			engine::graphics::viewer::update(
+					camera,
+					engine::graphics::viewer::translation(current));
 
 			//const auto qw = std::cos(angle/2.f);
 			//const auto qx = 0.f;
@@ -174,7 +168,9 @@ namespace
 
 			// using the rotation in the camera made me very dizzy...
 			//engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation(rot));
-			engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation(Quaternionf {1.f, 0.f, 0.f, 0.f}));
+			engine::graphics::viewer::update(
+					camera,
+					engine::graphics::viewer::rotation(Quaternionf {1.f, 0.f, 0.f, 0.f}));
 
 			engine::graphics::viewer::set_active_3d(camera); // this should not be done every time
 		}
@@ -342,6 +338,28 @@ namespace characters
 				break;
 			}
 		}
+
+		void postTransformation(
+				const ::engine::Entity id,
+				const ::engine::transform_t & transform)
+				const override
+		{
+			engine::graphics::data::ModelviewMatrix modelviewMatrix = {
+					make_translation_matrix(transform.pos) *
+					make_matrix(transform.quat)
+			};
+
+			// TODO: please improve this
+			if (components.contains(id))
+			{
+				// update the entity instance
+				components.call(id, procedure_translate {transform});
+			}
+
+			// update renderer
+			engine::graphics::renderer::update(id, modelviewMatrix);
+		}
+
 	} physicsCallback;
 
 	void setup()
@@ -393,11 +411,11 @@ namespace characters
 			}
 		}
 		{
-			turret_t turret;
+			asset::turret_t turret;
 			while (queueTurrets.try_pop(turret))
 			{
 				turret.timestamp = timeFrame + 3.f;
-				components.emplace<turret_t>(turret.id, turret);
+				components.emplace<asset::turret_t>(turret.id, turret);
 			}
 		}
 		{
@@ -432,7 +450,7 @@ namespace characters
 		}
 
 		// update turrets!
-		for (auto & turret : components.get<turret_t>())
+		for (auto & turret : components.get<asset::turret_t>())
 		{
 			if (turret.timestamp > timeFrame) continue;
 
@@ -480,14 +498,6 @@ namespace characters
 			}
 		}
 
-		// for (auto & component : components.get<CharacterState>())
-		// {
-		// 	auto res = engine::physics::update(components.get_key(component),
-		// 	                                   engine::physics::MoveData(component.movement(),
-		// 	                                                             component.fallVel));
-		// 	component.fallVel = res.velY;
-		// }
-
 		// update the cameras
 		for (auto & component : more_components.get<Camera>())
 		{
@@ -527,7 +537,7 @@ namespace characters
 		debug_assert(res);
 	}
 
-	void post_add_turret(turret_t turret)
+	void post_add_turret(asset::turret_t turret)
 	{
 		const auto res = queueTurrets.try_emplace(turret);
 		debug_assert(res);

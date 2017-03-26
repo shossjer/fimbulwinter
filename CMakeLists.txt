@@ -86,6 +86,7 @@ set(TRIBUNAL_HEADER
 	src/engine/animation/Callbacks.hpp
 	src/engine/animation/mixer.hpp
 	src/engine/application/window.hpp
+	src/engine/common.hpp
 	src/engine/debug.hpp
 	src/engine/extras/Asset.hpp
 	src/engine/graphics/renderer.hpp
@@ -101,6 +102,7 @@ set(TRIBUNAL_HEADER
 	src/engine/physics/material_physx.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/physics_physx.hpp
+	src/gameplay/assets.hpp
 	src/gameplay/characters.hpp
 	src/gameplay/CharacterState.hpp
 	src/gameplay/debug.hpp

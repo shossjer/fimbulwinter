@@ -206,10 +206,10 @@ namespace
 			}
 		}
 
-		engine::physics::translation_data extract_translation() const
+		engine::transform_t extract_translation() const
 		{
 			const auto & val = action->keys[framei];
-			return engine::physics::translation_data {val.translation, val.rotation};
+			return engine::transform_t {val.translation, val.rotation};
 		}
 	};
 
@@ -261,12 +261,12 @@ namespace
 	};
 	struct extract_translation
 	{
-		engine::physics::translation_data operator () (const ObjectPlayback & x)
+		engine::transform_t operator () (const ObjectPlayback & x)
 		{
 			return x.extract_translation();
 		}
 		template <typename X>
-		engine::physics::translation_data operator () (const X & x)
+		engine::transform_t operator () (const X & x)
 		{
 			debug_unreachable();
 		}

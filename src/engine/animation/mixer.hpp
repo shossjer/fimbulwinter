@@ -5,7 +5,7 @@
 #include <core/maths/Quaternion.hpp>
 #include <core/maths/Vector.hpp>
 
-#include <engine/Entity.hpp>
+#include <engine/common.hpp>
 #include <engine/extras/Asset.hpp>
 
 #include <string>

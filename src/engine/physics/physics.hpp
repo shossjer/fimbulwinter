@@ -34,12 +34,6 @@ namespace physics
 
 	void post_remove(const engine::Entity id);
 
-	struct transform_t
-	{
-		core::maths::Vector3f pos;
-		core::maths::Quaternionf quat;
-	};
-
 	struct joint_t
 	{
 		enum class Type
@@ -87,17 +81,10 @@ namespace physics
 	 */
 	void post_update_movement(const engine::Entity id, const movement_data movement);
 
-	struct translation_data
-	{
-		core::maths::Vector3f pos;
-		core::maths::Quaternionf quat;
-	};
 	/**
 	 *	\note update Kinematic object with position and rotation
 	 */
-	void post_update_movement(const engine::Entity id, const translation_data translation);
-
-	void query_position(const engine::Entity id, Vector3f & pos, Quaternionf & rotation, Vector3f & vel);
+	void post_update_movement(const engine::Entity id, const transform_t translation);
 }
 }
 
