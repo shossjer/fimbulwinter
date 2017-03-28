@@ -253,6 +253,30 @@ namespace core
 					                 index, std::forward<F>(func));
 				}
 			}
+
+			template <typename F>
+			auto try_call(K key, F && func) ->
+				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
+			{
+				const auto bucket = try_find(key);
+
+				if (bucket == bucket_t(-1)) return func();
+
+				const auto index = slots[bucket].get_index();
+
+				switch (slots[bucket].get_type())
+				{
+#define CASE(n) case (n):	  \
+					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
+					                 index, std::forward<F>(func))
+
+					EXPAND_256_TIMES(CASE, 0);
+#undef CASE
+				default:
+					return call_impl(mpl::index_constant<std::size_t(-1)>{},
+						index, std::forward<F>(func));
+				}
+			}
 		private:
 			// not great
 			bucket_t hash(K key) const

@@ -41,19 +41,15 @@ namespace
 	<
 		engine::Entity,
 		101,
-		std::array<CharacterState, 20>,
 		std::array<::gameplay::characters::trigger_t, 20>,
 		std::array<::gameplay::asset::droid_t, 20>,
 		std::array<::gameplay::asset::turret_t, 20>
-		//// clang errors on collections with only one array, so here is
-		//// a dummy array to satisfy it
-		//std::array<int, 1>
 	>
 	components;
 
 	struct procedure_translate
 	{
-		::engine::transform_t transform;
+		const ::engine::transform_t & transform;
 
 		void operator () (::gameplay::asset::asset_t & x)
 		{
@@ -61,9 +57,34 @@ namespace
 			x.transform.quat = transform.quat;
 		}
 
+		// object was not found callback
+		void operator () ()
+		{
+		}
+
 		template <typename X>
 		void operator () (X & x)
 		{
+		}
+	};
+
+	struct extract_translation
+	{
+		engine::transform_t * operator () (::gameplay::asset::asset_t & x)
+		{
+			return & x.transform;
+		}
+
+		// object was not found callback
+		engine::transform_t * operator () ()
+		{
+			return nullptr;
+		}
+
+		template <typename X>
+		engine::transform_t * operator () (X & x)
+		{
+			return nullptr;
 		}
 	};
 
@@ -142,19 +163,18 @@ namespace
 
 		void update()
 		{
-			Vector3f pos {0.f, 0.f, 0.f};
-			Quaternionf rot {1.f, 0.f, 0.f, 0.f};
-			Vector3f vec {0.f, 0.f, 0.f};
+			engine::transform_t *const transform = components.try_call(target, extract_translation());
 
-			//engine::physics::query_position(target, pos, rot, vec);
+			if (transform==nullptr)
+			{
+				return;
+			}
 
-			Vector3f goal;
-
-			vec *= 0.25f;
-			goal = pos + vec + core::maths::Vector3f {0.f, 0.f, 10.f};
+			//vec *= 0.25f;
+			const Vector3f goal = transform->pos + core::maths::Vector3f {0.f, 0.f, 10.f};
 
 			static core::maths::Vector3f current {0.f, 0.f, 50.f};
-			const auto delta = goal-current;
+			const auto delta = goal - current;
 
 			current += delta * .1f;
 			engine::graphics::viewer::update(
@@ -181,9 +201,7 @@ namespace
 		engine::Entity,
 		11,
 		std::array<Camera, 5>,
-		// clang errors on collections with only one array, so here is
-		// a dummy array to satisfy it
-		std::array<int, 1>
+		std::array<CharacterState, 5>
 	>
 	more_components;
 }
@@ -349,12 +367,8 @@ namespace characters
 					make_matrix(transform.quat)
 			};
 
-			// TODO: please improve this
-			if (components.contains(id))
-			{
-				// update the entity instance
-				components.call(id, procedure_translate {transform});
-			}
+			// update the entity instance
+			components.try_call(id, procedure_translate{ transform });
 
 			// update renderer
 			engine::graphics::renderer::update(id, modelviewMatrix);
@@ -376,7 +390,7 @@ namespace characters
 			// create
 			while (queueCreate.try_pop(id))
 			{
-				components.emplace<CharacterState>(id, id);
+				more_components.emplace<CharacterState>(id, id);
 			}
 
 			// remove
@@ -390,7 +404,7 @@ namespace characters
 				std::pair<engine::Entity, gameplay::characters::Command> command;
 				while (queue_commands.try_pop(command))
 				{
-					components.update(command.first, command.second);
+					more_components.update(command.first, command.second);
 				}
 			}
 
@@ -442,7 +456,7 @@ namespace characters
 		}
 
 		// update movement of player
-		for (CharacterState & component : components.get<CharacterState>())
+		for (CharacterState & component : more_components.get<CharacterState>())
 		{
 			engine::physics::post_update_movement(
 				component.id,
