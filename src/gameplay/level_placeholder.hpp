@@ -2,8 +2,7 @@
 #ifndef GAMEPLAY_LEVEL_PLACEHOLDER_HPP
 #define GAMEPLAY_LEVEL_PLACEHOLDER_HPP
 
-#include <core/maths/Quaternion.hpp>
-#include <core/maths/Vector.hpp>
+#include <engine/common.hpp>
 
 #include <string>
 
@@ -14,8 +13,7 @@ namespace level
 	struct placeholder_t
 	{
 		std::string name;
-		core::maths::Vector3f pos;
-		core::maths::Quaternionf quat;
+		engine::transform_t transform;
 		core::maths::Vector3f scale;
 	};
 

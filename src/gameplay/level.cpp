@@ -284,8 +284,8 @@ namespace
 		for (auto & placeholder : placeholders)
 		{
 			read_string(ifile, placeholder.name);
-			read_vector(ifile, placeholder.pos);
-			read_quaternion(ifile, placeholder.quat);
+			read_vector(ifile, placeholder.transform.pos);
+			read_quaternion(ifile, placeholder.transform.quat);
 			read_vector(ifile, placeholder.scale);
 		}
 	}
