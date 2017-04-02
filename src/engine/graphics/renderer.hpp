@@ -2,10 +2,10 @@
 #ifndef ENGINE_GRAPHICS_RENDERER_HPP
 #define ENGINE_GRAPHICS_RENDERER_HPP
 
+#include <engine/common.hpp>
+
 #include <core/container/Buffer.hpp>
 #include <core/maths/Matrix.hpp>
-
-#include <engine/Entity.hpp>
 
 #include <vector>
 
@@ -136,10 +136,28 @@ namespace engine
 			// void notify(Camera3D && data);
 			// void notify(Viewport && data);
 
+			// Asset definition, contains meshes and colors for an Asset.
+			struct asset_definition_t
+			{
+				std::vector<data::MeshC> meshs;
+			};
+
+			struct asset_instance_t
+			{
+				engine::Entity defId;
+				core::maths::Matrix4x4f modelview;
+				//transform_t transform;
+			//	Vector3f scale;
+			};
+
 			void add(engine::Entity entity, data::CuboidC data);
 			void add(engine::Entity entity, data::LineC data);
 			void add(engine::Entity entity, data::MeshC data);
 			void add(engine::Entity entity, asset::CharacterMesh data);
+
+			void add(engine::Entity entity, const asset_definition_t & data);
+			void add(engine::Entity entity, const asset_instance_t & data);
+
 			void remove(engine::Entity entity);
 			void update(engine::Entity entity, data::ModelviewMatrix data);
 			// void update(engine::Entity entity, CharacterSkinning data);

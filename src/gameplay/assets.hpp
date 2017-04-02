@@ -8,15 +8,34 @@ namespace gameplay
 {
 namespace asset
 {
+	using Entity = engine::Entity;
+
 	struct asset_t
 	{
 		::engine::Entity id;
 		::engine::transform_t transform;
+
+		asset_t()
+		{}
+
+		asset_t(::engine::Entity id, ::engine::transform_t transform)
+			:
+			id(id),
+			transform(transform)
+		{
+		}
 	};
 
 	struct droid_t : asset_t
 	{
+		::engine::Entity driveId;
 
+		droid_t(Entity id, ::engine::transform_t transform, Entity driveId)
+			:
+			asset_t(id, transform),
+			driveId(driveId)
+		{
+		}
 	};
 
 	struct turret_t : asset_t

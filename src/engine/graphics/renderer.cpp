@@ -940,6 +940,16 @@ namespace engine
 				const auto res = queue_add_charactermesh.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
+
+			void add(engine::Entity entity, const asset_definition_t & data)
+			{
+
+			}
+			void add(engine::Entity entity, const asset_instance_t & data)
+			{
+
+			}
+
 			void remove(engine::Entity entity)
 			{
 				const auto res = queue_remove.try_push(entity);
