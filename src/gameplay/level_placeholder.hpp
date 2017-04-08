@@ -3,6 +3,7 @@
 #define GAMEPLAY_LEVEL_PLACEHOLDER_HPP
 
 #include <engine/common.hpp>
+#include <engine/physics/defines.hpp>
 
 #include <string>
 
@@ -17,7 +18,10 @@ namespace level
 		core::maths::Vector3f scale;
 	};
 
-	engine::Entity load(const placeholder_t & placeholder, const std::string & type);
+	engine::Entity load(
+			const placeholder_t & placeholder,
+			const std::string & type,
+			const engine::physics::ActorData::Behaviour behaviour);
 }
 }
 

@@ -5,8 +5,6 @@
 #include <engine/common.hpp>
 
 #include <core/maths/util.hpp>
-#include <core/maths/Vector.hpp>
-#include <core/maths/Quaternion.hpp>
 
 #include <vector>
 
@@ -39,8 +37,7 @@ namespace physics
 		// value should be: 0.f < x <= 1.f
 		float solidity;
 
-		Vector3f pos;
-		Quaternionf rot;
+		transform_t transform;
 
 		struct Geometry
 		{
@@ -89,6 +86,7 @@ namespace physics
 			Geometry(const Sphere & sphere) : sphere(sphere) {}
 			Geometry(const Capsule & capsule) : capsule(capsule) {}
 			Geometry(const Mesh & mesh) : mesh(mesh) {}
+			Geometry() {}
 
 		} geometry;
 	};
@@ -135,8 +133,8 @@ namespace physics
 			// A visible pressure button/plate can be a static or kinematic or even
 			// a dynamic object in the physics module.
 			TRIGGER = 1<<0,
-			// player will receive callback for all collisions.
-			PLAYER = 1<<1,
+			// character will receive callback for all collisions.
+			CHARACTER = 1<<1,
 			//
 			PROJECTILE = 1<<2,
 			// obstacle will receive callback for all collisions.
@@ -146,17 +144,15 @@ namespace physics
 			DEFAULT = 1<<4
 		} behaviour;
 
-		Vector3f pos;
-		Quaternionf rot;
+		transform_t transform;
 
 		std::vector<ShapeData> shapes;
 
-		ActorData(const Type type, const Behaviour behaviour, const Vector3f & pos, const Quaternionf & quat, const std::vector<ShapeData> & shapes)
+		ActorData(const Type type, const Behaviour behaviour, const transform_t & transform, const std::vector<ShapeData> & shapes)
 			:
 			type(type),
 			behaviour(behaviour),
-			pos(pos),
-			rot(quat),
+			transform(transform),
 			shapes(shapes)
 		{
 		}

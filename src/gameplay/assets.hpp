@@ -30,10 +30,19 @@ namespace asset
 	{
 		::engine::Entity driveId;
 
-		droid_t(Entity id, ::engine::transform_t transform, Entity driveId)
+		::engine::Entity jointId;
+
+		droid_t(Entity id, ::engine::transform_t transform, Entity driveId, Entity jointId)
 			:
 			asset_t(id, transform),
-			driveId(driveId)
+			driveId(driveId),
+			jointId(jointId)
+		{
+		}
+
+		droid_t()
+			:
+			asset_t()
 		{
 		}
 	};

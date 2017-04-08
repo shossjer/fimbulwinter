@@ -49,7 +49,9 @@ namespace characters
 	};
 	void post_add_trigger(trigger_t trigger);
 
-	void post_add_turret(asset::turret_t turret);
+	void post_add(asset::turret_t & turret);
+
+	void post_add(asset::droid_t & droid);
 }
 }
 

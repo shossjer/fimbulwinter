@@ -4,6 +4,8 @@
 #include "level_placeholder.hpp"
 
 #include <gameplay/characters.hpp>
+#include <gameplay/CharacterState.hpp>
+#include <gameplay/ui.hpp>
 
 #include <core/debug.hpp>
 #include <core/maths/Matrix.hpp>
@@ -13,6 +15,7 @@
 #include <engine/Entity.hpp>
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
+#include <engine/graphics/viewer.hpp>
 #include <engine/physics/physics.hpp>
 
 #include <utility/json.hpp>
@@ -331,6 +334,23 @@ namespace gameplay
 			std::unordered_map<std::string, ::engine::Entity> objects;
 
 			// player start
+			{
+				placeholder_t p{ "", engine::transform_t{ Vector3f{14.f, 3.f, 0.f}, Quaternionf{1.f, 0.f, 0.f, 0.f} }, Vector3f{ 1.f, 1.f, 1.f } };
+				// load the player model - Droid
+				const auto playerId = load(p, "droid", engine::physics::ActorData::Behaviour::CHARACTER);
+
+				::gameplay::characters::post_create_player(playerId);
+				::gameplay::ui::post_add_player(playerId);
+
+				// create the player camera and attach to player object
+				{
+					const auto cameraId = engine::Entity::create();
+					engine::graphics::viewer::add(cameraId,
+						engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
+							Vector3f(0.f, 0.f, 0.f)));
+					gameplay::characters::post_add_camera(cameraId, playerId);
+				}
+			}
 			// trigger timer
 			{
 				entities.push_back(engine::Entity::create());
@@ -377,7 +397,11 @@ namespace gameplay
 								core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f},
 								engine::physics::ShapeData::Geometry{engine::physics::ShapeData::Geometry::Box{dimensions[0], dimensions[1], dimensions[2]} }});
 
-						engine::physics::ActorData data {engine::physics::ActorData::Type::STATIC, engine::physics::ActorData::Behaviour::DEFAULT, box.translation, box.rotation, shapes};
+						engine::physics::ActorData data{
+								engine::physics::ActorData::Type::STATIC,
+								engine::physics::ActorData::Behaviour::DEFAULT,
+								engine::transform_t{box.translation, box.rotation},
+								shapes };
 
 						::engine::physics::post_create(entities.back(), data);
 					}
@@ -418,7 +442,11 @@ namespace gameplay
 									box.dimensions[1]*0.5f,
 									box.dimensions[2]*0.5f}}});
 
-						engine::physics::ActorData data {engine::physics::ActorData::Type::DYNAMIC, engine::physics::ActorData::Behaviour::DEFAULT, box.translation, box.rotation, shapes};
+						engine::physics::ActorData data {
+								engine::physics::ActorData::Type::DYNAMIC,
+								engine::physics::ActorData::Behaviour::DEFAULT,
+								engine::transform_t{box.translation, box.rotation},
+								shapes };
 
 						::engine::physics::post_create(entities.back(), data);
 					}
@@ -443,7 +471,7 @@ namespace gameplay
 					const auto & placeholder = level.placeholders[i];
 					const std::string type = list[placeholder.name]["type"];
 
-					load(placeholder, type);
+					//load(placeholder, type, engine::physics::ActorData::Behaviour::DEFAULT);
 				}
 			}
 			// platforms
@@ -490,14 +518,18 @@ namespace gameplay
 					{
 						std::vector<engine::physics::ShapeData> shapes;
 						shapes.push_back(engine::physics::ShapeData {
-							engine::physics::ShapeData::Type::BOX,
-							engine::physics::Material::WOOD,
-							1.f,
-							core::maths::Vector3f {0.f, 0.f, 0.f},
-							core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
-							engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {dimensions[0], dimensions[1], dimensions[2]}}});
+								engine::physics::ShapeData::Type::BOX,
+								engine::physics::Material::WOOD,
+								1.f,
+								core::maths::Vector3f {0.f, 0.f, 0.f},
+								core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
+								engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {dimensions[0], dimensions[1], dimensions[2]}}});
 
-						engine::physics::ActorData data {engine::physics::ActorData::Type::KINEMATIC, engine::physics::ActorData::Behaviour::OBSTACLE, box.translation, box.rotation, shapes};
+						engine::physics::ActorData data {
+								engine::physics::ActorData::Type::KINEMATIC,
+								engine::physics::ActorData::Behaviour::OBSTACLE,
+								engine::transform_t{box.translation, box.rotation},
+								shapes};
 
 						::engine::physics::post_create(entity, data);
 					}
@@ -540,14 +572,18 @@ namespace gameplay
 
 						std::vector<engine::physics::ShapeData> shapes;
 						shapes.push_back(engine::physics::ShapeData {
-							engine::physics::ShapeData::Type::BOX,
-							engine::physics::Material::WOOD,
-							1.f,
-							core::maths::Vector3f {0.f, 0.f, 0.f},
-							core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
-							engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f}}});
+								engine::physics::ShapeData::Type::BOX,
+								engine::physics::Material::WOOD,
+								1.f,
+								core::maths::Vector3f {0.f, 0.f, 0.f},
+								core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
+								engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f}}});
 
-						engine::physics::ActorData data {engine::physics::ActorData::Type::TRIGGER, engine::physics::ActorData::Behaviour::TRIGGER, box.translation, box.rotation, shapes};
+						engine::physics::ActorData data {
+								engine::physics::ActorData::Type::TRIGGER,
+								engine::physics::ActorData::Behaviour::TRIGGER,
+								engine::transform_t{box.translation, box.rotation},
+								shapes};
 
 						::engine::physics::post_create(entities.back(), data);
 					}

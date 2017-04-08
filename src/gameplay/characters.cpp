@@ -31,6 +31,7 @@ namespace
 
 	core::container::CircleQueueSRMW<::gameplay::characters::trigger_t, 100> queueTriggers;
 	core::container::CircleQueueSRMW<::gameplay::asset::turret_t, 100> queueTurrets;
+	core::container::CircleQueueSRMW<::gameplay::asset::droid_t, 100> queueDroids;
 
 	core::container::CircleQueueSRMW<collision_t, 100> queueCollisionsFound;
 	core::container::CircleQueueSRMW<collision_t, 100> queueCollisionsLeft;
@@ -70,7 +71,8 @@ namespace
 
 	struct extract_translation
 	{
-		engine::transform_t * operator () (::gameplay::asset::asset_t & x)
+		// how do I check base type instead? asset::asset_t
+		engine::transform_t * operator () (::gameplay::asset::droid_t & x)
 		{
 			return & x.transform;
 		}
@@ -228,7 +230,7 @@ namespace characters
 			switch (data.behaviours[1])
 			{
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
-				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				case ::engine::physics::ActorData::Behaviour::CHARACTER:
 				break;
 
 				default:
@@ -244,8 +246,8 @@ namespace characters
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
 				debug_printline(0xffffffff, "Trigger collision found (should not happen)");
 				break;
-				case ::engine::physics::ActorData::Behaviour::PLAYER:
-				debug_printline(0xffffffff, "Player collision found");
+				case ::engine::physics::ActorData::Behaviour::CHARACTER:
+				debug_printline(0xffffffff, "Character collision found");
 				break;
 				case ::engine::physics::ActorData::Behaviour::OBSTACLE:
 				debug_printline(0xffffffff, "Obstacle collision found");
@@ -262,7 +264,7 @@ namespace characters
 			switch (data.behaviours[1])
 			{
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
-				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				case ::engine::physics::ActorData::Behaviour::CHARACTER:
 				break;
 
 				default:
@@ -278,8 +280,8 @@ namespace characters
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
 				debug_printline(0xffffffff, "Trigger collision lost (should not happen)");
 				break;
-				case ::engine::physics::ActorData::Behaviour::PLAYER:
-				debug_printline(0xffffffff, "Player collision lost");
+				case ::engine::physics::ActorData::Behaviour::CHARACTER:
+				debug_printline(0xffffffff, "Character collision lost");
 				break;
 				case ::engine::physics::ActorData::Behaviour::OBSTACLE:
 				debug_printline(0xffffffff, "Obstacle collision lost");
@@ -296,7 +298,7 @@ namespace characters
 			switch (data.behaviours[1])
 			{
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
-				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				case ::engine::physics::ActorData::Behaviour::CHARACTER:
 				break;
 
 				default:
@@ -312,8 +314,8 @@ namespace characters
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
 				debug_printline(0xffffffff, "Trigger collision found with: Trigger (should not happen)");
 				break;
-				case ::engine::physics::ActorData::Behaviour::PLAYER:
-				debug_printline(0xffffffff, "Trigger collision found with: Player");
+				case ::engine::physics::ActorData::Behaviour::CHARACTER:
+				debug_printline(0xffffffff, "Trigger collision found with: Character");
 				break;
 				case ::engine::physics::ActorData::Behaviour::OBSTACLE:
 				debug_printline(0xffffffff, "Trigger collision found with: Obstacle");
@@ -330,7 +332,7 @@ namespace characters
 			switch (data.behaviours[1])
 			{
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
-				case ::engine::physics::ActorData::Behaviour::PLAYER:
+				case ::engine::physics::ActorData::Behaviour::CHARACTER:
 				break;
 
 				default:
@@ -345,8 +347,8 @@ namespace characters
 				case ::engine::physics::ActorData::Behaviour::TRIGGER:
 				debug_printline(0xffffffff, "Trigger collision lost with: Trigger (should not happen)");
 				break;
-				case ::engine::physics::ActorData::Behaviour::PLAYER:
-				debug_printline(0xffffffff, "Trigger collision lost with: Player");
+				case ::engine::physics::ActorData::Behaviour::CHARACTER:
+				debug_printline(0xffffffff, "Trigger collision lost with: Character");
 				break;
 				case ::engine::physics::ActorData::Behaviour::OBSTACLE:
 				debug_printline(0xffffffff, "Trigger collision lost with: Obstacle");
@@ -433,6 +435,13 @@ namespace characters
 			}
 		}
 		{
+			asset::droid_t droid;
+			while (queueDroids.try_pop(droid))
+			{
+				components.emplace<asset::droid_t>(droid.id, droid);
+			}
+		}
+		{
 			// collision callback
 			collision_t collision;
 			while (queueCollisionsFound.try_pop(collision))
@@ -489,8 +498,7 @@ namespace characters
 				engine::physics::ActorData data {
 					engine::physics::ActorData::Type::PROJECTILE,
 					engine::physics::ActorData::Behaviour::PROJECTILE,
-					pos,
-					turret.transform.quat,
+					engine::transform_t{pos, turret.transform.quat},
 					shapes};
 
 				engine::physics::post_create(id, data);
@@ -551,9 +559,15 @@ namespace characters
 		debug_assert(res);
 	}
 
-	void post_add_turret(asset::turret_t turret)
+	void post_add(asset::turret_t & turret)
 	{
 		const auto res = queueTurrets.try_emplace(turret);
+		debug_assert(res);
+	}
+
+	void post_add(asset::droid_t & droid)
+	{
+		const auto res = queueDroids.try_emplace(droid);
 		debug_assert(res);
 	}
 

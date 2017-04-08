@@ -84,7 +84,10 @@ namespace level
 				{
 					struct shape_t
 					{
-						std::string type;
+						enum class Type
+						{
+							MESH
+						}	type;
 						engine::graphics::data::Color color;
 						core::container::Buffer vertices;
 						core::container::Buffer indices;
@@ -94,8 +97,28 @@ namespace level
 					std::vector<shape_t> shapes;
 				};
 
+				struct physic_t
+				{
+					struct shape_t
+					{
+						transform_t transform;
+
+						enum class Type
+						{
+							BOX,
+							MESH
+						}	type;
+
+						std::vector<Vector3f> points;
+						float w, h, d;
+					};
+
+					std::vector<shape_t> shapes;
+				};
+
 				std::string name;
 				render_t render;
+				physic_t physic;
 			};
 
 			std::vector<part_t> parts;
@@ -132,7 +155,16 @@ namespace level
 					{
 						model_t::part_t::render_t::shape_t shape;
 
-						shape.type = jshape["type"];
+						const std::string type = jshape["type"];
+
+						if (type == "MESH")
+						{
+							shape.type = model_t::part_t::render_t::shape_t::Type::MESH;
+						}
+						else
+						{
+							debug_unreachable();
+						}
 
 						const json & jcolor = jshape["color"];
 						const uint32_t r = ((float) jcolor["r"])*255;
@@ -156,7 +188,56 @@ namespace level
 					}
 				}
 
-				model.parts.emplace_back(model_t::part_t {name, render});
+				model_t::part_t::physic_t physic{};
+				{
+					const json & jphysic = jpart["physic"];
+					const json & jshapes = jphysic["shapes"];
+
+					for (const json & jshape : jshapes)
+					{
+						model_t::part_t::physic_t::shape_t shape;
+
+						{
+							const auto & jtransform = jshape["transform"];
+							const auto & jp = jtransform["pos"];
+							const auto & jq = jtransform["quat"];
+
+
+							shape.transform = transform_t{
+									Vector3f{jp[0], jp[1], jp[2]},
+									Quaternionf{ jq[0], jq[1], jq[2], jq[3] } };
+						}
+
+						const std::string type = jshape["type"];
+
+						if (type == "BOX")
+						{
+							shape.type = model_t::part_t::physic_t::shape_t::Type::BOX;
+
+							const json & jscale = jshape["scale"];
+
+							//shape.points.emplace_back(Vector3f{jscale[0], jscale[1], jscale[2]});
+							shape.w = jscale[0];
+							shape.h = jscale[1];
+							shape.d = jscale[2];
+						}
+						else
+						if (type == "MESH")
+						{
+							shape.type = model_t::part_t::physic_t::shape_t::Type::MESH;
+
+							// TODO: read all points in the mesh
+						}
+						else
+						{
+							debug_unreachable();
+						}
+
+						physic.shapes.push_back(shape);
+					}
+				}
+
+				model.parts.emplace_back(model_t::part_t { name, render, physic });
 			}
 
 			return model;
@@ -169,15 +250,19 @@ namespace level
 
 			if (itr != assets.end()) return itr->second;
 
+			// the asset has not previously been loaded
 			asset_template_t asset_template;
 
-			// the asset has not previously been loaded
 			const model_t model = load_model_data(type);
 
 			for (const auto & part : model.parts)
 			{
-				// register renderer definition of asset
+				// the id of the model part definition
+				const auto id = Entity::create();
+
+				if (!part.render.shapes.empty())
 				{
+					// register renderer definition of asset
 					engine::graphics::renderer::asset_definition_t assetDef;
 
 					for (const auto & mesh : part.render.shapes)
@@ -189,16 +274,51 @@ namespace level
 										mesh.normals, // normals
 										mesh.color }); // color);
 					}
-					const auto id = Entity::create();
 
 					engine::graphics::renderer::add(id, assetDef);
-
-					asset_template.parts.emplace(part.name, asset_template_t::part_t{id});
 				}
-				// register physics definition of asset
+
+				if (!part.physic.shapes.empty())
 				{
+					// register physics definition of asset
 
+					std::vector<engine::physics::ShapeData> shapes;
+
+					for (const auto & shape : part.physic.shapes)
+					{
+						engine::physics::ShapeData::Type type;
+						engine::physics::ShapeData::Geometry geometry;
+
+						switch (shape.type)
+						{
+						case model_t::part_t::physic_t::shape_t::Type::BOX:
+
+							type = engine::physics::ShapeData::Type::BOX;
+							geometry = engine::physics::ShapeData::Geometry{
+									engine::physics::ShapeData::Geometry::Box{shape.w, shape.h, shape.d*.5f } };
+							break;
+
+						default:
+
+							debug_unreachable();
+						}
+
+						// TODO: somehow load solidity and material
+						shapes.emplace_back(engine::physics::ShapeData{
+								type,
+								engine::physics::Material::WOOD,
+								0.25f,
+								shape.transform,
+								geometry });
+					}
+
+					engine::physics::asset_definition_t assetDef{ engine::physics::ActorData::Behaviour::CHARACTER, shapes };
+
+					engine::physics::add(id, assetDef);
 				}
+
+				// save the defined part to be used when creating instances.
+				asset_template.parts.emplace(part.name, asset_template_t::part_t{ id });
 			}
 
 			// create the asset
@@ -210,19 +330,11 @@ namespace level
 	}
 
 
-	engine::Entity load(const placeholder_t & placeholder, const std::string & type)
+	engine::Entity load(
+			const placeholder_t & placeholder,
+			const std::string & type,
+			const engine::physics::ActorData::Behaviour behaviour)
 	{
-		// TEMP
-		if (type == "turret")
-		{
-			return Entity::INVALID;
-		}
-		else
-		if (type == "beam")
-		{
-			return Entity::INVALID;
-		}
-
 		const auto & transform = placeholder.transform;
 
 		// load the model (if not already loaded)
@@ -235,26 +347,47 @@ namespace level
 			const auto headId = Entity::create();
 
 			// create the object instance
-			asset::droid_t assetInstance{id, transform, headId };
+			asset::droid_t assetInstance{id, transform, headId, Entity::create() };
+
+			const auto & drivePart = assetTemplate.part("drive");
+			const auto & headPart = assetTemplate.part("head");
 
 			// register new asset in renderer
-			{
-				engine::graphics::renderer::add(
-						id,
-						engine::graphics::renderer::asset_instance_t{
-								assetTemplate.part("drive").id,
-								transform.matrix() });
+			engine::graphics::renderer::add(
+					id,
+					engine::graphics::renderer::asset_instance_t{
+							drivePart.id,
+							transform.matrix() });
+			engine::graphics::renderer::add(
+					headId,
+					engine::graphics::renderer::asset_instance_t{
+							headPart.id,
+							transform.matrix() });
 
-				engine::graphics::renderer::add(
-						headId,
-						engine::graphics::renderer::asset_instance_t{
-								assetTemplate.part("head").id,
-								transform.matrix() });
-			}
 			// register new asset in physics
+			engine::physics::add(
+					id,
+					engine::physics::asset_instance_t{
+							drivePart.id,
+							placeholder.transform,
+							engine::physics::ActorData::Type::DYNAMIC });
+			engine::physics::add(
+					headId,
+					engine::physics::asset_instance_t{
+							headPart.id,
+							placeholder.transform,
+							engine::physics::ActorData::Type::DYNAMIC });
+
+			//// TODO: create joint for droid
+			//engine::physics::post_joint(engine::physics::joint_t{
+			//		assetInstance.jointId,
+			//		engine::physics::joint_t::Type::FIXED,
+			//		drivePart.id,
+			//		headPart.id,
+			//		transforms...});
 
 			// register new asset in character
-			//characters::post_add(assetInstance);
+			characters::post_add(assetInstance);
 		}
 		else
 		{

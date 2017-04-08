@@ -28,6 +28,25 @@ namespace physics
 	 */
 	void update_finish();
 
+	// TODO: make possible to add "definitions" and just directly create objects
+	struct asset_definition_t
+	{
+	//	ActorData::Type type;
+		ActorData::Behaviour behaviour;
+		std::vector<ShapeData> shapes;
+	};
+
+	void add(const engine::Entity id, const asset_definition_t & data);
+
+	struct asset_instance_t
+	{
+		Entity defId;
+		transform_t transform;
+		ActorData::Type type;
+	};
+
+	void add(const engine::Entity id, const asset_instance_t & data);
+
 	void post_create(const engine::Entity id, const ActorData & data);
 
 	void post_create(const engine::Entity id, const PlaneData & data);

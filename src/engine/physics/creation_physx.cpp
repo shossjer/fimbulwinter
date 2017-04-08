@@ -17,6 +17,9 @@
 #include <engine/graphics/renderer.hpp>
 
 #include <core/container/CircleQueue.hpp>
+#include <core/container/Collection.hpp>
+
+#include <unordered_map>
 
 namespace engine
 {
@@ -26,24 +29,29 @@ namespace physics
 
 	using Matrix4x4f = core::maths::Matrix4x4f;
 
-	namespace
-	{
-		core::container::CircleQueueSRMW<std::pair<engine::Entity, ActorData>, 100> queue_create;
-		core::container::CircleQueueSRMW<std::pair<engine::Entity, PlaneData>, 100> queue_create_planes;
-		core::container::CircleQueueSRMW<engine::Entity, 100> queue_remove;
-	}
-
 	struct reply_shapes
 	{
 		float totalMass;
 		std::vector<physx::PxShape *> shapes;
 	};
 
+	namespace
+	{
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, asset_definition_t>, 100> queue_create_definition;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, asset_instance_t>, 100> queue_create_instance;
+
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, ActorData>, 100> queue_create;
+		core::container::CircleQueueSRMW<std::pair<engine::Entity, PlaneData>, 100> queue_create_planes;
+		core::container::CircleQueueSRMW<engine::Entity, 100> queue_remove;
+
+		std::unordered_map<engine::Entity, reply_shapes> shape_definitions;
+	}
+
 	/**
 		\note create shapes for the Actor body.
 		\return float total mass of all shapes
 	 */
-	reply_shapes create(const Matrix4x4f actorMatrix, const std::vector<ShapeData> shapeDatas, PxFilterData filterData)
+	reply_shapes create(const std::vector<ShapeData> shapeDatas, PxFilterData filterData)
 	{
 		reply_shapes reply;
 		reply.totalMass = 0.f;
@@ -67,26 +75,26 @@ namespace physics
 					// calculate mass of the shape
 					reply.totalMass += (materialDef.density * shapeData.geometry.box.volume() * shapeData.solidity);
 
-					// add debug shape to renderer
-					{
-						const ::engine::Entity renderId = ::engine::Entity::create();
+					//// add debug shape to renderer
+					//{
+					//	const ::engine::Entity renderId = ::engine::Entity::create();
 
-						const core::maths::Matrix4x4f shapeMatrix =
-							make_translation_matrix(shapeData.pos) *
-							make_matrix(shapeData.rot);
+					//	const core::maths::Matrix4x4f shapeMatrix =
+					//		make_translation_matrix(shapeData.transform.pos) *
+					//		make_matrix(shapeData.transform.quat);
 
-						engine::graphics::data::CuboidC data = {
-							actorMatrix * shapeMatrix,
-							shapeData.geometry.box.w*2,
-							shapeData.geometry.box.h*2,
-							shapeData.geometry.box.d*2,
-							0xffffffff,
-							true
-						};
-						engine::graphics::renderer::add(renderId, data);
+					//	engine::graphics::data::CuboidC data = {
+					//		actorMatrix * shapeMatrix,
+					//		shapeData.geometry.box.w*2,
+					//		shapeData.geometry.box.h*2,
+					//		shapeData.geometry.box.d*2,
+					//		0xffffffff,
+					//		true
+					//	};
+					//	engine::graphics::renderer::add(renderId, data);
 
-						shape->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(renderId);
-					}
+					//	shape->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(renderId);
+					//}
 					break;
 				}
 				case ShapeData::Type::SPHERE:
@@ -98,26 +106,26 @@ namespace physics
 					// calculate mass of the shape
 					reply.totalMass += (materialDef.density * shapeData.geometry.sphere.volume() * shapeData.solidity);
 
-					// add debug shape to renderer
-					{
-						const ::engine::Entity renderId = ::engine::Entity::create();
+					//// add debug shape to renderer
+					//{
+					//	const ::engine::Entity renderId = ::engine::Entity::create();
 
-						const core::maths::Matrix4x4f shapeMatrix =
-							make_translation_matrix(shapeData.pos) *
-							make_matrix(shapeData.rot);
+					//	const core::maths::Matrix4x4f shapeMatrix =
+					//		make_translation_matrix(shapeData.transform.pos) *
+					//		make_matrix(shapeData.transform.quat);
 
-						engine::graphics::data::CuboidC data = {
-							actorMatrix * shapeMatrix,
-							shapeData.geometry.sphere.r,
-							shapeData.geometry.sphere.r,
-							shapeData.geometry.sphere.r,
-							0xffffffff,
-							true
-						};
-						engine::graphics::renderer::add(renderId, data);
+					//	engine::graphics::data::CuboidC data = {
+					//		actorMatrix * shapeMatrix,
+					//		shapeData.geometry.sphere.r,
+					//		shapeData.geometry.sphere.r,
+					//		shapeData.geometry.sphere.r,
+					//		0xffffffff,
+					//		true
+					//	};
+					//	engine::graphics::renderer::add(renderId, data);
 
-						shape->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(renderId);
-					}
+					//	shape->userData = (void*) (std::size_t)static_cast<engine::Entity::value_type>(renderId);
+					//}
 					break;
 				}
 				case ShapeData::Type::MESH:
@@ -171,7 +179,7 @@ namespace physics
 			filterData.word2 = static_cast<physx::PxU32>(shapeData.material);
 
 			// apply delta tranform of shape relative to actors centre
-			shape->setLocalPose(PxTransform(convert<PxVec3>(shapeData.pos), convert(shapeData.rot)));
+			shape->setLocalPose(PxTransform(convert<PxVec3>(shapeData.transform.pos), convert(shapeData.transform.quat)));
 
 			// set filtering data for the shape
 			shape->setSimulationFilterData(filterData);
@@ -194,8 +202,7 @@ namespace physics
 		{
 			case ActorData::Behaviour::TRIGGER:
 			{
-				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
-						//static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
+				mask =	static_cast<PxU32>(ActorData::Behaviour::CHARACTER) |
 						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
 				break;
 			}
@@ -210,11 +217,11 @@ namespace physics
 				break;
 			}
 			// players should have full callback
-			case ActorData::Behaviour::PLAYER:
+			case ActorData::Behaviour::CHARACTER:
 			{
-				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
-						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
-						static_cast<PxU32>(ActorData::Behaviour::DEFAULT)|
+				mask =	static_cast<PxU32>(ActorData::Behaviour::CHARACTER) |
+						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE) |
+						static_cast<PxU32>(ActorData::Behaviour::DEFAULT) |
 						static_cast<PxU32>(ActorData::Behaviour::PROJECTILE);
 				break;
 			}
@@ -226,8 +233,8 @@ namespace physics
 			}
 			case ActorData::Behaviour::PROJECTILE:
 			{
-				mask =	static_cast<PxU32>(ActorData::Behaviour::PLAYER)|
-						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE)|
+				mask =	static_cast<PxU32>(ActorData::Behaviour::CHARACTER) |
+						static_cast<PxU32>(ActorData::Behaviour::OBSTACLE) |
 						static_cast<PxU32>(ActorData::Behaviour::DEFAULT);
 				break;
 			}
@@ -239,37 +246,24 @@ namespace physics
 		return PxFilterData {flag, mask, PxU32 {0}, PxU32 {0}};
 	}
 
-	/**
-		\note Create Actor based on ActorData
-	 */
-	void create(const engine::Entity id, const ActorData & data)
+	void create(const Entity id, const ActorData::Type type, const transform_t transform, reply_shapes & reply)
 	{
-		const core::maths::Matrix4x4f matrix =
-			make_translation_matrix(data.pos) *
-			make_matrix(data.rot);
-
-		switch (data.type)
+		switch (type)
 		{
 			case ActorData::Type::DYNAMIC:
 			{
 				// create a dynamic body at position
-				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform{convert<physx::PxVec3>(data.pos), convert(data.rot)});
+				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform{convert<physx::PxVec3>(transform.pos), convert(transform.quat)});
 
-				if (data.behaviour==ActorData::Behaviour::PLAYER)
-				{
-					// setting more powerful damping if player
-					body->setAngularDamping(0.5f);
-					body->setLinearDamping(2.f);
-				}
-
-				// create collision filter flags
-				PxFilterData filterData = createFilter(data.behaviour);
-
-				// create shapes
-				reply_shapes reply = create(matrix, data.shapes, filterData);
+				//if (data.behaviour == ActorData::Behaviour::CHARACTER)
+				//{
+				//	// setting more powerful damping if player
+				//	body->setAngularDamping(0.5f);
+				//	body->setLinearDamping(2.f);
+				//}
 
 				// make the shapes trigger shapes.
-				for (auto shape:reply.shapes)
+				for (auto shape : reply.shapes)
 				{
 					body->attachShape(*shape);
 				}
@@ -291,12 +285,7 @@ namespace physics
 			{
 				// create a dynamic body at position
 				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(
-					PxTransform {convert<physx::PxVec3>(data.pos), convert(data.rot)});
-
-				// create collision filter flags
-				PxFilterData filterData = createFilter(data.behaviour);
-
-				reply_shapes reply = create(matrix, data.shapes, filterData);
+					PxTransform {convert<physx::PxVec3>(transform.pos), convert(transform.quat)});
 
 				for (auto shape:reply.shapes)
 				{
@@ -318,16 +307,10 @@ namespace physics
 			case ActorData::Type::KINEMATIC:
 			{
 				// create a dynamic body at position
-				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform{convert<physx::PxVec3>(data.pos), convert(data.rot)});
+				physx::PxRigidDynamic *const body = physx2::pWorld->createRigidDynamic(PxTransform{convert<physx::PxVec3>(transform.pos), convert(transform.quat)});
 
 				// make it an kinematic object
 				body->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
-
-				// create collision filter flags
-				PxFilterData filterData = createFilter(data.behaviour);
-
-				// create shapes
-				reply_shapes reply = create(matrix, data.shapes, filterData);
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)
@@ -351,13 +334,7 @@ namespace physics
 			case ActorData::Type::STATIC:
 			{
 				// create a dynamic body at position
-				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform{convert<physx::PxVec3>(data.pos), convert(data.rot)});
-
-				// create collision filter flags
-				PxFilterData filterData = createFilter(data.behaviour);
-
-				// create shapes
-				reply_shapes reply = create(matrix, data.shapes, filterData);
+				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform{convert<physx::PxVec3>(transform.pos), convert(transform.quat)});
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)
@@ -378,13 +355,7 @@ namespace physics
 			case ActorData::Type::TRIGGER:
 			{
 				// create a dynamic body at position
-				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform{convert<physx::PxVec3>(data.pos), convert(data.rot)});
-
-				// create collision filter flags
-				PxFilterData filterData = createFilter(data.behaviour);
-
-				// create shapes
-				reply_shapes reply = create(matrix, data.shapes, filterData);
+				physx::PxRigidStatic *const body = physx2::pWorld->createRigidStatic(PxTransform{convert<physx::PxVec3>(transform.pos), convert(transform.quat)});
 
 				// make the shapes trigger shapes.
 				for (auto shape : reply.shapes)
@@ -407,6 +378,24 @@ namespace physics
 				break;
 			}
 		}
+	}
+
+	/**
+	\note Create Actor based on ActorData
+	*/
+	void create(const engine::Entity id, const ActorData & data)
+	{
+		//const core::maths::Matrix4x4f matrix =
+		//	make_translation_matrix(data.transform.pos) *
+		//	make_matrix(data.transform.quat);
+
+		// create collision filter flags
+		PxFilterData filterData = createFilter(data.behaviour);
+
+		// create shapes
+		reply_shapes reply = create(data.shapes, filterData);
+
+		create(id, data.type, data.transform, reply);
 	}
 
 	void create(const engine::Entity id, const PlaneData & data)
@@ -450,6 +439,44 @@ namespace physics
 				create(data.first, data.second);
 			}
 		}
+
+		{
+			std::pair<engine::Entity, asset_definition_t> data;
+			while (queue_create_definition.try_pop(data))
+			{
+				const auto filter = createFilter(data.second.behaviour);
+				const auto shapes = create(data.second.shapes, filter);
+
+				shape_definitions.emplace(data.first, std::move(shapes));
+			}
+		}
+
+		{
+			std::pair<engine::Entity, asset_instance_t> data;
+			while (queue_create_instance.try_pop(data))
+			{
+				auto itr = shape_definitions.find(data.second.defId);
+
+				if (itr == shape_definitions.end())
+				{
+					debug_unreachable();
+				}
+
+				create(data.first, data.second.type, data.second.transform, itr->second);
+			}
+		}
+	}
+
+	void add(const engine::Entity id, const asset_definition_t & data)
+	{
+		const auto res = queue_create_definition.try_push(std::pair<engine::Entity, asset_definition_t>(id, data));
+		debug_assert(res);
+	}
+
+	void add(const engine::Entity id, const asset_instance_t & data)
+	{
+		const auto res = queue_create_instance.try_push(std::pair<engine::Entity, asset_instance_t>(id, data));
+		debug_assert(res);
 	}
 
 	void post_create(const engine::Entity id, const ActorData & data)

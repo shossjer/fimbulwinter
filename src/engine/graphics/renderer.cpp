@@ -331,6 +331,32 @@ namespace
 		}
 	};
 
+	struct asset_instance_t
+	{
+		engine::Entity defId;
+		core::maths::Matrix4x4f modelview;
+
+		asset_instance_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
+	};
+
+	struct asset_definition_t
+	{
+		std::vector<meshc_t> meshs;
+
+		asset_definition_t(engine::graphics::renderer::asset_definition_t & d)
+		{
+			for (auto & mesh : d.meshs)
+			{
+				;
+				this->meshs.emplace_back(meshc_t { std::move(mesh) });
+			}
+		}
+	};
+
 	struct Character
 	{
 		struct Mesh
@@ -479,14 +505,25 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		1001,
+		1201,
 		std::array<Character, 100>,
 		std::array<cuboid_c, 100>,
 		std::array<cuboid_cw, 100>,
 		std::array<linec_t, 100>,
-		std::array<meshc_t, 100>
+		std::array<meshc_t, 100>,
+		std::array<asset_instance_t, 100>
 	>
 	components;
+
+	core::container::Collection
+	<
+		engine::Entity,
+		200,
+		std::array<asset_definition_t, 100>,
+		std::array<int, 1>
+	>
+	definitions;
+
 }
 
 namespace
@@ -518,6 +555,13 @@ namespace
 	                                           engine::graphics::renderer::CharacterSkinning>,
 	                                 100> queue_update_characterskinning;
 
+	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	                                           engine::graphics::renderer::asset_definition_t>,
+	                                 100> queue_asset_definitions;
+	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	                                           engine::graphics::renderer::asset_instance_t>,
+	                                 100> queue_asset_instances;
+
 	void poll_add_queue()
 	{
 		std::pair<engine::Entity,
@@ -542,13 +586,7 @@ namespace
 			components.add(message_add_linec.first,
 			               std::move(message_add_linec.second));
 		}
-		std::pair<engine::Entity,
-		          engine::graphics::data::MeshC> message_add_meshc;
-		while (queue_add_meshc.try_pop(message_add_meshc))
-		{
-			components.add(message_add_meshc.first,
-			               std::move(message_add_meshc.second));
-		}
+
 		std::pair<engine::Entity,
 		          engine::graphics::renderer::asset::CharacterMesh> message_add_charactermesh;
 		while (queue_add_charactermesh.try_pop(message_add_charactermesh))
@@ -563,6 +601,22 @@ namespace
 				resources.add(mshasset, std::move(msh));
 			}
 			components.add(message_add_charactermesh.first, Character::SetMesh{resources.get<Character::Mesh>(mshasset)});
+		}
+		{
+			std::pair<engine::Entity, engine::graphics::renderer::asset_definition_t> data;
+			while (queue_asset_definitions.try_pop(data))
+			{
+				definitions.add(data.first, asset_definition_t{data.second});
+			}
+		}
+		{
+			std::pair<engine::Entity, engine::graphics::renderer::asset_instance_t> data;
+			while (queue_asset_instances.try_pop(data))
+			{
+				components.add(
+						data.first,
+						asset_instance_t{ data.second.defId, data.second.modelview });
+			}
 		}
 	}
 	void poll_remove_queue()
@@ -663,6 +717,47 @@ namespace
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
 	}
+
+	struct render_definition_t
+	{
+		const asset_instance_t & inst;
+
+		render_definition_t(const asset_instance_t & inst)
+			:
+			inst(inst)
+		{}
+
+		void operator () (asset_definition_t & x)
+		{
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glEnableClientState(GL_NORMAL_ARRAY);
+
+			for (const auto & mesh : x.meshs)
+			{
+				glColor(mesh.color);
+
+				glVertexPointer(3, // TODO
+								static_cast<GLenum>(mesh.vertices.format()), // TODO
+								0,
+								mesh.vertices.data());
+				glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
+								0,
+								mesh.normals.data());
+				glDrawElements(GL_TRIANGLES,
+								mesh.triangles.count(),
+								static_cast<GLenum>(mesh.triangles.format()),
+								mesh.triangles.data());
+			}
+
+			glDisableClientState(GL_NORMAL_ARRAY);
+			glDisableClientState(GL_VERTEX_ARRAY);
+		}
+
+		template <typename X>
+		void operator () (X & x)
+		{
+		}
+	};
 
 	void render_update()
 	{
@@ -852,6 +947,17 @@ namespace
 
 			modelview_matrix.pop();
 		}
+		for (const auto & component : components.get<asset_instance_t>())
+		{
+			modelview_matrix.push();
+			{
+				modelview_matrix.mult(component.modelview);
+				glLoadMatrix(modelview_matrix);
+
+				definitions.call(component.defId, render_definition_t{ component });
+			}
+			modelview_matrix.pop();
+		}
 
 		glDisable(GL_STENCIL_TEST);
 		glDisable(GL_DEPTH_TEST);
@@ -943,11 +1049,13 @@ namespace engine
 
 			void add(engine::Entity entity, const asset_definition_t & data)
 			{
-
+				const auto res = queue_asset_definitions.try_push(std::make_pair(entity, data));
+				debug_assert(res);
 			}
 			void add(engine::Entity entity, const asset_instance_t & data)
 			{
-
+				const auto res = queue_asset_instances.try_push(std::make_pair(entity, data));
+				debug_assert(res);
 			}
 
 			void remove(engine::Entity entity)

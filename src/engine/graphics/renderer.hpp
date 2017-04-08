@@ -146,8 +146,7 @@ namespace engine
 			{
 				engine::Entity defId;
 				core::maths::Matrix4x4f modelview;
-				//transform_t transform;
-			//	Vector3f scale;
+				//Vector3f scale;
 			};
 
 			void add(engine::Entity entity, data::CuboidC data);
