@@ -27,6 +27,9 @@ namespace level
 
 		using transform_t = ::engine::transform_t;
 
+		using render_instance_t = engine::graphics::renderer::asset_instance_t;
+		using physic_instance_t = engine::physics::asset_instance_t;
+
 		// the data needed when creating instances of an asset.
 		// renderer meshes and physics shapes should already be added in respective module.
 		struct asset_template_t
@@ -38,11 +41,21 @@ namespace level
 
 			std::unordered_map<std::string, part_t> parts;
 
-			const part_t & part(const std::string name) const
+			struct joint_t
 			{
-				auto itr = parts.find(name);
+				transform_t transform;
+			};
 
-				if (itr == parts.end())
+			std::unordered_map<std::string, joint_t> joints;
+
+			template<typename T>
+			const T & get(
+					const std::unordered_map<std::string, T> & items,
+					const std::string name) const
+			{
+				auto itr = items.find(name);
+
+				if (itr == items.end())
 				{
 					debug_unreachable();
 				}
@@ -50,25 +63,15 @@ namespace level
 				return itr->second;
 			}
 
-			//// renderer mesh entities
-			//struct mesh_t
-			//{
-			//	engine::Entity id;
-			//};
+			const part_t & part(const std::string name) const
+			{
+				return get<part_t>(this->parts, name);
+			}
 
-			//std::vector<mesh_t> meshes;
-
-			//// physics shape entities
-			//struct shape_t
-			//{
-			//	engine::Entity id;
-			//};
-
-			//std::vector<shape_t> shapes;
-
-			//// relations
-
-			//// render texture data..?
+			const joint_t & joint(const std::string name) const
+			{
+				return get<joint_t>(this->joints, name);
+			}
 		};
 
 		// contains all prev. loaded asset definitions.
@@ -123,16 +126,46 @@ namespace level
 
 			std::vector<part_t> parts;
 
-			const part_t & part(const std::string & name) const
+			struct joint_t
 			{
-				for(const auto i : this->parts)
+				std::string name;
+				transform_t transform;
+			};
+
+			std::vector<joint_t> joints;
+
+			template<typename T>
+			const T & get(const std::vector<T> & items, const std::string & name) const
+			{
+				for (const auto i : items)
 				{
-					if (i.name==name) return i;
+					if (i.name == name) return i;
 				}
 
 				debug_unreachable();
 			}
+
+			const part_t & part(const std::string & name) const
+			{
+				return get<part_t>(this->parts, name);
+			}
+
+			const joint_t & joint(const std::string & name) const
+			{
+				return get<joint_t>(this->joints, name);
+			}
 		};
+
+		transform_t load_transform(const json & jparent)
+		{
+			const auto & jtransform = jparent["transform"];
+			const auto & jp = jtransform["pos"];
+			const auto & jq = jtransform["quat"];
+
+			return transform_t{
+					Vector3f{ jp[0], jp[1], jp[2] },
+					Quaternionf{ jq[0], jq[1], jq[2], jq[3] } };
+		}
 
 		model_t load_model_data(const std::string & type)
 		{
@@ -197,16 +230,7 @@ namespace level
 					{
 						model_t::part_t::physic_t::shape_t shape;
 
-						{
-							const auto & jtransform = jshape["transform"];
-							const auto & jp = jtransform["pos"];
-							const auto & jq = jtransform["quat"];
-
-
-							shape.transform = transform_t{
-									Vector3f{jp[0], jp[1], jp[2]},
-									Quaternionf{ jq[0], jq[1], jq[2], jq[3] } };
-						}
+						shape.transform = load_transform(jshape);
 
 						const std::string type = jshape["type"];
 
@@ -240,14 +264,25 @@ namespace level
 				model.parts.emplace_back(model_t::part_t { name, render, physic });
 			}
 
+			const auto & jrelations = jcontent["relations"];
+
+			// read the relations (assume joints only for now)
+			for (const auto & jrelation : jrelations)
+			{
+				const std::string name = jrelation["name"];
+				const auto & jjoint = jrelation["joint"];
+
+				model.joints.emplace_back(model_t::joint_t{ name, load_transform(jjoint) });
+			}
+
 			return model;
 		}
 
 		const asset_template_t & load(const std::string & type)
 		{
-			// check if already exists
 			auto itr = assets.find(type);
 
+			// check if already exists
 			if (itr != assets.end()) return itr->second;
 
 			// the asset has not previously been loaded
@@ -321,6 +356,11 @@ namespace level
 				asset_template.parts.emplace(part.name, asset_template_t::part_t{ id });
 			}
 
+			for (const auto & joint : model.joints)
+			{
+				asset_template.joints.emplace(joint.name, asset_template_t::joint_t{ joint.transform });
+			}
+
 			// create the asset
 			const auto & r = assets.emplace(type, std::move(asset_template));
 
@@ -355,36 +395,44 @@ namespace level
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 					id,
-					engine::graphics::renderer::asset_instance_t{
+					render_instance_t{
 							drivePart.id,
 							transform.matrix() });
 			engine::graphics::renderer::add(
 					headId,
-					engine::graphics::renderer::asset_instance_t{
+					render_instance_t{
 							headPart.id,
 							transform.matrix() });
 
 			// register new asset in physics
 			engine::physics::add(
 					id,
-					engine::physics::asset_instance_t{
+					physic_instance_t{
 							drivePart.id,
 							placeholder.transform,
 							engine::physics::ActorData::Type::DYNAMIC });
 			engine::physics::add(
 					headId,
-					engine::physics::asset_instance_t{
+					physic_instance_t{
 							headPart.id,
 							placeholder.transform,
 							engine::physics::ActorData::Type::DYNAMIC });
 
-			//// TODO: create joint for droid
-			//engine::physics::post_joint(engine::physics::joint_t{
-			//		assetInstance.jointId,
-			//		engine::physics::joint_t::Type::FIXED,
-			//		drivePart.id,
-			//		headPart.id,
-			//		transforms...});
+			const auto & jointDef = assetTemplate.joint("drive");
+
+			// create joint between drive and head
+			engine::physics::post_joint(
+					engine::physics::joint_t {
+							assetInstance.jointId,
+							engine::physics::joint_t::Type::HINGE,
+							assetInstance.id,
+							assetInstance.headId,
+							transform_t {
+									jointDef.transform.pos,
+									jointDef.transform.quat *core::maths::rotation_of(Vector3f{0.f, 1.f, 0.f}) },
+							transform_t {
+									Vector3f{0.f, 0.f, 0.f},
+									Quaternionf{1.f, 0.f, 0.f, 0.f}* core::maths::rotation_of(Vector3f{0.f, 1.f, 0.f})} });
 
 			// register new asset in character
 			characters::post_add(assetInstance);

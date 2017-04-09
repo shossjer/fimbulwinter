@@ -28,14 +28,14 @@ namespace asset
 
 	struct droid_t : asset_t
 	{
-		::engine::Entity driveId;
+		::engine::Entity headId;
 
 		::engine::Entity jointId;
 
-		droid_t(Entity id, ::engine::transform_t transform, Entity driveId, Entity jointId)
+		droid_t(Entity id, ::engine::transform_t transform, Entity headId, Entity jointId)
 			:
 			asset_t(id, transform),
-			driveId(driveId),
+			headId(headId),
 			jointId(jointId)
 		{
 		}
