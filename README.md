@@ -1,3 +1,3 @@
-# Tribunal
+# Hell's Kitchen
 
-This is not an electric cat.
+This is also not an electric cat.

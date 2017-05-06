@@ -66,7 +66,7 @@ if(ENABLE_TEST)
 
 	add_executable(TribunalTest ${TRIBUNAL_TEST_FILES})
 
-	add_dependencies(TribunalTest Tribunal)
+	add_dependencies(TribunalTest HellsKitchen)
 	add_dependencies(TribunalTest catch)
 
 else()

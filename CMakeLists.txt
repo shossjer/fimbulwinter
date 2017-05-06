@@ -1,6 +1,14 @@
 #
 cmake_minimum_required(VERSION 2.8)
-project(tribunal)
+project(hellskitchen)
+
+if (MSVC)
+	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
+	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
+	set(CMAKE_CXX_FLAGS_DEBUG
+		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
+		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
+endif()
 
 # make debug build default
 if (NOT CMAKE_BUILD_TYPE)
@@ -27,102 +35,15 @@ message(STATUS "CMAKE_SYSTEM_PREFIX_PATH=${CMAKE_SYSTEM_PREFIX_PATH}")
 message(STATUS "CMAKE_INCLUDE_PATH=${CMAKE_INCLUDE_PATH}")
 message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
 
-# the version number
-set(TRIBUNAL_VERSION_MAJOR 0)
-set(TRIBUNAL_VERSION_MINOR 1)
-
 # flags to control physics library linking
 set(PHYSICS_USE_BOX2D 0)
 set(PHYSICS_USE_PHYSX 1)
 
-# source listing
-set(TRIBUNAL_SOURCE
-	src/main.cpp
-	src/core/async/Thread.cpp
-	src/core/crypto/crc.cpp
-	src/engine/animation/Armature.cpp
-	src/engine/animation/mixer.cpp
-	src/engine/application/window.cpp
-	src/engine/graphics/opengl/Font.cpp
-	src/engine/graphics/renderer.cpp
-	src/engine/graphics/viewer.cpp
-	src/engine/hid/input.cpp
-	src/engine/hid/input_user32.cpp
-	src/engine/hid/input_x11.cpp
-	src/engine/physics/creation_physx.cpp
-	src/engine/physics/joint_physx.cpp
-	src/engine/physics/physics_physx.cpp
-	src/gameplay/characters.cpp
-	src/gameplay/level.cpp
-	src/gameplay/level_placeholder.cpp
-	src/gameplay/looper.cpp
-	src/gameplay/ui.cpp
-	)
+include (src/CMakeLists.txt)
 
-# source listing
-set(TRIBUNAL_HEADER
-	src/core/async/delay.hpp
-	src/core/async/Thread.hpp
-	src/core/color.hpp
-	src/core/container/Buffer.hpp
-	src/core/container/CircleQueue.hpp
-	src/core/container/Collection.hpp
-	src/core/container/ExchangeQueue.hpp
-	src/core/container/Stack.hpp
-	src/core/crypto/crc.hpp
-	src/core/debug.hpp
-	src/core/format.hpp
-	src/core/maths/Matrix.hpp
-	src/core/maths/Plane.hpp
-	src/core/maths/Quaternion.hpp
-	src/core/maths/Scalar.hpp
-	src/core/maths/Vector.hpp
-	src/core/maths/algorithm.hpp
-	src/core/maths/util.hpp
-	src/core/sync/CriticalSection.hpp
-	src/core/sync/Mutex.hpp
-	src/engine/Entity.hpp
-	src/engine/animation/Armature.hpp
-	src/engine/animation/Callbacks.hpp
-	src/engine/animation/mixer.hpp
-	src/engine/application/window.hpp
-	src/engine/common.hpp
-	src/engine/debug.hpp
-	src/engine/extras/Asset.hpp
-	src/engine/graphics/renderer.hpp
-	src/engine/graphics/opengl/Font.hpp
-	src/engine/graphics/opengl/Matrix.hpp
-	src/engine/graphics/viewer.hpp
-	src/engine/hid/input.hpp
-	src/engine/physics/actor_physx.hpp
-	src/engine/physics/Callback.hpp
-	src/engine/physics/defines.hpp
-	src/engine/physics/filter_physx.hpp
-	src/engine/physics/helper_physx.hpp
-	src/engine/physics/material_physx.hpp
-	src/engine/physics/physics.hpp
-	src/engine/physics/physics_physx.hpp
-	src/gameplay/assets.hpp
-	src/gameplay/characters.hpp
-	src/gameplay/CharacterState.hpp
-	src/gameplay/debug.hpp
-	src/gameplay/level.hpp
-	src/gameplay/level_placeholder.hpp
-	src/gameplay/ui.hpp
-	src/utility/algorithm.hpp
-	src/utility/aligned_array.hpp
-	src/utility/array.hpp
-	src/utility/inaccessible.hpp
-	src/utility/json.hpp
-	src/utility/optional.hpp
-	src/utility/stream.hpp
-	src/utility/string.hpp
-	src/utility/type_traits.hpp
-	)
+set(ALL_FILES ${SOURCE_FILES} ${HEADER_FILES})
 
-set(TRIBUNAL_FILES ${TRIBUNAL_SOURCE} ${TRIBUNAL_HEADER})
-
-foreach(FILE ${TRIBUNAL_FILES})
+foreach(FILE ${ALL_FILES})
 	get_filename_component(PARENT_DIR "${FILE}" PATH)
 
 	# skip src or include and changes /'s to \\'s
@@ -144,7 +65,7 @@ endforeach()
 include_directories("${PROJECT_BINARY_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}/src")
 
-add_executable(Tribunal ${TRIBUNAL_FILES})
+add_executable(HellsKitchen ${ALL_FILES})
 
 enable_testing (true)
 add_subdirectory (tst)
@@ -275,12 +196,12 @@ if (PHYSICS_USE_PHYSX)
 	# graphics libraries
 	if (LIBRARY_PHYSX_CORE)
 	  # debug sets lib for "debug" in VS and optimized sets lib for "release" mode in VS
-	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_CORE_D} optimized ${LIBRARY_PHYSX_CORE})
-	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_COMMON_D} optimized ${LIBRARY_PHYSX_COMMON})
-	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_EXTENSIONS_D} optimized ${LIBRARY_PHYSX_EXTENSIONS})
-	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_PROFILE_D} optimized ${LIBRARY_PHYSX_PROFILE})
-	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_CHARACTER_D} optimized ${LIBRARY_PHYSX_CHARACTER})
-	  target_link_libraries(Tribunal debug ${LIBRARY_PHYSX_COOKING_D} optimized ${LIBRARY_PHYSX_COOKING})
+	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_CORE_D} optimized ${LIBRARY_PHYSX_CORE})
+	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_COMMON_D} optimized ${LIBRARY_PHYSX_COMMON})
+	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_EXTENSIONS_D} optimized ${LIBRARY_PHYSX_EXTENSIONS})
+	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_PROFILE_D} optimized ${LIBRARY_PHYSX_PROFILE})
+	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_CHARACTER_D} optimized ${LIBRARY_PHYSX_CHARACTER})
+	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_COOKING_D} optimized ${LIBRARY_PHYSX_COOKING})
 	endif()
 endif()
 
@@ -311,7 +232,7 @@ if (PHYSICS_USE_BOX2D)
 
 	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
 
-	target_link_libraries(Tribunal debug ${LIBRARY_PHYSICS_BOX_CORE_D} optimized ${LIBRARY_PHYSICS_BOX_CORE})
+	target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSICS_BOX_CORE_D} optimized ${LIBRARY_PHYSICS_BOX_CORE})
 endif()
 
 
@@ -320,12 +241,12 @@ endif()
 if (FILE_GL_GL_H AND
 	LIBRARY_GL)
   message(STATUS "Graphics - OpenGL")
-  target_link_libraries(Tribunal ${LIBRARY_GL})
+  target_link_libraries(HellsKitchen ${LIBRARY_GL})
   set(GRAPHICS_USE_OPENGL 1)
 elseif (FILE_GL_GL_H AND
 	LIBRARY_OPENGL32)
   message(STATUS "Graphics - OpenGL")
-  target_link_libraries(Tribunal ${LIBRARY_OPENGL32})
+  target_link_libraries(HellsKitchen ${LIBRARY_OPENGL32})
   set(GRAPHICS_USE_OPENGL 1)
 else()
   message(FATAL_ERROR "Graphics - Disabled")
@@ -336,13 +257,13 @@ if (FILE_AL_AL_H AND
 	FILE_AL_ALC_H AND
 	LIBRARY_OPENAL)
   message(STATUS "Sound - OpenAL")
-  target_link_libraries(Tribunal ${LIBRARY_OPENAL})
+  target_link_libraries(HellsKitchen ${LIBRARY_OPENAL})
   set(SOUND_USE_OPENAL 1)
 elseif(FILE_AL_AL_H AND
 	FILE_AL_ALC_H AND
 	LIBRARY_OPENAL32)
   message(STATUS "Sound - OpenAL")
-  target_link_libraries(Tribunal ${LIBRARY_OPENAL32})
+  target_link_libraries(HellsKitchen ${LIBRARY_OPENAL32})
   set(SOUND_USE_OPENAL 1)
 else()
   message(WARNING "Sound - Disabled")
@@ -351,12 +272,12 @@ endif()
 # thread
 if (LIBRARY_KERNEL32)
   message(STATUS "Thread - Kernel32")
-  target_link_libraries(Tribunal ${LIBRARY_KERNEL32})
+  target_link_libraries(HellsKitchen ${LIBRARY_KERNEL32})
   set(THREAD_USE_KERNEL32 1)
 elseif(FILE_PTHREAD_H AND
 	LIBRARY_PTHREAD)
   message(STATUS "Thread - Pthread")
-  target_link_libraries(Tribunal ${LIBRARY_PTHREAD})
+  target_link_libraries(HellsKitchen ${LIBRARY_PTHREAD})
   set(THREAD_USE_PTHREAD 1)
 else()
   message(FATAL_ERROR "Thread - Disabled")
@@ -366,12 +287,12 @@ endif()
 if (LIBRARY_GDI32 AND
 	LIBRARY_USER32)
   message(STATUS "Window - User32")
-  target_link_libraries(Tribunal ${LIBRARY_USER32})
+  target_link_libraries(HellsKitchen ${LIBRARY_USER32})
   set(WINDOW_USE_USER32 1)
 elseif(FILE_X11_XLIB_H AND
 	LIBRARY_X11)
   message(STATUS "Window - X11")
-  target_link_libraries(Tribunal ${LIBRARY_X11})
+  target_link_libraries(HellsKitchen ${LIBRARY_X11})
   set(WINDOW_USE_X11 1)
 else()
   message(FATAL_ERROR "Window - Disabled")
