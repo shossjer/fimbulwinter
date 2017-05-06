@@ -3,8 +3,7 @@ cmake_minimum_required(VERSION 2.8)
 project(hellskitchen)
 
 if (MSVC)
-	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
-	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
+	include_directories("C:/Program Files (x86)/Windows Kits/8.1/Include/um")
 	set(CMAKE_CXX_FLAGS_DEBUG
 		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
 		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
@@ -37,7 +36,7 @@ message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
 
 # flags to control physics library linking
 set(PHYSICS_USE_BOX2D 0)
-set(PHYSICS_USE_PHYSX 1)
+set(PHYSICS_USE_PHYSX 0)
 
 include (src/CMakeLists.txt)
 

@@ -1,10 +1,7 @@
 
 #include "level.hpp"
 
-#include "level_placeholder.hpp"
-
-#include <gameplay/characters.hpp>
-#include <gameplay/CharacterState.hpp>
+#include <gameplay/gamestate.hpp>
 #include <gameplay/ui.hpp>
 
 #include <core/debug.hpp>
@@ -99,8 +96,6 @@ namespace
 		std::vector<trigger_multiple_t> trigger_multiples;
 
 		std::vector<mesh_t> meshes;
-
-		std::vector<placeholder_t> placeholders;
 	};
 
 	void read_count(std::ifstream & stream, uint16_t & count)
@@ -278,21 +273,6 @@ namespace
 		}
 	}
 
-	void read_placeholders(std::ifstream & ifile, std::vector<placeholder_t> & placeholders)
-	{
-		uint16_t nplaceholders;
-		read_count(ifile, nplaceholders);
-
-		placeholders.resize(nplaceholders);
-		for (auto & placeholder : placeholders)
-		{
-			read_string(ifile, placeholder.name);
-			read_vector(ifile, placeholder.transform.pos);
-			read_quaternion(ifile, placeholder.transform.quat);
-			read_vector(ifile, placeholder.scale);
-		}
-	}
-
 	void read_level(std::ifstream & ifile, level_t & level)
 	{
 		read_player_start(ifile, level.player_start);
@@ -305,11 +285,7 @@ namespace
 		read_trigger_multiples(ifile, level.trigger_multiples);
 
 		read_meshes(ifile, level.meshes);
-
-		read_placeholders(ifile, level.placeholders);
 	}
-
-	std::vector<engine::Entity> entities;
 }
 
 namespace gameplay
@@ -326,306 +302,7 @@ namespace gameplay
 				read_level(ifile, level);
 			}
 
-			entities.reserve(0 + 2 + level.statics.size() + level.platforms.size() + level.trigger_multiples.size());
-
-			const json content = json::parse(std::ifstream("res/desc.json"));
-
-			// need a local map to connect name with entity
-			std::unordered_map<std::string, ::engine::Entity> objects;
-
-			// player start
-			{
-				placeholder_t p{ "", engine::transform_t{ Vector3f{14.f, 3.f, 0.f}, Quaternionf{1.f, 0.f, 0.f, 0.f} }, Vector3f{ 1.f, 1.f, 1.f } };
-				// load the player model - Droid
-				const auto playerId = load(p, "droid", engine::physics::ActorData::Behaviour::CHARACTER);
-
-				::gameplay::characters::post_create_player(playerId);
-				::gameplay::ui::post_add_player(playerId);
-
-				// create the player camera and attach to player object
-				{
-					const auto cameraId = engine::Entity::create();
-					engine::graphics::viewer::add(cameraId,
-						engine::graphics::viewer::camera(core::maths::Quaternionf(1.f, 0.f, 0.f, 0.f),
-							Vector3f(0.f, 0.f, 0.f)));
-					gameplay::characters::post_add_camera(cameraId, playerId);
-				}
-			}
-			// trigger timer
-			{
-				entities.push_back(engine::Entity::create());
-				{
-					const auto & box = level.trigger_timer.start;
-					engine::graphics::data::CuboidC data = {
-						box.matrix,
-						box.dimensions[0],
-						box.dimensions[1],
-						box.dimensions[2],
-						0x8844cccc
-					};
-					engine::graphics::renderer::add(entities.back(), data);
-				}
-				{
-					const auto & box = level.trigger_timer.stop;
-					engine::graphics::data::CuboidC data = {
-						box.matrix,
-						box.dimensions[0],
-						box.dimensions[1],
-						box.dimensions[2],
-						0x8844cccc
-					};
-					engine::graphics::renderer::add(entities.back(), data);
-				}
-			}
-			{
-				// statics
-				for (unsigned int i = 0; i < level.statics.size(); i++)
-				{
-					const auto & box = level.statics[i].box;
-
-					core::maths::Vector3f::array_type dimensions;
-					box.scalation.get_aligned(dimensions);
-
-					entities.push_back(engine::Entity::create());
-					{
-						std::vector<engine::physics::ShapeData> shapes;
-						shapes.push_back(engine::physics::ShapeData {
-								engine::physics::ShapeData::Type::BOX,
-								engine::physics::Material::WOOD,
-								1.f,
-								core::maths::Vector3f{0.f, 0.f, 0.f},
-								core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f},
-								engine::physics::ShapeData::Geometry{engine::physics::ShapeData::Geometry::Box{dimensions[0], dimensions[1], dimensions[2]} }});
-
-						engine::physics::ActorData data{
-								engine::physics::ActorData::Type::STATIC,
-								engine::physics::ActorData::Behaviour::DEFAULT,
-								engine::transform_t{box.translation, box.rotation},
-								shapes };
-
-						::engine::physics::post_create(entities.back(), data);
-					}
-					{
-						engine::graphics::data::CuboidC data = {
-							make_translation_matrix(box.translation) * make_matrix(box.rotation),
-							dimensions[0] * 2.f,
-							dimensions[1] * 2.f,
-							dimensions[2] * 2.f,
-							0xffcc4400
-						};
-						engine::graphics::renderer::add(entities.back(), data);
-					}
-				}
-				// dynamic
-				for (unsigned int i = 0; i<level.dynamics.size(); i++)
-				{
-					const auto & box = level.dynamics[i].box;
-
-					entities.push_back(engine::Entity::create());
-					{
-						const auto translation = box.matrix.get_column<3>();
-						core::maths::Vector4f::array_type buffer;
-						translation.get_aligned(buffer);
-
-						debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
-
-						std::vector<engine::physics::ShapeData> shapes;
-						shapes.push_back(engine::physics::ShapeData {
-							engine::physics::ShapeData::Type::BOX,
-							engine::physics::Material::WOOD,
-							0.01f,
-							core::maths::Vector3f {0.f, 0.f, 0.f},
-							core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
-							engine::physics::ShapeData::Geometry {
-								engine::physics::ShapeData::Geometry::Box {
-									box.dimensions[0]*0.5f,
-									box.dimensions[1]*0.5f,
-									box.dimensions[2]*0.5f}}});
-
-						engine::physics::ActorData data {
-								engine::physics::ActorData::Type::DYNAMIC,
-								engine::physics::ActorData::Behaviour::DEFAULT,
-								engine::transform_t{box.translation, box.rotation},
-								shapes };
-
-						::engine::physics::post_create(entities.back(), data);
-					}
-					{
-						engine::graphics::data::CuboidC data = {
-							box.matrix,
-							box.dimensions[0],
-							box.dimensions[1],
-							box.dimensions[2],
-							0xffcc44bb
-						};
-						engine::graphics::renderer::add(entities.back(), data);
-					}
-				}
-			}
-			// placeholders
-			{
-				const json & list = content["placeholders"];
-
-				for (unsigned int i = 0; i < level.placeholders.size(); i++)
-				{
-					const auto & placeholder = level.placeholders[i];
-					const std::string type = list[placeholder.name]["type"];
-
-					//load(placeholder, type, engine::physics::ActorData::Behaviour::DEFAULT);
-				}
-			}
-			// platforms
-			{
-				const json list = content["platforms"];
-
-				for (unsigned int i = 0; i < level.platforms.size(); i++)
-				{
-					auto & platform = level.platforms[i];
-
-					// check for description
-					const auto val = list.find(platform.name);
-
-					if (val==list.end()) continue;
-
-					const json data = *val;
-
-					const auto entity = engine::Entity::create();
-
-					objects.emplace(platform.name, entity);
-					entities.push_back(entity);
-
-					if (!platform.animation.actions.empty())
-					{
-						const auto asset = engine::extras::Asset(platform.animation.name);
-
-						engine::animation::add(asset, std::move(platform.animation));
-						engine::animation::add_model(entity, asset);
-					}
-
-					const auto & box = platform.box;
-					core::maths::Vector3f::array_type dimensions;
-					box.scalation.get_aligned(dimensions);
-					{
-						engine::graphics::data::CuboidC data = {
-							make_translation_matrix(box.translation) * make_matrix(box.rotation),
-							dimensions[0] * 2.f,
-							dimensions[1] * 2.f,
-							dimensions[2] * 2.f,
-							0xffcc4400
-						};
-						engine::graphics::renderer::add(entities.back(), data);
-					}
-					{
-						std::vector<engine::physics::ShapeData> shapes;
-						shapes.push_back(engine::physics::ShapeData {
-								engine::physics::ShapeData::Type::BOX,
-								engine::physics::Material::WOOD,
-								1.f,
-								core::maths::Vector3f {0.f, 0.f, 0.f},
-								core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
-								engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {dimensions[0], dimensions[1], dimensions[2]}}});
-
-						engine::physics::ActorData data {
-								engine::physics::ActorData::Type::KINEMATIC,
-								engine::physics::ActorData::Behaviour::OBSTACLE,
-								engine::transform_t{box.translation, box.rotation},
-								shapes};
-
-						::engine::physics::post_create(entity, data);
-					}
-				}
-			}
-			// trigger multiples
-			{
-				const json list = content["triggers"];
-
-				for (unsigned int i = 0; i<level.trigger_multiples.size(); i++)
-				{
-					auto & trigger = level.trigger_multiples[i];
-
-					// check for description
-					const auto val = list.find(trigger.name);
-
-					if (val==list.end()) continue;
-
-					const json data = *val;
-
-					const auto & box = trigger.box;
-
-					entities.push_back(engine::Entity::create());
-					{
-						engine::graphics::data::CuboidC data = {
-							box.matrix,
-							box.dimensions[0],
-							box.dimensions[1],
-							box.dimensions[2],
-							0x4444cccc
-						};
-						engine::graphics::renderer::add(entities.back(), data);
-					}
-					{
-						const auto translation = box.matrix.get_column<3>();
-						core::maths::Vector4f::array_type buffer;
-						translation.get_aligned(buffer);
-
-						debug_printline(0xffffffff, box.dimensions[0], ", ", box.dimensions[1], ", ", box.dimensions[2]);
-
-						std::vector<engine::physics::ShapeData> shapes;
-						shapes.push_back(engine::physics::ShapeData {
-								engine::physics::ShapeData::Type::BOX,
-								engine::physics::Material::WOOD,
-								1.f,
-								core::maths::Vector3f {0.f, 0.f, 0.f},
-								core::maths::Quaternionf {1.f, 0.f, 0.f, 0.f},
-								engine::physics::ShapeData::Geometry {engine::physics::ShapeData::Geometry::Box {box.dimensions[0]*0.5f, box.dimensions[1]*0.5f, box.dimensions[2]*0.5f}}});
-
-						engine::physics::ActorData data {
-								engine::physics::ActorData::Type::TRIGGER,
-								engine::physics::ActorData::Behaviour::TRIGGER,
-								engine::transform_t{box.translation, box.rotation},
-								shapes};
-
-						::engine::physics::post_create(entities.back(), data);
-					}
-
-					// parse targets of the trigger
-					std::vector<::engine::Entity> targets;
-
-					for (const std::string & targetName : data["targets"])
-					{
-						const auto t = objects.find(targetName);
-
-						if (t!=objects.end()) targets.push_back(t->second);
-						else debug_printline(0xffffffff, "Trigger does not have a platform target: ", targetName);
-					}
-
-					// parse target type
-					const std::string type_str = data["type"];
-					::gameplay::characters::trigger_t::Type type;
-
-					if (type_str=="door") type = ::gameplay::characters::trigger_t::Type::DOOR;
-					else continue;
-
-					// add trigger to "characters"
-					::gameplay::characters::post_add_trigger(::gameplay::characters::trigger_t {entities.back(), type, targets});
-				}
-			}
-			// activators
-			{
-				const json list = content["activators"];
-
-				for (const json & activator : list)
-				{
-					const std::string name = activator["name"];
-					const std::string animatiton = activator["animation"];
-
-					const auto & target = objects.find(name);
-					if (target!=objects.end())
-					{
-						engine::animation::update(target->second, engine::animation::action {animatiton, true});
-					}
-				}
-			}
+			// TODO: make finished
 		}
 		void destroy()
 		{

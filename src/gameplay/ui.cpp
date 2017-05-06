@@ -5,19 +5,12 @@
 #include <core/container/Collection.hpp>
 #include <core/debug.hpp>
 #include <engine/hid/input.hpp>
-#include <gameplay/characters.hpp>
+#include <gameplay/gamestate.hpp>
 
 #include <algorithm>
 
 namespace
 {
-	namespace mouse
-	{
-		gameplay::ui::coords_t frameCoords{ 0, 0 };
-		gameplay::ui::coords_t frameDelta{ 0, 0 };
-		gameplay::ui::coords_t updatedCoords{ 0, 0 };
-	}
-
 	struct GameMenu
 	{
 		engine::Entity entity;
@@ -42,101 +35,12 @@ namespace
 		}
 	};
 
-	struct Player
-	{
-		engine::Entity entity;
-
-		Player(engine::Entity entity) : entity(entity) {}
-
-		bool translate(const engine::hid::Input & input)
-		{
-			static bool is_down_left = false;
-			static bool is_down_right = false;
-			static bool is_down_up = false;
-			static bool is_down_down = false;
-		//	static bool is_down_space = false;
-
-			switch (input.getState())
-			{
-			case engine::hid::Input::State::DOWN:
-				switch (input.getButton())
-				{
-				case engine::hid::Input::Button::KEY_ARROWLEFT:
-					if (!is_down_left)
-					{
-						is_down_left = true;
-						gameplay::characters::post_command(entity, gameplay::characters::Command::LEFT_DOWN);
-					}
-					return true;
-				case engine::hid::Input::Button::KEY_ARROWRIGHT:
-					if (!is_down_right)
-					{
-						is_down_right = true;
-						gameplay::characters::post_command(entity, gameplay::characters::Command::RIGHT_DOWN);
-					}
-					return true;
-
-				case engine::hid::Input::Button::KEY_ARROWUP:
-					if (!is_down_up)
-					{
-						is_down_up = true;
-						gameplay::characters::post_command(entity, gameplay::characters::Command::UP_DOWN);
-					}
-					return true;
-				case engine::hid::Input::Button::KEY_ARROWDOWN:
-					if (!is_down_down)
-					{
-						is_down_down = true;
-						gameplay::characters::post_command(entity, gameplay::characters::Command::DOWN_DOWN);
-					}
-					return true;
-				case engine::hid::Input::Button::KEY_SPACEBAR:
-
-					return true;
-				default:
-					return false;
-				}
-			case engine::hid::Input::State::MOVE:
-				mouse::updatedCoords = gameplay::ui::coords_t{ input.getCursor().x, input.getCursor().y };
-				return true;
-			case engine::hid::Input::State::UP:
-				switch (input.getButton())
-				{
-				case engine::hid::Input::Button::KEY_ARROWLEFT:
-					is_down_left = false;
-					gameplay::characters::post_command(entity, gameplay::characters::Command::LEFT_UP);
-					return true;
-				case engine::hid::Input::Button::KEY_ARROWRIGHT:
-					is_down_right = false;
-					gameplay::characters::post_command(entity, gameplay::characters::Command::RIGHT_UP);
-					return true;
-
-				case engine::hid::Input::Button::KEY_ARROWUP:
-					is_down_up = false;
-					gameplay::characters::post_command(entity, gameplay::characters::Command::UP_UP);
-					return true;
-				case engine::hid::Input::Button::KEY_ARROWDOWN:
-					is_down_down = false;
-					gameplay::characters::post_command(entity, gameplay::characters::Command::DOWN_UP);
-					return true;
-				case engine::hid::Input::Button::KEY_SPACEBAR:
-
-					return true;
-				default:
-					return false;
-				}
-			default:
-				return false;
-			}
-		}
-	};
-
 	core::container::Collection
 	<
 		engine::Entity,
-		101,
+		5,
 		std::array<GameMenu, 1>,
-		std::array<Player, 1>
+		std::array<GameMenu, 1>
 	>
 	components;
 
@@ -187,83 +91,51 @@ namespace
 		std::rotate(first, it, it + 1);
 	}
 
-	core::container::CircleQueueSRMW<engine::Entity, 10> queue_add_player;
 	core::container::CircleQueueSRMW<engine::hid::Input, 100> queue_input;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_remove;
 }
 
 namespace gameplay
 {
-	namespace ui
+namespace ui
+{
+	void update()
 	{
-		void update()
+		// remove
 		{
-			// add player
+			engine::Entity entity;
+			while (queue_remove.try_pop(entity))
 			{
-				engine::Entity entity;
-				while (queue_add_player.try_pop(entity))
+				components.remove(entity);
+				remove(entity);
+			}
+		}
+
+		// dispatch inputs
+		{
+			engine::hid::Input input;
+			while (queue_input.try_pop(input))
+			{
+				for (std::size_t i = 0; i < n_entities; i++)
 				{
-					components.emplace<Player>(entity, entity);
-					add(entity);
+					if (components.call(entities[i], translate_input{input}))
+					// if (components.call(entities[i], [&input](auto & x){ return x.translate(input); }))
+						break;
 				}
 			}
-			// remove
-			{
-				engine::Entity entity;
-				while (queue_remove.try_pop(entity))
-				{
-					components.remove(entity);
-					remove(entity);
-				}
-			}
-
-			// dispatch inputs
-			{
-				engine::hid::Input input;
-				while (queue_input.try_pop(input))
-				{
-					for (std::size_t i = 0; i < n_entities; i++)
-					{
-						if (components.call(entities[i], translate_input{input}))
-						// if (components.call(entities[i], [&input](auto & x){ return x.translate(input); }))
-							break;
-					}
-				}
-			}
-
-			// update input state data
-			const auto uc = mouse::updatedCoords;
-
-			//
-			mouse::frameDelta = coords_t{ static_cast<short>(uc.x - mouse::frameCoords.x),
-			                              static_cast<short>(uc.y - mouse::frameCoords.y) };
-			mouse::frameCoords = uc;
-		}
-
-		void notify_input(const engine::hid::Input & input)
-		{
-			const auto res = queue_input.try_push(input);
-			debug_assert(res);
-		}
-
-		void post_add_player(engine::Entity entity)
-		{
-			const auto res = queue_add_player.try_emplace(entity);
-			debug_assert(res);
-		}
-		void post_remove(engine::Entity entity)
-		{
-			const auto res = queue_remove.try_emplace(entity);
-			debug_assert(res);
-		}
-
-		coords_t mouseCoords()
-		{
-			return mouse::frameCoords;
-		}
-		coords_t mouseDelta()
-		{
-			return mouse::frameDelta;
 		}
 	}
+
+	void notify_input(const engine::hid::Input & input)
+	{
+		const auto res = queue_input.try_push(input);
+		debug_assert(res);
+	}
+
+	void post_remove(engine::Entity entity)
+	{
+		const auto res = queue_remove.try_emplace(entity);
+		debug_assert(res);
+	}
+}
 }
