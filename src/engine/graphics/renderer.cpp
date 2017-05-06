@@ -9,6 +9,7 @@
 #include <config.h>
 
 #include <core/color.hpp>
+#include <core/async/Thread.hpp>
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 #include <core/container/ExchangeQueue.hpp>
@@ -16,6 +17,7 @@
 #include <core/maths/Matrix.hpp>
 #include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
+#include <core/sync/Event.hpp>
 
 #include <engine/debug.hpp>
 #include <engine/extras/Asset.hpp>
@@ -990,6 +992,28 @@ namespace
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
 	}
+
+	core::async::Thread renderThread;
+	volatile bool active = true;
+	core::sync::Event<true> event;
+
+	void run()
+	{
+		render_setup();
+
+		event.wait();
+		event.reset();
+
+		while (active)
+		{
+			render_update();
+
+			event.wait();
+			event.reset();
+		}
+
+		render_teardown();
+	}
 }
 
 namespace engine
@@ -1000,17 +1024,20 @@ namespace engine
 		{
 			void create()
 			{
-				render_setup();
+				renderThread = core::async::Thread{ run };
 			}
 
 			void update()
 			{
-				render_update();
+				event.set();
 			}
 
 			void destroy()
 			{
-				render_teardown();
+				active = false;
+				event.set();
+
+				renderThread.join();
 			}
 
 			void notify(Camera2D && data)

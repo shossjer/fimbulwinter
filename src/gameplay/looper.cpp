@@ -6,39 +6,27 @@
 #include <engine/physics/physics.hpp>
 
 #include <gameplay/gamestate.hpp>
-#include <gameplay/level.hpp>
 
 namespace engine
 {
-	namespace graphics
-	{
-		namespace renderer
-		{
-			extern void create();
-
-			extern void update();
-
-			extern void destroy();
-		}
-		namespace viewer
-		{
-			extern void update();
-		}
-	}
-
-	namespace physics
-	{
-		extern void create();
-
-		extern void destroy();
-	}
+namespace graphics
+{
+namespace renderer
+{
+	extern void update();
+}
+namespace viewer
+{
+	extern void update();
+}
+}
 }
 namespace gameplay
 {
-	namespace ui
-	{
-		extern void update();
-	}
+namespace ui
+{
+	extern void update();
+}
 }
 
 namespace
@@ -68,15 +56,6 @@ namespace looper
 
 	void run()
 	{
-		::engine::physics::create();
-
-		::engine::graphics::renderer::create();
-
-		::gameplay::gamestate::create();
-
-		// temp
-		level::create("res/level.lvl");
-
 		// 
 		while (active)
 		{
@@ -102,14 +81,6 @@ namespace looper
 			// something temporary that delays
 			core::async::delay(15); // ~60 fps
 		}
-
-		level::destroy();
-
-		::gameplay::gamestate::destroy();
-
-		::engine::graphics::renderer::destroy();
-
-		::engine::physics::destroy();
 	}
 }
 }

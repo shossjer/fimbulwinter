@@ -1,6 +1,8 @@
 
 #include <core/debug.hpp>
 #include <engine/application/window.hpp>
+#include <gameplay/gamestate.hpp>
+#include <gameplay/level.hpp>
 
 #include <config.h>
 
@@ -8,13 +10,30 @@
 #include <windows.h>
 #endif
 
+namespace engine
+{
+namespace graphics
+{
+namespace renderer
+{
+	extern void create();
+	extern void destroy();
+}
+}
+
+namespace physics
+{
+	extern void create();
+	extern void destroy();
+}
+}
 namespace gameplay
 {
-	namespace looper
-	{
-		extern void create();
-		extern void destroy();
-	}
+namespace looper
+{
+	extern void create();
+	extern void destroy();
+}
 }
 
 #if WINDOW_USE_USER32
@@ -32,13 +51,21 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 # endif
 	engine::application::window::create(hInstance, nCmdShow);
 
-	gameplay::looper::create();
+	::engine::physics::create();
+	::engine::graphics::renderer::create();
+	::gameplay::gamestate::create();
+	::gameplay::level::create("res/level.lvl");
+	::gameplay::looper::create();
 
 	const int ret = engine::application::window::execute();
 
 	debug_printline(0xffffffff, "loop is no more");
 
-	gameplay::looper::destroy();
+	::gameplay::looper::destroy();
+	::gameplay::level::destroy();
+	::gameplay::gamestate::destroy();
+	::engine::graphics::renderer::destroy();
+	::engine::physics::destroy();
 
 	engine::application::window::destroy(hInstance);
 
@@ -49,13 +76,21 @@ int main(const int argc, const char *const argv[])
 {
 	engine::application::window::create();
 
-	gameplay::looper::create();
+	::engine::physics::create();
+	::engine::graphics::renderer::create();
+	::gameplay::gamestate::create();
+	::gameplay::level::create("res/level.lvl");
+	::gameplay::looper::create();
 
 	const int ret = engine::application::window::execute();
 
 	debug_printline(0xffffffff, "loop is no more");
 
-	gameplay::looper::destroy();
+	::gameplay::looper::destroy();
+	::gameplay::level::destroy();
+	::gameplay::gamestate::destroy();
+	::engine::graphics::renderer::destroy();
+	::engine::physics::destroy();
 
 	engine::application::window::destroy();
 

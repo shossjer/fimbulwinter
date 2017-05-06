@@ -294,15 +294,7 @@ namespace gameplay
 	{
 		void create(const std::string & filename)
 		{
-			level_t level;
-			{
-				std::ifstream ifile(filename, std::ifstream::binary);
-				debug_assert(ifile);
-
-				read_level(ifile, level);
-			}
-
-			// TODO: make finished
+			// TODO: make finished!
 		}
 		void destroy()
 		{

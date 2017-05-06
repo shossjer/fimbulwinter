@@ -44,6 +44,7 @@ set(HEADER_FILES
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
 	src/core/sync/CriticalSection.hpp
+	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
