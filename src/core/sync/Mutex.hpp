@@ -15,102 +15,111 @@
 
 namespace core
 {
-	namespace sync
+namespace sync
+{
+	class ConditionVariable;
+}
+}
+
+namespace core
+{
+namespace sync
+{
+	class Mutex
 	{
-		class Mutex
-		{
-		private:
-#if THREAD_USE_KERNEL32
-			/**
-			 */
-			HANDLE hMutex;
-#elif THREAD_USE_PTHREAD
-			/**
-			 */
-			pthread_mutex_t mutex;
+#if THREAD_USE_PTHREAD
+		friend class ConditionVariable;
 #endif
 
-		public:
-			/**
-			 */
-			Mutex();
-			/**
-			 */
-			explicit Mutex(bool initial_owner);
-			/**
-			 */
-			Mutex(const Mutex &mutex) = delete;
-			/**
-			 */
-			~Mutex();
+	private:
+		using this_type = Mutex;
 
-		public:
-			/**
-			 */
-			void lock();
-			/**
-			 */
-			void try_lock();
-			/**
-			 */
-			void unlock();
-		};
+	private:
+#if THREAD_USE_KERNEL32
+		/**  */
+		HANDLE hMutex;
+#elif THREAD_USE_PTHREAD
+		/**  */
+		pthread_mutex_t mutex;
+#endif
+
+	public:
+		/**  */
+		~Mutex();
+		/**  */
+		Mutex();
+		/**  */
+		explicit Mutex(bool initial_owner);
+		/**  */
+		Mutex(const this_type &) = delete;
+		/**  */
+		this_type & operator = (const this_type &) = delete;
+
+	public:
+		/**  */
+		void lock();
+		/**  */
+		void try_lock();
+		/**  */
+		void unlock();
+	};
+}
+}
+
+
+namespace core
+{
+namespace sync
+{
+	inline Mutex::~Mutex()
+	{
+#if THREAD_USE_KERNEL32
+		CloseHandle(hMutex);
+#elif THREAD_USE_PTHREAD
+		pthread_mutex_destroy(&mutex);
+#endif
+	}
+	inline Mutex::Mutex() : Mutex(false)
+	{
+	}
+#if THREAD_USE_KERNEL32
+	inline Mutex::Mutex(const bool initial_owner) :
+		hMutex(CreateMutex(0, initial_owner, 0))
+	{
+	}
+#elif THREAD_USE_PTHREAD
+	inline Mutex::Mutex(const bool initial_owner)
+	{
+		pthread_mutex_init(&mutex, nullptr);
+		if (initial_owner) lock();
+	}
+#endif
+
+	inline void Mutex::lock()
+	{
+#if THREAD_USE_KERNEL32
+		WaitForSingleObject(hMutex, INFINITE);
+#elif THREAD_USE_PTHREAD
+		pthread_mutex_lock(&mutex);
+#endif
+	}
+	inline void Mutex::try_lock()
+	{
+#if THREAD_USE_KERNEL32
+		WaitForSingleObject(hMutex, 0);
+#elif THREAD_USE_PTHREAD
+		pthread_mutex_trylock(&mutex);
+#endif
+	}
+	inline void Mutex::unlock()
+	{
+#if THREAD_USE_KERNEL32
+		ReleaseMutex(hMutex);
+#elif THREAD_USE_PTHREAD
+		pthread_mutex_unlock(&mutex);
+#endif
 	}
 }
-
-#if THREAD_USE_PTHREAD
-inline core::sync::Mutex::Mutex()
-{
-	pthread_mutex_init(&this->mutex, nullptr);
-}
-inline core::sync::Mutex::Mutex(const bool initial_owner)
-{
-	pthread_mutex_init(&this->mutex, nullptr);
-
-	if (initial_owner) lock();
-}
-#elif THREAD_USE_KERNEL32
-inline core::sync::Mutex::Mutex() :
-	hMutex(CreateMutex(0, FALSE, 0))
-{
-}
-inline core::sync::Mutex::Mutex(const bool initial_owner) :
-	hMutex(CreateMutex(0, initial_owner, 0))
-{
-}
-#endif
-inline core::sync::Mutex::~Mutex()
-{
-#if THREAD_USE_PTHREAD
-	pthread_mutex_destroy(&this->mutex);
-#elif THREAD_USE_WINDOWS
-	CloseHandle(this->hMutex);
-#endif
-}
-
-inline void core::sync::Mutex::lock()
-{
-#if THREAD_USE_PTHREAD
-	pthread_mutex_lock(&this->mutex);
-#elif THREAD_USE_KERNEL32
-	WaitForSingleObject(this->hMutex, INFINITE);
-#endif
-}
-inline void core::sync::Mutex::try_lock()
-{
-#if THREAD_USE_PTHREAD
-	pthread_mutex_trylock(&this->mutex);
-#elif THREAD_USE_KERNEL32
-	WaitForSingleObject(this->hMutex, 0);
-#endif
-}
-inline void core::sync::Mutex::unlock()
-{
-#if THREAD_USE_PTHREAD
-	pthread_mutex_unlock(&this->mutex);
-#elif THREAD_USE_KERNEL32
-	ReleaseMutex(this->hMutex);
-#endif
 }
 
 #endif /* CORE_SYNC_MUTEX_HPP */
