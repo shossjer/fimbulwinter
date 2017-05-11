@@ -801,6 +801,26 @@ namespace
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(view3D);
 
+		{
+			glLoadMatrix(modelview_matrix);
+
+			glLineWidth(1.f);
+			glBegin(GL_LINES);
+			glColor3ub(255, 0, 0);
+			for (int i = -100; i <= 100; i++)
+			{
+				glVertex3i(i, 0, -100);
+				glVertex3i(i, 0, 100);
+			}
+			glColor3ub(0, 0, 255);
+			for (int i = -100; i <= 100; i++)
+			{
+				glVertex3i(-100, 0, i);
+				glVertex3i(100, 0, i);
+			}
+			glEnd();
+		}
+
 		// 3d
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_STENCIL_TEST);

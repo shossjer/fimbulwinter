@@ -3,6 +3,7 @@
 #include <engine/application/window.hpp>
 #include <gameplay/gamestate.hpp>
 #include <gameplay/level.hpp>
+#include <gameplay/ui.hpp>
 
 #include <config.h>
 
@@ -53,6 +54,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
+	::gameplay::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::level::create("res/level.lvl");
 	::gameplay::looper::create();
@@ -64,6 +66,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::gameplay::looper::destroy();
 	::gameplay::level::destroy();
 	::gameplay::gamestate::destroy();
+	::gameplay::ui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
 
@@ -78,6 +81,7 @@ int main(const int argc, const char *const argv[])
 
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
+	::gameplay::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::level::create("res/level.lvl");
 	::gameplay::looper::create();
@@ -89,6 +93,7 @@ int main(const int argc, const char *const argv[])
 	::gameplay::looper::destroy();
 	::gameplay::level::destroy();
 	::gameplay::gamestate::destroy();
+	::gameplay::ui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
 
