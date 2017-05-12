@@ -168,13 +168,13 @@ namespace gamestate
 		engine::graphics::viewer::add(
 			debug_camera,
 			engine::graphics::viewer::camera{
-				core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f},
-				core::maths::Vector3f{0.f, 10.f, 0.f}});
+				core::maths::Quaternionf{0.766f, 0.643f, 0.f, 0.f},//1.f, 0.f, 0.f, 0.f},
+				core::maths::Vector3f{0.f, 4.f, 0.f}});
 		engine::graphics::viewer::add(
 			game_camera,
 			engine::graphics::viewer::camera{
-				core::maths::Quaternionf{1.f, 0.f, 0.f, 0.f},
-				core::maths::Vector3f{0.f, 10.f, 0.f}});
+				core::maths::Quaternionf{0.766f, 0.643f, 0.f, 0.f},//1.f, 0.f, 0.f, 0.f},
+				core::maths::Vector3f{0.f, 4.f, 0.f}});
 		engine::graphics::viewer::set_active_3d(game_camera);
 
 		gameplay::ui::post_add_flycontrol(debug_camera);

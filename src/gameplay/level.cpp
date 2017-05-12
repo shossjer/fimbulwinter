@@ -1,6 +1,7 @@
 
 #include "level.hpp"
 
+
 #include <gameplay/gamestate.hpp>
 #include <gameplay/ui.hpp>
 
@@ -26,76 +27,34 @@ namespace
 {
 	using namespace gameplay::level;
 
-	struct box_t
-	{
-		core::maths::Vector3f translation;
-		core::maths::Quaternionf rotation;
-		core::maths::Vector3f scalation;
-	};
-	struct box2_t
-	{
-		core::maths::Matrix4x4f matrix; // either (matrix) or (translation and rotation) is enough
-		core::maths::Vector3f translation;
-		core::maths::Quaternionf rotation;
-		float dimensions[3];
-	};
-
 	struct player_start_t
 	{
 		core::maths::Matrix4x4f matrix;
-	};
-	struct trigger_timer_t
-	{
-		box2_t start;
-		box2_t stop;
-	};
-
-	struct static_t
-	{
-		std::string name;
-		box_t box;
-	};
-	struct dynamic_t
-	{
-		std::string name;
-		box2_t box;
-	};
-	struct platform_t
-	{
-		std::string name;
-		box_t box;
-		engine::animation::object animation;
-	};
-
-	struct trigger_multiple_t
-	{
-		std::string name;
-		box2_t box;
 	};
 
 	struct mesh_t
 	{
 		std::string name;
 		core::maths::Matrix4x4f matrix;
-		std::vector<float> vertices;
-		std::vector<uint16_t> triangles;
-		std::vector<float> normals;
+		float color[3];
+		core::container::Buffer vertices;
+		core::container::Buffer triangles;
+		core::container::Buffer normals;
 
 		mesh_t() {}
 	};
 
+	struct placeholder_t
+	{
+		std::string name;
+		engine::transform_t transform;
+		core::maths::Vector3f scale;
+	};
+
 	struct level_t
 	{
-		player_start_t player_start;
-		trigger_timer_t trigger_timer;
-
-		std::vector<static_t> statics;
-		std::vector<dynamic_t> dynamics;
-		std::vector<platform_t> platforms;
-
-		std::vector<trigger_multiple_t> trigger_multiples;
-
-		std::vector<mesh_t> meshes;
+		std::vector<mesh_t> statics;
+		std::vector<placeholder_t> placeholders;
 	};
 
 	void read_count(std::ifstream & stream, uint16_t & count)
@@ -145,102 +104,6 @@ namespace
 		vec.set_aligned(buffer);
 	}
 
-	void read_box(std::ifstream & ifile, box_t & box)
-	{
-		read_vector(ifile, box.translation);
-		read_quaternion(ifile, box.rotation);
-		read_vector(ifile, box.scalation);
-	}
-	void read_box2(std::ifstream & ifile, box2_t & box)
-	{
-		read_matrix(ifile, box.matrix);
-		read_vector(ifile, box.translation);
-		read_quaternion(ifile, box.rotation);
-		read_vector(ifile, box.dimensions);
-	}
-
-	void read_player_start(std::ifstream & ifile, player_start_t & player_start)
-	{
-		read_matrix(ifile, player_start.matrix);
-	}
-	void read_trigger_timer(std::ifstream & ifile, trigger_timer_t & trigger_timer)
-	{
-		read_box2(ifile, trigger_timer.start);
-		read_box2(ifile, trigger_timer.stop);
-	}
-
-	void read_statics(std::ifstream & ifile, std::vector<static_t> & statics)
-	{
-		uint16_t nstatics;
-		read_count(ifile, nstatics);
-
-		statics.resize(nstatics);
-		for (auto & stat : statics)
-		{
-			read_string(ifile, stat.name);
-			read_box(ifile, stat.box);
-		}
-	}
-	void read_dynamics(std::ifstream & ifile, std::vector<dynamic_t> & dynamics)
-	{
-		uint16_t ndynamics;
-		read_count(ifile, ndynamics);
-
-		dynamics.resize(ndynamics);
-		for (auto & dynamic : dynamics)
-		{
-			read_string(ifile, dynamic.name);
-			read_box2(ifile, dynamic.box);
-		}
-	}
-	void read_platforms(std::ifstream & ifile, std::vector<platform_t> & platforms)
-	{
-		uint16_t nplatforms;
-		read_count(ifile, nplatforms);
-
-		platforms.resize(nplatforms);
-		for (auto & platform : platforms)
-		{
-			read_string(ifile, platform.name);
-			read_box(ifile, platform.box);
-
-			platform.animation.name = platform.name;
-
-			uint16_t nactions;
-			read_count(ifile, nactions);
-			debug_printline(0xffffffff, platform.name, " have ", nactions, " actions:");
-
-			platform.animation.actions.resize(nactions);
-			for (auto & action : platform.animation.actions)
-			{
-				read_string(ifile, action.name);
-				debug_printline(0xffffffff, "  ", action.name);
-				int length;
-				read_length(ifile, length);
-
-				action.keys.resize(length + 1);
-				for (auto & key : action.keys)
-				{
-					read_vector(ifile, key.translation);
-					read_quaternion(ifile, key.rotation);
-				}
-			}
-		}
-	}
-
-	void read_trigger_multiples(std::ifstream & ifile, std::vector<trigger_multiple_t> & trigger_multiples)
-	{
-		uint16_t ntrigger_multiples;
-		read_count(ifile, ntrigger_multiples);
-
-		trigger_multiples.resize(ntrigger_multiples);
-		for (auto & trigger_multiple : trigger_multiples)
-		{
-			read_string(ifile, trigger_multiple.name);
-			read_box2(ifile, trigger_multiple.box);
-		}
-	}
-
 	void read_meshes(std::ifstream & ifile, std::vector<mesh_t> & meshes)
 	{
 		uint16_t nmeshes;
@@ -252,39 +115,49 @@ namespace
 			read_string(ifile, mesh.name);
 			read_matrix(ifile, mesh.matrix);
 
+			// color
+			read_vector(ifile, mesh.color);
+
+			std::vector<float> vertexes;
 			uint16_t nvertices;
 			read_count(ifile, nvertices);
 
-			mesh.vertices.resize(int(nvertices) * 3);
-			ifile.read(reinterpret_cast<char *>(mesh.vertices.data()), sizeof(float) * mesh.vertices.size());
+			mesh.vertices.resize<float>(nvertices * 3);
+			ifile.read(reinterpret_cast<char *>(mesh.vertices.data()), mesh.vertices.size());
 
 			uint16_t nnormals;
 			read_count(ifile, nnormals);
 			debug_assert(nvertices == nnormals);
-
-			mesh.normals.resize(int(nnormals) * 3);
-			ifile.read(reinterpret_cast<char *>(mesh.normals.data()), sizeof(float) * mesh.normals.size());
+			mesh.normals.resize<float>(nnormals * 3);
+			ifile.read(reinterpret_cast<char *>(mesh.normals.data()), mesh.normals.size());
 
 			uint16_t ntriangles;
 			read_count(ifile, ntriangles);
+			mesh.triangles.resize<uint16_t>(ntriangles * 3);
+			ifile.read(reinterpret_cast<char *>(mesh.triangles.data()), mesh.triangles.size());
+		}
+	}
 
-			mesh.triangles.resize(int(ntriangles) * 3);
-			ifile.read(reinterpret_cast<char *>(mesh.triangles.data()), sizeof(uint16_t) * mesh.triangles.size());
+	void read_placeholders(std::ifstream & ifile, std::vector<placeholder_t> & placeholders)
+	{
+		uint16_t nplaceholders;
+		read_count(ifile, nplaceholders);
+
+		placeholders.resize(nplaceholders);
+		for (auto & placeholder : placeholders)
+		{
+			read_string(ifile, placeholder.name);
+			read_vector(ifile, placeholder.transform.pos);
+			read_quaternion(ifile, placeholder.transform.quat);
+			read_vector(ifile, placeholder.scale);
 		}
 	}
 
 	void read_level(std::ifstream & ifile, level_t & level)
 	{
-		read_player_start(ifile, level.player_start);
-		read_trigger_timer(ifile, level.trigger_timer);
+		read_meshes(ifile, level.statics);
 
-		read_statics(ifile, level.statics);
-		read_dynamics(ifile, level.dynamics);
-		read_platforms(ifile, level.platforms);
-
-		read_trigger_multiples(ifile, level.trigger_multiples);
-
-		read_meshes(ifile, level.meshes);
+		read_placeholders(ifile, level.placeholders);
 	}
 }
 
@@ -294,7 +167,41 @@ namespace gameplay
 	{
 		void create(const std::string & filename)
 		{
-			// TODO: make finished!
+			level_t level;
+			{
+				std::ifstream ifile(filename, std::ifstream::binary);
+				debug_assert(ifile);
+
+				read_level(ifile, level);
+			}
+
+			for (const auto & mesh : level.statics)
+			{
+				engine::graphics::renderer::asset_definition_t assetDef;
+
+				assetDef.meshs.resize(1);
+
+				const uint32_t r = mesh.color[0] * 255;
+				const uint32_t g = mesh.color[1] * 255;
+				const uint32_t b = mesh.color[2] * 255;
+
+				assetDef.meshs[0].color = r + (g << 8) + (b << 16) + (0xff << 24);
+				assetDef.meshs[0].vertices = mesh.vertices;
+				assetDef.meshs[0].normals = mesh.normals;
+				assetDef.meshs[0].triangles = mesh.triangles;
+
+				const engine::Entity defId = engine::Entity::create();
+				engine::graphics::renderer::add(defId, assetDef);
+
+				engine::graphics::renderer::asset_instance_t assetInst;
+
+				engine::transform_t trans{ Vector3f{0.f, 0.f, 0.f}, Quaternionf{ 1.f, 0.f, 0.f, 0.f } };
+
+				assetInst.defId = defId;
+				assetInst.modelview = trans.matrix();
+
+				engine::graphics::renderer::add(engine::Entity::create(), assetInst);
+			}
 		}
 		void destroy()
 		{

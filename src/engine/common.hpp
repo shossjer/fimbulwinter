@@ -25,8 +25,8 @@ namespace engine
 		Matrix4x4f matrix() const
 		{
 			return
-				make_translation_matrix(core::maths::Vector3f{ 15.f, 2.f, 0.f }) *
-				make_matrix(core::maths::Quaternionf{ 1.f, 0.f, 0.f, 0.f });
+				make_translation_matrix(this->pos) *
+				make_matrix(this->quat);
 		}
 	};
 }
