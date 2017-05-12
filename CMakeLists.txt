@@ -4,6 +4,8 @@ project(hellskitchen)
 
 if (MSVC)
 	include_directories("C:/Program Files (x86)/Windows Kits/8.1/Include/um")
+	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
+	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
 	set(CMAKE_CXX_FLAGS_DEBUG
 		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
 		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
@@ -116,14 +118,9 @@ find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
 # look for JSON library hpp file
-find_file(FILE_JSON_HEADER_WITH_UNDERSCORE nlohmann_json.hpp)
-find_file(FILE_JSON_HEADER_WITH_DIRECTORY nlohmann/json.hpp)
-message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER_WITH_UNDERSCORE}")
-message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER_WITH_DIRECTORY}")
-if (FILE_JSON_HEADER_WITH_UNDERSCORE)
-  set(HAVE_NLOHMANN_JSON_HPP_WITH_UNDERSCORE 1)
-elseif (FILE_JSON_HEADER_WITH_DIRECTORY)
-  set(HAVE_NLOHMANN_JSON_HPP_WITH_DIRECTORY 1)
+find_file(FILE_JSON_HEADER nlohmann/json.hpp)
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
+if (FILE_JSON_HEADER)
 else()
   message(FATAL_ERROR "JSON parser - You need to get one!")
 endif()

@@ -33,12 +33,7 @@
 /**
  */
 #cmakedefine HAVE_IMMINTRIN_H 1
-/**
- */
-#cmakedefine HAVE_NLOHMANN_JSON_HPP_WITH_DIRECTORY 1
-/**
- */
-#cmakedefine HAVE_NLOHMANN_JSON_HPP_WITH_UNDERSCORE 1
+
 /**
  */
 #cmakedefine HAVE_VERSIONHELPERS_H 1

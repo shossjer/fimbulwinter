@@ -4,11 +4,7 @@
 
 #include <config.h>
 
-#if HAVE_NLOHMANN_JSON_HPP_WITH_DIRECTORY
-# include "nlohmann/json.hpp"
-#elif HAVE_NLOHMANN_JSON_HPP_WITH_UNDERSCORE
-# include "nlohmann_json.hpp"
-#endif
+#include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
 
