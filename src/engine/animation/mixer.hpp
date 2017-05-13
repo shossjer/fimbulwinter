@@ -5,8 +5,8 @@
 #include <core/maths/Quaternion.hpp>
 #include <core/maths/Vector.hpp>
 
+#include <engine/Asset.hpp>
 #include <engine/common.hpp>
-#include <engine/extras/Asset.hpp>
 
 #include <string>
 #include <vector>
@@ -55,9 +55,9 @@ namespace engine
 			std::vector<action> actions;
 		};
 
-		void add(engine::extras::Asset asset, object && data);
-		void add_model(engine::Entity entity, engine::extras::Asset asset);
-		void remove(engine::extras::Asset asset);
+		void add(engine::Asset asset, object && data);
+		void add_model(engine::Entity entity, engine::Asset asset);
+		void remove(engine::Asset asset);
 	}
 }
 

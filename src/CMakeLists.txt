@@ -46,6 +46,7 @@ set(HEADER_FILES
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
+	src/engine/Asset.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
@@ -53,7 +54,6 @@ set(HEADER_FILES
 	src/engine/application/window.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
-	src/engine/extras/Asset.hpp
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp

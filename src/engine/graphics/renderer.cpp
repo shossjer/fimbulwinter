@@ -19,8 +19,8 @@
 #include <core/maths/algorithm.hpp>
 #include <core/sync/Event.hpp>
 
+#include <engine/Asset.hpp>
 #include <engine/debug.hpp>
-#include <engine/extras/Asset.hpp>
 
 #include <atomic>
 #include <fstream>
@@ -495,7 +495,7 @@ namespace
 
 	core::container::UnorderedCollection
 	<
-		engine::extras::Asset,
+		engine::Asset,
 		101,
 		std::array<Character::Mesh, 50>,
 		// clang errors on collections with only one array, so here is
@@ -594,7 +594,7 @@ namespace
 		while (queue_add_charactermesh.try_pop(message_add_charactermesh))
 		{
 			// TODO: this should be done in a loader thread somehow
-			const engine::extras::Asset mshasset{message_add_charactermesh.second.mshfile};
+			const engine::Asset mshasset{message_add_charactermesh.second.mshfile};
 			if (!resources.contains(mshasset))
 			{
 				std::ifstream file(message_add_charactermesh.second.mshfile, std::ifstream::binary | std::ifstream::in);

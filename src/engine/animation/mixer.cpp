@@ -12,8 +12,8 @@
 #include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
 
+#include <engine/Asset.hpp>
 #include <engine/Entity.hpp>
-#include <engine/extras/Asset.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/physics/physics.hpp>
 
@@ -44,7 +44,7 @@ namespace
 
 	core::container::UnorderedCollection
 	<
-		engine::extras::Asset,
+		engine::Asset,
 		201,
 		std::array<Armature, 101>,
 		std::array<engine::animation::object, 101>
@@ -424,11 +424,11 @@ namespace
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::animation::action>,
 	                                 50> queue_update_action;
 
-	core::container::CircleQueueSRMW<std::pair<engine::extras::Asset, engine::animation::object>,
+	core::container::CircleQueueSRMW<std::pair<engine::Asset, engine::animation::object>,
 	                                 10> queue_add_asset_object;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::extras::Asset>,
+	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::Asset>,
 	                                 10> queue_add_model;
-	core::container::CircleQueueSRMW<engine::extras::Asset,
+	core::container::CircleQueueSRMW<engine::Asset,
 	                                 10> queue_remove_asset;
 }
 
@@ -449,13 +449,13 @@ namespace engine
 			// receive messages
 			// ====---- assets ----====
 			// add
-			std::pair<engine::extras::Asset, engine::animation::object> message_add_asset_object;
+			std::pair<engine::Asset, engine::animation::object> message_add_asset_object;
 			while (queue_add_asset_object.try_pop(message_add_asset_object))
 			{
 				sources.add(message_add_asset_object.first, std::move(message_add_asset_object.second));
 			}
 			// remove
-			engine::extras::Asset message_remove_asset;
+			engine::Asset message_remove_asset;
 			while (queue_remove_asset.try_pop(message_remove_asset))
 			{
 				sources.remove(message_remove_asset);
@@ -466,7 +466,7 @@ namespace engine
 			while (queue_add_armature.try_pop(message_add_armature))
 			{
 				// TODO: this should be done in a loader thread somehow
-				const engine::extras::Asset armasset{message_add_armature.second.armfile};
+				const engine::Asset armasset{message_add_armature.second.armfile};
 				if (!sources.contains(armasset))
 				{
 					std::ifstream file(message_add_armature.second.armfile, std::ifstream::binary | std::ifstream::in);
@@ -477,7 +477,7 @@ namespace engine
 				components.emplace<Character>(message_add_armature.first,
 				                              message_add_armature.first, sources.get<Armature>(armasset));
 			}
-			std::pair<engine::Entity, engine::extras::Asset> message_add_model;
+			std::pair<engine::Entity, engine::Asset> message_add_model;
 			while (queue_add_model.try_pop(message_add_model))
 			{
 				auto & object = sources.get<engine::animation::object>(message_add_model.second);
@@ -535,17 +535,17 @@ namespace engine
 			debug_assert(res);
 		}
 
-		void add(engine::extras::Asset asset, object && data)
+		void add(engine::Asset asset, object && data)
 		{
 			const auto res = queue_add_asset_object.try_emplace(asset, std::move(data));
 			debug_assert(res);
 		}
-		void add_model(engine::Entity entity, engine::extras::Asset asset)
+		void add_model(engine::Entity entity, engine::Asset asset)
 		{
 			const auto res = queue_add_model.try_emplace(entity, asset);
 			debug_assert(res);
 		}
-		void remove(engine::extras::Asset asset)
+		void remove(engine::Asset asset)
 		{
 			const auto res = queue_remove_asset.try_push(asset);
 			debug_assert(res);

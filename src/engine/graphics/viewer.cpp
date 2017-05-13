@@ -8,7 +8,7 @@
 #include <core/maths/Matrix.hpp>
 #include <core/maths/algorithm.hpp>
 
-#include <engine/extras/Asset.hpp>
+#include <engine/Asset.hpp>
 #include <engine/graphics/renderer.hpp>
 
 namespace engine

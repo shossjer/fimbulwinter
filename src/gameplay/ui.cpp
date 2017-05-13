@@ -20,11 +20,11 @@ namespace
 	////////////////////////////
 	struct ContextEntities
 	{
-		engine::extras::Asset context;
+		engine::Asset context;
 		std::vector<engine::Entity> entities;
 		std::vector<int> priorities;
 
-		ContextEntities(engine::extras::Asset context) : context(context) {}
+		ContextEntities(engine::Asset context) : context(context) {}
 
 		void add(engine::Entity entity, int priority)
 		{
@@ -49,9 +49,9 @@ namespace
 	};
 
 	std::vector<ContextEntities> contexts;
-	engine::extras::Asset active_context;
+	engine::Asset active_context;
 
-	int find_context(engine::extras::Asset context)
+	int find_context(engine::Asset context)
 	{
 		for (int i = 0; i < contexts.size(); i++)
 			if (contexts[i].context == context)
@@ -59,12 +59,12 @@ namespace
 		return -1;
 	}
 
-	void add_context(engine::extras::Asset context)
+	void add_context(engine::Asset context)
 	{
 		debug_assert(find_context(context) < 0);
 		contexts.emplace_back(context);
 	}
-	void remove_context(engine::extras::Asset context)
+	void remove_context(engine::Asset context)
 	{
 		debug_assert(context != active_context);
 		const int i = find_context(context);
@@ -75,7 +75,7 @@ namespace
 		contexts.pop_back();
 	}
 
-	void set_active_context(engine::extras::Asset context)
+	void set_active_context(engine::Asset context)
 	{
 		debug_printline(0xffffffff, "Switching context: ", static_cast<int>(active_context), " -> ", static_cast<int>(context));
 		active_context = context;
@@ -93,9 +93,9 @@ namespace
 	{
 		engine::Entity entity;
 		engine::hid::Input::Button button;
-		engine::extras::Asset context;
+		engine::Asset context;
 
-		ContextSwitch(engine::Entity entity, engine::hid::Input::Button button, engine::extras::Asset context) : entity(entity), button(button), context(context) {}
+		ContextSwitch(engine::Entity entity, engine::hid::Input::Button button, engine::Asset context) : entity(entity), button(button), context(context) {}
 
 		bool translate(const engine::hid::Input & input)
 		{
@@ -368,17 +368,17 @@ namespace
 
 	core::container::CircleQueueSRMW<engine::hid::Input, 100> queue_input;
 
-	core::container::CircleQueueSRMW<engine::extras::Asset, 10> queue_add_context;
-	core::container::CircleQueueSRMW<engine::extras::Asset, 10> queue_remove_context;
-	core::container::CircleQueueSRMW<engine::extras::Asset, 10> queue_activate_context;
+	core::container::CircleQueueSRMW<engine::Asset, 10> queue_add_context;
+	core::container::CircleQueueSRMW<engine::Asset, 10> queue_remove_context;
+	core::container::CircleQueueSRMW<engine::Asset, 10> queue_activate_context;
 
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button, engine::extras::Asset>, 10> queue_add_contextswitch;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button, engine::Asset>, 10> queue_add_contextswitch;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_flycontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_pancontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_remove;
 
-	core::container::CircleQueueSRMW<std::tuple<engine::extras::Asset, engine::Entity, int>, 10> queue_bind;
-	core::container::CircleQueueSRMW<std::tuple<engine::extras::Asset, engine::Entity>, 10> queue_unbind;
+	core::container::CircleQueueSRMW<std::tuple<engine::Asset, engine::Entity, int>, 10> queue_bind;
+	core::container::CircleQueueSRMW<std::tuple<engine::Asset, engine::Entity>, 10> queue_unbind;
 }
 
 namespace gameplay
@@ -399,7 +399,7 @@ namespace ui
 	{
 		// context
 		{
-			engine::extras::Asset context;
+			engine::Asset context;
 			while (queue_add_context.try_pop(context))
 			{
 				add_context(context);
@@ -416,7 +416,7 @@ namespace ui
 
 		// add/remove
 		{
-			std::tuple<engine::Entity, engine::hid::Input::Button, engine::extras::Asset> contextswitch_args;
+			std::tuple<engine::Entity, engine::hid::Input::Button, engine::Asset> contextswitch_args;
 			while (queue_add_contextswitch.try_pop(contextswitch_args))
 			{
 				components.emplace<ContextSwitch>(std::get<0>(contextswitch_args), std::get<0>(contextswitch_args), std::get<1>(contextswitch_args), std::get<2>(contextswitch_args));
@@ -440,12 +440,12 @@ namespace ui
 
 		// bind/unbind
 		{
-			std::tuple<engine::extras::Asset, engine::Entity, int> bind_args;
+			std::tuple<engine::Asset, engine::Entity, int> bind_args;
 			while (queue_bind.try_pop(bind_args))
 			{
 				contexts[find_context(std::get<0>(bind_args))].add(std::get<1>(bind_args), std::get<2>(bind_args));
 			}
-			std::tuple<engine::extras::Asset, engine::Entity> unbind_args;
+			std::tuple<engine::Asset, engine::Entity> unbind_args;
 			while (queue_unbind.try_pop(unbind_args))
 			{
 				contexts[find_context(std::get<0>(unbind_args))].remove(std::get<1>(bind_args));
@@ -473,19 +473,19 @@ namespace ui
 	}
 
 	void post_add_context(
-		engine::extras::Asset context)
+		engine::Asset context)
 	{
 		const auto res = queue_add_context.try_emplace(context);
 		debug_assert(res);
 	}
 	void post_remove_context(
-		engine::extras::Asset context)
+		engine::Asset context)
 	{
 		const auto res = queue_remove_context.try_emplace(context);
 		debug_assert(res);
 	}
 	void post_activate_context(
-		engine::extras::Asset context)
+		engine::Asset context)
 	{
 		const auto res = queue_activate_context.try_emplace(context);
 		debug_assert(res);
@@ -494,7 +494,7 @@ namespace ui
 	void post_add_contextswitch(
 		engine::Entity entity,
 		engine::hid::Input::Button button,
-		engine::extras::Asset context)
+		engine::Asset context)
 	{
 		const auto res = queue_add_contextswitch.try_emplace(entity, button, context);
 		debug_assert(res);
@@ -519,7 +519,7 @@ namespace ui
 	}
 
 	void post_bind(
-		engine::extras::Asset context,
+		engine::Asset context,
 		engine::Entity entity,
 		int priority)
 	{
@@ -527,7 +527,7 @@ namespace ui
 		debug_assert(res);
 	}
 	void post_unbind(
-		engine::extras::Asset context,
+		engine::Asset context,
 		engine::Entity entity)
 	{
 		const auto res = queue_unbind.try_emplace(context, entity);
