@@ -385,6 +385,24 @@ namespace level
 			// create the object instance
 			//asset::droid_t assetInstance{id, transform, headId, Entity::create() };
 
+			const auto & benchDef = assetTemplate.part("bench");
+
+			// register new asset in renderer
+			engine::graphics::renderer::add(
+				id,
+				render_instance_t{
+				benchDef.asset,
+				placeholder.transform.matrix() });
+
+			// TODO: register new asset in character
+			//characters::post_add(assetInstance);
+			break;
+		}
+		case engine::Asset{ "oven" }:
+		{
+			// create the object instance
+			//asset::droid_t assetInstance{id, transform, headId, Entity::create() };
+
 			const auto & benchDef = assetTemplate.part("oven");
 
 			// register new asset in renderer

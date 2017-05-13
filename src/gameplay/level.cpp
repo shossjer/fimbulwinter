@@ -190,10 +190,8 @@ namespace gameplay
 
 				engine::graphics::renderer::asset_instance_t assetInst;
 
-				engine::transform_t trans{ Vector3f{0.f, 0.f, 0.f}, Quaternionf{ 1.f, 0.f, 0.f, 0.f } };
-
 				assetInst.asset = asset;
-				assetInst.modelview = trans.matrix();
+				assetInst.modelview = mesh.matrix;
 
 				engine::graphics::renderer::add(engine::Entity::create(), assetInst);
 			}
