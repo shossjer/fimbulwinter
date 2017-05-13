@@ -144,7 +144,7 @@ namespace engine
 
 			struct asset_instance_t
 			{
-				engine::Entity defId;
+				engine::Asset asset;
 				core::maths::Matrix4x4f modelview;
 				//Vector3f scale;
 			};
@@ -154,7 +154,7 @@ namespace engine
 			void add(engine::Entity entity, data::MeshC data);
 			void add(engine::Entity entity, asset::CharacterMesh data);
 
-			void add(engine::Entity entity, const asset_definition_t & data);
+			void add(engine::Asset asset, const asset_definition_t & data);
 			void add(engine::Entity entity, const asset_instance_t & data);
 
 			void remove(engine::Entity entity);

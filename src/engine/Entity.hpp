@@ -14,8 +14,7 @@ namespace engine
 	{
 	public:
 		using value_type = uint32_t;
-	public:
-		static constexpr value_type INVALID = 0;
+
 	private:
 		using this_type = Entity;
 

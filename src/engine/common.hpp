@@ -2,6 +2,7 @@
 #ifndef ENGINE_COMMON_HPP
 #define ENGINE_COMMON_HPP
 
+#include <engine/Asset.hpp>
 #include <engine/Entity.hpp>
 
 #include <core/maths/util.hpp>

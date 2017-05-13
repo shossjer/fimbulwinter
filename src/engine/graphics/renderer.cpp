@@ -335,7 +335,7 @@ namespace
 
 	struct asset_instance_t
 	{
-		engine::Entity defId;
+		engine::Asset asset;
 		core::maths::Matrix4x4f modelview;
 
 		asset_instance_t & operator = (engine::graphics::data::ModelviewMatrix && data)
@@ -519,7 +519,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::Asset,
 		200,
 		std::array<asset_definition_t, 100>,
 		std::array<int, 1>
@@ -557,7 +557,7 @@ namespace
 	                                           engine::graphics::renderer::CharacterSkinning>,
 	                                 100> queue_update_characterskinning;
 
-	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	core::container::CircleQueueSRSW<std::pair<engine::Asset,
 	                                           engine::graphics::renderer::asset_definition_t>,
 	                                 100> queue_asset_definitions;
 	core::container::CircleQueueSRSW<std::pair<engine::Entity,
@@ -605,7 +605,7 @@ namespace
 			components.add(message_add_charactermesh.first, Character::SetMesh{resources.get<Character::Mesh>(mshasset)});
 		}
 		{
-			std::pair<engine::Entity, engine::graphics::renderer::asset_definition_t> data;
+			std::pair<engine::Asset, engine::graphics::renderer::asset_definition_t> data;
 			while (queue_asset_definitions.try_pop(data))
 			{
 				definitions.add(data.first, asset_definition_t{data.second});
@@ -617,7 +617,7 @@ namespace
 			{
 				components.add(
 						data.first,
-						asset_instance_t{ data.second.defId, data.second.modelview });
+						asset_instance_t{ data.second.asset, data.second.modelview });
 			}
 		}
 	}
@@ -976,7 +976,7 @@ namespace
 				modelview_matrix.mult(component.modelview);
 				glLoadMatrix(modelview_matrix);
 
-				definitions.call(component.defId, render_definition_t{ component });
+				definitions.call(component.asset, render_definition_t{ component });
 			}
 			modelview_matrix.pop();
 		}
@@ -1094,9 +1094,9 @@ namespace engine
 				debug_assert(res);
 			}
 
-			void add(engine::Entity entity, const asset_definition_t & data)
+			void add(engine::Asset asset, const asset_definition_t & data)
 			{
-				const auto res = queue_asset_definitions.try_push(std::make_pair(entity, data));
+				const auto res = queue_asset_definitions.try_push(std::make_pair(asset, data));
 				debug_assert(res);
 			}
 			void add(engine::Entity entity, const asset_instance_t & data)

@@ -1,6 +1,7 @@
 
 #include "level.hpp"
 
+#include "level_placeholder.hpp"
 
 #include <gameplay/gamestate.hpp>
 #include <gameplay/ui.hpp>
@@ -44,16 +45,10 @@ namespace
 		mesh_t() {}
 	};
 
-	struct placeholder_t
-	{
-		std::string name;
-		engine::transform_t transform;
-		core::maths::Vector3f scale;
-	};
-
 	struct level_t
 	{
 		std::vector<mesh_t> statics;
+
 		std::vector<placeholder_t> placeholders;
 	};
 
@@ -190,17 +185,22 @@ namespace gameplay
 				assetDef.meshs[0].normals = mesh.normals;
 				assetDef.meshs[0].triangles = mesh.triangles;
 
-				const engine::Entity defId = engine::Entity::create();
-				engine::graphics::renderer::add(defId, assetDef);
+				const engine::Asset asset = mesh.name;
+				engine::graphics::renderer::add(asset, assetDef);
 
 				engine::graphics::renderer::asset_instance_t assetInst;
 
 				engine::transform_t trans{ Vector3f{0.f, 0.f, 0.f}, Quaternionf{ 1.f, 0.f, 0.f, 0.f } };
 
-				assetInst.defId = defId;
+				assetInst.asset = asset;
 				assetInst.modelview = trans.matrix();
 
 				engine::graphics::renderer::add(engine::Entity::create(), assetInst);
+			}
+
+			for (const auto & ph : level.placeholders)
+			{
+				load(ph);
 			}
 		}
 		void destroy()
