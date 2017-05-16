@@ -106,6 +106,14 @@ namespace engine
 				Viewport() {}
 				Viewport(int32_t x, int32_t y, int32_t width, int32_t height) : x(x), y(y), width(width), height(height) {}
 			};
+			struct Cursor
+			{
+				int32_t x;
+				int32_t y;
+
+				Cursor() {}
+				Cursor(int32_t x, int32_t y) : x(x), y(y) {}
+			};
 
 			namespace asset
 			{
@@ -160,6 +168,9 @@ namespace engine
 			void remove(engine::Entity entity);
 			void update(engine::Entity entity, data::ModelviewMatrix data);
 			// void update(engine::Entity entity, CharacterSkinning data);
+
+			void toggle_down();
+			void toggle_up();
 		}
 	}
 }

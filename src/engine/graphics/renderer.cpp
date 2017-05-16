@@ -26,6 +26,8 @@
 #include <fstream>
 #include <utility>
 
+using namespace engine::graphics::opengl;
+
 namespace engine
 {
 	namespace application
@@ -333,18 +335,6 @@ namespace
 		}
 	};
 
-	struct asset_instance_t
-	{
-		engine::Asset asset;
-		core::maths::Matrix4x4f modelview;
-
-		asset_instance_t & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			modelview = std::move(data.matrix);
-			return *this;
-		}
-	};
-
 	struct asset_definition_t
 	{
 		std::vector<meshc_t> meshs;
@@ -353,9 +343,25 @@ namespace
 		{
 			for (auto & mesh : d.meshs)
 			{
-				;
 				this->meshs.emplace_back(meshc_t { std::move(mesh) });
 			}
+		}
+	};
+
+	struct asset_instance_t
+	{
+		asset_definition_t* definition;
+		core::maths::Matrix4x4f modelview;
+
+		asset_instance_t(asset_definition_t & definition, core::maths::Matrix4x4f modelview)
+			: definition(&definition)
+			, modelview(modelview)
+		{}
+
+		asset_instance_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
 		}
 	};
 
@@ -517,7 +523,7 @@ namespace
 	>
 	components;
 
-	core::container::Collection
+	core::container::UnorderedCollection
 	<
 		engine::Asset,
 		200,
@@ -533,6 +539,7 @@ namespace
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera2D> queue_notify_camera2d;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera3D> queue_notify_camera3d;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Viewport> queue_notify_viewport;
+	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Cursor> queue_notify_cursor;
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CuboidC>,
@@ -608,16 +615,15 @@ namespace
 			std::pair<engine::Asset, engine::graphics::renderer::asset_definition_t> data;
 			while (queue_asset_definitions.try_pop(data))
 			{
-				definitions.add(data.first, asset_definition_t{data.second});
+				definitions.emplace<asset_definition_t>(data.first, data.second);
 			}
 		}
 		{
 			std::pair<engine::Entity, engine::graphics::renderer::asset_instance_t> data;
 			while (queue_asset_instances.try_pop(data))
 			{
-				components.add(
-						data.first,
-						asset_instance_t{ data.second.asset, data.second.modelview });
+				auto & definition = definitions.get<asset_definition_t>(data.second.asset);
+				components.emplace<asset_instance_t>(data.first, definition, data.second.modelview);
 			}
 		}
 	}
@@ -664,9 +670,23 @@ namespace
 	core::maths::Matrix4x4f view2D = core::maths::Matrix4x4f::identity();
 	core::maths::Matrix4x4f view3D = core::maths::Matrix4x4f::identity();
 
+	int viewport_x = 0;
+	int viewport_y = 0;
+	int viewport_width = 0;
+	int viewport_height = 0;
+	int cursor_x = -1;
+	int cursor_y = -1;
+
 	Stack modelview_matrix;
 
 	engine::graphics::opengl::Font normal_font;
+
+	GLuint framebuffer;
+	GLuint entitybuffers[2]; // color, depth
+	std::vector<uint32_t> entitypixels;
+	std::atomic<int> entitytoggle;
+	engine::Entity highlighted_entity = engine::Entity::null();
+	engine::graphics::opengl::Color4ub highlighted_color{255, 191, 64, 255};
 
 	void initLights()
 	{
@@ -697,6 +717,8 @@ namespace
 		graphics_debug_trace("glGetString GL_SHADING_LANGUAGE_VERSION: ", glGetString(GL_SHADING_LANGUAGE_VERSION));
 #endif
 
+		engine::graphics::opengl::init();
+
 		glShadeModel(GL_SMOOTH);
 		glEnable(GL_LIGHTING);
 
@@ -704,6 +726,10 @@ namespace
 		glEnable(GL_COLOR_MATERIAL);
 
 		initLights();
+
+		// entity buffers
+		glGenFramebuffers(1, &framebuffer);
+		glGenRenderbuffers(2, entitybuffers);
 
 		// vvvvvvvv tmp vvvvvvvv
 		{
@@ -719,47 +745,6 @@ namespace
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
 	}
-
-	struct render_definition_t
-	{
-		const asset_instance_t & inst;
-
-		render_definition_t(const asset_instance_t & inst)
-			:
-			inst(inst)
-		{}
-
-		void operator () (asset_definition_t & x)
-		{
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_NORMAL_ARRAY);
-
-			for (const auto & mesh : x.meshs)
-			{
-				glColor(mesh.color);
-
-				glVertexPointer(3, // TODO
-								static_cast<GLenum>(mesh.vertices.format()), // TODO
-								0,
-								mesh.vertices.data());
-				glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
-								0,
-								mesh.normals.data());
-				glDrawElements(GL_TRIANGLES,
-								mesh.triangles.count(),
-								static_cast<GLenum>(mesh.triangles.format()),
-								mesh.triangles.data());
-			}
-
-			glDisableClientState(GL_NORMAL_ARRAY);
-			glDisableClientState(GL_VERTEX_ARRAY);
-		}
-
-		template <typename X>
-		void operator () (X & x)
-		{
-		}
-	};
 
 	void render_update()
 	{
@@ -785,7 +770,44 @@ namespace
 		engine::graphics::renderer::Viewport notification_viewport;
 		if (queue_notify_viewport.try_pop(notification_viewport))
 		{
+			viewport_x = notification_viewport.x;
+			viewport_y = notification_viewport.y;
+
 			glViewport(notification_viewport.x, notification_viewport.y, notification_viewport.width, notification_viewport.height);
+
+			if (viewport_width != notification_viewport.width ||
+			    viewport_height != notification_viewport.height)
+			{
+				viewport_width = notification_viewport.width;
+				viewport_height = notification_viewport.height;
+
+				// free old render buffers
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
+				glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, 0); // color
+				glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0); // depth
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+				glDeleteRenderbuffers(2, entitybuffers);
+				// allocate new render buffers
+				glGenRenderbuffers(2, entitybuffers);
+				glBindRenderbuffer(GL_RENDERBUFFER, entitybuffers[0]); // color
+				glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, notification_viewport.width, notification_viewport.height);
+				glBindRenderbuffer(GL_RENDERBUFFER, entitybuffers[1]); // depth
+				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, notification_viewport.width, notification_viewport.height);
+
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
+				glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, entitybuffers[0]); // color
+				glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, entitybuffers[1]); // depth
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+				entitypixels.resize(notification_viewport.width * notification_viewport.height);
+			}
+		}
+		engine::graphics::renderer::Cursor notification_cursor;
+		if (queue_notify_cursor.try_pop(notification_cursor))
+		{
+			cursor_x = notification_cursor.x;
+			cursor_y = notification_cursor.y;
 		}
 
 		glStencilMask(0x000000ff);
@@ -794,32 +816,166 @@ namespace
 		glClearDepth(1.);
 		//glClearStencil(0x00000000);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-		
+
 		// setup 3D
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(projection3D);
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(view3D);
 
+		////////////////////////////////////////////////////////
+		//
+		//  entity buffer
+		//
+		////////////////////////////////////////
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
+		// glViewport(...);
+		glClearColor(0.f, 0.f, 0.f, 0.f); // null entity
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glDisable(GL_LIGHTING);
+		glEnable(GL_DEPTH_TEST);
+
+		for (const auto & component : components.get<cuboid_c>())
 		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
-			glLineWidth(1.f);
-			glBegin(GL_LINES);
-			glColor3ub(255, 0, 0);
-			for (int i = -100; i <= 100; i++)
-			{
-				glVertex3i(i, 0, -100);
-				glVertex3i(i, 0, 100);
-			}
-			glColor3ub(0, 0, 255);
-			for (int i = -100; i <= 100; i++)
-			{
-				glVertex3i(-100, 0, i);
-				glVertex3i(100, 0, i);
-			}
-			glEnd();
+			engine::Entity entity = components.get_key(component);
+			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
+			                                            (entity & 0x0000ff00) >> 8,
+			                                            (entity & 0x00ff0000) >> 16,
+			                                            (entity & 0xff000000) >> 24};
+			glColor(color);
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, // TODO
+			                GL_FLOAT,
+			                0,
+			                component.vertices.data());
+			glDrawElements(GL_TRIANGLES,
+			               component.triangles.size(),
+			               GL_UNSIGNED_SHORT,
+			               component.triangles.data());
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			modelview_matrix.pop();
 		}
+		for (const auto & component : components.get<linec_t>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			engine::Entity entity = components.get_key(component);
+			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
+			                                            (entity & 0x0000ff00) >> 8,
+			                                            (entity & 0x00ff0000) >> 16,
+			                                            (entity & 0xff000000) >> 24};
+
+			glLineWidth(2.f);
+			glColor(color);
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, // TODO
+			                static_cast<GLenum>(component.vertices.format()), // TODO
+			                0,
+			                component.vertices.data());
+			glDrawElements(GL_LINES,
+			               component.edges.count(),
+			               static_cast<GLenum>(component.edges.format()),
+			               component.edges.data());
+			glDisableClientState(GL_VERTEX_ARRAY);
+			glLineWidth(1.f);
+
+			modelview_matrix.pop();
+		}
+		for (const auto & component : components.get<meshc_t>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			engine::Entity entity = components.get_key(component);
+			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
+			                                            (entity & 0x0000ff00) >> 8,
+			                                            (entity & 0x00ff0000) >> 16,
+			                                            (entity & 0xff000000) >> 24};
+
+			glColor(color);
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, // TODO
+			                static_cast<GLenum>(component.vertices.format()), // TODO
+			                0,
+			                component.vertices.data());
+			glDrawElements(GL_TRIANGLES,
+			               component.triangles.count(),
+			               static_cast<GLenum>(component.triangles.format()),
+			               component.triangles.data());
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			modelview_matrix.pop();
+		}
+		for (const auto & component : components.get<asset_instance_t>())
+		{
+			modelview_matrix.push();
+			{
+				modelview_matrix.mult(component.modelview);
+				glLoadMatrix(modelview_matrix);
+
+				engine::Entity entity = components.get_key(component);
+				engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
+				                                            (entity & 0x0000ff00) >> 8,
+				                                            (entity & 0x00ff0000) >> 16,
+				                                            (entity & 0xff000000) >> 24};
+
+				glColor(color);
+				glEnableClientState(GL_VERTEX_ARRAY);
+				for (const auto & mesh : component.definition->meshs)
+				{
+					glVertexPointer(3, // TODO
+					                static_cast<GLenum>(mesh.vertices.format()), // TODO
+					                0,
+					                mesh.vertices.data());
+					glDrawElements(GL_TRIANGLES,
+					               mesh.triangles.count(),
+					               static_cast<GLenum>(mesh.triangles.format()),
+					               mesh.triangles.data());
+				}
+				glDisableClientState(GL_VERTEX_ARRAY);
+			}
+			modelview_matrix.pop();
+		}
+
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_LIGHTING);
+
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+
+		glReadPixels(viewport_x, viewport_y, viewport_width, viewport_height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, entitypixels.data());
+
+		if (cursor_x >= viewport_x &&
+		    cursor_y >= viewport_y &&
+		    cursor_x <= viewport_x + viewport_width &&
+		    cursor_y <= viewport_y + viewport_height)
+		{
+			const int x = cursor_x;
+			const int y = viewport_height - cursor_y;
+			const unsigned int color = entitypixels[x + y * viewport_width];
+			const unsigned int entity =
+				(color & 0xff000000) >> 24 |
+				(color & 0x00ff0000) >> 8 |
+				(color & 0x0000ff00) << 8 |
+				(color & 0x000000ff) << 24;
+			highlighted_entity = engine::Entity{entity};
+		}
+		else
+		{
+			highlighted_entity = engine::Entity::null();
+		}
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		////////////////////////////////////////////////////////
 
 		// 3d
 		glEnable(GL_DEPTH_TEST);
@@ -828,7 +984,7 @@ namespace
 		// int i;
 		// glGetIntegerv(GL_STENCIL_BITS, &i);
 		// debug_printline(0xffffffff, i);
-		
+
 		//////////////////////////////////////////////////////////////
 		// wireframes
 		glStencilMask(0x00000001);
@@ -838,7 +994,7 @@ namespace
 		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
 		glDisable(GL_LIGHTING);
-		
+
 		for (const auto & component : components.get<cuboid_cw>())
 		{
 			modelview_matrix.push();
@@ -863,13 +1019,13 @@ namespace
 		}
 
 		glEnable(GL_LIGHTING);
-		
+
 		//////////////////////////////////////////////////////////////
 		// solids
 		glStencilMask(0x00000000);
 		glStencilFunc(GL_EQUAL, 0x00000000, 0x00000001);
 		//glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-		
+
 		for (auto & component : components.get<Character>())
 		{
 			modelview_matrix.push();
@@ -896,7 +1052,7 @@ namespace
 			// glEnable(GL_POLYGON_OFFSET_FILL); // necessary for wireframe
 			// glPolygonOffset(2.f, 2.f);
 
-			glColor(component.color);
+			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glVertexPointer(3, // TODO
@@ -929,7 +1085,7 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			glLineWidth(2.f);
-			glColor(component.color);
+			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
 			                static_cast<GLenum>(component.vertices.format()), // TODO
@@ -950,7 +1106,7 @@ namespace
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
-			glColor(component.color);
+			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glVertexPointer(3, // TODO
@@ -976,13 +1132,42 @@ namespace
 				modelview_matrix.mult(component.modelview);
 				glLoadMatrix(modelview_matrix);
 
-				definitions.call(component.asset, render_definition_t{ component });
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_NORMAL_ARRAY);
+				for (const auto & mesh : component.definition->meshs)
+				{
+					glColor(components.get_key(component) == highlighted_entity ? highlighted_color : mesh.color);
+
+					glVertexPointer(3, // TODO
+					                static_cast<GLenum>(mesh.vertices.format()), // TODO
+					                0,
+					                mesh.vertices.data());
+					glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
+					                0,
+					                mesh.normals.data());
+					glDrawElements(GL_TRIANGLES,
+					               mesh.triangles.count(),
+					               static_cast<GLenum>(mesh.triangles.format()),
+					               mesh.triangles.data());
+				}
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
 			}
 			modelview_matrix.pop();
 		}
 
 		glDisable(GL_STENCIL_TEST);
 		glDisable(GL_DEPTH_TEST);
+
+		// entity buffers
+		if (entitytoggle.load(std::memory_order_relaxed))
+		{
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+
+			glBlitFramebuffer(viewport_x, viewport_y, viewport_width, viewport_height, viewport_x, viewport_y, viewport_width, viewport_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		}
 
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);
@@ -1011,6 +1196,8 @@ namespace
 			normal_font.decompile();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
+		glDeleteRenderbuffers(2, entitybuffers);
+		glDeleteFramebuffers(1, &framebuffer);
 	}
 
 	core::async::Thread renderThread;
@@ -1072,6 +1259,10 @@ namespace engine
 			{
 				queue_notify_viewport.try_push(std::move(data));
 			}
+			void notify(Cursor && data)
+			{
+				queue_notify_cursor.try_push(std::move(data));
+			}
 
 			void add(engine::Entity entity, data::CuboidC data)
 			{
@@ -1119,6 +1310,15 @@ namespace engine
 			{
 				const auto res = queue_update_characterskinning.try_push(std::make_pair(entity, data));
 				debug_assert(res);
+			}
+
+			void toggle_down()
+			{
+				entitytoggle.fetch_add(1, std::memory_order_relaxed);
+			}
+			void toggle_up()
+			{
+				entitytoggle.fetch_sub(1, std::memory_order_relaxed);
 			}
 		}
 	}

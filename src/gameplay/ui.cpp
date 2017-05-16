@@ -4,12 +4,24 @@
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 #include <core/debug.hpp>
+#include <engine/graphics/renderer.hpp>
 #include <engine/hid/input.hpp>
 #include <gameplay/gamestate.hpp>
 
 #include <algorithm>
 #include <tuple>
 #include <vector>
+
+namespace engine
+{
+namespace graphics
+{
+namespace renderer
+{
+	extern void notify(Cursor && data);
+}
+}
+}
 
 namespace
 {
@@ -343,13 +355,67 @@ namespace
 		}
 	};
 
+	struct RenderHover
+	{
+		bool translate(const engine::hid::Input & input)
+		{
+			switch (input.getState())
+			{
+			case engine::hid::Input::State::MOVE:
+				notify(engine::graphics::renderer::Cursor{input.getCursor().x, input.getCursor().y});
+				return true;
+			default:
+				return false;
+			}
+		}
+	};
+
+	struct RenderSwitch
+	{
+		engine::hid::Input::Button button;
+
+		bool is_down = false;
+
+		RenderSwitch(engine::hid::Input::Button button) : button(button) {}
+
+		bool translate(const engine::hid::Input & input)
+		{
+			switch (input.getState())
+			{
+			case engine::hid::Input::State::DOWN:
+				if (input.getButton() == button)
+				{
+					if (!is_down)
+					{
+						is_down = true;
+						engine::graphics::renderer::toggle_down();
+					}
+					return true;
+				}
+				return false;
+			case engine::hid::Input::State::UP:
+				if (input.getButton() == button)
+				{
+					is_down = false;
+					engine::graphics::renderer::toggle_up();
+					return true;
+				}
+				return false;
+			default:
+				return false;
+			}
+		}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
-		11,
-		std::array<ContextSwitch, 2>,
-		std::array<Flycontrol, 1>,
-		std::array<Pancontrol, 1>
+		81,
+		std::array<ContextSwitch, 10>,
+		std::array<Flycontrol, 10>,
+		std::array<Pancontrol, 10>,
+		std::array<RenderHover, 10>,
+		std::array<RenderSwitch, 10>
 	>
 	components;
 
@@ -375,6 +441,8 @@ namespace
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button, engine::Asset>, 10> queue_add_contextswitch;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_flycontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_pancontrol;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderhover;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button>, 10> queue_add_renderswitch;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_remove;
 
 	core::container::CircleQueueSRMW<std::tuple<engine::Asset, engine::Entity, int>, 10> queue_bind;
@@ -430,6 +498,16 @@ namespace ui
 			while (queue_add_pancontrol.try_pop(pancontrol_args))
 			{
 				components.emplace<Pancontrol>(std::get<0>(pancontrol_args), std::get<0>(pancontrol_args));
+			}
+			std::tuple<engine::Entity, int> renderhover_args;
+			while (queue_add_renderhover.try_pop(renderhover_args))
+			{
+				components.emplace<RenderHover>(std::get<0>(renderhover_args));
+			}
+			std::tuple<engine::Entity, engine::hid::Input::Button> renderswitch_args;
+			while (queue_add_renderswitch.try_pop(renderswitch_args))
+			{
+				components.emplace<RenderSwitch>(std::get<0>(renderswitch_args), std::get<1>(renderswitch_args));
 			}
 			std::tuple<engine::Entity, int> remove_args;
 			while (queue_remove.try_pop(remove_args))
@@ -509,6 +587,19 @@ namespace ui
 		engine::Entity entity)
 	{
 		const auto res = queue_add_pancontrol.try_emplace(entity, 0);
+		debug_assert(res);
+	}
+	void post_add_renderhover(
+		engine::Entity entity)
+	{
+		const auto res = queue_add_renderhover.try_emplace(entity, 0);
+		debug_assert(res);
+	}
+	void post_add_renderswitch(
+		engine::Entity entity,
+		engine::hid::Input::Button button)
+	{
+		const auto res = queue_add_renderswitch.try_emplace(entity, button);
 		debug_assert(res);
 	}
 	void post_remove(

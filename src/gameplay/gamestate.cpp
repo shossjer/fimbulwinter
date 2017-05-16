@@ -192,6 +192,14 @@ namespace gamestate
 		gameplay::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, "game");
 		gameplay::ui::post_bind("debug", game_switch, -10);
 		gameplay::ui::post_bind("game", debug_switch, -10);
+
+		auto game_renderswitch = engine::Entity::create();
+		gameplay::ui::post_add_renderswitch(game_renderswitch, engine::hid::Input::Button::KEY_F5);
+		gameplay::ui::post_bind("game", game_renderswitch, -5);
+
+		auto game_renderhover = engine::Entity::create();
+		gameplay::ui::post_add_renderhover(game_renderhover);
+		gameplay::ui::post_bind("game", game_renderhover, 5);
 	}
 
 	void destroy()
