@@ -22,6 +22,8 @@
 #include <engine/Asset.hpp>
 #include <engine/debug.hpp>
 
+#include <gameplay/gamestate.hpp>
+
 #include <atomic>
 #include <fstream>
 #include <utility>
@@ -564,6 +566,8 @@ namespace
 	                                           engine::graphics::renderer::CharacterSkinning>,
 	                                 100> queue_update_characterskinning;
 
+	core::container::CircleQueueSRSW<std::tuple<int, int, engine::Entity>, 10> queue_select;
+
 	core::container::CircleQueueSRSW<std::pair<engine::Asset,
 	                                           engine::graphics::renderer::asset_definition_t>,
 	                                 100> queue_asset_definitions;
@@ -687,6 +691,26 @@ namespace
 	std::atomic<int> entitytoggle;
 	engine::Entity highlighted_entity = engine::Entity::null();
 	engine::graphics::opengl::Color4ub highlighted_color{255, 191, 64, 255};
+
+	engine::Entity get_entity_at_screen(int sx, int sy)
+	{
+		const int x = sx;
+		const int y = viewport_height - 1 - sy;
+
+		if (x >= viewport_x &&
+		    y >= viewport_y &&
+		    x < viewport_x + viewport_width &&
+		    y < viewport_y + viewport_height)
+		{
+			const unsigned int color = entitypixels[x + y * viewport_width];
+			return engine::Entity{
+				(color & 0xff000000) >> 24 |
+				(color & 0x00ff0000) >> 8 |
+				(color & 0x0000ff00) << 8 |
+				(color & 0x000000ff) << 24};
+		}
+		return engine::Entity::null();
+	}
 
 	void initLights()
 	{
@@ -954,24 +978,21 @@ namespace
 
 		glReadPixels(viewport_x, viewport_y, viewport_width, viewport_height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, entitypixels.data());
 
-		if (cursor_x >= viewport_x &&
-		    cursor_y >= viewport_y &&
-		    cursor_x <= viewport_x + viewport_width &&
-		    cursor_y <= viewport_y + viewport_height)
+		// hover
 		{
-			const int x = cursor_x;
-			const int y = viewport_height - cursor_y;
-			const unsigned int color = entitypixels[x + y * viewport_width];
-			const unsigned int entity =
-				(color & 0xff000000) >> 24 |
-				(color & 0x00ff0000) >> 8 |
-				(color & 0x0000ff00) << 8 |
-				(color & 0x000000ff) << 24;
-			highlighted_entity = engine::Entity{entity};
+			const engine::Entity entity = get_entity_at_screen(cursor_x, cursor_y);
+			if (highlighted_entity != entity)
+			{
+				highlighted_entity = entity;
+			}
 		}
-		else
+		// select
 		{
-			highlighted_entity = engine::Entity::null();
+			std::tuple<int, int, engine::Entity> select_args;
+			while (queue_select.try_pop(select_args))
+			{
+				gameplay::gamestate::post_command(std::get<2>(select_args), gameplay::gamestate::Command::RENDER_SELECT, get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
+			}
 		}
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
@@ -1309,6 +1330,12 @@ namespace engine
 			void update(engine::Entity entity, CharacterSkinning data)
 			{
 				const auto res = queue_update_characterskinning.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+
+			void post_select(int x, int y, engine::Entity entity)
+			{
+				const auto res = queue_select.try_emplace(x, y, entity);
 				debug_assert(res);
 			}
 

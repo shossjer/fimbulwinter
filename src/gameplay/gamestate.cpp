@@ -16,17 +16,21 @@ namespace
 
 		CameraActivator(engine::Entity camera) : camera(camera) {}
 
-		void operator = (Command command)
+		void operator = (std::tuple<Command, int> && args)
 		{
-			switch (command)
+			switch (std::get<0>(args))
 			{
 			case Command::CONTEXT_CHANGED:
 				debug_printline(0xffffffff, "Switching to camera: ", camera);
 				engine::graphics::viewer::set_active_3d(camera);
 				break;
 			default:
-				debug_printline(0xffffffff, "CameraActivator: Unknown command: ", static_cast<int>(command));
+				debug_printline(0xffffffff, "CameraActivator: Unknown command: ", static_cast<int>(std::get<0>(args)));
 			}
+		}
+		void operator = (std::tuple<Command, engine::Entity> && args)
+		{
+			debug_unreachable();
 		}
 	};
 
@@ -47,9 +51,9 @@ namespace
 
 		FreeCamera(engine::Entity camera) : camera(camera) {}
 
-		void operator = (Command command)
+		void operator = (std::tuple<Command, int> && args)
 		{
-			switch (command)
+			switch (std::get<0>(args))
 			{
 			case Command::MOVE_LEFT_DOWN:
 				move_left = true;
@@ -112,8 +116,12 @@ namespace
 				roll_right = false;
 				break;
 			default:
-				debug_printline(0xffffffff, "FreeCamera: Unknown command: ", static_cast<int>(command));
+				debug_printline(0xffffffff, "FreeCamera: Unknown command: ", static_cast<int>(std::get<0>(args)));
 			}
+		}
+		void operator = (std::tuple<Command, engine::Entity> && args)
+		{
+			debug_unreachable();
 		}
 
 		void update()
@@ -137,16 +145,37 @@ namespace
 		}
 	};
 
+	struct Selector
+	{
+		void operator = (std::tuple<Command, int> && args)
+		{
+			debug_unreachable();
+		}
+		void operator = (std::tuple<Command, engine::Entity> && args)
+		{
+			switch (std::get<0>(args))
+			{
+			case Command::RENDER_SELECT:
+				debug_printline(0xffffffff, "Clicked on entity: ", std::get<1>(args));
+				break;
+			default:
+				debug_printline(0xffffffff, "Selector: Unknown command: ", static_cast<int>(std::get<0>(args)));
+			}
+		}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
-		5,
+		11,
 		std::array<CameraActivator, 2>,
-		std::array<FreeCamera, 2>
+		std::array<FreeCamera, 2>,
+		std::array<Selector, 1>
 	>
 	components;
 
-	core::container::CircleQueueSRMW<std::pair<engine::Entity, Command>, 100> queue_commands;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, Command>, 100> queue_commands0;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, Command, engine::Entity>, 100> queue_commands1;
 }
 
 namespace gameplay
@@ -195,11 +224,19 @@ namespace gamestate
 
 		auto game_renderswitch = engine::Entity::create();
 		gameplay::ui::post_add_renderswitch(game_renderswitch, engine::hid::Input::Button::KEY_F5);
+		gameplay::ui::post_bind("debug", game_renderswitch, -5);
 		gameplay::ui::post_bind("game", game_renderswitch, -5);
 
 		auto game_renderhover = engine::Entity::create();
 		gameplay::ui::post_add_renderhover(game_renderhover);
+		gameplay::ui::post_bind("debug", game_renderhover, 5);
 		gameplay::ui::post_bind("game", game_renderhover, 5);
+
+		auto game_renderselect = engine::Entity::create();
+		components.emplace<Selector>(game_renderselect);
+		gameplay::ui::post_add_renderselect(game_renderselect);
+		gameplay::ui::post_bind("debug", game_renderselect, 5);
+		gameplay::ui::post_bind("game", game_renderselect, 5);
 	}
 
 	void destroy()
@@ -211,10 +248,15 @@ namespace gamestate
 	{
 		// commands
 		{
-			std::pair<engine::Entity, Command> command;
-			while (queue_commands.try_pop(command))
+			std::tuple<engine::Entity, Command> command_args0;
+			while (queue_commands0.try_pop(command_args0))
 			{
-				components.update(command.first, command.second);
+				components.update(std::get<0>(command_args0), std::make_tuple(std::get<1>(command_args0), 0));
+			}
+			std::tuple<engine::Entity, Command, engine::Entity> command_args1;
+			while (queue_commands1.try_pop(command_args1))
+			{
+				components.update(std::get<0>(command_args1), std::make_tuple(std::get<1>(command_args1), std::get<2>(command_args1)));
 			}
 		}
 
@@ -227,7 +269,13 @@ namespace gamestate
 
 	void post_command(engine::Entity entity, Command command)
 	{
-		const auto res = queue_commands.try_emplace(entity, command);
+		const auto res = queue_commands0.try_emplace(entity, command);
+		debug_assert(res);
+	}
+
+	void post_command(engine::Entity entity, Command command, engine::Entity arg1)
+	{
+		const auto res = queue_commands1.try_emplace(entity, command, arg1);
 		debug_assert(res);
 	}
 }

@@ -25,6 +25,7 @@ namespace gamestate
 		MOVE_RIGHT_UP,
 		MOVE_UP_DOWN,
 		MOVE_UP_UP,
+		RENDER_SELECT,
 		ROLL_LEFT_DOWN,
 		ROLL_LEFT_UP,
 		ROLL_RIGHT_DOWN,
@@ -40,6 +41,7 @@ namespace gamestate
 	};
 
 	void post_command(engine::Entity entity, Command command);
+	void post_command(engine::Entity entity, Command command, engine::Entity arg1);
 }
 }
 
