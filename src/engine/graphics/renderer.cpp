@@ -20,9 +20,8 @@
 #include <core/sync/Event.hpp>
 
 #include <engine/Asset.hpp>
+#include <engine/Command.hpp>
 #include <engine/debug.hpp>
-
-#include <gameplay/gamestate.hpp>
 
 #include <atomic>
 #include <fstream>
@@ -32,14 +31,22 @@ using namespace engine::graphics::opengl;
 
 namespace engine
 {
-	namespace application
-	{
-		namespace window
-		{
-			extern void make_current();
-			extern void swap_buffers();
-		}
-	}
+namespace application
+{
+namespace window
+{
+	extern void make_current();
+	extern void swap_buffers();
+}
+}
+}
+
+namespace gameplay
+{
+namespace gamestate
+{
+	extern void post_command(engine::Entity entity, engine::Command command, engine::Entity arg1);
+}
 }
 
 namespace
@@ -991,7 +998,7 @@ namespace
 			std::tuple<int, int, engine::Entity> select_args;
 			while (queue_select.try_pop(select_args))
 			{
-				gameplay::gamestate::post_command(std::get<2>(select_args), gameplay::gamestate::Command::RENDER_SELECT, get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
+				gameplay::gamestate::post_command(std::get<2>(select_args), engine::Command::RENDER_SELECT, get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
 			}
 		}
 

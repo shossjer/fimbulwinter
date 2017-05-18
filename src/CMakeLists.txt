@@ -49,6 +49,7 @@ set(HEADER_FILES
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
 	src/engine/Asset.hpp
+	src/engine/Command.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
