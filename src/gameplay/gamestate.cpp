@@ -10,6 +10,8 @@
 
 namespace
 {
+	void printClick(engine::Entity id);
+
 	struct CameraActivator
 	{
 		engine::Entity camera;
@@ -156,7 +158,7 @@ namespace
 			switch (std::get<0>(args))
 			{
 			case engine::Command::RENDER_SELECT:
-				debug_printline(0xffffffff, "Clicked on entity: ", std::get<1>(args));
+				printClick(std::get<1>(args));
 				break;
 			default:
 				debug_printline(0xffffffff, "Selector: Unknown command: ", static_cast<int>(std::get<0>(args)));
@@ -164,18 +166,91 @@ namespace
 		}
 	};
 
+	struct Worker
+	{
+		engine::Entity id;
+		engine::Entity workstation;
+
+		Worker(engine::Entity id) : id(id)
+		{
+		}
+	};
+
+	struct Workstation
+	{
+		engine::Entity id;
+		gameplay::gamestate::WorkstationType type;
+		engine::Entity worker;
+		double progress;
+
+		Workstation(engine::Entity id, gameplay::gamestate::WorkstationType type)
+			: id(id)
+			, type(type)
+		{
+		}
+
+		bool isBusy()
+		{
+			return this->worker != engine::Entity::null();
+		}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
-		11,
+		141,
 		std::array<CameraActivator, 2>,
 		std::array<FreeCamera, 2>,
-		std::array<Selector, 1>
+		std::array<Selector, 1>,
+		std::array<Worker, 10>,
+		std::array<Workstation, 20>
 	>
 	components;
 
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command>, 100> queue_commands0;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, engine::Entity>, 100> queue_commands1;
+
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, gameplay::gamestate::WorkstationType>, 100> queue_workstations;
+	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
+
+	struct PrintType
+	{
+		void operator() (const Worker & w)
+		{
+			debug_printline(0xffffffff, "You have clicked worker!");
+		}
+
+		void operator() (const Workstation & w)
+		{
+			switch (w.type)
+			{
+			case gameplay::gamestate::WorkstationType::BENCH:
+				debug_printline(0xffffffff, "You have clicked Bench.");
+				break;
+			case gameplay::gamestate::WorkstationType::OVEN:
+				debug_printline(0xffffffff, "You have clicked Oven.");
+				break;
+
+			default:
+				debug_printline(0xffffffff, "You have failed!");
+				break;
+			}
+		}
+
+		template <typename W>
+		void operator() (const W & w)
+		{
+			debug_printline(0xffffffff, "You have failed!");
+		}
+	};
+
+	void printClick(engine::Entity id)
+	{
+		if (components.contains(id))
+		{
+			components.call(id, PrintType{});
+		}
+	}
 }
 
 namespace gameplay
@@ -246,6 +321,26 @@ namespace gamestate
 
 	void update()
 	{
+		// adding workstuff
+		{
+			engine::Entity worker_args;
+			while (queue_workers.try_pop(worker_args))
+			{
+				components.emplace<Worker>(
+					worker_args,
+					worker_args);
+			}
+
+			std::tuple<engine::Entity, WorkstationType> workstation_args;
+			while (queue_workstations.try_pop(workstation_args))
+			{
+				components.emplace<Workstation>(
+					std::get<0>(workstation_args),
+					std::get<0>(workstation_args),
+					std::get<1>(workstation_args));
+			}
+		}
+
 		// commands
 		{
 			std::tuple<engine::Entity, engine::Command> command_args0;
@@ -276,6 +371,17 @@ namespace gamestate
 	void post_command(engine::Entity entity, engine::Command command, engine::Entity arg1)
 	{
 		const auto res = queue_commands1.try_emplace(entity, command, arg1);
+		debug_assert(res);
+	}
+
+	void post_add_workstation(engine::Entity entity, WorkstationType type)
+	{
+		const auto res = queue_workstations.try_emplace(entity, type);
+		debug_assert(res);
+	}
+	void post_add_worker(engine::Entity entity)
+	{
+		const auto res = queue_workers.try_emplace(entity);
 		debug_assert(res);
 	}
 }

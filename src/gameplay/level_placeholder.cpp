@@ -6,6 +6,8 @@
 #include <engine/Entity.hpp>
 #include <engine/graphics/renderer.hpp>
 
+#include <gameplay/gamestate.hpp>
+
 #include <utility/json.hpp>
 
 #include <fstream>
@@ -394,8 +396,8 @@ namespace level
 				benchDef.asset,
 				placeholder.transform.matrix() });
 
-			// TODO: register new asset in character
-			//characters::post_add(assetInstance);
+			// register new asset in gamestate
+			gameplay::gamestate::post_add_workstation(id, gameplay::gamestate::WorkstationType::BENCH);
 			break;
 		}
 		case engine::Asset{ "oven" }:
@@ -412,8 +414,8 @@ namespace level
 				benchDef.asset,
 				placeholder.transform.matrix() });
 
-			// TODO: register new asset in character
-			//characters::post_add(assetInstance);
+			// register new asset in gamestate
+			gameplay::gamestate::post_add_workstation(id, gameplay::gamestate::WorkstationType::OVEN);
 			break;
 		}
 		case engine::Asset{ "dude" }:
@@ -430,8 +432,8 @@ namespace level
 				benchDef.asset,
 				placeholder.transform.matrix() });
 
-			// TODO: register new asset in character
-			//characters::post_add(assetInstance);
+			// register new asset in gamestate
+			gameplay::gamestate::post_add_worker(id);
 			break;
 		}
 		default:
