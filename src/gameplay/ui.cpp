@@ -4,12 +4,33 @@
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 #include <core/debug.hpp>
+
+#include <engine/Command.hpp>
+#include <engine/graphics/renderer.hpp>
 #include <engine/hid/input.hpp>
-#include <gameplay/gamestate.hpp>
 
 #include <algorithm>
 #include <tuple>
 #include <vector>
+
+namespace engine
+{
+namespace graphics
+{
+namespace renderer
+{
+	extern void notify(Cursor && data);
+}
+}
+}
+
+namespace gameplay
+{
+namespace gamestate
+{
+	extern void post_command(engine::Entity entity, engine::Command command);
+}
+}
 
 namespace
 {
@@ -105,7 +126,7 @@ namespace
 				if (input.getButton() == button)
 				{
 					set_active_context(context);
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::CONTEXT_CHANGED);
+					gameplay::gamestate::post_command(entity, engine::Command::CONTEXT_CHANGED);
 					return true;
 				}
 				return false;
@@ -143,70 +164,70 @@ namespace
 					if (!is_down_left_turn)
 					{
 						is_down_left_turn = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::TURN_LEFT_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::TURN_LEFT_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWRIGHT:
 					if (!is_down_right_turn)
 					{
 						is_down_right_turn = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::TURN_RIGHT_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::TURN_RIGHT_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWUP:
 					if (!is_down_up_turn)
 					{
 						is_down_up_turn = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::TURN_UP_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::TURN_UP_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWDOWN:
 					if (!is_down_down_turn)
 					{
 						is_down_down_turn = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::TURN_DOWN_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::TURN_DOWN_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_A:
 					if (!is_down_left_move)
 					{
 						is_down_left_move = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_LEFT_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::MOVE_LEFT_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_D:
 					if (!is_down_right_move)
 					{
 						is_down_right_move = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_RIGHT_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::MOVE_RIGHT_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_W:
 					if (!is_down_up_move)
 					{
 						is_down_up_move = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_UP_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::MOVE_UP_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_S:
 					if (!is_down_down_move)
 					{
 						is_down_down_move = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_DOWN_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::MOVE_DOWN_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_Q:
 					if (!is_down_left_roll)
 					{
 						is_down_left_roll = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::ROLL_LEFT_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::ROLL_LEFT_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_E:
 					if (!is_down_right_roll)
 					{
 						is_down_right_roll = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::ROLL_RIGHT_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::ROLL_RIGHT_DOWN);
 					}
 					return true;
 				default:
@@ -217,43 +238,43 @@ namespace
 				{
 				case engine::hid::Input::Button::KEY_ARROWLEFT:
 					is_down_left_turn = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::TURN_LEFT_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::TURN_LEFT_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWRIGHT:
 					is_down_right_turn = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::TURN_RIGHT_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::TURN_RIGHT_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWUP:
 					is_down_up_turn = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::TURN_UP_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::TURN_UP_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWDOWN:
 					is_down_down_turn = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::TURN_DOWN_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::TURN_DOWN_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_A:
 					is_down_left_move = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_LEFT_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::MOVE_LEFT_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_D:
 					is_down_right_move = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_RIGHT_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::MOVE_RIGHT_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_W:
 					is_down_up_move = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_UP_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::MOVE_UP_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_S:
 					is_down_down_move = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_DOWN_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::MOVE_DOWN_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_Q:
 					is_down_left_roll = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::ROLL_LEFT_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::ROLL_LEFT_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_E:
 					is_down_right_roll = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::ROLL_RIGHT_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::ROLL_RIGHT_UP);
 					return true;
 				default:
 					return false;
@@ -287,28 +308,28 @@ namespace
 					if (!is_down_left_move)
 					{
 						is_down_left_move = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_LEFT_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::MOVE_LEFT_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWRIGHT:
 					if (!is_down_right_move)
 					{
 						is_down_right_move = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_RIGHT_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::MOVE_RIGHT_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWUP:
 					if (!is_down_up_move)
 					{
 						is_down_up_move = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_UP_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::MOVE_UP_DOWN);
 					}
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWDOWN:
 					if (!is_down_down_move)
 					{
 						is_down_down_move = true;
-						gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_DOWN_DOWN);
+						gameplay::gamestate::post_command(entity, engine::Command::MOVE_DOWN_DOWN);
 					}
 					return true;
 				default:
@@ -319,19 +340,19 @@ namespace
 				{
 				case engine::hid::Input::Button::KEY_ARROWLEFT:
 					is_down_left_move = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_LEFT_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::MOVE_LEFT_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWRIGHT:
 					is_down_right_move = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_RIGHT_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::MOVE_RIGHT_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWUP:
 					is_down_up_move = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_UP_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::MOVE_UP_UP);
 					return true;
 				case engine::hid::Input::Button::KEY_ARROWDOWN:
 					is_down_down_move = false;
-					gameplay::gamestate::post_command(entity, gameplay::gamestate::Command::MOVE_DOWN_UP);
+					gameplay::gamestate::post_command(entity, engine::Command::MOVE_DOWN_UP);
 					return true;
 				default:
 					return false;
@@ -343,13 +364,93 @@ namespace
 		}
 	};
 
+	struct RenderHover
+	{
+		bool translate(const engine::hid::Input & input)
+		{
+			switch (input.getState())
+			{
+			case engine::hid::Input::State::MOVE:
+				notify(engine::graphics::renderer::Cursor{input.getCursor().x, input.getCursor().y});
+				return true;
+			default:
+				return false;
+			}
+		}
+	};
+
+	struct RenderSelect
+	{
+		engine::Entity entity;
+
+		RenderSelect(engine::Entity entity) : entity(entity) {}
+
+		bool translate(const engine::hid::Input & input)
+		{
+			switch (input.getState())
+			{
+			case engine::hid::Input::State::DOWN:
+				switch (input.getButton())
+				{
+				case engine::hid::Input::Button::MOUSE_LEFT:
+					engine::graphics::renderer::post_select(input.getCursor().x, input.getCursor().y, entity);
+					return true;
+				default:
+					return false;
+				}
+			default:
+				return false;
+			}
+		}
+	};
+
+	struct RenderSwitch
+	{
+		engine::hid::Input::Button button;
+
+		bool is_down = false;
+
+		RenderSwitch(engine::hid::Input::Button button) : button(button) {}
+
+		bool translate(const engine::hid::Input & input)
+		{
+			switch (input.getState())
+			{
+			case engine::hid::Input::State::DOWN:
+				if (input.getButton() == button)
+				{
+					if (!is_down)
+					{
+						is_down = true;
+						engine::graphics::renderer::toggle_down();
+					}
+					return true;
+				}
+				return false;
+			case engine::hid::Input::State::UP:
+				if (input.getButton() == button)
+				{
+					is_down = false;
+					engine::graphics::renderer::toggle_up();
+					return true;
+				}
+				return false;
+			default:
+				return false;
+			}
+		}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
-		11,
-		std::array<ContextSwitch, 2>,
-		std::array<Flycontrol, 1>,
-		std::array<Pancontrol, 1>
+		81,
+		std::array<ContextSwitch, 10>,
+		std::array<Flycontrol, 10>,
+		std::array<Pancontrol, 10>,
+		std::array<RenderHover, 10>,
+		std::array<RenderSelect, 10>,
+		std::array<RenderSwitch, 10>
 	>
 	components;
 
@@ -375,10 +476,13 @@ namespace
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button, engine::Asset>, 10> queue_add_contextswitch;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_flycontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_pancontrol;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderhover;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderselect;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button>, 10> queue_add_renderswitch;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_remove;
 
-	core::container::CircleQueueSRMW<std::tuple<engine::Asset, engine::Entity, int>, 10> queue_bind;
-	core::container::CircleQueueSRMW<std::tuple<engine::Asset, engine::Entity>, 10> queue_unbind;
+	core::container::CircleQueueSRMW<std::tuple<engine::Asset, engine::Entity, int>, 50> queue_bind;
+	core::container::CircleQueueSRMW<std::tuple<engine::Asset, engine::Entity>, 50> queue_unbind;
 }
 
 namespace gameplay
@@ -430,6 +534,21 @@ namespace ui
 			while (queue_add_pancontrol.try_pop(pancontrol_args))
 			{
 				components.emplace<Pancontrol>(std::get<0>(pancontrol_args), std::get<0>(pancontrol_args));
+			}
+			std::tuple<engine::Entity, int> renderhover_args;
+			while (queue_add_renderhover.try_pop(renderhover_args))
+			{
+				components.emplace<RenderHover>(std::get<0>(renderhover_args));
+			}
+			std::tuple<engine::Entity, int> renderselect_args;
+			while (queue_add_renderselect.try_pop(renderselect_args))
+			{
+				components.emplace<RenderSelect>(std::get<0>(renderselect_args), std::get<0>(renderselect_args));
+			}
+			std::tuple<engine::Entity, engine::hid::Input::Button> renderswitch_args;
+			while (queue_add_renderswitch.try_pop(renderswitch_args))
+			{
+				components.emplace<RenderSwitch>(std::get<0>(renderswitch_args), std::get<1>(renderswitch_args));
 			}
 			std::tuple<engine::Entity, int> remove_args;
 			while (queue_remove.try_pop(remove_args))
@@ -509,6 +628,25 @@ namespace ui
 		engine::Entity entity)
 	{
 		const auto res = queue_add_pancontrol.try_emplace(entity, 0);
+		debug_assert(res);
+	}
+	void post_add_renderhover(
+		engine::Entity entity)
+	{
+		const auto res = queue_add_renderhover.try_emplace(entity, 0);
+		debug_assert(res);
+	}
+	void post_add_renderselect(
+		engine::Entity entity)
+	{
+		const auto res = queue_add_renderselect.try_emplace(entity, 0);
+		debug_assert(res);
+	}
+	void post_add_renderswitch(
+		engine::Entity entity,
+		engine::hid::Input::Button button)
+	{
+		const auto res = queue_add_renderswitch.try_emplace(entity, button);
 		debug_assert(res);
 	}
 	void post_remove(

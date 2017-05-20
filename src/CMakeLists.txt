@@ -7,6 +7,7 @@ set(SOURCE_FILES
 	src/engine/animation/Armature.cpp
 	src/engine/animation/mixer.cpp
 	src/engine/application/window.cpp
+	src/engine/graphics/opengl.cpp
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
 	src/engine/graphics/viewer.cpp
@@ -48,6 +49,7 @@ set(HEADER_FILES
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
 	src/engine/Asset.hpp
+	src/engine/Command.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
@@ -56,6 +58,7 @@ set(HEADER_FILES
 	src/engine/common.hpp
 	src/engine/debug.hpp
 	src/engine/graphics/renderer.hpp
+	src/engine/graphics/opengl.hpp
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/viewer.hpp

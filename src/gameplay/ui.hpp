@@ -29,6 +29,13 @@ namespace ui
 		engine::Entity entity);
 	void post_add_pancontrol(
 		engine::Entity entity);
+	void post_add_renderhover(
+		engine::Entity entity);
+	void post_add_renderselect(
+		engine::Entity entity);
+	void post_add_renderswitch(
+		engine::Entity entity,
+		engine::hid::Input::Button button);
 	void post_remove(
 		engine::Entity entity);
 
