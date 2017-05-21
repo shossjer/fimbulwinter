@@ -4,13 +4,14 @@
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 
+#include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 
 #include <gameplay/ui.hpp>
 
 namespace
 {
-	void printClick(engine::Entity id);
+	void entityClick(engine::Entity id);
 
 	struct CameraActivator
 	{
@@ -158,7 +159,7 @@ namespace
 			switch (std::get<0>(args))
 			{
 			case engine::Command::RENDER_SELECT:
-				printClick(std::get<1>(args));
+				entityClick(std::get<1>(args));
 				break;
 			default:
 				debug_printline(0xffffffff, "Selector: Unknown command: ", static_cast<int>(std::get<0>(args)));
@@ -180,12 +181,17 @@ namespace
 	{
 		engine::Entity id;
 		gameplay::gamestate::WorkstationType type;
+		Matrix4x4f front;
 		engine::Entity worker;
 		double progress;
 
-		Workstation(engine::Entity id, gameplay::gamestate::WorkstationType type)
+		Workstation(
+			engine::Entity id,
+			gameplay::gamestate::WorkstationType type,
+			Matrix4x4f front)
 			: id(id)
 			, type(type)
+			, front(front)
 		{
 		}
 
@@ -209,15 +215,43 @@ namespace
 
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command>, 100> queue_commands0;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, engine::Entity>, 100> queue_commands1;
-
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, gameplay::gamestate::WorkstationType>, 100> queue_workstations;
+	core::container::CircleQueueSRMW<
+		std::tuple
+		<
+			engine::Entity,
+			gameplay::gamestate::WorkstationType,
+			Matrix4x4f
+		>,
+		100> queue_workstations;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
-	struct PrintType
+	struct PeopleMover
+	{
+		engine::Entity selectedWorker = engine::Entity::null();
+
+		void select(const Worker & w)
+		{
+			this->selectedWorker = w.id;
+		}
+
+		void moveTo(const Workstation & s)
+		{
+			if (this->selectedWorker != engine::Entity::null())
+			{
+				engine::graphics::renderer::update(
+					this->selectedWorker,
+					engine::graphics::data::ModelviewMatrix{ s.front });
+			}
+		}
+
+	} peopleMover;
+
+	struct EntityDistinguisher
 	{
 		void operator() (const Worker & w)
 		{
 			debug_printline(0xffffffff, "You have clicked worker!");
+			peopleMover.select(w);
 		}
 
 		void operator() (const Workstation & w)
@@ -235,6 +269,8 @@ namespace
 				debug_printline(0xffffffff, "You have failed!");
 				break;
 			}
+
+			peopleMover.moveTo(w);
 		}
 
 		template <typename W>
@@ -244,11 +280,11 @@ namespace
 		}
 	};
 
-	void printClick(engine::Entity id)
+	void entityClick(engine::Entity id)
 	{
 		if (components.contains(id))
 		{
-			components.call(id, PrintType{});
+			components.call(id, EntityDistinguisher {});
 		}
 	}
 }
@@ -331,13 +367,14 @@ namespace gamestate
 					worker_args);
 			}
 
-			std::tuple<engine::Entity, WorkstationType> workstation_args;
+			std::tuple<engine::Entity, WorkstationType, Matrix4x4f> workstation_args;
 			while (queue_workstations.try_pop(workstation_args))
 			{
 				components.emplace<Workstation>(
 					std::get<0>(workstation_args),
 					std::get<0>(workstation_args),
-					std::get<1>(workstation_args));
+					std::get<1>(workstation_args),
+					std::get<2>(workstation_args));
 			}
 		}
 
@@ -374,9 +411,12 @@ namespace gamestate
 		debug_assert(res);
 	}
 
-	void post_add_workstation(engine::Entity entity, WorkstationType type)
+	void post_add_workstation(
+			engine::Entity entity,
+			WorkstationType type,
+			Matrix4x4f front)
 	{
-		const auto res = queue_workstations.try_emplace(entity, type);
+		const auto res = queue_workstations.try_emplace(entity, type, front);
 		debug_assert(res);
 	}
 	void post_add_worker(engine::Entity entity)

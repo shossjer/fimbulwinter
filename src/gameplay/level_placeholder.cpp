@@ -44,6 +44,13 @@ namespace level
 
 			std::unordered_map<std::string, joint_t> joints;
 
+			struct location_t
+			{
+				transform_t transform;
+			};
+
+			std::unordered_map<std::string, location_t> locations;
+
 			template<typename T>
 			const T & get(
 					const std::unordered_map<std::string, T> & items,
@@ -67,6 +74,11 @@ namespace level
 			const joint_t & joint(const std::string name) const
 			{
 				return get<joint_t>(this->joints, name);
+			}
+
+			const location_t & location(const std::string name) const
+			{
+				return get<location_t>(this->locations, name);
 			}
 		};
 
@@ -129,6 +141,14 @@ namespace level
 			};
 
 			std::vector<joint_t> joints;
+
+			struct location_t
+			{
+				std::string name;
+				transform_t transform;
+			};
+
+			std::vector<location_t> locations;
 
 			template<typename T>
 			const T & get(const std::vector<T> & items, const std::string & name) const
@@ -277,6 +297,16 @@ namespace level
 				model.joints.emplace_back(model_t::joint_t{ name, load_transform(jjoint) });
 			}
 
+			const auto & jlocations = jcontent["locations"];
+
+			// read the relations (assume joints only for now)
+			for (const auto & jlocation : jlocations)
+			{
+				const std::string name = jlocation["name"];
+
+				model.locations.emplace_back(model_t::location_t{ name, load_transform(jlocation) });
+			}
+
 			return model;
 		}
 
@@ -363,6 +393,11 @@ namespace level
 				asset_template.joints.emplace(joint.name, asset_template_t::joint_t{ joint.transform });
 			}
 
+			for (const auto & location : model.locations)
+			{
+				asset_template.locations.emplace(location.name, asset_template_t::location_t{ location.transform });
+			}
+
 			// create the asset
 			const auto & r = assets.emplace(asset, std::move(asset_template));
 
@@ -388,16 +423,20 @@ namespace level
 			//asset::droid_t assetInstance{id, transform, headId, Entity::create() };
 
 			const auto & benchDef = assetTemplate.part("bench");
+			const auto matrix = placeholder.transform.matrix();
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 				id,
 				render_instance_t{
 				benchDef.asset,
-				placeholder.transform.matrix() });
+				matrix });
 
 			// register new asset in gamestate
-			gameplay::gamestate::post_add_workstation(id, gameplay::gamestate::WorkstationType::BENCH);
+			gameplay::gamestate::post_add_workstation(
+				id,
+				gameplay::gamestate::WorkstationType::BENCH,
+				matrix*assetTemplate.location("front").transform.matrix());
 			break;
 		}
 		case engine::Asset{ "oven" }:
@@ -406,16 +445,20 @@ namespace level
 			//asset::droid_t assetInstance{id, transform, headId, Entity::create() };
 
 			const auto & benchDef = assetTemplate.part("oven");
+			const auto matrix = placeholder.transform.matrix();
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 				id,
 				render_instance_t{
 				benchDef.asset,
-				placeholder.transform.matrix() });
+				matrix });
 
 			// register new asset in gamestate
-			gameplay::gamestate::post_add_workstation(id, gameplay::gamestate::WorkstationType::OVEN);
+			gameplay::gamestate::post_add_workstation(
+				id,
+				gameplay::gamestate::WorkstationType::OVEN,
+				matrix*assetTemplate.location("front").transform.matrix());
 			break;
 		}
 		case engine::Asset{ "dude" }:
