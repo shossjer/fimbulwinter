@@ -225,36 +225,83 @@ namespace
 		100> queue_workstations;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
+	struct ClearStation
+	{
+		void operator() (Workstation & w)
+		{
+			w.worker = engine::Entity::null();
+		}
+
+		template <typename W>
+		void operator() (const W & w)
+		{
+			// unreachable?
+		}
+	};
+
+	struct ChangeStation
+	{
+		Workstation & station;
+
+		void operator() (Worker & w)
+		{
+			// clear prev. station if any
+			if (w.workstation != engine::Entity::null())
+			{
+				components.call(w.workstation, ClearStation {});
+			}
+
+			w.workstation = this->station.id;
+			this->station.worker = w.id;
+		}
+
+		template <typename W>
+		void operator() (const W & w)
+		{
+			// unreachable?
+		}
+	};
+
 	struct PeopleMover
 	{
 		engine::Entity selectedWorker = engine::Entity::null();
 
-		void select(const Worker & w)
+		void select(Worker & w)
 		{
 			this->selectedWorker = w.id;
 		}
 
-		void moveTo(const Workstation & s)
+		void select(Workstation & s)
 		{
-			if (this->selectedWorker != engine::Entity::null())
+			if (this->selectedWorker == engine::Entity::null())
+				return;
+
+			if (s.worker != engine::Entity::null())
 			{
-				engine::graphics::renderer::update(
-					this->selectedWorker,
-					engine::graphics::data::ModelviewMatrix{ s.front });
+				debug_printline(0xffffffff, "The station is busy!");
+				return;
 			}
+
+			// assign worker to station, clears prev. if any.
+			components.call(this->selectedWorker, ChangeStation{s});
+
+			// move the worker
+			engine::graphics::renderer::update(
+				this->selectedWorker,
+				engine::graphics::data::ModelviewMatrix{ s.front });
 		}
 
 	} peopleMover;
 
 	struct EntityDistinguisher
 	{
-		void operator() (const Worker & w)
+		void operator() (Worker & w)
 		{
 			debug_printline(0xffffffff, "You have clicked worker!");
 			peopleMover.select(w);
 		}
 
-		void operator() (const Workstation & w)
+		void operator() (Workstation & w)
 		{
 			switch (w.type)
 			{
@@ -270,7 +317,7 @@ namespace
 				break;
 			}
 
-			peopleMover.moveTo(w);
+			peopleMover.select(w);
 		}
 
 		template <typename W>

@@ -419,9 +419,6 @@ namespace level
 		{
 		case engine::Asset{"bench"}:
 		{
-			// create the object instance
-			//asset::droid_t assetInstance{id, transform, headId, Entity::create() };
-
 			const auto & benchDef = assetTemplate.part("bench");
 			const auto matrix = placeholder.transform.matrix();
 
@@ -441,9 +438,6 @@ namespace level
 		}
 		case engine::Asset{ "oven" }:
 		{
-			// create the object instance
-			//asset::droid_t assetInstance{id, transform, headId, Entity::create() };
-
 			const auto & benchDef = assetTemplate.part("oven");
 			const auto matrix = placeholder.transform.matrix();
 
@@ -461,18 +455,16 @@ namespace level
 				matrix*assetTemplate.location("front").transform.matrix());
 			break;
 		}
-		case engine::Asset{ "dude" }:
+		case engine::Asset{ "dude1" }:
+		case engine::Asset { "dude2" }:
 		{
-			// create the object instance
-			//asset::droid_t assetInstance{id, transform, headId, Entity::create() };
-
-			const auto & benchDef = assetTemplate.part("dude");
+			const auto & dudeDef = assetTemplate.part("dude");
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 				id,
-				render_instance_t{
-				benchDef.asset,
+				render_instance_t {
+				dudeDef.asset,
 				placeholder.transform.matrix() });
 
 			// register new asset in gamestate
