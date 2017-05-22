@@ -225,42 +225,16 @@ namespace
 		100> queue_workstations;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
-	struct ClearStation
+	void move_to_workstation(Worker & w, Workstation & s)
 	{
-		void operator() (Workstation & w)
+		// clear prev. station if any
+		if (w.workstation != engine::Entity::null())
 		{
-			w.worker = engine::Entity::null();
+			components.get<Workstation>(w.workstation).worker = engine::Entity::null();
 		}
-
-		template <typename W>
-		void operator() (const W & w)
-		{
-			// unreachable?
-		}
-	};
-
-	struct ChangeStation
-	{
-		Workstation & station;
-
-		void operator() (Worker & w)
-		{
-			// clear prev. station if any
-			if (w.workstation != engine::Entity::null())
-			{
-				components.call(w.workstation, ClearStation {});
-			}
-
-			w.workstation = this->station.id;
-			this->station.worker = w.id;
-		}
-
-		template <typename W>
-		void operator() (const W & w)
-		{
-			// unreachable?
-		}
-	};
+		w.workstation = s.id;
+		s.worker = w.id;
+	}
 
 	struct PeopleMover
 	{
@@ -276,14 +250,19 @@ namespace
 			if (this->selectedWorker == engine::Entity::null())
 				return;
 
-			if (s.worker != engine::Entity::null())
+			if (s.isBusy())
 			{
+				if (s.worker == selectedWorker)
+				{
+					debug_printline(0xffffffff, "I'm already working as fast as I can!");
+					return;
+				}
 				debug_printline(0xffffffff, "The station is busy!");
 				return;
 			}
 
 			// assign worker to station, clears prev. if any.
-			components.call(this->selectedWorker, ChangeStation{s});
+			move_to_workstation(components.get<Worker>(this->selectedWorker), s);
 
 			// move the worker
 			engine::graphics::renderer::update(

@@ -151,6 +151,28 @@ namespace core
 			{
 				return std::get<mpl::index_of<C, mpl::type_list<Cs...>>::value>(arrays);
 			}
+			template <typename C>
+			C & get(K key)
+			{
+				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
+
+				const auto bucket = find(key);
+				debug_assert(slots[bucket].get_type() == type);
+				const auto index = slots[bucket].get_index();
+
+				return std::get<type>(arrays).get(index);
+			}
+			template <typename C>
+			const C & get(K key) const
+			{
+				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
+
+				const auto bucket = find(key);
+				debug_assert(slots[bucket].get_type() == type);
+				const auto index = slots[bucket].get_index();
+
+				return std::get<type>(arrays).get(index);
+			}
 
 			template <typename C>
 			K get_key(const C & component) const
