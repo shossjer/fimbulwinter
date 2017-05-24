@@ -236,16 +236,23 @@ namespace
 		s.worker = w.id;
 	}
 
-	struct PeopleMover
+	// manages player interaction (clicking) with entities.
+	// whatever happends when something gets clicked, this one knows it..
+	struct PlayerInteraction
 	{
+	private:
 		engine::Entity selectedWorker = engine::Entity::null();
 
-		void select(Worker & w)
+	public:
+		// performs whatever should be done when a Worker is clicked
+		void operator() (Worker & w)
 		{
+			debug_printline(0xffffffff, "You have clicked worker!");
 			this->selectedWorker = w.id;
 		}
 
-		void select(Workstation & s)
+		// performs whatever should be done when a Station is clicked
+		void operator() (Workstation & s)
 		{
 			if (this->selectedWorker == engine::Entity::null())
 				return;
@@ -270,47 +277,19 @@ namespace
 				engine::graphics::data::ModelviewMatrix{ s.front });
 		}
 
-	} peopleMover;
-
-	struct EntityDistinguisher
-	{
-		void operator() (Worker & w)
-		{
-			debug_printline(0xffffffff, "You have clicked worker!");
-			peopleMover.select(w);
-		}
-
-		void operator() (Workstation & w)
-		{
-			switch (w.type)
-			{
-			case gameplay::gamestate::WorkstationType::BENCH:
-				debug_printline(0xffffffff, "You have clicked Bench.");
-				break;
-			case gameplay::gamestate::WorkstationType::OVEN:
-				debug_printline(0xffffffff, "You have clicked Oven.");
-				break;
-
-			default:
-				debug_printline(0xffffffff, "You have failed!");
-				break;
-			}
-
-			peopleMover.select(w);
-		}
-
 		template <typename W>
 		void operator() (const W & w)
 		{
 			debug_printline(0xffffffff, "You have failed!");
 		}
-	};
+
+	} playerInteraction;
 
 	void entityClick(engine::Entity id)
 	{
 		if (components.contains(id))
 		{
-			components.call(id, EntityDistinguisher {});
+			components.call(id, playerInteraction);
 		}
 	}
 }

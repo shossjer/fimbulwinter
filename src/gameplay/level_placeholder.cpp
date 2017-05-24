@@ -183,13 +183,13 @@ namespace level
 					Quaternionf{ jq[0], jq[1], jq[2], jq[3] } };
 		}
 
-		model_t load_model_data(const std::string & type)
+		model_t load_model_data(const std::string & modelName)
 		{
-			std::ifstream ifile("res/" + type + ".json");
+			std::ifstream ifile("res/" + modelName + ".json");
 
 			if (!ifile)
 			{
-				throw std::runtime_error("File does not exist for model: " + type);
+				throw std::runtime_error("File does not exist for model: " + modelName);
 			}
 			// TODO: perform some check if the file exists
 			const json jcontent = json::parse(ifile);
@@ -310,7 +310,7 @@ namespace level
 			return model;
 		}
 
-		const asset_template_t & load(const engine::Asset asset, const std::string & type)
+		const asset_template_t & load(const engine::Asset asset, const std::string & modelName)
 		{
 			auto itr = assets.find(asset);
 
@@ -320,13 +320,10 @@ namespace level
 			// the asset has not previously been loaded
 			asset_template_t asset_template;
 
-			const model_t model = load_model_data(type);
+			const model_t model = load_model_data(modelName);
 
 			for (const auto & part : model.parts)
 			{
-				// the id of the model part definition
-				const engine::Asset asset = type;
-
 				if (!part.render.shapes.empty())
 				{
 					// register renderer definition of asset
