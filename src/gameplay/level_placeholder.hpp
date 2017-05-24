@@ -3,7 +3,6 @@
 #define GAMEPLAY_LEVEL_PLACEHOLDER_HPP
 
 #include <engine/common.hpp>
-#include <engine/physics/defines.hpp>
 
 #include <string>
 
