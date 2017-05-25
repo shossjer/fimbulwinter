@@ -15,17 +15,6 @@
 
 #include <stdexcept>
 
-// if set to 1 and glx version 1.3 is available, glXUseXFont will produce:
-// vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-// X Error of failed request:  BadDrawable (invalid Pixmap or Window parameter)
-//   Major opcode of failed request:  53 (X_CreatePixmap)
-//   Resource id in failed request:  0x3200004
-//   Serial number of failed request:  51
-//   Current serial number in output stream:  52
-// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-// possible solution: http://mesa-dev.freedesktop.narkive.com/H6labNrr/patch-fix-for-throwing-baddrawable-invalid-pixmap-or-window-parameter-by-xserver
-#define TRY_GLX_VERSION_1_3 0
-
 namespace engine
 {
 	namespace graphics
@@ -123,7 +112,7 @@ namespace
 				return tmp;
 			}
 	};
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 	struct XVisualInfo_guard
 	{
 		using resource_t = XVisualInfo;
@@ -202,7 +191,7 @@ namespace
 	/**
 	 */
 	Window render_window;
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 	/**
 	 */
 	GLXWindow glx_window;
@@ -326,7 +315,7 @@ namespace engine
 				}
 				// XDefaultScreen
 				const int screen = XDefaultScreen(render_display);
-#if defined(GLX_VERSION_1_1)
+#ifdef GLX_VERSION_1_1
 				// glXGetClientString
 				{
 					application_debug_trace("glXGetClientString GLX_VENDOR: ", glXGetClientString(render_display, GLX_VENDOR));
@@ -345,7 +334,7 @@ namespace engine
 				}
 #endif
 
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				// visual
 				int fb_attributes[] = {
 					GLX_DOUBLEBUFFER,  True,
@@ -455,7 +444,7 @@ namespace engine
 				::event_display = event_display.detach();
 				::render_display = render_display.detach();
 				::render_window = render_window;
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				::glx_window = glx_window;
 				::glx_context = glx_context;
 #else
@@ -464,7 +453,7 @@ namespace engine
 			}
 			void destroy()
 			{
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				glXDestroyWindow(render_display, glx_window);
 				glXDestroyContext(render_display, glx_context);
 				XDestroyWindow(render_display, render_window);
@@ -480,7 +469,7 @@ namespace engine
 
 			void make_current()
 			{
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				glXMakeContextCurrent(render_display, glx_window, glx_window, glx_context);
 #else
 				glXMakeCurrent(render_display, render_window, render_context);
@@ -512,7 +501,7 @@ namespace engine
 					}
 				}
 				// swap buffers
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				glXSwapBuffers(render_display, glx_window);
 #else
 				glXSwapBuffers(render_display, render_window);
