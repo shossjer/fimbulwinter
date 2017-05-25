@@ -1,4 +1,8 @@
 
+#include <config.h>
+
+#if WINDOW_USE_X11
+
 #include <engine/debug.hpp>
 #include <utility/string.hpp>
 
@@ -561,3 +565,5 @@ namespace engine
 		}
 	}
 }
+
+#endif /* WINDOW_USE_X11 */

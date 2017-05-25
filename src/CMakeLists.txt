@@ -6,7 +6,8 @@ set(SOURCE_FILES
 	src/core/crypto/crc.cpp
 	src/engine/animation/Armature.cpp
 	src/engine/animation/mixer.cpp
-	src/engine/application/window.cpp
+	src/engine/application/window_user32.cpp
+	src/engine/application/window_x11.cpp
 	src/engine/graphics/opengl.cpp
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
