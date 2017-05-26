@@ -10,6 +10,7 @@
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
+#include <GL/glxext.h>
 
 #include <unistd.h>
 
@@ -335,8 +336,12 @@ namespace engine
 #endif
 
 #ifdef GLX_VERSION_1_3
+				std::vector<std::string> glx_extensions = utility::split(glXQueryExtensionsString(render_display, screen), ' ', true);
+
 				// visual
 				int fb_attributes[] = {
+					GLX_X_RENDERABLE,  True,
+					GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR, // default
 					GLX_DOUBLEBUFFER,  True,
 					GLX_RED_SIZE,      8,
 					GLX_GREEN_SIZE,    8,
@@ -344,8 +349,8 @@ namespace engine
 					GLX_ALPHA_SIZE,    8,
 					GLX_DEPTH_SIZE,    24,
 					GLX_STENCIL_SIZE,  8,
-					GLX_RENDER_TYPE,   GLX_RGBA_BIT,
-					GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+					GLX_RENDER_TYPE,   GLX_RGBA_BIT, // default
+					GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT, // default
 					None
 				};
 				int n_buffers;
@@ -376,11 +381,41 @@ namespace engine
 				                                     CWColormap | CWEventMask,
 				                                     &window_attributes);
 
-				GLXContext glx_context = glXCreateNewContext(render_display,
-				                                             fb_configs[0],
-				                                             GLX_RGBA_TYPE,
-				                                             nullptr,
-				                                             True);
+				PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = nullptr;
+				if (std::count(std::begin(glx_extensions), std::end(glx_extensions), "GLX_ARB_create_context"))
+				{
+#ifdef GLX_VERSION_1_4
+					glXCreateContextAttribsARB = reinterpret_cast<PFNGLXCREATECONTEXTATTRIBSARBPROC>(glXGetProcAddress(reinterpret_cast<const GLubyte *>("glXCreateContextAttribsARB")));
+#else
+					// TODO: check GLX_ARB_get_proc_address?
+					glXCreateContextAttribsARB = reinterpret_cast<PFNGLXCREATECONTEXTATTRIBSARBPROC>(glXGetProcAddressARB(reinterpret_cast<const GLubyte *>("glXCreateContextAttribsARB")));
+#endif
+				}
+				GLXContext glx_context;
+				if (glXCreateContextAttribsARB)
+				{
+					// glXUseXFont needs compatibility profile since 3.1
+					const int attriblist[] = {
+						GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+						GLX_CONTEXT_MINOR_VERSION_ARB, 0,
+						// GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+						// GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+						0
+					};
+					glx_context = glXCreateContextAttribsARB(render_display,
+					                                         fb_configs[0],
+					                                         nullptr,
+					                                         True,
+					                                         attriblist);
+				}
+				else
+				{
+					glx_context = glXCreateNewContext(render_display,
+					                                  fb_configs[0],
+					                                  GLX_RGBA_TYPE,
+					                                  nullptr,
+					                                  True);
+				}
 
 				GLXWindow glx_window = glXCreateWindow(render_display,
 				                                       fb_configs[0],
