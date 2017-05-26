@@ -17,22 +17,21 @@ namespace level
 
 	using render_instance_t = engine::graphics::renderer::asset_instance_t;
 
-	engine::Entity load(const placeholder_t & placeholder)
+	engine::Entity load(const std::string & name, const Matrix4x4f & matrix)
 	{
-		const engine::Asset asset = placeholder.name;
+		const engine::Asset asset = name;
 
 		// load the model (if not already loaded)
 		const engine::model::asset_template_t & assetTemplate =
-				engine::model::load(asset, placeholder.name);
+			engine::model::load(asset, name);
 
 		const Entity id = Entity::create();
 
 		switch (asset)
 		{
-		case engine::Asset{"bench"}:
+		case engine::Asset{ "bench" }:
 		{
 			const auto & benchDef = assetTemplate.part("bench");
-			const auto matrix = placeholder.transform.matrix();
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
@@ -45,13 +44,13 @@ namespace level
 			gameplay::gamestate::post_add_workstation(
 				id,
 				gameplay::gamestate::WorkstationType::BENCH,
-				matrix*assetTemplate.location("front").transform.matrix());
+				matrix*assetTemplate.location("front").transform.matrix(),
+				matrix*assetTemplate.location("top").transform.matrix());
 			break;
 		}
 		case engine::Asset{ "oven" }:
 		{
 			const auto & benchDef = assetTemplate.part("oven");
-			const auto matrix = placeholder.transform.matrix();
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
@@ -64,23 +63,37 @@ namespace level
 			gameplay::gamestate::post_add_workstation(
 				id,
 				gameplay::gamestate::WorkstationType::OVEN,
-				matrix*assetTemplate.location("front").transform.matrix());
+				matrix*assetTemplate.location("front").transform.matrix(),
+				matrix*assetTemplate.location("top").transform.matrix());
 			break;
 		}
 		case engine::Asset{ "dude1" }:
-		case engine::Asset { "dude2" }:
+		case engine::Asset{ "dude2" }:
 		{
 			const auto & dudeDef = assetTemplate.part("dude");
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 				id,
-				render_instance_t {
+				render_instance_t{
 				dudeDef.asset,
-				placeholder.transform.matrix() });
+				matrix });
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_worker(id);
+			break;
+		}
+		case engine::Asset{ "board" }:
+		{
+			const auto & dudeDef = assetTemplate.part("all");
+
+			// register new asset in renderer
+			engine::graphics::renderer::add(
+				id,
+				render_instance_t{
+				dudeDef.asset,
+				matrix });
+
 			break;
 		}
 		default:
@@ -88,6 +101,11 @@ namespace level
 		}
 
 		return id;
+	}
+
+	engine::Entity load(const placeholder_t & placeholder)
+	{
+		return load(placeholder.name, placeholder.transform.matrix());
 	}
 }
 }

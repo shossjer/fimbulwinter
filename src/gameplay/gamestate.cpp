@@ -7,6 +7,7 @@
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 
+#include <gameplay/level_placeholder.hpp>
 #include <gameplay/ui.hpp>
 
 namespace
@@ -167,6 +168,39 @@ namespace
 		}
 	};
 
+	struct Storehouse
+	{
+	private:
+		unsigned int carrotsRaw;
+		unsigned int carrotsChopped;
+
+	public:
+
+		Storehouse()
+			: carrotsRaw(10)
+			, carrotsChopped(0)
+		{
+		}
+
+	public:
+		// return a carrot if available
+		bool checkoutRawCarrot()
+		{
+			if (this->carrotsRaw <= 0)
+				return false;
+
+			this->carrotsRaw--;
+			return true;
+		}
+
+		void checkinChoppedCarrot() { this->carrotsChopped++; }
+
+		void print()
+		{
+			debug_printline(0xffffffff, "Carrot status - raw: ", this->carrotsRaw, " chopped: ", this->carrotsChopped);
+		}
+	} storage;
+
 	struct Worker
 	{
 		engine::Entity id;
@@ -182,22 +216,75 @@ namespace
 		engine::Entity id;
 		gameplay::gamestate::WorkstationType type;
 		Matrix4x4f front;
+		Matrix4x4f top;
 		engine::Entity worker;
+
+	private:
+		engine::Entity boardModel;
 		double progress;
 
+	public:
 		Workstation(
 			engine::Entity id,
 			gameplay::gamestate::WorkstationType type,
-			Matrix4x4f front)
+			Matrix4x4f front,
+			Matrix4x4f top)
 			: id(id)
 			, type(type)
 			, front(front)
+			, top(top)
+			, worker(engine::Entity::null())
+			, boardModel(engine::Entity::null())
 		{
 		}
 
 		bool isBusy()
 		{
 			return this->worker != engine::Entity::null();
+		}
+
+		void start()
+		{
+			if (this->boardModel!= engine::Entity::null()) return;
+
+			if (!storage.checkoutRawCarrot())
+			{
+				debug_printline(0xffffffff, "No more raw carrots to chopp!");
+				return;
+			}
+
+			storage.print();
+
+			this->boardModel = gameplay::level::load("board", this->top);
+		}
+
+		void cleanup()
+		{
+			engine::graphics::renderer::remove(this->boardModel);
+			this->boardModel = engine::Entity::null();
+		}
+
+		void update()
+		{
+			if (this->worker == engine::Entity::null())
+				return;
+
+			if (this->boardModel == engine::Entity::null())
+				return;
+
+			this->progress += (1000./50.);
+
+			if (this->progress < 4. * 1000.)
+				return;
+
+			// carrot is finished! either stop working or auto checkout a new carrot...
+
+			this->progress = 0.;
+
+			storage.checkinChoppedCarrot();
+			storage.print();
+
+			cleanup();
 		}
 	};
 
@@ -220,6 +307,7 @@ namespace
 		<
 			engine::Entity,
 			gameplay::gamestate::WorkstationType,
+			Matrix4x4f,
 			Matrix4x4f
 		>,
 		100> queue_workstations;
@@ -234,6 +322,13 @@ namespace
 		}
 		w.workstation = s.id;
 		s.worker = w.id;
+
+		s.start();
+
+		// move the worker
+		engine::graphics::renderer::update(
+				w.id,
+				engine::graphics::data::ModelviewMatrix{ s.front });
 	}
 
 	// manages player interaction (clicking) with entities.
@@ -270,11 +365,6 @@ namespace
 
 			// assign worker to station, clears prev. if any.
 			move_to_workstation(components.get<Worker>(this->selectedWorker), s);
-
-			// move the worker
-			engine::graphics::renderer::update(
-				this->selectedWorker,
-				engine::graphics::data::ModelviewMatrix{ s.front });
 		}
 
 		template <typename W>
@@ -372,14 +462,15 @@ namespace gamestate
 					worker_args);
 			}
 
-			std::tuple<engine::Entity, WorkstationType, Matrix4x4f> workstation_args;
+			std::tuple<engine::Entity, WorkstationType, Matrix4x4f, Matrix4x4f> workstation_args;
 			while (queue_workstations.try_pop(workstation_args))
 			{
 				components.emplace<Workstation>(
 					std::get<0>(workstation_args),
 					std::get<0>(workstation_args),
 					std::get<1>(workstation_args),
-					std::get<2>(workstation_args));
+					std::get<2>(workstation_args),
+					std::get<3>(workstation_args));
 			}
 		}
 
@@ -402,6 +493,11 @@ namespace gamestate
 		{
 			camera.update();
 		}
+
+		for (auto & station : components.get<Workstation>())
+		{
+			station.update();
+		}
 	}
 
 	void post_command(engine::Entity entity, engine::Command command)
@@ -419,9 +515,10 @@ namespace gamestate
 	void post_add_workstation(
 			engine::Entity entity,
 			WorkstationType type,
-			Matrix4x4f front)
+			Matrix4x4f front,
+			Matrix4x4f top)
 	{
-		const auto res = queue_workstations.try_emplace(entity, type, front);
+		const auto res = queue_workstations.try_emplace(entity, type, front, top);
 		debug_assert(res);
 	}
 	void post_add_worker(engine::Entity entity)

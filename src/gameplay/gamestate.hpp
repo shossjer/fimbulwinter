@@ -28,7 +28,8 @@ namespace gamestate
 	void post_add_workstation(
 		engine::Entity entity,
 		WorkstationType type,
-		Matrix4x4f front);
+		Matrix4x4f front,
+		Matrix4x4f top);
 
 	void post_add_worker(engine::Entity entity);
 }
