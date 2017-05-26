@@ -744,9 +744,6 @@ namespace
 		graphics_debug_trace("glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
 		graphics_debug_trace("glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
 		graphics_debug_trace("glGetString GL_VERSION: ", glGetString(GL_VERSION));
-#if WINDOW_USE_X11
-		graphics_debug_trace("glGetString GL_SHADING_LANGUAGE_VERSION: ", glGetString(GL_SHADING_LANGUAGE_VERSION));
-#endif
 
 		engine::graphics::opengl::init();
 
@@ -1005,23 +1002,18 @@ namespace
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		////////////////////////////////////////////////////////
 
-		// 3d
+		//////////////////////////////////////////////////////////////
+		// wireframes
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_STENCIL_TEST);
 
-		// int i;
-		// glGetIntegerv(GL_STENCIL_BITS, &i);
-		// debug_printline(0xffffffff, i);
+		glDisable(GL_LIGHTING);
 
-		//////////////////////////////////////////////////////////////
-		// wireframes
 		glStencilMask(0x00000001);
 		// glStencilFunc(GL_NEVER, 0x00000001, 0x00000001);
 		// glStencilOp(GL_REPLACE, GL_KEEP, GL_KEEP);
 		glStencilFunc(GL_ALWAYS, 0x00000001, 0x00000001);
 		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-
-		glDisable(GL_LIGHTING);
 
 		for (const auto & component : components.get<cuboid_cw>())
 		{
@@ -1186,6 +1178,7 @@ namespace
 
 		glDisable(GL_STENCIL_TEST);
 		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_LIGHTING);
 
 		// entity buffers
 		if (entitytoggle.load(std::memory_order_relaxed))

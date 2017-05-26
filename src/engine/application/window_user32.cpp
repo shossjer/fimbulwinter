@@ -1,4 +1,8 @@
 
+#include <config.h>
+
+#if WINDOW_USE_USER32
+
 #include <engine/debug.hpp>
 
 #include <windowsx.h>
@@ -284,3 +288,5 @@ namespace engine
 		}
 	}
 }
+
+#endif /* WINDOW_USE_USER32 */

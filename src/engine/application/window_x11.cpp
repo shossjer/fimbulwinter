@@ -1,4 +1,8 @@
 
+#include <config.h>
+
+#if WINDOW_USE_X11
+
 #include <engine/debug.hpp>
 #include <utility/string.hpp>
 
@@ -6,21 +10,11 @@
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
+#include <GL/glxext.h>
 
 #include <unistd.h>
 
 #include <stdexcept>
-
-// if set to 1 and glx version 1.3 is available, glXUseXFont will produce:
-// vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-// X Error of failed request:  BadDrawable (invalid Pixmap or Window parameter)
-//   Major opcode of failed request:  53 (X_CreatePixmap)
-//   Resource id in failed request:  0x3200004
-//   Serial number of failed request:  51
-//   Current serial number in output stream:  52
-// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-// possible solution: http://mesa-dev.freedesktop.narkive.com/H6labNrr/patch-fix-for-throwing-baddrawable-invalid-pixmap-or-window-parameter-by-xserver
-#define TRY_GLX_VERSION_1_3 0
 
 namespace engine
 {
@@ -119,7 +113,7 @@ namespace
 				return tmp;
 			}
 	};
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 	struct XVisualInfo_guard
 	{
 		using resource_t = XVisualInfo;
@@ -198,7 +192,7 @@ namespace
 	/**
 	 */
 	Window render_window;
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 	/**
 	 */
 	GLXWindow glx_window;
@@ -322,7 +316,7 @@ namespace engine
 				}
 				// XDefaultScreen
 				const int screen = XDefaultScreen(render_display);
-#if defined(GLX_VERSION_1_1)
+#ifdef GLX_VERSION_1_1
 				// glXGetClientString
 				{
 					application_debug_trace("glXGetClientString GLX_VENDOR: ", glXGetClientString(render_display, GLX_VENDOR));
@@ -341,9 +335,13 @@ namespace engine
 				}
 #endif
 
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
+				std::vector<std::string> glx_extensions = utility::split(glXQueryExtensionsString(render_display, screen), ' ', true);
+
 				// visual
 				int fb_attributes[] = {
+					GLX_X_RENDERABLE,  True,
+					GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR, // default
 					GLX_DOUBLEBUFFER,  True,
 					GLX_RED_SIZE,      8,
 					GLX_GREEN_SIZE,    8,
@@ -351,8 +349,8 @@ namespace engine
 					GLX_ALPHA_SIZE,    8,
 					GLX_DEPTH_SIZE,    24,
 					GLX_STENCIL_SIZE,  8,
-					GLX_RENDER_TYPE,   GLX_RGBA_BIT,
-					GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+					GLX_RENDER_TYPE,   GLX_RGBA_BIT, // default
+					GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT, // default
 					None
 				};
 				int n_buffers;
@@ -383,11 +381,41 @@ namespace engine
 				                                     CWColormap | CWEventMask,
 				                                     &window_attributes);
 
-				GLXContext glx_context = glXCreateNewContext(render_display,
-				                                             fb_configs[0],
-				                                             GLX_RGBA_TYPE,
-				                                             nullptr,
-				                                             True);
+				PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = nullptr;
+				if (std::count(std::begin(glx_extensions), std::end(glx_extensions), "GLX_ARB_create_context"))
+				{
+#ifdef GLX_VERSION_1_4
+					glXCreateContextAttribsARB = reinterpret_cast<PFNGLXCREATECONTEXTATTRIBSARBPROC>(glXGetProcAddress(reinterpret_cast<const GLubyte *>("glXCreateContextAttribsARB")));
+#else
+					// TODO: check GLX_ARB_get_proc_address?
+					glXCreateContextAttribsARB = reinterpret_cast<PFNGLXCREATECONTEXTATTRIBSARBPROC>(glXGetProcAddressARB(reinterpret_cast<const GLubyte *>("glXCreateContextAttribsARB")));
+#endif
+				}
+				GLXContext glx_context;
+				if (glXCreateContextAttribsARB)
+				{
+					// glXUseXFont needs compatibility profile since 3.1
+					const int attriblist[] = {
+						GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+						GLX_CONTEXT_MINOR_VERSION_ARB, 0,
+						// GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+						// GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+						0
+					};
+					glx_context = glXCreateContextAttribsARB(render_display,
+					                                         fb_configs[0],
+					                                         nullptr,
+					                                         True,
+					                                         attriblist);
+				}
+				else
+				{
+					glx_context = glXCreateNewContext(render_display,
+					                                  fb_configs[0],
+					                                  GLX_RGBA_TYPE,
+					                                  nullptr,
+					                                  True);
+				}
 
 				GLXWindow glx_window = glXCreateWindow(render_display,
 				                                       fb_configs[0],
@@ -451,7 +479,7 @@ namespace engine
 				::event_display = event_display.detach();
 				::render_display = render_display.detach();
 				::render_window = render_window;
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				::glx_window = glx_window;
 				::glx_context = glx_context;
 #else
@@ -460,7 +488,7 @@ namespace engine
 			}
 			void destroy()
 			{
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				glXDestroyWindow(render_display, glx_window);
 				glXDestroyContext(render_display, glx_context);
 				XDestroyWindow(render_display, render_window);
@@ -476,7 +504,7 @@ namespace engine
 
 			void make_current()
 			{
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				glXMakeContextCurrent(render_display, glx_window, glx_window, glx_context);
 #else
 				glXMakeCurrent(render_display, render_window, render_context);
@@ -508,7 +536,7 @@ namespace engine
 					}
 				}
 				// swap buffers
-#if defined(GLX_VERSION_1_3) && TRY_GLX_VERSION_1_3
+#ifdef GLX_VERSION_1_3
 				glXSwapBuffers(render_display, glx_window);
 #else
 				glXSwapBuffers(render_display, render_window);
@@ -561,3 +589,5 @@ namespace engine
 		}
 	}
 }
+
+#endif /* WINDOW_USE_X11 */
