@@ -408,8 +408,8 @@ namespace gamestate
 		engine::graphics::viewer::add(
 				game_camera,
 				engine::graphics::viewer::camera{
-					core::maths::Quaternionf{ 0.966f, 0.259f, 0.f, 0.f },
-					core::maths::Vector3f{0.f, 4.f, 5.f}});
+					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{40.f/2.f}).get()), 0.f, 0.f },
+					core::maths::Vector3f{0.f, 7.f, 5.f}});
 		engine::graphics::viewer::set_active_3d(game_camera);
 
 		gameplay::ui::post_add_flycontrol(debug_camera);
