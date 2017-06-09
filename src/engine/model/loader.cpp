@@ -1,9 +1,11 @@
 
+#include "data.hpp"
 #include "loader.hpp"
 
 #include <core/maths/algorithm.hpp>
 
 #include <engine/Entity.hpp>
+#include <engine/debug.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/physics/defines.hpp>
 
@@ -342,6 +344,80 @@ namespace model
 
 		// whats up with this syntax
 		return r.first->second;
+	}
+
+	uint16_t read_count(std::ifstream & stream)
+	{
+		uint16_t count;
+		stream.read(reinterpret_cast<char *>(&count), sizeof(uint16_t));
+		return count;
+	}
+
+	std::string read_string(std::ifstream & stream)
+	{
+		const uint16_t len = read_count(stream); // including null character
+
+		std::string buffer;
+		buffer.reserve(len);
+		stream.read(&buffer[0], len);
+
+		return buffer;
+	}
+
+	template <class T, std::size_t N>
+	void read(std::ifstream & stream, core::container::Buffer & buffer)
+	{
+		const uint16_t count = read_count(stream);
+		buffer.resize<T>(N * count);
+		stream.read(reinterpret_cast<char *>(buffer.data()), sizeof(buffer.size()));
+	}
+
+	void read_weights(std::ifstream & stream, mesh_t & mesh)
+	{
+		const uint16_t weights = read_count(stream);
+
+		mesh.weights.resize(weights);
+		for (auto && weight : mesh.weights)
+		{
+			const uint16_t ngroups = read_count(stream);
+
+			debug_assert(ngroups == 1);
+
+			weight.index = read_count(stream);
+			stream.read(reinterpret_cast<char *>(&weight.value), sizeof(float));
+		}
+	}
+
+	void load_binary(const std::string filename)
+	{
+		std::ifstream stream(filename, std::ifstream::binary | std::ifstream::in);
+
+		engine::Asset asset;
+		engine::model::mesh_t mesh;
+
+		{
+			const std::string name = read_string(stream);
+			asset = name;
+			debug_printline(0xffffffff, "mesh name: ", name);
+		}
+
+		read<float, 3>(stream, mesh.xyz);
+		debug_printline(0xffffffff, "mesh vertices: ", mesh.xyz.count());
+
+		read<float, 2>(stream, mesh.uv);
+		debug_printline(0xffffffff, "mesh uv's: ", mesh.uv.count());
+
+		read<float, 3>(stream, mesh.normals);
+		debug_printline(0xffffffff, "mesh normals: ", mesh.normals.count());
+
+		read<unsigned int, 3>(stream, mesh.triangles);
+		debug_printline(0xffffffff, "mesh triangles: ", mesh.triangles.count());
+
+		read_weights(stream, mesh);
+		debug_printline(0xffffffff, "mesh weights: ", mesh.weights.size());
+
+		// post mesh to renderer
+		engine::graphics::renderer::add(asset, mesh);
 	}
 }
 }

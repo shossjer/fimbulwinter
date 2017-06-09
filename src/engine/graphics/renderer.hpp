@@ -3,6 +3,7 @@
 #define ENGINE_GRAPHICS_RENDERER_HPP
 
 #include <engine/common.hpp>
+#include <engine/model/data.hpp>
 
 #include <core/container/Buffer.hpp>
 #include <core/maths/Matrix.hpp>
@@ -115,18 +116,6 @@ namespace engine
 				Cursor(int32_t x, int32_t y) : x(x), y(y) {}
 			};
 
-			namespace asset
-			{
-				struct CharacterMesh
-				{
-					std::string mshfile;
-
-					CharacterMesh() = default;
-					CharacterMesh(std::string mshfile) :
-						mshfile(mshfile)
-					{}
-				};
-			}
 			struct CharacterSkinning
 			{
 				std::vector<core::maths::Matrix4x4f> matrix_pallet;
@@ -160,7 +149,7 @@ namespace engine
 			void add(engine::Entity entity, data::CuboidC data);
 			void add(engine::Entity entity, data::LineC data);
 			void add(engine::Entity entity, data::MeshC data);
-			void add(engine::Entity entity, asset::CharacterMesh data);
+			void add(engine::Asset asset, engine::model::mesh_t & data);
 
 			void add(engine::Asset asset, const asset_definition_t & data);
 			void add(engine::Entity entity, const asset_instance_t & data);

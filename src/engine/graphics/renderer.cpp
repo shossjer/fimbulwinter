@@ -378,20 +378,36 @@ namespace
 	{
 		struct Mesh
 		{
-			struct Weight
-			{
-				uint16_t index;
-				float value;
-			};
-
-			char name[64]; // arbitrary
-
-			uint16_t nvertices;
-			uint16_t nedges;
-
 			std::vector<core::maths::Vector4f> vertices;
-			std::vector<std::pair<uint16_t, uint16_t>> edges;
-			std::vector<Weight> weights;
+			std::vector<std::array<uint16_t, 3>> triangles;
+			std::vector<engine::model::weight_t> weights;
+
+			// all data is not moved from the model mesh to the render mesh, can I still use move constructor?
+			Mesh(engine::model::mesh_t && raw)
+				: vertices(raw.xyz.count())
+				, triangles(raw.triangles.count() / 3)
+				, weights(std::move(raw.weights))
+			{
+				for (int i = 0; i < raw.xyz.count(); i++)
+				{
+					const char * const p = raw.xyz.data();
+
+					vertices[i] = core::maths::Vector4f(
+						static_cast<float>(*(p+(i*3)*sizeof(float))),
+						static_cast<float>(*(p+(i*3 + 1)*sizeof(float))),
+						static_cast<float>(*(p+(i*3 + 2)*sizeof(float))),
+						1.f);
+				}
+
+				for (int i = 0; i < (raw.triangles.count() / 3); i++)
+				{
+					const char * const p = raw.triangles.data();
+
+					triangles[i][0] = static_cast<uint16_t>(*(p+(i)*sizeof(float)));
+					triangles[i][1] = static_cast<uint16_t>(*(p+(i+1)*sizeof(float)));
+					triangles[i][2] = static_cast<uint16_t>(*(p+(i+2)*sizeof(float)));
+				}
+			}
 		};
 
 		struct SetMesh
@@ -410,7 +426,7 @@ namespace
 		Character(SetMesh && data) :
 			mesh(&data.mesh),
 			modelview(core::maths::Matrix4x4f::identity()),
-			vertices(data.mesh.nvertices)
+			vertices(data.mesh.vertices.size())
 		{}
 
 		Character & operator = (engine::graphics::data::ModelviewMatrix && data)
@@ -428,15 +444,18 @@ namespace
 		{
 			glColor3ub(255, 0, 255);
 			glLineWidth(2.f);
-			glBegin(GL_LINES);
-			for (auto && edge : mesh->edges)
+			glBegin(GL_TRIANGLES);
+			for (auto && triangle : mesh->triangles)
 			{
 				core::maths::Vector4f::array_type buffer1;
-				vertices[edge.first].get_aligned(buffer1);
+				vertices[triangle[0]].get_aligned(buffer1);
 				glVertex4fv(buffer1);
 				core::maths::Vector4f::array_type buffer2;
-				vertices[edge.second].get_aligned(buffer2);
+				vertices[triangle[1]].get_aligned(buffer2);
 				glVertex4fv(buffer2);
+				core::maths::Vector4f::array_type buffer3;
+				vertices[triangle[2]].get_aligned(buffer3);
+				glVertex4fv(buffer3);
 			}
 			glEnd();
 			glLineWidth(1.f);
@@ -444,78 +463,17 @@ namespace
 		void update()
 		{
 			debug_assert(!matrix_pallet.empty());
-			for (int i = 0; i < static_cast<int>(mesh->nvertices); i++)
+			for (int i = 0; i < mesh->vertices.size(); i++)
 				vertices[i] = matrix_pallet[mesh->weights[i].index] * mesh->vertices[i];
 		}
 	};
 
-	void read_count(std::ifstream & stream, uint16_t & count)
-	{
-		stream.read(reinterpret_cast<char *>(& count), sizeof(uint16_t));
-	}
-	void read_vector(std::ifstream & stream, core::maths::Vector4f & vec)
-	{
-		core::maths::Vector3f::array_type buffer;
-		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
-		vec.set(buffer[0], buffer[1], buffer[2], 1.f);
-	}
-	template <std::size_t N>
-	void read_string(std::ifstream & stream, char (&buffer)[N])
-	{
-		uint16_t len; // including null character
-		stream.read(reinterpret_cast<char *>(& len), sizeof(uint16_t));
-		debug_assert(len <= N);
-
-		stream.read(buffer, len);
-	}
-
-	void read_weight(std::ifstream & stream, Character::Mesh::Weight & weight)
-	{
-		read_count(stream, weight.index);
-
-		stream.read(reinterpret_cast<char *>(& weight.value), sizeof(float));
-	}
-	void read_mesh(std::ifstream & stream, Character::Mesh & mesh)
-	{
-		read_string(stream, mesh.name);
-		debug_printline(0xffffffff, "mesh name: ", mesh.name);
-
-		read_count(stream, mesh.nvertices);
-		debug_printline(0xffffffff, "mesh nvertices: ", mesh.nvertices);
-
-		mesh.vertices.resize(mesh.nvertices);
-		for (auto && vertex : mesh.vertices)
-			read_vector(stream, vertex);
-
-		read_count(stream, mesh.nedges);
-		debug_printline(0xffffffff, "mesh nedges: ", mesh.nedges);
-
-		mesh.edges.resize(mesh.nedges);
-		for (auto && edge : mesh.edges)
-		{
-			read_count(stream, edge.first);
-			read_count(stream, edge.second);
-		}
-
-		mesh.weights.resize(mesh.nvertices);
-		for (int i = 0; i < static_cast<int>(mesh.nvertices); i++)
-		{
-			uint16_t ngroups;
-			read_count(stream, ngroups);
-			debug_assert(ngroups == 1);
-
-			read_weight(stream, mesh.weights[i]);
-		}
-	}
-
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
-		101,
+		203,
 		std::array<Character::Mesh, 50>,
-		// clang errors on collections with only one array, so here is
-		// a dummy array to satisfy it
-		std::array<int, 1>
+		std::array<asset_definition_t, 50>
 	>
 	resources;
 
@@ -531,16 +489,6 @@ namespace
 		std::array<asset_instance_t, 100>
 	>
 	components;
-
-	core::container::UnorderedCollection
-	<
-		engine::Asset,
-		200,
-		std::array<asset_definition_t, 100>,
-		std::array<int, 1>
-	>
-	definitions;
-
 }
 
 namespace
@@ -559,9 +507,9 @@ namespace
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::MeshC>,
 	                                 100> queue_add_meshc;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::renderer::asset::CharacterMesh>,
-	                                 100> queue_add_charactermesh;
+	core::container::CircleQueueSRMW<std::pair<engine::Asset,
+	                                           engine::model::mesh_t>,
+	                                 100> queue_add_meshModel;
 
 	core::container::CircleQueueSRMW<engine::Entity,
 	                                 100> queue_remove;
@@ -607,33 +555,26 @@ namespace
 			               std::move(message_add_linec.second));
 		}
 
-		std::pair<engine::Entity,
-		          engine::graphics::renderer::asset::CharacterMesh> message_add_charactermesh;
-		while (queue_add_charactermesh.try_pop(message_add_charactermesh))
+		std::pair<engine::Asset, engine::model::mesh_t> maModel;
+		while (queue_add_meshModel.try_pop(maModel))
 		{
-			// TODO: this should be done in a loader thread somehow
-			const engine::Asset mshasset{message_add_charactermesh.second.mshfile};
-			if (!resources.contains(mshasset))
-			{
-				std::ifstream file(message_add_charactermesh.second.mshfile, std::ifstream::binary | std::ifstream::in);
-				Character::Mesh msh;
-				read_mesh(file, msh);
-				resources.add(mshasset, std::move(msh));
-			}
-			components.add(message_add_charactermesh.first, Character::SetMesh{resources.get<Character::Mesh>(mshasset)});
+			if (resources.contains(maModel.first)) continue;
+
+			resources.add(maModel.first, Character::Mesh {std::move(maModel.second)});
+			//components.add(maModel.first, Character::SetMesh{resources.get<Character::Mesh>(maModel.first)});
 		}
 		{
 			std::pair<engine::Asset, engine::graphics::renderer::asset_definition_t> data;
 			while (queue_asset_definitions.try_pop(data))
 			{
-				definitions.emplace<asset_definition_t>(data.first, data.second);
+				resources.emplace<asset_definition_t>(data.first, data.second);
 			}
 		}
 		{
 			std::pair<engine::Entity, engine::graphics::renderer::asset_instance_t> data;
 			while (queue_asset_instances.try_pop(data))
 			{
-				auto & definition = definitions.get<asset_definition_t>(data.second.asset);
+				auto & definition = resources.get<asset_definition_t>(data.second.asset);
 				components.emplace<asset_instance_t>(data.first, definition, data.second.modelview);
 			}
 		}
@@ -1300,9 +1241,9 @@ namespace engine
 				const auto res = queue_add_meshc.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
-			void add(engine::Entity entity, asset::CharacterMesh data)
+			void add(engine::Asset asset, engine::model::mesh_t & data)
 			{
-				const auto res = queue_add_charactermesh.try_push(std::make_pair(entity, data));
+				const auto res = queue_add_meshModel.try_push(std::make_pair(asset, data));
 				debug_assert(res);
 			}
 
