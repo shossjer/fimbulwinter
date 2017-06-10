@@ -5,6 +5,7 @@
 #include <engine/common.hpp>
 
 #include <core/container/Buffer.hpp>
+#include <core/graphics/Image.hpp>
 #include <core/maths/Matrix.hpp>
 
 #include <vector>
@@ -25,6 +26,13 @@ namespace engine
 				float width, height, depth;
 				Color color;
 				bool wireframe;
+			};
+			// cuboid with texture
+			struct CuboidT
+			{
+				core::maths::Matrix4x4f modelview;
+				float width, height, depth;
+				engine::Asset texture;
 			};
 			// line segments with color
 			struct LineC
@@ -55,6 +63,15 @@ namespace engine
 				core::container::Buffer triangles;
 				core::container::Buffer normals;
 				Color color;
+			};
+			// mesh with texture
+			struct MeshT
+			{
+				core::container::Buffer vertices;
+				core::container::Buffer triangles;
+				core::container::Buffer normals;
+				core::container::Buffer coords;
+				engine::Asset texture;
 			};
 
 			// modelview matrix
@@ -157,9 +174,13 @@ namespace engine
 				//Vector3f scale;
 			};
 
+			void post_register_texture(engine::Asset asset, const core::graphics::Image & image);
+
 			void add(engine::Entity entity, data::CuboidC data);
+			void add(engine::Entity entity, data::CuboidT data);
 			void add(engine::Entity entity, data::LineC data);
 			void add(engine::Entity entity, data::MeshC data);
+			void add(engine::Entity entity, data::MeshT data);
 			void add(engine::Entity entity, asset::CharacterMesh data);
 
 			void add(engine::Asset asset, const asset_definition_t & data);

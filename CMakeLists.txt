@@ -129,6 +129,34 @@ else()
   message(FATAL_ERROR "JSON parser - You need to get one!")
 endif()
 
+# zlib
+message(STATUS "Looking for z")
+find_library(LIBRARY_Z z)
+message(STATUS "Looking for z - ${LIBRARY_Z}")
+
+message(STATUS "Looking for zdll")
+find_library(LIBRARY_ZDLL zdll)
+message(STATUS "Looking for zdll - ${LIBRARY_ZDLL}")
+
+if(LIBRARY_Z)
+  target_link_libraries(HellsKitchen ${LIBRARY_Z})
+elseif(LIBRARY_ZDLL)
+  target_link_libraries(HellsKitchen ${LIBRARY_ZDLL})
+else()
+  message(FATAL_ERROR "Needs zlib")
+endif()
+
+# libpng
+message(STATUS "Looking for png")
+find_library(LIBRARY_PNG png)
+message(STATUS "Looking for png - ${LIBRARY_PNG}")
+
+if(LIBRARY_PNG)
+  target_link_libraries(HellsKitchen ${LIBRARY_PNG})
+else()
+  message(FATAL_ERROR "Needs png")
+endif()
+
 # physics PHYSX
 #
 # Check that Physx header files exist
