@@ -5,6 +5,7 @@
 #include <config.h>
 
 #include <utility/functional.hpp>
+#include <utility/intrinsics.hpp>
 #include <utility/spinlock.hpp>
 #include <utility/stream.hpp>
 
@@ -12,10 +13,6 @@
 #include <exception>
 #include <iostream>
 #include <mutex>
-
-#if defined(_MSC_VER)
-# include <intrin.h>
-#endif
 
 #if defined(__GNUG__)
 // GCC complains abount missing parentheses in `debug_assert` if the
@@ -28,6 +25,10 @@
  * Asserts that the condition is true.
  */
 # define debug_assert(expr) core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{})
+/**
+ * Fails unconditionally.
+ */
+# define debug_fail() core::debug::instance().fail(__FILE__, __LINE__)
 /**
  * Prints the arguments to the console (with a newline).
  *
@@ -47,19 +48,18 @@
  */
 # define debug_trace(channels, ...) core::debug::instance().trace(__FILE__, __LINE__, channels, __VA_ARGS__)
 /**
- * Asserts that this path is never reached.
+ * Fails unconditionally.
  */
-# ifdef __GNUG__
-#  define debug_unreachable() __builtin_unreachable()
-# else
-#  define debug_unreachable() \
-	do { debug_assert(false); std::terminate(); } while(false)
-# endif
+# define debug_unreachable() do { debug_fail(); std::terminate(); } while(false)
 #else
 /**
  * Does nothing.
  */
 # define debug_assert(expr)
+/**
+ * Does nothing.
+ */
+# define debug_fail()
 /**
  * Does nothing.
  */
@@ -69,9 +69,9 @@
  */
 # define debug_trace(channels, ...)
 /**
- * Does nothing.
+ * Hint to the compiler that this path will never be reached.
  */
-# define debug_unreachable() std::terminate()
+# define debug_unreachable() intrinsic_unreachable()
 #endif
 
 #ifdef __GNUG__
@@ -200,7 +200,23 @@ namespace core
 			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", expr, "\n", comp, "\n");
 			std::cerr.flush();
 #if defined(__GNUG__)
-			__builtin_trap();
+			__asm__("int3");
+#elif defined(_MSC_VER)
+			__debugbreak();
+#else
+			std::terminate();
+#endif
+		}
+		/**
+		 */
+		template <std::size_t N>
+		void fail(const char (&file_name)[N], const int line_number)
+		{
+			std::lock_guard<lock_t> guard{this->lock};
+			utility::to_stream(std::cerr, file_name, "@", line_number, ": failed\n");
+			std::cerr.flush();
+#if defined(__GNUG__)
+			__asm__("int3");
 #elif defined(_MSC_VER)
 			__debugbreak();
 #else

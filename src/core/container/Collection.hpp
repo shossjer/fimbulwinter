@@ -228,7 +228,7 @@ namespace core
 					EXPAND_256_TIMES(CASE, 0);
 #undef CASE
 				default:
-					debug_unreachable();
+					intrinsic_unreachable();
 				}
 			}
 			template <typename D>
@@ -251,7 +251,7 @@ namespace core
 					EXPAND_256_TIMES(CASE, 0);
 #undef CASE
 				default:
-					debug_unreachable();
+					intrinsic_unreachable();
 				}
 			}
 
@@ -358,7 +358,7 @@ namespace core
 			}
 			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t bucket, uint24_t index)
 			{
-				debug_unreachable();
+				intrinsic_unreachable();
 			}
 			template <std::size_t type>
 			void remove_impl(mpl::index_constant<type>, bucket_t bucket, uint24_t index)
@@ -382,7 +382,7 @@ namespace core
 			template <typename D>
 			void set_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, D && data)
 			{
-				debug_unreachable();
+				intrinsic_unreachable();
 			}
 			template <std::size_t type, typename D>
 			void set_impl(mpl::index_constant<type>, uint24_t index, D && data)
@@ -397,7 +397,7 @@ namespace core
 			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func) ->
 				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
-				debug_unreachable();
+				intrinsic_unreachable();
 				// this is used to deduce the return type correctly
 				// we should never get here
 				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
@@ -578,7 +578,7 @@ namespace core
 					EXPAND_256_TIMES(CASE, 0);
 #undef CASE
 				default:
-					debug_unreachable();
+					intrinsic_unreachable();
 				}
 			}
 			template <typename D>
@@ -601,7 +601,7 @@ namespace core
 					EXPAND_256_TIMES(CASE, 0);
 #undef CASE
 				default:
-					debug_unreachable();
+					intrinsic_unreachable();
 				}
 			}
 
@@ -684,7 +684,7 @@ namespace core
 			}
 			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t bucket, uint24_t index)
 			{
-				debug_unreachable();
+				intrinsic_unreachable();
 			}
 			template <std::size_t type>
 			void remove_impl(mpl::index_constant<type>, bucket_t bucket, uint24_t index)
@@ -701,7 +701,7 @@ namespace core
 			template <typename D>
 			void set_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, D && data)
 			{
-				debug_unreachable();
+				intrinsic_unreachable();
 			}
 			template <std::size_t type, typename D>
 			void set_impl(mpl::index_constant<type>, uint24_t index, D && data)
@@ -716,7 +716,7 @@ namespace core
 			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func) ->
 				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
-				debug_unreachable();
+				intrinsic_unreachable();
 				// this is used to deduce the return type correctly
 				// we should never get here
 				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
