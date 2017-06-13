@@ -64,32 +64,38 @@ namespace utility
 		throw std::invalid_argument("");
 	}
 
-	template <typename T, typename = void>
-	struct try_stream_t
+	/**
+	 */
+	template <typename T>
+	struct try_stream_yes_t
 	{
-		try_stream_t(T t) {}
+		T && t;
 
-		friend std::ostream & operator << (std::ostream & stream, try_stream_t<T> t)
+		try_stream_yes_t(T && t) : t(t) {}
+
+		friend std::ostream & operator << (std::ostream & stream, try_stream_yes_t<T> && t)
+		{
+			return stream << std::forward<T>(t.t);
+		}
+	};
+	struct try_stream_no_t
+	{
+		friend std::ostream & operator << (std::ostream & stream, try_stream_no_t && t)
 		{
 			return stream << "???";
 		}
 	};
-	//template <typename T>
-	//struct try_stream_t<T, mpl::enable_if_t<mpl::is_ostreamable<T>{}>>
-	//{
-	//	T t;
-
-	//	try_stream_t(T t) : t(t) {}
-
-	//	friend std::ostream & operator << (std::ostream & stream, try_stream_t<T> t)
-	//	{
-	//		return stream << t.t;
-	//	}
-	//};
-	template <typename T>
-	try_stream_t<T &&> try_stream(T && t)
+	template <typename T,
+	          mpl::enable_if_t<mpl::is_ostreamable<T>::value, int> = 0>
+	try_stream_yes_t<T> try_stream(T && t)
 	{
-		return try_stream_t<T &&>{std::forward<T>(t)};
+		return try_stream_yes_t<T>{t};
+	}
+	template <typename T,
+	          mpl::disable_if_t<mpl::is_ostreamable<T>::value, int> = 0>
+	try_stream_no_t try_stream(T && t)
+	{
+		return try_stream_no_t{};
 	}
 
 	/**
