@@ -4,6 +4,7 @@ set(SOURCE_FILES
 	src/main.cpp
 	src/core/async/Thread.cpp
 	src/core/crypto/crc.cpp
+	src/core/graphics/Image.cpp
 	src/engine/animation/Armature.cpp
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
@@ -40,6 +41,7 @@ set(HEADER_FILES
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
 	src/core/format.hpp
+	src/core/graphics/Image.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp

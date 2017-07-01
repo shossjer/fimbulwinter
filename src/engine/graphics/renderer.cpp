@@ -14,7 +14,6 @@
 #include <core/container/Collection.hpp>
 #include <core/container/ExchangeQueue.hpp>
 #include <core/container/Stack.hpp>
-#include <core/maths/Matrix.hpp>
 #include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
 #include <core/sync/Event.hpp>
@@ -115,6 +114,79 @@ namespace
 
 namespace
 {
+	struct color_t
+	{
+		engine::graphics::opengl::Color4ub color;
+
+		color_t(unsigned int color)
+			: color((color & 0x000000ff) >>  0,
+			        (color & 0x0000ff00) >>  8,
+			        (color & 0x00ff0000) >> 16,
+			        (color & 0xff000000) >> 24)
+		{
+		}
+
+		void enable() const
+		{
+			glColor(color);
+		}
+		void disable() const
+		{
+		}
+	};
+
+	struct texture_t
+	{
+		GLuint id;
+
+		texture_t(core::graphics::Image && image)
+		{
+			glEnable(GL_TEXTURE_2D);
+
+			glGenTextures(1, &id);
+			glBindTexture(GL_TEXTURE_2D, id);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT/*GL_CLAMP*/);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT/*GL_CLAMP*/);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, /*GL_LINEAR*/GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, /*GL_LINEAR_MIPMAP_LINEAR*/GL_NEAREST);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+
+			switch (image.color())
+			{
+			case core::graphics::ImageColor::RGB:
+				glTexImage2D(GL_TEXTURE_2D, 0, 3, image.width(), image.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, image.data());
+				break;
+			case core::graphics::ImageColor::RGBA:
+				glTexImage2D(GL_TEXTURE_2D, 0, 4, image.width(), image.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
+				break;
+			default:
+				debug_unreachable();
+			}
+
+			glDisable(GL_TEXTURE_2D);
+		}
+
+		void enable() const
+		{
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, id);
+		}
+		void disable() const
+		{
+			glDisable(GL_TEXTURE_2D);
+		}
+	};
+
+	core::container::UnorderedCollection
+	<
+		engine::Asset,
+		201,
+		std::array<color_t, 100>,
+		std::array<texture_t, 100>
+	>
+	materials;
+
 	// the vertices of cuboid_c are numbered as followed:
 	//              23--22
 	//             /    /
@@ -296,6 +368,144 @@ namespace
 			6, 7
 		}};
 
+	// the vertices of cuboid_t are numbered as followed:
+	//              23--22
+	//             /    /
+	//            21--20
+	//
+	//        6  11--10   15
+	//       /|  |    |   /|
+	//      7 |  |    |  14|  18--19
+	//      | 4  9----8  |13  |    |
+	//      |/           |/   |    |
+	//      5   0----1   12   16--17
+	//   y     /    /
+	//   |    2----3
+	//   |
+	//   +----x
+	//  /
+	// z
+	struct cuboid_t
+	{
+		core::maths::Matrix4x4f modelview;
+		std::array<float, 3 * 24> vertices;
+		const texture_t * texture;
+
+		static const std::array<uint16_t, 3 * 12> triangles;
+		static const std::array<float, 3 * 24> normals;
+		static const std::array<float, 2 * 24> coords;
+
+		cuboid_t(engine::graphics::data::CuboidT && data) :
+			modelview(std::move(data.modelview)),
+			texture(&materials.get<texture_t>(data.texture))
+		{
+			const float xoffset = data.width / 2.f;
+			const float yoffset = data.height / 2.f;
+			const float zoffset = data.depth / 2.f;
+			debug_assert(xoffset > 0.f);
+			debug_assert(yoffset > 0.f);
+			debug_assert(zoffset > 0.f);
+
+			std::size_t i = 0;
+			vertices[i++] = -xoffset; vertices[i++] = -yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = -yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = -yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = -yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = -yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = -yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = -yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = -yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = -yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = -yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = -yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = -yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = +zoffset;
+			vertices[i++] = +xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
+			vertices[i++] = -xoffset; vertices[i++] = +yoffset; vertices[i++] = -zoffset;
+		}
+
+		cuboid_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
+	};
+	const std::array<uint16_t, 3 * 12> cuboid_t::triangles = {{
+			0,  1,  3,
+			0,  3,  2,
+			4,  5,  7,
+			4,  7,  6,
+			8,  9, 11,
+			8, 11, 10,
+			12, 13, 15,
+			12, 15, 14,
+			16, 17, 19,
+			16, 19, 18,
+			20, 21, 23,
+			20, 23, 22
+		}};
+	const std::array<float, 3 * 24> cuboid_t::normals = {{
+			0.f, -1.f, 0.f,
+			0.f, -1.f, 0.f,
+			0.f, -1.f, 0.f,
+			0.f, -1.f, 0.f,
+			-1.f, 0.f, 0.f,
+			-1.f, 0.f, 0.f,
+			-1.f, 0.f, 0.f,
+			-1.f, 0.f, 0.f,
+			0.f, 0.f, -1.f,
+			0.f, 0.f, -1.f,
+			0.f, 0.f, -1.f,
+			0.f, 0.f, -1.f,
+			+1.f, 0.f, 0.f,
+			+1.f, 0.f, 0.f,
+			+1.f, 0.f, 0.f,
+			+1.f, 0.f, 0.f,
+			0.f, 0.f, +1.f,
+			0.f, 0.f, +1.f,
+			0.f, 0.f, +1.f,
+			0.f, 0.f, +1.f,
+			0.f, +1.f, 0.f,
+			0.f, +1.f, 0.f,
+			0.f, +1.f, 0.f,
+			0.f, +1.f, 0.f
+		}};
+	const std::array<float, 2 * 24> cuboid_t::coords = {{
+			0.f, 0.f,
+			1.f, 0.f,
+			0.f, 1.f,
+			1.f, 1.f,
+			0.f, 0.f,
+			1.f, 0.f,
+			0.f, 1.f,
+			1.f, 1.f,
+			0.f, 0.f,
+			1.f, 0.f,
+			0.f, 1.f,
+			1.f, 1.f,
+			0.f, 0.f,
+			1.f, 0.f,
+			0.f, 1.f,
+			1.f, 1.f,
+			0.f, 0.f,
+			1.f, 0.f,
+			0.f, 1.f,
+			1.f, 1.f,
+			0.f, 0.f,
+			1.f, 0.f,
+			0.f, 1.f,
+			1.f, 1.f,
+		}};
+
 	struct linec_t
 	{
 		core::maths::Matrix4x4f modelview;
@@ -319,7 +529,7 @@ namespace
 		}
 	};
 
-	struct meshc_t
+	struct mesh_c
 	{
 		core::maths::Matrix4x4f modelview;
 		core::container::Buffer vertices;
@@ -327,7 +537,7 @@ namespace
 		core::container::Buffer normals;
 		engine::graphics::opengl::Color4ub color;
 
-		meshc_t(engine::graphics::data::MeshC && data) :
+		mesh_c(engine::graphics::data::MeshC && data) :
 			vertices(std::move(data.vertices)),
 			triangles(std::move(data.triangles)),
 			normals(std::move(data.normals)),
@@ -337,7 +547,31 @@ namespace
 			      (data.color&0xff000000)>>24)
 		{}
 
-		meshc_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		mesh_c & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
+	};
+
+	struct mesh_t
+	{
+		core::maths::Matrix4x4f modelview;
+		core::container::Buffer vertices;
+		core::container::Buffer triangles;
+		core::container::Buffer normals;
+		core::container::Buffer coords;
+		const texture_t * texture;
+
+		mesh_t(engine::graphics::data::MeshT && data) :
+			vertices(std::move(data.vertices)),
+			triangles(std::move(data.triangles)),
+			normals(std::move(data.normals)),
+			coords(std::move(data.coords)),
+			texture(&materials.get<texture_t>(data.texture))
+		{}
+
+		mesh_t & operator = (engine::graphics::data::ModelviewMatrix && data)
 		{
 			modelview = std::move(data.matrix);
 			return *this;
@@ -346,13 +580,13 @@ namespace
 
 	struct asset_definition_t
 	{
-		std::vector<meshc_t> meshs;
+		std::vector<mesh_c> meshs;
 
 		asset_definition_t(engine::graphics::renderer::asset_definition_t & d)
 		{
 			for (auto & mesh : d.meshs)
 			{
-				this->meshs.emplace_back(meshc_t { std::move(mesh) });
+				this->meshs.emplace_back(std::move(mesh));
 			}
 		}
 	};
@@ -478,12 +712,14 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		1201,
+		1601,
 		std::array<Character, 100>,
 		std::array<cuboid_c, 100>,
 		std::array<cuboid_cw, 100>,
+		std::array<cuboid_t, 100>,
 		std::array<linec_t, 100>,
-		std::array<meshc_t, 100>,
+		std::array<mesh_c, 100>,
+		std::array<mesh_t, 100>,
 		std::array<asset_instance_t, 100>
 	>
 	components;
@@ -496,15 +732,25 @@ namespace
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Viewport> queue_notify_viewport;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Cursor> queue_notify_cursor;
 
+	core::container::CircleQueueSRMW<std::pair<engine::Asset,
+	                                           core::graphics::Image>,
+	                                 100> queue_register_texture;
+
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CuboidC>,
 	                                 100> queue_add_cuboidc;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::CuboidT>,
+	                                 100> queue_add_cuboidt;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::LineC>,
 	                                 10> queue_add_linec;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::MeshC>,
 	                                 100> queue_add_meshc;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::MeshT>,
+	                                 100> queue_add_mesht;
 	core::container::CircleQueueSRMW<std::pair<engine::Asset,
 	                                           engine::model::mesh_t>,
 	                                 100> queue_add_meshModel;
@@ -546,11 +792,32 @@ namespace
 			}
 		}
 		std::pair<engine::Entity,
+		          engine::graphics::data::CuboidT> message_add_cuboidt;
+		while (queue_add_cuboidt.try_pop(message_add_cuboidt))
+		{
+			components.emplace<cuboid_t>(message_add_cuboidt.first,
+			                             std::move(message_add_cuboidt.second));
+		}
+		std::pair<engine::Entity,
 		          engine::graphics::data::LineC> message_add_linec;
 		while (queue_add_linec.try_pop(message_add_linec))
 		{
 			components.add(message_add_linec.first,
 			               std::move(message_add_linec.second));
+		}
+		std::pair<engine::Entity,
+		          engine::graphics::data::MeshC> message_add_meshc;
+		while (queue_add_meshc.try_pop(message_add_meshc))
+		{
+			components.emplace<mesh_c>(message_add_meshc.first,
+			                           std::move(message_add_meshc.second));
+		}
+		std::pair<engine::Entity,
+		          engine::graphics::data::MeshT> message_add_mesht;
+		while (queue_add_mesht.try_pop(message_add_mesht))
+		{
+			components.emplace<mesh_t>(message_add_mesht.first,
+			                           std::move(message_add_mesht.second));
 		}
 
 		std::pair<engine::Asset, engine::model::mesh_t> maModel;
@@ -711,10 +978,21 @@ namespace
 			data.free();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
+		core::graphics::Image image{"res/box.png"};
+		engine::graphics::renderer::post_register_texture(engine::Asset{"my_png"}, image);
+		engine::graphics::renderer::add(engine::Entity::create(), engine::graphics::data::CuboidT{core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f), 1.f, 1.f, 1.f, engine::Asset{"my_png"}});
 	}
 
 	void render_update()
 	{
+		//
+		std::pair<engine::Asset,
+		          core::graphics::Image> message_register_texture;
+		while (queue_register_texture.try_pop(message_register_texture))
+		{
+			materials.emplace<texture_t>(message_register_texture.first,
+			                             std::move(message_register_texture.second));
+		}
 		// poll events
 		poll_add_queue();
 		poll_update_queue();
@@ -828,6 +1106,31 @@ namespace
 
 			modelview_matrix.pop();
 		}
+		for (const auto & component : components.get<cuboid_t>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			engine::Entity entity = components.get_key(component);
+			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
+			                                            (entity & 0x0000ff00) >> 8,
+			                                            (entity & 0x00ff0000) >> 16,
+			                                            (entity & 0xff000000) >> 24};
+			glColor(color);
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, // TODO
+			                GL_FLOAT,
+			                0,
+			                component.vertices.data());
+			glDrawElements(GL_TRIANGLES,
+			               component.triangles.size(),
+			               GL_UNSIGNED_SHORT,
+			               component.triangles.data());
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			modelview_matrix.pop();
+		}
 		for (const auto & component : components.get<linec_t>())
 		{
 			modelview_matrix.push();
@@ -856,7 +1159,33 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<meshc_t>())
+		for (const auto & component : components.get<mesh_c>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			engine::Entity entity = components.get_key(component);
+			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
+			                                            (entity & 0x0000ff00) >> 8,
+			                                            (entity & 0x00ff0000) >> 16,
+			                                            (entity & 0xff000000) >> 24};
+
+			glColor(color);
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, // TODO
+			                static_cast<GLenum>(component.vertices.format()), // TODO
+			                0,
+			                component.vertices.data());
+			glDrawElements(GL_TRIANGLES,
+			               component.triangles.count(),
+			               static_cast<GLenum>(component.triangles.format()),
+			               component.triangles.data());
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			modelview_matrix.pop();
+		}
+		for (const auto & component : components.get<mesh_t>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
@@ -1037,6 +1366,62 @@ namespace
 
 			modelview_matrix.pop();
 		}
+		for (const auto & component : components.get<cuboid_t>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			if (components.get_key(component) == highlighted_entity)
+			{
+				glColor(highlighted_color);
+
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_NORMAL_ARRAY);
+				glVertexPointer(3,
+				                GL_FLOAT,
+				                0,
+				                component.vertices.data());
+				glNormalPointer(GL_FLOAT,
+				                0,
+				                component.normals.data());
+				glDrawElements(GL_TRIANGLES,
+				               component.triangles.size(),
+				               GL_UNSIGNED_SHORT,
+				               component.triangles.data());
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
+			}
+			else
+			{
+				component.texture->enable();
+
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_NORMAL_ARRAY);
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				glVertexPointer(3,
+				                GL_FLOAT,
+				                0,
+				                component.vertices.data());
+				glNormalPointer(GL_FLOAT,
+				                0,
+				                component.normals.data());
+				glTexCoordPointer(2,
+				                  GL_FLOAT,
+				                  0,
+				                  component.coords.data());
+				glDrawElements(GL_TRIANGLES,
+				               component.triangles.size(),
+				               GL_UNSIGNED_SHORT,
+				               component.triangles.data());
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
+
+				component.texture->disable();
+			}
+
+			modelview_matrix.pop();
+		}
 		for (const auto & component : components.get<linec_t>())
 		{
 			modelview_matrix.push();
@@ -1059,13 +1444,14 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<meshc_t>())
+		for (const auto & component : components.get<mesh_c>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
 			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
+
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glVertexPointer(3, // TODO
@@ -1081,6 +1467,62 @@ namespace
 			               component.triangles.data());
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
+
+			modelview_matrix.pop();
+		}
+		for (const auto & component : components.get<mesh_t>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			if (components.get_key(component) == highlighted_entity)
+			{
+				glColor(highlighted_color);
+
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_NORMAL_ARRAY);
+				glVertexPointer(3, // TODO
+				                static_cast<GLenum>(component.vertices.format()), // TODO
+				                0,
+				                component.vertices.data());
+				glNormalPointer(static_cast<GLenum>(component.normals.format()), // TODO
+				                0,
+				                component.normals.data());
+				glDrawElements(GL_TRIANGLES,
+				               component.triangles.count(),
+				               static_cast<GLenum>(component.triangles.format()),
+				               component.triangles.data());
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
+			}
+			else
+			{
+				component.texture->enable();
+
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_NORMAL_ARRAY);
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				glVertexPointer(3, // TODO
+				                static_cast<GLenum>(component.vertices.format()), // TODO
+				                0,
+				                component.vertices.data());
+				glNormalPointer(static_cast<GLenum>(component.normals.format()), // TODO
+				                0,
+				                component.normals.data());
+				glTexCoordPointer(2, // TODO
+				                  static_cast<GLenum>(component.vertices.format()), // TODO
+				                  0,
+				                  component.coords.data());
+				glDrawElements(GL_TRIANGLES,
+				               component.triangles.count(),
+				               static_cast<GLenum>(component.triangles.format()),
+				               component.triangles.data());
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
+
+				component.texture->disable();
+			}
 
 			modelview_matrix.pop();
 		}
@@ -1224,9 +1666,20 @@ namespace engine
 				queue_notify_cursor.try_push(std::move(data));
 			}
 
+			void post_register_texture(engine::Asset asset, const core::graphics::Image & image)
+			{
+				const auto res = queue_register_texture.try_push(std::make_pair(asset, image));
+				debug_assert(res);
+			}
+
 			void add(engine::Entity entity, data::CuboidC data)
 			{
 				const auto res = queue_add_cuboidc.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+			void add(engine::Entity entity, data::CuboidT data)
+			{
+				const auto res = queue_add_cuboidt.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
 			void add(engine::Entity entity, data::LineC data)
@@ -1237,6 +1690,11 @@ namespace engine
 			void add(engine::Entity entity, data::MeshC data)
 			{
 				const auto res = queue_add_meshc.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+			void add(engine::Entity entity, data::MeshT data)
+			{
+				const auto res = queue_add_mesht.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
 			void add(engine::Asset asset, engine::model::mesh_t && data)
