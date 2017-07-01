@@ -149,7 +149,7 @@ namespace engine
 			void add(engine::Entity entity, data::CuboidC data);
 			void add(engine::Entity entity, data::LineC data);
 			void add(engine::Entity entity, data::MeshC data);
-			void add(engine::Asset asset, engine::model::mesh_t & data);
+			void add(engine::Asset asset, engine::model::mesh_t && data);
 
 			void add(engine::Asset asset, const asset_definition_t & data);
 			void add(engine::Entity entity, const asset_instance_t & data);

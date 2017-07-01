@@ -382,7 +382,6 @@ namespace
 			std::vector<std::array<uint16_t, 3>> triangles;
 			std::vector<engine::model::weight_t> weights;
 
-			// all data is not moved from the model mesh to the render mesh, can I still use move constructor?
 			Mesh(engine::model::mesh_t && raw)
 				: vertices(raw.xyz.count())
 				, triangles(raw.triangles.count() / 3)
@@ -443,7 +442,7 @@ namespace
 		void draw()
 		{
 			glColor3ub(255, 0, 255);
-			glLineWidth(2.f);
+
 			glBegin(GL_TRIANGLES);
 			for (auto && triangle : mesh->triangles)
 			{
@@ -458,7 +457,6 @@ namespace
 				glVertex4fv(buffer3);
 			}
 			glEnd();
-			glLineWidth(1.f);
 		}
 		void update()
 		{
@@ -1241,9 +1239,9 @@ namespace engine
 				const auto res = queue_add_meshc.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
-			void add(engine::Asset asset, engine::model::mesh_t & data)
+			void add(engine::Asset asset, engine::model::mesh_t && data)
 			{
-				const auto res = queue_add_meshModel.try_push(std::make_pair(asset, data));
+				const auto res = queue_add_meshModel.try_push(std::make_pair(asset, std::move(data)));
 				debug_assert(res);
 			}
 

@@ -353,15 +353,21 @@ namespace model
 		return count;
 	}
 
-	std::string read_string(std::ifstream & stream)
+	template <std::size_t N>
+	void read_string(std::ifstream & stream, char(&buffer)[N])
 	{
-		const uint16_t len = read_count(stream); // including null character
+		uint16_t len; // excluding null character
+		stream.read(reinterpret_cast<char *>(&len), sizeof(uint16_t));
+		debug_assert(len < N);
 
-		std::string buffer;
-		buffer.reserve(len);
-		stream.read(&buffer[0], len);
-
-		return buffer;
+		stream.read(buffer, len);
+		buffer[len] = '\0';
+	}
+	void read_string(std::ifstream & stream, std::string & str)
+	{
+		char buffer[64]; // arbitrary
+		read_string(stream, buffer);
+		str = buffer;
 	}
 
 	template <class T, std::size_t N>
@@ -369,7 +375,7 @@ namespace model
 	{
 		const uint16_t count = read_count(stream);
 		buffer.resize<T>(N * count);
-		stream.read(reinterpret_cast<char *>(buffer.data()), sizeof(buffer.size()));
+		stream.read(reinterpret_cast<char *>(buffer.data()), buffer.size());
 	}
 
 	void read_weights(std::ifstream & stream, mesh_t & mesh)
@@ -381,43 +387,69 @@ namespace model
 		{
 			const uint16_t ngroups = read_count(stream);
 
-			debug_assert(ngroups == 1);
+			debug_assert(ngroups > 0);
 
+			// read the first weight value
 			weight.index = read_count(stream);
 			stream.read(reinterpret_cast<char *>(&weight.value), sizeof(float));
+
+			// skipp remaining ones if any for now
+			for (auto i = 1; i < ngroups; i++)
+			{
+				read_count(stream);
+				float value;
+				stream.read(reinterpret_cast<char *>(&value), sizeof(float));
+			}
 		}
+	}
+
+	void read_matrix(std::ifstream & stream, core::maths::Matrix4x4f & matrix)
+	{
+		core::maths::Matrix4x4f::array_type buffer;
+		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
+		matrix.set_aligned(buffer);
 	}
 
 	void load_binary(const std::string filename)
 	{
-		std::ifstream stream(filename, std::ifstream::binary | std::ifstream::in);
+		std::ifstream stream(filename, std::ifstream::binary);
+
+		if (!stream)
+		{
+			debug_printline(0xffffffff, "File is missing: ", filename);
+			debug_unreachable();
+		}
 
 		engine::Asset asset;
 		engine::model::mesh_t mesh;
 
 		{
-			const std::string name = read_string(stream);
+			std::string name;
+			read_string(stream, name);
 			asset = name;
 			debug_printline(0xffffffff, "mesh name: ", name);
 		}
 
+		core::maths::Matrix4x4f matrix;
+		read_matrix(stream, matrix);
+
 		read<float, 3>(stream, mesh.xyz);
-		debug_printline(0xffffffff, "mesh vertices: ", mesh.xyz.count());
+		debug_printline(0xffffffff, "mesh vertices: ", mesh.xyz.count() / 3);
 
 		read<float, 2>(stream, mesh.uv);
-		debug_printline(0xffffffff, "mesh uv's: ", mesh.uv.count());
+		debug_printline(0xffffffff, "mesh uv's: ", mesh.uv.count() / 2);
 
 		read<float, 3>(stream, mesh.normals);
-		debug_printline(0xffffffff, "mesh normals: ", mesh.normals.count());
-
-		read<unsigned int, 3>(stream, mesh.triangles);
-		debug_printline(0xffffffff, "mesh triangles: ", mesh.triangles.count());
+		debug_printline(0xffffffff, "mesh normals: ", mesh.normals.count() / 3);
 
 		read_weights(stream, mesh);
 		debug_printline(0xffffffff, "mesh weights: ", mesh.weights.size());
 
+		read<unsigned int, 3>(stream, mesh.triangles);
+		debug_printline(0xffffffff, "mesh triangles: ", mesh.triangles.count() / 3);
+
 		// post mesh to renderer
-		engine::graphics::renderer::add(asset, mesh);
+		engine::graphics::renderer::add(asset, std::move(mesh));
 	}
 }
 }

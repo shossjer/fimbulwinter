@@ -4,7 +4,7 @@
 
 #include <core/container/Buffer.hpp>
 
-#include <engine/Asset.hpp>
+#include <engine/common.hpp>
 
 #include <vector>
 
@@ -19,6 +19,7 @@ namespace model
 	};
 	struct mesh_t
 	{
+		//core::maths::Matrix4x4f matrix;
 		//Asset asset;
 		core::container::Buffer xyz;
 		core::container::Buffer uv;

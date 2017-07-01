@@ -15,6 +15,7 @@
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
+#include <engine/model/loader.hpp>
 #include <engine/physics/physics.hpp>
 
 #include <utility/json.hpp>
