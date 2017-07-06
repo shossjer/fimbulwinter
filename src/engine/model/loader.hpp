@@ -71,7 +71,7 @@ namespace model
 			const engine::Asset asset,
 			const std::string & modelName);
 
-	void load_binary(const std::string filename);
+	bool load_binary(const std::string filename);
 }
 }
 

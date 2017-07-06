@@ -7,6 +7,8 @@
 
 #include <gameplay/gamestate.hpp>
 
+#include <fstream>
+
 namespace gameplay
 {
 namespace level
@@ -17,7 +19,7 @@ namespace level
 
 	using render_instance_t = engine::graphics::renderer::asset_instance_t;
 
-	engine::Entity load(const std::string & name, const Matrix4x4f & matrix)
+	void load(const engine::Entity id, const std::string & name, const Matrix4x4f & matrix)
 	{
 		const engine::Asset asset = name;
 
@@ -25,7 +27,6 @@ namespace level
 		const engine::model::asset_template_t & assetTemplate =
 			engine::model::load(asset, name);
 
-		const Entity id = Entity::create();
 
 		switch (asset)
 		{
@@ -99,13 +100,26 @@ namespace level
 		default:
 			break;
 		}
-
-		return id;
 	}
 
 	engine::Entity load(const placeholder_t & placeholder)
 	{
-		return load(placeholder.name, placeholder.transform.matrix());
+		const Entity id = Entity::create();
+
+		// load as binary if available
+		if (engine::model::load_binary(placeholder.name))
+		{
+			engine::graphics::renderer::add_character_instance(
+				id, render_instance_t{
+					engine::Asset{placeholder.name},
+					placeholder.transform.matrix() });
+		}
+		else
+		{
+			load(id, placeholder.name, placeholder.transform.matrix());
+		}
+
+		return id;
 	}
 }
 }

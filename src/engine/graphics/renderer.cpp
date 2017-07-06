@@ -612,33 +612,41 @@ namespace
 	{
 		struct Mesh
 		{
+			core::maths::Matrix4x4f matrix;
 			std::vector<core::maths::Vector4f> vertices;
 			std::vector<std::array<uint16_t, 3>> triangles;
 			std::vector<engine::model::weight_t> weights;
 
 			Mesh(engine::model::mesh_t && raw)
-				: vertices(raw.xyz.count())
+				: matrix(raw.matrix)
+				, vertices(raw.xyz.count() / 3)
 				, triangles(raw.triangles.count() / 3)
 				, weights(std::move(raw.weights))
 			{
-				for (int i = 0; i < raw.xyz.count(); i++)
-				{
-					const char * const p = raw.xyz.data();
+				const float * const p = (float*)raw.xyz.data();
 
+				for (int i = 0; i < raw.xyz.count() / 3; i++)
+				{
 					vertices[i] = core::maths::Vector4f(
-						static_cast<float>(*(p+(i*3)*sizeof(float))),
-						static_cast<float>(*(p+(i*3 + 1)*sizeof(float))),
-						static_cast<float>(*(p+(i*3 + 2)*sizeof(float))),
-						1.f);
+						*(p + i*3),
+						*(p + i*3 + 1),
+						*(p + i*3 + 2), 1.f);
+				}
+
+				for (auto & v : vertices)
+				{
+					core::maths::Vector4f::array_type b;
+					v.get_aligned(b);
+					printf("vec %f, %f, %f\n", b[0], b[1], b[2]);
 				}
 
 				for (int i = 0; i < (raw.triangles.count() / 3); i++)
 				{
-					const char * const p = raw.triangles.data();
+					const uint16_t * const p = (uint16_t*)raw.triangles.data();
 
-					triangles[i][0] = static_cast<uint16_t>(*(p+(i)*sizeof(float)));
-					triangles[i][1] = static_cast<uint16_t>(*(p+(i+1)*sizeof(float)));
-					triangles[i][2] = static_cast<uint16_t>(*(p+(i+2)*sizeof(float)));
+					triangles[i][0] = *(p + i*3);
+					triangles[i][1] = *(p + i*3 + 1);
+					triangles[i][2] = *(p + i*3 + 2);
 				}
 			}
 		};
@@ -694,9 +702,9 @@ namespace
 		}
 		void update()
 		{
-			debug_assert(!matrix_pallet.empty());
+			//debug_assert(!matrix_pallet.empty());
 			for (int i = 0; i < mesh->vertices.size(); i++)
-				vertices[i] = matrix_pallet[mesh->weights[i].index] * mesh->vertices[i];
+				vertices[i] = mesh->vertices[i];
 		}
 	};
 
@@ -753,7 +761,10 @@ namespace
 	                                 100> queue_add_mesht;
 	core::container::CircleQueueSRMW<std::pair<engine::Asset,
 	                                           engine::model::mesh_t>,
-	                                 100> queue_add_meshModel;
+	                                 100> queue_add_character_model;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::renderer::asset_instance_t>,
+	                                 100> queue_add_character_instance;
 
 	core::container::CircleQueueSRMW<engine::Entity,
 	                                 100> queue_remove;
@@ -777,56 +788,74 @@ namespace
 	void poll_add_queue()
 	{
 		std::pair<engine::Entity,
-		          engine::graphics::data::CuboidC> message_add_cuboidc;
+			engine::graphics::data::CuboidC> message_add_cuboidc;
 		while (queue_add_cuboidc.try_pop(message_add_cuboidc))
 		{
 			if (!message_add_cuboidc.second.wireframe)
 			{
 				components.emplace<cuboid_c>(message_add_cuboidc.first,
-				                             std::move(message_add_cuboidc.second));
+					std::move(message_add_cuboidc.second));
 			}
 			else
 			{
 				components.emplace<cuboid_cw>(message_add_cuboidc.first,
-				                              std::move(message_add_cuboidc.second));
+					std::move(message_add_cuboidc.second));
 			}
 		}
 		std::pair<engine::Entity,
-		          engine::graphics::data::CuboidT> message_add_cuboidt;
+			engine::graphics::data::CuboidT> message_add_cuboidt;
 		while (queue_add_cuboidt.try_pop(message_add_cuboidt))
 		{
 			components.emplace<cuboid_t>(message_add_cuboidt.first,
-			                             std::move(message_add_cuboidt.second));
+				std::move(message_add_cuboidt.second));
 		}
 		std::pair<engine::Entity,
-		          engine::graphics::data::LineC> message_add_linec;
+			engine::graphics::data::LineC> message_add_linec;
 		while (queue_add_linec.try_pop(message_add_linec))
 		{
 			components.add(message_add_linec.first,
-			               std::move(message_add_linec.second));
+				std::move(message_add_linec.second));
 		}
 		std::pair<engine::Entity,
-		          engine::graphics::data::MeshC> message_add_meshc;
+			engine::graphics::data::MeshC> message_add_meshc;
 		while (queue_add_meshc.try_pop(message_add_meshc))
 		{
 			components.emplace<mesh_c>(message_add_meshc.first,
-			                           std::move(message_add_meshc.second));
+				std::move(message_add_meshc.second));
 		}
 		std::pair<engine::Entity,
-		          engine::graphics::data::MeshT> message_add_mesht;
+			engine::graphics::data::MeshT> message_add_mesht;
 		while (queue_add_mesht.try_pop(message_add_mesht))
 		{
 			components.emplace<mesh_t>(message_add_mesht.first,
-			                           std::move(message_add_mesht.second));
+				std::move(message_add_mesht.second));
 		}
 
-		std::pair<engine::Asset, engine::model::mesh_t> maModel;
-		while (queue_add_meshModel.try_pop(maModel))
 		{
-			if (resources.contains(maModel.first)) continue;
-
-			resources.add(maModel.first, Character::Mesh {std::move(maModel.second)});
-			//components.add(maModel.first, Character::SetMesh{resources.get<Character::Mesh>(maModel.first)});
+			std::pair<engine::Asset, engine::model::mesh_t> data;
+			while (queue_add_character_model.try_pop(data))
+			{
+				for (int i = 0; i < data.second.xyz.count(); i+= 3)
+				{
+					float* v = ((float*)(data.second.xyz.data() + i*sizeof(float)));
+					printf("val: %f %f %f\n", *v, *(v + 1), *(v + 2));
+				}
+				debug_assert(!resources.contains(data.first));
+				resources.add(data.first, Character::Mesh{ std::move(data.second) });
+			}
+		}
+		{
+			std::pair<engine::Entity, engine::graphics::renderer::asset_instance_t> data;
+			while (queue_add_character_instance.try_pop(data))
+			{
+				auto & mesh = resources.get<Character::Mesh>(data.second.asset);
+				for (auto & v : mesh.vertices)
+				{
+					printf("");
+				}
+				components.add(data.first, Character::SetMesh{mesh});
+				components.update(data.first, engine::graphics::data::ModelviewMatrix{ data.second.modelview } );
+			}
 		}
 		{
 			std::pair<engine::Asset, engine::graphics::renderer::asset_definition_t> data;
@@ -1318,6 +1347,7 @@ namespace
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
+			modelview_matrix.mult(component.mesh->matrix);
 			glLoadMatrix(modelview_matrix);
 
 			component.update();
@@ -1699,7 +1729,12 @@ namespace engine
 			}
 			void add(engine::Asset asset, engine::model::mesh_t && data)
 			{
-				const auto res = queue_add_meshModel.try_push(std::make_pair(asset, std::move(data)));
+				const auto res = queue_add_character_model.try_push(std::make_pair(asset, std::move(data)));
+				debug_assert(res);
+			}
+			void add_character_instance(engine::Entity entity, const asset_instance_t & data)
+			{
+				const auto res = queue_add_character_instance.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
 

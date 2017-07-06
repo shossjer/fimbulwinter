@@ -171,6 +171,8 @@ namespace engine
 			void add(engine::Entity entity, data::MeshC data);
 			void add(engine::Entity entity, data::MeshT data);
 			void add(engine::Asset asset, engine::model::mesh_t && data);
+			void add_character_instance(
+					 engine::Entity entity, const asset_instance_t & data);
 
 			void add(engine::Asset asset, const asset_definition_t & data);
 			void add(engine::Entity entity, const asset_instance_t & data);

@@ -28,6 +28,9 @@ namespace model
 		// contains all prev. loaded asset definitions.
 		std::unordered_map<engine::Asset::value_type, asset_template_t> assets;
 
+		std::unordered_map<engine::Asset::value_type, bool> assetsBin;
+
+
 		// represents model data in file
 		// only used when loading a model file. common for all models.
 		struct model_t
@@ -410,28 +413,33 @@ namespace model
 		matrix.set_aligned(buffer);
 	}
 
-	void load_binary(const std::string filename)
+	bool load_binary(const std::string filename)
 	{
-		std::ifstream stream(filename, std::ifstream::binary);
+		auto itr = assetsBin.find(engine::Asset{filename});
+
+		if (itr != assetsBin.end()) return itr->second;
+
+		std::ifstream stream("res/" + filename + ".msh", std::ifstream::binary);
 
 		if (!stream)
 		{
-			debug_printline(0xffffffff, "File is missing: ", filename);
-			debug_unreachable();
+			assetsBin.emplace(engine::Asset{ filename }, false);
+			return false;
 		}
 
-		engine::Asset asset;
+		assetsBin.emplace(engine::Asset{ filename }, true);
+
+		engine::Asset asset{ filename };
 		engine::model::mesh_t mesh;
 
 		{
 			std::string name;
 			read_string(stream, name);
-			asset = name;
+		//	asset = name;
 			debug_printline(0xffffffff, "mesh name: ", name);
 		}
 
-		core::maths::Matrix4x4f matrix;
-		read_matrix(stream, matrix);
+		read_matrix(stream, mesh.matrix);
 
 		read<float, 3>(stream, mesh.xyz);
 		debug_printline(0xffffffff, "mesh vertices: ", mesh.xyz.count() / 3);
@@ -450,6 +458,8 @@ namespace model
 
 		// post mesh to renderer
 		engine::graphics::renderer::add(asset, std::move(mesh));
+
+		return true;
 	}
 }
 }
