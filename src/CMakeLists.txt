@@ -86,6 +86,7 @@ set(HEADER_FILES
 	src/utility/aligned_array.hpp
 	src/utility/array.hpp
 	src/utility/inaccessible.hpp
+	src/utility/intrinsics.hpp
 	src/utility/json.hpp
 	src/utility/optional.hpp
 	src/utility/stream.hpp

@@ -978,7 +978,7 @@ namespace
 
 			if (!data.load("consolas", 12))
 			{
-				debug_assert(false);
+				debug_fail();
 			}
 			normal_font.compile(data);
 
