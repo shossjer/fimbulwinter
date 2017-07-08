@@ -70,6 +70,8 @@ namespace model
 	const asset_template_t & load(
 			const engine::Asset asset,
 			const std::string & modelName);
+
+	bool load_binary(const std::string filename);
 }
 }
 

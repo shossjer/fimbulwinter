@@ -1,9 +1,11 @@
 
+#include "data.hpp"
 #include "loader.hpp"
 
 #include <core/maths/algorithm.hpp>
 
 #include <engine/Entity.hpp>
+#include <engine/debug.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/physics/defines.hpp>
 
@@ -25,6 +27,9 @@ namespace model
 
 		// contains all prev. loaded asset definitions.
 		std::unordered_map<engine::Asset::value_type, asset_template_t> assets;
+
+		std::unordered_map<engine::Asset::value_type, bool> assetsBin;
+
 
 		// represents model data in file
 		// only used when loading a model file. common for all models.
@@ -342,6 +347,121 @@ namespace model
 
 		// whats up with this syntax
 		return r.first->second;
+	}
+
+	uint16_t read_count(std::ifstream & stream)
+	{
+		uint16_t count;
+		stream.read(reinterpret_cast<char *>(&count), sizeof(uint16_t));
+		return count;
+	}
+
+	template <std::size_t N>
+	void read_string(std::ifstream & stream, char(&buffer)[N])
+	{
+		uint16_t len; // excluding null character
+		stream.read(reinterpret_cast<char *>(&len), sizeof(uint16_t));
+		debug_assert(len < N);
+
+		stream.read(buffer, len);
+		buffer[len] = '\0';
+	}
+	void read_string(std::ifstream & stream, std::string & str)
+	{
+		char buffer[64]; // arbitrary
+		read_string(stream, buffer);
+		str = buffer;
+	}
+
+	template <class T, std::size_t N>
+	void read(std::ifstream & stream, core::container::Buffer & buffer)
+	{
+		const uint16_t count = read_count(stream);
+		buffer.resize<T>(N * count);
+		stream.read(reinterpret_cast<char *>(buffer.data()), buffer.size());
+	}
+
+	void read_weights(std::ifstream & stream, mesh_t & mesh)
+	{
+		const uint16_t weights = read_count(stream);
+
+		mesh.weights.resize(weights);
+		for (auto && weight : mesh.weights)
+		{
+			const uint16_t ngroups = read_count(stream);
+
+			debug_assert(ngroups > 0);
+
+			// read the first weight value
+			weight.index = read_count(stream);
+			stream.read(reinterpret_cast<char *>(&weight.value), sizeof(float));
+
+			// skipp remaining ones if any for now
+			for (auto i = 1; i < ngroups; i++)
+			{
+				read_count(stream);
+				float value;
+				stream.read(reinterpret_cast<char *>(&value), sizeof(float));
+			}
+		}
+	}
+
+	void read_matrix(std::ifstream & stream, core::maths::Matrix4x4f & matrix)
+	{
+		core::maths::Matrix4x4f::array_type buffer;
+		stream.read(reinterpret_cast<char *>(buffer), sizeof(buffer));
+		matrix.set_aligned(buffer);
+	}
+
+	bool load_binary(const std::string filename)
+	{
+		auto itr = assetsBin.find(engine::Asset{filename});
+
+		if (itr != assetsBin.end()) return itr->second;
+
+		std::ifstream stream("res/" + filename + ".msh", std::ifstream::binary);
+
+		if (!stream)
+		{
+			assetsBin.emplace(engine::Asset{ filename }, false);
+			return false;
+		}
+
+		assetsBin.emplace(engine::Asset{ filename }, true);
+
+		engine::Asset asset{ filename };
+		engine::model::mesh_t mesh;
+
+		{
+			std::string name;
+			read_string(stream, name);
+		//	asset = name;
+			debug_printline(0xffffffff, "mesh name: ", name);
+		}
+
+		mesh.texture = engine::Asset{ "dude" };
+
+		read_matrix(stream, mesh.matrix);
+
+		read<float, 3>(stream, mesh.xyz);
+		debug_printline(0xffffffff, "mesh vertices: ", mesh.xyz.count() / 3);
+
+		read<float, 2>(stream, mesh.uv);
+		debug_printline(0xffffffff, "mesh uv's: ", mesh.uv.count() / 2);
+
+		read<float, 3>(stream, mesh.normals);
+		debug_printline(0xffffffff, "mesh normals: ", mesh.normals.count() / 3);
+
+		read_weights(stream, mesh);
+		debug_printline(0xffffffff, "mesh weights: ", mesh.weights.size());
+
+		read<unsigned int, 3>(stream, mesh.triangles);
+		debug_printline(0xffffffff, "mesh triangles: ", mesh.triangles.count() / 3);
+
+		// post mesh to renderer
+		engine::graphics::renderer::add(asset, std::move(mesh));
+
+		return true;
 	}
 }
 }

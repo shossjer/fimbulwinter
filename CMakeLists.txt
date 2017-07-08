@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 2.8)
 project(hellskitchen)
 
 if (MSVC)
-	include_directories("C:/Program Files (x86)/Windows Kits/8.1/Include/um")
-	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um")
-	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86")
+	include_directories("C:/Program Files (x86)/Windows Kits/8.1/Include/um;C:/gaia/dep/src")
+	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um;C:/gaia/dep/src")
+	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86;C:/gaia/dep/lib")
 	set(CMAKE_CXX_FLAGS_DEBUG
 		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
 		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
@@ -127,6 +127,40 @@ message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
 if (FILE_JSON_HEADER)
 else()
   message(FATAL_ERROR "JSON parser - You need to get one!")
+endif()
+
+# zlib
+message(STATUS "Looking for z")
+find_library(LIBRARY_Z z)
+message(STATUS "Looking for z - ${LIBRARY_Z}")
+
+message(STATUS "Looking for zlibd")
+find_library(LIBRARY_ZLIB zlibd)
+message(STATUS "Looking for zlibd - ${LIBRARY_ZLIB}")
+
+if(LIBRARY_Z)
+  target_link_libraries(HellsKitchen ${LIBRARY_Z})
+elseif(LIBRARY_ZLIB)
+  target_link_libraries(HellsKitchen ${LIBRARY_ZLIB})
+else()
+  message(FATAL_ERROR "Needs zlib")
+endif()
+
+# libpng
+message(STATUS "Looking for png")
+find_library(LIBRARY_PNG png)
+message(STATUS "Looking for png - ${LIBRARY_PNG}")
+
+message(STATUS "Looking for libpng16d")
+find_library(LIBRARY_LIBPNG libpng16d)
+message(STATUS "Looking for libpng16d - ${LIBRARY_LIBPNG}")
+
+if(LIBRARY_PNG)
+  target_link_libraries(HellsKitchen ${LIBRARY_PNG})
+elseif(LIBRARY_LIBPNG)
+  target_link_libraries(HellsKitchen ${LIBRARY_LIBPNG})
+else()
+  message(FATAL_ERROR "Needs png")
 endif()
 
 # physics PHYSX

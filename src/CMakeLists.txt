@@ -4,6 +4,7 @@ set(SOURCE_FILES
 	src/main.cpp
 	src/core/async/Thread.cpp
 	src/core/crypto/crc.cpp
+	src/core/graphics/Image.cpp
 	src/engine/animation/Armature.cpp
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
@@ -12,7 +13,7 @@ set(SOURCE_FILES
 	src/engine/graphics/opengl/Font.cpp
 	src/engine/graphics/renderer.cpp
 	src/engine/graphics/viewer.cpp
-    src/engine/model/loader.cpp
+	src/engine/model/loader.cpp
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
@@ -22,7 +23,7 @@ set(SOURCE_FILES
 	src/engine/physics/physics_physx.cpp
 	src/gameplay/gamestate.cpp
 	src/gameplay/level.cpp
-    src/gameplay/level_placeholder.cpp
+	src/gameplay/level_placeholder.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/ui.cpp
 	)
@@ -40,6 +41,7 @@ set(HEADER_FILES
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
 	src/core/format.hpp
+	src/core/graphics/Image.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp
@@ -65,7 +67,8 @@ set(HEADER_FILES
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/viewer.hpp
 	src/engine/hid/input.hpp
-    src/engine/model/loader.hpp
+	src/engine/model/loader.hpp
+	src/engine/model/data.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
 	src/engine/physics/defines.hpp
@@ -77,7 +80,7 @@ set(HEADER_FILES
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp
 	src/gameplay/level.hpp
-    src/gameplay/level_placeholder.hpp
+	src/gameplay/level_placeholder.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
 	src/utility/aligned_array.hpp

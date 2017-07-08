@@ -255,7 +255,8 @@ namespace
 
 			storage.print();
 
-			this->boardModel = gameplay::level::load("board", this->top);
+			this->boardModel = engine::Entity::create();
+			gameplay::level::load(this->boardModel, "board", this->top);
 		}
 
 		void cleanup()
