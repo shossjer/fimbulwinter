@@ -612,42 +612,21 @@ namespace
 	{
 		struct Mesh
 		{
-			core::maths::Matrix4x4f matrix;
-			std::vector<core::maths::Vector4f> vertices;
-			std::vector<std::array<uint16_t, 3>> triangles;
-			std::vector<engine::model::weight_t> weights;
+			core::maths::Matrix4x4f modelview;
+			core::container::Buffer vertices;
+			core::container::Buffer triangles;
+			core::container::Buffer normals;
+			core::container::Buffer coords;
+			const texture_t * texture;
 
-			Mesh(engine::model::mesh_t && raw)
-				: matrix(raw.matrix)
-				, vertices(raw.xyz.count() / 3)
-				, triangles(raw.triangles.count() / 3)
-				, weights(std::move(raw.weights))
+			Mesh(engine::model::mesh_t && data)
+				: modelview(data.matrix)
+				, vertices(std::move(data.xyz))
+				, triangles(std::move(data.triangles))
+				, normals(std::move(data.normals))
+				, coords(std::move(data.uv))
+				, texture(&materials.get<texture_t>(data.texture))
 			{
-				const float * const p = (float*)raw.xyz.data();
-
-				for (int i = 0; i < raw.xyz.count() / 3; i++)
-				{
-					vertices[i] = core::maths::Vector4f(
-						*(p + i*3),
-						*(p + i*3 + 1),
-						*(p + i*3 + 2), 1.f);
-				}
-
-				for (auto & v : vertices)
-				{
-					core::maths::Vector4f::array_type b;
-					v.get_aligned(b);
-					printf("vec %f, %f, %f\n", b[0], b[1], b[2]);
-				}
-
-				for (int i = 0; i < (raw.triangles.count() / 3); i++)
-				{
-					const uint16_t * const p = (uint16_t*)raw.triangles.data();
-
-					triangles[i][0] = *(p + i*3);
-					triangles[i][1] = *(p + i*3 + 1);
-					triangles[i][2] = *(p + i*3 + 2);
-				}
 			}
 		};
 
@@ -683,28 +662,36 @@ namespace
 
 		void draw()
 		{
-			glColor3ub(255, 0, 255);
+			const Mesh * const mesh = this->mesh;
 
-			glBegin(GL_TRIANGLES);
-			for (auto && triangle : mesh->triangles)
-			{
-				core::maths::Vector4f::array_type buffer1;
-				vertices[triangle[0]].get_aligned(buffer1);
-				glVertex4fv(buffer1);
-				core::maths::Vector4f::array_type buffer2;
-				vertices[triangle[1]].get_aligned(buffer2);
-				glVertex4fv(buffer2);
-				core::maths::Vector4f::array_type buffer3;
-				vertices[triangle[2]].get_aligned(buffer3);
-				glVertex4fv(buffer3);
-			}
-			glEnd();
+			mesh->texture->enable();
+
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glEnableClientState(GL_NORMAL_ARRAY);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+			glVertexPointer(3, // TODO
+				GL_FLOAT, // TODO
+				0,
+				mesh->vertices.data());
+			glNormalPointer(
+				GL_FLOAT, // TODO
+				0,
+				mesh->normals.data());
+			glTexCoordPointer(2, // TODO
+				GL_FLOAT, // TODO
+				0,
+				mesh->coords.data());
+			glDrawElements(GL_TRIANGLES,
+				mesh->triangles.count(),
+				GL_UNSIGNED_SHORT, // TODO
+				mesh->triangles.data());
+			glDisableClientState(GL_NORMAL_ARRAY);
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			mesh->texture->disable();
 		}
 		void update()
 		{
-			//debug_assert(!matrix_pallet.empty());
-			for (int i = 0; i < mesh->vertices.size(); i++)
-				vertices[i] = mesh->vertices[i];
 		}
 	};
 
@@ -835,11 +822,6 @@ namespace
 			std::pair<engine::Asset, engine::model::mesh_t> data;
 			while (queue_add_character_model.try_pop(data))
 			{
-				for (int i = 0; i < data.second.xyz.count(); i+= 3)
-				{
-					float* v = ((float*)(data.second.xyz.data() + i*sizeof(float)));
-					printf("val: %f %f %f\n", *v, *(v + 1), *(v + 2));
-				}
 				debug_assert(!resources.contains(data.first));
 				resources.add(data.first, Character::Mesh{ std::move(data.second) });
 			}
@@ -849,10 +831,6 @@ namespace
 			while (queue_add_character_instance.try_pop(data))
 			{
 				auto & mesh = resources.get<Character::Mesh>(data.second.asset);
-				for (auto & v : mesh.vertices)
-				{
-					printf("");
-				}
 				components.add(data.first, Character::SetMesh{mesh});
 				components.update(data.first, engine::graphics::data::ModelviewMatrix{ data.second.modelview } );
 			}
@@ -1009,7 +987,11 @@ namespace
 		// ^^^^^^^^ tmp ^^^^^^^^
 		core::graphics::Image image{"res/box.png"};
 		engine::graphics::renderer::post_register_texture(engine::Asset{"my_png"}, image);
-		engine::graphics::renderer::add(engine::Entity::create(), engine::graphics::data::CuboidT{core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f), 1.f, 1.f, 1.f, engine::Asset{"my_png"}});
+
+		core::graphics::Image image2{ "res/dude.png" };
+		engine::graphics::renderer::post_register_texture(engine::Asset{ "dude" }, image2);
+
+		engine::graphics::renderer::add(engine::Entity::create(), engine::graphics::data::CuboidT{ core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f), 1.f, 1.f, 1.f, engine::Asset{ "my_png" } });
 	}
 
 	void render_update()
@@ -1347,7 +1329,7 @@ namespace
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
-			modelview_matrix.mult(component.mesh->matrix);
+			modelview_matrix.mult(component.mesh->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			component.update();

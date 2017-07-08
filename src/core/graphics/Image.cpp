@@ -91,9 +91,10 @@ namespace core
 			debug_printline(0xffffffff, "image_height: ", image_height);
 			debug_printline(0xffffffff, "bit_depth: ", bit_depth);
 			std::vector<char> pixels(row_size * image_height);
+			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
 			std::vector<png_bytep> rows(image_height);
 			for (int i = 0; i < image_height; i++)
-				rows[i] = reinterpret_cast<png_bytep>(&pixels[i * row_size]);
+				rows[i] = reinterpret_cast<png_bytep>(&pixels[(image_height - 1 - i) * row_size]);
 
 			png_read_image(png_ptr, rows.data());
 			png_read_end(png_ptr, end_info);

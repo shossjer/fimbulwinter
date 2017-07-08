@@ -20,7 +20,7 @@ namespace model
 	struct mesh_t
 	{
 		core::maths::Matrix4x4f matrix;
-		//Asset asset;
+		Asset texture;
 		core::container::Buffer xyz;
 		core::container::Buffer uv;
 		std::vector<weight_t> weights;
