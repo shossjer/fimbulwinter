@@ -576,36 +576,6 @@ namespace
 		}
 	};
 
-	struct asset_definition_t
-	{
-		std::vector<mesh_c> meshs;
-
-		asset_definition_t(engine::graphics::renderer::asset_definition_t & d)
-		{
-			for (auto & mesh : d.meshs)
-			{
-				this->meshs.emplace_back(std::move(mesh));
-			}
-		}
-	};
-
-	struct asset_instance_t
-	{
-		asset_definition_t* definition;
-		core::maths::Matrix4x4f modelview;
-
-		asset_instance_t(asset_definition_t & definition, core::maths::Matrix4x4f modelview)
-			: definition(&definition)
-			, modelview(modelview)
-		{}
-
-		asset_instance_t & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			modelview = std::move(data.matrix);
-			return *this;
-		}
-	};
-
 	struct Character
 	{
 		struct Mesh
@@ -626,8 +596,8 @@ namespace
 			}
 		};
 
-		Mesh * mesh;
-		texture_t * texture;
+		const Mesh * mesh;
+		const texture_t * texture;
 
 		core::maths::Matrix4x4f modelview;
 
@@ -691,20 +661,56 @@ namespace
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
-		301,
-		std::array<mesh_t, 50>,
-		std::array<Character::Mesh, 50>,
-		std::array<asset_definition_t, 50>
+		401,
+		std::array<mesh_t, 100>,
+		std::array<Character::Mesh, 100>
 	>
 	resources;
 
+	struct comp_c
+	{
+		struct asset
+		{
+			const mesh_t * mesh;
+			engine::graphics::opengl::Color4ub color;
+
+			asset(engine::graphics::data::CompC::asset & data)
+				: mesh(&resources.get<mesh_t>(data.mesh))
+				, color((data.color & 0x000000ff) >> 0,
+						(data.color & 0x0000ff00) >> 8,
+						(data.color & 0x00ff0000) >> 16,
+						(data.color & 0xff000000) >> 24)
+			{}
+		};
+
+		core::maths::Matrix4x4f modelview;
+		Vector3f scale;
+		std::vector<asset> assets;
+
+		comp_c(engine::graphics::data::CompC & data)
+			: modelview(data.modelview)
+			, scale(data.scale)
+		{
+			this->assets.reserve(data.assets.size());
+			for (auto & a : data.assets)
+			{
+				this->assets.emplace_back(a);
+			}
+		}
+
+		comp_c & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
+	};
 
 	struct comp_t
 	{
 		core::maths::Matrix4x4f modelview;
 		Vector3f scale;
-		mesh_t * mesh;
-		texture_t * texture;
+		const mesh_t * mesh;
+		const texture_t * texture;
 
 		comp_t(engine::graphics::data::CompT data)
 			: modelview(data.modelview)
@@ -718,14 +724,14 @@ namespace
 	<
 		engine::Entity,
 		1601,
+		std::array<comp_c, 100>,
 		std::array<comp_t, 100>,
 		std::array<Character, 100>,
 		std::array<cuboid_c, 100>,
 		std::array<cuboid_cw, 100>,
 		std::array<cuboid_t, 100>,
 		std::array<linec_t, 100>,
-		std::array<mesh_c, 100>,
-		std::array<asset_instance_t, 100>
+		std::array<mesh_c, 100>
 	>
 	components;
 }
@@ -749,9 +755,6 @@ namespace
 	core::container::CircleQueueSRMW<std::pair<engine::Asset,
 	                                           engine::graphics::data::Mesh>,
 	                                 100> queue_add_mesh;
-	core::container::CircleQueueSRSW<std::pair<engine::Asset,
-	                                           engine::graphics::renderer::asset_definition_t>,
-	                                 100> queue_asset_definitions;
 
 	// queues for adding and removing Entities
 
@@ -771,12 +774,12 @@ namespace
 	core::container::CircleQueueSRSW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CompT>,
 	                                 100> queue_add_component;
-	core::container::CircleQueueSRSW<std::pair<engine::Entity,
-	                                           engine::graphics::renderer::asset_instance_t>,
-	                                 100> queue_asset_instances;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::renderer::asset_instance_t>,
+	                                           engine::graphics::data::CompT>,
 	                                 100> queue_add_character_instance;
+	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	                                           engine::graphics::data::CompC>,
+	                                 100> queue_asset_instances;
 
 	core::container::CircleQueueSRMW<engine::Entity,
 	                                 100> queue_remove;
@@ -813,11 +816,6 @@ namespace
 			{
 				debug_assert(!resources.contains(message_add_mesh_char.first));
 				resources.add(message_add_mesh_char.first, Character::Mesh{ std::move(message_add_mesh_char.second) });
-			}
-			std::pair<engine::Asset, engine::graphics::renderer::asset_definition_t> message_add_def;
-			while (queue_asset_definitions.try_pop(message_add_def))
-			{
-				resources.emplace<asset_definition_t>(message_add_def.first, message_add_def.second);
 			}
 		}
 
@@ -868,22 +866,21 @@ namespace
 			}
 		}
 		{
-			std::pair<engine::Entity, engine::graphics::renderer::asset_instance_t> data;
+			std::pair<engine::Entity, engine::graphics::data::CompT> data;
 			while (queue_add_character_instance.try_pop(data))
 			{
 				components.add(data.first,
 					Character{
-						resources.get<Character::Mesh>(data.second.asset),
+						resources.get<Character::Mesh>(data.second.mesh),
 						materials.get<texture_t>(data.second.texture) });
 				components.update(data.first, engine::graphics::data::ModelviewMatrix{ data.second.modelview } );
 			}
 		}
 		{
-			std::pair<engine::Entity, engine::graphics::renderer::asset_instance_t> data;
+			std::pair<engine::Entity, engine::graphics::data::CompC> data;
 			while (queue_asset_instances.try_pop(data))
 			{
-				auto & definition = resources.get<asset_definition_t>(data.second.asset);
-				components.emplace<asset_instance_t>(data.first, definition, data.second.modelview);
+				components.emplace<comp_c>(data.first, data.second);
 			}
 		}
 	}
@@ -1252,7 +1249,7 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<asset_instance_t>())
+		for (const comp_c & component : components.get<comp_c>())
 		{
 			modelview_matrix.push();
 			{
@@ -1267,8 +1264,10 @@ namespace
 
 				glColor(color);
 				glEnableClientState(GL_VERTEX_ARRAY);
-				for (const auto & mesh : component.definition->meshs)
+				for (const auto & a : component.assets)
 				{
+					const mesh_t & mesh = *a.mesh;
+
 					glVertexPointer(3, // TODO
 					                static_cast<GLenum>(mesh.vertices.format()), // TODO
 					                0,
@@ -1571,7 +1570,7 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<asset_instance_t>())
+		for (const comp_c & component : components.get<comp_c>())
 		{
 			modelview_matrix.push();
 			{
@@ -1580,9 +1579,11 @@ namespace
 
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glEnableClientState(GL_NORMAL_ARRAY);
-				for (const auto & mesh : component.definition->meshs)
+				for (const auto & a : component.assets)
 				{
-					glColor(components.get_key(component) == highlighted_entity ? highlighted_color : mesh.color);
+					const mesh_t & mesh = *a.mesh;
+
+					glColor(components.get_key(component) == highlighted_entity ? highlighted_color : a.color);
 
 					glVertexPointer(3, // TODO
 					                static_cast<GLenum>(mesh.vertices.format()), // TODO
@@ -1728,11 +1729,6 @@ namespace engine
 				const auto res = queue_add_character_model.try_push(std::make_pair(asset, std::move(data)));
 				debug_assert(res);
 			}
-			void add(engine::Asset asset, const asset_definition_t & data)
-			{
-				const auto res = queue_asset_definitions.try_push(std::make_pair(asset, data));
-				debug_assert(res);
-			}
 
 			// add and remove Entities
 			void add(engine::Entity entity, data::CuboidC data)
@@ -1761,12 +1757,12 @@ namespace engine
 				const auto res = queue_add_component.try_push(std::make_pair(entity, std::move(data)));
 				debug_assert(res);
 			}
-			void add(engine::Entity entity, const asset_instance_t & data)
+			void add(engine::Entity entity, data::CompC && data)
 			{
 				const auto res = queue_asset_instances.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
-			void add_character_instance(engine::Entity entity, const asset_instance_t & data)
+			void add_character_instance(engine::Entity entity, data::CompT && data)
 			{
 				const auto res = queue_add_character_instance.try_push(std::make_pair(entity, data));
 				debug_assert(res);
@@ -1777,6 +1773,7 @@ namespace engine
 				const auto res = queue_remove.try_push(entity);
 				debug_assert(res);
 			}
+
 			// update Entities
 			void update(engine::Entity entity, data::ModelviewMatrix data)
 			{

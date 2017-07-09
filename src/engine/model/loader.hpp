@@ -3,6 +3,7 @@
 #define ENGINE_MODEL_LOADER_HPP
 
 #include <engine/common.hpp>
+#include <engine/graphics/renderer.hpp>
 
 #include <string>
 #include <unordered_map>
@@ -15,12 +16,15 @@ namespace model
 	// renderer meshes and physics shapes should already be added in respective module.
 	struct asset_template_t
 	{
-		struct part_t
+		struct component_t
 		{
-			engine::Asset asset;
+			engine::Asset mesh;
+			engine::graphics::data::Color color;
 		};
 
-		std::unordered_map<std::string, part_t> parts;
+		std::unordered_map<
+			std::string,
+			std::vector<component_t> > components;
 
 		struct joint_t
 		{
@@ -51,9 +55,9 @@ namespace model
 			return itr->second;
 		}
 
-		const part_t & part(const std::string name) const
+		const std::vector<component_t> & part(const std::string name) const
 		{
-			return get<part_t>(this->parts, name);
+			return get<std::vector<component_t> >(this->components, name);
 		}
 
 		const joint_t & joint(const std::string name) const
