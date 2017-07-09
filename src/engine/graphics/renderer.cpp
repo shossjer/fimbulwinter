@@ -561,14 +561,12 @@ namespace
 		core::container::Buffer triangles;
 		core::container::Buffer normals;
 		core::container::Buffer coords;
-		const texture_t * texture;
 
-		mesh_t(engine::graphics::data::MeshT && data) :
-			vertices(std::move(data.vertices)),
-			triangles(std::move(data.triangles)),
-			normals(std::move(data.normals)),
-			coords(std::move(data.coords)),
-			texture(&materials.get<texture_t>(data.texture))
+		mesh_t(engine::graphics::data::Mesh && data)
+			: vertices(std::move(data.vertices))
+			, triangles(std::move(data.triangles))
+			, normals(std::move(data.normals))
+			, coords(std::move(data.coords))
 		{}
 
 		mesh_t & operator = (engine::graphics::data::ModelviewMatrix && data)
@@ -617,7 +615,6 @@ namespace
 			core::container::Buffer triangles;
 			core::container::Buffer normals;
 			core::container::Buffer coords;
-			const texture_t * texture;
 
 			Mesh(engine::model::mesh_t && data)
 				: modelview(data.matrix)
@@ -625,28 +622,24 @@ namespace
 				, triangles(std::move(data.triangles))
 				, normals(std::move(data.normals))
 				, coords(std::move(data.uv))
-				, texture(&materials.get<texture_t>(data.texture))
 			{
 			}
 		};
 
-		struct SetMesh
-		{
-			Mesh & mesh;
-
-			SetMesh(Mesh & mesh) : mesh(mesh) {}
-		};
-
-		Mesh *mesh;
+		Mesh * mesh;
+		texture_t * texture;
 
 		core::maths::Matrix4x4f modelview;
+
 		std::vector<core::maths::Matrix4x4f> matrix_pallet;
 		std::vector<core::maths::Vector4f> vertices;
 
-		Character(SetMesh && data) :
-			mesh(&data.mesh),
-			modelview(core::maths::Matrix4x4f::identity()),
-			vertices(data.mesh.vertices.size())
+		//Character(const engine::graphics::renderer::asset_instance_t & data)
+		Character(Mesh & mesh, texture_t & texture)
+			: mesh(&mesh)
+			, texture(&texture)
+			, modelview(core::maths::Matrix4x4f::identity())
+			, vertices(mesh.vertices.size())
 		{}
 
 		Character & operator = (engine::graphics::data::ModelviewMatrix && data)
@@ -664,7 +657,7 @@ namespace
 		{
 			const Mesh * const mesh = this->mesh;
 
-			mesh->texture->enable();
+			this->texture->enable();
 
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
@@ -688,7 +681,7 @@ namespace
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
 
-			mesh->texture->disable();
+			this->texture->disable();
 		}
 		void update()
 		{
@@ -698,23 +691,40 @@ namespace
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
-		203,
+		301,
+		std::array<mesh_t, 50>,
 		std::array<Character::Mesh, 50>,
 		std::array<asset_definition_t, 50>
 	>
 	resources;
 
+
+	struct comp_t
+	{
+		core::maths::Matrix4x4f modelview;
+		Vector3f scale;
+		mesh_t * mesh;
+		texture_t * texture;
+
+		comp_t(engine::graphics::data::CompT data)
+			: modelview(data.modelview)
+			, scale(data.scale)
+			, mesh(&resources.get<mesh_t>(data.mesh))
+			, texture(&materials.get<texture_t>(data.texture))
+		{}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
 		1601,
+		std::array<comp_t, 100>,
 		std::array<Character, 100>,
 		std::array<cuboid_c, 100>,
 		std::array<cuboid_cw, 100>,
 		std::array<cuboid_t, 100>,
 		std::array<linec_t, 100>,
 		std::array<mesh_c, 100>,
-		std::array<mesh_t, 100>,
 		std::array<asset_instance_t, 100>
 	>
 	components;
@@ -727,9 +737,23 @@ namespace
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Viewport> queue_notify_viewport;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Cursor> queue_notify_cursor;
 
+	// queues for adding Assets (Resources and Materials)
+
 	core::container::CircleQueueSRMW<std::pair<engine::Asset,
 	                                           core::graphics::Image>,
 	                                 100> queue_register_texture;
+
+	core::container::CircleQueueSRMW<std::pair<engine::Asset,
+	                                           engine::model::mesh_t>,
+	                                 100> queue_add_character_model;
+	core::container::CircleQueueSRMW<std::pair<engine::Asset,
+	                                           engine::graphics::data::Mesh>,
+	                                 100> queue_add_mesh;
+	core::container::CircleQueueSRSW<std::pair<engine::Asset,
+	                                           engine::graphics::renderer::asset_definition_t>,
+	                                 100> queue_asset_definitions;
+
+	// queues for adding and removing Entities
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CuboidC>,
@@ -743,18 +767,21 @@ namespace
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::MeshC>,
 	                                 100> queue_add_meshc;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::data::MeshT>,
-	                                 100> queue_add_mesht;
-	core::container::CircleQueueSRMW<std::pair<engine::Asset,
-	                                           engine::model::mesh_t>,
-	                                 100> queue_add_character_model;
+
+	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	                                           engine::graphics::data::CompT>,
+	                                 100> queue_add_component;
+	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	                                           engine::graphics::renderer::asset_instance_t>,
+	                                 100> queue_asset_instances;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::renderer::asset_instance_t>,
 	                                 100> queue_add_character_instance;
 
 	core::container::CircleQueueSRMW<engine::Entity,
 	                                 100> queue_remove;
+
+	// queues for updating Entities
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::ModelviewMatrix>,
@@ -765,15 +792,37 @@ namespace
 
 	core::container::CircleQueueSRSW<std::tuple<int, int, engine::Entity>, 10> queue_select;
 
-	core::container::CircleQueueSRSW<std::pair<engine::Asset,
-	                                           engine::graphics::renderer::asset_definition_t>,
-	                                 100> queue_asset_definitions;
-	core::container::CircleQueueSRSW<std::pair<engine::Entity,
-	                                           engine::graphics::renderer::asset_instance_t>,
-	                                 100> queue_asset_instances;
-
 	void poll_add_queue()
 	{
+		// update queues for adding Assets
+		{
+			std::pair<engine::Asset, core::graphics::Image> message_register_texture;
+			while (queue_register_texture.try_pop(message_register_texture))
+			{
+				materials.emplace<texture_t>(message_register_texture.first,
+					std::move(message_register_texture.second));
+			}
+			std::pair<engine::Asset, engine::graphics::data::Mesh> message_add_mesh;
+			while (queue_add_mesh.try_pop(message_add_mesh))
+			{
+				resources.emplace<mesh_t>(message_add_mesh.first,
+					std::move(message_add_mesh.second));
+			}
+			std::pair<engine::Asset, engine::model::mesh_t> message_add_mesh_char;
+			while (queue_add_character_model.try_pop(message_add_mesh_char))
+			{
+				debug_assert(!resources.contains(message_add_mesh_char.first));
+				resources.add(message_add_mesh_char.first, Character::Mesh{ std::move(message_add_mesh_char.second) });
+			}
+			std::pair<engine::Asset, engine::graphics::renderer::asset_definition_t> message_add_def;
+			while (queue_asset_definitions.try_pop(message_add_def))
+			{
+				resources.emplace<asset_definition_t>(message_add_def.first, message_add_def.second);
+			}
+		}
+
+		// update queues for adding Entities
+
 		std::pair<engine::Entity,
 			engine::graphics::data::CuboidC> message_add_cuboidc;
 		while (queue_add_cuboidc.try_pop(message_add_cuboidc))
@@ -810,36 +859,23 @@ namespace
 			components.emplace<mesh_c>(message_add_meshc.first,
 				std::move(message_add_meshc.second));
 		}
-		std::pair<engine::Entity,
-			engine::graphics::data::MeshT> message_add_mesht;
-		while (queue_add_mesht.try_pop(message_add_mesht))
-		{
-			components.emplace<mesh_t>(message_add_mesht.first,
-				std::move(message_add_mesht.second));
-		}
 
 		{
-			std::pair<engine::Asset, engine::model::mesh_t> data;
-			while (queue_add_character_model.try_pop(data))
+			std::pair<engine::Entity, engine::graphics::data::CompT> component;
+			while (queue_add_component.try_pop(component))
 			{
-				debug_assert(!resources.contains(data.first));
-				resources.add(data.first, Character::Mesh{ std::move(data.second) });
+				components.emplace<comp_t>(component.first, component.second);
 			}
 		}
 		{
 			std::pair<engine::Entity, engine::graphics::renderer::asset_instance_t> data;
 			while (queue_add_character_instance.try_pop(data))
 			{
-				auto & mesh = resources.get<Character::Mesh>(data.second.asset);
-				components.add(data.first, Character::SetMesh{mesh});
+				components.add(data.first,
+					Character{
+						resources.get<Character::Mesh>(data.second.asset),
+						materials.get<texture_t>(data.second.texture) });
 				components.update(data.first, engine::graphics::data::ModelviewMatrix{ data.second.modelview } );
-			}
-		}
-		{
-			std::pair<engine::Asset, engine::graphics::renderer::asset_definition_t> data;
-			while (queue_asset_definitions.try_pop(data))
-			{
-				resources.emplace<asset_definition_t>(data.first, data.second);
 			}
 		}
 		{
@@ -996,14 +1032,6 @@ namespace
 
 	void render_update()
 	{
-		//
-		std::pair<engine::Asset,
-		          core::graphics::Image> message_register_texture;
-		while (queue_register_texture.try_pop(message_register_texture))
-		{
-			materials.emplace<texture_t>(message_register_texture.first,
-			                             std::move(message_register_texture.second));
-		}
 		// poll events
 		poll_add_queue();
 		poll_update_queue();
@@ -1196,8 +1224,10 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<mesh_t>())
+		for (const auto & component : components.get<comp_t>())
 		{
+			const mesh_t & mesh = *component.mesh;
+
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
@@ -1211,13 +1241,13 @@ namespace
 			glColor(color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
-			                static_cast<GLenum>(component.vertices.format()), // TODO
+			                static_cast<GLenum>(mesh.vertices.format()), // TODO
 			                0,
-			                component.vertices.data());
+			                mesh.vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               component.triangles.count(),
-			               static_cast<GLenum>(component.triangles.format()),
-			               component.triangles.data());
+			               mesh.triangles.count(),
+			               static_cast<GLenum>(mesh.triangles.format()),
+			               mesh.triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
 
 			modelview_matrix.pop();
@@ -1482,29 +1512,32 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<mesh_t>())
+		for (const auto & component : components.get<comp_t>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
+			const mesh_t & mesh = *component.mesh;
+
 			if (components.get_key(component) == highlighted_entity)
 			{
 				glColor(highlighted_color);
 
+
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glEnableClientState(GL_NORMAL_ARRAY);
 				glVertexPointer(3, // TODO
-				                static_cast<GLenum>(component.vertices.format()), // TODO
+				                static_cast<GLenum>(mesh.vertices.format()), // TODO
 				                0,
-				                component.vertices.data());
-				glNormalPointer(static_cast<GLenum>(component.normals.format()), // TODO
+				                mesh.vertices.data());
+				glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
 				                0,
-				                component.normals.data());
+				                mesh.normals.data());
 				glDrawElements(GL_TRIANGLES,
-				               component.triangles.count(),
-				               static_cast<GLenum>(component.triangles.format()),
-				               component.triangles.data());
+				               mesh.triangles.count(),
+				               static_cast<GLenum>(mesh.triangles.format()),
+				               mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
 				glDisableClientState(GL_VERTEX_ARRAY);
 			}
@@ -1516,20 +1549,20 @@ namespace
 				glEnableClientState(GL_NORMAL_ARRAY);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				glVertexPointer(3, // TODO
-				                static_cast<GLenum>(component.vertices.format()), // TODO
+				                static_cast<GLenum>(mesh.vertices.format()), // TODO
 				                0,
-				                component.vertices.data());
-				glNormalPointer(static_cast<GLenum>(component.normals.format()), // TODO
+				                mesh.vertices.data());
+				glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
 				                0,
-				                component.normals.data());
+				                mesh.normals.data());
 				glTexCoordPointer(2, // TODO
-				                  static_cast<GLenum>(component.vertices.format()), // TODO
+				                  static_cast<GLenum>(mesh.vertices.format()), // TODO
 				                  0,
-				                  component.coords.data());
+				                  mesh.coords.data());
 				glDrawElements(GL_TRIANGLES,
-				               component.triangles.count(),
-				               static_cast<GLenum>(component.triangles.format()),
-				               component.triangles.data());
+				               mesh.triangles.count(),
+				               static_cast<GLenum>(mesh.triangles.format()),
+				               mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
 				glDisableClientState(GL_VERTEX_ARRAY);
 
@@ -1678,12 +1711,30 @@ namespace engine
 				queue_notify_cursor.try_push(std::move(data));
 			}
 
+			// add Assets (Materials and Resources)
 			void post_register_texture(engine::Asset asset, const core::graphics::Image & image)
 			{
 				const auto res = queue_register_texture.try_push(std::make_pair(asset, image));
 				debug_assert(res);
 			}
 
+			void add(engine::Asset asset, data::Mesh && data)
+			{
+				const auto res = queue_add_mesh.try_push(std::make_pair(asset, std::move(data)));
+				debug_assert(res);
+			}
+			void add(engine::Asset asset, engine::model::mesh_t && data)
+			{
+				const auto res = queue_add_character_model.try_push(std::make_pair(asset, std::move(data)));
+				debug_assert(res);
+			}
+			void add(engine::Asset asset, const asset_definition_t & data)
+			{
+				const auto res = queue_asset_definitions.try_push(std::make_pair(asset, data));
+				debug_assert(res);
+			}
+
+			// add and remove Entities
 			void add(engine::Entity entity, data::CuboidC data)
 			{
 				const auto res = queue_add_cuboidc.try_push(std::make_pair(entity, data));
@@ -1704,14 +1755,15 @@ namespace engine
 				const auto res = queue_add_meshc.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
-			void add(engine::Entity entity, data::MeshT data)
+
+			void add(engine::Entity entity, data::CompT && data)
 			{
-				const auto res = queue_add_mesht.try_push(std::make_pair(entity, data));
+				const auto res = queue_add_component.try_push(std::make_pair(entity, std::move(data)));
 				debug_assert(res);
 			}
-			void add(engine::Asset asset, engine::model::mesh_t && data)
+			void add(engine::Entity entity, const asset_instance_t & data)
 			{
-				const auto res = queue_add_character_model.try_push(std::make_pair(asset, std::move(data)));
+				const auto res = queue_asset_instances.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
 			void add_character_instance(engine::Entity entity, const asset_instance_t & data)
@@ -1720,22 +1772,12 @@ namespace engine
 				debug_assert(res);
 			}
 
-			void add(engine::Asset asset, const asset_definition_t & data)
-			{
-				const auto res = queue_asset_definitions.try_push(std::make_pair(asset, data));
-				debug_assert(res);
-			}
-			void add(engine::Entity entity, const asset_instance_t & data)
-			{
-				const auto res = queue_asset_instances.try_push(std::make_pair(entity, data));
-				debug_assert(res);
-			}
-
 			void remove(engine::Entity entity)
 			{
 				const auto res = queue_remove.try_push(entity);
 				debug_assert(res);
 			}
+			// update Entities
 			void update(engine::Entity entity, data::ModelviewMatrix data)
 			{
 				const auto res = queue_update_modelviewmatrix.try_push(std::make_pair(entity, data));

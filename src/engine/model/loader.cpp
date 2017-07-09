@@ -439,8 +439,6 @@ namespace model
 			debug_printline(0xffffffff, "mesh name: ", name);
 		}
 
-		mesh.texture = engine::Asset{ "dude" };
-
 		read_matrix(stream, mesh.matrix);
 
 		read<float, 3>(stream, mesh.xyz);

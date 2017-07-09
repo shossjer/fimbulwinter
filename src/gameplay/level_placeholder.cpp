@@ -39,6 +39,7 @@ namespace level
 				id,
 				render_instance_t{
 				benchDef.asset,
+				engine::Asset{ "none" },
 				matrix });
 
 			// register new asset in gamestate
@@ -58,6 +59,7 @@ namespace level
 				id,
 				render_instance_t{
 				benchDef.asset,
+				engine::Asset{ "none" },
 				matrix });
 
 			// register new asset in gamestate
@@ -78,6 +80,7 @@ namespace level
 				id,
 				render_instance_t{
 				dudeDef.asset,
+				engine::Asset{ "none" },
 				matrix });
 
 			// register new asset in gamestate
@@ -93,6 +96,7 @@ namespace level
 				id,
 				render_instance_t{
 				dudeDef.asset,
+				engine::Asset{ "none" },
 				matrix });
 
 			break;
@@ -112,6 +116,7 @@ namespace level
 			engine::graphics::renderer::add_character_instance(
 				id, render_instance_t{
 					engine::Asset{placeholder.name},
+					engine::Asset{ "dude" },
 					placeholder.transform.matrix() });
 		}
 		else
