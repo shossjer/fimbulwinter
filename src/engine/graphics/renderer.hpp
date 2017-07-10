@@ -20,21 +20,6 @@ namespace engine
 			// Color
 			using Color = uint32_t;
 
-			// cuboid with color
-			struct CuboidC
-			{
-				core::maths::Matrix4x4f modelview;
-				float width, height, depth;
-				Color color;
-				bool wireframe;
-			};
-			// cuboid with texture
-			struct CuboidT
-			{
-				core::maths::Matrix4x4f modelview;
-				float width, height, depth;
-				engine::Asset texture;
-			};
 			// line segments with color
 			struct LineC
 			{
@@ -57,14 +42,7 @@ namespace engine
 				LineC()
 				{}
 			};
-			// mesh with color
-			struct MeshC
-			{
-				core::container::Buffer vertices;
-				core::container::Buffer triangles;
-				core::container::Buffer normals;
-				Color color;
-			};
+
 			// mesh with optional uv-coords
 			// uv-coords must exist if any component instance has texture
 			struct Mesh
@@ -191,10 +169,7 @@ namespace engine
 			void add(engine::Asset asset, engine::model::mesh_t && data);
 
 			// add and remove Entities
-			void add(engine::Entity entity, data::CuboidC data);
-			void add(engine::Entity entity, data::CuboidT data);
 			void add(engine::Entity entity, data::LineC data);
-			void add(engine::Entity entity, data::MeshC data);
 
 			void add(engine::Entity entity, data::CompT && data);
 			void add(engine::Entity entity, data::CompC && data);
