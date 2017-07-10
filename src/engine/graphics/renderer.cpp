@@ -219,99 +219,20 @@ namespace
 		core::container::Buffer coords;
 
 		mesh_t(engine::graphics::data::Mesh && data)
-			: vertices(std::move(data.vertices))
+			: modelview(core::maths::Matrix4x4f::identity())
+			, vertices(std::move(data.vertices))
 			, triangles(std::move(data.triangles))
 			, normals(std::move(data.normals))
 			, coords(std::move(data.coords))
 		{}
 
-		mesh_t & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			modelview = std::move(data.matrix);
-			return *this;
-		}
-	};
-
-	struct Character
-	{
-		struct Mesh
-		{
-			core::maths::Matrix4x4f modelview;
-			core::container::Buffer vertices;
-			core::container::Buffer triangles;
-			core::container::Buffer normals;
-			core::container::Buffer coords;
-
-			Mesh(engine::model::mesh_t && data)
-				: modelview(data.matrix)
-				, vertices(std::move(data.xyz))
-				, triangles(std::move(data.triangles))
-				, normals(std::move(data.normals))
-				, coords(std::move(data.uv))
-			{
-			}
-		};
-
-		const Mesh * mesh;
-		const texture_t * texture;
-
-		core::maths::Matrix4x4f modelview;
-
-		std::vector<core::maths::Matrix4x4f> matrix_pallet;
-		std::vector<core::maths::Vector4f> vertices;
-
-		//Character(const engine::graphics::renderer::asset_instance_t & data)
-		Character(Mesh & mesh, texture_t & texture)
-			: mesh(&mesh)
-			, texture(&texture)
-			, modelview(core::maths::Matrix4x4f::identity())
-			, vertices(mesh.vertices.size())
+		mesh_t(engine::model::mesh_t && data)
+			: modelview(data.matrix)
+			, vertices(std::move(data.xyz))
+			, triangles(std::move(data.triangles))
+			, normals(std::move(data.normals))
+			, coords(std::move(data.uv))
 		{}
-
-		Character & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			this->modelview = std::move(data.matrix);
-			return *this;
-		}
-		Character & operator = (engine::graphics::renderer::CharacterSkinning && data)
-		{
-			this->matrix_pallet = std::move(data.matrix_pallet);
-			return *this;
-		}
-
-		void draw()
-		{
-			const Mesh * const mesh = this->mesh;
-
-			this->texture->enable();
-
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_NORMAL_ARRAY);
-			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-			glVertexPointer(3, // TODO
-				GL_FLOAT, // TODO
-				0,
-				mesh->vertices.data());
-			glNormalPointer(
-				GL_FLOAT, // TODO
-				0,
-				mesh->normals.data());
-			glTexCoordPointer(2, // TODO
-				GL_FLOAT, // TODO
-				0,
-				mesh->coords.data());
-			glDrawElements(GL_TRIANGLES,
-				mesh->triangles.count(),
-				GL_UNSIGNED_SHORT, // TODO
-				mesh->triangles.data());
-			glDisableClientState(GL_NORMAL_ARRAY);
-			glDisableClientState(GL_VERTEX_ARRAY);
-
-			this->texture->disable();
-		}
-		void update()
-		{
-		}
 	};
 
 	core::container::UnorderedCollection
@@ -319,7 +240,7 @@ namespace
 		engine::Asset,
 		401,
 		std::array<mesh_t, 100>,
-		std::array<Character::Mesh, 100>
+		std::array<int, 100>
 	>
 	resources;
 
@@ -365,15 +286,72 @@ namespace
 	{
 		core::maths::Matrix4x4f modelview;
 		Vector3f scale;
+
 		const mesh_t * mesh;
 		const texture_t * texture;
 
-		comp_t(engine::graphics::data::CompT data)
+		comp_t(engine::graphics::data::CompT & data)
 			: modelview(data.modelview)
 			, scale(data.scale)
 			, mesh(&resources.get<mesh_t>(data.mesh))
 			, texture(&materials.get<texture_t>(data.texture))
 		{}
+	};
+
+	struct Character : comp_t
+	{
+		std::vector<core::maths::Matrix4x4f> matrix_pallet;
+		std::vector<core::maths::Vector4f> vertices;
+
+		Character(engine::graphics::data::CompT & data)
+			: comp_t(data)
+			, vertices(mesh->vertices.size())
+		{}
+
+		Character & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			this->modelview = std::move(data.matrix);
+			return *this;
+		}
+		Character & operator = (engine::graphics::renderer::CharacterSkinning && data)
+		{
+			this->matrix_pallet = std::move(data.matrix_pallet);
+			return *this;
+		}
+
+		void draw()
+		{
+			const mesh_t * const mesh = this->mesh;
+
+			this->texture->enable();
+
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glEnableClientState(GL_NORMAL_ARRAY);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+			glVertexPointer(3, // TODO
+				GL_FLOAT, // TODO
+				0,
+				mesh->vertices.data());
+			glNormalPointer(
+				GL_FLOAT, // TODO
+				0,
+				mesh->normals.data());
+			glTexCoordPointer(2, // TODO
+				GL_FLOAT, // TODO
+				0,
+				mesh->coords.data());
+			glDrawElements(GL_TRIANGLES,
+				mesh->triangles.count(),
+				GL_UNSIGNED_SHORT, // TODO
+				mesh->triangles.data());
+			glDisableClientState(GL_NORMAL_ARRAY);
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			this->texture->disable();
+		}
+		void update()
+		{
+		}
 	};
 
 	core::container::Collection
@@ -451,14 +429,18 @@ namespace
 			std::pair<engine::Asset, engine::graphics::data::Mesh> message_add_mesh;
 			while (queue_add_mesh.try_pop(message_add_mesh))
 			{
-				resources.emplace<mesh_t>(message_add_mesh.first,
+				debug_assert(!resources.contains(message_add_mesh.first));
+				resources.emplace<mesh_t>(
+					message_add_mesh.first,
 					std::move(message_add_mesh.second));
 			}
 			std::pair<engine::Asset, engine::model::mesh_t> message_add_mesh_char;
 			while (queue_add_character_model.try_pop(message_add_mesh_char))
 			{
 				debug_assert(!resources.contains(message_add_mesh_char.first));
-				resources.add(message_add_mesh_char.first, Character::Mesh{ std::move(message_add_mesh_char.second) });
+				resources.emplace<mesh_t>(
+					message_add_mesh_char.first,
+					std::move(message_add_mesh_char.second));
 			}
 		}
 
@@ -479,11 +461,7 @@ namespace
 			std::pair<engine::Entity, engine::graphics::data::CompT> character;
 			while (queue_add_character_instance.try_pop(character))
 			{
-				components.add(character.first,
-					Character{
-						resources.get<Character::Mesh>(character.second.mesh),
-						materials.get<texture_t>(character.second.texture) });
-				components.update(character.first, engine::graphics::data::ModelviewMatrix{ character.second.modelview } );
+				components.emplace<Character>(character.first, character.second);
 			}
 			std::pair<engine::Entity, engine::graphics::data::CompC> componentC;
 			while (queue_asset_instances.try_pop(componentC))
