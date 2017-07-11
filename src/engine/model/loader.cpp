@@ -99,7 +99,7 @@ namespace model
 			template<typename T>
 			const T & get(const std::vector<T> & items, const std::string & name) const
 			{
-				for (const auto i : items)
+				for (const auto & i : items)
 				{
 					if (i.name == name) return i;
 				}

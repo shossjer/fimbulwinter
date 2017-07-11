@@ -319,35 +319,62 @@ namespace
 			return *this;
 		}
 
-		void draw()
+		void draw(const bool highlighted)
 		{
-			const mesh_t * const mesh = this->mesh;
+			const mesh_t & mesh = *this->mesh;
 
-			this->texture->enable();
+			if (highlighted)
+			{
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_NORMAL_ARRAY);
+				glVertexPointer(
+					3, // TODO
+				    GL_FLOAT, // TODO
+				    0,
+				    mesh.vertices.data());
+				glNormalPointer(
+					GL_FLOAT, // TODO
+				    0,
+				    mesh.normals.data());
+				glDrawElements(
+					GL_TRIANGLES,
+					mesh.triangles.count(),
+					GL_UNSIGNED_SHORT,
+					mesh.triangles.data());
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
+			}
+			else
+			{
+				this->texture->enable();
 
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_NORMAL_ARRAY);
-			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-			glVertexPointer(3, // TODO
-				GL_FLOAT, // TODO
-				0,
-				mesh->vertices.data());
-			glNormalPointer(
-				GL_FLOAT, // TODO
-				0,
-				mesh->normals.data());
-			glTexCoordPointer(2, // TODO
-				GL_FLOAT, // TODO
-				0,
-				mesh->coords.data());
-			glDrawElements(GL_TRIANGLES,
-				mesh->triangles.count(),
-				GL_UNSIGNED_SHORT, // TODO
-				mesh->triangles.data());
-			glDisableClientState(GL_NORMAL_ARRAY);
-			glDisableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_VERTEX_ARRAY);
+				glEnableClientState(GL_NORMAL_ARRAY);
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				glVertexPointer(
+					3, // TODO
+					GL_FLOAT, // TODO
+					0,
+					mesh.vertices.data());
+				glNormalPointer(
+					GL_FLOAT, // TODO
+					0,
+					mesh.normals.data());
+				glTexCoordPointer(
+					2, // TODO
+					GL_FLOAT, // TODO
+					0,
+					mesh.coords.data());
+				glDrawElements(
+					GL_TRIANGLES,
+					mesh.triangles.count(),
+					GL_UNSIGNED_SHORT, // TODO
+					mesh.triangles.data());
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_VERTEX_ARRAY);
 
-			this->texture->disable();
+				this->texture->disable();
+			}
 		}
 		void update()
 		{
@@ -392,13 +419,13 @@ namespace
 	                                           engine::graphics::data::LineC>,
 	                                 10> queue_add_linec;
 
-	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CompT>,
 	                                 100> queue_add_component;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CompT>,
 	                                 100> queue_add_character_instance;
-	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CompC>,
 	                                 100> queue_asset_instances;
 
@@ -410,11 +437,11 @@ namespace
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::ModelviewMatrix>,
 	                                 100> queue_update_modelviewmatrix;
-	core::container::CircleQueueSRSW<std::pair<engine::Entity,
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::renderer::CharacterSkinning>,
 	                                 100> queue_update_characterskinning;
 
-	core::container::CircleQueueSRSW<std::tuple<int, int, engine::Entity>, 10> queue_select;
+	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity>, 10> queue_select;
 
 	void poll_add_queue()
 	{
@@ -574,14 +601,9 @@ namespace
 		core::container::Buffer buffer;
 		buffer.resize<T>(N);
 
-		T* p = buffer.data_as<T>();
+		std::copy(data.begin(), data.end(), buffer.data_as<T>());
 
-		for (unsigned int i = 0; i < N; i++)
-		{
-			p[i] = data[i];
-		}
-
-		return std::move(buffer);
+		return buffer;
 	}
 
 	// TODO: move to loader/level
@@ -636,7 +658,7 @@ namespace
 		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
 
 		core::container::Buffer vertices = convert(std::move(va));
-		core::container::Buffer triangles = convert(std::array<uint16_t, 3 * 12> {
+		core::container::Buffer triangles = convert(std::array<uint16_t, 3 * 12> {{
 				0, 1, 3,
 				0, 3, 2,
 				4, 5, 7,
@@ -648,8 +670,8 @@ namespace
 				16, 17, 19,
 				16, 19, 18,
 				20, 21, 23,
-				20, 23, 22});
-		core::container::Buffer normals = convert(std::array<float, 3 * 24> {
+				20, 23, 22}});
+		core::container::Buffer normals = convert(std::array<float, 3 * 24> {{
 				0.f, -1.f, 0.f,
 				0.f, -1.f, 0.f,
 				0.f, -1.f, 0.f,
@@ -673,8 +695,8 @@ namespace
 				0.f, +1.f, 0.f,
 				0.f, +1.f, 0.f,
 				0.f, +1.f, 0.f,
-				0.f, +1.f, 0.f});
-		core::container::Buffer coords = convert(std::array<float, 2 * 24> {
+				0.f, +1.f, 0.f}});
+		core::container::Buffer coords = convert(std::array<float, 2 * 24> {{
 				0.f, 0.f,
 				1.f, 0.f,
 				0.f, 1.f,
@@ -698,7 +720,7 @@ namespace
 				0.f, 0.f,
 				1.f, 0.f,
 				0.f, 1.f,
-				1.f, 1.f});
+				1.f, 1.f}});
 
 		return std::move(engine::graphics::data::Mesh{
 			vertices, triangles, normals, coords });
@@ -880,6 +902,34 @@ namespace
 
 			modelview_matrix.pop();
 		}
+		for (auto & component : components.get<Character>())
+		{
+			const mesh_t & mesh = *component.mesh;
+
+			modelview_matrix.push();
+			modelview_matrix.mult(component.modelview);
+			glLoadMatrix(modelview_matrix);
+
+			engine::Entity entity = components.get_key(component);
+			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
+			                                            (entity & 0x0000ff00) >> 8,
+			                                            (entity & 0x00ff0000) >> 16,
+			                                            (entity & 0xff000000) >> 24};
+
+			glColor(color);
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glVertexPointer(3, // TODO
+			                GL_FLOAT, // TODO
+			                0,
+			                mesh.vertices.data());
+			glDrawElements(GL_TRIANGLES,
+			               mesh.triangles.count(),
+			               GL_UNSIGNED_SHORT,	// TODO
+			               mesh.triangles.data());
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			modelview_matrix.pop();
+		}
 		for (const auto & component : components.get<comp_t>())
 		{
 			const mesh_t & mesh = *component.mesh;
@@ -999,8 +1049,10 @@ namespace
 			modelview_matrix.mult(component.mesh->modelview);
 			glLoadMatrix(modelview_matrix);
 
+			glColor(highlighted_color);
+
 			component.update();
-			component.draw();
+			component.draw(components.get_key(component) == highlighted_entity);
 
 			modelview_matrix.pop();
 		}

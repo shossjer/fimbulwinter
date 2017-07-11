@@ -133,6 +133,9 @@ namespace level
 					Vector3f { 1.f, 1.f, 1.f },
 					engine::Asset{placeholder.name},
 					engine::Asset{ "dude" }});
+
+			// register new asset in gamestate
+			gameplay::gamestate::post_add_worker(id);
 		}
 		else
 		{
