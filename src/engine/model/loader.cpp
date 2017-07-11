@@ -99,7 +99,7 @@ namespace model
 			template<typename T>
 			const T & get(const std::vector<T> & items, const std::string & name) const
 			{
-				for (const auto i : items)
+				for (const auto & i : items)
 				{
 					if (i.name == name) return i;
 				}
@@ -271,22 +271,23 @@ namespace model
 
 		for (const auto & part : model.parts)
 		{
-			if (!part.render.shapes.empty())
+			std::vector<asset_template_t::component_t> components;
+			components.reserve(part.render.shapes.size());
+
+			for (const auto & mesh : part.render.shapes)
 			{
-				// register renderer definition of asset
-				engine::graphics::renderer::asset_definition_t assetDef;
+				engine::Asset meshId { modelName + part.name + std::to_string(components.size()) };
 
-				for (const auto & mesh : part.render.shapes)
-				{
-					assetDef.meshs.emplace_back(
-						engine::graphics::data::MeshC{
-						mesh.vertices, // vertices
-						mesh.indices, // triangles
-						mesh.normals, // normals
-						mesh.color }); // color);
-				}
+				engine::graphics::renderer::add(
+					meshId,
+					engine::graphics::data::Mesh{
+						mesh.vertices,
+						mesh.indices,
+						mesh.normals,
+						core::container::Buffer{} });
 
-				engine::graphics::renderer::add(asset, assetDef);
+				components.emplace_back(
+					asset_template_t::component_t{ meshId, mesh.color });
 			}
 
 			if (!part.physic.shapes.empty())
@@ -329,7 +330,7 @@ namespace model
 			}
 
 			// save the defined part to be used when creating instances.
-			asset_template.parts.emplace(part.name, asset_template_t::part_t{ asset });
+			asset_template.components.emplace(part.name, components);
 		}
 
 		for (const auto & joint : model.joints)
@@ -438,8 +439,6 @@ namespace model
 		//	asset = name;
 			debug_printline(0xffffffff, "mesh name: ", name);
 		}
-
-		mesh.texture = engine::Asset{ "dude" };
 
 		read_matrix(stream, mesh.matrix);
 

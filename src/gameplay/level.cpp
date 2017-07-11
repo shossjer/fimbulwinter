@@ -170,30 +170,34 @@ namespace gameplay
 				read_level(ifile, level);
 			}
 
-			for (const auto & mesh : level.statics)
+			for (const auto & data : level.statics)
 			{
-				engine::graphics::renderer::asset_definition_t assetDef;
+				const engine::Asset asset = data.name;
 
-				assetDef.meshs.resize(1);
+				engine::graphics::renderer::add(
+					asset,
+					engine::graphics::data::Mesh{
+						data.vertices,
+						data.triangles,
+						data.normals,
+						core::container::Buffer{} });
 
-				const uint32_t r = mesh.color[0] * 255;
-				const uint32_t g = mesh.color[1] * 255;
-				const uint32_t b = mesh.color[2] * 255;
+				std::vector<engine::graphics::data::CompC::asset> assets;
 
-				assetDef.meshs[0].color = r + (g << 8) + (b << 16) + (0xff << 24);
-				assetDef.meshs[0].vertices = mesh.vertices;
-				assetDef.meshs[0].normals = mesh.normals;
-				assetDef.meshs[0].triangles = mesh.triangles;
+				const uint32_t r = data.color[0] * 255;
+				const uint32_t g = data.color[1] * 255;
+				const uint32_t b = data.color[2] * 255;
+				assets.emplace_back(
+					engine::graphics::data::CompC::asset{
+						asset,
+						r + (g << 8) + (b << 16) + (0xff << 24) });
 
-				const engine::Asset asset = mesh.name;
-				engine::graphics::renderer::add(asset, assetDef);
-
-				engine::graphics::renderer::asset_instance_t assetInst;
-
-				assetInst.asset = asset;
-				assetInst.modelview = mesh.matrix;
-
-				engine::graphics::renderer::add(engine::Entity::create(), assetInst);
+				engine::graphics::renderer::add(
+					engine::Entity::create(),
+					engine::graphics::data::CompC{
+						data.matrix,
+						Vector3f{1.f, 1.f, 1.f},
+						assets});
 			}
 
 			for (const auto & ph : level.placeholders)

@@ -20,21 +20,6 @@ namespace engine
 			// Color
 			using Color = uint32_t;
 
-			// cuboid with color
-			struct CuboidC
-			{
-				core::maths::Matrix4x4f modelview;
-				float width, height, depth;
-				Color color;
-				bool wireframe;
-			};
-			// cuboid with texture
-			struct CuboidT
-			{
-				core::maths::Matrix4x4f modelview;
-				float width, height, depth;
-				engine::Asset texture;
-			};
 			// line segments with color
 			struct LineC
 			{
@@ -57,22 +42,49 @@ namespace engine
 				LineC()
 				{}
 			};
-			// mesh with color
-			struct MeshC
-			{
-				core::container::Buffer vertices;
-				core::container::Buffer triangles;
-				core::container::Buffer normals;
-				Color color;
-			};
-			// mesh with texture
-			struct MeshT
+
+			// mesh with optional uv-coords
+			// uv-coords must exist if any component instance has texture
+			struct Mesh
 			{
 				core::container::Buffer vertices;
 				core::container::Buffer triangles;
 				core::container::Buffer normals;
 				core::container::Buffer coords;
+			};
+
+			// used when adding components
+			struct CompT
+			{
+				core::maths::Matrix4x4f modelview;
+				Vector3f scale;
+				engine::Asset mesh;
 				engine::Asset texture;
+			};
+
+			struct CompC
+			{
+				core::maths::Matrix4x4f modelview;
+				Vector3f scale;
+
+				struct asset
+				{
+					engine::Asset mesh;
+					Color color;
+				};
+				std::vector<asset> assets;
+
+				CompC(core::maths::Matrix4x4f modelview,
+					Vector3f scale,
+					std::vector<asset> assets)
+					: modelview(modelview)
+					, scale(scale)
+					, assets(assets)
+				{}
+
+				CompC()
+					: modelview()
+				{}
 			};
 
 			// modelview matrix
@@ -150,34 +162,23 @@ namespace engine
 			// void notify(Camera3D && data);
 			// void notify(Viewport && data);
 
-			// Asset definition, contains meshes and colors for an Asset.
-			struct asset_definition_t
-			{
-				std::vector<data::MeshC> meshs;
-			};
-
-			struct asset_instance_t
-			{
-				engine::Asset asset;
-				core::maths::Matrix4x4f modelview;
-				//Vector3f scale;
-			};
-
+			// add Assets (Materials and Resources)
 			void post_register_texture(engine::Asset asset, const core::graphics::Image & image);
 
-			void add(engine::Entity entity, data::CuboidC data);
-			void add(engine::Entity entity, data::CuboidT data);
-			void add(engine::Entity entity, data::LineC data);
-			void add(engine::Entity entity, data::MeshC data);
-			void add(engine::Entity entity, data::MeshT data);
+			void add(engine::Asset asset, data::Mesh && data);
 			void add(engine::Asset asset, engine::model::mesh_t && data);
-			void add_character_instance(
-					 engine::Entity entity, const asset_instance_t & data);
 
-			void add(engine::Asset asset, const asset_definition_t & data);
-			void add(engine::Entity entity, const asset_instance_t & data);
+			// add and remove Entities
+			void add(engine::Entity entity, data::LineC data);
+
+			void add(engine::Entity entity, data::CompT && data);
+			void add(engine::Entity entity, data::CompC && data);
+			void add_character_instance(
+				     engine::Entity entity, data::CompT && data);
 
 			void remove(engine::Entity entity);
+
+			// update Entities
 			void update(engine::Entity entity, data::ModelviewMatrix data);
 			// void update(engine::Entity entity, CharacterSkinning data);
 

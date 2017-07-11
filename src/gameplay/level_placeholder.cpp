@@ -17,7 +17,22 @@ namespace level
 
 	using transform_t = ::engine::transform_t;
 
-	using render_instance_t = engine::graphics::renderer::asset_instance_t;
+	using CompC = engine::graphics::data::CompC;
+	using CompT = engine::graphics::data::CompT;
+
+	auto extract(
+		const engine::model::asset_template_t & assetTemplate,
+		const std::string & name)
+	{
+		const auto & components = assetTemplate.part(name);
+		std::vector<engine::graphics::data::CompC::asset> assets;
+		for (const auto & c : components)
+		{
+			assets.emplace_back(
+				engine::graphics::data::CompC::asset{ c.mesh, c.color });
+		}
+		return assets;
+	}
 
 	void load(const engine::Entity id, const std::string & name, const Matrix4x4f & matrix)
 	{
@@ -27,19 +42,19 @@ namespace level
 		const engine::model::asset_template_t & assetTemplate =
 			engine::model::load(asset, name);
 
-
 		switch (asset)
 		{
 		case engine::Asset{ "bench" }:
 		{
-			const auto & benchDef = assetTemplate.part("bench");
+			const auto & assets = extract(assetTemplate, "bench");
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 				id,
-				render_instance_t{
-				benchDef.asset,
-				matrix });
+				CompC{
+					matrix,
+					Vector3f{ 1.f, 1.f, 1.f },
+					assets });
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_workstation(
@@ -51,14 +66,15 @@ namespace level
 		}
 		case engine::Asset{ "oven" }:
 		{
-			const auto & benchDef = assetTemplate.part("oven");
+			const auto & assets = extract(assetTemplate, "oven");
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 				id,
-				render_instance_t{
-				benchDef.asset,
-				matrix });
+				CompC{
+					matrix,
+					Vector3f{ 1.f, 1.f, 1.f },
+					assets });
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_workstation(
@@ -71,14 +87,15 @@ namespace level
 		case engine::Asset{ "dude1" }:
 		case engine::Asset{ "dude2" }:
 		{
-			const auto & dudeDef = assetTemplate.part("dude");
+			const auto & assets = extract(assetTemplate, "dude");
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 				id,
-				render_instance_t{
-				dudeDef.asset,
-				matrix });
+				CompC{
+					matrix,
+					Vector3f{ 1.f, 1.f, 1.f },
+					assets });
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_worker(id);
@@ -86,14 +103,15 @@ namespace level
 		}
 		case engine::Asset{ "board" }:
 		{
-			const auto & dudeDef = assetTemplate.part("all");
+			const auto & assets = extract(assetTemplate, "all");
 
 			// register new asset in renderer
 			engine::graphics::renderer::add(
 				id,
-				render_instance_t{
-				dudeDef.asset,
-				matrix });
+				CompC{
+					matrix,
+					Vector3f{ 1.f, 1.f, 1.f },
+					assets });
 
 			break;
 		}
@@ -110,9 +128,14 @@ namespace level
 		if (engine::model::load_binary(placeholder.name))
 		{
 			engine::graphics::renderer::add_character_instance(
-				id, render_instance_t{
+				id, CompT {
+					placeholder.transform.matrix(),
+					Vector3f { 1.f, 1.f, 1.f },
 					engine::Asset{placeholder.name},
-					placeholder.transform.matrix() });
+					engine::Asset{ "dude" }});
+
+			// register new asset in gamestate
+			gameplay::gamestate::post_add_worker(id);
 		}
 		else
 		{
