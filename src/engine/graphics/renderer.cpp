@@ -21,6 +21,7 @@
 #include <engine/Asset.hpp>
 #include <engine/Command.hpp>
 #include <engine/debug.hpp>
+#include <engine/graphics/viewer.hpp>
 
 #include <atomic>
 #include <fstream>
@@ -381,6 +382,17 @@ namespace
 		}
 	};
 
+	struct Bar
+	{
+		Vector3f worldPosition;
+		float progress;
+
+		Bar(const engine::graphics::data::Bar & bar)
+			: worldPosition(bar.worldPosition)
+			, progress(bar.progress)
+		{}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
@@ -388,6 +400,7 @@ namespace
 		std::array<comp_c, 100>,
 		std::array<comp_t, 100>,
 		std::array<Character, 100>,
+		std::array<Bar, 100>,
 		std::array<linec_t, 100>
 	>
 	components;
@@ -428,6 +441,9 @@ namespace
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::CompC>,
 	                                 100> queue_asset_instances;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::Bar>,
+	                                 100> queue_add_bar;
 
 	core::container::CircleQueueSRMW<engine::Entity,
 	                                 100> queue_remove;
@@ -494,6 +510,20 @@ namespace
 			while (queue_asset_instances.try_pop(componentC))
 			{
 				components.emplace<comp_c>(componentC.first, componentC.second);
+			}
+			std::pair<engine::Entity, engine::graphics::data::Bar> barData;
+			while(queue_add_bar.try_pop(barData))
+			{
+				if (components.contains(barData.first))
+				{
+					auto & bar = components.get<Bar>(barData.first);
+					bar.worldPosition = barData.second.worldPosition;
+					bar.progress = barData.second.progress;
+				}
+				else
+				{
+					components.emplace<Bar>(barData.first, barData.second);
+				}
 			}
 		}
 	}
@@ -1198,6 +1228,47 @@ namespace
 		normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
 		// 2d
 		// ...
+		for (const Bar & component : components.get<Bar>())
+		{
+			modelview_matrix.push();
+
+			// calculate modelview of bar position in world space
+			core::maths::Vector2f screenCoord;
+			engine::graphics::viewer::from_world_to_screen(component.worldPosition, screenCoord);
+			core::maths::Vector2f::array_type b;
+			screenCoord.get_aligned(b);
+
+			Matrix4x4f modelview = make_translation_matrix(Vector3f{ b[0], b[1], 0.f });
+
+			modelview_matrix.mult(modelview);
+			glLoadMatrix(modelview_matrix);
+
+			const float WF = 28.f;
+			const float WI = WF - 2.f;
+			const float HF = 5.f;
+			const float HI = HF - 2.f;
+
+			glBegin(GL_QUADS);
+			{
+				glColor3ub(20, 20, 40);
+
+				glVertex2f(-WF, HF);
+				glVertex2f(+WF, HF);
+				glVertex2f(+WF,-HF);
+				glVertex2f(-WF,-HF);
+
+				glColor3ub(100, 255, 80);
+
+				const float ws = -WI + component.progress * WI * 2;
+				glVertex2f(-WI, HI);
+				glVertex2f(ws, HI);
+				glVertex2f(ws, -HI);
+				glVertex2f(-WI, -HI);
+			}
+			glEnd();
+
+			modelview_matrix.pop();
+		}
 
 		// swap buffers
 		engine::application::window::swap_buffers();
@@ -1317,6 +1388,11 @@ namespace engine
 			void add_character_instance(engine::Entity entity, data::CompT && data)
 			{
 				const auto res = queue_add_character_instance.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+			void add(engine::Entity entity, data::Bar && data)
+			{
+				const auto res = queue_add_bar.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
 
