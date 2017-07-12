@@ -217,6 +217,7 @@ namespace
 		core::container::Buffer triangles;
 		core::container::Buffer normals;
 		core::container::Buffer coords;
+		std::vector<engine::model::weight_t> weights;
 
 		mesh_t(engine::graphics::data::Mesh && data)
 			: modelview(core::maths::Matrix4x4f::identity())
@@ -232,6 +233,7 @@ namespace
 			, triangles(std::move(data.triangles))
 			, normals(std::move(data.normals))
 			, coords(std::move(data.uv))
+			, weights(std::move(data.weights))
 		{}
 	};
 
@@ -301,11 +303,11 @@ namespace
 	struct Character : comp_t
 	{
 		std::vector<core::maths::Matrix4x4f> matrix_pallet;
-		std::vector<core::maths::Vector4f> vertices;
+		core::container::Buffer vertices; // transformed vertices
 
 		Character(engine::graphics::data::CompT & data)
 			: comp_t(data)
-			, vertices(mesh->vertices.size())
+			, vertices(mesh->vertices) // copy so that it always contain valid data
 		{}
 
 		Character & operator = (engine::graphics::data::ModelviewMatrix && data)
@@ -331,7 +333,7 @@ namespace
 					3, // TODO
 				    GL_FLOAT, // TODO
 				    0,
-				    mesh.vertices.data());
+				    vertices.data());
 				glNormalPointer(
 					GL_FLOAT, // TODO
 				    0,
@@ -355,7 +357,7 @@ namespace
 					3, // TODO
 					GL_FLOAT, // TODO
 					0,
-					mesh.vertices.data());
+					vertices.data());
 				glNormalPointer(
 					GL_FLOAT, // TODO
 					0,
@@ -378,6 +380,19 @@ namespace
 		}
 		void update()
 		{
+			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
+			float * const transformed_vertices = vertices.data_as<float>();
+			const int nvertices = vertices.count() / 3; // assume xyz
+			for (int i = 0; i < nvertices; i++)
+			{
+				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
+				core::maths::Vector4f::array_type buffer;
+				vertex.get(buffer);
+				transformed_vertices[3 * i + 0] = buffer[0];
+				transformed_vertices[3 * i + 1] = buffer[1];
+				transformed_vertices[3 * i + 2] = buffer[2];
+				// assume buffer[3] == 1.f
+			}
 		}
 	};
 
@@ -921,7 +936,7 @@ namespace
 			glVertexPointer(3, // TODO
 			                GL_FLOAT, // TODO
 			                0,
-			                mesh.vertices.data());
+			                component.vertices.data());
 			glDrawElements(GL_TRIANGLES,
 			               mesh.triangles.count(),
 			               GL_UNSIGNED_SHORT,	// TODO

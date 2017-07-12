@@ -9,6 +9,10 @@
 
 namespace engine
 {
+namespace animation
+{
+	extern void update();
+}
 namespace graphics
 {
 namespace renderer
@@ -59,6 +63,8 @@ namespace looper
 		// 
 		while (active)
 		{
+			::engine::animation::update();
+
 			// update actors in engine
 			::engine::physics::update_start();
 

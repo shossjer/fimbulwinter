@@ -19,6 +19,14 @@ namespace core
 			std::vector<uint8_t> bytes;
 
 		public:
+			Buffer() = default;
+			Buffer(Format format, uint32_t count)
+				: format_(format)
+				, count_(count)
+				, bytes(core::format_size(format_) * count_)
+			{}
+
+		public:
 			std::size_t count() const
 			{
 				return count_;
