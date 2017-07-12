@@ -87,6 +87,16 @@ namespace engine
 				{}
 			};
 
+			struct Bar
+			{
+				// TODO: enum for type of Bar (Progress, Hitpoints, Level etc)
+
+				Vector3f worldPosition;
+
+				// value between 0.f to 1.f
+				float progress;
+			};
+
 			// modelview matrix
 			struct ModelviewMatrix
 			{
@@ -175,6 +185,7 @@ namespace engine
 			void add(engine::Entity entity, data::CompC && data);
 			void add_character_instance(
 				     engine::Entity entity, data::CompT && data);
+			void add(engine::Entity entity, data::Bar && bar);
 
 			void remove(engine::Entity entity);
 

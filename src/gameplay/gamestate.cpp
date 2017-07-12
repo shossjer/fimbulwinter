@@ -222,6 +222,7 @@ namespace
 	private:
 		engine::Entity boardModel;
 		double progress;
+		engine::Entity bar;
 
 	public:
 		Workstation(
@@ -237,6 +238,16 @@ namespace
 			, boardModel(engine::Entity::null())
 		{
 		}
+
+	private:
+
+		void barUpdate(const float progress)
+		{
+			engine::graphics::renderer::add(this->bar, engine::graphics::data::Bar{
+				to_xyz(this->top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, progress});
+		}
+
+	public:
 
 		bool isBusy()
 		{
@@ -257,12 +268,19 @@ namespace
 
 			this->boardModel = engine::Entity::create();
 			gameplay::level::load(this->boardModel, "board", this->top);
+
+			const auto pos = to_xyz(this->front.get_column<3>());
+			this->bar = engine::Entity::create();
+			barUpdate(0.f);
 		}
 
 		void cleanup()
 		{
 			engine::graphics::renderer::remove(this->boardModel);
 			this->boardModel = engine::Entity::null();
+
+			engine::graphics::renderer::remove(this->bar);
+			this->bar = engine::Entity::null();
 		}
 
 		void update()
@@ -275,7 +293,9 @@ namespace
 
 			this->progress += (1000./50.);
 
-			if (this->progress < 4. * 1000.)
+			barUpdate(static_cast<float>(this->progress / (4. * 1000.)));
+
+			if (this->progress < (4. * 1000.))
 				return;
 
 			// carrot is finished! either stop working or auto checkout a new carrot...
