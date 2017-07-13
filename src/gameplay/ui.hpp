@@ -26,9 +26,11 @@ namespace ui
 		engine::hid::Input::Button button,
 		engine::Asset context);
 	void post_add_flycontrol(
-		engine::Entity entity);
+		engine::Entity entity,
+		engine::Entity callback);
 	void post_add_pancontrol(
-		engine::Entity entity);
+		engine::Entity entity,
+		engine::Entity callback);
 	void post_add_renderhover(
 		engine::Entity entity);
 	void post_add_renderselect(

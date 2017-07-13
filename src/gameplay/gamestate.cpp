@@ -439,10 +439,12 @@ namespace gamestate
 					game_camera_pos});
 		engine::graphics::viewer::set_active_3d(game_camera);
 
-		gameplay::ui::post_add_flycontrol(debug_camera);
-		gameplay::ui::post_add_pancontrol(game_camera);
-		gameplay::ui::post_bind("debug", debug_camera, 0);
-		gameplay::ui::post_bind("game", game_camera, 0);
+		auto flycontrol = engine::Entity::create();
+		gameplay::ui::post_add_flycontrol(flycontrol, debug_camera);
+		auto pancontrol = engine::Entity::create();
+		gameplay::ui::post_add_pancontrol(pancontrol, game_camera);
+		gameplay::ui::post_bind("debug", flycontrol, 0);
+		gameplay::ui::post_bind("game", pancontrol, 0);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
