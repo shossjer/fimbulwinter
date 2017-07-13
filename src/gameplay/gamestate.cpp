@@ -6,6 +6,7 @@
 
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
+#include <engine/physics/physics.hpp>
 
 #include <gameplay/level_placeholder.hpp>
 #include <gameplay/ui.hpp>
@@ -131,21 +132,21 @@ namespace
 		void update()
 		{
 			if (move_left)
-				engine::graphics::viewer::update(
+				engine::physics::camera::update(
 					camera,
-					engine::graphics::viewer::translate({-1.f, 0.f, 0.f}));
+					Vector3f{-1.f, 0.f, 0.f});
 			if (move_right)
-				engine::graphics::viewer::update(
+				engine::physics::camera::update(
 					camera,
-					engine::graphics::viewer::translate({1.f, 0.f, 0.f}));
+					Vector3f{1.f, 0.f, 0.f});
 			if (move_up)
-				engine::graphics::viewer::update(
+				engine::physics::camera::update(
 					camera,
-					engine::graphics::viewer::translate({0.f, 0.f, -1.f}));
+					Vector3f{0.f, 0.f, -1.f});
 			if (move_down)
-				engine::graphics::viewer::update(
+				engine::physics::camera::update(
 					camera,
-					engine::graphics::viewer::translate({0.f, 0.f, 1.f}));
+					Vector3f{0.f, 0.f, 1.f});
 		}
 	};
 
@@ -417,20 +418,25 @@ namespace gamestate
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
+		Vector3f debug_camera_pos{ 0.f, 4.f, 0.f };
+		Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
 
 		components.emplace<FreeCamera>(debug_camera, debug_camera);
 		components.emplace<FreeCamera>(game_camera, game_camera);
+
+		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
+		engine::physics::camera::add(game_camera, game_camera_pos, true);
 
 		engine::graphics::viewer::add(
 				debug_camera,
 				engine::graphics::viewer::camera{
 					core::maths::Quaternionf{ 0.766f, 0.643f, 0.f, 0.f },
-					core::maths::Vector3f{0.f, 4.f, 0.f}});
+					debug_camera_pos});
 		engine::graphics::viewer::add(
 				game_camera,
 				engine::graphics::viewer::camera{
 					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{40.f/2.f}).get()), 0.f, 0.f },
-					core::maths::Vector3f{0.f, 7.f, 5.f}});
+					game_camera_pos});
 		engine::graphics::viewer::set_active_3d(game_camera);
 
 		gameplay::ui::post_add_flycontrol(debug_camera);

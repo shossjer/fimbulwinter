@@ -1,6 +1,12 @@
 
 #include "physics.hpp"
 
+#include <core/container/Collection.hpp>
+
+#include <engine/graphics/viewer.hpp>
+
+#include <limits>
+
 namespace engine
 {
 namespace physics
@@ -45,4 +51,82 @@ namespace physics
 
 	}
 }
+}
+
+namespace
+{
+	typedef std::numeric_limits<float> lim;
+
+	engine::physics::camera::Bounds bounds{
+		{-lim::max(),-lim::max(),-lim::max() },
+		{ lim::max(), lim::max(), lim::max() } };
+
+	struct Camera
+	{
+		bool bounded;
+		Vector3f position;
+
+		void update(Vector3f & movement)
+		{
+			Vector3f np = this->position + movement;
+
+			core::maths::Vector3f::array_type bmin;
+			bounds.min.get_aligned(bmin);
+			core::maths::Vector3f::array_type bmax;
+			bounds.max.get_aligned(bmax);
+
+			core::maths::Vector3f::array_type pos;
+			np.get_aligned(pos);
+
+			if (pos[0] < bmin[0]) pos[0] = bmin[0];
+			if (pos[1] < bmin[1]) pos[1] = bmin[1];
+			if (pos[2] < bmin[2]) pos[2] = bmin[2];
+
+			if (pos[0] > bmax[0]) pos[0] = bmax[0];
+			if (pos[1] > bmax[1]) pos[1] = bmax[1];
+			if (pos[2] > bmax[2]) pos[2] = bmax[2];
+
+			this->position = Vector3f{ pos[0], pos[1], pos[2] };
+		}
+	};
+
+	core::container::Collection
+	<
+		engine::Entity,
+		21,
+		std::array<Camera, 10>,
+		std::array<int, 10>
+	>
+	components;
+}
+
+// TODO: make thread safe when needed
+void engine::physics::camera::set(Bounds && bounds)
+{
+	::bounds = bounds;
+
+	for (Camera & camera : components.get<Camera>())
+	{
+		update(components.get_key(camera), Vector3f{ 0.f, 0.f, 0.f });
+	}
+}
+
+// TODO: make thread safe when needed
+void engine::physics::camera::add(engine::Entity id, Vector3f position, bool bounded)
+{
+	components.emplace<Camera>(id, Camera{ bounded, position });
+
+	update(id, Vector3f{ 0.f, 0.f, 0.f });
+}
+
+// TODO: make thread safe when needed
+void engine::physics::camera::update(engine::Entity id, Vector3f movement)
+{
+	Camera & camera = components.get<Camera>(id);
+
+	camera.update(movement);
+
+	engine::graphics::viewer::update(
+		id,
+		engine::graphics::viewer::translation{ camera.position });
 }
