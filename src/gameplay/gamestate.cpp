@@ -44,16 +44,20 @@ namespace
 	{
 		engine::Entity camera;
 
-		int move_left = 0;
-		int move_right = 0;
-		int move_down = 0;
-		int move_up = 0;
+		bool move_left = false;
+		bool move_right = false;
+		bool move_down = false;
+		bool move_up = false;
 		bool turn_left = false;
 		bool turn_right = false;
 		bool turn_down = false;
 		bool turn_up = false;
 		bool roll_left = false;
 		bool roll_right = false;
+		bool elevate_down = false;
+		bool elevate_up = false;
+
+		core::maths::Quaternionf rotation = {1.f, 0.f, 0.f, 0.f};
 
 		FreeCamera(engine::Entity camera) : camera(camera) {}
 
@@ -62,28 +66,28 @@ namespace
 			switch (std::get<0>(args))
 			{
 			case engine::Command::MOVE_LEFT_DOWN:
-				move_left++;
+				move_left = true;
 				break;
 			case engine::Command::MOVE_LEFT_UP:
-				move_left--;
+				move_left = false;
 				break;
 			case engine::Command::MOVE_RIGHT_DOWN:
-				move_right++;
+				move_right = true;
 				break;
 			case engine::Command::MOVE_RIGHT_UP:
-				move_right--;
+				move_right = false;
 				break;
 			case engine::Command::MOVE_DOWN_DOWN:
-				move_down++;
+				move_down = true;
 				break;
 			case engine::Command::MOVE_DOWN_UP:
-				move_down--;
+				move_down = false;
 				break;
 			case engine::Command::MOVE_UP_DOWN:
-				move_up++;
+				move_up = true;
 				break;
 			case engine::Command::MOVE_UP_UP:
-				move_up--;
+				move_up = false;
 				break;
 			case engine::Command::TURN_LEFT_DOWN:
 				turn_left = true;
@@ -121,8 +125,114 @@ namespace
 			case engine::Command::ROLL_RIGHT_UP:
 				roll_right = false;
 				break;
+			case engine::Command::ELEVATE_DOWN_DOWN:
+				elevate_down = true;
+				break;
+			case engine::Command::ELEVATE_DOWN_UP:
+				elevate_down = false;
+				break;
+			case engine::Command::ELEVATE_UP_DOWN:
+				elevate_up = true;
+				break;
+			case engine::Command::ELEVATE_UP_UP:
+				elevate_up = false;
+				break;
 			default:
 				debug_printline(0xffffffff, "FreeCamera: Unknown command: ", static_cast<int>(std::get<0>(args)));
+			}
+		}
+		void operator = (std::tuple<engine::Command, engine::Entity> && args)
+		{
+			debug_unreachable();
+		}
+
+		void update()
+		{
+			const float rotation_speed = make_radian(core::maths::degreef{1.f/2.f}).get();
+			if (turn_left)
+				rotation *= core::maths::Quaternionf{std::cos(rotation_speed), 0.f, std::sin(rotation_speed), 0.f};
+			if (turn_right)
+				rotation *= core::maths::Quaternionf{std::cos(-rotation_speed), 0.f, std::sin(-rotation_speed), 0.f};
+			if (turn_up)
+				rotation *= core::maths::Quaternionf{std::cos(-rotation_speed), std::sin(-rotation_speed), 0.f, 0.f};
+			if (turn_down)
+				rotation *= core::maths::Quaternionf{std::cos(rotation_speed), std::sin(rotation_speed), 0.f, 0.f};
+			if (roll_left)
+				rotation *= core::maths::Quaternionf{std::cos(rotation_speed), 0.f, 0.f, std::sin(rotation_speed)};
+			if (roll_right)
+				rotation *= core::maths::Quaternionf{std::cos(-rotation_speed), 0.f, 0.f, std::sin(-rotation_speed)};
+
+			const float movement_speed = .5f;
+			if (move_left)
+				engine::physics::camera::update(
+					camera,
+					-rotation.axis_x() * movement_speed);
+			if (move_right)
+				engine::physics::camera::update(
+					camera,
+					rotation.axis_x() * movement_speed);
+			if (move_up)
+				engine::physics::camera::update(
+					camera,
+					-rotation.axis_z() * movement_speed);
+			if (move_down)
+				engine::physics::camera::update(
+					camera,
+					rotation.axis_z() * movement_speed);
+			if (elevate_down)
+				engine::physics::camera::update(
+					camera,
+					-rotation.axis_y() * movement_speed);
+			if (elevate_up)
+				engine::physics::camera::update(
+					camera,
+					rotation.axis_y() * movement_speed);
+
+			engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation{rotation});
+		}
+	};
+
+	struct OverviewCamera
+	{
+		engine::Entity camera;
+
+		int move_left = 0;
+		int move_right = 0;
+		int move_down = 0;
+		int move_up = 0;
+
+		OverviewCamera(engine::Entity camera) : camera(camera) {}
+
+		void operator = (std::tuple<engine::Command, int> && args)
+		{
+			switch (std::get<0>(args))
+			{
+			case engine::Command::MOVE_LEFT_DOWN:
+				move_left++;
+				break;
+			case engine::Command::MOVE_LEFT_UP:
+				move_left--;
+				break;
+			case engine::Command::MOVE_RIGHT_DOWN:
+				move_right++;
+				break;
+			case engine::Command::MOVE_RIGHT_UP:
+				move_right--;
+				break;
+			case engine::Command::MOVE_DOWN_DOWN:
+				move_down++;
+				break;
+			case engine::Command::MOVE_DOWN_UP:
+				move_down--;
+				break;
+			case engine::Command::MOVE_UP_DOWN:
+				move_up++;
+				break;
+			case engine::Command::MOVE_UP_UP:
+				move_up--;
+				break;
+			default:
+				debug_printline(0xffffffff, "OverviewCamera: Unknown command: ", static_cast<int>(std::get<0>(args)));
 			}
 		}
 		void operator = (std::tuple<engine::Command, engine::Entity> && args)
@@ -320,7 +430,8 @@ namespace
 		engine::Entity,
 		141,
 		std::array<CameraActivator, 2>,
-		std::array<FreeCamera, 2>,
+		std::array<FreeCamera, 1>,
+		std::array<OverviewCamera, 1>,
 		std::array<Selector, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>
@@ -427,7 +538,7 @@ namespace gamestate
 		Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
 
 		components.emplace<FreeCamera>(debug_camera, debug_camera);
-		components.emplace<FreeCamera>(game_camera, game_camera);
+		components.emplace<OverviewCamera>(game_camera, game_camera);
 
 		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
 		engine::physics::camera::add(game_camera, game_camera_pos, true);
@@ -435,12 +546,12 @@ namespace gamestate
 		engine::graphics::viewer::add(
 				debug_camera,
 				engine::graphics::viewer::camera{
-					core::maths::Quaternionf{ 0.766f, 0.643f, 0.f, 0.f },
+					core::maths::Quaternionf{ 1.f, 0.f, 0.f, 0.f },
 					debug_camera_pos});
 		engine::graphics::viewer::add(
 				game_camera,
 				engine::graphics::viewer::camera{
-					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{40.f/2.f}).get()), 0.f, 0.f },
+					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{-40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{-40.f/2.f}).get()), 0.f, 0.f },
 					game_camera_pos});
 		engine::graphics::viewer::set_active_3d(game_camera);
 
@@ -527,6 +638,10 @@ namespace gamestate
 
 		// update
 		for (auto & camera : components.get<FreeCamera>())
+		{
+			camera.update();
+		}
+		for (auto & camera : components.get<OverviewCamera>())
 		{
 			camera.update();
 		}

@@ -104,7 +104,7 @@ namespace
 	// 	std::array<Perspective, 10>
 	// >
 	// projections;
-	Orthographic projection2D{engine::graphics::viewer::orthographic{-1., +1.}};
+	Orthographic projection2D{engine::graphics::viewer::orthographic{-100., +100.}};
 	Perspective projection3D{engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.}};
 
 	struct Camera
@@ -148,10 +148,10 @@ namespace
 		Camera & operator = (engine::graphics::renderer::Camera3D & data)
 		{
 			auto & matrix = data.view;
-			matrix = make_matrix(rotation);
+			matrix = make_matrix(conjugate(rotation));
 			matrix.set_column(3, matrix * to_xyz1(-translation));
 			auto & inv_matrix = data.inv_view;
-			inv_matrix = make_matrix(conjugate(rotation)); // conjugate = inverse, right?
+			inv_matrix = make_matrix(rotation);
 			inv_matrix.set_column(3, to_xyz1(translation));
 			return *this;
 		}

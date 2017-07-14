@@ -240,6 +240,8 @@ namespace
 		bool is_down_down_move = false;
 		bool is_down_left_roll = false;
 		bool is_down_right_roll = false;
+		bool is_down_up_elevate = false;
+		bool is_down_down_elevate = false;
 
 		Flycontrol(engine::Entity entity) : entity(entity) {}
 
@@ -320,6 +322,20 @@ namespace
 						gameplay::gamestate::post_command(entity, engine::Command::ROLL_RIGHT_DOWN);
 					}
 					return true;
+				case engine::hid::Input::Button::KEY_SPACEBAR:
+					if (!is_down_up_elevate)
+					{
+						is_down_up_elevate = true;
+						gameplay::gamestate::post_command(entity, engine::Command::ELEVATE_UP_DOWN);
+					}
+					return true;
+				case engine::hid::Input::Button::KEY_CTRL_LEFT:
+					if (!is_down_down_elevate)
+					{
+						is_down_down_elevate = true;
+						gameplay::gamestate::post_command(entity, engine::Command::ELEVATE_DOWN_DOWN);
+					}
+					return true;
 				default:
 					return false;
 				}
@@ -365,6 +381,14 @@ namespace
 				case engine::hid::Input::Button::KEY_E:
 					is_down_right_roll = false;
 					gameplay::gamestate::post_command(entity, engine::Command::ROLL_RIGHT_UP);
+					return true;
+				case engine::hid::Input::Button::KEY_SPACEBAR:
+					is_down_up_elevate = false;
+					gameplay::gamestate::post_command(entity, engine::Command::ELEVATE_UP_UP);
+					return true;
+				case engine::hid::Input::Button::KEY_CTRL_LEFT:
+					is_down_down_elevate = false;
+					gameplay::gamestate::post_command(entity, engine::Command::ELEVATE_DOWN_UP);
 					return true;
 				default:
 					return false;

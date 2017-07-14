@@ -161,6 +161,15 @@ namespace core
 				}
 				/**
 				 */
+				static derived_type scale(const T x, const T y, const T z)
+				{
+					return derived_type{x, T{0}, T{0}, T{0},
+						                T{0}, y, T{0}, T{0},
+							            T{0}, T{0}, z, T{0},
+					                    T{0}, T{0}, T{0}, T{1}};
+				}
+				/**
+				 */
 				static derived_type translation(const T x, const T y, const T z)
 				{
 					return derived_type{T{1}, T{0}, T{0}, x,

@@ -100,6 +100,20 @@ namespace
 		/**
 		 * \note Use `mult` instead.
 		 */
+		void scale(const prime_type xyz)
+		{
+			scale(xyz, xyz, xyz);
+		}
+		/**
+		 * \note Use `mult` instead.
+		 */
+		void scale(const prime_type x, const prime_type y, const prime_type z)
+		{
+			this->stack.top() *= value_type::scale(x, y, z);
+		}
+		/**
+		 * \note Use `mult` instead.
+		 */
 		void translate(const prime_type x, const prime_type y, const prime_type z)
 		{
 			this->stack.top() *= value_type::translation(x, y, z);

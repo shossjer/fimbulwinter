@@ -116,8 +116,8 @@ namespace core
 				const auto y = this->values[2];
 				const auto z = this->values[3];
 
-				return Vector<3, value_type>{w * w + x * x - y * y - z * z,
-				                             2 * (w * z + x * y),
+				return Vector<3, value_type>{1 - 2 * (y * y + z * z),
+				                             2 * (x * y + w * z),
 				                             2 * (x * z - w * y)};
 			}
 			/*
@@ -131,8 +131,8 @@ namespace core
 				const auto z = this->values[3];
 
 				return Vector<3, value_type>{2 * (x * y - w * z),
-				                             w * w - x * x + y * y - z * z,
-				                             2 * (w * x + y * z)};
+				                             1 - 2 * (x * x + z * z),
+				                             2 * (y * z + w * x)};
 			}
 			/*
 			 * The z-axis points out of the screen.
@@ -144,9 +144,9 @@ namespace core
 				const auto y = this->values[2];
 				const auto z = this->values[3];
 
-				return Vector<3, value_type>{2 * (w * y + x * z),
+				return Vector<3, value_type>{2 * (x * z + w * y),
 				                             2 * (y * z - w * x),
-				                             w * w - x * x - y * y + z * z};
+				                             1 - 2 * (x * x + y * y)};
 			}
 
 			Scalar<value_type> length() const

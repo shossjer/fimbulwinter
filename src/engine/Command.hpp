@@ -7,6 +7,10 @@ namespace engine
 	enum class Command : int
 	{
 		CONTEXT_CHANGED,
+		ELEVATE_DOWN_DOWN,
+		ELEVATE_DOWN_UP,
+		ELEVATE_UP_DOWN,
+		ELEVATE_UP_UP,
 		MOVE_DOWN_DOWN,
 		MOVE_DOWN_UP,
 		MOVE_LEFT_DOWN,
