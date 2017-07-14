@@ -25,6 +25,9 @@ namespace ui
 		engine::Entity entity,
 		engine::hid::Input::Button button,
 		engine::Asset context);
+	void post_add_bordercontrol(
+		engine::Entity entity,
+		engine::Entity callback);
 	void post_add_flycontrol(
 		engine::Entity entity,
 		engine::Entity callback);

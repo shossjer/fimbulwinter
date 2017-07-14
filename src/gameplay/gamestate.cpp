@@ -43,10 +43,10 @@ namespace
 	{
 		engine::Entity camera;
 
-		bool move_left = false;
-		bool move_right = false;
-		bool move_down = false;
-		bool move_up = false;
+		int move_left = 0;
+		int move_right = 0;
+		int move_down = 0;
+		int move_up = 0;
 		bool turn_left = false;
 		bool turn_right = false;
 		bool turn_down = false;
@@ -61,28 +61,28 @@ namespace
 			switch (std::get<0>(args))
 			{
 			case engine::Command::MOVE_LEFT_DOWN:
-				move_left = true;
+				move_left++;
 				break;
 			case engine::Command::MOVE_LEFT_UP:
-				move_left = false;
+				move_left--;
 				break;
 			case engine::Command::MOVE_RIGHT_DOWN:
-				move_right = true;
+				move_right++;
 				break;
 			case engine::Command::MOVE_RIGHT_UP:
-				move_right = false;
+				move_right--;
 				break;
 			case engine::Command::MOVE_DOWN_DOWN:
-				move_down = true;
+				move_down++;
 				break;
 			case engine::Command::MOVE_DOWN_UP:
-				move_down = false;
+				move_down--;
 				break;
 			case engine::Command::MOVE_UP_DOWN:
-				move_up = true;
+				move_up++;
 				break;
 			case engine::Command::MOVE_UP_UP:
-				move_up = false;
+				move_up--;
 				break;
 			case engine::Command::TURN_LEFT_DOWN:
 				turn_left = true;
@@ -131,19 +131,19 @@ namespace
 
 		void update()
 		{
-			if (move_left)
+			if (move_left > 0)
 				engine::physics::camera::update(
 					camera,
 					Vector3f{-1.f, 0.f, 0.f});
-			if (move_right)
+			if (move_right > 0)
 				engine::physics::camera::update(
 					camera,
 					Vector3f{1.f, 0.f, 0.f});
-			if (move_up)
+			if (move_up > 0)
 				engine::physics::camera::update(
 					camera,
 					Vector3f{0.f, 0.f, -1.f});
-			if (move_down)
+			if (move_down > 0)
 				engine::physics::camera::update(
 					camera,
 					Vector3f{0.f, 0.f, 1.f});
@@ -439,12 +439,15 @@ namespace gamestate
 					game_camera_pos});
 		engine::graphics::viewer::set_active_3d(game_camera);
 
+		auto bordercontrol = engine::Entity::create();
+		gameplay::ui::post_add_bordercontrol(bordercontrol, game_camera);
 		auto flycontrol = engine::Entity::create();
 		gameplay::ui::post_add_flycontrol(flycontrol, debug_camera);
 		auto pancontrol = engine::Entity::create();
 		gameplay::ui::post_add_pancontrol(pancontrol, game_camera);
 		gameplay::ui::post_bind("debug", flycontrol, 0);
 		gameplay::ui::post_bind("game", pancontrol, 0);
+		gameplay::ui::post_bind("game", bordercontrol, 0);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
