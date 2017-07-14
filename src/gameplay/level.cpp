@@ -170,6 +170,10 @@ namespace gameplay
 				read_level(ifile, level);
 			}
 
+			engine::physics::camera::set(engine::physics::camera::Bounds{
+				Vector3f{-6.f, 0.f, -4.f},
+				Vector3f{6.f, 10.f, 12.f} });
+
 			for (const auto & data : level.statics)
 			{
 				const engine::Asset asset = data.name;

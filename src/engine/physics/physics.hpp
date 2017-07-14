@@ -17,6 +17,32 @@ namespace engine
 {
 namespace physics
 {
+	namespace camera
+	{
+		struct Bounds
+		{
+			Vector3f min;
+			Vector3f max;
+		};
+
+		/**
+		 *	Sets the "bounds" used when updating an bounded Camera.
+		 *
+		 *	Should be based on the game level.
+		 */
+		void set(Bounds && bounds);
+		/**
+		 *	Register a Camera with an axis aligned bounding box
+		 *
+		 *	The bounding volume is set using the coordinate of the "min" corner
+		 *	of the volume and the coordinate of the "max" corner of the volume.
+		 */
+		void add(engine::Entity camera, Vector3f position, bool bounded = true);
+		/**
+		 *	Update movement of the camera within its bounds.
+		 */
+		void update(engine::Entity camera, Vector3f movement);
+	}
 	/**
 	 *	\note manages creation and removal of actors
 	 */

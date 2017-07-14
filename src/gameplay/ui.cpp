@@ -3,6 +3,7 @@
 
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
+#include <core/container/ExchangeQueue.hpp>
 #include <core/debug.hpp>
 
 #include <engine/Command.hpp>
@@ -34,6 +35,13 @@ namespace gamestate
 
 namespace
 {
+	struct dimension_t
+	{
+		int32_t width, height;
+	};
+
+	dimension_t dimension = { 0, 0 };
+
 	////////////////////////////////////////////////////////////
 	//
 	//  Context
@@ -133,6 +141,88 @@ namespace
 			default:
 				return false;
 			}
+		}
+	};
+
+	struct Bordercontrol
+	{
+	private:
+
+		static constexpr int MARGIN = 10;
+		// TODO: have common definition like the Command enum
+		static constexpr int FLEFT = 1 << 0;
+		static constexpr int FRIGHT = 1 << 1;
+		static constexpr int FTOP = 1 << 2;
+		static constexpr int FBOTTOM = 1 << 3;
+
+		// entity used when reporting Border messages.
+		// this is not the entity of the Control-object itself.
+		engine::Entity callback;
+
+		int flags;
+
+	public:
+
+		Bordercontrol(engine::Entity callback) : callback(callback) {}
+
+		bool translate(const engine::hid::Input & input)
+		{
+			if (input.getState() != engine::hid::Input::State::MOVE)
+				return false;
+
+			const auto BL = MARGIN;
+			const auto BR = dimension.width - MARGIN;
+			const auto BT = MARGIN;
+			const auto BB = dimension.height - MARGIN;
+
+			unsigned int flags = 0;
+
+			if (input.getCursor().x <= BL) flags|= FLEFT;
+			else
+			if (input.getCursor().x >= BR) flags|= FRIGHT;
+
+			if (input.getCursor().y <= BT) flags|= FTOP;
+			else
+			if (input.getCursor().y >= BB) flags|= FBOTTOM;
+
+			if (this->flags != flags)
+			{
+				const int changes = this->flags ^ flags;
+
+				this->flags = flags;
+
+				if ((changes & FLEFT) != 0)
+				{
+					if ((flags & FLEFT) != 0)
+						gameplay::gamestate::post_command(this->callback, engine::Command::MOVE_LEFT_DOWN);
+					else
+						gameplay::gamestate::post_command(this->callback, engine::Command::MOVE_LEFT_UP);
+				}
+				if ((changes & FRIGHT) != 0)
+				{
+					if ((flags & FRIGHT) != 0)
+						gameplay::gamestate::post_command(this->callback, engine::Command::MOVE_RIGHT_DOWN);
+					else
+						gameplay::gamestate::post_command(this->callback, engine::Command::MOVE_RIGHT_UP);
+				}
+				if ((changes & FTOP) != 0)
+				{
+					if ((flags & FTOP) != 0)
+						gameplay::gamestate::post_command(this->callback, engine::Command::MOVE_UP_DOWN);
+					else
+						gameplay::gamestate::post_command(this->callback, engine::Command::MOVE_UP_UP);
+				}
+				if ((changes & FBOTTOM) != 0)
+				{
+					if ((flags & FBOTTOM) != 0)
+						gameplay::gamestate::post_command(this->callback, engine::Command::MOVE_DOWN_DOWN);
+					else
+						gameplay::gamestate::post_command(this->callback, engine::Command::MOVE_DOWN_UP);
+				}
+			}
+
+			// others needs mouse movement too
+			return false;
 		}
 	};
 
@@ -446,6 +536,7 @@ namespace
 		engine::Entity,
 		81,
 		std::array<ContextSwitch, 10>,
+		std::array<Bordercontrol, 10>,
 		std::array<Flycontrol, 10>,
 		std::array<Pancontrol, 10>,
 		std::array<RenderHover, 10>,
@@ -467,6 +558,8 @@ namespace
 		}
 	};
 
+	core::container::ExchangeQueueSRSW<dimension_t> queue_dimension;
+
 	core::container::CircleQueueSRMW<engine::hid::Input, 100> queue_input;
 
 	core::container::CircleQueueSRMW<engine::Asset, 10> queue_add_context;
@@ -474,8 +567,9 @@ namespace
 	core::container::CircleQueueSRMW<engine::Asset, 10> queue_activate_context;
 
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button, engine::Asset>, 10> queue_add_contextswitch;
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_flycontrol;
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_pancontrol;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_bordercontrol;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_flycontrol;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_pancontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderhover;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderselect;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button>, 10> queue_add_renderswitch;
@@ -501,6 +595,15 @@ namespace ui
 
 	void update()
 	{
+		//
+		// read notifications
+		//
+		dimension_t notification_dimension;
+		if (queue_dimension.try_pop(notification_dimension))
+		{
+			dimension = notification_dimension;
+		}
+
 		// context
 		{
 			engine::Asset context;
@@ -525,15 +628,18 @@ namespace ui
 			{
 				components.emplace<ContextSwitch>(std::get<0>(contextswitch_args), std::get<0>(contextswitch_args), std::get<1>(contextswitch_args), std::get<2>(contextswitch_args));
 			}
-			std::tuple<engine::Entity, int> flycontrol_args;
-			while (queue_add_flycontrol.try_pop(flycontrol_args))
+			std::tuple<engine::Entity, engine::Entity> control_args;
+			while (queue_add_bordercontrol.try_pop(control_args))
 			{
-				components.emplace<Flycontrol>(std::get<0>(flycontrol_args), std::get<0>(flycontrol_args));
+				components.emplace<Bordercontrol>(std::get<0>(control_args), std::get<1>(control_args));
 			}
-			std::tuple<engine::Entity, int> pancontrol_args;
-			while (queue_add_pancontrol.try_pop(pancontrol_args))
+			while (queue_add_flycontrol.try_pop(control_args))
 			{
-				components.emplace<Pancontrol>(std::get<0>(pancontrol_args), std::get<0>(pancontrol_args));
+				components.emplace<Flycontrol>(std::get<0>(control_args), std::get<1>(control_args));
+			}
+			while (queue_add_pancontrol.try_pop(control_args))
+			{
+				components.emplace<Pancontrol>(std::get<0>(control_args), std::get<1>(control_args));
 			}
 			std::tuple<engine::Entity, int> renderhover_args;
 			while (queue_add_renderhover.try_pop(renderhover_args))
@@ -585,6 +691,11 @@ namespace ui
 		}
 	}
 
+	void notify_resize(const int width, const int height)
+	{
+		queue_dimension.try_push(width, height);
+	}
+
 	void notify_input(const engine::hid::Input & input)
 	{
 		const auto res = queue_input.try_push(input);
@@ -618,16 +729,25 @@ namespace ui
 		const auto res = queue_add_contextswitch.try_emplace(entity, button, context);
 		debug_assert(res);
 	}
-	void post_add_flycontrol(
-		engine::Entity entity)
+	void post_add_bordercontrol(
+		engine::Entity entity,
+		engine::Entity callback)
 	{
-		const auto res = queue_add_flycontrol.try_emplace(entity, 0);
+		const auto res = queue_add_bordercontrol.try_emplace(entity, callback);
+		debug_assert(res);
+	}
+	void post_add_flycontrol(
+		engine::Entity entity,
+		engine::Entity callback)
+	{
+		const auto res = queue_add_flycontrol.try_emplace(entity, callback);
 		debug_assert(res);
 	}
 	void post_add_pancontrol(
-		engine::Entity entity)
+		engine::Entity entity,
+		engine::Entity callback)
 	{
-		const auto res = queue_add_pancontrol.try_emplace(entity, 0);
+		const auto res = queue_add_pancontrol.try_emplace(entity, callback);
 		debug_assert(res);
 	}
 	void post_add_renderhover(

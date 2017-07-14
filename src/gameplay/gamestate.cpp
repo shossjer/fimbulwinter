@@ -6,6 +6,7 @@
 
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
+#include <engine/physics/physics.hpp>
 
 #include <gameplay/level_placeholder.hpp>
 #include <gameplay/ui.hpp>
@@ -42,10 +43,10 @@ namespace
 	{
 		engine::Entity camera;
 
-		bool move_left = false;
-		bool move_right = false;
-		bool move_down = false;
-		bool move_up = false;
+		int move_left = 0;
+		int move_right = 0;
+		int move_down = 0;
+		int move_up = 0;
 		bool turn_left = false;
 		bool turn_right = false;
 		bool turn_down = false;
@@ -60,28 +61,28 @@ namespace
 			switch (std::get<0>(args))
 			{
 			case engine::Command::MOVE_LEFT_DOWN:
-				move_left = true;
+				move_left++;
 				break;
 			case engine::Command::MOVE_LEFT_UP:
-				move_left = false;
+				move_left--;
 				break;
 			case engine::Command::MOVE_RIGHT_DOWN:
-				move_right = true;
+				move_right++;
 				break;
 			case engine::Command::MOVE_RIGHT_UP:
-				move_right = false;
+				move_right--;
 				break;
 			case engine::Command::MOVE_DOWN_DOWN:
-				move_down = true;
+				move_down++;
 				break;
 			case engine::Command::MOVE_DOWN_UP:
-				move_down = false;
+				move_down--;
 				break;
 			case engine::Command::MOVE_UP_DOWN:
-				move_up = true;
+				move_up++;
 				break;
 			case engine::Command::MOVE_UP_UP:
-				move_up = false;
+				move_up--;
 				break;
 			case engine::Command::TURN_LEFT_DOWN:
 				turn_left = true;
@@ -130,22 +131,22 @@ namespace
 
 		void update()
 		{
-			if (move_left)
-				engine::graphics::viewer::update(
+			if (move_left > 0)
+				engine::physics::camera::update(
 					camera,
-					engine::graphics::viewer::translate({-1.f, 0.f, 0.f}));
-			if (move_right)
-				engine::graphics::viewer::update(
+					Vector3f{-1.f, 0.f, 0.f});
+			if (move_right > 0)
+				engine::physics::camera::update(
 					camera,
-					engine::graphics::viewer::translate({1.f, 0.f, 0.f}));
-			if (move_up)
-				engine::graphics::viewer::update(
+					Vector3f{1.f, 0.f, 0.f});
+			if (move_up > 0)
+				engine::physics::camera::update(
 					camera,
-					engine::graphics::viewer::translate({0.f, 0.f, -1.f}));
-			if (move_down)
-				engine::graphics::viewer::update(
+					Vector3f{0.f, 0.f, -1.f});
+			if (move_down > 0)
+				engine::physics::camera::update(
 					camera,
-					engine::graphics::viewer::translate({0.f, 0.f, 1.f}));
+					Vector3f{0.f, 0.f, 1.f});
 		}
 	};
 
@@ -222,6 +223,7 @@ namespace
 	private:
 		engine::Entity boardModel;
 		double progress;
+		engine::Entity bar;
 
 	public:
 		Workstation(
@@ -237,6 +239,16 @@ namespace
 			, boardModel(engine::Entity::null())
 		{
 		}
+
+	private:
+
+		void barUpdate(const float progress)
+		{
+			engine::graphics::renderer::add(this->bar, engine::graphics::data::Bar{
+				to_xyz(this->top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, progress});
+		}
+
+	public:
 
 		bool isBusy()
 		{
@@ -257,12 +269,19 @@ namespace
 
 			this->boardModel = engine::Entity::create();
 			gameplay::level::load(this->boardModel, "board", this->top);
+
+			const auto pos = to_xyz(this->front.get_column<3>());
+			this->bar = engine::Entity::create();
+			barUpdate(0.f);
 		}
 
 		void cleanup()
 		{
 			engine::graphics::renderer::remove(this->boardModel);
 			this->boardModel = engine::Entity::null();
+
+			engine::graphics::renderer::remove(this->bar);
+			this->bar = engine::Entity::null();
 		}
 
 		void update()
@@ -275,7 +294,9 @@ namespace
 
 			this->progress += (1000./50.);
 
-			if (this->progress < 4. * 1000.)
+			barUpdate(static_cast<float>(this->progress / (4. * 1000.)));
+
+			if (this->progress < (4. * 1000.))
 				return;
 
 			// carrot is finished! either stop working or auto checkout a new carrot...
@@ -397,26 +418,36 @@ namespace gamestate
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
+		Vector3f debug_camera_pos{ 0.f, 4.f, 0.f };
+		Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
 
 		components.emplace<FreeCamera>(debug_camera, debug_camera);
 		components.emplace<FreeCamera>(game_camera, game_camera);
+
+		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
+		engine::physics::camera::add(game_camera, game_camera_pos, true);
 
 		engine::graphics::viewer::add(
 				debug_camera,
 				engine::graphics::viewer::camera{
 					core::maths::Quaternionf{ 0.766f, 0.643f, 0.f, 0.f },
-					core::maths::Vector3f{0.f, 4.f, 0.f}});
+					debug_camera_pos});
 		engine::graphics::viewer::add(
 				game_camera,
 				engine::graphics::viewer::camera{
 					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{40.f/2.f}).get()), 0.f, 0.f },
-					core::maths::Vector3f{0.f, 7.f, 5.f}});
+					game_camera_pos});
 		engine::graphics::viewer::set_active_3d(game_camera);
 
-		gameplay::ui::post_add_flycontrol(debug_camera);
-		gameplay::ui::post_add_pancontrol(game_camera);
-		gameplay::ui::post_bind("debug", debug_camera, 0);
-		gameplay::ui::post_bind("game", game_camera, 0);
+		auto bordercontrol = engine::Entity::create();
+		gameplay::ui::post_add_bordercontrol(bordercontrol, game_camera);
+		auto flycontrol = engine::Entity::create();
+		gameplay::ui::post_add_flycontrol(flycontrol, debug_camera);
+		auto pancontrol = engine::Entity::create();
+		gameplay::ui::post_add_pancontrol(pancontrol, game_camera);
+		gameplay::ui::post_bind("debug", flycontrol, 0);
+		gameplay::ui::post_bind("game", pancontrol, 0);
+		gameplay::ui::post_bind("game", bordercontrol, 0);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();

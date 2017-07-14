@@ -16,6 +16,13 @@
 
 #include <stdexcept>
 
+namespace gameplay
+{
+	namespace ui
+	{
+		extern void notify_resize(const int width, const int height);
+	}
+}
 namespace engine
 {
 	namespace graphics
@@ -235,6 +242,8 @@ namespace
 			case Expose:
 				engine::graphics::viewer::notify_resize(event.xexpose.width,
 				                                        event.xexpose.height);
+				gameplay::ui::notify_resize(event.xexpose.width,
+				                            event.xexpose.height);
 				break;
 			case KeyPress:
 				engine::hid::key_press(event.xkey.keycode,
