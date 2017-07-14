@@ -1,11 +1,14 @@
 
 #include "level_placeholder.hpp"
 
+#include <engine/animation/mixer.hpp>
 #include <engine/model/loader.hpp>
 
 #include <core/maths/algorithm.hpp>
 
 #include <gameplay/gamestate.hpp>
+
+#include <utility/string.hpp>
 
 #include <fstream>
 
@@ -133,6 +136,8 @@ namespace level
 					Vector3f { 1.f, 1.f, 1.f },
 					engine::Asset{placeholder.name},
 					engine::Asset{ "dude" }});
+			engine::animation::add(id, engine::animation::armature{utility::to_string("res/", placeholder.name, ".arm")});
+			engine::animation::update(id, engine::animation::action{"idle", true});
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_worker(id);
