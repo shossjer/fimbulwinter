@@ -4,6 +4,7 @@
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 
+#include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 #include <engine/physics/physics.hpp>
@@ -257,6 +258,8 @@ namespace
 
 		void start()
 		{
+			engine::animation::update(this->worker, engine::animation::action{"work", true});
+
 			if (this->boardModel!= engine::Entity::null()) return;
 
 			if (!storage.checkoutRawCarrot())
@@ -277,6 +280,8 @@ namespace
 
 		void cleanup()
 		{
+			engine::animation::update(this->worker, engine::animation::action{"idle", true});
+
 			engine::graphics::renderer::remove(this->boardModel);
 			this->boardModel = engine::Entity::null();
 
