@@ -193,6 +193,9 @@ namespace engine
 			void update(engine::Entity entity, data::ModelviewMatrix data);
 			// void update(engine::Entity entity, CharacterSkinning data);
 
+			void post_make_selectable(engine::Entity entity);
+			void post_make_nonselectable(engine::Entity entity);
+
 			void post_select(int x, int y, engine::Entity entity);
 
 			void toggle_down();

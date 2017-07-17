@@ -58,6 +58,7 @@ namespace level
 					matrix,
 					Vector3f{ 1.f, 1.f, 1.f },
 					assets });
+			engine::graphics::renderer::post_make_selectable(id);
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_workstation(
@@ -78,6 +79,7 @@ namespace level
 					matrix,
 					Vector3f{ 1.f, 1.f, 1.f },
 					assets });
+			engine::graphics::renderer::post_make_selectable(id);
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_workstation(
@@ -136,6 +138,7 @@ namespace level
 					Vector3f { 1.f, 1.f, 1.f },
 					engine::Asset{placeholder.name},
 					engine::Asset{ "dude" }});
+			engine::graphics::renderer::post_make_selectable(id);
 			engine::animation::add(id, engine::animation::armature{utility::to_string("res/", placeholder.name, ".arm")});
 			engine::animation::update(id, engine::animation::action{"idle", true});
 

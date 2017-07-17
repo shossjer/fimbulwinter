@@ -209,6 +209,8 @@ namespace
 		core::container::Buffer edges;
 		engine::graphics::opengl::Color4ub color;
 
+		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
+
 		linec_t(engine::graphics::data::LineC && data) :
 			modelview(std::move(data.modelview)),
 			vertices(std::move(data.vertices)),
@@ -281,6 +283,8 @@ namespace
 		Vector3f scale;
 		std::vector<asset> assets;
 
+		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
+
 		comp_c(engine::graphics::data::CompC & data)
 			: modelview(data.modelview)
 			, scale(data.scale)
@@ -306,6 +310,8 @@ namespace
 
 		const mesh_t * mesh;
 		const texture_t * texture;
+
+		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
 
 		comp_t(engine::graphics::data::CompT & data)
 			: modelview(data.modelview)
@@ -433,6 +439,18 @@ namespace
 		std::array<linec_t, 100>
 	>
 	components;
+
+	struct set_selectable_color
+	{
+		engine::graphics::opengl::Color4ub color;
+
+		void operator () (Bar & x) {}
+		template <typename T>
+		void operator () (T & x)
+		{
+			x.selectable_color = color;
+		}
+	};
 }
 
 namespace
@@ -485,6 +503,9 @@ namespace
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::renderer::CharacterSkinning>,
 	                                 100> queue_update_characterskinning;
+
+	core::container::CircleQueueSRMW<engine::Entity, 100> queue_make_selectable;
+	core::container::CircleQueueSRMW<engine::Entity, 100> queue_make_nonselectable;
 
 	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity>, 10> queue_select;
 
@@ -553,6 +574,27 @@ namespace
 				{
 					components.emplace<Bar>(barData.first, barData.second);
 				}
+			}
+		}
+
+		//
+		{
+			engine::Entity message_make_selectable;
+			while (queue_make_selectable.try_pop(message_make_selectable))
+			{
+				const engine::Entity entity = message_make_selectable;
+				const engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
+				                                                  (entity & 0x0000ff00) >> 8,
+				                                                  (entity & 0x00ff0000) >> 16,
+				                                                  (entity & 0xff000000) >> 24};
+				components.call(entity, set_selectable_color{color});
+			}
+			engine::Entity message_make_nonselectable;
+			while (queue_make_nonselectable.try_pop(message_make_nonselectable))
+			{
+				const engine::Entity entity = message_make_nonselectable;
+				const engine::graphics::opengl::Color4ub color = {0, 0, 0, 0};
+				components.call(entity, set_selectable_color{color});
 			}
 		}
 	}
@@ -939,14 +981,8 @@ namespace
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
-			engine::Entity entity = components.get_key(component);
-			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
-			                                            (entity & 0x0000ff00) >> 8,
-			                                            (entity & 0x00ff0000) >> 16,
-			                                            (entity & 0xff000000) >> 24};
-
 			glLineWidth(2.f);
-			glColor(color);
+			glColor(component.selectable_color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
 			                static_cast<GLenum>(component.vertices.format()), // TODO
@@ -969,13 +1005,7 @@ namespace
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
-			engine::Entity entity = components.get_key(component);
-			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
-			                                            (entity & 0x0000ff00) >> 8,
-			                                            (entity & 0x00ff0000) >> 16,
-			                                            (entity & 0xff000000) >> 24};
-
-			glColor(color);
+			glColor(component.selectable_color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
 			                GL_FLOAT, // TODO
@@ -997,13 +1027,7 @@ namespace
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
-			engine::Entity entity = components.get_key(component);
-			engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
-			                                            (entity & 0x0000ff00) >> 8,
-			                                            (entity & 0x00ff0000) >> 16,
-			                                            (entity & 0xff000000) >> 24};
-
-			glColor(color);
+			glColor(component.selectable_color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
 			                static_cast<GLenum>(mesh.vertices.format()), // TODO
@@ -1024,13 +1048,7 @@ namespace
 				modelview_matrix.mult(component.modelview);
 				glLoadMatrix(modelview_matrix);
 
-				engine::Entity entity = components.get_key(component);
-				engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
-				                                            (entity & 0x0000ff00) >> 8,
-				                                            (entity & 0x00ff0000) >> 16,
-				                                            (entity & 0xff000000) >> 24};
-
-				glColor(color);
+				glColor(component.selectable_color);
 				glEnableClientState(GL_VERTEX_ARRAY);
 				for (const auto & a : component.assets)
 				{
@@ -1440,6 +1458,17 @@ namespace engine
 			void update(engine::Entity entity, CharacterSkinning data)
 			{
 				const auto res = queue_update_characterskinning.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+
+			void post_make_selectable(engine::Entity entity)
+			{
+				const auto res = queue_make_selectable.try_push(entity);
+				debug_assert(res);
+			}
+			void post_make_nonselectable(engine::Entity entity)
+			{
+				const auto res = queue_make_nonselectable.try_push(entity);
 				debug_assert(res);
 			}
 
