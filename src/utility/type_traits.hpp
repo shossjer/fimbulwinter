@@ -12,7 +12,7 @@ namespace mpl
 {
 	////////////////////////////////////////////////////////////////////////////
 	//
-	//  std-extensions
+	//  std
 	//
 	//////////////////////////////////////////////////////////////////
 	// true/false type
@@ -23,7 +23,7 @@ namespace mpl
 	using std::integral_constant;
 
 	template <bool Value>
-	using boolean_constant = integral_constant<bool, Value>;
+	using bool_constant = integral_constant<bool, Value>;
 	template <std::size_t Value>
 	using index_constant = integral_constant<std::size_t, Value>;
 
@@ -53,6 +53,20 @@ namespace mpl
 	template <std::size_t Len, std::size_t Align>
 	using aligned_storage_t = typename std::aligned_storage<Len, Align>::type;
 
+	// conjunction
+	template <typename ...Bs>
+	struct conjunction : true_type {};
+	template <typename B1, typename ...Bs>
+	struct conjunction<B1, Bs...> : conditional_t<bool(B1::value), conjunction<Bs...>, B1> {};
+	// disjunction
+	template <typename ...Bs>
+	struct disjunction : false_type {};
+	template <typename B1, typename ...Bs>
+	struct disjunction<B1, Bs...> : conditional_t<bool(B1::value), B1, disjunction<Bs...>> {};
+	// negation
+	template <typename B>
+	struct negation : bool_constant<!bool(B::value)> {};
+
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  helper classes
@@ -64,15 +78,31 @@ namespace mpl
 		using type = T;
 	};
 
+	template <typename ...Ts>
+	struct type_list
+	{
+		enum { size = sizeof...(Ts) };
+	};
+
 	template <typename ...>
 	struct void_impl : type_is<void> {};
-	template <typename ...Ps>
-	using void_t = typename void_impl<Ps...>::type;
-
-	template <typename T, typename ...>
-	struct first_impl : type_is<T> {};
 	template <typename ...Ts>
-	using first_t = typename first_impl<Ts...>::type;
+	using void_t = typename void_impl<Ts...>::type;
+
+	////////////////////////////////////////////////////////////////////////////
+	//
+	//  std-extensions
+	//
+	//////////////////////////////////////////////////////////////////
+	template <typename ...Ts>
+	struct is_same : is_same<type_list<Ts...>> {};
+	template <>
+	struct is_same<type_list<>> : true_type {};
+	template <typename T1, typename ...Ts>
+	struct is_same<type_list<T1, Ts...>> : conjunction<std::is_same<T1, Ts>...> {};
+
+	template <typename ...Ts>
+	using is_different = negation<is_same<Ts...>>;
 
 	////////////////////////////////////////////////////////////////////////////
 	//
@@ -80,33 +110,27 @@ namespace mpl
 	//
 	//////////////////////////////////////////////////////////////////
 	template <typename ...Ts>
-	struct type_list
-	{
-		enum { size = sizeof...(Ts) };
-	};
+	struct car_impl : car_impl<type_list<Ts...>> {};
+	template <typename T1, typename ...Ts>
+	struct car_impl<type_list<T1, Ts...>> : type_is<T1> {};
+	template <typename ...Ts>
+	using car = typename car_impl<Ts...>::type;
 
-	template <typename List>
-	struct type_head_impl;
-	template <typename Head, typename ...Tail>
-	struct type_head_impl<type_list<Head, Tail...>> : type_is<Head> {};
-	template <typename List>
-	using type_head = typename type_head_impl<List>::type;
+	template <typename ...Ts>
+	struct cdr_impl : cdr_impl<type_list<Ts...>> {};
+	template <typename T1, typename ...Ts>
+	struct cdr_impl<type_list<T1, Ts...>> : type_is<type_list<Ts...>> {};
+	template <typename ...Ts>
+	using cdr = typename cdr_impl<Ts...>::type;
 
-	template <typename List>
-	struct type_tail_impl;
-	template <typename Head, typename ...Tail>
-	struct type_tail_impl<type_list<Head, Tail...>> : type_is<type_list<Tail...>> {};
-	template <typename List>
-	using type_tail = typename type_tail_impl<List>::type;
-
-	template <std::size_t N, typename List>
-	struct type_at_impl;
+	template <std::size_t N, typename ...Ts>
+	struct type_at_impl : type_at_impl<N, type_list<Ts...>> {};
 	template <std::size_t N, typename T, typename ...Ts>
 	struct type_at_impl<N, type_list<T, Ts...>> : type_at_impl<(N - 1), type_list<Ts...>> {};
 	template <typename T, typename ...Ts>
 	struct type_at_impl<0, type_list<T, Ts...>> : type_is<T> {};
-	template <std::size_t N, typename List>
-	using type_at = typename type_at_impl<N, List>::type;
+	template <std::size_t N, typename ...List>
+	using type_at = typename type_at_impl<N, List...>::type;
 
 	template <bool C, std::size_t N, typename List, typename Default>
 	struct type_at_or_impl : type_is<Default> {};
@@ -124,24 +148,20 @@ namespace mpl
 	template <template <typename ...> class P, typename List, typename ...Args>
 	using type_filter = typename type_filter_impl<P, List, type_list<>, Args...>::type;
 
-	template <typename T, typename List>
-	struct member_of
-		: member_of<T, type_tail<List>> {};
-	template <typename T>
-	struct member_of<T, type_list<>>
-		: false_type {};
 	template <typename T, typename ...Ts>
-	struct member_of<T, type_list<T, Ts...>>
-		: true_type {};
+	struct index_of : index_of<T, type_list<Ts...>> {};
+	template <typename T, typename ...Ts>
+	struct index_of<T, type_list<T, Ts...>> :
+		index_constant<0> {};
+	template <typename T, typename T1, typename ...Ts>
+	struct index_of<T, type_list<T1, Ts...>> :
+		index_constant<index_of<T, type_list<Ts...>>::value + 1> {};
 
-	template <typename T, typename List>
-	struct index_of;
 	template <typename T, typename ...Ts>
-	struct index_of<T, type_list<T, Ts...>>
-		: index_constant<0> {};
-	template <typename T, typename U, typename ...Ts>
-	struct index_of<T, type_list<U, Ts...>>
-		: index_constant<index_of<T, type_list<Ts...>>::value + 1> {};
+	struct member_of : member_of<T, type_list<Ts...>> {};
+	template <typename T, typename ...Ts>
+	struct member_of<T, type_list<Ts...>> :
+		disjunction<is_same<T, Ts>...> {};
 
 	////////////////////////////////////////////////////////////////////////////
 	//
@@ -150,7 +170,10 @@ namespace mpl
 	//////////////////////////////////////////////////////////////////
 	// integral_sequence
 	template <typename T, T ...Ns>
-	struct integral_sequence {};
+	struct integral_sequence
+	{
+		enum { size = sizeof...(Ns) };
+	};
 
 	template <std::size_t ...Ns>
 	using index_sequence = integral_sequence<std::size_t, Ns...>;
@@ -292,54 +315,55 @@ namespace mpl
 	template <typename T, T N1, T N2, T ...Ns>
 	struct integral_sum<integral_sequence<T, N1, N2, Ns...>> : integral_sum<integral_sequence<T, (N1 + N2), Ns...>> {};
 
-	///////////////////
+	////////////////////////////////////////////////////////////////////////////
 	//
+	//  best convertible
 	//
-	//
-	/////////////////
+	//////////////////////////////////////////////////////////////////
+	namespace detail
+	{
+		struct best_convertible_dummy {};
 
-	template <bool ...Bs>
-	struct boolean_and;
-	template <>
-	struct boolean_and<>
-		: std::true_type {};
-	template <bool ...Bs>
-	struct boolean_and<false, Bs...>
-		: std::false_type {};
-	template <bool ...Bs>
-	struct boolean_and<true, Bs...>
-		: boolean_and<Bs...> {};
+		template <typename A, typename P1, typename P2>
+		struct best_convertible_helper
+		{
+			struct convertible_test
+			{
+				P1 func(P1);
+				P2 func(P2);
+				best_convertible_dummy func(...);
+			};
 
-	template <bool B>
-	struct boolean_not
-		: true_type {};
-	template <>
-	struct boolean_not<true>
-		: false_type {};
+			using type = decltype(convertible_test{}.func(std::declval<A>()));
+		};
+		template <typename A, typename P>
+		struct best_convertible_helper<A, P, P> : best_convertible_helper<A, best_convertible_dummy, P> {};
 
-	template <typename ...Ts>
-	struct is_same_impl;
-	template <>
-	struct is_same_impl<>
-		: std::true_type {};
-	template <typename T0, typename ...Ts>
-	struct is_same_impl<T0, Ts...>
-		: boolean_and<std::is_same<T0, Ts>::value...> {};
-	template <typename ...Ts>
-	using is_same = is_same_impl<Ts...>;
+		template <typename A, typename ...Ps>
+		struct best_convertible_impl;
+		template <typename A, typename P1, typename P2, typename ...Ps>
+		struct best_convertible_impl<A, P1, P2, Ps...> :
+			best_convertible_impl<A, typename best_convertible_helper<A, P1, P2>::type, Ps...> {};
+		template <typename A, typename P1, typename P2>
+		struct best_convertible_impl<A, P1, P2> :
+			best_convertible_helper<A, P1, P2> {};
+		template <typename A, typename P1>
+		struct best_convertible_impl<A, P1, P1> :
+			best_convertible_helper<A, P1, P1> {};
+	}
 
-	// template <typename List1, typename List2 = type_list<>>
-	// struct is_different_impl;
-	// template <typename T0, typename ...Ts, typename ...Us>
-	// struct is_different_impl<type_list<T0, Ts...>, type_list<Us...>>
-	// 	: std::conditional_t<member_of<T0, type_list<Us...>>::value,
-	// 	                     false_type,
-	// 	                     is_different_impl<type_list<Ts...>,
-	// 	                                       type_list<T0, Us...>>> {};
-	// template <typename ...Ts>
-	// using is_different = is_different_impl<type_list<Ts...>>;
-	template <typename T, typename U>
-	using is_different = boolean_not<std::is_same<T, U>::value>;
+	template <typename A, typename ...Ps>
+	class best_convertible
+	{
+		using best_match = typename detail::best_convertible_impl<A, Ps...>::type;
+	public:
+		using type = conditional_t<is_same<best_match,
+		                                   detail::best_convertible_dummy>::value,
+		                           void,
+		                           best_match>;
+	};
+	template <typename A, typename ...Ps>
+	using best_convertible_t = typename best_convertible<A, Ps...>::type;
 
 	////////////////////////////////////////////////////////////////////////////
 	//

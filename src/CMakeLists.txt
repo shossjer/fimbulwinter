@@ -85,11 +85,16 @@ set(HEADER_FILES
 	src/utility/algorithm.hpp
 	src/utility/aligned_array.hpp
 	src/utility/array.hpp
+	src/utility/concepts.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
 	src/utility/json.hpp
 	src/utility/optional.hpp
+	src/utility/preprocessor.hpp
+	src/utility/property.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
 	src/utility/type_traits.hpp
+	src/utility/utility.hpp
+	src/utility/variant.hpp
 	)

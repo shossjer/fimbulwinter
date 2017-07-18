@@ -37,6 +37,8 @@ if(ENABLE_TEST)
 		core/maths/util.cpp
 		utility/array.cpp
 		utility/optional.cpp
+		utility/property.cpp
+		utility/variant.cpp
 		)
 
 	# source listing
