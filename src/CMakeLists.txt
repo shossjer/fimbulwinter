@@ -84,6 +84,7 @@ set(HEADER_FILES
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
 	src/utility/aligned_array.hpp
+	src/utility/any.hpp
 	src/utility/array.hpp
 	src/utility/concepts.hpp
 	src/utility/inaccessible.hpp

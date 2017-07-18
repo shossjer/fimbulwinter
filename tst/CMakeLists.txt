@@ -35,6 +35,7 @@ if(ENABLE_TEST)
 		core/maths/Quaternion.cpp
 		core/maths/Vector.cpp
 		core/maths/util.cpp
+		utility/any.cpp
 		utility/array.cpp
 		utility/optional.cpp
 		utility/property.cpp
