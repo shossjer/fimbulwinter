@@ -22,6 +22,12 @@ namespace renderer
 }
 }
 
+namespace gui
+{
+	extern void create();
+	extern void destroy();
+}
+
 namespace physics
 {
 	extern void create();
@@ -54,6 +60,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
+	::engine::gui::create();
 	::gameplay::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::level::create("res/level.lvl");
@@ -67,6 +74,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::gameplay::level::destroy();
 	::gameplay::gamestate::destroy();
 	::gameplay::ui::destroy();
+	::engine::gui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
 
@@ -81,6 +89,7 @@ int main(const int argc, const char *const argv[])
 
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
+	::engine::gui::create();
 	::gameplay::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::level::create("res/level.lvl");
@@ -94,6 +103,7 @@ int main(const int argc, const char *const argv[])
 	::gameplay::level::destroy();
 	::gameplay::gamestate::destroy();
 	::gameplay::ui::destroy();
+	::engine::gui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
 

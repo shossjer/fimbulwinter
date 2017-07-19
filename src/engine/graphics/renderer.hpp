@@ -97,6 +97,22 @@ namespace engine
 				float progress;
 			};
 
+			namespace ui
+			{
+				struct PanelC
+				{
+					core::maths::Matrix4x4f matrix;
+					core::maths::Vector2f size;
+					Color color;
+				};
+
+				struct Text
+				{
+					core::maths::Matrix4x4f matrix;
+					std::string display;
+				};
+			}
+
 			// modelview matrix
 			struct ModelviewMatrix
 			{
@@ -187,11 +203,18 @@ namespace engine
 				     engine::Entity entity, data::CompT && data);
 			void add(engine::Entity entity, data::Bar && bar);
 
+			void add(engine::Entity entity, data::ui::PanelC && data);
+			void add(engine::Entity entity, data::ui::Text && data);
+
 			void remove(engine::Entity entity);
 
 			// update Entities
 			void update(engine::Entity entity, data::ModelviewMatrix data);
 			// void update(engine::Entity entity, CharacterSkinning data);
+
+			void update(engine::Entity entity, data::ui::PanelC && data);
+			void update(engine::Entity entity, data::ui::Text && data);
+			void update(engine::Entity entity, core::maths::Matrix4x4f matrix);
 
 			void post_make_selectable(engine::Entity entity);
 			void post_make_nonselectable(engine::Entity entity);

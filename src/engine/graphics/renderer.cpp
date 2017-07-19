@@ -436,7 +436,9 @@ namespace
 		std::array<comp_t, 100>,
 		std::array<Character, 100>,
 		std::array<Bar, 100>,
-		std::array<linec_t, 100>
+		std::array<linec_t, 100>,
+		std::array<engine::graphics::data::ui::PanelC, 100>,
+		std::array<engine::graphics::data::ui::Text, 100>
 	>
 	components;
 
@@ -445,6 +447,8 @@ namespace
 		engine::graphics::opengl::Color4ub color;
 
 		void operator () (Bar & x) {}
+		void operator () (engine::graphics::data::ui::PanelC & x) {}
+		void operator () (engine::graphics::data::ui::Text & x) {}
 		template <typename T>
 		void operator () (T & x)
 		{
@@ -491,6 +495,13 @@ namespace
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::Bar>,
 	                                 100> queue_add_bar;
+
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::ui::PanelC>,
+	                                 100> queue_add_ui_panel;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::ui::Text>,
+	                                 100> queue_add_ui_text;
 
 	core::container::CircleQueueSRMW<engine::Entity,
 	                                 100> queue_remove;
@@ -574,6 +585,16 @@ namespace
 				{
 					components.emplace<Bar>(barData.first, barData.second);
 				}
+			}
+			std::pair<engine::Entity, engine::graphics::data::ui::PanelC> panelC;
+			while (queue_add_ui_panel.try_pop(panelC))
+			{
+				components.emplace<engine::graphics::data::ui::PanelC>(panelC.first, panelC.second);
+			}
+			std::pair<engine::Entity, engine::graphics::data::ui::Text> text;
+			while (queue_add_ui_text.try_pop(text))
+			{
+				components.emplace<engine::graphics::data::ui::Text>(text.first, text.second);
 			}
 		}
 
@@ -1273,6 +1294,42 @@ namespace
 		glColor3ub(255, 255, 255);
 		glRasterPos2i(10, 10 + 12);
 		normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
+
+		for (const auto & component : ::components.get<engine::graphics::data::ui::PanelC>())
+		{
+			modelview_matrix.push();
+
+			modelview_matrix.mult(component.matrix);
+			glLoadMatrix(modelview_matrix);
+
+			core::maths::Vector2f::array_type size;
+			component.size.get_aligned(size);
+
+			engine::graphics::opengl::Color4ub color(
+				(component.color & 0x000000ff) >> 0,
+				(component.color & 0x0000ff00) >> 8,
+				(component.color & 0x00ff0000) >> 16,
+				(component.color & 0xff000000) >> 24);
+
+			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : color);
+
+			glBegin(GL_QUADS);
+			{
+				glVertex2f(0.f, size[1]);
+				glVertex2f(size[0], size[1]);
+				glVertex2f(size[0], 0.f);
+				glVertex2f(0.f, 0.f);
+			}
+			glEnd();
+
+			modelview_matrix.pop();
+		}
+
+		for (const auto & component : ::components.get<engine::graphics::data::ui::Text>())
+		{
+			// TODO: print the text
+		}
+
 		// 2d
 		// ...
 		for (const Bar & component : components.get<Bar>())
@@ -1440,6 +1497,17 @@ namespace engine
 			void add(engine::Entity entity, data::Bar && data)
 			{
 				const auto res = queue_add_bar.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+
+			void add(engine::Entity entity, data::ui::PanelC && data)
+			{
+				const auto res = queue_add_ui_panel.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+			void add(engine::Entity entity, data::ui::Text && data)
+			{
+				const auto res = queue_add_ui_text.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
 
