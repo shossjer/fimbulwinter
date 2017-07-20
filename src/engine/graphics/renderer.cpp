@@ -46,6 +46,7 @@ namespace gameplay
 namespace gamestate
 {
 	extern void post_command(engine::Entity entity, engine::Command command, engine::Entity arg1);
+	extern void post_command(engine::Command command, engine::Entity entity);
 }
 }
 
@@ -149,6 +150,24 @@ namespace
 		{
 		}
 	};
+
+	engine::graphics::opengl::Color4ub color_from(const engine::Entity entity)
+	{
+		return engine::graphics::opengl::Color4ub{
+			(entity & 0x000000ff) >> 0,
+			(entity & 0x0000ff00) >> 8,
+			(entity & 0x00ff0000) >> 16,
+			(entity & 0xff000000) >> 24 };
+	}
+
+	engine::graphics::opengl::Color4ub color_from(const engine::graphics::data::Color color)
+	{
+		return engine::graphics::opengl::Color4ub{
+			(color & 0x000000ff) >> 0,
+			(color & 0x0000ff00) >> 8,
+			(color & 0x00ff0000) >> 16,
+			(color & 0xff000000) >> 24 };
+	}
 
 	struct texture_t
 	{
@@ -428,6 +447,51 @@ namespace
 		{}
 	};
 
+	namespace ui
+	{
+		struct PanelC
+		{
+			core::maths::Matrix4x4f matrix;
+			core::maths::Vector2f size;
+			engine::graphics::opengl::Color4ub color;
+			engine::graphics::opengl::Color4ub selectable_color;
+
+			PanelC(const engine::Entity entity, const engine::graphics::data::ui::PanelC & data)
+				: matrix(data.matrix)
+				, size(data.size)
+				, color(color_from(data.color))
+			{
+				if (data.selectable)
+					this->selectable_color = color_from(entity);
+				else
+					this->selectable_color = engine::graphics::opengl::Color4ub{ 0, 0, 0, 0 };
+			}
+
+			PanelC & operator = (engine::graphics::data::ModelviewMatrix && data)
+			{
+				this->matrix = std::move(data.matrix);
+				return *this;
+			}
+		};
+
+		struct Text
+		{
+			core::maths::Matrix4x4f matrix;
+			std::string display;
+
+			Text(const engine::graphics::data::ui::Text & data)
+				: matrix(data.matrix)
+				, display(data.display)
+			{}
+
+			Text & operator = (engine::graphics::data::ModelviewMatrix && data)
+			{
+				this->matrix = std::move(data.matrix);
+				return *this;
+			}
+		};
+	}
+
 	core::container::Collection
 	<
 		engine::Entity,
@@ -437,8 +501,8 @@ namespace
 		std::array<Character, 100>,
 		std::array<Bar, 100>,
 		std::array<linec_t, 100>,
-		std::array<engine::graphics::data::ui::PanelC, 100>,
-		std::array<engine::graphics::data::ui::Text, 100>
+		std::array<::ui::PanelC, 100>,
+		std::array<::ui::Text, 100>
 	>
 	components;
 
@@ -447,8 +511,8 @@ namespace
 		engine::graphics::opengl::Color4ub color;
 
 		void operator () (Bar & x) {}
-		void operator () (engine::graphics::data::ui::PanelC & x) {}
-		void operator () (engine::graphics::data::ui::Text & x) {}
+		void operator () (::ui::Text & x) {}
+
 		template <typename T>
 		void operator () (T & x)
 		{
@@ -589,12 +653,12 @@ namespace
 			std::pair<engine::Entity, engine::graphics::data::ui::PanelC> panelC;
 			while (queue_add_ui_panel.try_pop(panelC))
 			{
-				components.emplace<engine::graphics::data::ui::PanelC>(panelC.first, panelC.second);
+				components.emplace<::ui::PanelC>(panelC.first, panelC.first, panelC.second);
 			}
 			std::pair<engine::Entity, engine::graphics::data::ui::Text> text;
 			while (queue_add_ui_text.try_pop(text))
 			{
-				components.emplace<engine::graphics::data::ui::Text>(text.first, text.second);
+				components.emplace<::ui::Text>(text.first, text.second);
 			}
 		}
 
@@ -1089,6 +1153,34 @@ namespace
 			modelview_matrix.pop();
 		}
 
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrix(projection2D);
+		glMatrixMode(GL_MODELVIEW);
+		modelview_matrix.load(core::maths::Matrix4x4f::identity());
+
+		for (const auto & component : ::components.get<::ui::PanelC>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.matrix);
+			glLoadMatrix(modelview_matrix);
+
+			core::maths::Vector2f::array_type size;
+			component.size.get_aligned(size);
+
+			glColor(component.selectable_color);
+
+			glBegin(GL_QUADS);
+			{
+				glVertex2f(0.f, size[1]);
+				glVertex2f(size[0], size[1]);
+				glVertex2f(size[0], 0.f);
+				glVertex2f(0.f, 0.f);
+			}
+			glEnd();
+
+			modelview_matrix.pop();
+		}
+
 		glDisable(GL_DEPTH_TEST);
 		glEnable(GL_LIGHTING);
 
@@ -1103,6 +1195,7 @@ namespace
 			if (highlighted_entity != entity)
 			{
 				highlighted_entity = entity;
+				gameplay::gamestate::post_command(engine::Command::RENDER_HIGHLIGHT, entity);
 			}
 		}
 		// select
@@ -1118,6 +1211,13 @@ namespace
 		//////////////////////////////////////////////////////////
 
 		////////////////////////////////////////////////////////////////
+
+		// setup 3D
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrix(projection3D);
+		glMatrixMode(GL_MODELVIEW);
+		modelview_matrix.load(view3D);
+
 		// wireframes
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_STENCIL_TEST);
@@ -1295,23 +1395,16 @@ namespace
 		glRasterPos2i(10, 10 + 12);
 		normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
 
-		for (const auto & component : ::components.get<engine::graphics::data::ui::PanelC>())
+		for (const auto & component : ::components.get<::ui::PanelC>())
 		{
 			modelview_matrix.push();
-
 			modelview_matrix.mult(component.matrix);
 			glLoadMatrix(modelview_matrix);
 
 			core::maths::Vector2f::array_type size;
 			component.size.get_aligned(size);
 
-			engine::graphics::opengl::Color4ub color(
-				(component.color & 0x000000ff) >> 0,
-				(component.color & 0x0000ff00) >> 8,
-				(component.color & 0x00ff0000) >> 16,
-				(component.color & 0xff000000) >> 24);
-
-			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : color);
+			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
 
 			glBegin(GL_QUADS);
 			{
@@ -1325,7 +1418,7 @@ namespace
 			modelview_matrix.pop();
 		}
 
-		for (const auto & component : ::components.get<engine::graphics::data::ui::Text>())
+		for (const auto & component : ::components.get<::ui::Text>())
 		{
 			// TODO: print the text
 		}

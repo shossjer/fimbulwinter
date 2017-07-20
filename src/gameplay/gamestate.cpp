@@ -442,12 +442,42 @@ namespace
 		}
 	};
 
+	struct GUIComponent
+	{
+		engine::Entity id;
+		engine::Asset window;
+		engine::Asset name;
+	};
+
+	struct GUIMover
+	{
+		const int16_t dx;
+		const int16_t dy;
+
+		GUIMover(const int16_t dx, const int16_t dy)
+			: dx(dx)
+			, dy(dy)
+		{}
+
+		void operator() (const GUIComponent & c)
+		{
+			engine::gui::update(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
+		}
+
+		template <typename W>
+		void operator() (const W & w)
+		{
+			debug_printline(0xffffffff, "Can't move this");
+		}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
-		141,
+		241,
 		std::array<CameraActivator, 2>,
 		std::array<FreeCamera, 1>,
+		std::array<GUIComponent, 100>,
 		std::array<OverviewCamera, 1>,
 		std::array<Selector, 1>,
 		std::array<WindowProfile, 1>,
@@ -456,8 +486,13 @@ namespace
 	>
 	components;
 
+	engine::Entity highlighted_entity = engine::Entity::null();
+	engine::Entity selected_entity = engine::Entity::null();
+
+	core::container::CircleQueueSRMW<std::pair<engine::Command, engine::Entity>, 100> queue_commands;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command>, 100> queue_commands0;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, engine::Entity>, 100> queue_commands1;
+	core::container::CircleQueueSRMW<std::pair<int16_t, int16_t>, 10> queue_mouse_movement;
 	core::container::CircleQueueSRMW<
 		std::tuple
 		<
@@ -467,6 +502,13 @@ namespace
 			Matrix4x4f
 		>,
 		100> queue_workstations;
+	core::container::CircleQueueSRMW<std::tuple
+		<
+			engine::Entity,
+			engine::Asset,
+			engine::Asset
+		>,
+		100> queue_gui_components;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
 	void move_to_workstation(Worker & w, Workstation & s)
@@ -644,10 +686,43 @@ namespace gamestate
 					std::get<2>(workstation_args),
 					std::get<3>(workstation_args));
 			}
+
+			std::tuple<engine::Entity, engine::Asset, engine::Asset> gui_component_args;
+			while (queue_gui_components.try_pop(gui_component_args))
+			{
+				components.emplace<GUIComponent>(
+					std::get<0>(gui_component_args),
+					GUIComponent{
+						std::get<0>(gui_component_args),
+						std::get<1>(gui_component_args),
+						std::get<2>(gui_component_args) });
+			}
 		}
 
 		// commands
 		{
+			std::pair<engine::Command, engine::Entity> command_args;
+			while (queue_commands.try_pop(command_args))
+			{
+				switch (command_args.first)
+				{
+				case engine::Command::RENDER_HIGHLIGHT:
+					::highlighted_entity = command_args.second;
+					debug_printline(0xffffffff, "Gamestate select: ", ::highlighted_entity);
+					break;
+				case engine::Command::MOUSE_LEFT_DOWN:
+					if (components.contains(::highlighted_entity))
+					{
+						::selected_entity = ::highlighted_entity;
+						debug_printline(0xffffffff, "Gamestate mouse down: ", ::highlighted_entity);
+					}
+					break;
+				case engine::Command::MOUSE_LEFT_UP:
+					::selected_entity = engine::Entity::null();
+					debug_printline(0xffffffff, "Gamestate mouse up");
+					break;
+				}
+			}
 			std::tuple<engine::Entity, engine::Command> command_args0;
 			while (queue_commands0.try_pop(command_args0))
 			{
@@ -657,6 +732,14 @@ namespace gamestate
 			while (queue_commands1.try_pop(command_args1))
 			{
 				components.update(std::get<0>(command_args1), std::make_tuple(std::get<1>(command_args1), std::get<2>(command_args1)));
+			}
+			std::pair<int16_t, int16_t> mouse_movement;
+			while (queue_mouse_movement.try_pop(mouse_movement))
+			{
+				if (::selected_entity != engine::Entity::null())
+				{
+					components.call(::selected_entity, GUIMover{ mouse_movement.first, mouse_movement.second });
+				}
 			}
 		}
 
@@ -685,6 +768,25 @@ namespace gamestate
 	void post_command(engine::Entity entity, engine::Command command, engine::Entity arg1)
 	{
 		const auto res = queue_commands1.try_emplace(entity, command, arg1);
+		debug_assert(res);
+	}
+
+	void post_command(engine::Command command, engine::Entity entity)
+	{
+		const auto res = queue_commands.try_emplace(command, entity);
+		debug_assert(res);
+	}
+
+	void post_movement(int16_t dx, int16_t dy)
+	{
+		const auto res = queue_mouse_movement.try_emplace(dx, dy);
+		debug_assert(res);
+	}
+
+	//void post_add(engine::Entity entity, engine::gui::Component component)
+	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name)
+	{
+		const auto res = queue_gui_components.try_emplace(entity, window, name);
 		debug_assert(res);
 	}
 

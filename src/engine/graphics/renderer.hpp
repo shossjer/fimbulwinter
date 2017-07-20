@@ -104,6 +104,7 @@ namespace engine
 					core::maths::Matrix4x4f matrix;
 					core::maths::Vector2f size;
 					Color color;
+					bool selectable;
 				};
 
 				struct Text
@@ -214,7 +215,6 @@ namespace engine
 
 			void update(engine::Entity entity, data::ui::PanelC && data);
 			void update(engine::Entity entity, data::ui::Text && data);
-			void update(engine::Entity entity, core::maths::Matrix4x4f matrix);
 
 			void post_make_selectable(engine::Entity entity);
 			void post_make_nonselectable(engine::Entity entity);

@@ -116,10 +116,15 @@ namespace
 		// turned into matrix and sent to renderer
 		Vector3f offset;
 
+	public:
+
+		bool selectable;
+
 	protected:
 
-		Drawable(engine::Entity entity, Margin margin, Size size)
+		Drawable(engine::Entity entity, Margin margin, Size size, bool selectable)
 			: View(entity, margin, size)
+			, selectable(selectable)
 		{
 			debug_assert(size.height.type != Size::TYPE::WRAP);
 			debug_assert(size.width.type != Size::TYPE::WRAP);
@@ -186,8 +191,8 @@ namespace
 
 	public:
 
-		PanelC(engine::Entity entity, Margin margin, Size size, Color color)
-			: Drawable(entity, margin, size)
+		PanelC(engine::Entity entity, Margin margin, Size size, Color color, bool selectable)
+			: Drawable(entity, margin, size, selectable)
 			, color(color)
 		{
 		}
@@ -364,7 +369,8 @@ namespace
 					engine::graphics::data::ui::PanelC{
 						comp.render_matrix(),
 						comp.render_size(),
-						comp.color });
+						comp.color,
+						comp.selectable });
 			}
 		}
 
@@ -399,16 +405,19 @@ namespace
 			{
 				child.translate(delta);
 
-				// TODO: send position update to renderer
+				// send position update to renderer
+				engine::graphics::renderer::update(
+					child.entity,
+					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
 			}
 		}
 
-		auto & create_panel(Parent & parent, View::Margin margin, View::Size size, Color color)
+		auto & create_panel(Parent & parent, View::Margin margin, View::Size size, Color color, bool selectable = false)
 		{
 			auto entity = engine::Entity::create();
 
 			auto & v = this->components.emplace<PanelC>(
-				entity, PanelC{ entity, margin, size, color });
+				entity, PanelC{ entity, margin, size, color, selectable });
 
 			parent.adopt(&v);
 			return v;
@@ -431,6 +440,15 @@ namespace
 		std::array<Window, 10>,
 		std::array<int, 10>>
 		windows;
+}
+
+// TODO: this should be solved better.
+namespace gameplay
+{
+namespace gamestate
+{
+	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name);
+}
 }
 
 namespace engine
@@ -458,13 +476,17 @@ namespace gui
 
 			// add views to the group
 			{
-				window.create_panel(
+				auto & mover = window.create_panel(
 					group,
 					View::Margin{},
 					View::Size{
 						{ View::Size::TYPE::PARENT },
 						{ View::Size::TYPE::FIXED, 100 } },
-					0xFFFF0000);
+					0xFFFF0000,
+					true);
+
+				// register the panel as a "mover" for the window
+				gameplay::gamestate::post_add(mover.entity, "profile", "mover");
 
 				{
 					auto & group2 = window.create_linear(
