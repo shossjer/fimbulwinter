@@ -8,7 +8,6 @@
 
 #include <engine/Command.hpp>
 #include <engine/graphics/renderer.hpp>
-#include <engine/gui/views.hpp>
 #include <engine/hid/input.hpp>
 
 #include <algorithm>
@@ -227,6 +226,56 @@ namespace
 		}
 	};
 
+	struct Buttoncontrol
+	{
+	private:
+
+		engine::Entity entity;
+		engine::hid::Input::Button button;
+		bool state;
+
+	public:
+
+		Buttoncontrol(engine::Entity entity, engine::hid::Input::Button button)
+			: entity(entity)
+			, button(button)
+			, state(false)
+		{}
+
+		bool translate(const engine::hid::Input & input)
+		{
+			switch (input.getState())
+			{
+			case engine::hid::Input::State::DOWN:
+				if (this->button == input.getButton())
+				{
+					if (!this->state)
+					{
+						this->state = true;
+						gameplay::gamestate::post_command(this->entity, engine::Command::BUTTON_DOWN_ACTIVE);
+					}
+					else
+					{
+						this->state = false;
+						gameplay::gamestate::post_command(this->entity, engine::Command::BUTTON_DOWN_INACTIVE);
+					}
+					return true;
+				}
+				break;
+			case engine::hid::Input::State::UP:
+				if (this->button == input.getButton())
+				{
+					gameplay::gamestate::post_command(
+						this->entity,
+						this->state ? engine::Command::BUTTON_UP_ACTIVE : engine::Command::BUTTON_UP_INACTIVE);
+					return true;
+				}
+				break;
+			}
+			return false;
+		}
+	};
+
 	struct Flycontrol
 	{
 		engine::Entity entity;
@@ -401,33 +450,6 @@ namespace
 		}
 	};
 
-	struct GUIcontrol
-	{
-	private:
-
-		bool profile;
-
-	public:
-		bool translate(const engine::hid::Input & input)
-		{
-			switch (input.getState())
-			{
-			case engine::hid::Input::State::UP:
-				switch (input.getButton())
-				{
-				case engine::hid::Input::Button::KEY_P:
-					if (this->profile)
-						this->profile = false, engine::gui::hide(engine::Asset{ "profile" });
-					else
-						this->profile = true, engine::gui::show(engine::Asset{ "profile" });
-					return true;
-				}
-			}
-
-			return false;
-		}
-	};
-
 	struct Pancontrol
 	{
 		engine::Entity entity;
@@ -586,11 +608,11 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		81,
+		101,
 		std::array<ContextSwitch, 10>,
 		std::array<Bordercontrol, 10>,
 		std::array<Flycontrol, 10>,
-		std::array<GUIcontrol, 10>,
+		std::array<Buttoncontrol, 20>,
 		std::array<Pancontrol, 10>,
 		std::array<RenderHover, 10>,
 		std::array<RenderSelect, 10>,
@@ -622,7 +644,7 @@ namespace
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button, engine::Asset>, 10> queue_add_contextswitch;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_bordercontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_flycontrol;
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_guicontrol;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::hid::Input::Button>, 10> queue_add_buttoncontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_pancontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderhover;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderselect;
@@ -687,13 +709,16 @@ namespace ui
 			{
 				components.emplace<Bordercontrol>(std::get<0>(control_args), std::get<1>(control_args));
 			}
+			std::pair<engine::Entity, engine::hid::Input::Button> buttoncontrol_args;
+			while (queue_add_buttoncontrol.try_pop(buttoncontrol_args))
+			{
+				components.emplace<Buttoncontrol>(
+					buttoncontrol_args.first,
+					Buttoncontrol{ buttoncontrol_args.first, buttoncontrol_args.second });
+			}
 			while (queue_add_flycontrol.try_pop(control_args))
 			{
 				components.emplace<Flycontrol>(std::get<0>(control_args), std::get<1>(control_args));
-			}
-			while (queue_add_guicontrol.try_pop(control_args))
-			{
-				components.emplace<GUIcontrol>(std::get<0>(control_args), GUIcontrol());
 			}
 			while (queue_add_pancontrol.try_pop(control_args))
 			{
@@ -801,10 +826,11 @@ namespace ui
 		const auto res = queue_add_flycontrol.try_emplace(entity, callback);
 		debug_assert(res);
 	}
-	void post_add_guicontrol(
-		engine::Entity entity)
+	void post_add_buttoncontrol(
+		engine::Entity entity,
+		engine::hid::Input::Button button)
 	{
-		const auto res = queue_add_guicontrol.try_emplace(entity, 0);
+		const auto res = queue_add_buttoncontrol.try_emplace(entity, button);
 		debug_assert(res);
 	}
 	void post_add_pancontrol(

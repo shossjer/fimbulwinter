@@ -7,6 +7,7 @@
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
+#include <engine/gui/views.hpp>
 #include <engine/physics/physics.hpp>
 
 #include <gameplay/level_placeholder.hpp>
@@ -425,6 +426,22 @@ namespace
 		}
 	};
 
+	struct WindowProfile
+	{
+		void operator = (std::tuple<engine::Command, int> && args)
+		{
+			switch (std::get<0>(args))
+			{
+			case engine::Command::BUTTON_DOWN_ACTIVE:
+				engine::gui::show("profile");
+				break;
+			case engine::Command::BUTTON_DOWN_INACTIVE:
+				engine::gui::hide("profile");
+				break;
+			}
+		}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
@@ -433,6 +450,7 @@ namespace
 		std::array<FreeCamera, 1>,
 		std::array<OverviewCamera, 1>,
 		std::array<Selector, 1>,
+		std::array<WindowProfile, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>
 	>
@@ -565,10 +583,11 @@ namespace gamestate
 		gameplay::ui::post_bind("game", pancontrol, 0);
 		gameplay::ui::post_bind("game", bordercontrol, 0);
 
-		auto guicontrol = engine::Entity::create();
-		gameplay::ui::post_add_guicontrol(guicontrol);
-		gameplay::ui::post_bind("debug", guicontrol, 0);
-		gameplay::ui::post_bind("game", guicontrol, 0);
+		auto profilecontrol = engine::Entity::create();
+		gameplay::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
+		gameplay::ui::post_bind("debug", profilecontrol, 0);
+		gameplay::ui::post_bind("game", profilecontrol, 0);
+		components.emplace<WindowProfile>(profilecontrol, WindowProfile());
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
