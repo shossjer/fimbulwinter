@@ -31,6 +31,8 @@ namespace ui
 	void post_add_flycontrol(
 		engine::Entity entity,
 		engine::Entity callback);
+	void post_add_guicontrol(
+		engine::Entity entity);
 	void post_add_pancontrol(
 		engine::Entity entity,
 		engine::Entity callback);

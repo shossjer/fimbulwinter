@@ -565,6 +565,11 @@ namespace gamestate
 		gameplay::ui::post_bind("game", pancontrol, 0);
 		gameplay::ui::post_bind("game", bordercontrol, 0);
 
+		auto guicontrol = engine::Entity::create();
+		gameplay::ui::post_add_guicontrol(guicontrol);
+		gameplay::ui::post_bind("debug", guicontrol, 0);
+		gameplay::ui::post_bind("game", guicontrol, 0);
+
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 

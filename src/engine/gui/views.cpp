@@ -312,6 +312,8 @@ namespace
 		View::Size size;
 		Vector3f position;
 
+		bool shown;
+
 		// Components could be moved to global namespace instead since it now has Entity as key.
 		// But window still needs to know which "drawable" components it has for when the window
 		// is moved.
@@ -331,6 +333,7 @@ namespace
 			: grandparent(nullptr)
 			, size(size)
 			, position(position)
+			, shown(false)
 		{
 			debug_assert(size.height.type != View::Size::TYPE::PARENT);
 			debug_assert(size.width.type != View::Size::TYPE::PARENT);
@@ -351,6 +354,9 @@ namespace
 
 		void show()
 		{
+			debug_assert(!this->shown);
+			this->shown = true;
+
 			for (PanelC & comp : components.get<PanelC>())
 			{
 				engine::graphics::renderer::add(
@@ -362,7 +368,18 @@ namespace
 			}
 		}
 
-		Window & operator = (std::vector<std::pair<engine::Entity, engine::gui::Data>> datas)
+		void hide()
+		{
+			debug_assert(this->shown);
+			this->shown = false;
+
+			for (PanelC & comp : components.get<PanelC>())
+			{
+				engine::graphics::renderer::remove(comp.entity);
+			}
+		}
+
+		void operator = (std::vector<std::pair<engine::Entity, engine::gui::Data>> datas)
 		{
 			for (auto & data : datas)
 			{
@@ -370,20 +387,20 @@ namespace
 			}
 
 			measure();
-
-			return *this;
 		}
 
 		// the window has been moved, all its drawable components needs to post
 		// position updates to renderer.
-		Window & operator = (core::maths::Vector3f translation)
+		void operator = (core::maths::Vector3f delta)
 		{
+			this->position += delta;
+
 			for (PanelC & child : components.get<PanelC>())
 			{
-				child.translate(translation);
-			}
+				child.translate(delta);
 
-			return *this;
+				// TODO: send position update to renderer
+			}
 		}
 
 		auto & create_panel(Parent & parent, View::Margin margin, View::Size size, Color color)
@@ -478,10 +495,17 @@ namespace gui
 
 			// update size and offset of windows components
 			window.measure();
-
-			// register graphical components in renderer
-			window.show();
 		}
+	}
+
+	void show(engine::Asset window)
+	{
+		windows.get<Window>(window).show();
+	}
+
+	void hide(engine::Asset window)
+	{
+		windows.get<Window>(window).hide();
 	}
 
 	void destroy()
@@ -491,12 +515,14 @@ namespace gui
 
 	void update(engine::Asset window, std::vector<std::pair<engine::Entity, Data>> datas)
 	{
+		// TODO: use thread safe queue
 		windows.update(window, datas);
 	}
 
-	void update(engine::Asset window, core::maths::Vector3f translation)
+	void update(engine::Asset window, core::maths::Vector3f delta)
 	{
-		windows.update(window, translation);
+		// TODO: use thread safe queue
+		windows.update(window, delta);
 	}
 }
 }

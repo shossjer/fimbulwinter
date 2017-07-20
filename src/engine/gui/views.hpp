@@ -22,13 +22,17 @@ namespace gui
 		// TODO: visibility
 	};
 
+	void show(engine::Asset window);
+
+	void hide(engine::Asset window);
+
 	void update(
 		engine::Asset window,
 		std::vector<std::pair<engine::Entity, Data>> datas);
 
 	void update(
 		engine::Asset window,
-		core::maths::Vector3f translation);
+		core::maths::Vector3f delta);
 }
 }
 
