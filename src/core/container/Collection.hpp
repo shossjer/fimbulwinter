@@ -4,23 +4,13 @@
 
 #include <core/debug.hpp>
 
+#include <utility/preprocessor.hpp>
 #include <utility/type_traits.hpp>
 
 #include <array>
 #include <numeric>
 #include <tuple>
 #include <utility>
-
-// preprocessor hack that might be useful elsewhere also
-#define EXPAND_1_TIMES(macro, n) macro((n))
-#define EXPAND_2_TIMES(macro, n) EXPAND_1_TIMES(macro, (n)); EXPAND_1_TIMES(macro, (n) + 1)
-#define EXPAND_4_TIMES(macro, n) EXPAND_2_TIMES(macro, (n)); EXPAND_2_TIMES(macro, (n) + 2)
-#define EXPAND_8_TIMES(macro, n) EXPAND_4_TIMES(macro, (n)); EXPAND_4_TIMES(macro, (n) + 4)
-#define EXPAND_16_TIMES(macro, n) EXPAND_8_TIMES(macro, (n)); EXPAND_8_TIMES(macro, (n) + 8)
-#define EXPAND_32_TIMES(macro, n) EXPAND_16_TIMES(macro, (n)); EXPAND_16_TIMES(macro, (n) + 16)
-#define EXPAND_64_TIMES(macro, n) EXPAND_32_TIMES(macro, (n)); EXPAND_32_TIMES(macro, (n) + 32)
-#define EXPAND_128_TIMES(macro, n) EXPAND_64_TIMES(macro, (n)); EXPAND_64_TIMES(macro, (n) + 64)
-#define EXPAND_256_TIMES(macro, n) EXPAND_128_TIMES(macro, (n)); EXPAND_128_TIMES(macro, (n) + 128)
 
 namespace core
 {
@@ -194,7 +184,7 @@ namespace core
 				                                    D &&>;
 				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
 
-				emplace<mpl::type_head<Components>>(key, std::forward<D>(data));
+				emplace<mpl::car<Components>>(key, std::forward<D>(data));
 			}
 			template <typename Component, typename ...Ps>
 			Component & emplace(K key, Ps && ...ps)
@@ -225,7 +215,7 @@ namespace core
 					remove_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, bucket, index); \
 					break
 
-					EXPAND_256_TIMES(CASE, 0);
+					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					intrinsic_unreachable();
@@ -248,7 +238,7 @@ namespace core
 					         index, std::forward<D>(data)); \
 					break
 
-					EXPAND_256_TIMES(CASE, 0);
+					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					intrinsic_unreachable();
@@ -257,7 +247,7 @@ namespace core
 
 			template <typename F>
 			auto call(K key, F && func) ->
-				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -268,7 +258,7 @@ namespace core
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
 					                 index, std::forward<F>(func))
 
-					EXPAND_256_TIMES(CASE, 0);
+					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
@@ -278,7 +268,7 @@ namespace core
 
 			template <typename F>
 			auto try_call(K key, F && func) ->
-				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = try_find(key);
 
@@ -292,7 +282,7 @@ namespace core
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
 					                 index, std::forward<F>(func))
 
-					EXPAND_256_TIMES(CASE, 0);
+					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
@@ -395,16 +385,16 @@ namespace core
 
 			template <typename F>
 			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func) ->
-				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();
 				// this is used to deduce the return type correctly
 				// we should never get here
-				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
+				return func(*reinterpret_cast<mpl::car<Cs...> *>(0));
 			}
 			template <std::size_t type, typename F>
 			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func) ->
-				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
@@ -545,7 +535,7 @@ namespace core
 				                                    D &&>;
 				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
 
-				emplace<mpl::type_head<Components>>(key, std::forward<D>(data));
+				emplace<mpl::car<Components>>(key, std::forward<D>(data));
 			}
 			template <typename Component, typename ...Ps>
 			Component & emplace(K key, Ps && ...ps)
@@ -575,7 +565,7 @@ namespace core
 					remove_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, bucket, index); \
 					break
 
-					EXPAND_256_TIMES(CASE, 0);
+					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					intrinsic_unreachable();
@@ -598,7 +588,7 @@ namespace core
 					         index, std::forward<D>(data)); \
 					break
 
-					EXPAND_256_TIMES(CASE, 0);
+					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					intrinsic_unreachable();
@@ -607,7 +597,7 @@ namespace core
 
 			template <typename F>
 			auto call(K key, F && func) ->
-				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -618,7 +608,7 @@ namespace core
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
 					                 index, std::forward<F>(func))
 
-					EXPAND_256_TIMES(CASE, 0);
+					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
@@ -714,16 +704,16 @@ namespace core
 
 			template <typename F>
 			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func) ->
-				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();
 				// this is used to deduce the return type correctly
 				// we should never get here
-				return func(*reinterpret_cast<mpl::type_head<mpl::type_list<Cs...>> *>(0));
+				return func(*reinterpret_cast<mpl::car<Cs...> *>(0));
 			}
 			template <std::size_t type, typename F>
 			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func) ->
-				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
@@ -733,15 +723,5 @@ namespace core
 		};
 	}
 }
-
-#undef EXPAND_256_TIMES
-#undef EXPAND_128_TIMES
-#undef EXPAND_64_TIMES
-#undef EXPAND_32_TIMES
-#undef EXPAND_16_TIMES
-#undef EXPAND_8_TIMES
-#undef EXPAND_4_TIMES
-#undef EXPAND_2_TIMES
-#undef EXPAND_1_TIMES
 
 #endif /* CORE_CONTAINER_COLLECTION_HPP */

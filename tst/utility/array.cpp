@@ -15,6 +15,6 @@ TEST_CASE( "array_span", "[utility]" )
 	// iterator_traits:
 	// * access the underlaying type?
 
-	auto kjhs = utility::array_span<int, 3>{myarray.begin() + 2};
-	(void)kjhs; // fix warning about not being used
+	//auto kjhs = utility::array_span<int, 3>{myarray.begin() + 2};
+	//(void)kjhs; // fix warning about not being used
 }
