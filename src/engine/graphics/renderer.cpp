@@ -23,6 +23,8 @@
 #include <engine/debug.hpp>
 #include <engine/graphics/viewer.hpp>
 
+#include <utility/any.hpp>
+
 #include <atomic>
 #include <fstream>
 #include <utility>
@@ -45,7 +47,7 @@ namespace gameplay
 {
 namespace gamestate
 {
-	extern void post_command(engine::Entity entity, engine::Command command, engine::Entity arg1);
+	extern void post_command(engine::Entity entity, engine::Command command, utility::any && data);
 }
 }
 
