@@ -144,6 +144,8 @@ namespace
 
 				dimen.value = parent.value;
 				break;
+			default:
+				debug_unreachable();
 			}
 		}
 

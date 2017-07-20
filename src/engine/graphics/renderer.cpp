@@ -1420,6 +1420,7 @@ namespace
 
 		for (const auto & component : ::components.get<::ui::Text>())
 		{
+			(void)component;
 			// TODO: print the text
 		}
 

@@ -263,7 +263,7 @@ namespace
 					}
 					return true;
 				}
-				break;
+				return false;
 			case engine::hid::Input::State::UP:
 				if (this->button == input.getButton())
 				{
@@ -272,9 +272,10 @@ namespace
 						this->state ? engine::Command::BUTTON_UP_ACTIVE : engine::Command::BUTTON_UP_INACTIVE);
 					return true;
 				}
-				break;
+				return false;
+			default:
+				return false;
 			}
-			return false;
 		}
 	};
 

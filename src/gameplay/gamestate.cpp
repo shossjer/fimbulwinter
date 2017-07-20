@@ -384,7 +384,6 @@ namespace
 			this->boardModel = engine::Entity::create();
 			gameplay::level::load(this->boardModel, "board", this->top);
 
-			const auto pos = to_xyz(this->front.get_column<3>());
 			this->bar = engine::Entity::create();
 			barUpdate(0.f);
 		}
@@ -438,6 +437,11 @@ namespace
 			case engine::Command::BUTTON_DOWN_INACTIVE:
 				engine::gui::hide("profile");
 				break;
+			case engine::Command::BUTTON_UP_ACTIVE:
+			case engine::Command::BUTTON_UP_INACTIVE:
+				break;
+			default:
+				debug_unreachable();
 			}
 		}
 	};
@@ -629,7 +633,7 @@ namespace gamestate
 		gameplay::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
 		gameplay::ui::post_bind("debug", profilecontrol, 0);
 		gameplay::ui::post_bind("game", profilecontrol, 0);
-		components.emplace<WindowProfile>(profilecontrol, WindowProfile());
+		components.emplace<WindowProfile>(profilecontrol);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
@@ -721,6 +725,8 @@ namespace gamestate
 					::selected_entity = engine::Entity::null();
 					debug_printline(0xffffffff, "Gamestate mouse up");
 					break;
+				default:
+					debug_unreachable();
 				}
 			}
 			std::tuple<engine::Entity, engine::Command> command_args0;
