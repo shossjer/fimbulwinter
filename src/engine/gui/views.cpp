@@ -279,7 +279,7 @@ namespace
 			measure_dimen(size.height, this->size.height);
 			measure_dimen(size.width, this->size.width);
 
-			Size size_remaining{this->size};
+			Size size_remaining = this->size;
 			size_remaining.height.value -= this->margin.height();
 			size_remaining.width.value -= this->margin.width();
 
