@@ -3,6 +3,7 @@
 
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
+#include <core/container/ExchangeQueue.hpp>
 
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
@@ -493,10 +494,12 @@ namespace
 	engine::Entity highlighted_entity = engine::Entity::null();
 	engine::Entity selected_entity = engine::Entity::null();
 
+	std::pair<int16_t, int16_t> mouse_coords{ 0, 0 };
+	core::container::ExchangeQueueSRSW<std::pair<int16_t, int16_t>> queue_mouse_coords;
+
 	core::container::CircleQueueSRMW<std::pair<engine::Command, engine::Entity>, 100> queue_commands;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command>, 100> queue_commands0;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, engine::Entity>, 100> queue_commands1;
-	core::container::CircleQueueSRMW<std::pair<int16_t, int16_t>, 10> queue_mouse_movement;
 	core::container::CircleQueueSRMW<
 		std::tuple
 		<
@@ -739,13 +742,17 @@ namespace gamestate
 			{
 				components.update(std::get<0>(command_args1), std::make_tuple(std::get<1>(command_args1), std::get<2>(command_args1)));
 			}
-			std::pair<int16_t, int16_t> mouse_movement;
-			while (queue_mouse_movement.try_pop(mouse_movement))
+			std::pair<int16_t, int16_t> mouse_update;
+			if (queue_mouse_coords.try_pop(mouse_update))
 			{
 				if (::selected_entity != engine::Entity::null())
 				{
-					components.call(::selected_entity, GUIMover{ mouse_movement.first, mouse_movement.second });
+					const int16_t dx = mouse_update.first - mouse_coords.first;
+					const int16_t dy = mouse_update.second - mouse_coords.second;
+					components.call(::selected_entity, GUIMover{ dx, dy });
 				}
+
+				mouse_coords = mouse_update;
 			}
 		}
 
@@ -783,9 +790,9 @@ namespace gamestate
 		debug_assert(res);
 	}
 
-	void post_movement(int16_t dx, int16_t dy)
+	void notify(int16_t dx, int16_t dy)
 	{
-		const auto res = queue_mouse_movement.try_emplace(dx, dy);
+		const auto res = queue_mouse_coords.try_push(dx, dy);
 		debug_assert(res);
 	}
 

@@ -31,7 +31,7 @@ namespace gamestate
 {
 	extern void post_command(engine::Entity entity, engine::Command command);
 	extern void post_command(engine::Command command, engine::Entity entity);
-	extern void post_movement(int16_t dx, int16_t dy);
+	extern void notify(int16_t dx, int16_t dy);
 }
 }
 
@@ -540,7 +540,7 @@ namespace
 			case engine::hid::Input::State::MOVE:
 				notify(engine::graphics::renderer::Cursor{input.getCursor().x, input.getCursor().y});
 				// send mouse movement delta to gamestate
-				gameplay::gamestate::post_movement(input.getMove().dx, input.getMove().dy);
+				gameplay::gamestate::notify(input.getCursor().x, input.getCursor().y);
 				return true;
 			default:
 				return false;
