@@ -374,7 +374,7 @@ namespace
 
 		void barUpdate(const float progress)
 		{
-			engine::graphics::renderer::add(this->bar, engine::graphics::data::Bar{
+			engine::graphics::renderer::post_add_bar(this->bar, engine::graphics::data::Bar{
 				to_xyz(this->top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, progress});
 		}
 
@@ -411,10 +411,10 @@ namespace
 		{
 			engine::animation::update(this->worker, engine::animation::action{"idle", true});
 
-			engine::graphics::renderer::remove(this->boardModel);
+			engine::graphics::renderer::post_remove(this->boardModel);
 			this->boardModel = engine::Entity::null();
 
-			engine::graphics::renderer::remove(this->bar);
+			engine::graphics::renderer::post_remove(this->bar);
 			this->bar = engine::Entity::null();
 		}
 
@@ -483,7 +483,7 @@ namespace
 		s.start();
 
 		// move the worker
-		engine::graphics::renderer::update(
+		engine::graphics::renderer::post_update_modelviewmatrix(
 				w.id,
 				engine::graphics::data::ModelviewMatrix{ s.front });
 	}

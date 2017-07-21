@@ -278,7 +278,7 @@ namespace model
 			{
 				engine::Asset meshId { modelName + part.name + std::to_string(components.size()) };
 
-				engine::graphics::renderer::add(
+				engine::graphics::renderer::post_register_mesh(
 					meshId,
 					engine::graphics::data::Mesh{
 						mesh.vertices,
@@ -458,7 +458,7 @@ namespace model
 		debug_printline(0xffffffff, "mesh triangles: ", mesh.triangles.count() / 3);
 
 		// post mesh to renderer
-		engine::graphics::renderer::add(asset, std::move(mesh));
+		engine::graphics::renderer::post_register_character(asset, std::move(mesh));
 
 		return true;
 	}

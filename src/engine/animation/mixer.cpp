@@ -28,7 +28,7 @@ namespace engine
 	{
 		namespace renderer
 		{
-			void update(engine::Entity entity, CharacterSkinning data);
+			void post_update_characterskinning(engine::Entity entity, CharacterSkinning && data);
 		}
 	}
 }
@@ -319,7 +319,7 @@ namespace
 
 			mixers.call(mixer, extract_pallet{matrix_pallet});
 			mixers.call(mixer, extract_movement{movement});
-			engine::graphics::renderer::update(me,
+			engine::graphics::renderer::post_update_characterskinning(me,
 			                                   engine::graphics::renderer::CharacterSkinning{matrix_pallet});
 			engine::physics::post_update_movement(me, engine::physics::movement_data {engine::physics::movement_data::Type::CHARACTER, movement});
 		}

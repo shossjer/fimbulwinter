@@ -24,6 +24,7 @@
 #include <engine/graphics/viewer.hpp>
 
 #include <utility/any.hpp>
+#include <utility/variant.hpp>
 
 #include <atomic>
 #include <fstream>
@@ -287,7 +288,7 @@ namespace
 
 		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
 
-		comp_c(engine::graphics::data::CompC & data)
+		comp_c(engine::graphics::data::CompC && data)
 			: modelview(data.modelview)
 			, scale(data.scale)
 		{
@@ -315,7 +316,7 @@ namespace
 
 		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
 
-		comp_t(engine::graphics::data::CompT & data)
+		comp_t(engine::graphics::data::CompT && data)
 			: modelview(data.modelview)
 			, scale(data.scale)
 			, mesh(&resources.get<mesh_t>(data.mesh))
@@ -328,8 +329,8 @@ namespace
 		std::vector<core::maths::Matrix4x4f> matrix_pallet;
 		core::container::Buffer vertices; // transformed vertices
 
-		Character(engine::graphics::data::CompT & data)
-			: comp_t(data)
+		Character(engine::graphics::data::CompT && data)
+			: comp_t(std::move(data))
 			, vertices(mesh->vertices) // copy so that it always contain valid data
 		{}
 
@@ -424,7 +425,7 @@ namespace
 		Vector3f worldPosition;
 		float progress;
 
-		Bar(const engine::graphics::data::Bar & bar)
+		Bar(engine::graphics::data::Bar && bar)
 			: worldPosition(bar.worldPosition)
 			, progress(bar.progress)
 		{}
@@ -457,181 +458,196 @@ namespace
 
 namespace
 {
+	struct MessageRegisterCharacter
+	{
+		engine::Asset asset;
+		engine::model::mesh_t mesh;
+	};
+	struct MessageRegisterMesh
+	{
+		engine::Asset asset;
+		engine::graphics::data::Mesh mesh;
+	};
+	struct MessageRegisterTexture
+	{
+		engine::Asset asset;
+		core::graphics::Image image;
+	};
+	using AssetMessage = utility::variant
+	<
+		MessageRegisterCharacter,
+		MessageRegisterMesh,
+		MessageRegisterTexture
+	>;
+
+	struct MessageAddBar
+	{
+		engine::Entity entity;
+		engine::graphics::data::Bar bar;
+	};
+	struct MessageAddCharacterT
+	{
+		engine::Entity entity;
+		engine::graphics::data::CompT component;
+	};
+	struct MessageAddComponentC
+	{
+		engine::Entity entity;
+		engine::graphics::data::CompC component;
+	};
+	struct MessageAddComponentT
+	{
+		engine::Entity entity;
+		engine::graphics::data::CompT component;
+	};
+	struct MessageAddLineC
+	{
+		engine::Entity entity;
+		engine::graphics::data::LineC line;
+	};
+	struct MessageMakeNonselectable
+	{
+		engine::Entity entity;
+	};
+	struct MessageMakeSelectable
+	{
+		engine::Entity entity;
+	};
+	struct MessageRemove
+	{
+		engine::Entity entity;
+	};
+	struct MessageUpdateCharacterSkinning
+	{
+		engine::Entity entity;
+		engine::graphics::renderer::CharacterSkinning character_skinning;
+	};
+	struct MessageUpdateModelviewMatrix
+	{
+		engine::Entity entity;
+		engine::graphics::data::ModelviewMatrix modelview_matrix;
+	};
+	using EntityMessage = utility::variant
+	<
+		MessageAddBar,
+		MessageAddCharacterT,
+		MessageAddComponentC,
+		MessageAddComponentT,
+		MessageAddLineC,
+		MessageMakeNonselectable,
+		MessageMakeSelectable,
+		MessageRemove,
+		MessageUpdateCharacterSkinning,
+		MessageUpdateModelviewMatrix
+	>;
+
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera2D> queue_notify_camera2d;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera3D> queue_notify_camera3d;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Viewport> queue_notify_viewport;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Cursor> queue_notify_cursor;
 
-	// queues for adding Assets (Resources and Materials)
-
-	core::container::CircleQueueSRMW<std::pair<engine::Asset,
-	                                           core::graphics::Image>,
-	                                 100> queue_register_texture;
-
-	core::container::CircleQueueSRMW<std::pair<engine::Asset,
-	                                           engine::model::mesh_t>,
-	                                 100> queue_add_character_model;
-	core::container::CircleQueueSRMW<std::pair<engine::Asset,
-	                                           engine::graphics::data::Mesh>,
-	                                 100> queue_add_mesh;
-
-	// queues for adding and removing Entities
-
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::data::LineC>,
-	                                 10> queue_add_linec;
-
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::data::CompT>,
-	                                 100> queue_add_component;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::data::CompT>,
-	                                 100> queue_add_character_instance;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::data::CompC>,
-	                                 100> queue_asset_instances;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::data::Bar>,
-	                                 100> queue_add_bar;
-
-	core::container::CircleQueueSRMW<engine::Entity,
-	                                 100> queue_remove;
-
-	// queues for updating Entities
-
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::data::ModelviewMatrix>,
-	                                 100> queue_update_modelviewmatrix;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::renderer::CharacterSkinning>,
-	                                 100> queue_update_characterskinning;
-
-	core::container::CircleQueueSRMW<engine::Entity, 100> queue_make_selectable;
-	core::container::CircleQueueSRMW<engine::Entity, 100> queue_make_nonselectable;
+	core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
+	core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
 
 	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity>, 10> queue_select;
 
-	void poll_add_queue()
+	void poll_queues()
 	{
-		// update queues for adding Assets
+		AssetMessage asset_message;
+		while (queue_assets.try_pop(asset_message))
 		{
-			std::pair<engine::Asset, core::graphics::Image> message_register_texture;
-			while (queue_register_texture.try_pop(message_register_texture))
+			struct ProcessMessage
 			{
-				materials.emplace<texture_t>(message_register_texture.first,
-					std::move(message_register_texture.second));
-			}
-			std::pair<engine::Asset, engine::graphics::data::Mesh> message_add_mesh;
-			while (queue_add_mesh.try_pop(message_add_mesh))
-			{
-				debug_assert(!resources.contains(message_add_mesh.first));
-				resources.emplace<mesh_t>(
-					message_add_mesh.first,
-					std::move(message_add_mesh.second));
-			}
-			std::pair<engine::Asset, engine::model::mesh_t> message_add_mesh_char;
-			while (queue_add_character_model.try_pop(message_add_mesh_char))
-			{
-				debug_assert(!resources.contains(message_add_mesh_char.first));
-				resources.emplace<mesh_t>(
-					message_add_mesh_char.first,
-					std::move(message_add_mesh_char.second));
-			}
+				void operator () (MessageRegisterCharacter && x)
+				{
+					debug_assert(!resources.contains(x.asset));
+					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
+				}
+				void operator () (MessageRegisterMesh && x)
+				{
+					debug_assert(!resources.contains(x.asset));
+					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
+				}
+				void operator () (MessageRegisterTexture && x)
+				{
+					debug_assert(!materials.contains(x.asset));
+					materials.emplace<texture_t>(x.asset, std::move(x.image));
+				}
+			};
+			visit(ProcessMessage{}, std::move(asset_message));
 		}
 
-		// update queues for adding Entities
+		EntityMessage entity_message;
+		while (queue_entities.try_pop(entity_message))
 		{
-			std::pair<engine::Entity,
-				engine::graphics::data::LineC> message_add_linec;
-			while (queue_add_linec.try_pop(message_add_linec))
+			struct ProcessMessage
 			{
-				components.add(message_add_linec.first,
-					std::move(message_add_linec.second));
-			}
-			std::pair<engine::Entity, engine::graphics::data::CompT> component;
-			while (queue_add_component.try_pop(component))
-			{
-				components.emplace<comp_t>(component.first, component.second);
-			}
-			std::pair<engine::Entity, engine::graphics::data::CompT> character;
-			while (queue_add_character_instance.try_pop(character))
-			{
-				components.emplace<Character>(character.first, character.second);
-			}
-			std::pair<engine::Entity, engine::graphics::data::CompC> componentC;
-			while (queue_asset_instances.try_pop(componentC))
-			{
-				components.emplace<comp_c>(componentC.first, componentC.second);
-			}
-			std::pair<engine::Entity, engine::graphics::data::Bar> barData;
-			while(queue_add_bar.try_pop(barData))
-			{
-				if (components.contains(barData.first))
+				void operator () (MessageAddBar && x)
 				{
-					auto & bar = components.get<Bar>(barData.first);
-					bar.worldPosition = barData.second.worldPosition;
-					bar.progress = barData.second.progress;
+					if (components.contains(x.entity))
+					{
+						// is this safe to do?
+						auto & bar = components.get<Bar>(x.entity);
+						bar.worldPosition = x.bar.worldPosition;
+						bar.progress = x.bar.progress;
+					}
+					else
+					{
+						components.emplace<Bar>(x.entity, std::move(x.bar));
+					}
 				}
-				else
+				void operator () (MessageAddCharacterT && x)
 				{
-					components.emplace<Bar>(barData.first, barData.second);
+					debug_assert(!components.contains(x.entity));
+					components.emplace<Character>(x.entity, std::move(x.component));
 				}
-			}
-		}
-
-		//
-		{
-			engine::Entity message_make_selectable;
-			while (queue_make_selectable.try_pop(message_make_selectable))
-			{
-				const engine::Entity entity = message_make_selectable;
-				const engine::graphics::opengl::Color4ub color = {(entity & 0x000000ff) >> 0,
-				                                                  (entity & 0x0000ff00) >> 8,
-				                                                  (entity & 0x00ff0000) >> 16,
-				                                                  (entity & 0xff000000) >> 24};
-				components.call(entity, set_selectable_color{color});
-			}
-			engine::Entity message_make_nonselectable;
-			while (queue_make_nonselectable.try_pop(message_make_nonselectable))
-			{
-				const engine::Entity entity = message_make_nonselectable;
-				const engine::graphics::opengl::Color4ub color = {0, 0, 0, 0};
-				components.call(entity, set_selectable_color{color});
-			}
-		}
-	}
-	void poll_remove_queue()
-	{
-		engine::Entity entity;
-		while (queue_remove.try_pop(entity))
-		{
-			// TODO: remove assets that no one uses any more
-			components.remove(entity);
-		}
-	}
-	void poll_update_queue()
-	{
-		std::pair<engine::Entity,
-		          engine::graphics::data::ModelviewMatrix> message_update_modelviewmatrix;
-		while (queue_update_modelviewmatrix.try_pop(message_update_modelviewmatrix))
-		{
-			if (components.contains(message_update_modelviewmatrix.first))
-			{
-				components.update(message_update_modelviewmatrix.first,
-				                  std::move(message_update_modelviewmatrix.second));
-			}
-			else
-			{
-				// TODO: bring back when all physics object has a rendered shape
-			//	debug_printline(0xffffffff, "WARNING no component for entity ", message_update_modelviewmatrix.first);
-			}
-		}
-		std::pair<engine::Entity,
-		          engine::graphics::renderer::CharacterSkinning> message_update_characterskinning;
-		while (queue_update_characterskinning.try_pop(message_update_characterskinning))
-		{
-			components.update(message_update_characterskinning.first,
-			                  std::move(message_update_characterskinning.second));
+				void operator () (MessageAddComponentC && x)
+				{
+					debug_assert(!components.contains(x.entity));
+					components.emplace<comp_c>(x.entity, std::move(x.component));
+				}
+				void operator () (MessageAddComponentT && x)
+				{
+					debug_assert(!components.contains(x.entity));
+					components.emplace<comp_t>(x.entity, std::move(x.component));
+				}
+				void operator () (MessageAddLineC && x)
+				{
+					debug_assert(!components.contains(x.entity));
+					components.emplace<linec_t>(x.entity, std::move(x.line));
+				}
+				void operator () (MessageMakeNonselectable && x)
+				{
+					debug_assert(components.contains(x.entity));
+					const engine::graphics::opengl::Color4ub color = {0, 0, 0, 0};
+					components.call(x.entity, set_selectable_color{color});
+				}
+				void operator () (MessageMakeSelectable && x)
+				{
+					debug_assert(components.contains(x.entity));
+					const engine::graphics::opengl::Color4ub color = {(x.entity & 0x000000ff) >> 0,
+					                                                  (x.entity & 0x0000ff00) >> 8,
+					                                                  (x.entity & 0x00ff0000) >> 16,
+					                                                  (x.entity & 0xff000000) >> 24};
+					components.call(x.entity, set_selectable_color{color});
+				}
+				void operator () (MessageRemove && x)
+				{
+					debug_assert(components.contains(x.entity));
+					components.remove(x.entity);
+				}
+				void operator () (MessageUpdateCharacterSkinning && x)
+				{
+					debug_assert(components.contains(x.entity));
+					components.update(x.entity, std::move(x.character_skinning));
+				}
+				void operator () (MessageUpdateModelviewMatrix && x)
+				{
+					debug_assert(components.contains(x.entity));
+					components.update(x.entity, std::move(x.modelview_matrix));
+				}
+			};
+			visit(ProcessMessage{}, std::move(entity_message));
 		}
 	}
 }
@@ -867,17 +883,17 @@ namespace
 		}
 
 		// add cuboid mesh as an asset
-		engine::graphics::renderer::add(
+		engine::graphics::renderer::post_register_mesh(
 			engine::Asset{ "cuboid" },
 			createCuboid());
 
 		core::graphics::Image image{"res/box.png"};
-		engine::graphics::renderer::post_register_texture(engine::Asset{"my_png"}, image);
+		engine::graphics::renderer::post_register_texture(engine::Asset{"my_png"}, std::move(image));
 
 		core::graphics::Image image2{ "res/dude.png" };
-		engine::graphics::renderer::post_register_texture(engine::Asset{ "dude" }, image2);
+		engine::graphics::renderer::post_register_texture(engine::Asset{ "dude" }, std::move(image2));
 
-		engine::graphics::renderer::add(
+		engine::graphics::renderer::post_add_component(
 			engine::Entity::create(),
 			engine::graphics::data::CompT{
 				core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f),
@@ -890,9 +906,7 @@ namespace
 	void render_update()
 	{
 		// poll events
-		poll_add_queue();
-		poll_update_queue();
-		poll_remove_queue();
+		poll_queues();
 		//
 		// read notifications
 		//
@@ -1399,78 +1413,73 @@ namespace engine
 				queue_notify_cursor.try_push(std::move(data));
 			}
 
-			// add Assets (Materials and Resources)
-			void post_register_texture(engine::Asset asset, const core::graphics::Image & image)
+			void post_register_character(engine::Asset asset, engine::model::mesh_t && data)
 			{
-				const auto res = queue_register_texture.try_push(std::make_pair(asset, image));
+				const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterCharacter>, asset, std::move(data));
+				debug_assert(res);
+			}
+			void post_register_mesh(engine::Asset asset, data::Mesh && data)
+			{
+				const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterMesh>, asset, std::move(data));
+				debug_assert(res);
+			}
+			void post_register_texture(engine::Asset asset, core::graphics::Image && image)
+			{
+				const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterTexture>, asset, std::move(image));
 				debug_assert(res);
 			}
 
-			void add(engine::Asset asset, data::Mesh && data)
+			void post_add_bar(engine::Entity entity, data::Bar && data)
 			{
-				const auto res = queue_add_mesh.try_push(std::make_pair(asset, std::move(data)));
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddBar>, entity, std::move(data));
 				debug_assert(res);
 			}
-			void add(engine::Asset asset, engine::model::mesh_t && data)
+			void post_add_character(engine::Entity entity, data::CompT && data)
 			{
-				const auto res = queue_add_character_model.try_push(std::make_pair(asset, std::move(data)));
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddCharacterT>, entity, std::move(data));
 				debug_assert(res);
 			}
-
-			// add and remove Entities
-			void add(engine::Entity entity, data::LineC data)
+			void post_add_component(engine::Entity entity, data::CompC && data)
 			{
-				const auto res = queue_add_linec.try_push(std::make_pair(entity, data));
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddComponentC>, entity, std::move(data));
 				debug_assert(res);
 			}
-
-			void add(engine::Entity entity, data::CompT && data)
+			void post_add_component(engine::Entity entity, data::CompT && data)
 			{
-				const auto res = queue_add_component.try_push(std::make_pair(entity, std::move(data)));
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddComponentT>, entity, std::move(data));
 				debug_assert(res);
 			}
-			void add(engine::Entity entity, data::CompC && data)
+			void post_add_line(engine::Entity entity, data::LineC && data)
 			{
-				const auto res = queue_asset_instances.try_push(std::make_pair(entity, data));
-				debug_assert(res);
-			}
-			void add_character_instance(engine::Entity entity, data::CompT && data)
-			{
-				const auto res = queue_add_character_instance.try_push(std::make_pair(entity, data));
-				debug_assert(res);
-			}
-			void add(engine::Entity entity, data::Bar && data)
-			{
-				const auto res = queue_add_bar.try_push(std::make_pair(entity, data));
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddLineC>, entity, std::move(data));
 				debug_assert(res);
 			}
 
-			void remove(engine::Entity entity)
-			{
-				const auto res = queue_remove.try_push(entity);
-				debug_assert(res);
-			}
-
-			// update Entities
-			void update(engine::Entity entity, data::ModelviewMatrix data)
-			{
-				const auto res = queue_update_modelviewmatrix.try_push(std::make_pair(entity, data));
-				debug_assert(res);
-			}
-			void update(engine::Entity entity, CharacterSkinning data)
-			{
-				const auto res = queue_update_characterskinning.try_push(std::make_pair(entity, data));
-				debug_assert(res);
-			}
-
-			void post_make_selectable(engine::Entity entity)
-			{
-				const auto res = queue_make_selectable.try_push(entity);
-				debug_assert(res);
-			}
 			void post_make_nonselectable(engine::Entity entity)
 			{
-				const auto res = queue_make_nonselectable.try_push(entity);
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeNonselectable>, entity);
+				debug_assert(res);
+			}
+			void post_make_selectable(engine::Entity entity)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeSelectable>, entity);
+				debug_assert(res);
+			}
+
+			void post_remove(engine::Entity entity)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
+				debug_assert(res);
+			}
+
+			void post_update_characterskinning(engine::Entity entity, CharacterSkinning && data)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateCharacterSkinning>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_modelviewmatrix(engine::Entity entity, data::ModelviewMatrix && data)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateModelviewMatrix>, entity, std::move(data));
 				debug_assert(res);
 			}
 

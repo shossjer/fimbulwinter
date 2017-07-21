@@ -172,29 +172,23 @@ namespace engine
 			// void notify(Camera3D && data);
 			// void notify(Viewport && data);
 
-			// add Assets (Materials and Resources)
-			void post_register_texture(engine::Asset asset, const core::graphics::Image & image);
+			void post_register_character(engine::Asset asset, engine::model::mesh_t && data);
+			void post_register_mesh(engine::Asset asset, data::Mesh && data);
+			void post_register_texture(engine::Asset asset, core::graphics::Image && image);
 
-			void add(engine::Asset asset, data::Mesh && data);
-			void add(engine::Asset asset, engine::model::mesh_t && data);
-
-			// add and remove Entities
-			void add(engine::Entity entity, data::LineC data);
-
-			void add(engine::Entity entity, data::CompT && data);
-			void add(engine::Entity entity, data::CompC && data);
-			void add_character_instance(
-				     engine::Entity entity, data::CompT && data);
-			void add(engine::Entity entity, data::Bar && bar);
-
-			void remove(engine::Entity entity);
-
-			// update Entities
-			void update(engine::Entity entity, data::ModelviewMatrix data);
-			// void update(engine::Entity entity, CharacterSkinning data);
+			void post_add_bar(engine::Entity entity, data::Bar && bar);
+			void post_add_character(engine::Entity entity, data::CompT && data);
+			void post_add_component(engine::Entity entity, data::CompC && data);
+			void post_add_component(engine::Entity entity, data::CompT && data);
+			void post_add_line(engine::Entity entity, data::LineC && data);
 
 			void post_make_selectable(engine::Entity entity);
 			void post_make_nonselectable(engine::Entity entity);
+
+			void post_remove(engine::Entity entity);
+
+			// void post_update_characterskinning(engine::Entity entity, CharacterSkinning && data);
+			void post_update_modelviewmatrix(engine::Entity entity, data::ModelviewMatrix && data);
 
 			void post_select(int x, int y, engine::Entity entity);
 
