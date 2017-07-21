@@ -104,6 +104,32 @@ namespace mpl
 	template <typename ...Ts>
 	using is_different = negation<is_same<Ts...>>;
 
+	struct is_brace_constructible_impl
+	{
+		template <typename T>
+		static true_type helper(T);
+
+		template <typename T, typename ...Ps>
+		static auto test(int) -> decltype(helper(T{std::declval<Ps>()...}));
+		template <typename T, typename ...Ps>
+		static false_type test(...);
+	};
+	template <typename T, typename ...Ps>
+	using is_brace_constructible = decltype(is_brace_constructible_impl::test<T, Ps...>(0));
+
+	struct is_paren_constructible_impl
+	{
+		template <typename T>
+		static true_type helper(T);
+
+		template <typename T, typename ...Ps>
+		static auto test(int) -> decltype(helper(T(std::declval<Ps>()...)));
+		template <typename T, typename ...Ps>
+		static false_type test(...);
+	};
+	template <typename T, typename ...Ps>
+	using is_paren_constructible = decltype(is_paren_constructible_impl::test<T, Ps...>(0));
+
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  lists

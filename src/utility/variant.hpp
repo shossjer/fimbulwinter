@@ -113,7 +113,14 @@ namespace utility
 
 			T instance;
 
-			template <typename ...Ps>
+			template <typename ...Ps,
+			          REQUIRES((mpl::is_paren_constructible<T, Ps...>::value))>
+			variant_alternative(Ps && ...ps) :
+				instance(std::forward<Ps>(ps)...)
+			{}
+			template <typename ...Ps,
+			          REQUIRES((!mpl::is_paren_constructible<T, Ps...>::value)),
+			          REQUIRES((mpl::is_brace_constructible<T, Ps...>::value))>
 			variant_alternative(Ps && ...ps) :
 				instance{std::forward<Ps>(ps)...}
 			{}
@@ -154,17 +161,17 @@ namespace utility
 			{}
 			template <typename ...Ps>
 			variant_union(in_place_index_t<0>, Ps && ...ps) :
-				head_{std::forward<Ps>(ps)...}
+				head_(std::forward<Ps>(ps)...)
 			{}
 			template <size_t N, typename ...Ps>
 			variant_union(in_place_index_t<N>, Ps && ...ps) :
-				tail_{in_place_index<N - 1>, std::forward<Ps>(ps)...}
+				tail_(in_place_index<N - 1>, std::forward<Ps>(ps)...)
 			{}
 
 			template <typename ...Ps>
 			void construct(mpl::index_constant<0>, Ps && ...ps)
 			{
-				new (& head_) A{std::forward<Ps>(ps)...};
+				new (& head_) A(std::forward<Ps>(ps)...);
 			}
 			template <size_t N, typename ...Ps>
 			void construct(mpl::index_constant<N>, Ps && ...ps)
@@ -338,11 +345,11 @@ namespace utility
 				}
 			}
 			variant_storage() noexcept(variant_is_nothrow_default_constructible<Ts...>::value) :
-				index_{0},
-				union_{in_place_index<0>}
+				index_(0),
+				union_(in_place_index<0>)
 			{}
 			variant_storage(const this_type & v) noexcept(variant_is_nothrow_copy_constructible<Ts...>::value) :
-				index_{v.index_}
+				index_(v.index_)
 			{
 				if (v.index_ != variant_npos)
 				{
@@ -350,7 +357,7 @@ namespace utility
 				}
 			}
 			variant_storage(this_type && v) noexcept(variant_is_nothrow_move_constructible<Ts...>::value) :
-				index_{v.index_}
+				index_(v.index_)
 			{
 				if (v.index_ != variant_npos)
 				{
@@ -359,8 +366,8 @@ namespace utility
 			}
 			template <size_t N, typename ...Ps>
 			variant_storage(in_place_index_t<N>, Ps && ...ps) :
-				index_{N},
-				union_{in_place_index<N>, std::forward<Ps>(ps)...}
+				index_(N),
+				union_(in_place_index<N>, std::forward<Ps>(ps)...)
 			{}
 			this_type & operator = (const this_type & v) noexcept(variant_is_nothrow_copy_assignable<Ts...>::value)
 			{
@@ -710,16 +717,16 @@ namespace utility
 		          typename T = mpl::best_convertible_t<P, Ts...>,
 		          REQUIRES((std::is_constructible<T, P>::value))>
 		variant(P && p) noexcept(detail::variant_is_nothrow_constructible<T, P>::value) :
-			storage{in_place_index<mpl::index_of<T, Ts...>::value>, std::forward<P>(p)}
+			storage(in_place_index<mpl::index_of<T, Ts...>::value>, std::forward<P>(p))
 		{}
 		template <size_t I, typename ...Ps>
 		variant(in_place_index_t<I>, Ps && ...ps) noexcept(detail::variant_is_nothrow_constructible<mpl::type_at<I, Ts...>, Ps...>::value) :
-			storage{in_place_index<I>, std::forward<Ps>(ps)...}
+			storage(in_place_index<I>, std::forward<Ps>(ps)...)
 		{}
 		template <typename T, typename ...Ps,
 		          REQUIRES((mpl::member_of<T, Ts...>::value))>
 		variant(in_place_type_t<T>, Ps && ...ps) noexcept(detail::variant_is_nothrow_constructible<T, Ps...>::value) :
-			storage{in_place_index<mpl::index_of<T, Ts...>::value>, std::forward<Ps>(ps)...}
+			storage(in_place_index<mpl::index_of<T, Ts...>::value>, std::forward<Ps>(ps)...)
 		{}
 		template <typename P,
 		          REQUIRES((!mpl::is_same<mpl::decay_t<P>, this_type>::value)),

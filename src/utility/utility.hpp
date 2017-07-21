@@ -2,6 +2,7 @@
 #ifndef UTILITY_UTILITY_HPP
 #define UTILITY_UTILITY_HPP
 
+#include <utility/concepts.hpp>
 #include <utility/type_traits.hpp>
 
 #include <utility>
@@ -37,6 +38,20 @@ namespace utility
 	struct is_in_place_type : mpl::false_type {};
 	template <typename T>
 	struct is_in_place_type<in_place_type_t<T>> : mpl::true_type {};
+
+	template <typename T, typename ...Ps,
+	          REQUIRES((mpl::is_paren_constructible<T, Ps...>::value))>
+	T construct(Ps && ...ps)
+	{
+		return T(std::forward<Ps>(ps)...);
+	}
+	template <typename T, typename ...Ps,
+	          REQUIRES((!mpl::is_paren_constructible<T, Ps...>::value)),
+	          REQUIRES((mpl::is_brace_constructible<T, Ps...>::value))>
+	T construct(Ps && ...ps)
+	{
+		return T{std::forward<Ps>(ps)...};
+	}
 }
 
 #endif /* UTILITY_UTILITY_HPP */
