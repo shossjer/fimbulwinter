@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <ostream>
 
 namespace engine
 {
@@ -37,6 +38,13 @@ namespace engine
 		operator value_type () const
 		{
 			return this->id;
+		}
+
+	public:
+		friend std::ostream & operator << (std::ostream & stream, const this_type & entity)
+		{
+			stream << entity.id;
+			return stream;
 		}
 
 	public:
