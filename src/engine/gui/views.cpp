@@ -170,7 +170,6 @@ namespace
 
 		// needs to be called after any changes has been made to Components
 		virtual void measure(
-			const Margin margin_parent,
 			const Size size_parent) = 0;
 
 		// total height of the view including margins
@@ -200,7 +199,7 @@ namespace
 
 			if (this->gravity.place(gravity_mask_parent, Gravity::HORIZONTAL_RIGHT))
 			{
-				offset_horizontal = buff[0] + size_parent.width.value - this->size.width.value;
+				offset_horizontal = buff[0] + size_parent.width.value - this->size.width.value - this->margin.right;
 			}
 			else
 			if (this->gravity.place(gravity_mask_parent, Gravity::HORIZONTAL_CENTRE))
@@ -209,14 +208,14 @@ namespace
 			}
 			else // LEFT default
 			{
-				offset_horizontal = buff[0];
+				offset_horizontal = buff[0] + this->margin.left;
 			}
 
 			float offset_vertical;
 
 			if (this->gravity.place(gravity_mask_parent, Gravity::VERTICAL_BOTTOM))
 			{
-				offset_vertical = buff[1] + size_parent.height.value - this->size.height.value;
+				offset_vertical = buff[1] + size_parent.height.value - this->size.height.value - this->margin.bottom;
 			}
 			else
 			if (this->gravity.place(gravity_mask_parent, Gravity::VERTICAL_CENTRE))
@@ -225,7 +224,7 @@ namespace
 			}
 			else // TOP default
 			{
-				offset_vertical = buff[1];
+				offset_vertical = buff[1] + this->margin.top;
 			}
 
 			return Vector3f(offset_horizontal, offset_vertical, buff[2]);
@@ -253,19 +252,19 @@ namespace
 
 	private:
 
-		static void measure_dimen(const value_t parent_margin, const Size::Dimen parent_size, Size::Dimen & dimen)
+		static void measure_dimen(const Size::Dimen parent_size, const value_t margin, Size::Dimen & dimen)
 		{
-			const value_t parent_total = parent_size.value - parent_margin;
+			const value_t max_size = parent_size.value - margin;
 
 			switch (dimen.type)
 			{
 			case Size::TYPE::FIXED:
 
-				debug_assert(parent_total >= dimen.value);
+				debug_assert(max_size >= dimen.value);
 				break;
 			case Size::TYPE::PARENT:
 
-				dimen.value = parent_total;
+				dimen.value = max_size;
 				break;
 			default:
 				debug_unreachable();
@@ -286,12 +285,11 @@ namespace
 		}
 
 		void measure(
-			const Margin margin_parent,
 			const Size size_parent) override
 		{
 			// measure size
-			measure_dimen(margin_parent.height(), size_parent.height, this->size.height);
-			measure_dimen(margin_parent.width(), size_parent.width, this->size.width);
+			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
+			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
 		}
 
 		void translate(core::maths::Vector3f delta)
@@ -349,21 +347,21 @@ namespace
 			: View(entity, gravity, margin, size)
 		{}
 
-		static void measure_dimen(const value_t parent_margin, const Size::Dimen parent_size, Size::Dimen & dimen)
+		static void measure_dimen(const Size::Dimen parent_size, const value_t margin, Size::Dimen & dimen)
 		{
-			const value_t parent_total = parent_size.value - parent_margin;
+			const value_t max_size = parent_size.value - margin;
 
 			switch (dimen.type)
 			{
 			case Size::TYPE::FIXED:
 
-				debug_assert(parent_total >= dimen.value);
+				debug_assert(max_size >= dimen.value);
 				break;
 			case Size::TYPE::PARENT:
 			case Size::TYPE::WRAP:
 			default:
 
-				dimen.value = parent_total;
+				dimen.value = max_size;
 				break;
 			}
 		}
@@ -413,7 +411,7 @@ namespace
 
 				for (auto p : this->children)
 				{
-					p->arranage(size_parent, mask, offset, offset_depth);
+					p->arranage(this->size, mask, offset, offset_depth);
 					offset += Vector3f(static_cast<float>(p->width()), 0.f, 0.f);
 				}
 			}
@@ -423,18 +421,17 @@ namespace
 
 				for (auto p : this->children)
 				{
-					p->arranage(size_parent, mask, offset, offset_depth);
+					p->arranage(this->size, mask, offset, offset_depth);
 					offset += Vector3f(0.f, static_cast<float>(p->height()), 0.f);
 				}
 			}
 		}
 
 		void measure(
-			const Margin margin_parent,
 			const Size size_parent) override
 		{
-			measure_dimen(margin_parent.height(), size_parent.height, this->size.height);
-			measure_dimen(margin_parent.width(), size_parent.width, this->size.width);
+			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
+			measure_dimen(size_parent.width, margin.width(), this->size.width);
 
 			Size size_remaining = this->size;
 
@@ -442,7 +439,7 @@ namespace
 			{
 				for (auto p : this->children)
 				{
-					p->measure(this->margin, size_remaining);
+					p->measure(size_remaining);
 					size_remaining.width -= p->width();
 				}
 
@@ -453,7 +450,7 @@ namespace
 			{
 				for (auto p : this->children)
 				{
-					p->measure(this->margin, size_remaining);
+					p->measure(size_remaining);
 					size_remaining.height -= p->height();
 				}
 
@@ -480,25 +477,25 @@ namespace
 			float & offset_depth) override
 		{
 			const Vector3f offset = arrange(size_parent, gravity_mask_parent, offset_parent);
+			const Gravity gravity = Gravity::unmasked();
 
 			for (auto p : this->children)
 			{
-				p->arranage(size_parent, Gravity::unmasked(), offset, offset_depth);
+				p->arranage(this->size, gravity, offset, offset_depth);
 			}
 		}
 
 		void measure(
-			const Margin margin_parent,
 			const Size size_parent) override
 		{
-			measure_dimen(margin_parent.height(), size_parent.height, this->size.height);
-			measure_dimen(margin_parent.width(), size_parent.width, this->size.width);
+			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
+			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
 
 			Size size_max = this->size;
 
 			for (auto p : this->children)
 			{
-				p->measure(this->margin, this->size);
+				p->measure(this->size);
 
 				// used if this size is wrap
 				size_max.width.value = std::max(size_max.width.value, p->width());
@@ -530,8 +527,9 @@ namespace
 		// but only the graphical ones are affected... Input needed.
 		core::container::Collection<
 			engine::Entity, 201,
-			std::array<LinearGroup, 100>,
-			std::array<PanelC, 100>>
+			std::array<LinearGroup, 20>,
+			std::array<RelativeGroup, 20>,
+			std::array<PanelC, 50>>
 			components;
 
 	public:
@@ -557,7 +555,7 @@ namespace
 			// TODO: window depth/priority
 			float depth = 0.f;
 
-			grandparent->measure(View::Margin{ }, this->size);
+			grandparent->measure(this->size);
 			grandparent->arranage(this->size, View::Gravity{}, this->position, depth);
 		}
 
@@ -637,6 +635,17 @@ namespace
 			parent.adopt(&v);
 			return v;
 		}
+
+		auto & create_relative(Parent & parent, View::Gravity gravity, View::Margin margin, View::Size size)
+		{
+			auto entity = engine::Entity::create();
+
+			auto & v = this->components.emplace<RelativeGroup>(
+				entity, entity, gravity, margin, size);
+
+			parent.adopt(&v);
+			return v;
+		}
 	};
 
 	core::container::Collection<
@@ -666,14 +675,30 @@ namespace gui
 			auto & window = windows.emplace<Window>(
 				engine::Asset{ "profile" },
 				View::Size{
-					{ View::Size::TYPE::FIXED, 200 },
-					{ View::Size::TYPE::FIXED, 300 } },
+					{ View::Size::TYPE::FIXED, 220 },
+					{ View::Size::TYPE::FIXED, 320 } },
 				Vector3f{20.f, 40.f, 0.f} );
 
-			auto & group = window.create_linear(
+			auto & groupBackground = window.create_relative(
 				window,
 				View::Gravity{},
 				View::Margin{},
+				View::Size{
+					{ View::Size::TYPE::PARENT },
+					{ View::Size::TYPE::PARENT } });
+
+			// main background color
+			window.create_panel(
+				groupBackground,
+				View::Gravity{},
+				View::Margin{},
+				View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT },
+				0xFFFF00FF);
+
+			auto & group = window.create_linear(
+				groupBackground,
+				View::Gravity{},
+				View::Margin{ 10, 10, 10, 10 },
 				View::Size{
 					{ View::Size::TYPE::PARENT },
 					{ View::Size::TYPE::PARENT } },
@@ -727,6 +752,85 @@ namespace gui
 			// update size and offset of windows components
 			window.measure();
 		}
+
+		{
+			auto & window = windows.emplace<Window>(
+				engine::Asset{ "inventory" },
+				View::Size{
+					{ View::Size::TYPE::FIXED, 420 },
+					{ View::Size::TYPE::FIXED, 220 } },
+					Vector3f{ 250.f, 40.f, 0.f });
+
+			auto & groupBackground = window.create_relative(
+				window,
+				View::Gravity{},
+				View::Margin{},
+				View::Size{
+					{ View::Size::TYPE::PARENT },
+					{ View::Size::TYPE::PARENT } });
+
+			// main background color
+			window.create_panel(
+				groupBackground,
+				View::Gravity{},
+				View::Margin{},
+				View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT },
+				0xFF0000FF);
+
+			auto & groupMain = window.create_linear(
+				groupBackground,
+				View::Gravity{},
+				View::Margin{ 10, 10, 10, 10 },
+				View::Size{
+					{ View::Size::TYPE::PARENT },
+					{ View::Size::TYPE::PARENT } },
+					LinearGroup::ORIENTATION::HORIZONTAL);
+
+			{
+				auto & groupLeft = window.create_linear(
+					groupMain,
+					View::Gravity{},
+					View::Margin{},
+					View::Size{ 200, View::Size::TYPE::PARENT },
+					LinearGroup::ORIENTATION::VERTICAL);
+
+				for (int i = 0; i < 20; i++)
+				{
+					uint32_t c = 255 * i / 19;
+					window.create_panel(
+						groupLeft,
+						View::Gravity{},
+						View::Margin{},
+						View::Size{ View::Size::TYPE::PARENT, 10 },
+						0xFF000000 + c + (c << 8) + (c << 16));
+				}
+			}
+			{
+				auto & groupRight = window.create_relative(
+					groupMain,
+					View::Gravity{},
+					View::Margin{},
+					View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT });
+
+				for (int i = 0; i < 10; i++)
+				{
+					uint32_t c = 255 * i / 9;
+					window.create_panel(
+						groupRight,
+						View::Gravity{ View::Gravity::HORIZONTAL_CENTRE | View::Gravity::VERTICAL_CENTRE },
+						View::Margin{ i*10, i*10, i*10, i*10 },
+						View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT },
+						0xFF000000 + c + (c << 8) + (c << 16));
+				}
+			}
+
+			window.measure();
+		}
+	}
+
+	void destroy()
+	{
+		// TODO: do something
 	}
 
 	void show(engine::Asset window)
@@ -737,11 +841,6 @@ namespace gui
 	void hide(engine::Asset window)
 	{
 		windows.get<Window>(window).hide();
-	}
-
-	void destroy()
-	{
-		// TODO: do something
 	}
 
 	void update(engine::Asset window, std::vector<std::pair<engine::Entity, Data>> datas)

@@ -426,6 +426,26 @@ namespace
 		}
 	};
 
+	struct WindowInventory
+	{
+		void operator = (std::tuple<engine::Command, int> && args)
+		{
+			switch (std::get<0>(args))
+			{
+			case engine::Command::BUTTON_DOWN_ACTIVE:
+				engine::gui::show("inventory");
+				break;
+			case engine::Command::BUTTON_DOWN_INACTIVE:
+				engine::gui::hide("inventory");
+				break;
+			case engine::Command::BUTTON_UP_ACTIVE:
+			case engine::Command::BUTTON_UP_INACTIVE:
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+	};
 	struct WindowProfile
 	{
 		void operator = (std::tuple<engine::Command, int> && args)
@@ -485,6 +505,7 @@ namespace
 		std::array<GUIComponent, 100>,
 		std::array<OverviewCamera, 1>,
 		std::array<Selector, 1>,
+		std::array<WindowInventory, 1>,
 		std::array<WindowProfile, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>
@@ -632,6 +653,11 @@ namespace gamestate
 		gameplay::ui::post_bind("game", pancontrol, 0);
 		gameplay::ui::post_bind("game", bordercontrol, 0);
 
+		auto inventorycontrol = engine::Entity::create();
+		gameplay::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
+		gameplay::ui::post_bind("debug", inventorycontrol, 0);
+		gameplay::ui::post_bind("game", inventorycontrol, 0);
+		components.emplace<WindowInventory>(inventorycontrol);
 		auto profilecontrol = engine::Entity::create();
 		gameplay::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
 		gameplay::ui::post_bind("debug", profilecontrol, 0);
