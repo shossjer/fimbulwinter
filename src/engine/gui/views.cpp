@@ -14,6 +14,44 @@ namespace
 	{
 	public:
 
+		struct Gravity
+		{
+			static constexpr uint_fast16_t HORIZONTAL_LEFT = 1 << 0;
+			static constexpr uint_fast16_t HORIZONTAL_CENTRE = 1 << 1;
+			static constexpr uint_fast16_t HORIZONTAL_RIGHT = 1 << 2;
+
+			static constexpr uint_fast16_t VERTICAL_TOP = 1 << 3;
+			static constexpr uint_fast16_t VERTICAL_CENTRE = 1 << 4;
+			static constexpr uint_fast16_t VERTICAL_BOTTOM = 1 << 5;
+
+		private:
+
+			uint_fast16_t flags;
+
+		public:
+
+			Gravity()
+				: flags(HORIZONTAL_LEFT | VERTICAL_TOP)
+			{}
+
+			Gravity(const uint_fast16_t flags)
+				: flags(flags)
+			{}
+
+			static Gravity unmasked()
+			{
+				return Gravity{ 0xFFFF };
+			}
+
+		public:
+
+			// checks is Gravity is set and allowed by parent
+			bool place(const Gravity mask, const uint_fast16_t flag) const
+			{
+				return ((this->flags & mask.flags) & flag) != 0;
+			}
+		};
+
 		struct Margin
 		{
 			const value_t left;
@@ -63,6 +101,33 @@ namespace
 				{
 					debug_assert(type != TYPE::FIXED);
 				}
+
+				Dimen(value_t value)
+					: type(TYPE::FIXED)
+					, value(value)
+				{
+					debug_assert(value >= 0);
+				}
+
+				void operator-=(const Dimen other)
+				{
+					this->value -= other.value;
+				}
+
+				void operator-=(const value_t other_value)
+				{
+					this->value -= other_value;
+				}
+
+				bool operator==(const TYPE other_type) const
+				{
+					return this->type == other_type;
+				}
+
+				bool operator >= (const Dimen other) const
+				{
+					return this->value >= other.value;
+				}
 			};
 
 			Dimen width;
@@ -72,6 +137,8 @@ namespace
 	public:
 
 		const engine::Entity entity;
+
+		const Gravity gravity;
 
 	protected:
 
@@ -83,20 +150,28 @@ namespace
 
 		View(
 			engine::Entity entity,
+			Gravity gravity,
 			Margin margin,
 			Size size)
 			: entity(entity)
+			, gravity(gravity)
 			, margin(margin)
 			, size(size)
 		{}
 
 	public:
+
+		// called after size has been measured
+		virtual void arranage(
+			const Size size_parent,
+			const Gravity gravity_mask_parent,
+			const Vector3f offset_parent,
+			float & offset_depth) = 0;
+
 		// needs to be called after any changes has been made to Components
 		virtual void measure(
-			float & offset_depth,
-			const float offset_left,
-			const float offset_top,
-			const Size & size) = 0;
+			const Margin margin_parent,
+			const Size size_parent) = 0;
 
 		// total height of the view including margins
 		value_t height() const
@@ -108,6 +183,52 @@ namespace
 		value_t width() const
 		{
 			return this->margin.width() + this->size.width.value;
+		}
+
+	protected:
+
+		// call after size has been assigned
+		Vector3f arrange(
+			const Size size_parent,
+			const Gravity gravity_mask_parent,
+			const Vector3f offset_parent)
+		{
+			Vector3f::array_type buff;
+			offset_parent.get_aligned(buff);
+
+			float offset_horizontal;
+
+			if (this->gravity.place(gravity_mask_parent, Gravity::HORIZONTAL_RIGHT))
+			{
+				offset_horizontal = buff[0] + size_parent.width.value - this->size.width.value;
+			}
+			else
+			if (this->gravity.place(gravity_mask_parent, Gravity::HORIZONTAL_CENTRE))
+			{
+				offset_horizontal = buff[0] + (size_parent.width.value / 2) - (this->size.width.value / 2);
+			}
+			else // LEFT default
+			{
+				offset_horizontal = buff[0];
+			}
+
+			float offset_vertical;
+
+			if (this->gravity.place(gravity_mask_parent, Gravity::VERTICAL_BOTTOM))
+			{
+				offset_vertical = buff[1] + size_parent.height.value - this->size.height.value;
+			}
+			else
+			if (this->gravity.place(gravity_mask_parent, Gravity::VERTICAL_CENTRE))
+			{
+				offset_vertical = buff[1] + (size_parent.height.value / 2) - (this->size.height.value / 2);
+			}
+			else // TOP default
+			{
+				offset_vertical = buff[1];
+			}
+
+			return Vector3f(offset_horizontal, offset_vertical, buff[2]);
 		}
 	};
 
@@ -122,8 +243,8 @@ namespace
 
 	protected:
 
-		Drawable(engine::Entity entity, Margin margin, Size size, bool selectable)
-			: View(entity, margin, size)
+		Drawable(engine::Entity entity, Gravity gravity, Margin margin, Size size, bool selectable)
+			: View(entity, gravity, margin, size)
 			, selectable(selectable)
 		{
 			debug_assert(size.height.type != Size::TYPE::WRAP);
@@ -132,17 +253,19 @@ namespace
 
 	private:
 
-		static void measure_dimen(const Size::Dimen parent, Size::Dimen & dimen)
+		static void measure_dimen(const value_t parent_margin, const Size::Dimen parent_size, Size::Dimen & dimen)
 		{
+			const value_t parent_total = parent_size.value - parent_margin;
+
 			switch (dimen.type)
 			{
 			case Size::TYPE::FIXED:
 
-				debug_assert(parent.value >= dimen.value);
+				debug_assert(parent_total >= dimen.value);
 				break;
 			case Size::TYPE::PARENT:
 
-				dimen.value = parent.value;
+				dimen.value = parent_total;
 				break;
 			default:
 				debug_unreachable();
@@ -151,25 +274,29 @@ namespace
 
 	public:
 
-		void measure(
-			float & offset_depth,
-			const float offset_left,
-			const float offset_top,
-			const Size & parent_size) override
+		void arranage(
+			const Size size_parent,
+			const Gravity gravity_mask_parent,
+			const Vector3f offset_parent,
+			float & offset_depth) override
 		{
+			const Vector3f ret = arrange(size_parent, gravity_mask_parent, offset_parent);
+			this->offset = ret + Vector3f{ 0.f, 0.f, offset_depth };
 			offset_depth += DEPTH_INC;
-			const float ol = offset_left + this->margin.left;
-			const float ot = offset_top + this->margin.top;
-
-			this->offset = Vector3f{ ol, ot, offset_depth };
-
-			measure_dimen(parent_size.height, this->size.height);
-			measure_dimen(parent_size.width, this->size.width);
 		}
 
-		void translate(core::maths::Vector3f translation)
+		void measure(
+			const Margin margin_parent,
+			const Size size_parent) override
 		{
-			this->offset += translation;
+			// measure size
+			measure_dimen(margin_parent.height(), size_parent.height, this->size.height);
+			measure_dimen(margin_parent.width(), size_parent.width, this->size.width);
+		}
+
+		void translate(core::maths::Vector3f delta)
+		{
+			this->offset += delta;
 		}
 
 		auto render_matrix() const
@@ -193,8 +320,8 @@ namespace
 
 	public:
 
-		PanelC(engine::Entity entity, Margin margin, Size size, Color color, bool selectable)
-			: Drawable(entity, margin, size, selectable)
+		PanelC(engine::Entity entity, Gravity gravity, Margin margin, Size size, Color color, bool selectable)
+			: Drawable(entity, gravity, margin, size, selectable)
 			, color(color)
 		{
 		}
@@ -218,9 +345,28 @@ namespace
 
 	protected:
 
-		Group(engine::Entity entity, Margin margin, Size size)
-			: View(entity, margin, size)
+		Group(engine::Entity entity, Gravity gravity, Margin margin, Size size)
+			: View(entity, gravity, margin, size)
 		{}
+
+		static void measure_dimen(const value_t parent_margin, const Size::Dimen parent_size, Size::Dimen & dimen)
+		{
+			const value_t parent_total = parent_size.value - parent_margin;
+
+			switch (dimen.type)
+			{
+			case Size::TYPE::FIXED:
+
+				debug_assert(parent_total >= dimen.value);
+				break;
+			case Size::TYPE::PARENT:
+			case Size::TYPE::WRAP:
+			default:
+
+				dimen.value = parent_total;
+				break;
+			}
+		}
 
 	public:
 
@@ -246,70 +392,125 @@ namespace
 
 	public:
 
-		LinearGroup(engine::Entity entity, Margin margin, Size size, ORIENTATION orientation)
-			: Group(entity, margin, size)
+		LinearGroup(engine::Entity entity, Gravity gravity, Margin margin, Size size, ORIENTATION orientation)
+			: Group(entity, gravity, margin, size)
 			, orientation(orientation)
 		{}
 
-	private:
+	public:
 
-		static void measure_dimen(const Size::Dimen parent, Size::Dimen & dimen)
+		void arranage(
+			const Size size_parent,
+			const Gravity gravity_mask_parent,
+			const Vector3f offset_parent,
+			float & offset_depth) override
 		{
-			switch (dimen.type)
+			Vector3f offset = arrange(size_parent, gravity_mask_parent, offset_parent);
+
+			if (this->orientation == ORIENTATION::HORIZONTAL)
 			{
-			case Size::TYPE::FIXED:
+				const Gravity mask{ Gravity::VERTICAL_BOTTOM | Gravity::VERTICAL_CENTRE | Gravity::VERTICAL_TOP };
 
-				debug_assert(parent.value >= dimen.value);
-				break;
-			case Size::TYPE::PARENT:
-			case Size::TYPE::WRAP:
-			default:
+				for (auto p : this->children)
+				{
+					p->arranage(size_parent, mask, offset, offset_depth);
+					offset += Vector3f(static_cast<float>(p->width()), 0.f, 0.f);
+				}
+			}
+			else
+			{
+				const Gravity mask{ Gravity::HORIZONTAL_LEFT | Gravity::HORIZONTAL_CENTRE | Gravity::HORIZONTAL_RIGHT };
 
-				dimen.value = parent.value;
-				break;
+				for (auto p : this->children)
+				{
+					p->arranage(size_parent, mask, offset, offset_depth);
+					offset += Vector3f(0.f, static_cast<float>(p->height()), 0.f);
+				}
 			}
 		}
+
+		void measure(
+			const Margin margin_parent,
+			const Size size_parent) override
+		{
+			measure_dimen(margin_parent.height(), size_parent.height, this->size.height);
+			measure_dimen(margin_parent.width(), size_parent.width, this->size.width);
+
+			Size size_remaining = this->size;
+
+			if (this->orientation == ORIENTATION::HORIZONTAL)
+			{
+				for (auto p : this->children)
+				{
+					p->measure(this->margin, size_remaining);
+					size_remaining.width -= p->width();
+				}
+
+				if (this->size.width == Size::TYPE::WRAP)
+					this->size.width -= size_remaining.width;
+			}
+			else
+			{
+				for (auto p : this->children)
+				{
+					p->measure(this->margin, size_remaining);
+					size_remaining.height -= p->height();
+				}
+
+				if (this->size.height.type == Size::TYPE::WRAP)
+					this->size.height -= size_remaining.height;
+			}
+		}
+	};
+
+	class RelativeGroup : public Group
+	{
+	public:
+
+		RelativeGroup(engine::Entity entity, Gravity gravity, Margin margin, Size size)
+			: Group(entity, gravity, margin, size)
+		{}
 
 	public:
 
-		void measure(
-			float & offset_depth,
-			const float offset_left,
-			const float offset_top,
-			const Size & size) override
+		void arranage(
+			const Size size_parent,
+			const Gravity gravity_mask_parent,
+			const Vector3f offset_parent,
+			float & offset_depth) override
 		{
-			offset_depth += DEPTH_INC;
-
-			float ol = offset_left + this->margin.left;
-			float ot = offset_top + this->margin.top;
-
-			measure_dimen(size.height, this->size.height);
-			measure_dimen(size.width, this->size.width);
-
-			Size size_remaining = this->size;
-			size_remaining.height.value -= this->margin.height();
-			size_remaining.width.value -= this->margin.width();
+			const Vector3f offset = arrange(size_parent, gravity_mask_parent, offset_parent);
 
 			for (auto p : this->children)
 			{
-				p->measure(offset_depth, ol, ot, size_remaining);
-
-				if (this->orientation == ORIENTATION::HORIZONTAL)
-				{
-					const value_t w = p->width();
-					ol += w;
-					size_remaining.width.value -= w;
-				}
-				else
-				{
-					const value_t h = p->height();
-					ot += h;
-					size_remaining.height.value -= h;
-				}
+				p->arranage(size_parent, Gravity::unmasked(), offset, offset_depth);
 			}
 		}
 
-		// TODO: class RelativeGroup : public Group
+		void measure(
+			const Margin margin_parent,
+			const Size size_parent) override
+		{
+			measure_dimen(margin_parent.height(), size_parent.height, this->size.height);
+			measure_dimen(margin_parent.width(), size_parent.width, this->size.width);
+
+			Size size_max = this->size;
+
+			for (auto p : this->children)
+			{
+				p->measure(this->margin, this->size);
+
+				// used if this size is wrap
+				size_max.width.value = std::max(size_max.width.value, p->width());
+				size_max.height.value = std::max(size_max.height.value, p->width());
+			}
+
+			if (this->size.width == Size::TYPE::WRAP)
+				this->size.width -= size_max.width;
+
+			if (this->size.height == Size::TYPE::WRAP)
+				this->size.height -= size_max.height;
+		}
 	};
 
 	class Window : public Parent
@@ -353,10 +554,11 @@ namespace
 
 		void measure()
 		{
-			core::maths::Vector3f::array_type off;
-			this->position.get_aligned(off);
+			// TODO: window depth/priority
+			float depth = 0.f;
 
-			grandparent->measure(off[2], off[0], off[1], this->size);
+			grandparent->measure(View::Margin{ }, this->size);
+			grandparent->arranage(this->size, View::Gravity{}, this->position, depth);
 		}
 
 		void show()
@@ -414,23 +616,23 @@ namespace
 			}
 		}
 
-		auto & create_panel(Parent & parent, View::Margin margin, View::Size size, Color color, bool selectable = false)
+		auto & create_panel(Parent & parent, View::Gravity gravity, View::Margin margin, View::Size size, Color color, bool selectable = false)
 		{
 			auto entity = engine::Entity::create();
 
 			auto & v = this->components.emplace<PanelC>(
-				entity, PanelC{ entity, margin, size, color, selectable });
+				entity, entity, gravity, margin, size, color, selectable);
 
 			parent.adopt(&v);
 			return v;
 		}
 
-		auto & create_linear(Parent & parent, View::Margin margin, View::Size size, LinearGroup::ORIENTATION orientation)
+		auto & create_linear(Parent & parent, View::Gravity gravity, View::Margin margin, View::Size size, LinearGroup::ORIENTATION orientation)
 		{
 			auto entity = engine::Entity::create();
 
 			auto & v = this->components.emplace<LinearGroup>(
-				entity, LinearGroup{ entity, margin, size, orientation });
+				entity, entity, gravity, margin, size, orientation);
 
 			parent.adopt(&v);
 			return v;
@@ -463,13 +665,14 @@ namespace gui
 		{
 			auto & window = windows.emplace<Window>(
 				engine::Asset{ "profile" },
-				Window{ View::Size{
+				View::Size{
 					{ View::Size::TYPE::FIXED, 200 },
-					{ View::Size::TYPE::FIXED, 200 } },
-					Vector3f{20.f, 40.f, 0.f} });
+					{ View::Size::TYPE::FIXED, 300 } },
+				Vector3f{20.f, 40.f, 0.f} );
 
 			auto & group = window.create_linear(
 				window,
+				View::Gravity{},
 				View::Margin{},
 				View::Size{
 					{ View::Size::TYPE::PARENT },
@@ -480,6 +683,7 @@ namespace gui
 			{
 				auto & mover = window.create_panel(
 					group,
+					View::Gravity{},
 					View::Margin{},
 					View::Size{
 						{ View::Size::TYPE::PARENT },
@@ -493,25 +697,28 @@ namespace gui
 				{
 					auto & group2 = window.create_linear(
 						group,
-						View::Margin{ 20, 20, 20 },
+						View::Gravity{},
+						View::Margin{},
 						View::Size{
 							{ View::Size::TYPE::PARENT },
 							{ View::Size::TYPE::PARENT } },
-							LinearGroup::ORIENTATION::HORIZONTAL);
+							LinearGroup::ORIENTATION::VERTICAL);
 
 					window.create_panel(
 						group2,
+						View::Gravity{ View::Gravity::HORIZONTAL_CENTRE },
 						View::Margin{},
 						View::Size{
-							{ View::Size::TYPE::FIXED, 50 },
-							{ View::Size::TYPE::PARENT } },
+							{ 100 },
+							{ 100 } },
 							0xFF00FF00);
 
 					window.create_panel(
 						group2,
+						View::Gravity{ View::Gravity::HORIZONTAL_RIGHT},
 						View::Margin{},
 						View::Size{
-							{ View::Size::TYPE::PARENT },
+							{ 100 },
 							{ View::Size::TYPE::PARENT } },
 							0xFF00FFFF);
 				}
