@@ -1152,6 +1152,7 @@ namespace
 			modelview_matrix.pop();
 		}
 
+		// setup 2D
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(projection2D);
 		glMatrixMode(GL_MODELVIEW);
@@ -1373,16 +1374,6 @@ namespace
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_LIGHTING);
 
-		// entity buffers
-		if (entitytoggle.load(std::memory_order_relaxed))
-		{
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
-
-			glBlitFramebuffer(viewport_x, viewport_y, viewport_width, viewport_height, viewport_x, viewport_y, viewport_width, viewport_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-		}
-
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(projection2D);
@@ -1471,6 +1462,16 @@ namespace
 			glEnd();
 
 			modelview_matrix.pop();
+		}
+
+		// entity buffers
+		if (entitytoggle.load(std::memory_order_relaxed))
+		{
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+
+			glBlitFramebuffer(viewport_x, viewport_y, viewport_width, viewport_height, viewport_x, viewport_y, viewport_width, viewport_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		}
 
 		// swap buffers
