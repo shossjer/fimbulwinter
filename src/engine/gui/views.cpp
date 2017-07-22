@@ -512,12 +512,21 @@ namespace
 
 	class Window : public Parent
 	{
+	public:
+
+		engine::Asset name;
+
+	private:
+
 		View * grandparent;
 
 		View::Size size;
 		Vector3f position;
 
 		bool shown;
+
+		// used to determine the drawing order / depth of the window components.
+		int order;
 
 		// Components could be moved to global namespace instead since it now has Entity as key.
 		// But window still needs to know which "drawable" components it has for when the window
@@ -535,11 +544,13 @@ namespace
 	public:
 
 		//Window(Margin margin, Size size) : View(margin, size)
-		Window(View::Size size, Vector3f position)
-			: grandparent(nullptr)
+		Window(engine::Asset name, View::Size size, Vector3f position)
+			: name(name)
+			, grandparent(nullptr)
 			, size(size)
 			, position(position)
 			, shown(false)
+			, order(0)
 		{
 			debug_assert(size.height.type != View::Size::TYPE::PARENT);
 			debug_assert(size.width.type != View::Size::TYPE::PARENT);
@@ -552,10 +563,9 @@ namespace
 
 		void measure()
 		{
-			// TODO: window depth/priority
-			float depth = 0.f;
-
 			grandparent->measure(this->size);
+
+			float depth = static_cast<float>(this->order);
 			grandparent->arranage(this->size, View::Gravity{}, this->position, depth);
 		}
 
@@ -564,8 +574,16 @@ namespace
 			debug_assert(!this->shown);
 			this->shown = true;
 
+			const Vector3f delta{ 0.f, 0.f, static_cast<float>( -(this->order)) };
+
+			// move windows order to first when shown
+			this->order = 0;
+			this->position += delta;
+
 			for (PanelC & comp : components.get<PanelC>())
 			{
+				comp.translate(delta);
+
 				engine::graphics::renderer::add(
 					comp.entity,
 					engine::graphics::data::ui::PanelC{
@@ -574,6 +592,10 @@ namespace
 						comp.color,
 						comp.selectable });
 			}
+
+			// TODO: PanelT
+
+			// TODO: Text
 		}
 
 		void hide()
@@ -585,6 +607,22 @@ namespace
 			{
 				engine::graphics::renderer::remove(comp.entity);
 			}
+		}
+
+		void reorder(const int window_order)
+		{
+			if (!this->shown) return;
+			if (this->order == window_order) return;
+
+			const float delta_depth = window_order - this->order;
+
+			this->order = window_order;
+
+			this->operator=(Vector3f{ 0.f, 0.f, delta_depth });
+
+			// TODO: PanelT
+
+			// TODO: Text
 		}
 
 		void operator = (std::vector<std::pair<engine::Entity, engine::gui::Data>> datas)
@@ -653,6 +691,8 @@ namespace
 		std::array<Window, 10>,
 		std::array<int, 10>>
 		windows;
+
+	std::vector<Window *> window_stack;
 }
 
 // TODO: this should be solved better.
@@ -674,10 +714,13 @@ namespace gui
 		{
 			auto & window = windows.emplace<Window>(
 				engine::Asset{ "profile" },
+				engine::Asset{ "profile" },
 				View::Size{
 					{ View::Size::TYPE::FIXED, 220 },
 					{ View::Size::TYPE::FIXED, 320 } },
 				Vector3f{20.f, 40.f, 0.f} );
+
+			window_stack.push_back(&window);
 
 			auto & groupBackground = window.create_relative(
 				window,
@@ -688,12 +731,15 @@ namespace gui
 					{ View::Size::TYPE::PARENT } });
 
 			// main background color
-			window.create_panel(
+			auto & panelBackground = window.create_panel(
 				groupBackground,
 				View::Gravity{},
 				View::Margin{},
 				View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT },
-				0xFFFF00FF);
+				0xFFFF00FF,
+				true);
+
+			gameplay::gamestate::post_add(panelBackground.entity, "profile", "background");
 
 			auto & group = window.create_linear(
 				groupBackground,
@@ -756,10 +802,13 @@ namespace gui
 		{
 			auto & window = windows.emplace<Window>(
 				engine::Asset{ "inventory" },
+				engine::Asset{ "inventory" },
 				View::Size{
 					{ View::Size::TYPE::FIXED, 420 },
 					{ View::Size::TYPE::FIXED, 220 } },
 					Vector3f{ 250.f, 40.f, 0.f });
+
+			window_stack.push_back(&window);
 
 			auto & groupBackground = window.create_relative(
 				window,
@@ -770,12 +819,15 @@ namespace gui
 					{ View::Size::TYPE::PARENT } });
 
 			// main background color
-			window.create_panel(
+			auto & panelBackground = window.create_panel(
 				groupBackground,
 				View::Gravity{},
 				View::Margin{},
 				View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT },
-				0xFF0000FF);
+				0xFF0000FF,
+				true);
+
+			gameplay::gamestate::post_add(panelBackground.entity, "inventory", "background");
 
 			auto & groupMain = window.create_linear(
 				groupBackground,
@@ -835,12 +887,31 @@ namespace gui
 
 	void show(engine::Asset window)
 	{
+		select(window);
 		windows.get<Window>(window).show();
 	}
 
 	void hide(engine::Asset window)
 	{
 		windows.get<Window>(window).hide();
+	}
+
+	void select(engine::Asset window)
+	{
+		for (int i = 0; i < window_stack.size(); i++)
+		{
+			if (window_stack[i]->name == window)
+			{
+				window_stack.erase(window_stack.begin() + i);
+				window_stack.insert(window_stack.begin(), &windows.get<Window>(window));
+				break;
+			}
+		}
+
+		for (int i = 0; i < window_stack.size(); i++)
+		{
+			window_stack[i]->reorder(-i*10);
+		}
 	}
 
 	void update(engine::Asset window, std::vector<std::pair<engine::Entity, Data>> datas)

@@ -26,6 +26,8 @@ namespace gui
 
 	void hide(engine::Asset window);
 
+	void select(engine::Asset window);
+
 	void update(
 		engine::Asset window,
 		std::vector<std::pair<engine::Entity, Data>> datas);

@@ -455,16 +455,15 @@ namespace
 			core::maths::Vector2f size;
 			engine::graphics::opengl::Color4ub color;
 			engine::graphics::opengl::Color4ub selectable_color;
+			bool selectable;
 
 			PanelC(const engine::Entity entity, const engine::graphics::data::ui::PanelC & data)
 				: matrix(data.matrix)
 				, size(data.size)
 				, color(color_from(data.color))
+				, selectable_color(color_from(entity))
+				, selectable(data.selectable)
 			{
-				if (data.selectable)
-					this->selectable_color = color_from(entity);
-				else
-					this->selectable_color = engine::graphics::opengl::Color4ub{ 0, 0, 0, 0 };
 			}
 
 			PanelC & operator = (engine::graphics::data::ModelviewMatrix && data)
@@ -1158,8 +1157,10 @@ namespace
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(core::maths::Matrix4x4f::identity());
 
-		for (const auto & component : ::components.get<::ui::PanelC>())
+		for (const ::ui::PanelC & component : ::components.get<::ui::PanelC>())
 		{
+			if (!component.selectable) continue;
+
 			modelview_matrix.push();
 			modelview_matrix.mult(component.matrix);
 			glLoadMatrix(modelview_matrix);
@@ -1388,6 +1389,8 @@ namespace
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(core::maths::Matrix4x4f::identity());
 
+		glEnable(GL_DEPTH_TEST);
+
 		// draw gui
 		// ...
 		glLoadMatrix(modelview_matrix);
@@ -1423,6 +1426,8 @@ namespace
 			(void)component;
 			// TODO: print the text
 		}
+
+		glDisable(GL_DEPTH_TEST);
 
 		// 2d
 		// ...

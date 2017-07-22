@@ -486,13 +486,27 @@ namespace
 
 		void operator() (const GUIComponent & c)
 		{
-			engine::gui::update(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
+			if (c.name == engine::Asset{ "mover" })
+				engine::gui::update(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
 		}
 
 		template <typename W>
 		void operator() (const W & w)
 		{
 			debug_printline(0xffffffff, "Can't move this");
+		}
+	};
+
+	struct GUISelector
+	{
+		void operator() (const GUIComponent & c)
+		{
+			engine::gui::select(c.window);
+		}
+
+		template <typename W>
+		void operator() (const W & w)
+		{
 		}
 	};
 
@@ -748,6 +762,8 @@ namespace gamestate
 					{
 						::selected_entity = ::highlighted_entity;
 						debug_printline(0xffffffff, "Gamestate mouse down: ", ::highlighted_entity);
+
+						components.call(::highlighted_entity, GUISelector{});
 					}
 					break;
 				case engine::Command::MOUSE_LEFT_UP:
