@@ -682,9 +682,9 @@ namespace
 	void initLights()
 	{
 		// set up light colors (ambient, diffuse, specular)
-		GLfloat lightKa[] = { .2f, .2f, .2f, 1.0f };  // ambient light
-		GLfloat lightKd[] = { .7f, .7f, .7f, 1.0f };  // diffuse light
-		GLfloat lightKs[] = { 1, 1, 1, 1 };           // specular light
+		GLfloat lightKa[] = { .5f, .5f, .5f, 1.f }; // ambient light
+		GLfloat lightKd[] = { 0.f, 0.f, 0.f, 1.f }; // diffuse light
+		GLfloat lightKs[] = { 0.f, 0.f, 0.f, 1.f }; // specular light
 		glLightfv(GL_LIGHT0, GL_AMBIENT, lightKa);
 		glLightfv(GL_LIGHT0, GL_DIFFUSE, lightKd);
 		glLightfv(GL_LIGHT0, GL_SPECULAR, lightKs);
