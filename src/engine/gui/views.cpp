@@ -325,6 +325,38 @@ namespace
 		}
 	};
 
+	class PanelT : public Drawable
+	{
+	public:
+
+		engine::Asset texture;
+
+	public:
+
+		PanelT(engine::Entity entity, Gravity gravity, Margin margin, Size size, engine::Asset texture, bool selectable)
+			: Drawable(entity, gravity, margin, size, selectable)
+			, texture(texture)
+		{
+		}
+	};
+
+	class Text : public Drawable
+	{
+	public:
+
+		Color color;
+		std::string display;
+
+	public:
+
+		Text(engine::Entity entity, Gravity gravity, Margin margin, Size size, Color color, std::string display)
+			: Drawable(entity, gravity, margin, size, false)
+			, color(color)
+			, display(display)
+		{
+		}
+	};
+
 	// TODO: class PanelT : public Drawable
 
 	// TODO: class Text : public Drawable
@@ -534,11 +566,15 @@ namespace
 		// When moved each component needs to have its "position" updated and sent to renderer.
 		// Of course we can use the grandparent pointer and go throuh all children of the window,
 		// but only the graphical ones are affected... Input needed.
-		core::container::Collection<
-			engine::Entity, 201,
-			std::array<LinearGroup, 20>,
-			std::array<RelativeGroup, 20>,
-			std::array<PanelC, 50>>
+		core::container::Collection
+			<
+				engine::Entity, 201,
+				std::array<LinearGroup, 20>,
+				std::array<RelativeGroup, 20>,
+				std::array<PanelC, 50>,
+				std::array<PanelT, 50>,
+				std::array<Text, 50>
+			>
 			components;
 
 	public:
@@ -593,9 +629,30 @@ namespace
 						comp.selectable });
 			}
 
-			// TODO: PanelT
+			for (PanelT & comp : components.get<PanelT>())
+			{
+				comp.translate(delta);
 
-			// TODO: Text
+				engine::graphics::renderer::add(
+					comp.entity,
+					engine::graphics::data::ui::PanelT{
+						comp.render_matrix(),
+						comp.render_size(),
+						comp.texture,
+						comp.selectable });
+			}
+
+			for (Text & comp : components.get<Text>())
+			{
+				comp.translate(delta);
+
+				engine::graphics::renderer::add(
+					comp.entity,
+					engine::graphics::data::ui::Text{
+					comp.render_matrix(),
+					comp.color,
+					comp.display });
+			}
 		}
 
 		void hide()
@@ -604,6 +661,16 @@ namespace
 			this->shown = false;
 
 			for (PanelC & comp : components.get<PanelC>())
+			{
+				engine::graphics::renderer::remove(comp.entity);
+			}
+
+			for (PanelT & comp : components.get<PanelT>())
+			{
+				engine::graphics::renderer::remove(comp.entity);
+			}
+
+			for (Text & comp : components.get<Text>())
 			{
 				engine::graphics::renderer::remove(comp.entity);
 			}
@@ -650,6 +717,26 @@ namespace
 					child.entity,
 					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
 			}
+
+			for (PanelT & child : components.get<PanelT>())
+			{
+				child.translate(delta);
+
+				// send position update to renderer
+				engine::graphics::renderer::update(
+					child.entity,
+					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
+			}
+
+			for (Text & child : components.get<Text>())
+			{
+				child.translate(delta);
+
+				// send position update to renderer
+				engine::graphics::renderer::update(
+					child.entity,
+					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
+			}
 		}
 
 		auto & create_panel(Parent & parent, View::Gravity gravity, View::Margin margin, View::Size size, Color color, bool selectable = false)
@@ -658,6 +745,28 @@ namespace
 
 			auto & v = this->components.emplace<PanelC>(
 				entity, entity, gravity, margin, size, color, selectable);
+
+			parent.adopt(&v);
+			return v;
+		}
+
+		auto & create_panelT(Parent & parent, View::Gravity gravity, View::Margin margin, View::Size size, engine::Asset texture, bool selectable = false)
+		{
+			auto entity = engine::Entity::create();
+
+			auto & v = this->components.emplace<PanelT>(
+				entity, entity, gravity, margin, size, texture, selectable);
+
+			parent.adopt(&v);
+			return v;
+		}
+
+		auto & create_text(Parent & parent, View::Gravity gravity, View::Margin margin, Color color, std::string display)
+		{
+			auto entity = engine::Entity::create();
+
+			auto & v = this->components.emplace<Text>(
+				entity, entity, gravity, margin, View::Size{ 0, 0 }, color, display);
 
 			parent.adopt(&v);
 			return v;
@@ -752,19 +861,35 @@ namespace gui
 
 			// add views to the group
 			{
-				auto & mover = window.create_panel(
-					group,
-					View::Gravity{},
-					View::Margin{},
-					View::Size{
-						{ View::Size::TYPE::PARENT },
-						{ View::Size::TYPE::FIXED, 100 } },
-					0xFFFF0000,
-					true);
+				{
+					auto & groupHeader = window.create_relative(
+						group,
+						View::Gravity{},
+						View::Margin{},
+						View::Size{
+							{ View::Size::TYPE::PARENT },
+							{ View::Size::TYPE::FIXED, 100 } });
 
-				// register the panel as a "mover" for the window
-				gameplay::gamestate::post_add(mover.entity, "profile", "mover");
+					auto & mover = window.create_panel(
+						groupHeader,
+						View::Gravity{},
+						View::Margin{},
+						View::Size{
+							{ View::Size::TYPE::PARENT },
+							{ View::Size::TYPE::PARENT } },
+							0xFFFF0000,
+							true);
 
+					// register the panel as a "mover" for the window
+					gameplay::gamestate::post_add(mover.entity, "profile", "mover");
+
+					window.create_text(
+						groupHeader,
+						View::Gravity{ View::Gravity::HORIZONTAL_LEFT | View::Gravity::VERTICAL_CENTRE },
+						View::Margin{ 10 },
+						0xFF0000FF,
+						"Profile window");
+				}
 				{
 					auto & group2 = window.create_linear(
 						group,
@@ -775,14 +900,14 @@ namespace gui
 							{ View::Size::TYPE::PARENT } },
 							LinearGroup::ORIENTATION::VERTICAL);
 
-					window.create_panel(
+					window.create_panelT(
 						group2,
 						View::Gravity{ View::Gravity::HORIZONTAL_CENTRE },
 						View::Margin{},
 						View::Size{
 							{ 100 },
 							{ 100 } },
-							0xFF00FF00);
+						engine::Asset{ "photo" });
 
 					window.create_panel(
 						group2,

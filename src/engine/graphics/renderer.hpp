@@ -107,10 +107,21 @@ namespace engine
 					bool selectable;
 				};
 
+				struct PanelT
+				{
+					core::maths::Matrix4x4f matrix;
+					core::maths::Vector2f size;
+					engine::Asset texture;
+					bool selectable;
+				};
+
 				struct Text
 				{
 					core::maths::Matrix4x4f matrix;
+					Color color;
 					std::string display;
+					// TODO: asset font resource
+					// TODO: font size
 				};
 			}
 
@@ -205,6 +216,7 @@ namespace engine
 			void add(engine::Entity entity, data::Bar && bar);
 
 			void add(engine::Entity entity, data::ui::PanelC && data);
+			void add(engine::Entity entity, data::ui::PanelT && data);
 			void add(engine::Entity entity, data::ui::Text && data);
 
 			void remove(engine::Entity entity);
