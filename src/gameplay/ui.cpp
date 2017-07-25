@@ -30,7 +30,6 @@ namespace gameplay
 namespace gamestate
 {
 	extern void post_command(engine::Entity entity, engine::Command command);
-	extern void post_command(engine::Command command, engine::Entity entity);
 	extern void notify(int16_t dx, int16_t dy);
 }
 }
@@ -563,7 +562,7 @@ namespace
 				{
 				case engine::hid::Input::Button::MOUSE_LEFT:
 					engine::graphics::renderer::post_select(input.getCursor().x, input.getCursor().y, entity);
-					gameplay::gamestate::post_command(engine::Command::MOUSE_LEFT_DOWN, ::engine::Entity::null());
+					gameplay::gamestate::post_command(engine::Entity::null(), engine::Command::MOUSE_LEFT_DOWN);
 					return true;
 				default:
 					return false;
@@ -572,7 +571,7 @@ namespace
 				switch (input.getButton())
 				{
 				case engine::hid::Input::Button::MOUSE_LEFT:
-					gameplay::gamestate::post_command(engine::Command::MOUSE_LEFT_UP, ::engine::Entity::null());
+					gameplay::gamestate::post_command(engine::Entity::null(), engine::Command::MOUSE_LEFT_UP);
 					return true;
 				default:
 					return false;

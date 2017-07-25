@@ -14,6 +14,8 @@
 #include <gameplay/level_placeholder.hpp>
 #include <gameplay/ui.hpp>
 
+#include <utility>
+
 namespace
 {
 	void entityClick(engine::Entity id);
@@ -24,21 +26,18 @@ namespace
 
 		CameraActivator(engine::Entity camera) : camera(camera) {}
 
-		void operator = (std::tuple<engine::Command, int> && args)
+		void operator = (std::pair<engine::Command, utility::any> && args)
 		{
-			switch (std::get<0>(args))
+			switch (args.first)
 			{
 			case engine::Command::CONTEXT_CHANGED:
+				debug_assert(!args.second.has_value());
 				debug_printline(0xffffffff, "Switching to camera: ", camera);
 				engine::graphics::viewer::set_active_3d(camera);
 				break;
 			default:
-				debug_printline(0xffffffff, "CameraActivator: Unknown command: ", static_cast<int>(std::get<0>(args)));
+				debug_printline(0xffffffff, "CameraActivator: Unknown command: ", static_cast<int>(args.first));
 			}
-		}
-		void operator = (std::tuple<engine::Command, engine::Entity> && args)
-		{
-			debug_unreachable();
 		}
 	};
 
@@ -63,89 +62,109 @@ namespace
 
 		FreeCamera(engine::Entity camera) : camera(camera) {}
 
-		void operator = (std::tuple<engine::Command, int> && args)
+		void operator = (std::pair<engine::Command, utility::any> && args)
 		{
-			switch (std::get<0>(args))
+			switch (args.first)
 			{
 			case engine::Command::MOVE_LEFT_DOWN:
+				debug_assert(!args.second.has_value());
 				move_left = true;
 				break;
 			case engine::Command::MOVE_LEFT_UP:
+				debug_assert(!args.second.has_value());
 				move_left = false;
 				break;
 			case engine::Command::MOVE_RIGHT_DOWN:
+				debug_assert(!args.second.has_value());
 				move_right = true;
 				break;
 			case engine::Command::MOVE_RIGHT_UP:
+				debug_assert(!args.second.has_value());
 				move_right = false;
 				break;
 			case engine::Command::MOVE_DOWN_DOWN:
+				debug_assert(!args.second.has_value());
 				move_down = true;
 				break;
 			case engine::Command::MOVE_DOWN_UP:
+				debug_assert(!args.second.has_value());
 				move_down = false;
 				break;
 			case engine::Command::MOVE_UP_DOWN:
+				debug_assert(!args.second.has_value());
 				move_up = true;
 				break;
 			case engine::Command::MOVE_UP_UP:
+				debug_assert(!args.second.has_value());
 				move_up = false;
 				break;
 			case engine::Command::TURN_LEFT_DOWN:
+				debug_assert(!args.second.has_value());
 				turn_left = true;
 				break;
 			case engine::Command::TURN_LEFT_UP:
+				debug_assert(!args.second.has_value());
 				turn_left = false;
 				break;
 			case engine::Command::TURN_RIGHT_DOWN:
+				debug_assert(!args.second.has_value());
 				turn_right = true;
 				break;
 			case engine::Command::TURN_RIGHT_UP:
+				debug_assert(!args.second.has_value());
 				turn_right = false;
 				break;
 			case engine::Command::TURN_DOWN_DOWN:
+				debug_assert(!args.second.has_value());
 				turn_down = true;
 				break;
 			case engine::Command::TURN_DOWN_UP:
+				debug_assert(!args.second.has_value());
 				turn_down = false;
 				break;
 			case engine::Command::TURN_UP_DOWN:
+				debug_assert(!args.second.has_value());
 				turn_up = true;
 				break;
 			case engine::Command::TURN_UP_UP:
+				debug_assert(!args.second.has_value());
 				turn_up = false;
 				break;
 			case engine::Command::ROLL_LEFT_DOWN:
+				debug_assert(!args.second.has_value());
 				roll_left = true;
 				break;
 			case engine::Command::ROLL_LEFT_UP:
+				debug_assert(!args.second.has_value());
 				roll_left = false;
 				break;
 			case engine::Command::ROLL_RIGHT_DOWN:
+				debug_assert(!args.second.has_value());
 				roll_right = true;
 				break;
 			case engine::Command::ROLL_RIGHT_UP:
+				debug_assert(!args.second.has_value());
 				roll_right = false;
 				break;
 			case engine::Command::ELEVATE_DOWN_DOWN:
+				debug_assert(!args.second.has_value());
 				elevate_down = true;
 				break;
 			case engine::Command::ELEVATE_DOWN_UP:
+				debug_assert(!args.second.has_value());
 				elevate_down = false;
 				break;
 			case engine::Command::ELEVATE_UP_DOWN:
+				debug_assert(!args.second.has_value());
 				elevate_up = true;
 				break;
 			case engine::Command::ELEVATE_UP_UP:
+				debug_assert(!args.second.has_value());
 				elevate_up = false;
 				break;
 			default:
-				debug_printline(0xffffffff, "FreeCamera: Unknown command: ", static_cast<int>(std::get<0>(args)));
+				debug_printline(0xffffffff, "FreeCamera: Unknown command: ", static_cast<int>(args.first));
 			}
-		}
-		void operator = (std::tuple<engine::Command, engine::Entity> && args)
-		{
-			debug_unreachable();
 		}
 
 		void update()
@@ -205,41 +224,45 @@ namespace
 
 		OverviewCamera(engine::Entity camera) : camera(camera) {}
 
-		void operator = (std::tuple<engine::Command, int> && args)
+		void operator = (std::pair<engine::Command, utility::any> && args)
 		{
-			switch (std::get<0>(args))
+			switch (args.first)
 			{
 			case engine::Command::MOVE_LEFT_DOWN:
+				debug_assert(!args.second.has_value());
 				move_left++;
 				break;
 			case engine::Command::MOVE_LEFT_UP:
+				debug_assert(!args.second.has_value());
 				move_left--;
 				break;
 			case engine::Command::MOVE_RIGHT_DOWN:
+				debug_assert(!args.second.has_value());
 				move_right++;
 				break;
 			case engine::Command::MOVE_RIGHT_UP:
+				debug_assert(!args.second.has_value());
 				move_right--;
 				break;
 			case engine::Command::MOVE_DOWN_DOWN:
+				debug_assert(!args.second.has_value());
 				move_down++;
 				break;
 			case engine::Command::MOVE_DOWN_UP:
+				debug_assert(!args.second.has_value());
 				move_down--;
 				break;
 			case engine::Command::MOVE_UP_DOWN:
+				debug_assert(!args.second.has_value());
 				move_up++;
 				break;
 			case engine::Command::MOVE_UP_UP:
+				debug_assert(!args.second.has_value());
 				move_up--;
 				break;
 			default:
-				debug_printline(0xffffffff, "OverviewCamera: Unknown command: ", static_cast<int>(std::get<0>(args)));
+				debug_printline(0xffffffff, "OverviewCamera: Unknown command: ", static_cast<int>(args.first));
 			}
-		}
-		void operator = (std::tuple<engine::Command, engine::Entity> && args)
-		{
-			debug_unreachable();
 		}
 
 		void update()
@@ -265,19 +288,15 @@ namespace
 
 	struct Selector
 	{
-		void operator = (std::tuple<engine::Command, int> && args)
+		void operator = (std::pair<engine::Command, utility::any> && args)
 		{
-			debug_unreachable();
-		}
-		void operator = (std::tuple<engine::Command, engine::Entity> && args)
-		{
-			switch (std::get<0>(args))
+			switch (args.first)
 			{
 			case engine::Command::RENDER_SELECT:
-				entityClick(std::get<1>(args));
+				entityClick(utility::any_cast<engine::Entity>(args.second));
 				break;
 			default:
-				debug_printline(0xffffffff, "Selector: Unknown command: ", static_cast<int>(std::get<0>(args)));
+				debug_printline(0xffffffff, "Selector: Unknown command: ", static_cast<int>(args.first));
 			}
 		}
 	};
@@ -357,7 +376,7 @@ namespace
 
 		void barUpdate(const float progress)
 		{
-			engine::graphics::renderer::add(this->bar, engine::graphics::data::Bar{
+			engine::graphics::renderer::post_add_bar(this->bar, engine::graphics::data::Bar{
 				to_xyz(this->top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, progress});
 		}
 
@@ -393,10 +412,10 @@ namespace
 		{
 			engine::animation::update(this->worker, engine::animation::action{"idle", true});
 
-			engine::graphics::renderer::remove(this->boardModel);
+			engine::graphics::renderer::post_remove(this->boardModel);
 			this->boardModel = engine::Entity::null();
 
-			engine::graphics::renderer::remove(this->bar);
+			engine::graphics::renderer::post_remove(this->bar);
 			this->bar = engine::Entity::null();
 		}
 
@@ -428,18 +447,21 @@ namespace
 
 	struct WindowInventory
 	{
-		void operator = (std::tuple<engine::Command, int> && args)
+		void operator = (std::pair<engine::Command, utility::any> && args)
 		{
-			switch (std::get<0>(args))
+			switch (args.first)
 			{
 			case engine::Command::BUTTON_DOWN_ACTIVE:
+				debug_assert(!args.second.has_value());
 				engine::gui::show("inventory");
 				break;
 			case engine::Command::BUTTON_DOWN_INACTIVE:
+				debug_assert(!args.second.has_value());
 				engine::gui::hide("inventory");
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
+				debug_assert(!args.second.has_value());
 				break;
 			default:
 				debug_unreachable();
@@ -448,18 +470,21 @@ namespace
 	};
 	struct WindowProfile
 	{
-		void operator = (std::tuple<engine::Command, int> && args)
+		void operator = (std::pair<engine::Command, utility::any> && args)
 		{
-			switch (std::get<0>(args))
+			switch (args.first)
 			{
 			case engine::Command::BUTTON_DOWN_ACTIVE:
+				debug_assert(!args.second.has_value());
 				engine::gui::show("profile");
 				break;
 			case engine::Command::BUTTON_DOWN_INACTIVE:
+				debug_assert(!args.second.has_value());
 				engine::gui::hide("profile");
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
+				debug_assert(!args.second.has_value());
 				break;
 			default:
 				debug_unreachable();
@@ -484,14 +509,14 @@ namespace
 			, dy(dy)
 		{}
 
-		void operator() (const GUIComponent & c)
+		void operator () (const GUIComponent & c)
 		{
 			if (c.name == engine::Asset{ "mover" })
 				engine::gui::update(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
 		}
 
 		template <typename W>
-		void operator() (const W & w)
+		void operator () (const W & w)
 		{
 			debug_printline(0xffffffff, "Can't move this");
 		}
@@ -499,13 +524,13 @@ namespace
 
 	struct GUISelector
 	{
-		void operator() (const GUIComponent & c)
+		void operator () (const GUIComponent & c)
 		{
 			engine::gui::select(c.window);
 		}
 
 		template <typename W>
-		void operator() (const W & w)
+		void operator () (const W & w)
 		{
 		}
 	};
@@ -532,9 +557,8 @@ namespace
 	std::pair<int16_t, int16_t> mouse_coords{ 0, 0 };
 	core::container::ExchangeQueueSRSW<std::pair<int16_t, int16_t>> queue_mouse_coords;
 
-	core::container::CircleQueueSRMW<std::pair<engine::Command, engine::Entity>, 100> queue_commands;
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command>, 100> queue_commands0;
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, engine::Entity>, 100> queue_commands1;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, utility::any>, 100> queue_commands;
+
 	core::container::CircleQueueSRMW<
 		std::tuple
 		<
@@ -566,7 +590,7 @@ namespace
 		s.start();
 
 		// move the worker
-		engine::graphics::renderer::update(
+		engine::graphics::renderer::post_update_modelviewmatrix(
 				w.id,
 				engine::graphics::data::ModelviewMatrix{ s.front });
 	}
@@ -748,13 +772,18 @@ namespace gamestate
 
 		// commands
 		{
-			std::pair<engine::Command, engine::Entity> command_args;
+			std::tuple<engine::Entity, engine::Command, utility::any> command_args;
 			while (queue_commands.try_pop(command_args))
 			{
-				switch (command_args.first)
+				if (std::get<0>(command_args) != engine::Entity::null())
+				{
+					components.update(std::get<0>(command_args), std::make_pair(std::get<1>(command_args), std::move(std::get<2>(command_args))));
+					continue;
+				}
+				switch (std::get<1>(command_args))
 				{
 				case engine::Command::RENDER_HIGHLIGHT:
-					::highlighted_entity = command_args.second;
+					::highlighted_entity = utility::any_cast<engine::Entity>(std::get<2>(command_args));
 					debug_printline(0xffffffff, "Gamestate select: ", ::highlighted_entity);
 					break;
 				case engine::Command::MOUSE_LEFT_DOWN:
@@ -774,16 +803,7 @@ namespace gamestate
 					debug_unreachable();
 				}
 			}
-			std::tuple<engine::Entity, engine::Command> command_args0;
-			while (queue_commands0.try_pop(command_args0))
-			{
-				components.update(std::get<0>(command_args0), std::make_tuple(std::get<1>(command_args0), 0));
-			}
-			std::tuple<engine::Entity, engine::Command, engine::Entity> command_args1;
-			while (queue_commands1.try_pop(command_args1))
-			{
-				components.update(std::get<0>(command_args1), std::make_tuple(std::get<1>(command_args1), std::get<2>(command_args1)));
-			}
+
 			std::pair<int16_t, int16_t> mouse_update;
 			if (queue_mouse_coords.try_pop(mouse_update))
 			{
@@ -816,19 +836,12 @@ namespace gamestate
 
 	void post_command(engine::Entity entity, engine::Command command)
 	{
-		const auto res = queue_commands0.try_emplace(entity, command);
-		debug_assert(res);
+		post_command(entity, command, utility::any{});
 	}
 
-	void post_command(engine::Entity entity, engine::Command command, engine::Entity arg1)
+	void post_command(engine::Entity entity, engine::Command command, utility::any && data)
 	{
-		const auto res = queue_commands1.try_emplace(entity, command, arg1);
-		debug_assert(res);
-	}
-
-	void post_command(engine::Command command, engine::Entity entity)
-	{
-		const auto res = queue_commands.try_emplace(command, entity);
+		const auto res = queue_commands.try_emplace(entity, command, std::move(data));
 		debug_assert(res);
 	}
 

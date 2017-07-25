@@ -6,6 +6,8 @@
 #include <engine/common.hpp>
 #include <engine/graphics/renderer.hpp>
 
+#include <utility/any.hpp>
+
 namespace gameplay
 {
 namespace gamestate
@@ -17,7 +19,7 @@ namespace gamestate
 	void update();
 
 	void post_command(engine::Entity entity, engine::Command command);
-	void post_command(engine::Entity entity, engine::Command command, engine::Entity arg1);
+	void post_command(engine::Entity entity, engine::Command command, utility::any && data);
 
 	enum class WorkstationType
 	{

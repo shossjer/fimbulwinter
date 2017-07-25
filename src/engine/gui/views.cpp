@@ -731,7 +731,7 @@ namespace
 			{
 				comp.translate(delta);
 
-				engine::graphics::renderer::add(
+				engine::graphics::renderer::post_add_panel(
 					comp.entity,
 					engine::graphics::data::ui::PanelC{
 						comp.render_matrix(),
@@ -747,7 +747,7 @@ namespace
 			{
 				comp.translate(delta);
 
-				engine::graphics::renderer::add(
+				engine::graphics::renderer::post_add_panel(
 					comp.entity,
 					engine::graphics::data::ui::PanelT{
 						comp.render_matrix(),
@@ -763,7 +763,7 @@ namespace
 			{
 				comp.translate(delta);
 
-				engine::graphics::renderer::add(
+				engine::graphics::renderer::post_add_text(
 					comp.entity,
 					engine::graphics::data::ui::Text{
 					comp.render_matrix(),
@@ -779,17 +779,17 @@ namespace
 
 			for (PanelC & comp : components.get<PanelC>())
 			{
-				engine::graphics::renderer::remove(comp.entity);
+				engine::graphics::renderer::post_remove(comp.entity);
 			}
 
 			for (PanelT & comp : components.get<PanelT>())
 			{
-				engine::graphics::renderer::remove(comp.entity);
+				engine::graphics::renderer::post_remove(comp.entity);
 			}
 
 			for (Text & comp : components.get<Text>())
 			{
-				engine::graphics::renderer::remove(comp.entity);
+				engine::graphics::renderer::post_remove(comp.entity);
 			}
 		}
 
@@ -826,7 +826,7 @@ namespace
 				child.translate(delta);
 
 				// send position update to renderer
-				engine::graphics::renderer::update(
+				engine::graphics::renderer::post_update_modelviewmatrix(
 					child.entity,
 					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
 			}
@@ -836,7 +836,7 @@ namespace
 				child.translate(delta);
 
 				// send position update to renderer
-				engine::graphics::renderer::update(
+				engine::graphics::renderer::post_update_modelviewmatrix(
 					child.entity,
 					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
 			}
@@ -846,7 +846,7 @@ namespace
 				child.translate(delta);
 
 				// send position update to renderer
-				engine::graphics::renderer::update(
+				engine::graphics::renderer::post_update_modelviewmatrix(
 					child.entity,
 					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
 			}

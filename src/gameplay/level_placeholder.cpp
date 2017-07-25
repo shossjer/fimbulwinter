@@ -52,7 +52,7 @@ namespace level
 			const auto & assets = extract(assetTemplate, "bench");
 
 			// register new asset in renderer
-			engine::graphics::renderer::add(
+			engine::graphics::renderer::post_add_component(
 				id,
 				CompC{
 					matrix,
@@ -73,7 +73,7 @@ namespace level
 			const auto & assets = extract(assetTemplate, "oven");
 
 			// register new asset in renderer
-			engine::graphics::renderer::add(
+			engine::graphics::renderer::post_add_component(
 				id,
 				CompC{
 					matrix,
@@ -95,7 +95,7 @@ namespace level
 			const auto & assets = extract(assetTemplate, "dude");
 
 			// register new asset in renderer
-			engine::graphics::renderer::add(
+			engine::graphics::renderer::post_add_component(
 				id,
 				CompC{
 					matrix,
@@ -112,7 +112,7 @@ namespace level
 			const auto & assets = extract(assetTemplate, "all");
 
 			// register new asset in renderer
-			engine::graphics::renderer::add(
+			engine::graphics::renderer::post_add_component(
 				id,
 				CompC{
 					matrix,
@@ -133,7 +133,7 @@ namespace level
 		// load as binary if available
 		if (engine::model::load_binary(placeholder.name))
 		{
-			engine::graphics::renderer::add_character_instance(
+			engine::graphics::renderer::post_add_character(
 				id, CompT {
 					placeholder.transform.matrix(),
 					Vector3f { 1.f, 1.f, 1.f },
