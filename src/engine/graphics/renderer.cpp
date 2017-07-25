@@ -173,6 +173,10 @@ namespace
 	{
 		GLuint id;
 
+		~texture_t()
+		{
+			glDeleteTextures(1, &id);
+		}
 		texture_t(core::graphics::Image && image)
 		{
 			glEnable(GL_TEXTURE_2D);
@@ -221,30 +225,6 @@ namespace
 	>
 	materials;
 
-	struct linec_t
-	{
-		core::maths::Matrix4x4f modelview;
-		core::container::Buffer vertices;
-		core::container::Buffer edges;
-		engine::graphics::opengl::Color4ub color;
-
-		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
-
-		linec_t(engine::graphics::data::LineC && data) :
-			modelview(std::move(data.modelview)),
-			vertices(std::move(data.vertices)),
-			edges(std::move(data.edges)),
-			color((data.color & 0x000000ff) >>  0,
-			      (data.color & 0x0000ff00) >>  8,
-			      (data.color & 0x00ff0000) >> 16,
-			      (data.color & 0xff000000) >> 24)
-		{}
-		linec_t & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			modelview = std::move(data.matrix);
-			return *this;
-		}
-	};
 
 	struct mesh_t
 	{
@@ -278,9 +258,57 @@ namespace
 		engine::Asset,
 		401,
 		std::array<mesh_t, 100>,
-		std::array<int, 100>
+		std::array<mesh_t, 0>
 	>
 	resources;
+
+
+	struct object_modelview
+	{
+		core::maths::Matrix4x4f modelview;
+
+		object_modelview(
+			core::maths::Matrix4x4f && modelview)
+			: modelview(std::move(modelview))
+		{}
+	};
+	struct object_modelview_vertices
+	{
+		core::maths::Matrix4x4f modelview;
+
+		core::container::Buffer vertices;
+
+		object_modelview_vertices(
+			const mesh_t & mesh,
+			core::maths::Matrix4x4f && modelview)
+			: modelview(std::move(modelview))
+			, vertices(mesh.vertices)
+		{}
+	};
+
+	core::container::UnorderedCollection
+	<
+		engine::Entity,
+		1601,
+		std::array<object_modelview, 600>,
+		std::array<object_modelview_vertices, 200>
+	>
+	objects;
+
+	struct update_modelview
+	{
+		engine::graphics::data::ModelviewMatrix && data;
+
+		void operator () ()
+		{
+		}
+		template <typename T>
+		void operator () (T & x)
+		{
+			x.modelview = std::move(data.matrix);
+		}
+	};
+
 
 	struct comp_c
 	{
@@ -289,7 +317,7 @@ namespace
 			const mesh_t * mesh;
 			engine::graphics::opengl::Color4ub color;
 
-			asset(engine::graphics::data::CompC::asset & data)
+			asset(engine::graphics::data::CompC::asset && data)
 				: mesh(&resources.get<mesh_t>(data.mesh))
 				, color((data.color & 0x000000ff) >> 0,
 						(data.color & 0x0000ff00) >> 8,
@@ -298,68 +326,52 @@ namespace
 			{}
 		};
 
-		core::maths::Matrix4x4f modelview;
-		Vector3f scale;
+		object_modelview * object;
 		std::vector<asset> assets;
 
-		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
-
-		comp_c(engine::graphics::data::CompC & data)
-			: modelview(data.modelview)
-			, scale(data.scale)
+		comp_c(
+			object_modelview & object,
+			std::vector<engine::graphics::data::CompC::asset> && assets)
+			: object(&object)
 		{
-			this->assets.reserve(data.assets.size());
-			for (auto & a : data.assets)
+			this->assets.reserve(assets.size());
+			for (auto & asset : assets)
 			{
-				this->assets.emplace_back(a);
+				this->assets.emplace_back(std::move(asset));
 			}
-		}
-
-		comp_c & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			modelview = std::move(data.matrix);
-			return *this;
 		}
 	};
 
 	struct comp_t
 	{
-		core::maths::Matrix4x4f modelview;
-		Vector3f scale;
-
 		const mesh_t * mesh;
 		const texture_t * texture;
+		object_modelview * object;
 
-		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
-
-		comp_t(engine::graphics::data::CompT & data)
-			: modelview(data.modelview)
-			, scale(data.scale)
-			, mesh(&resources.get<mesh_t>(data.mesh))
-			, texture(&materials.get<texture_t>(data.texture))
+		comp_t(
+			const mesh_t & mesh,
+			const texture_t & texture,
+			object_modelview & object)
+			: mesh(&mesh)
+			, texture(&texture)
+			, object(&object)
 		{}
 	};
 
-	struct Character : comp_t
+	struct Character
 	{
-		std::vector<core::maths::Matrix4x4f> matrix_pallet;
-		core::container::Buffer vertices; // transformed vertices
+		const mesh_t * mesh;
+		const texture_t * texture;
+		object_modelview_vertices * object;
 
-		Character(engine::graphics::data::CompT & data)
-			: comp_t(data)
-			, vertices(mesh->vertices) // copy so that it always contain valid data
+		Character(
+			const mesh_t & mesh,
+			const texture_t & texture,
+			object_modelview_vertices & object)
+			: mesh(&mesh)
+			, texture(&texture)
+			, object(&object)
 		{}
-
-		Character & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			this->modelview = std::move(data.matrix);
-			return *this;
-		}
-		Character & operator = (engine::graphics::renderer::CharacterSkinning && data)
-		{
-			this->matrix_pallet = std::move(data.matrix_pallet);
-			return *this;
-		}
 
 		void draw(const bool highlighted)
 		{
@@ -373,7 +385,7 @@ namespace
 					3, // TODO
 				    GL_FLOAT, // TODO
 				    0,
-				    vertices.data());
+				    object->vertices.data());
 				glNormalPointer(
 					GL_FLOAT, // TODO
 				    0,
@@ -397,7 +409,7 @@ namespace
 					3, // TODO
 					GL_FLOAT, // TODO
 					0,
-					vertices.data());
+					object->vertices.data());
 				glNormalPointer(
 					GL_FLOAT, // TODO
 					0,
@@ -418,22 +430,6 @@ namespace
 				this->texture->disable();
 			}
 		}
-		void update()
-		{
-			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
-			float * const transformed_vertices = vertices.data_as<float>();
-			const int nvertices = vertices.count() / 3; // assume xyz
-			for (int i = 0; i < nvertices; i++)
-			{
-				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
-				core::maths::Vector4f::array_type buffer;
-				vertex.get(buffer);
-				transformed_vertices[3 * i + 0] = buffer[0];
-				transformed_vertices[3 * i + 1] = buffer[1];
-				transformed_vertices[3 * i + 2] = buffer[2];
-				// assume buffer[3] == 1.f
-			}
-		}
 	};
 
 	struct Bar
@@ -447,47 +443,60 @@ namespace
 		{}
 	};
 
+	struct linec_t
+	{
+		core::maths::Matrix4x4f modelview;
+		core::container::Buffer vertices;
+		core::container::Buffer edges;
+		engine::graphics::opengl::Color4ub color;
+
+		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
+
+		linec_t(engine::graphics::data::LineC && data) :
+			modelview(std::move(data.modelview)),
+			vertices(std::move(data.vertices)),
+			edges(std::move(data.edges)),
+			color((data.color & 0x000000ff) >>  0,
+			      (data.color & 0x0000ff00) >>  8,
+			      (data.color & 0x00ff0000) >> 16,
+			      (data.color & 0xff000000) >> 24)
+		{}
+		linec_t & operator = (engine::graphics::data::ModelviewMatrix && data)
+		{
+			modelview = std::move(data.matrix);
+			return *this;
+		}
+	};
+
 	namespace ui
 	{
 		struct PanelC
 		{
-			core::maths::Matrix4x4f matrix;
+			object_modelview * object;
 			core::maths::Vector2f size;
 			engine::graphics::opengl::Color4ub color;
-			engine::graphics::opengl::Color4ub selectable_color;
-			bool selectable;
 
-			PanelC(const engine::Entity entity, const engine::graphics::data::ui::PanelC & data)
-				: matrix(data.matrix)
-				, size(data.size)
-				, color(color_from(data.color))
-				, selectable_color(color_from(entity))
-				, selectable(data.selectable)
-			{
-			}
-
-			PanelC & operator = (engine::graphics::data::ModelviewMatrix && data)
-			{
-				this->matrix = std::move(data.matrix);
-				return *this;
-			}
+			PanelC(
+				object_modelview & object,
+				core::maths::Vector2f && size,
+				unsigned int && color)
+				: object(&object)
+				, size(std::move(size))
+				, color(color_from(std::move(color)))
+			{}
 		};
 
 		struct Text
 		{
-			core::maths::Matrix4x4f matrix;
+			object_modelview * object;
 			std::string display;
 
-			Text(const engine::graphics::data::ui::Text & data)
-				: matrix(data.matrix)
-				, display(data.display)
+			Text(
+				object_modelview & object,
+				std::string && display)
+				: object(&object)
+				, display(std::move(display))
 			{}
-
-			Text & operator = (engine::graphics::data::ModelviewMatrix && data)
-			{
-				this->matrix = std::move(data.matrix);
-				return *this;
-			}
 		};
 	}
 
@@ -505,17 +514,183 @@ namespace
 	>
 	components;
 
+
+	struct selectable_character_t
+	{
+		const mesh_t * mesh;
+		object_modelview_vertices * object;
+
+		engine::graphics::opengl::Color4ub selectable_color;
+
+		selectable_character_t(
+			const mesh_t * mesh,
+			object_modelview_vertices * object,
+			engine::graphics::opengl::Color4ub selectable_color)
+			: mesh(mesh)
+			, object(object)
+			, selectable_color(std::move(selectable_color))
+		{}
+	};
+
+	struct selectable_comp_c
+	{
+		std::vector<const mesh_t *> meshes;
+		object_modelview * object;
+
+		engine::graphics::opengl::Color4ub selectable_color;
+
+		selectable_comp_c(
+			std::vector<const mesh_t *> meshes,
+			object_modelview * object,
+			engine::graphics::opengl::Color4ub selectable_color)
+			: meshes(std::move(meshes))
+			, object(object)
+			, selectable_color(std::move(selectable_color))
+		{}
+	};
+
+	struct selectable_comp_t
+	{
+		const mesh_t * mesh;
+		object_modelview * object;
+
+		engine::graphics::opengl::Color4ub selectable_color;
+
+		selectable_comp_t(
+			const mesh_t * mesh,
+			object_modelview * object,
+			engine::graphics::opengl::Color4ub selectable_color)
+			: mesh(mesh)
+			, object(object)
+			, selectable_color(std::move(selectable_color))
+		{}
+	};
+
+	struct selectable_panel_c
+	{
+		object_modelview * object;
+		core::maths::Vector2f size;
+		engine::graphics::opengl::Color4ub selectable_color;
+
+		selectable_panel_c(
+			object_modelview * object,
+			core::maths::Vector2f size,
+			engine::graphics::opengl::Color4ub selectable_color)
+			: object(object)
+			, size(std::move(size))
+			, selectable_color(std::move(selectable_color))
+		{}
+	};
+
+	core::container::Collection
+	<
+		engine::Entity,
+		1601,
+		std::array<selectable_character_t, 200>,
+		std::array<selectable_comp_c, 250>,
+		std::array<selectable_comp_t, 250>,
+		std::array<selectable_panel_c, 100>
+	>
+	selectable_components;
+
+	struct add_selectable_color
+	{
+		engine::Entity entity;
+		engine::graphics::opengl::Color4ub color;
+
+		void operator () (comp_c & x)
+		{
+			std::vector<const mesh_t *> meshes;
+			meshes.reserve(x.assets.size());
+			for (const auto & asset : x.assets)
+			{
+				meshes.push_back(asset.mesh);
+			}
+			selectable_components.emplace<selectable_comp_c>(entity, meshes, x.object, color);
+		}
+		void operator () (comp_t & x)
+		{
+			selectable_components.emplace<selectable_comp_t>(entity, x.mesh, x.object, color);
+		}
+		void operator () (Character & x)
+		{
+			selectable_components.emplace<selectable_character_t>(entity, x.mesh, x.object, color);
+		}
+		void operator () (ui::PanelC & x)
+		{
+			selectable_components.emplace<selectable_panel_c>(entity, x.object, x.size, color);
+		}
+
+		template <typename T>
+		void operator () (T & x)
+		{
+			debug_unreachable();
+		}
+	};
+
 	struct set_selectable_color
 	{
 		engine::graphics::opengl::Color4ub color;
-
-		void operator () (Bar & x) {}
-		void operator () (::ui::Text & x) {}
 
 		template <typename T>
 		void operator () (T & x)
 		{
 			x.selectable_color = color;
+		}
+	};
+
+
+	struct updateable_character_t
+	{
+		const mesh_t * mesh;
+		object_modelview_vertices * object;
+
+		std::vector<core::maths::Matrix4x4f> matrix_pallet;
+
+		updateable_character_t(
+			const mesh_t & mesh,
+			object_modelview_vertices & object)
+			: mesh(&mesh)
+			, object(&object)
+		{}
+
+		void update()
+		{
+			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
+			float * const transformed_vertices = object->vertices.data_as<float>();
+			const int nvertices = object->vertices.count() / 3; // assume xyz
+			for (int i = 0; i < nvertices; i++)
+			{
+				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
+				core::maths::Vector4f::array_type buffer;
+				vertex.get(buffer);
+				transformed_vertices[3 * i + 0] = buffer[0];
+				transformed_vertices[3 * i + 1] = buffer[1];
+				transformed_vertices[3 * i + 2] = buffer[2];
+				// assume buffer[3] == 1.f
+			}
+		}
+	};
+
+	core::container::Collection
+	<
+		engine::Entity,
+		1601,
+		std::array<updateable_character_t, 200>,
+		std::array<updateable_character_t, 0>
+	>
+	updateable_components;
+
+	struct update_matrixpallet
+	{
+		engine::graphics::renderer::CharacterSkinning && data;
+
+		void operator () ()
+		{
+		}
+		void operator () (updateable_character_t & x)
+		{
+			x.matrix_pallet = std::move(data.matrix_pallet);
 		}
 	};
 }
@@ -579,7 +754,8 @@ namespace
 	                                 100> queue_update_characterskinning;
 
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_make_selectable;
-	core::container::CircleQueueSRMW<engine::Entity, 100> queue_make_nonselectable;
+	core::container::CircleQueueSRMW<engine::Entity, 100> queue_make_obstruction;
+	core::container::CircleQueueSRMW<engine::Entity, 100> queue_make_transparent;
 
 	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity>, 10> queue_select;
 
@@ -623,17 +799,25 @@ namespace
 			std::pair<engine::Entity, engine::graphics::data::CompT> component;
 			while (queue_add_component.try_pop(component))
 			{
-				components.emplace<comp_t>(component.first, component.second);
+				const auto & mesh = resources.get<mesh_t>(component.second.mesh);
+				const auto & texture = materials.get<texture_t>(component.second.texture);
+				auto & object = objects.emplace<object_modelview>(component.first, std::move(component.second.modelview));
+				components.emplace<comp_t>(component.first, mesh, texture, object);
 			}
 			std::pair<engine::Entity, engine::graphics::data::CompT> character;
 			while (queue_add_character_instance.try_pop(character))
 			{
-				components.emplace<Character>(character.first, character.second);
+				const auto & mesh = resources.get<mesh_t>(character.second.mesh);
+				const auto & texture = materials.get<texture_t>(character.second.texture);
+				auto & object = objects.emplace<object_modelview_vertices>(character.first, mesh, std::move(character.second.modelview));
+				components.emplace<Character>(character.first, mesh, texture, object);
+				updateable_components.emplace<updateable_character_t>(character.first, mesh, object);
 			}
 			std::pair<engine::Entity, engine::graphics::data::CompC> componentC;
 			while (queue_asset_instances.try_pop(componentC))
 			{
-				components.emplace<comp_c>(componentC.first, componentC.second);
+				auto & object = objects.emplace<object_modelview>(componentC.first, std::move(componentC.second.modelview));
+				components.emplace<comp_c>(componentC.first, object, std::move(componentC.second.assets));
 			}
 			std::pair<engine::Entity, engine::graphics::data::Bar> barData;
 			while(queue_add_bar.try_pop(barData))
@@ -652,12 +836,14 @@ namespace
 			std::pair<engine::Entity, engine::graphics::data::ui::PanelC> panelC;
 			while (queue_add_ui_panel.try_pop(panelC))
 			{
-				components.emplace<::ui::PanelC>(panelC.first, panelC.first, panelC.second);
+				auto & object = objects.emplace<object_modelview>(panelC.first, std::move(panelC.second.matrix));
+				components.emplace<::ui::PanelC>(panelC.first, object, std::move(panelC.second.size), std::move(panelC.second.color));
 			}
 			std::pair<engine::Entity, engine::graphics::data::ui::Text> text;
 			while (queue_add_ui_text.try_pop(text))
 			{
-				components.emplace<::ui::Text>(text.first, text.second);
+				auto & object = objects.emplace<object_modelview>(text.first, std::move(text.second.matrix));
+				components.emplace<::ui::Text>(text.first, object, std::move(text.second.display));
 			}
 		}
 
@@ -671,14 +857,37 @@ namespace
 				                                                  (entity & 0x0000ff00) >> 8,
 				                                                  (entity & 0x00ff0000) >> 16,
 				                                                  (entity & 0xff000000) >> 24};
-				components.call(entity, set_selectable_color{color});
+				if (selectable_components.contains(entity))
+				{
+					selectable_components.call(entity, set_selectable_color{color});
+				}
+				else
+				{
+					components.call(entity, add_selectable_color{entity, color});
+				}
 			}
-			engine::Entity message_make_nonselectable;
-			while (queue_make_nonselectable.try_pop(message_make_nonselectable))
+			engine::Entity message_make_obstruction;
+			while (queue_make_obstruction.try_pop(message_make_obstruction))
 			{
-				const engine::Entity entity = message_make_nonselectable;
+				const engine::Entity entity = message_make_obstruction;
 				const engine::graphics::opengl::Color4ub color = {0, 0, 0, 0};
-				components.call(entity, set_selectable_color{color});
+				if (selectable_components.contains(entity))
+				{
+					selectable_components.call(entity, set_selectable_color{color});
+				}
+				else
+				{
+					components.call(entity, add_selectable_color{entity, color});
+				}
+			}
+			engine::Entity message_make_transparent;
+			while (queue_make_transparent.try_pop(message_make_transparent))
+			{
+				const engine::Entity entity = message_make_transparent;
+				if (selectable_components.contains(entity))
+				{
+					selectable_components.remove(entity);
+				}
 			}
 		}
 	}
@@ -687,8 +896,19 @@ namespace
 		engine::Entity entity;
 		while (queue_remove.try_pop(entity))
 		{
-			// TODO: remove assets that no one uses any more
+			if (selectable_components.contains(entity))
+			{
+				selectable_components.remove(entity);
+			}
+			if (updateable_components.contains(entity))
+			{
+				updateable_components.remove(entity);
+			}
 			components.remove(entity);
+			if (objects.contains(entity))
+			{
+				objects.remove(entity);
+			}
 		}
 	}
 	void poll_update_queue()
@@ -697,23 +917,14 @@ namespace
 		          engine::graphics::data::ModelviewMatrix> message_update_modelviewmatrix;
 		while (queue_update_modelviewmatrix.try_pop(message_update_modelviewmatrix))
 		{
-			if (components.contains(message_update_modelviewmatrix.first))
-			{
-				components.update(message_update_modelviewmatrix.first,
-				                  std::move(message_update_modelviewmatrix.second));
-			}
-			else
-			{
-				// TODO: bring back when all physics object has a rendered shape
-			//	debug_printline(0xffffffff, "WARNING no component for entity ", message_update_modelviewmatrix.first);
-			}
+			objects.call(message_update_modelviewmatrix.first, update_modelview{std::move(message_update_modelviewmatrix.second)});
 		}
 		std::pair<engine::Entity,
 		          engine::graphics::renderer::CharacterSkinning> message_update_characterskinning;
 		while (queue_update_characterskinning.try_pop(message_update_characterskinning))
 		{
-			components.update(message_update_characterskinning.first,
-			                  std::move(message_update_characterskinning.second));
+			updateable_components.call(message_update_characterskinning.first,
+			                           update_matrixpallet{std::move(message_update_characterskinning.second)});
 		}
 	}
 }
@@ -975,6 +1186,11 @@ namespace
 		poll_add_queue();
 		poll_update_queue();
 		poll_remove_queue();
+		// update components
+		for (auto & component : updateable_components.get<updateable_character_t>())
+		{
+			component.update();
+		}
 		//
 		// read notifications
 		//
@@ -1059,34 +1275,10 @@ namespace
 		glDisable(GL_LIGHTING);
 		glEnable(GL_DEPTH_TEST);
 
-		for (const auto & component : components.get<linec_t>())
+		for (const auto & component : selectable_components.get<selectable_character_t>())
 		{
 			modelview_matrix.push();
-			modelview_matrix.mult(component.modelview);
-			glLoadMatrix(modelview_matrix);
-
-			glLineWidth(2.f);
-			glColor(component.selectable_color);
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glVertexPointer(3, // TODO
-			                static_cast<GLenum>(component.vertices.format()), // TODO
-			                0,
-			                component.vertices.data());
-			glDrawElements(GL_LINES,
-			               component.edges.count(),
-			               static_cast<GLenum>(component.edges.format()),
-			               component.edges.data());
-			glDisableClientState(GL_VERTEX_ARRAY);
-			glLineWidth(1.f);
-
-			modelview_matrix.pop();
-		}
-		for (auto & component : components.get<Character>())
-		{
-			const mesh_t & mesh = *component.mesh;
-
-			modelview_matrix.push();
-			modelview_matrix.mult(component.modelview);
+			modelview_matrix.mult(component.object->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			glColor(component.selectable_color);
@@ -1094,61 +1286,57 @@ namespace
 			glVertexPointer(3, // TODO
 			                GL_FLOAT, // TODO
 			                0,
-			                component.vertices.data());
+			                component.object->vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               mesh.triangles.count(),
+			               component.mesh->triangles.count(),
 			               GL_UNSIGNED_SHORT,	// TODO
-			               mesh.triangles.data());
+			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<comp_t>())
+		for (const auto & component : selectable_components.get<selectable_comp_c>())
 		{
-			const mesh_t & mesh = *component.mesh;
-
 			modelview_matrix.push();
-			modelview_matrix.mult(component.modelview);
+			{
+				modelview_matrix.mult(component.object->modelview);
+				glLoadMatrix(modelview_matrix);
+
+				glColor(component.selectable_color);
+				glEnableClientState(GL_VERTEX_ARRAY);
+				for (const auto & mesh : component.meshes)
+				{
+					glVertexPointer(3, // TODO
+					                static_cast<GLenum>(mesh->vertices.format()), // TODO
+					                0,
+					                mesh->vertices.data());
+					glDrawElements(GL_TRIANGLES,
+					               mesh->triangles.count(),
+					               static_cast<GLenum>(mesh->triangles.format()),
+					               mesh->triangles.data());
+				}
+				glDisableClientState(GL_VERTEX_ARRAY);
+			}
+			modelview_matrix.pop();
+		}
+		for (const auto & component : selectable_components.get<selectable_comp_t>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.object->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			glColor(component.selectable_color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
-			                static_cast<GLenum>(mesh.vertices.format()), // TODO
+			                static_cast<GLenum>(component.mesh->vertices.format()), // TODO
 			                0,
-			                mesh.vertices.data());
+			                component.mesh->vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               mesh.triangles.count(),
-			               static_cast<GLenum>(mesh.triangles.format()),
-			               mesh.triangles.data());
+			               component.mesh->triangles.count(),
+			               static_cast<GLenum>(component.mesh->triangles.format()),
+			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
 
-			modelview_matrix.pop();
-		}
-		for (const comp_c & component : components.get<comp_c>())
-		{
-			modelview_matrix.push();
-			{
-				modelview_matrix.mult(component.modelview);
-				glLoadMatrix(modelview_matrix);
-
-				glColor(component.selectable_color);
-				glEnableClientState(GL_VERTEX_ARRAY);
-				for (const auto & a : component.assets)
-				{
-					const mesh_t & mesh = *a.mesh;
-
-					glVertexPointer(3, // TODO
-					                static_cast<GLenum>(mesh.vertices.format()), // TODO
-					                0,
-					                mesh.vertices.data());
-					glDrawElements(GL_TRIANGLES,
-					               mesh.triangles.count(),
-					               static_cast<GLenum>(mesh.triangles.format()),
-					               mesh.triangles.data());
-				}
-				glDisableClientState(GL_VERTEX_ARRAY);
-			}
 			modelview_matrix.pop();
 		}
 
@@ -1158,12 +1346,10 @@ namespace
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(core::maths::Matrix4x4f::identity());
 
-		for (const ::ui::PanelC & component : ::components.get<::ui::PanelC>())
+		for (const auto & component : selectable_components.get<selectable_panel_c>())
 		{
-			if (!component.selectable) continue;
-
 			modelview_matrix.push();
-			modelview_matrix.mult(component.matrix);
+			modelview_matrix.mult(component.object->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			core::maths::Vector2f::array_type size;
@@ -1245,13 +1431,13 @@ namespace
 		for (auto & component : components.get<Character>())
 		{
 			modelview_matrix.push();
-			modelview_matrix.mult(component.modelview);
+			modelview_matrix.mult(component.object->modelview);
 			modelview_matrix.mult(component.mesh->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			glColor(highlighted_color);
 
-			component.update();
+			// component.update();
 			component.draw(components.get_key(component) == highlighted_entity);
 
 			modelview_matrix.pop();
@@ -1281,7 +1467,7 @@ namespace
 		for (const auto & component : components.get<comp_t>())
 		{
 			modelview_matrix.push();
-			modelview_matrix.mult(component.modelview);
+			modelview_matrix.mult(component.object->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			const mesh_t & mesh = *component.mesh;
@@ -1341,7 +1527,7 @@ namespace
 		{
 			modelview_matrix.push();
 			{
-				modelview_matrix.mult(component.modelview);
+				modelview_matrix.mult(component.object->modelview);
 				glLoadMatrix(modelview_matrix);
 
 				glEnableClientState(GL_VERTEX_ARRAY);
@@ -1392,7 +1578,7 @@ namespace
 		for (const auto & component : ::components.get<::ui::PanelC>())
 		{
 			modelview_matrix.push();
-			modelview_matrix.mult(component.matrix);
+			modelview_matrix.mult(component.object->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			core::maths::Vector2f::array_type size;
@@ -1634,9 +1820,14 @@ namespace engine
 				const auto res = queue_make_selectable.try_push(entity);
 				debug_assert(res);
 			}
-			void post_make_nonselectable(engine::Entity entity)
+			void post_make_obstruction(engine::Entity entity)
 			{
-				const auto res = queue_make_nonselectable.try_push(entity);
+				const auto res = queue_make_obstruction.try_push(entity);
+				debug_assert(res);
+			}
+			void post_make_transparent(engine::Entity entity)
+			{
+				const auto res = queue_make_transparent.try_push(entity);
 				debug_assert(res);
 			}
 

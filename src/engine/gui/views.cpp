@@ -589,8 +589,11 @@ namespace
 					engine::graphics::data::ui::PanelC{
 						comp.render_matrix(),
 						comp.render_size(),
-						comp.color,
-						comp.selectable });
+						comp.color });
+				if (comp.selectable)
+				{
+					engine::graphics::renderer::post_make_selectable(comp.entity);
+				}
 			}
 
 			// TODO: PanelT

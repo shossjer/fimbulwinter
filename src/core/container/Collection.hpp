@@ -690,7 +690,7 @@ namespace core
 			void remove_impl(mpl::index_constant<type>, bucket_t bucket, uint24_t index)
 			{
 				auto & array = std::get<type>(arrays);
-				debug_assert(index < array.size);
+				debug_assert(index < array.capacity);
 
 				slots[bucket].clear();
 				// keys[bucket] = ??? // not needed
@@ -726,7 +726,7 @@ namespace core
 				decltype(func(std::declval<mpl::type_head<mpl::type_list<Cs...>> &>()))
 			{
 				auto & array = std::get<type>(arrays);
-				debug_assert(index < array.size);
+				debug_assert(index < array.capacity);
 
 				return func(array.get(index));
 			}
