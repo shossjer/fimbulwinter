@@ -486,16 +486,35 @@ namespace
 			{}
 		};
 
+		struct PanelT
+		{
+			const texture_t * texture;
+			object_modelview * object;
+			core::maths::Vector2f size;
+
+			PanelT(
+				const texture_t & texture,
+				object_modelview & object,
+				core::maths::Vector2f && size)
+				: texture(&texture)
+				, object(&object)
+				, size(std::move(size))
+			{}
+		};
+
 		struct Text
 		{
 			object_modelview * object;
 			std::string display;
+			engine::graphics::opengl::Color4ub color;
 
 			Text(
 				object_modelview & object,
-				std::string && display)
+				std::string && display,
+				unsigned int && color)
 				: object(&object)
 				, display(std::move(display))
+				, color(color_from(color))
 			{}
 		};
 	}
@@ -510,6 +529,7 @@ namespace
 		std::array<Bar, 100>,
 		std::array<linec_t, 100>,
 		std::array<::ui::PanelC, 100>,
+		std::array<::ui::PanelT, 100>,
 		std::array<::ui::Text, 100>
 	>
 	components;
@@ -566,13 +586,13 @@ namespace
 		{}
 	};
 
-	struct selectable_panel_c
+	struct selectable_panel
 	{
 		object_modelview * object;
 		core::maths::Vector2f size;
 		engine::graphics::opengl::Color4ub selectable_color;
 
-		selectable_panel_c(
+		selectable_panel(
 			object_modelview * object,
 			core::maths::Vector2f size,
 			engine::graphics::opengl::Color4ub selectable_color)
@@ -589,7 +609,7 @@ namespace
 		std::array<selectable_character_t, 200>,
 		std::array<selectable_comp_c, 250>,
 		std::array<selectable_comp_t, 250>,
-		std::array<selectable_panel_c, 100>
+		std::array<selectable_panel, 100>
 	>
 	selectable_components;
 
@@ -618,7 +638,11 @@ namespace
 		}
 		void operator () (ui::PanelC & x)
 		{
-			selectable_components.emplace<selectable_panel_c>(entity, x.object, x.size, color);
+			selectable_components.emplace<selectable_panel>(entity, x.object, x.size, color);
+		}
+		void operator () (ui::PanelT & x)
+		{
+			selectable_components.emplace<selectable_panel>(entity, x.object, x.size, color);
 		}
 
 		template <typename T>
@@ -736,7 +760,10 @@ namespace
 
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::ui::PanelC>,
-	                                 100> queue_add_ui_panel;
+	                                 100> queue_add_ui_panelC;
+	core::container::CircleQueueSRMW<std::pair<engine::Entity,
+	                                           engine::graphics::data::ui::PanelT>,
+	                                 100> queue_add_ui_panelT;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity,
 	                                           engine::graphics::data::ui::Text>,
 	                                 100> queue_add_ui_text;
@@ -834,16 +861,23 @@ namespace
 				}
 			}
 			std::pair<engine::Entity, engine::graphics::data::ui::PanelC> panelC;
-			while (queue_add_ui_panel.try_pop(panelC))
+			while (queue_add_ui_panelC.try_pop(panelC))
 			{
 				auto & object = objects.emplace<object_modelview>(panelC.first, std::move(panelC.second.matrix));
 				components.emplace<::ui::PanelC>(panelC.first, object, std::move(panelC.second.size), std::move(panelC.second.color));
+			}
+			std::pair<engine::Entity, engine::graphics::data::ui::PanelT> panelT;
+			while (queue_add_ui_panelT.try_pop(panelT))
+			{
+				const auto & texture = materials.get<texture_t>(panelT.second.texture);
+				auto & object = objects.emplace<object_modelview>(panelT.first, std::move(panelT.second.matrix));
+				components.emplace<::ui::PanelT>(panelT.first, texture, object, std::move(panelT.second.size));
 			}
 			std::pair<engine::Entity, engine::graphics::data::ui::Text> text;
 			while (queue_add_ui_text.try_pop(text))
 			{
 				auto & object = objects.emplace<object_modelview>(text.first, std::move(text.second.matrix));
-				components.emplace<::ui::Text>(text.first, object, std::move(text.second.display));
+				components.emplace<::ui::Text>(text.first, object, std::move(text.second.display), std::move(text.second.color));
 			}
 		}
 
@@ -1170,6 +1204,9 @@ namespace
 		core::graphics::Image image2{ "res/dude.png" };
 		engine::graphics::renderer::post_register_texture(engine::Asset{ "dude" }, image2);
 
+		core::graphics::Image image3{ "res/photo.png" };
+		engine::graphics::renderer::post_register_texture(engine::Asset{ "photo" }, image3);
+
 		engine::graphics::renderer::add(
 			engine::Entity::create(),
 			engine::graphics::data::CompT{
@@ -1346,7 +1383,7 @@ namespace
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(core::maths::Matrix4x4f::identity());
 
-		for (const auto & component : selectable_components.get<selectable_panel_c>())
+		for (const auto & component : selectable_components.get<selectable_panel>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
@@ -1598,10 +1635,47 @@ namespace
 			modelview_matrix.pop();
 		}
 
-		for (const auto & component : ::components.get<::ui::Text>())
+		for (const auto & component : ::components.get<::ui::PanelT>())
 		{
-			(void)component;
-			// TODO: print the text
+			component.texture->enable();
+
+			modelview_matrix.push();
+			modelview_matrix.mult(component.object->modelview);
+			glLoadMatrix(modelview_matrix);
+
+			core::maths::Vector2f::array_type size;
+			component.size.get_aligned(size);
+
+			glBegin(GL_QUADS);
+			{
+				glTexCoord2f(1.f, 0.f);
+				glVertex2f(0.f, size[1]);
+				glTexCoord2f(0.f, 0.f);
+				glVertex2f(size[0], size[1]);
+				glTexCoord2f(0.f, 1.f);
+				glVertex2f(size[0], 0.f);
+				glTexCoord2f(1.f, 1.f);
+				glVertex2f(0.f, 0.f);
+			}
+			glEnd();
+
+			modelview_matrix.pop();
+
+			component.texture->disable();
+		}
+
+		for (const ::ui::Text & component : ::components.get<::ui::Text>())
+		{
+			glLoadMatrix(modelview_matrix);
+
+			core::maths::Vector4f vec = component.object->modelview.get_column<3>();
+			core::maths::Vector4f::array_type pos;
+			vec.get_aligned(pos);
+
+			glColor(component.color);
+			glRasterPos3f(pos[0], pos[1], pos[2]);
+
+			normal_font.draw(component.display);
 		}
 
 		glDisable(GL_DEPTH_TEST);
@@ -1788,7 +1862,12 @@ namespace engine
 
 			void add(engine::Entity entity, data::ui::PanelC && data)
 			{
-				const auto res = queue_add_ui_panel.try_push(std::make_pair(entity, data));
+				const auto res = queue_add_ui_panelC.try_push(std::make_pair(entity, data));
+				debug_assert(res);
+			}
+			void add(engine::Entity entity, data::ui::PanelT && data)
+			{
+				const auto res = queue_add_ui_panelT.try_push(std::make_pair(entity, data));
 				debug_assert(res);
 			}
 			void add(engine::Entity entity, data::ui::Text && data)

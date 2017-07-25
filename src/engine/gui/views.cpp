@@ -3,6 +3,19 @@
 
 #include <core/container/Collection.hpp>
 
+#include <utility/json.hpp>
+
+#include <fstream>
+
+// TODO: this should be solved better.
+namespace gameplay
+{
+namespace gamestate
+{
+	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name);
+}
+}
+
 namespace
 {
 	typedef int value_t;
@@ -54,10 +67,10 @@ namespace
 
 		struct Margin
 		{
-			const value_t left;
-			const value_t right;
-			const value_t top;
-			const value_t bottom;
+			value_t left;
+			value_t right;
+			value_t top;
+			value_t bottom;
 
 			Margin(
 				value_t left = value_t{ 0 },
@@ -86,7 +99,7 @@ namespace
 
 			struct Dimen
 			{
-				const TYPE type;
+				TYPE type;
 				value_t value;
 
 				Dimen(TYPE type, value_t value)
@@ -136,8 +149,6 @@ namespace
 
 	public:
 
-		const engine::Entity entity;
-
 		const Gravity gravity;
 
 	protected:
@@ -149,12 +160,10 @@ namespace
 	protected:
 
 		View(
-			engine::Entity entity,
 			Gravity gravity,
 			Margin margin,
 			Size size)
-			: entity(entity)
-			, gravity(gravity)
+			: gravity(gravity)
 			, margin(margin)
 			, size(size)
 		{}
@@ -162,7 +171,7 @@ namespace
 	public:
 
 		// called after size has been measured
-		virtual void arranage(
+		virtual void arrange(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent,
@@ -187,10 +196,10 @@ namespace
 	protected:
 
 		// call after size has been assigned
-		Vector3f arrange(
+		Vector3f arrange_offset(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
-			const Vector3f offset_parent)
+			const Vector3f offset_parent) const
 		{
 			Vector3f::array_type buff;
 			offset_parent.get_aligned(buff);
@@ -238,12 +247,15 @@ namespace
 
 	public:
 
+		engine::Entity entity;
+
 		bool selectable;
 
 	protected:
 
 		Drawable(engine::Entity entity, Gravity gravity, Margin margin, Size size, bool selectable)
-			: View(entity, gravity, margin, size)
+			: View(gravity, margin, size)
+			, entity(entity)
 			, selectable(selectable)
 		{
 			debug_assert(size.height.type != Size::TYPE::WRAP);
@@ -273,13 +285,13 @@ namespace
 
 	public:
 
-		void arranage(
+		void arrange(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent,
 			float & offset_depth) override
 		{
-			const Vector3f ret = arrange(size_parent, gravity_mask_parent, offset_parent);
+			const Vector3f ret = arrange_offset(size_parent, gravity_mask_parent, offset_parent);
 			this->offset = ret + Vector3f{ 0.f, 0.f, offset_depth };
 			offset_depth += DEPTH_INC;
 		}
@@ -325,27 +337,63 @@ namespace
 		}
 	};
 
-	// TODO: class PanelT : public Drawable
-
-	// TODO: class Text : public Drawable
-
-	class Parent
+	class PanelT : public Drawable
 	{
 	public:
-		virtual void adopt(View * child) = 0;
+
+		engine::Asset texture;
+
+	public:
+
+		PanelT(engine::Entity entity, Gravity gravity, Margin margin, Size size, engine::Asset texture, bool selectable)
+			: Drawable(entity, gravity, margin, size, selectable)
+			, texture(texture)
+		{
+		}
 	};
 
-	class Group : public View, public Parent
+	class Text : public Drawable
 	{
-	protected:
+	public:
+
+		Color color;
+		std::string display;
+
+	public:
+
+		Text(engine::Entity entity, Gravity gravity, Margin margin, Size size, Color color, std::string display)
+			: Drawable(entity, gravity, margin, size, false)
+			, color(color)
+			, display(display)
+		{
+		}
+	};
+
+	class Group : public View
+	{
+	public:
+
+		enum class Layout
+		{
+			HORIZONTAL,
+			VERTICAL,
+			RELATIVE
+		};
+
+	private:
 
 		std::vector<View*> children;
 
-	protected:
+		Layout layout;
 
-		Group(engine::Entity entity, Gravity gravity, Margin margin, Size size)
-			: View(entity, gravity, margin, size)
+	public:
+
+		Group(Gravity gravity, Margin margin, Size size, Layout layout)
+			: View(gravity, margin, size)
+			, layout(layout)
 		{}
+
+	protected:
 
 		static void measure_dimen(const Size::Dimen parent_size, const value_t margin, Size::Dimen & dimen)
 		{
@@ -366,151 +414,256 @@ namespace
 			}
 		}
 
+		void measure_children()
+		{
+			Size size_children = this->size;
+
+			switch (this->layout)
+			{
+			case Layout::HORIZONTAL:
+				{
+					for (auto p : this->children)
+					{
+						p->measure(size_children);
+						size_children.width -= p->width();
+					}
+
+					if (this->size.width == Size::TYPE::WRAP)
+						this->size.width -= size_children.width;
+
+					break;
+				}
+			case Layout::VERTICAL:
+				{
+					for (auto p : this->children)
+					{
+						p->measure(size_children);
+						size_children.height -= p->height();
+					}
+
+					if (this->size.height.type == Size::TYPE::WRAP)
+						this->size.height -= size_children.height;
+
+					break;
+				}
+			case Layout::RELATIVE:
+			default:
+				{
+					for (auto p : this->children)
+					{
+						p->measure(this->size);
+
+						// used if this size is wrap
+						size_children.width.value = std::max(size_children.width.value, p->width());
+						size_children.height.value = std::max(size_children.height.value, p->width());
+					}
+
+					if (this->size.width == Size::TYPE::WRAP)
+						this->size.width.value = size_children.width.value;
+
+					if (this->size.height == Size::TYPE::WRAP)
+						this->size.height.value = size_children.height.value;
+
+					break;
+				}
+			}
+		}
+
+		void arrange_children(Vector3f offset, float & offset_depth)
+		{
+			switch (this->layout)
+			{
+			case Layout::HORIZONTAL:
+				{
+					const Gravity mask{ Gravity::VERTICAL_BOTTOM | Gravity::VERTICAL_CENTRE | Gravity::VERTICAL_TOP };
+
+					for (auto p : this->children)
+					{
+						p->arrange(this->size, mask, offset, offset_depth);
+						offset += Vector3f(static_cast<float>(p->width()), 0.f, 0.f);
+					}
+
+					break;
+				}
+			case Layout::VERTICAL:
+				{
+					const Gravity mask{ Gravity::HORIZONTAL_LEFT | Gravity::HORIZONTAL_CENTRE | Gravity::HORIZONTAL_RIGHT };
+
+					for (auto p : this->children)
+					{
+						p->arrange(this->size, mask, offset, offset_depth);
+						offset += Vector3f(0.f, static_cast<float>(p->height()), 0.f);
+					}
+
+					break;
+				}
+			case Layout::RELATIVE:
+			default:
+				{
+					const Gravity mask = Gravity::unmasked();
+
+					for (auto p : this->children)
+					{
+						p->arrange(this->size, mask, offset, offset_depth);
+					}
+
+					break;
+				}
+			}
+		}
+
 	public:
 
-		void adopt(View * child) override
+		void adopt(View * child)
 		{
 			this->children.push_back(child);
 		}
-	};
 
-	class LinearGroup : public Group
-	{
-	public:
-
-		enum class ORIENTATION
-		{
-			HORIZONTAL,
-			VERTICAL
-		};
-
-	private:
-
-		const ORIENTATION orientation;
-
-	public:
-
-		LinearGroup(engine::Entity entity, Gravity gravity, Margin margin, Size size, ORIENTATION orientation)
-			: Group(entity, gravity, margin, size)
-			, orientation(orientation)
-		{}
-
-	public:
-
-		void arranage(
+		void arrange(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent,
 			float & offset_depth) override
 		{
-			Vector3f offset = arrange(size_parent, gravity_mask_parent, offset_parent);
+			Vector3f offset = arrange_offset(size_parent, gravity_mask_parent, offset_parent);
 
-			if (this->orientation == ORIENTATION::HORIZONTAL)
-			{
-				const Gravity mask{ Gravity::VERTICAL_BOTTOM | Gravity::VERTICAL_CENTRE | Gravity::VERTICAL_TOP };
-
-				for (auto p : this->children)
-				{
-					p->arranage(this->size, mask, offset, offset_depth);
-					offset += Vector3f(static_cast<float>(p->width()), 0.f, 0.f);
-				}
-			}
-			else
-			{
-				const Gravity mask{ Gravity::HORIZONTAL_LEFT | Gravity::HORIZONTAL_CENTRE | Gravity::HORIZONTAL_RIGHT };
-
-				for (auto p : this->children)
-				{
-					p->arranage(this->size, mask, offset, offset_depth);
-					offset += Vector3f(0.f, static_cast<float>(p->height()), 0.f);
-				}
-			}
+			arrange_children(offset, offset_depth);
 		}
 
-		void measure(
-			const Size size_parent) override
-		{
-			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
-			measure_dimen(size_parent.width, margin.width(), this->size.width);
-
-			Size size_remaining = this->size;
-
-			if (this->orientation == ORIENTATION::HORIZONTAL)
-			{
-				for (auto p : this->children)
-				{
-					p->measure(size_remaining);
-					size_remaining.width -= p->width();
-				}
-
-				if (this->size.width == Size::TYPE::WRAP)
-					this->size.width -= size_remaining.width;
-			}
-			else
-			{
-				for (auto p : this->children)
-				{
-					p->measure(size_remaining);
-					size_remaining.height -= p->height();
-				}
-
-				if (this->size.height.type == Size::TYPE::WRAP)
-					this->size.height -= size_remaining.height;
-			}
-		}
-	};
-
-	class RelativeGroup : public Group
-	{
-	public:
-
-		RelativeGroup(engine::Entity entity, Gravity gravity, Margin margin, Size size)
-			: Group(entity, gravity, margin, size)
-		{}
-
-	public:
-
-		void arranage(
-			const Size size_parent,
-			const Gravity gravity_mask_parent,
-			const Vector3f offset_parent,
-			float & offset_depth) override
-		{
-			const Vector3f offset = arrange(size_parent, gravity_mask_parent, offset_parent);
-			const Gravity gravity = Gravity::unmasked();
-
-			for (auto p : this->children)
-			{
-				p->arranage(this->size, gravity, offset, offset_depth);
-			}
-		}
-
-		void measure(
-			const Size size_parent) override
+		void measure(const Size size_parent) override
 		{
 			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
 			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
-
-			Size size_max = this->size;
-
-			for (auto p : this->children)
-			{
-				p->measure(this->size);
-
-				// used if this size is wrap
-				size_max.width.value = std::max(size_max.width.value, p->width());
-				size_max.height.value = std::max(size_max.height.value, p->width());
-			}
-
-			if (this->size.width == Size::TYPE::WRAP)
-				this->size.width -= size_max.width;
-
-			if (this->size.height == Size::TYPE::WRAP)
-				this->size.height -= size_max.height;
+			measure_children();
 		}
 	};
 
-	class Window : public Parent
+	bool contains(const json jdata, const std::string key)
+	{
+		return jdata.find(key) != jdata.end();
+	}
+
+	engine::graphics::data::Color parse_color(const json & jdata)
+	{
+		debug_assert(contains(jdata, "color"));
+
+		const std::string str = jdata["color"];
+		return std::stoul(str, nullptr, 16);
+	}
+
+	engine::graphics::data::Color parse_color(const json & jdata, const engine::graphics::data::Color def_val)
+	{
+		if (!contains(jdata, "color")) return def_val;
+
+		const std::string str = jdata["color"];
+		return std::stoul(str, nullptr, 16);
+	}
+
+	Group::Layout parse_layout(const json & jgroup)
+	{
+		debug_assert(contains(jgroup, "layout"));
+
+		const std::string str = jgroup["layout"];
+
+		if (str == "horizontal")return Group::Layout::HORIZONTAL;
+		if (str == "vertical") return Group::Layout::VERTICAL;
+		if (str == "relative") return Group::Layout::RELATIVE;
+
+		debug_printline(0xffffffff, "GUI - invalid layout: ", str);
+		debug_unreachable();
+	}
+
+	View::Size::Dimen parse_dimen(const json jd)
+	{
+		if (jd.is_string())
+		{
+			const std::string str = jd;
+
+			if (str == "parent") return View::Size::Dimen{ View::Size::TYPE::PARENT };
+			if (str == "wrap") return View::Size::Dimen{ View::Size::TYPE::WRAP };
+
+			debug_printline(0xffffffff, "GUI - invalid size dimen: ", str);
+			debug_unreachable();
+		}
+
+		return View::Size::Dimen{ (int)jd };
+	}
+
+	View::Size parse_size(const json & jgroup)
+	{
+		debug_assert(contains(jgroup, "size"));
+
+		const json jsize = jgroup["size"];
+
+		debug_assert(contains(jsize, "w"));
+		debug_assert(contains(jsize, "h"));
+
+		return View::Size{ parse_dimen(jsize["w"]), parse_dimen(jsize["h"]) };
+	}
+
+	View::Gravity parse_gravity(const json & jdata)
+	{
+		uint_fast16_t h = View::Gravity::HORIZONTAL_LEFT;
+		uint_fast16_t v = View::Gravity::VERTICAL_TOP;
+
+		if (contains(jdata, "gravity"))
+		{
+			const json jgravity = jdata["gravity"];
+
+			if (contains(jgravity, "h"))
+			{
+				const std::string str = jgravity["h"];
+
+				if (str == "left") h = View::Gravity::HORIZONTAL_LEFT;
+				else
+				if (str == "centre") h = View::Gravity::HORIZONTAL_CENTRE;
+				else
+				if (str == "right") h = View::Gravity::HORIZONTAL_RIGHT;
+				else
+				{
+					debug_printline(0xffffffff, "GUI - invalid horizontal gravity: ", str);
+					debug_unreachable();
+				}
+			}
+
+			if (contains(jgravity, "v"))
+			{
+				const std::string str = jgravity["v"];
+
+				if (str == "top") h = View::Gravity::VERTICAL_TOP;
+				else
+				if (str == "centre") h = View::Gravity::VERTICAL_CENTRE;
+				else
+				if (str == "bottom") h = View::Gravity::VERTICAL_BOTTOM;
+				else
+				{
+					debug_printline(0xffffffff, "GUI - invalid vertical gravity: ", str);
+					debug_unreachable();
+				}
+			}
+		}
+
+		return View::Gravity{ h | v };
+	}
+
+	View::Margin parse_margin(const json & jdata)
+	{
+		View::Margin margin;
+
+		if (contains(jdata, "margin"))
+		{
+			const json jmargin = jdata["margin"];
+
+			if (contains(jmargin, "b")) margin.bottom = jmargin["b"];
+			if (contains(jmargin, "l")) margin.left = jmargin["l"];
+			if (contains(jmargin, "r")) margin.right = jmargin["r"];
+			if (contains(jmargin, "t")) margin.top = jmargin["t"];
+		}
+
+		return margin;
+	}
+
+	class Window : private Group
 	{
 	public:
 
@@ -518,9 +671,6 @@ namespace
 
 	private:
 
-		View * grandparent;
-
-		View::Size size;
 		Vector3f position;
 
 		bool shown;
@@ -534,39 +684,36 @@ namespace
 		// When moved each component needs to have its "position" updated and sent to renderer.
 		// Of course we can use the grandparent pointer and go throuh all children of the window,
 		// but only the graphical ones are affected... Input needed.
-		core::container::Collection<
-			engine::Entity, 201,
-			std::array<LinearGroup, 20>,
-			std::array<RelativeGroup, 20>,
-			std::array<PanelC, 50>>
+		core::container::Collection
+			<
+				engine::Entity, 201,
+				std::array<Group, 40>,
+				std::array<PanelC, 50>,
+				std::array<PanelT, 50>,
+				std::array<Text, 50>
+			>
 			components;
 
 	public:
 
 		//Window(Margin margin, Size size) : View(margin, size)
-		Window(engine::Asset name, View::Size size, Vector3f position)
-			: name(name)
-			, grandparent(nullptr)
-			, size(size)
+		Window(engine::Asset name, Size size, Layout layout, Vector3f position)
+			: Group{ Gravity{}, Margin{}, size, layout }
+			, name(name)
 			, position(position)
 			, shown(false)
 			, order(0)
 		{
-			debug_assert(size.height.type != View::Size::TYPE::PARENT);
-			debug_assert(size.width.type != View::Size::TYPE::PARENT);
-		}
-
-		void adopt(View * child) override
-		{
-			this->grandparent = child;
+			debug_assert(size.height.type != Size::TYPE::PARENT);
+			debug_assert(size.width.type != Size::TYPE::PARENT);
 		}
 
 		void measure()
 		{
-			grandparent->measure(this->size);
+			measure_children();
 
 			float depth = static_cast<float>(this->order);
-			grandparent->arranage(this->size, View::Gravity{}, this->position, depth);
+			arrange_children(this->position, depth);
 		}
 
 		void show()
@@ -596,9 +743,33 @@ namespace
 				}
 			}
 
-			// TODO: PanelT
+			for (PanelT & comp : components.get<PanelT>())
+			{
+				comp.translate(delta);
 
-			// TODO: Text
+				engine::graphics::renderer::add(
+					comp.entity,
+					engine::graphics::data::ui::PanelT{
+						comp.render_matrix(),
+						comp.render_size(),
+						comp.texture });
+				if (comp.selectable)
+				{
+					engine::graphics::renderer::post_make_selectable(comp.entity);
+				}
+			}
+
+			for (Text & comp : components.get<Text>())
+			{
+				comp.translate(delta);
+
+				engine::graphics::renderer::add(
+					comp.entity,
+					engine::graphics::data::ui::Text{
+					comp.render_matrix(),
+					comp.color,
+					comp.display });
+			}
 		}
 
 		void hide()
@@ -607,6 +778,16 @@ namespace
 			this->shown = false;
 
 			for (PanelC & comp : components.get<PanelC>())
+			{
+				engine::graphics::renderer::remove(comp.entity);
+			}
+
+			for (PanelT & comp : components.get<PanelT>())
+			{
+				engine::graphics::renderer::remove(comp.entity);
+			}
+
+			for (Text & comp : components.get<Text>())
 			{
 				engine::graphics::renderer::remove(comp.entity);
 			}
@@ -622,10 +803,6 @@ namespace
 			this->order = window_order;
 
 			this->operator=(Vector3f{ 0.f, 0.f, delta_depth });
-
-			// TODO: PanelT
-
-			// TODO: Text
 		}
 
 		void operator = (std::vector<std::pair<engine::Entity, engine::gui::Data>> datas)
@@ -653,39 +830,125 @@ namespace
 					child.entity,
 					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
 			}
+
+			for (PanelT & child : components.get<PanelT>())
+			{
+				child.translate(delta);
+
+				// send position update to renderer
+				engine::graphics::renderer::update(
+					child.entity,
+					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
+			}
+
+			for (Text & child : components.get<Text>())
+			{
+				child.translate(delta);
+
+				// send position update to renderer
+				engine::graphics::renderer::update(
+					child.entity,
+					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
+			}
 		}
 
-		auto & create_panel(Parent & parent, View::Gravity gravity, View::Margin margin, View::Size size, Color color, bool selectable = false)
+		void create_components(Group & parent, const json & jcomponents)
 		{
-			auto entity = engine::Entity::create();
+			for (const auto & jcomponent : jcomponents)
+			{
+				debug_assert(contains(jcomponent, "type"));
 
-			auto & v = this->components.emplace<PanelC>(
-				entity, entity, gravity, margin, size, color, selectable);
+				const auto entity = engine::Entity::create();
 
-			parent.adopt(&v);
-			return v;
+				const std::string type = jcomponent["type"];
+
+				if (type == "group")
+				{
+					debug_assert(contains(jcomponent, "group"));
+
+					const json jgroup = jcomponent["group"];
+
+					auto & group = this->components.emplace<Group>(
+						entity,
+						parse_gravity(jcomponent),
+						parse_margin(jcomponent),
+						parse_size(jcomponent),
+						parse_layout(jgroup));
+
+					parent.adopt(&group);
+
+					create_components(group, jcomponent["components"]);
+				}
+				else
+				{
+					const bool selectable = contains(jcomponent, "action");
+
+					View * child;
+
+					if (type == "panel")
+					{
+						debug_assert(contains(jcomponent, "panel"));
+
+						const json jpanel = jcomponent["panel"];
+
+						child = &this->components.emplace<PanelC>(
+							entity,
+							entity,
+							parse_gravity(jcomponent),
+							parse_margin(jcomponent),
+							parse_size(jcomponent),
+							parse_color(jpanel),
+							selectable);
+					}
+					else
+					if (type == "texture")
+					{
+						debug_assert(contains(jcomponent, "texture"));
+
+						const json jtexture = jcomponent["texture"];
+
+						child = &this->components.emplace<PanelT>(
+							entity,
+							entity,
+							parse_gravity(jcomponent),
+							parse_margin(jcomponent),
+							parse_size(jcomponent),
+							jtexture["res"],
+							selectable);
+					}
+					else
+					if (type == "text")
+					{
+						debug_assert(contains(jcomponent, "text"));
+
+						const json jtext = jcomponent["text"];
+
+						child = &this->components.emplace<Text>(
+							entity,
+							entity,
+							parse_gravity(jcomponent),
+							parse_margin(jcomponent),
+							View::Size{ 0, 0 },
+							parse_color(jtext, 0xffffffff),
+							jtext["display"]);
+					}
+
+					parent.adopt(child);
+
+					if (selectable)
+					{
+						const std::string str = jcomponent["action"];
+
+						// TODO: validate action
+
+						gameplay::gamestate::post_add(entity, this->name, engine::Asset{ str });
+					}
+				}
+			}
 		}
-
-		auto & create_linear(Parent & parent, View::Gravity gravity, View::Margin margin, View::Size size, LinearGroup::ORIENTATION orientation)
+		void create_components(const json & jcomponents)
 		{
-			auto entity = engine::Entity::create();
-
-			auto & v = this->components.emplace<LinearGroup>(
-				entity, entity, gravity, margin, size, orientation);
-
-			parent.adopt(&v);
-			return v;
-		}
-
-		auto & create_relative(Parent & parent, View::Gravity gravity, View::Margin margin, View::Size size)
-		{
-			auto entity = engine::Entity::create();
-
-			auto & v = this->components.emplace<RelativeGroup>(
-				entity, entity, gravity, margin, size);
-
-			parent.adopt(&v);
-			return v;
+			create_components(*this, jcomponents);
 		}
 	};
 
@@ -696,15 +959,34 @@ namespace
 		windows;
 
 	std::vector<Window *> window_stack;
-}
 
-// TODO: this should be solved better.
-namespace gameplay
-{
-namespace gamestate
-{
-	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name);
-}
+	auto & create_window(const json & jwindow)
+	{
+		debug_assert(contains(jwindow, "name"));
+		debug_assert(contains(jwindow, "group"));
+
+		const std::string name = jwindow["name"];
+
+		debug_printline(0xffffffff, "GUI - creating window: ", name);
+
+		const engine::Asset asset{ name };
+
+		// TODO: read gravity for window position
+		const auto margin = parse_margin(jwindow);
+
+		const json jgroup = jwindow["group"];
+
+		auto & window = windows.emplace<Window>(
+			asset,
+			asset,
+			parse_size(jwindow),
+			parse_layout(jgroup),
+			Vector3f{ static_cast<float>(margin.left), static_cast<float>(margin.top), 0.f });
+
+		window_stack.push_back(&window);
+
+		return window;
+	}
 }
 
 namespace engine
@@ -713,172 +995,22 @@ namespace gui
 {
 	void create()
 	{
-		// create a window
+		std::ifstream file("res/gui.json");
+
+		if (!file.is_open())
 		{
-			auto & window = windows.emplace<Window>(
-				engine::Asset{ "profile" },
-				engine::Asset{ "profile" },
-				View::Size{
-					{ View::Size::TYPE::FIXED, 220 },
-					{ View::Size::TYPE::FIXED, 320 } },
-				Vector3f{20.f, 40.f, 0.f} );
-
-			window_stack.push_back(&window);
-
-			auto & groupBackground = window.create_relative(
-				window,
-				View::Gravity{},
-				View::Margin{},
-				View::Size{
-					{ View::Size::TYPE::PARENT },
-					{ View::Size::TYPE::PARENT } });
-
-			// main background color
-			auto & panelBackground = window.create_panel(
-				groupBackground,
-				View::Gravity{},
-				View::Margin{},
-				View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT },
-				0xFFFF00FF,
-				true);
-
-			gameplay::gamestate::post_add(panelBackground.entity, "profile", "background");
-
-			auto & group = window.create_linear(
-				groupBackground,
-				View::Gravity{},
-				View::Margin{ 10, 10, 10, 10 },
-				View::Size{
-					{ View::Size::TYPE::PARENT },
-					{ View::Size::TYPE::PARENT } },
-				LinearGroup::ORIENTATION::VERTICAL);
-
-			// add views to the group
-			{
-				auto & mover = window.create_panel(
-					group,
-					View::Gravity{},
-					View::Margin{},
-					View::Size{
-						{ View::Size::TYPE::PARENT },
-						{ View::Size::TYPE::FIXED, 100 } },
-					0xFFFF0000,
-					true);
-
-				// register the panel as a "mover" for the window
-				gameplay::gamestate::post_add(mover.entity, "profile", "mover");
-
-				{
-					auto & group2 = window.create_linear(
-						group,
-						View::Gravity{},
-						View::Margin{},
-						View::Size{
-							{ View::Size::TYPE::PARENT },
-							{ View::Size::TYPE::PARENT } },
-							LinearGroup::ORIENTATION::VERTICAL);
-
-					window.create_panel(
-						group2,
-						View::Gravity{ View::Gravity::HORIZONTAL_CENTRE },
-						View::Margin{},
-						View::Size{
-							{ 100 },
-							{ 100 } },
-							0xFF00FF00);
-
-					window.create_panel(
-						group2,
-						View::Gravity{ View::Gravity::HORIZONTAL_RIGHT},
-						View::Margin{},
-						View::Size{
-							{ 100 },
-							{ View::Size::TYPE::PARENT } },
-							0xFF00FFFF);
-				}
-			}
-
-			// update size and offset of windows components
-			window.measure();
+			debug_printline(0xffffffff, "GUI - res/gui.json file is missing. No GUI is loaded.");
+			return;
 		}
 
+		const json jcontent = json::parse(file);
+		const auto & jwindows = jcontent["windows"];
+
+		for (const auto & jwindow : jwindows)
 		{
-			auto & window = windows.emplace<Window>(
-				engine::Asset{ "inventory" },
-				engine::Asset{ "inventory" },
-				View::Size{
-					{ View::Size::TYPE::FIXED, 420 },
-					{ View::Size::TYPE::FIXED, 220 } },
-					Vector3f{ 250.f, 40.f, 0.f });
+			Window & window = create_window(jwindow);
 
-			window_stack.push_back(&window);
-
-			auto & groupBackground = window.create_relative(
-				window,
-				View::Gravity{},
-				View::Margin{},
-				View::Size{
-					{ View::Size::TYPE::PARENT },
-					{ View::Size::TYPE::PARENT } });
-
-			// main background color
-			auto & panelBackground = window.create_panel(
-				groupBackground,
-				View::Gravity{},
-				View::Margin{},
-				View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT },
-				0xFF0000FF,
-				true);
-
-			gameplay::gamestate::post_add(panelBackground.entity, "inventory", "background");
-
-			auto & groupMain = window.create_linear(
-				groupBackground,
-				View::Gravity{},
-				View::Margin{ 10, 10, 10, 10 },
-				View::Size{
-					{ View::Size::TYPE::PARENT },
-					{ View::Size::TYPE::PARENT } },
-					LinearGroup::ORIENTATION::HORIZONTAL);
-
-			{
-				auto & groupLeft = window.create_linear(
-					groupMain,
-					View::Gravity{},
-					View::Margin{},
-					View::Size{ 200, View::Size::TYPE::PARENT },
-					LinearGroup::ORIENTATION::VERTICAL);
-
-				for (int i = 0; i < 20; i++)
-				{
-					uint32_t c = 255 * i / 19;
-					window.create_panel(
-						groupLeft,
-						View::Gravity{},
-						View::Margin{},
-						View::Size{ View::Size::TYPE::PARENT, 10 },
-						0xFF000000 + c + (c << 8) + (c << 16));
-				}
-			}
-			{
-				auto & groupRight = window.create_relative(
-					groupMain,
-					View::Gravity{},
-					View::Margin{},
-					View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT });
-
-				for (int i = 0; i < 10; i++)
-				{
-					uint32_t c = 255 * i / 9;
-					window.create_panel(
-						groupRight,
-						View::Gravity{ View::Gravity::HORIZONTAL_CENTRE | View::Gravity::VERTICAL_CENTRE },
-						View::Margin{ i*10, i*10, i*10, i*10 },
-						View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT },
-						0xFF000000 + c + (c << 8) + (c << 16));
-				}
-			}
-
+			window.create_components(jwindow["components"]);
 			window.measure();
 		}
 	}
