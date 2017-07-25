@@ -178,7 +178,7 @@ namespace gameplay
 			{
 				const engine::Asset asset = data.name;
 
-				engine::graphics::renderer::add(
+				engine::graphics::renderer::post_register_mesh(
 					asset,
 					engine::graphics::data::Mesh{
 						data.vertices,
@@ -196,7 +196,7 @@ namespace gameplay
 						asset,
 						r + (g << 8) + (b << 16) + (0xff << 24) });
 
-				engine::graphics::renderer::add(
+				engine::graphics::renderer::post_add_component(
 					engine::Entity::create(),
 					engine::graphics::data::CompC{
 						data.matrix,
