@@ -42,7 +42,7 @@ namespace utility
 #if defined(_MSC_VER) && _MSC_VER <= 1911
 	template <typename T, typename ...Ps>
 	mpl::enable_if_t<mpl::is_paren_constructible<T, Ps...>::value, T>
-		construct(Ps && ...ps)
+	construct(Ps && ...ps)
 	{
 		return T(std::forward<Ps>(ps)...);
 	}
@@ -51,6 +51,19 @@ namespace utility
 	construct(Ps && ...ps)
 	{
 		return T{std::forward<Ps>(ps)...};
+	}
+
+	template <typename T, typename ...Ps>
+	mpl::enable_if_t<mpl::is_paren_constructible<T, Ps...>::value, T &>
+	construct_at(void * ptr, Ps && ...ps)
+	{
+		return *new (ptr) T(std::forward<Ps>(ps)...);
+	}
+	template <typename T, typename ...Ps>
+	mpl::enable_if_t<!mpl::is_paren_constructible<T, Ps...>::value && mpl::is_brace_constructible<T, Ps...>::value, T &>
+	construct_at(void * ptr, Ps && ...ps)
+	{
+		return *new (ptr) T{std::forward<Ps>(ps)...};
 	}
 #else
 	template <typename T, typename ...Ps,
@@ -65,6 +78,20 @@ namespace utility
 	T construct(Ps && ...ps)
 	{
 		return T{std::forward<Ps>(ps)...};
+	}
+
+	template <typename T, typename ...Ps,
+	          REQUIRES((mpl::is_paren_constructible<T, Ps...>::value))>
+	T & construct_at(void * ptr, Ps && ...ps)
+	{
+		return *new (ptr) T(std::forward<Ps>(ps)...);
+	}
+	template <typename T, typename ...Ps,
+	          REQUIRES((!mpl::is_paren_constructible<T, Ps...>::value)),
+	          REQUIRES((mpl::is_brace_constructible<T, Ps...>::value))>
+	T & construct_at(void * ptr, Ps && ...ps)
+	{
+		return *new (ptr) T{std::forward<Ps>(ps)...};
 	}
 #endif
 
