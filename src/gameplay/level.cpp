@@ -41,8 +41,6 @@ namespace
 		core::container::Buffer vertices;
 		core::container::Buffer triangles;
 		core::container::Buffer normals;
-
-		mesh_t() {}
 	};
 
 	struct level_t

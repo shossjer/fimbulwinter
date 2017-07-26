@@ -20,55 +20,34 @@ namespace engine
 			{
 				double zNear;
 				double zFar;
-
-				orthographic() {}
-				orthographic(double zNear, double zFar) : zNear(zNear), zFar(zFar) {}
 			};
 			struct perspective
 			{
 				core::maths::radiand fovy;
 				double zNear;
 				double zFar;
-
-				perspective() {}
-				perspective(core::maths::radiand fovy, double zNear, double zFar) : fovy(fovy), zNear(zNear), zFar(zFar) {}
 			};
 			struct camera
 			{
 				core::maths::Quaternionf rotation;
 				core::maths::Vector3f translation;
-
-				camera() {}
-				camera(core::maths::Quaternionf rotation, core::maths::Vector3f translation) : rotation(rotation), translation(translation) {}
 			};
 
 			struct rotate
 			{
 				core::maths::Quaternionf q;
-
-				rotate() {}
-				rotate(core::maths::Quaternionf q) : q(q) {}
 			};
 			struct rotation
 			{
 				core::maths::Quaternionf q;
-
-				rotation() {}
-				rotation(core::maths::Quaternionf q) : q(q) {}
 			};
 			struct translate
 			{
 				core::maths::Vector3f v;
-
-				translate() {}
-				translate(core::maths::Vector3f v) : v(v) {}
 			};
 			struct translation
 			{
 				core::maths::Vector3f v;
-
-				translation() {}
-				translation(core::maths::Vector3f v) : v(v) {}
 			};
 
 			// void add(engine::Entity entity, orthographic && data);

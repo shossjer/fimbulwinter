@@ -3,6 +3,7 @@
 #define UTILITY_ALIGNED_ARRAY_HPP
 
 #include <utility/type_traits.hpp>
+#include <utility/utility.hpp>
 
 #include <array>
 
@@ -27,7 +28,7 @@ namespace utility
 		template <typename ...Ps>
 		void construct(const std::size_t i, Ps && ...ps)
 		{
-			new (buffer.data() + i) T{std::forward<Ps>(ps)...};
+			utility::construct_at<T>(buffer.data() + i, std::forward<Ps>(ps)...);
 		}
 		void destruct(const std::size_t i)
 		{

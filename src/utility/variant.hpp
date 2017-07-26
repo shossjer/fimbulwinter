@@ -113,6 +113,12 @@ namespace utility
 
 			T instance;
 
+#if defined(_MSC_VER) && _MSC_VER <= 1911
+			template <typename ...Ps>
+			variant_alternative(Ps && ...ps) :
+				instance(utility::construct<T>(std::forward<Ps>(ps)...))
+			{}
+#else
 			template <typename ...Ps,
 			          REQUIRES((mpl::is_paren_constructible<T, Ps...>::value))>
 			variant_alternative(Ps && ...ps) :
@@ -124,6 +130,7 @@ namespace utility
 			variant_alternative(Ps && ...ps) :
 				instance{std::forward<Ps>(ps)...}
 			{}
+#endif
 
 			friend T & get_instance(this_type & x)
 			{
