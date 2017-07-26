@@ -27,20 +27,6 @@ namespace engine
 				core::container::Buffer vertices;
 				core::container::Buffer edges;
 				Color color;
-
-				LineC(const core::maths::Matrix4x4f & modelview,
-					const core::container::Buffer & vertices,
-					const core::container::Buffer & edges,
-					const Color & color)
-					:
-					modelview(modelview),
-					vertices(vertices),
-					edges(edges),
-					color(color)
-				{}
-
-				LineC()
-				{}
 			};
 
 			// mesh with optional uv-coords
@@ -73,18 +59,6 @@ namespace engine
 					Color color;
 				};
 				std::vector<asset> assets;
-
-				CompC(core::maths::Matrix4x4f modelview,
-					Vector3f scale,
-					std::vector<asset> assets)
-					: modelview(modelview)
-					, scale(scale)
-					, assets(assets)
-				{}
-
-				CompC()
-					: modelview()
-				{}
 			};
 
 			struct Bar
@@ -110,13 +84,6 @@ namespace engine
 			{
 				core::maths::Matrix4x4f projection;
 				core::maths::Matrix4x4f view;
-
-				Camera2D() {}
-				Camera2D(core::maths::Matrix4x4f projection,
-				         core::maths::Matrix4x4f view) :
-					projection(projection),
-					view(view)
-				{}
 			};
 			struct Camera3D
 			{
@@ -124,17 +91,6 @@ namespace engine
 				core::maths::Matrix4x4f view;
 				core::maths::Matrix4x4f inv_projection;
 				core::maths::Matrix4x4f inv_view;
-
-				Camera3D() {}
-				Camera3D(core::maths::Matrix4x4f projection,
-				         core::maths::Matrix4x4f view,
-				         core::maths::Matrix4x4f inv_projection,
-				         core::maths::Matrix4x4f inv_view) :
-					projection(projection),
-					view(view),
-					inv_projection(inv_projection),
-					inv_view(inv_view)
-				{}
 			};
 			struct Viewport
 			{
@@ -142,27 +98,16 @@ namespace engine
 				int32_t y;
 				int32_t width;
 				int32_t height;
-
-				Viewport() {}
-				Viewport(int32_t x, int32_t y, int32_t width, int32_t height) : x(x), y(y), width(width), height(height) {}
 			};
 			struct Cursor
 			{
 				int32_t x;
 				int32_t y;
-
-				Cursor() {}
-				Cursor(int32_t x, int32_t y) : x(x), y(y) {}
 			};
 
 			struct CharacterSkinning
 			{
 				std::vector<core::maths::Matrix4x4f> matrix_pallet;
-
-				CharacterSkinning() = default;
-				CharacterSkinning(std::vector<core::maths::Matrix4x4f> matrix_pallet) :
-					matrix_pallet(std::move(matrix_pallet))
-				{}
 			};
 
 			void create();

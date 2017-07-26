@@ -25,8 +25,6 @@ namespace model
 		std::vector<weight_t> weights;
 		core::container::Buffer normals;
 		core::container::Buffer triangles;
-
-		mesh_t() : matrix() {}
 	};
 }
 }

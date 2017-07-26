@@ -231,8 +231,6 @@ namespace
 	{
 		core::maths::Vector3f & movement;
 
-		extract_movement(core::maths::Vector3f & movement) : movement(movement) {}
-
 		void operator () (Playback & x)
 		{
 			x.extract(movement);
@@ -246,8 +244,6 @@ namespace
 	struct extract_pallet
 	{
 		std::vector<core::maths::Matrix4x4f> & matrix_pallet;
-
-		extract_pallet(std::vector<core::maths::Matrix4x4f> & matrix_pallet) : matrix_pallet(matrix_pallet) {}
 
 		void operator () (Playback & x)
 		{
@@ -368,8 +364,6 @@ namespace
 	struct set_action
 	{
 		engine::animation::action data;
-
-		set_action(engine::animation::action data) : data(data) {}
 
 		void operator () (Character & x)
 		{
