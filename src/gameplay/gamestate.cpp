@@ -475,12 +475,9 @@ namespace
 			switch (args.first)
 			{
 			case engine::Command::BUTTON_DOWN_ACTIVE:
-				debug_assert(!args.second.has_value());
-				engine::gui::show("profile");
-				break;
 			case engine::Command::BUTTON_DOWN_INACTIVE:
 				debug_assert(!args.second.has_value());
-				engine::gui::hide("profile");
+				engine::gui::toggle("profile");
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
@@ -518,15 +515,64 @@ namespace
 		template <typename W>
 		void operator () (const W & w)
 		{
-			debug_printline(0xffffffff, "Can't move this");
 		}
 	};
 
-	struct GUISelector
+	engine::Entity highlighted_entity = engine::Entity::null();
+	engine::Entity pressed_entity = engine::Entity::null();
+	engine::Entity selected_entity = engine::Entity::null();
+
+	// mouse button pressed on entity (the entity is not "selected" yet).
+	struct PlayerEntitySelection
 	{
 		void operator () (const GUIComponent & c)
 		{
 			engine::gui::select(c.window);
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	};
+
+	struct PlayerEntityDeselection
+	{
+		void operator () (const GUIComponent & c)
+		{
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	};
+
+	// when mouse button is released and the entity is selected.
+	struct PlayerEntitySelected
+	{
+		void operator () (const GUIComponent & c)
+		{
+			switch (c.name)
+			{
+			case engine::Asset{ "close" }:
+				::selected_entity = engine::Entity::null();
+				engine::gui::hide(c.window);
+				return;
+			}
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	};
+
+	// the selected entity has been cleared.
+	struct PlayerEntityCleared
+	{
+		void operator () (const GUIComponent & c)
+		{
 		}
 
 		template <typename W>
@@ -550,9 +596,6 @@ namespace
 		std::array<Workstation, 20>
 	>
 	components;
-
-	engine::Entity highlighted_entity = engine::Entity::null();
-	engine::Entity selected_entity = engine::Entity::null();
 
 	std::pair<int16_t, int16_t> mouse_coords{ 0, 0 };
 	core::container::ExchangeQueueSRSW<std::pair<int16_t, int16_t>> queue_mouse_coords;
@@ -784,20 +827,43 @@ namespace gamestate
 				{
 				case engine::Command::RENDER_HIGHLIGHT:
 					::highlighted_entity = utility::any_cast<engine::Entity>(std::get<2>(command_args));
-					debug_printline(0xffffffff, "Gamestate select: ", ::highlighted_entity);
+
+					if (::pressed_entity != engine::Entity::null())
+					{
+						debug_printline(0xffffffff, "Gamestate - Leaving entity: ", ::pressed_entity);
+						components.call(::pressed_entity, PlayerEntityDeselection{});
+						::pressed_entity = engine::Entity::null();
+					}
+
 					break;
 				case engine::Command::MOUSE_LEFT_DOWN:
+
+					if (::selected_entity!= engine::Entity::null() && ::selected_entity != ::highlighted_entity)
+					{
+						debug_printline(0xffffffff, "Gamestate - Clearing entity: ", ::selected_entity);
+						components.call(::selected_entity, PlayerEntityCleared{});
+						::selected_entity = engine::Entity::null();
+					}
+
 					if (components.contains(::highlighted_entity))
 					{
-						::selected_entity = ::highlighted_entity;
-						debug_printline(0xffffffff, "Gamestate mouse down: ", ::highlighted_entity);
-
-						components.call(::highlighted_entity, GUISelector{});
+						debug_printline(0xffffffff, "Gamestate - Pressed entity: ", ::highlighted_entity);
+						::pressed_entity = ::highlighted_entity;
+						components.call(::highlighted_entity, PlayerEntitySelection{});
 					}
 					break;
 				case engine::Command::MOUSE_LEFT_UP:
-					::selected_entity = engine::Entity::null();
-					debug_printline(0xffffffff, "Gamestate mouse up");
+
+					if (::pressed_entity != engine::Entity::null())
+					{
+						if (::selected_entity != ::pressed_entity)
+						{
+							debug_printline(0xffffffff, "Gamestate - Selecting entity: ", ::pressed_entity);
+							::selected_entity = ::pressed_entity;
+							components.call(::selected_entity, PlayerEntitySelected{});
+						}
+						::pressed_entity = engine::Entity::null();
+					}
 					break;
 				default:
 					debug_unreachable();
@@ -807,11 +873,11 @@ namespace gamestate
 			std::pair<int16_t, int16_t> mouse_update;
 			if (queue_mouse_coords.try_pop(mouse_update))
 			{
-				if (::selected_entity != engine::Entity::null())
+				if (::pressed_entity != engine::Entity::null())
 				{
 					const int16_t dx = mouse_update.first - mouse_coords.first;
 					const int16_t dy = mouse_update.second - mouse_coords.second;
-					components.call(::selected_entity, GUIMover{ dx, dy });
+					components.call(::pressed_entity, GUIMover{ dx, dy });
 				}
 
 				mouse_coords = mouse_update;

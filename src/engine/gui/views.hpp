@@ -26,6 +26,8 @@ namespace gui
 
 	void hide(engine::Asset window);
 
+	void toggle(engine::Asset window);
+
 	void select(engine::Asset window);
 
 	void update(

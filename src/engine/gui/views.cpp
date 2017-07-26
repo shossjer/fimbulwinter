@@ -229,7 +229,7 @@ namespace
 			else
 			if (this->gravity.place(gravity_mask_parent, Gravity::VERTICAL_CENTRE))
 			{
-				offset_vertical = buff[1] + (size_parent.height.value / 2) - (this->size.height.value / 2);
+				offset_vertical = buff[1] + (size_parent.height.value / 2) - (this->size.height.value / 2) + this->margin.top - this->margin.bottom;
 			}
 			else // TOP default
 			{
@@ -262,7 +262,7 @@ namespace
 			debug_assert(size.width.type != Size::TYPE::WRAP);
 		}
 
-	private:
+	protected:
 
 		static void measure_dimen(const Size::Dimen parent_size, const value_t margin, Size::Dimen & dimen)
 		{
@@ -296,14 +296,6 @@ namespace
 			offset_depth += DEPTH_INC;
 		}
 
-		void measure(
-			const Size size_parent) override
-		{
-			// measure size
-			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
-			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
-		}
-
 		void translate(core::maths::Vector3f delta)
 		{
 			this->offset += delta;
@@ -335,6 +327,12 @@ namespace
 			, color(color)
 		{
 		}
+
+		void measure(const Size size_parent) override
+		{
+			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
+			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
+		}
 	};
 
 	class PanelT : public Drawable
@@ -349,6 +347,12 @@ namespace
 			: Drawable(entity, gravity, margin, size, selectable)
 			, texture(texture)
 		{
+		}
+
+		void measure(const Size size_parent) override
+		{
+			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
+			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
 		}
 	};
 
@@ -366,6 +370,13 @@ namespace
 			, color(color)
 			, display(display)
 		{
+		}
+
+		void measure(const Size size_parent) override
+		{
+			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
+
+			this->size.width.value = this->display.length() * 6;
 		}
 	};
 
@@ -601,6 +612,19 @@ namespace
 		return View::Size{ parse_dimen(jsize["w"]), parse_dimen(jsize["h"]) };
 	}
 
+	View::Size parse_size(const json & jgroup, const View::Size def_val)
+	{
+		if (!contains(jgroup, "size"))
+			return def_val;
+
+		const json jsize = jgroup["size"];
+
+		debug_assert(contains(jsize, "w"));
+		debug_assert(contains(jsize, "h"));
+
+		return View::Size{ parse_dimen(jsize["w"]), parse_dimen(jsize["h"]) };
+	}
+
 	View::Gravity parse_gravity(const json & jdata)
 	{
 		uint_fast16_t h = View::Gravity::HORIZONTAL_LEFT;
@@ -630,11 +654,11 @@ namespace
 			{
 				const std::string str = jgravity["v"];
 
-				if (str == "top") h = View::Gravity::VERTICAL_TOP;
+				if (str == "top") v = View::Gravity::VERTICAL_TOP;
 				else
-				if (str == "centre") h = View::Gravity::VERTICAL_CENTRE;
+				if (str == "centre") v = View::Gravity::VERTICAL_CENTRE;
 				else
-				if (str == "bottom") h = View::Gravity::VERTICAL_BOTTOM;
+				if (str == "bottom") v = View::Gravity::VERTICAL_BOTTOM;
 				else
 				{
 					debug_printline(0xffffffff, "GUI - invalid vertical gravity: ", str);
@@ -708,7 +732,9 @@ namespace
 			debug_assert(size.width.type != Size::TYPE::PARENT);
 		}
 
-		void measure()
+		bool isShown() const { return this->shown; }
+
+		void measure_components()
 		{
 			measure_children();
 
@@ -812,7 +838,7 @@ namespace
 				components.update(data.first, data.second);
 			}
 
-			measure();
+			measure_components();
 		}
 
 		// the window has been moved, all its drawable components needs to post
@@ -872,7 +898,7 @@ namespace
 						entity,
 						parse_gravity(jcomponent),
 						parse_margin(jcomponent),
-						parse_size(jcomponent),
+						parse_size(jcomponent, View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT }),
 						parse_layout(jgroup));
 
 					parent.adopt(&group);
@@ -896,7 +922,7 @@ namespace
 							entity,
 							parse_gravity(jcomponent),
 							parse_margin(jcomponent),
-							parse_size(jcomponent),
+							parse_size(jcomponent, View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT }),
 							parse_color(jpanel),
 							selectable);
 					}
@@ -923,14 +949,23 @@ namespace
 
 						const json jtext = jcomponent["text"];
 
+						// to compensate for text height somewhat
+						View::Margin margin = parse_margin(jcomponent);
+						margin.top += 6;
+
 						child = &this->components.emplace<Text>(
 							entity,
 							entity,
 							parse_gravity(jcomponent),
-							parse_margin(jcomponent),
-							View::Size{ 0, 0 },
+							margin,
+							View::Size{ 0, 6 },
 							parse_color(jtext, 0xffffffff),
 							jtext["display"]);
+					}
+					else
+					{
+						debug_printline(0xffffffff, "GUI - unknown type: ", type);
+						debug_unreachable();
 					}
 
 					parent.adopt(child);
@@ -1011,7 +1046,7 @@ namespace gui
 			Window & window = create_window(jwindow);
 
 			window.create_components(jwindow["components"]);
-			window.measure();
+			window.measure_components();
 		}
 	}
 
@@ -1029,6 +1064,14 @@ namespace gui
 	void hide(engine::Asset window)
 	{
 		windows.get<Window>(window).hide();
+	}
+
+	void toggle(engine::Asset window)
+	{
+		auto & w = windows.get<Window>(window);
+
+		if (w.isShown()) w.hide();
+		else w.show();
 	}
 
 	void select(engine::Asset window)
