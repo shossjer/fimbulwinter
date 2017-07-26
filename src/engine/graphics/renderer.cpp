@@ -260,7 +260,7 @@ namespace
 		engine::Asset,
 		401,
 		std::array<mesh_t, 100>,
-		std::array<mesh_t, 0>
+		std::array<mesh_t, 1>
 	>
 	resources;
 
@@ -703,7 +703,7 @@ namespace
 		engine::Entity,
 		1601,
 		std::array<updateable_character_t, 200>,
-		std::array<updateable_character_t, 0>
+		std::array<updateable_character_t, 1>
 	>
 	updateable_components;
 
