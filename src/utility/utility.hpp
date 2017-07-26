@@ -39,6 +39,20 @@ namespace utility
 	template <typename T>
 	struct is_in_place_type<in_place_type_t<T>> : mpl::true_type {};
 
+#if defined(_MSC_VER) && _MSC_VER <= 1911
+	template <typename T, typename ...Ps>
+	mpl::enable_if_t<mpl::is_paren_constructible<T, Ps...>::value, T>
+		construct(Ps && ...ps)
+	{
+		return T(std::forward<Ps>(ps)...);
+	}
+	template <typename T, typename ...Ps>
+	mpl::enable_if_t<!mpl::is_paren_constructible<T, Ps...>::value && mpl::is_brace_constructible<T, Ps...>::value, T>
+	construct(Ps && ...ps)
+	{
+		return T{std::forward<Ps>(ps)...};
+	}
+#else
 	template <typename T, typename ...Ps,
 	          REQUIRES((mpl::is_paren_constructible<T, Ps...>::value))>
 	T construct(Ps && ...ps)
@@ -52,6 +66,10 @@ namespace utility
 	{
 		return T{std::forward<Ps>(ps)...};
 	}
+#endif
+
+	template <typename T, int N>
+	struct int_hack : mpl::integral_constant<int, N> {};
 }
 
 #endif /* UTILITY_UTILITY_HPP */
