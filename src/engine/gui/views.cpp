@@ -718,6 +718,14 @@ namespace
 			>
 			components;
 
+		core::container::Collection
+			<
+			engine::Asset, 201,
+			std::array<engine::Entity, 100>,
+			std::array<int, 1>
+			>
+			lookup;
+
 	public:
 
 		//Window(Margin margin, Size size) : View(margin, size)
@@ -744,7 +752,8 @@ namespace
 
 		void show()
 		{
-			debug_assert(!this->shown);
+			if (this->shown) return;
+
 			this->shown = true;
 
 			const Vector3f delta{ 0.f, 0.f, static_cast<float>( -(this->order)) };
@@ -831,11 +840,40 @@ namespace
 			this->operator=(Vector3f{ 0.f, 0.f, delta_depth });
 		}
 
-		void operator = (std::vector<std::pair<engine::Entity, engine::gui::Data>> datas)
+		struct Update
+		{
+			engine::gui::Data data;
+
+			void operator () (PanelC & panel)
+			{
+				panel.color = data.color;
+			}
+			void operator () (PanelT & panel)
+			{
+				panel.texture = data.texture;
+			}
+			void operator () (Text & text)
+			{
+				text.color = data.color;
+				text.display = data.display;
+			}
+
+			template <typename T>
+			void operator () (const T & t)
+			{
+			}
+		};
+
+		void operator = (engine::gui::Datas && datas)
 		{
 			for (auto & data : datas)
 			{
-				components.update(data.first, data.second);
+				if (!lookup.contains(data.first))
+					continue;
+
+				engine::Entity entity = lookup.get<engine::Entity>(data.first);
+
+				components.call(entity, Update{ data.second });
 			}
 
 			measure_components();
@@ -978,6 +1016,13 @@ namespace
 
 						gameplay::gamestate::post_add(entity, this->name, engine::Asset{ str });
 					}
+
+					if (contains(jcomponent, "name"))
+					{
+						std::string str = jcomponent["name"];
+						debug_assert(str.length() > 0);
+						this->lookup.emplace<engine::Entity>(str, entity);
+					}
 				}
 			}
 		}
@@ -1092,10 +1137,10 @@ namespace gui
 		}
 	}
 
-	void update(engine::Asset window, std::vector<std::pair<engine::Entity, Data>> datas)
+	void update(engine::Asset window, engine::gui::Datas && datas)
 	{
 		// TODO: use thread safe queue
-		windows.update(window, datas);
+		windows.update(window, std::move(datas));
 	}
 
 	void update(engine::Asset window, core::maths::Vector3f delta)
