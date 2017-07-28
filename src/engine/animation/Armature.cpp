@@ -99,6 +99,19 @@ namespace
 				read_vector(stream, me.positions[framei]);
 			}
 		}
+
+		uint8_t has_orientations;
+		stream.read(reinterpret_cast<char *>(& has_orientations), sizeof(uint8_t));
+		debug_printline(0xffffffff, has_orientations ? "has orientations" : "has NOT orientations");
+
+		if (has_orientations)
+		{
+			me.orientations.resize(me.length + 1);
+			for (int framei = 0; framei <= me.length; framei++)
+			{
+				read_quaternion(stream, me.orientations[framei]);
+			}
+		}
 	}
 
 	void read_armature(std::ifstream & stream, Armature & armature)

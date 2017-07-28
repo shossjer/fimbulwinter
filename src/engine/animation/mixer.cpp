@@ -88,9 +88,10 @@ namespace
 
 		// vvvvvvvv tmp
 		std::vector<core::maths::Matrix4x4f> matrices;
-		core::maths::Vector3f movement;
+		core::maths::Vector3f position_movement;
+		core::maths::Quaternionf orientation_movement;
 
-		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), repeat(repeat), finished(false), framei(0), matrices(armature.njoints), movement(0.f, 0.f, 0.f) {}
+		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), repeat(repeat), finished(false), framei(0), matrices(armature.njoints) {}
 		// ^^^"^^^^ tmp
 
 		bool isFinished() const
@@ -111,23 +112,23 @@ namespace
 					finished = true;
 				}
 
-				framei %= action->length;// framei = 0;
+				framei %= action->length;
 			}
 
 			int rooti = 0;
 			while (rooti < static_cast<int>(armature->njoints))
 				rooti = update(*action, rooti, core::maths::Matrix4x4f::identity(), framei);
-				// rooti = update(*action, rooti, /*core::maths::Matrix4x4f::identity(), */framei);
 
 			if (!action->positions.empty())
 			{
-			// 	debug_printline(0xffffffff, "running speed is: ", length(action->positions[framei + 1] - action->positions[framei]));
-				// movement = action->positions[framei];
-				movement = action->positions[framei + 1] - action->positions[framei];
+				position_movement = action->positions[framei + 1] - action->positions[framei];
+			}
+			if (!action->orientations.empty())
+			{
+				orientation_movement = inverse(action->orientations[framei]) * action->orientations[framei + 1];
 			}
 		}
 		int update(const Action & action, const int mei, const core::maths::Matrix4x4f & parent_matrix, const int framei)
-		// int update(const Action & action, const int mei, /*const core::maths::Matrix4x4f & parent_matrix, */const int framei)
 		{
 			const auto pos = action.frames[framei].channels[mei].translation;
 			const auto rot = action.frames[framei].channels[mei].rotation;
@@ -145,7 +146,6 @@ namespace
 			int childi = mei + 1;
 			for (int i = 0; i < static_cast<int>(armature->joints[mei].nchildren); i++)
 				childi = update(action, childi, matrices[mei], framei);
-				// childi = update(action, childi, /*matrices[mei], */framei);
 			return childi;
 		}
 
@@ -157,9 +157,23 @@ namespace
 				matrix_pallet[i] = matrices[i] * armature->joints[i].inv_matrix;
 			// ^^^"^^^^ tmp
 		}
-		void extract(core::maths::Vector3f & movement) const
+		bool extract_position_movement(core::maths::Vector3f & movement) const
 		{
-			movement = this->movement;
+			if (!action->positions.empty())
+			{
+				movement = position_movement;
+				return true;
+			}
+			return false;
+		}
+		bool extract_orientation_movement(core::maths::Quaternionf & movement) const
+		{
+			if (!action->orientations.empty())
+			{
+				movement = orientation_movement;
+				return true;
+			}
+			return false;
 		}
 	};
 
@@ -227,18 +241,34 @@ namespace
 
 	Mixer next_mixer_key = 0;
 
-	struct extract_movement
+	struct extract_position_movement
 	{
 		core::maths::Vector3f & movement;
 
-		void operator () (Playback & x)
+		bool operator () (Playback & x)
 		{
-			x.extract(movement);
+			return x.extract_position_movement(movement);
 		}
 		template <typename X>
-		void operator () (X & x)
+		bool operator () (X & x)
 		{
 			debug_unreachable();
+			return false;
+		}
+	};
+	struct extract_orientation_movement
+	{
+		core::maths::Quaternionf & movement;
+
+		bool operator () (Playback & x)
+		{
+			return x.extract_orientation_movement(movement);
+		}
+		template <typename X>
+		bool operator () (X & x)
+		{
+			debug_unreachable();
+			return false;
 		}
 	};
 	struct extract_pallet
@@ -293,7 +323,8 @@ namespace
 		Mixer mixer;
 
 		std::vector<core::maths::Matrix4x4f> matrix_pallet;
-		core::maths::Vector3f movement;
+		core::maths::Vector3f position_movement;
+		core::maths::Quaternionf orientation_movement;
 
 		Character(engine::Entity me, const Armature & armature) :
 			me(me),
@@ -314,10 +345,18 @@ namespace
 			}
 
 			mixers.call(mixer, extract_pallet{matrix_pallet});
-			mixers.call(mixer, extract_movement{movement});
+			const bool has_position_movement = mixers.call(mixer, extract_position_movement{position_movement});
+			const bool has_orientation_movement = mixers.call(mixer, extract_orientation_movement{orientation_movement});
 			engine::graphics::renderer::post_update_characterskinning(me,
 			                                   engine::graphics::renderer::CharacterSkinning{matrix_pallet});
-			engine::physics::post_update_movement(me, engine::physics::movement_data {engine::physics::movement_data::Type::CHARACTER, movement});
+			if (has_position_movement)
+			{
+				engine::physics::post_update_movement(me, engine::physics::movement_data{engine::physics::movement_data::Type::CHARACTER, position_movement});
+			}
+			if (has_orientation_movement)
+			{
+				engine::physics::post_update_orientation_movement(me, engine::physics::orientation_movement{orientation_movement});
+			}
 		}
 	};
 	struct Model
