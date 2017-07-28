@@ -965,6 +965,29 @@ namespace
 		}
 	};
 
+	struct CloseAction
+	{
+		engine::Asset window;
+	};
+
+	struct MoveAction
+	{
+	};
+
+	struct SelectAction
+	{
+		engine::Asset window;
+	};
+
+	core::container::Collection
+	<
+		engine::Entity, 101,
+		std::array<CloseAction, 10>,
+		std::array<MoveAction, 10>,
+		std::array<SelectAction, 10>
+	>
+	actions;
+
 	struct Components
 	{
 		Window & window;
@@ -976,6 +999,39 @@ namespace
 		{}
 
 	private:
+
+		bool has_action(const json & jcomponent) { return contains(jcomponent, "trigger"); }
+
+		void load_action(engine::Entity entity, const json & jcomponent)
+		{
+			const json & jtrigger = jcomponent["trigger"];
+
+			engine::Asset action { jtrigger["action"].get<std::string>() };
+
+			switch (action)
+			{
+			case engine::Asset{ "close" }:
+
+				actions.emplace<CloseAction>(entity, CloseAction{ this->window.name });
+				break;
+
+			case engine::Asset{ "mover" }:
+
+				actions.emplace<MoveAction>(entity, MoveAction{});
+				break;
+
+			case engine::Asset{ "selectable" }:
+
+				actions.emplace<SelectAction>(entity, SelectAction{ this->window.name });
+				break;
+
+			default:
+				debug_printline(0xffffffff, "GUI - unknown trigger action in component: ", jcomponent);
+				debug_unreachable();
+			}
+
+			gameplay::gamestate::post_add(entity, this->window.name, action);
+		}
 
 		Group & load_group(engine::Entity entity, const json & jcomponent)
 		{
@@ -1064,7 +1120,7 @@ namespace
 				}
 				else
 				{
-					const bool selectable = contains(jcomponent, "action");
+					const bool selectable = has_action(jcomponent);
 
 					if (type == "panel")
 					{
@@ -1082,15 +1138,13 @@ namespace
 					}
 					else
 					{
-						debug_printline(0xffffffff, "GUI - unknown type: ", type);
+						debug_printline(0xffffffff, "GUI - unknown component type: ", jcomponent);
 						debug_unreachable();
 					}
 
 					if (selectable)
 					{
-						std::string str = jcomponent["action"];
-						debug_assert(str.length() > std::size_t{ 0 });
-						gameplay::gamestate::post_add(entity, this->window.name, engine::Asset{ str });
+						load_action(entity, jcomponent);
 					}
 
 					if (contains(jcomponent, "name"))
@@ -1204,6 +1258,28 @@ namespace gui
 		else w.show();
 	}
 
+	struct Trigger
+	{
+		void operator() (const CloseAction & action)
+		{
+			hide(action.window);
+		}
+
+		void operator() (const MoveAction & action)
+		{
+			// TODO: can the movement logic be moved here?
+		}
+
+		void operator() (const SelectAction & action)
+		{
+			// TODO: can the selection logic be moved here?
+		}
+
+		template<typename T>
+		void operator() (const T &)
+		{}
+	};
+
 	void select(engine::Asset window)
 	{
 		for (std::size_t i = 0; i < window_stack.size(); i++)
@@ -1219,8 +1295,14 @@ namespace gui
 		for (std::size_t i = 0; i < window_stack.size(); i++)
 		{
 			const int order = static_cast<int>(i);
-			window_stack[i]->reorder(-order*10);
+			window_stack[i]->reorder(-order * 10);
 		}
+	}
+
+	void trigger(engine::Entity entity)
+	{
+		// TODO: use thread safe queue
+		actions.call(entity, Trigger{});
 	}
 
 	void update(engine::Asset window, engine::gui::Datas && datas)

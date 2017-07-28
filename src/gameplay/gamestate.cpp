@@ -556,12 +556,7 @@ namespace
 
 		void operator () (const GUIComponent & c)
 		{
-			switch (c.action)
-			{
-			case engine::Asset{ "close" }:
-				engine::gui::hide(c.window);
-				return;
-			}
+			engine::gui::trigger(c.id);
 		}
 
 		void operator () (const Worker & w)

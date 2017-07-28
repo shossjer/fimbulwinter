@@ -45,6 +45,8 @@ namespace gui
 
 	void select(engine::Asset window);
 
+	void trigger(engine::Entity entity);
+
 	void update(
 		engine::Asset window,
 		Datas && datas);
