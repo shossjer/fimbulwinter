@@ -549,146 +549,10 @@ namespace
 		}
 	};
 
-	bool contains(const json jdata, const std::string key)
-	{
-		return jdata.find(key) != jdata.end();
-	}
-
-	engine::graphics::data::Color parse_color(const json & jdata)
-	{
-		debug_assert(contains(jdata, "color"));
-
-		const std::string str = jdata["color"];
-		return std::stoul(str, nullptr, 16);
-	}
-
-	engine::graphics::data::Color parse_color(const json & jdata, const engine::graphics::data::Color def_val)
-	{
-		if (!contains(jdata, "color")) return def_val;
-
-		const std::string str = jdata["color"];
-		return std::stoul(str, nullptr, 16);
-	}
-
-	Group::Layout parse_layout(const json & jgroup)
-	{
-		debug_assert(contains(jgroup, "layout"));
-
-		const std::string str = jgroup["layout"];
-
-		if (str == "horizontal")return Group::Layout::HORIZONTAL;
-		if (str == "vertical") return Group::Layout::VERTICAL;
-		if (str == "relative") return Group::Layout::RELATIVE;
-
-		debug_printline(0xffffffff, "GUI - invalid layout: ", str);
-		debug_unreachable();
-	}
-
-	View::Size::Dimen parse_dimen(const json jd)
-	{
-		if (jd.is_string())
-		{
-			const std::string str = jd;
-
-			if (str == "parent") return View::Size::Dimen{ View::Size::TYPE::PARENT };
-			if (str == "wrap") return View::Size::Dimen{ View::Size::TYPE::WRAP };
-
-			debug_printline(0xffffffff, "GUI - invalid size dimen: ", str);
-			debug_unreachable();
-		}
-
-		return View::Size::Dimen{ (int)jd };
-	}
-
-	View::Size parse_size(const json & jgroup)
-	{
-		debug_assert(contains(jgroup, "size"));
-
-		const json jsize = jgroup["size"];
-
-		debug_assert(contains(jsize, "w"));
-		debug_assert(contains(jsize, "h"));
-
-		return View::Size{ parse_dimen(jsize["w"]), parse_dimen(jsize["h"]) };
-	}
-
-	View::Size parse_size(const json & jgroup, const View::Size def_val)
-	{
-		if (!contains(jgroup, "size"))
-			return def_val;
-
-		const json jsize = jgroup["size"];
-
-		debug_assert(contains(jsize, "w"));
-		debug_assert(contains(jsize, "h"));
-
-		return View::Size{ parse_dimen(jsize["w"]), parse_dimen(jsize["h"]) };
-	}
-
-	View::Gravity parse_gravity(const json & jdata)
-	{
-		uint_fast16_t h = View::Gravity::HORIZONTAL_LEFT;
-		uint_fast16_t v = View::Gravity::VERTICAL_TOP;
-
-		if (contains(jdata, "gravity"))
-		{
-			const json jgravity = jdata["gravity"];
-
-			if (contains(jgravity, "h"))
-			{
-				const std::string str = jgravity["h"];
-
-				if (str == "left") h = View::Gravity::HORIZONTAL_LEFT;
-				else
-				if (str == "centre") h = View::Gravity::HORIZONTAL_CENTRE;
-				else
-				if (str == "right") h = View::Gravity::HORIZONTAL_RIGHT;
-				else
-				{
-					debug_printline(0xffffffff, "GUI - invalid horizontal gravity: ", str);
-					debug_unreachable();
-				}
-			}
-
-			if (contains(jgravity, "v"))
-			{
-				const std::string str = jgravity["v"];
-
-				if (str == "top") v = View::Gravity::VERTICAL_TOP;
-				else
-				if (str == "centre") v = View::Gravity::VERTICAL_CENTRE;
-				else
-				if (str == "bottom") v = View::Gravity::VERTICAL_BOTTOM;
-				else
-				{
-					debug_printline(0xffffffff, "GUI - invalid vertical gravity: ", str);
-					debug_unreachable();
-				}
-			}
-		}
-
-		return View::Gravity{ h | v };
-	}
-
-	View::Margin parse_margin(const json & jdata)
-	{
-		View::Margin margin;
-
-		if (contains(jdata, "margin"))
-		{
-			const json jmargin = jdata["margin"];
-
-			if (contains(jmargin, "b")) margin.bottom = jmargin["b"];
-			if (contains(jmargin, "l")) margin.left = jmargin["l"];
-			if (contains(jmargin, "r")) margin.right = jmargin["r"];
-			if (contains(jmargin, "t")) margin.top = jmargin["t"];
-		}
-
-		return margin;
-	}
-
 	class Window : private Group
 	{
+		friend struct Components;
+
 	public:
 
 		engine::Asset name;
@@ -729,10 +593,10 @@ namespace
 	public:
 
 		//Window(Margin margin, Size size) : View(margin, size)
-		Window(engine::Asset name, Size size, Layout layout, Vector3f position)
+		Window(engine::Asset name, Size size, Layout layout, Margin margin)
 			: Group{ Gravity{}, Margin{}, size, layout }
 			, name(name)
-			, position(position)
+			, position({ static_cast<float>(margin.left), static_cast<float>(margin.top), 0.f })
 			, shown(false)
 			, order(0)
 		{
@@ -833,7 +697,7 @@ namespace
 			if (!this->shown) return;
 			if (this->order == window_order) return;
 
-			const float delta_depth = window_order - this->order;
+			const float delta_depth = static_cast<float>(window_order - this->order);
 
 			this->order = window_order;
 
@@ -915,8 +779,271 @@ namespace
 					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
 			}
 		}
+	};
 
-		void create_components(Group & parent, const json & jcomponents)
+	struct ResourceLoader
+	{
+	private:
+		const json & jcolors;
+		const json & jdimensions;
+		const json & jstrings;
+
+	public:
+
+		ResourceLoader(const json & jcontent)
+			: jcolors(jcontent["colors"])
+			, jdimensions(jcontent["dimensions"])
+			, jstrings(jcontent["strings"])
+		{
+			// load colors and themes and strings? into resources...
+		}
+
+	private:
+
+		engine::graphics::data::Color extract_color(const json & jdata)
+		{
+			const std::string str = jdata["color"];
+			debug_assert(str.length() > std::size_t{ 0 });
+
+			if (str[0] == '#')
+			{
+				std::string res = this->jcolors[str];
+				debug_assert(res.length() > std::size_t{ 0 });
+
+				return std::stoul(res, nullptr, 16);
+			}
+
+			return std::stoul(str, nullptr, 16);
+		}
+
+		value_t extract_margin(const std::string key, const json & jmargin)
+		{
+			if (!contains(jmargin, key))
+				return 0;
+
+			const json & jv = jmargin[key];
+
+			if (!jv.is_string())
+				return (int)jv;
+
+			const std::string str = jv;
+			debug_assert(str.length() > std::size_t{ 0 });
+			debug_assert(str[0] == '#');
+			return (int)this->jdimensions[str];
+		}
+
+		View::Size::Dimen extract_dimen(const json & jd)
+		{
+			if (jd.is_string())
+			{
+				const std::string str = jd;
+
+				debug_assert(str.length() > std::size_t{ 0 });
+
+				if (str[0] == '#') return (int)this->jdimensions[str];
+				if (str == "parent") return View::Size::Dimen{ View::Size::TYPE::PARENT };
+				if (str == "wrap") return View::Size::Dimen{ View::Size::TYPE::WRAP };
+
+				debug_printline(0xffffffff, "GUI - invalid size dimen: ", str);
+				debug_unreachable();
+			}
+
+			return View::Size::Dimen{ (int)jd };
+		}
+
+		inline View::Size extract_size(const json & jdata)
+		{
+			const json jsize = jdata["size"];
+
+			debug_assert(contains(jsize, "w"));
+			debug_assert(contains(jsize, "h"));
+
+			return View::Size{ extract_dimen(jsize["w"]), extract_dimen(jsize["h"]) };
+		}
+
+	public:
+
+		engine::graphics::data::Color color(const json & jdata)
+		{
+			debug_assert(contains(jdata, "color"));
+			return extract_color(jdata);
+		}
+
+		engine::graphics::data::Color color(const json & jdata, const engine::graphics::data::Color def_val)
+		{
+			if (!contains(jdata, "color")) return def_val;
+			return extract_color(jdata);
+		}
+
+		Group::Layout layout(const json & jgroup)
+		{
+			debug_assert(contains(jgroup, "layout"));
+
+			const std::string str = jgroup["layout"];
+
+			if (str == "horizontal")return Group::Layout::HORIZONTAL;
+			if (str == "vertical") return Group::Layout::VERTICAL;
+			if (str == "relative") return Group::Layout::RELATIVE;
+
+			debug_printline(0xffffffff, "GUI - invalid layout: ", str);
+			debug_unreachable();
+		}
+
+		View::Gravity gravity(const json & jdata)
+		{
+			uint_fast16_t h = View::Gravity::HORIZONTAL_LEFT;
+			uint_fast16_t v = View::Gravity::VERTICAL_TOP;
+
+			if (contains(jdata, "gravity"))
+			{
+				const json jgravity = jdata["gravity"];
+
+				if (contains(jgravity, "h"))
+				{
+					const std::string str = jgravity["h"];
+
+					if (str == "left") h = View::Gravity::HORIZONTAL_LEFT;
+					else
+					if (str == "centre") h = View::Gravity::HORIZONTAL_CENTRE;
+					else
+					if (str == "right") h = View::Gravity::HORIZONTAL_RIGHT;
+					else
+					{
+						debug_printline(0xffffffff, "GUI - invalid horizontal gravity: ", str);
+						debug_unreachable();
+					}
+				}
+
+				if (contains(jgravity, "v"))
+				{
+					const std::string str = jgravity["v"];
+
+					if (str == "top") v = View::Gravity::VERTICAL_TOP;
+					else
+					if (str == "centre") v = View::Gravity::VERTICAL_CENTRE;
+					else
+					if (str == "bottom") v = View::Gravity::VERTICAL_BOTTOM;
+					else
+					{
+						debug_printline(0xffffffff, "GUI - invalid vertical gravity: ", str);
+						debug_unreachable();
+					}
+				}
+			}
+
+			return View::Gravity{ h | v };
+		}
+
+		View::Margin margin(const json & jdata)
+		{
+			View::Margin margin;
+
+			if (contains(jdata, "margin"))
+			{
+				const json jmargin = jdata["margin"];
+
+				margin.bottom = extract_margin("b", jmargin);
+				margin.left = extract_margin("l", jmargin);
+				margin.right = extract_margin("r", jmargin);
+				margin.top = extract_margin("t", jmargin);
+			}
+
+			return margin;
+		}
+
+		View::Size size(const json & jdata)
+		{
+			debug_assert(contains(jdata, "size"));
+			return extract_size(jdata);
+		}
+
+		View::Size size_def_parent(const json & jdata)
+		{
+			if (!contains(jdata, "size"))
+				return View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT };
+			return extract_size(jdata);
+		}
+	};
+
+	struct Components
+	{
+		Window & window;
+		ResourceLoader & load;
+
+		Components(Window & window, ResourceLoader & load)
+			: window(window)
+			, load(load)
+		{}
+
+	private:
+
+		Group & load_group(engine::Entity entity, const json & jcomponent)
+		{
+			debug_assert(contains(jcomponent, "group"));
+
+			const json jgroup = jcomponent["group"];
+
+			return this->window.components.emplace<Group>(
+				entity,
+				this->load.gravity(jcomponent),
+				this->load.margin(jcomponent),
+				this->load.size_def_parent(jcomponent),
+				this->load.layout(jgroup));
+		}
+
+		Text & load_text(engine::Entity entity, const json & jcomponent, bool selectable)
+		{
+			debug_assert(contains(jcomponent, "text"));
+
+			const json jtext = jcomponent["text"];
+
+			// to compensate for text height somewhat
+			View::Margin margin = this->load.margin(jcomponent);
+			margin.top += 6;
+
+			return this->window.components.emplace<Text>(
+				entity,
+				entity,
+				this->load.gravity(jcomponent),
+				margin,
+				View::Size{ 0, 6 },
+				this->load.color(jtext, 0xff000000),
+				jtext["display"]);
+		}
+
+		PanelC & load_panel(engine::Entity entity, const json & jcomponent, bool selectable)
+		{
+			debug_assert(contains(jcomponent, "panel"));
+
+			const json jpanel = jcomponent["panel"];
+
+			return this->window.components.emplace<PanelC>(
+				entity,
+				entity,
+				this->load.gravity(jcomponent),
+				this->load.margin(jcomponent),
+				this->load.size_def_parent(jcomponent),
+				this->load.color(jpanel),
+				selectable);
+		}
+
+		PanelT & load_texture(engine::Entity entity, const json & jcomponent, bool selectable)
+		{
+			debug_assert(contains(jcomponent, "texture"));
+
+			const json jtexture = jcomponent["texture"];
+
+			return this->window.components.emplace<PanelT>(
+				entity,
+				entity,
+				this->load.gravity(jcomponent),
+				this->load.margin(jcomponent),
+				this->load.size(jcomponent),
+				jtexture["res"],
+				selectable);
+		}
+
+		void load_components(Group & parent, const json & jcomponents)
 		{
 			for (const auto & jcomponent : jcomponents)
 			{
@@ -926,79 +1053,32 @@ namespace
 
 				const std::string type = jcomponent["type"];
 
+				View * child;
+
 				if (type == "group")
 				{
-					debug_assert(contains(jcomponent, "group"));
+					auto & group = load_group(entity, jcomponent);
+					child = &group;
 
-					const json jgroup = jcomponent["group"];
-
-					auto & group = this->components.emplace<Group>(
-						entity,
-						parse_gravity(jcomponent),
-						parse_margin(jcomponent),
-						parse_size(jcomponent, View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT }),
-						parse_layout(jgroup));
-
-					parent.adopt(&group);
-
-					create_components(group, jcomponent["components"]);
+					load_components(group, jcomponent["components"]);
 				}
 				else
 				{
 					const bool selectable = contains(jcomponent, "action");
 
-					View * child;
-
 					if (type == "panel")
 					{
-						debug_assert(contains(jcomponent, "panel"));
-
-						const json jpanel = jcomponent["panel"];
-
-						child = &this->components.emplace<PanelC>(
-							entity,
-							entity,
-							parse_gravity(jcomponent),
-							parse_margin(jcomponent),
-							parse_size(jcomponent, View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT }),
-							parse_color(jpanel),
-							selectable);
+						child = &load_panel(entity, jcomponent, selectable);
 					}
 					else
 					if (type == "texture")
 					{
-						debug_assert(contains(jcomponent, "texture"));
-
-						const json jtexture = jcomponent["texture"];
-
-						child = &this->components.emplace<PanelT>(
-							entity,
-							entity,
-							parse_gravity(jcomponent),
-							parse_margin(jcomponent),
-							parse_size(jcomponent),
-							jtexture["res"],
-							selectable);
+						child = &load_texture(entity, jcomponent, selectable);
 					}
 					else
 					if (type == "text")
 					{
-						debug_assert(contains(jcomponent, "text"));
-
-						const json jtext = jcomponent["text"];
-
-						// to compensate for text height somewhat
-						View::Margin margin = parse_margin(jcomponent);
-						margin.top += 6;
-
-						child = &this->components.emplace<Text>(
-							entity,
-							entity,
-							parse_gravity(jcomponent),
-							margin,
-							View::Size{ 0, 6 },
-							parse_color(jtext, 0xffffffff),
-							jtext["display"]);
+						child = &load_text(entity, jcomponent, selectable);
 					}
 					else
 					{
@@ -1006,29 +1086,30 @@ namespace
 						debug_unreachable();
 					}
 
-					parent.adopt(child);
-
 					if (selectable)
 					{
-						const std::string str = jcomponent["action"];
-
-						// TODO: validate action
-
-						gameplay::gamestate::post_add(entity, this->name, engine::Asset{ str });
+						std::string str = jcomponent["action"];
+						debug_assert(str.length() > std::size_t{ 0 });
+						gameplay::gamestate::post_add(entity, this->window.name, engine::Asset{ str });
 					}
 
 					if (contains(jcomponent, "name"))
 					{
 						std::string str = jcomponent["name"];
-						debug_assert(str.length() > 0);
-						this->lookup.emplace<engine::Entity>(str, entity);
+						debug_assert(str.length() > std::size_t{ 0 });
+						this->window.lookup.emplace<engine::Entity>(str, entity);
 					}
 				}
+
+				parent.adopt(child);
 			}
 		}
-		void create_components(const json & jcomponents)
+
+	public:
+
+		void setup(const json & jwindow)
 		{
-			create_components(*this, jcomponents);
+			load_components(this->window, jwindow["components"]);
 		}
 	};
 
@@ -1040,7 +1121,7 @@ namespace
 
 	std::vector<Window *> window_stack;
 
-	auto & create_window(const json & jwindow)
+	auto & create_window(ResourceLoader & load, const json & jwindow)
 	{
 		debug_assert(contains(jwindow, "name"));
 		debug_assert(contains(jwindow, "group"));
@@ -1052,16 +1133,15 @@ namespace
 		const engine::Asset asset{ name };
 
 		// TODO: read gravity for window position
-		const auto margin = parse_margin(jwindow);
 
 		const json jgroup = jwindow["group"];
 
 		auto & window = windows.emplace<Window>(
 			asset,
 			asset,
-			parse_size(jwindow),
-			parse_layout(jgroup),
-			Vector3f{ static_cast<float>(margin.left), static_cast<float>(margin.top), 0.f });
+			load.size(jwindow),
+			load.layout(jgroup),
+			load.margin(jwindow));
 
 		window_stack.push_back(&window);
 
@@ -1084,13 +1164,18 @@ namespace gui
 		}
 
 		const json jcontent = json::parse(file);
+
+		ResourceLoader resourceLoader(jcontent);
+
 		const auto & jwindows = jcontent["windows"];
 
 		for (const auto & jwindow : jwindows)
 		{
-			Window & window = create_window(jwindow);
+			Window & window = create_window(resourceLoader, jwindow);
 
-			window.create_components(jwindow["components"]);
+			// loads the components of the window
+			Components(window, resourceLoader).setup(jwindow);
+
 			window.measure_components();
 		}
 	}
@@ -1121,7 +1206,7 @@ namespace gui
 
 	void select(engine::Asset window)
 	{
-		for (int i = 0; i < window_stack.size(); i++)
+		for (std::size_t i = 0; i < window_stack.size(); i++)
 		{
 			if (window_stack[i]->name == window)
 			{
@@ -1131,9 +1216,10 @@ namespace gui
 			}
 		}
 
-		for (int i = 0; i < window_stack.size(); i++)
+		for (std::size_t i = 0; i < window_stack.size(); i++)
 		{
-			window_stack[i]->reorder(-i*10);
+			const int order = static_cast<int>(i);
+			window_stack[i]->reorder(-order*10);
 		}
 	}
 

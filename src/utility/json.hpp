@@ -8,4 +8,9 @@
 
 using json = nlohmann::json;
 
+inline bool contains(const json jdata, const std::string key)
+{
+	return jdata.find(key) != jdata.end();
+}
+
 #endif /* UTILITY_JSON_HPP */
