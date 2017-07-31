@@ -18,7 +18,7 @@ namespace gamestate
 
 namespace
 {
-	typedef int value_t;
+	typedef float value_t;
 	typedef engine::graphics::data::Color Color;
 
 	constexpr float DEPTH_INC = .1f;
@@ -94,52 +94,79 @@ namespace
 			{
 				FIXED,
 				PARENT,
+				PERCENTAGE,
+				// WEIGHT
 				WRAP
 			};
 
 			struct Dimen
 			{
-				TYPE type;
-				value_t value;
+				const TYPE type;
 
-				Dimen(TYPE type, value_t value)
-					: type(type)
-					, value(value)
-				{
-				}
+				// the fixed / percentage / weight value
+				value_t meta;
+
+				// the calculated used size value
+				value_t value;
 
 				Dimen(TYPE type)
 					: type(type)
-					, value(0)
+					, meta(value_t{ 0 })
+					, value(value_t{ 0 })
 				{
 					debug_assert(type != TYPE::FIXED);
+					debug_assert(type != TYPE::PERCENTAGE);
 				}
 
-				Dimen(value_t value)
-					: type(TYPE::FIXED)
-					, value(value)
+				Dimen(TYPE type, value_t meta)
+					: type(type)
+					, meta(meta)
+					, value(value_t{ 0 })
 				{
-					debug_assert(value >= 0);
+					debug_assert(type != TYPE::PARENT);
+					debug_assert(type != TYPE::WRAP);
 				}
 
+				void fixed(const value_t max_size, const value_t margin)
+				{
+					debug_assert(max_size >= (this->meta + margin));
+					this->value = this->meta;
+				}
+
+				void parent(const value_t max_size)
+				{
+					this->value = max_size;
+				}
+
+				void percentage(const value_t max_size)
+				{
+					this->value = max_size * this->meta;
+				}
+
+				// limit value, used with wrap content
+				void limit(const value_t value)
+				{
+					debug_assert(this->value <= value);
+					this->value = value;
+				}
+
+				void set_meta(const value_t meta)
+				{
+					this->meta = meta;
+				}
+
+				bool operator == (const TYPE type) const
+				{
+					return this->type == type;
+				}
+
+				void operator-=(const value_t amount)
+				{
+					this->value -= amount;
+				}
 				void operator-=(const Dimen other)
 				{
 					this->value -= other.value;
-				}
-
-				void operator-=(const value_t other_value)
-				{
-					this->value -= other_value;
-				}
-
-				bool operator==(const TYPE other_type) const
-				{
-					return this->type == other_type;
-				}
-
-				bool operator >= (const Dimen other) const
-				{
-					return this->value >= other.value;
 				}
 			};
 
@@ -258,29 +285,6 @@ namespace
 			, entity(entity)
 			, selectable(selectable)
 		{
-			debug_assert(size.height.type != Size::TYPE::WRAP);
-			debug_assert(size.width.type != Size::TYPE::WRAP);
-		}
-
-	protected:
-
-		static void measure_dimen(const Size::Dimen parent_size, const value_t margin, Size::Dimen & dimen)
-		{
-			const value_t max_size = parent_size.value - margin;
-
-			switch (dimen.type)
-			{
-			case Size::TYPE::FIXED:
-
-				debug_assert(max_size >= dimen.value);
-				break;
-			case Size::TYPE::PARENT:
-
-				dimen.value = max_size;
-				break;
-			default:
-				debug_unreachable();
-			}
 		}
 
 	public:
@@ -326,12 +330,50 @@ namespace
 			: Drawable(entity, gravity, margin, size, selectable)
 			, color(color)
 		{
+			debug_assert(size.height.type != Size::TYPE::WRAP);
+			debug_assert(size.width.type != Size::TYPE::WRAP);
 		}
 
-		void measure(const Size size_parent) override
+		void measure(const Size parent) override
 		{
-			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
-			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
+			{
+				const auto max_height = parent.height.value - this->margin.height();
+
+				switch (this->size.height.type)
+				{
+				case Size::TYPE::FIXED:
+					this->size.height.fixed(max_height, this->margin.height());
+					break;
+				case Size::TYPE::PARENT:
+					this->size.height.parent(max_height);
+					break;
+				case Size::TYPE::PERCENTAGE:
+					this->size.height.percentage(max_height);
+					break;
+
+				default:
+					debug_unreachable();
+				}
+			}
+			{
+				const auto max_width = parent.width.value - this->margin.width();
+
+				switch (this->size.width.type)
+				{
+				case Size::TYPE::FIXED:
+					this->size.width.fixed(max_width, this->margin.width());
+					break;
+				case Size::TYPE::PARENT:
+					this->size.width.parent(max_width);
+					break;
+				case Size::TYPE::PERCENTAGE:
+					this->size.width.percentage(max_width);
+					break;
+
+				default:
+					debug_unreachable();
+				}
+			}
 		}
 	};
 
@@ -347,12 +389,50 @@ namespace
 			: Drawable(entity, gravity, margin, size, selectable)
 			, texture(texture)
 		{
+			debug_assert(size.height.type != Size::TYPE::WRAP);
+			debug_assert(size.width.type != Size::TYPE::WRAP);
 		}
 
-		void measure(const Size size_parent) override
+		void measure(const Size parent) override
 		{
-			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
-			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
+			{
+				const auto max_height = parent.height.value - this->margin.height();
+
+				switch (this->size.height.type)
+				{
+				case Size::TYPE::FIXED:
+					this->size.height.fixed(max_height, this->margin.height());
+					break;
+				case Size::TYPE::PARENT:
+					this->size.height.parent(max_height);
+					break;
+				case Size::TYPE::PERCENTAGE:
+					this->size.height.percentage(max_height);
+					break;
+
+				default:
+					debug_unreachable();
+				}
+			}
+			{
+				const auto max_width = parent.width.value - this->margin.width();
+
+				switch (this->size.width.type)
+				{
+				case Size::TYPE::FIXED:
+					this->size.width.fixed(max_width, this->margin.width());
+					break;
+				case Size::TYPE::PARENT:
+					this->size.width.parent(max_width);
+					break;
+				case Size::TYPE::PERCENTAGE:
+					this->size.width.percentage(max_width);
+					break;
+
+				default:
+					debug_unreachable();
+				}
+			}
 		}
 	};
 
@@ -372,11 +452,51 @@ namespace
 		{
 		}
 
-		void measure(const Size size_parent) override
+		void measure(const Size parent) override
 		{
-			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
+			{
+				const auto max_height = parent.height.value - this->margin.height();
 
-			this->size.width.value = this->display.length() * 6;
+				switch (this->size.height.type)
+				{
+				case Size::TYPE::FIXED:
+					this->size.height.fixed(max_height, this->margin.height());
+					break;
+				case Size::TYPE::PARENT:
+					this->size.height.parent(max_height);
+					break;
+				case Size::TYPE::PERCENTAGE:
+					this->size.height.percentage(max_height);
+					break;
+				case Size::TYPE::WRAP:
+					this->size.height.value = 6;
+					break;
+				default:
+					debug_unreachable();
+				}
+			}
+			{
+				const auto max_width = parent.width.value - this->margin.width();
+
+				switch (this->size.width.type)
+				{
+				case Size::TYPE::FIXED:
+					this->size.width.fixed(max_width, this->margin.width());
+					break;
+				case Size::TYPE::PARENT:
+					this->size.width.parent(max_width);
+					break;
+				case Size::TYPE::PERCENTAGE:
+					this->size.width.percentage(max_width);
+					break;
+				case Size::TYPE::WRAP:
+					this->size.width.value = this->display.length() * value_t { 6 };
+					break;
+
+				default:
+					debug_unreachable();
+				}
+			}
 		}
 	};
 
@@ -406,25 +526,6 @@ namespace
 
 	protected:
 
-		static void measure_dimen(const Size::Dimen parent_size, const value_t margin, Size::Dimen & dimen)
-		{
-			const value_t max_size = parent_size.value - margin;
-
-			switch (dimen.type)
-			{
-			case Size::TYPE::FIXED:
-
-				debug_assert(max_size >= dimen.value);
-				break;
-			case Size::TYPE::PARENT:
-			case Size::TYPE::WRAP:
-			default:
-
-				dimen.value = max_size;
-				break;
-			}
-		}
-
 		void measure_children()
 		{
 			Size size_children = this->size;
@@ -452,7 +553,7 @@ namespace
 						size_children.height -= p->height();
 					}
 
-					if (this->size.height.type == Size::TYPE::WRAP)
+					if (this->size.height == Size::TYPE::WRAP)
 						this->size.height -= size_children.height;
 
 					break;
@@ -541,10 +642,53 @@ namespace
 			arrange_children(offset, offset_depth);
 		}
 
-		void measure(const Size size_parent) override
+		void measure(const Size parent) override
 		{
-			measure_dimen(size_parent.height, this->margin.height(), this->size.height);
-			measure_dimen(size_parent.width, this->margin.width(), this->size.width);
+			{
+				const auto max_height = parent.height.value - this->margin.height();
+
+				switch (this->size.height.type)
+				{
+				case Size::TYPE::FIXED:
+					this->size.height.fixed(max_height, this->margin.height());
+					break;
+				case Size::TYPE::PARENT:
+					this->size.height.parent(max_height);
+					break;
+				case Size::TYPE::PERCENTAGE:
+					this->size.height.percentage(max_height);
+					break;
+				case Size::TYPE::WRAP:
+					this->size.height.value = parent.height.value;
+					break;
+
+				default:
+					debug_unreachable();
+				}
+			}
+			{
+				const auto max_width = parent.width.value - this->margin.width();
+
+				switch (this->size.width.type)
+				{
+				case Size::TYPE::FIXED:
+					this->size.width.fixed(max_width, this->margin.width());
+					break;
+				case Size::TYPE::PARENT:
+					this->size.width.parent(max_width);
+					break;
+				case Size::TYPE::PERCENTAGE:
+					this->size.width.percentage(max_width);
+					break;
+				case Size::TYPE::WRAP:
+					this->size.width.value = parent.width.value;
+					break;
+
+				default:
+					debug_unreachable();
+				}
+			}
+
 			measure_children();
 		}
 	};
@@ -608,6 +752,25 @@ namespace
 
 		void measure_components()
 		{
+			switch (this->size.height.type)
+			{
+			case Size::TYPE::FIXED:
+				this->size.height.value = this->size.height.meta;
+				break;
+
+			default:
+				debug_unreachable();
+			}
+			switch (this->size.width.type)
+			{
+			case Size::TYPE::FIXED:
+				this->size.width.value = this->size.width.meta;
+				break;
+
+			default:
+				debug_unreachable();
+			}
+
 			measure_children();
 
 			float depth = static_cast<float>(this->order);
@@ -824,12 +987,12 @@ namespace
 			const json & jv = jmargin[key];
 
 			if (!jv.is_string())
-				return (int)jv;
+				return jv.get<value_t>();
 
 			const std::string str = jv;
 			debug_assert(str.length() > std::size_t{ 0 });
 			debug_assert(str[0] == '#');
-			return (int)this->jdimensions[str];
+			return this->jdimensions[str].get<value_t>();
 		}
 
 		View::Size::Dimen extract_dimen(const json & jd)
@@ -840,7 +1003,16 @@ namespace
 
 				debug_assert(str.length() > std::size_t{ 0 });
 
-				if (str[0] == '#') return (int)this->jdimensions[str];
+				if (str[0] == '#')
+					return View::Size::Dimen{
+						View::Size::TYPE::FIXED,
+						this->jdimensions[str].get<value_t>() };
+
+				if (str[str.length() - 1] == '%')
+				{
+					value_t val = std::stof(str.substr(0, str.length() - 1));
+					return View::Size::Dimen{ View::Size::TYPE::PERCENTAGE, val / value_t{ 100 } };
+				}
 				if (str == "parent") return View::Size::Dimen{ View::Size::TYPE::PARENT };
 				if (str == "wrap") return View::Size::Dimen{ View::Size::TYPE::WRAP };
 
@@ -848,10 +1020,10 @@ namespace
 				debug_unreachable();
 			}
 
-			return View::Size::Dimen{ (int)jd };
+			return View::Size::Dimen{ View::Size::TYPE::FIXED, jd.get<value_t>() };
 		}
 
-		inline View::Size extract_size(const json & jdata)
+		View::Size extract_size(const json & jdata)
 		{
 			const json jsize = jdata["size"];
 
@@ -963,6 +1135,13 @@ namespace
 				return View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT };
 			return extract_size(jdata);
 		}
+
+		View::Size size_def_wrap(const json & jdata)
+		{
+			if (!contains(jdata, "size"))
+				return View::Size{ View::Size::TYPE::WRAP, View::Size::TYPE::WRAP };
+			return extract_size(jdata);
+		}
 	};
 
 	struct CloseAction
@@ -1062,7 +1241,7 @@ namespace
 				entity,
 				this->load.gravity(jcomponent),
 				margin,
-				View::Size{ 0, 6 },
+				this->load.size_def_wrap(jcomponent),
 				this->load.color(jtext, 0xff000000),
 				jtext["display"]);
 		}
