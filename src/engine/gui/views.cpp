@@ -208,6 +208,12 @@ namespace
 		virtual void measure(
 			const Size size_parent) = 0;
 
+		virtual void show(const Vector3f delta) = 0;
+
+		virtual void hide() = 0;
+
+		virtual void translate(const Vector3f delta) = 0;
+
 		// total height of the view including margins
 		value_t height() const
 		{
@@ -287,7 +293,26 @@ namespace
 		{
 		}
 
+	protected:
+
+		void update_translation(core::maths::Vector3f delta)
+		{
+			this->offset += delta;
+		}
+
 	public:
+
+		auto render_matrix() const
+		{
+			return make_translation_matrix(this->offset);
+		}
+
+		auto render_size() const
+		{
+			return core::maths::Vector2f{
+				static_cast<float>(this->size.width.value),
+				static_cast<float>(this->size.height.value) };
+		}
 
 		void arrange(
 			const Size size_parent,
@@ -300,21 +325,23 @@ namespace
 			offset_depth += DEPTH_INC;
 		}
 
-		void translate(core::maths::Vector3f delta)
+		void hide() override
 		{
-			this->offset += delta;
+			// TODO: check if view is visible
+
+			engine::graphics::renderer::post_remove(this->entity);
 		}
 
-		auto render_matrix() const
+		void translate(core::maths::Vector3f delta) override
 		{
-			return make_translation_matrix(this->offset);
-		}
+			// TODO: check if view is visible
 
-		auto render_size() const
-		{
-			return core::maths::Vector2f{
-				static_cast<float>(this->size.width.value),
-				static_cast<float>(this->size.height.value) };
+			update_translation(delta);
+
+			// send the updated matrix
+			engine::graphics::renderer::post_update_modelviewmatrix(
+				this->entity,
+				engine::graphics::data::ModelviewMatrix{ render_matrix() });
 		}
 	};
 
@@ -375,6 +402,25 @@ namespace
 				}
 			}
 		}
+
+		void show(const Vector3f delta) override
+		{
+			// TODO: check that view is not hidden
+
+			update_translation(delta);
+
+			engine::graphics::renderer::post_add_panel(
+				this->entity,
+				engine::graphics::data::ui::PanelC{
+					this->render_matrix(),
+					this->render_size(),
+					this->color });
+
+			if (this->selectable)
+			{
+				engine::graphics::renderer::post_make_selectable(this->entity);
+			}
+		}
 	};
 
 	class PanelT : public Drawable
@@ -432,6 +478,25 @@ namespace
 				default:
 					debug_unreachable();
 				}
+			}
+		}
+
+		void show(const Vector3f delta) override
+		{
+			// TODO: check that view is not hidden
+
+			update_translation(delta);
+
+			engine::graphics::renderer::post_add_panel(
+				this->entity,
+				engine::graphics::data::ui::PanelT{
+				this->render_matrix(),
+					this->render_size(),
+					this->texture });
+
+			if (this->selectable)
+			{
+				engine::graphics::renderer::post_make_selectable(this->entity);
 			}
 		}
 	};
@@ -496,6 +561,25 @@ namespace
 				default:
 					debug_unreachable();
 				}
+			}
+		}
+
+		void show(const Vector3f delta) override
+		{
+			// TODO: check that view is not hidden
+
+			update_translation(delta);
+
+			engine::graphics::renderer::post_add_text(
+				this->entity,
+				engine::graphics::data::ui::Text{
+				this->render_matrix(),
+					this->color,
+					this->display });
+
+			if (this->selectable)
+			{
+				engine::graphics::renderer::post_make_selectable(this->entity);
 			}
 		}
 	};
@@ -691,6 +775,30 @@ namespace
 
 			measure_children();
 		}
+
+		void show(const Vector3f delta) override
+		{
+			for (auto child : this->children)
+			{
+				child->show(delta);
+			}
+		}
+
+		void hide() override
+		{
+			for (auto child : this->children)
+			{
+				child->hide();
+			}
+		}
+
+		void translate(const Vector3f delta) override
+		{
+			for (auto child : this->children)
+			{
+				child->translate(delta);
+			}
+		}
 	};
 
 	class Window : private Group
@@ -710,33 +818,8 @@ namespace
 		// used to determine the drawing order / depth of the window components.
 		int order;
 
-		// Components could be moved to global namespace instead since it now has Entity as key.
-		// But window still needs to know which "drawable" components it has for when the window
-		// is moved.
-		// When moved each component needs to have its "position" updated and sent to renderer.
-		// Of course we can use the grandparent pointer and go throuh all children of the window,
-		// but only the graphical ones are affected... Input needed.
-		core::container::Collection
-			<
-				engine::Entity, 201,
-				std::array<Group, 40>,
-				std::array<PanelC, 50>,
-				std::array<PanelT, 50>,
-				std::array<Text, 50>
-			>
-			components;
-
-		core::container::Collection
-			<
-			engine::Asset, 201,
-			std::array<engine::Entity, 100>,
-			std::array<int, 1>
-			>
-			lookup;
-
 	public:
 
-		//Window(Margin margin, Size size) : View(margin, size)
 		Window(engine::Asset name, Size size, Layout layout, Margin margin)
 			: Group{ Gravity{}, Margin{}, size, layout }
 			, name(name)
@@ -750,7 +833,30 @@ namespace
 
 		bool isShown() const { return this->shown; }
 
-		void measure_components()
+		void show_window()
+		{
+			if (this->shown) return;
+
+			this->shown = true;
+
+			const Vector3f delta{ 0.f, 0.f, static_cast<float>(-(this->order)) };
+
+			// move windows order to first when shown
+			this->order = 0;
+			this->position += delta;
+
+			Group::show(delta);
+		}
+
+		void hide_window()
+		{
+			debug_assert(this->shown);
+			this->shown = false;
+
+			Group::hide();
+		}
+
+		void measure_window()
 		{
 			switch (this->size.height.type)
 			{
@@ -777,85 +883,14 @@ namespace
 			arrange_children(this->position, depth);
 		}
 
-		void show()
+		void translate_window(const Vector3f delta)
 		{
-			if (this->shown) return;
-
-			this->shown = true;
-
-			const Vector3f delta{ 0.f, 0.f, static_cast<float>( -(this->order)) };
-
-			// move windows order to first when shown
-			this->order = 0;
 			this->position += delta;
 
-			for (PanelC & comp : components.get<PanelC>())
-			{
-				comp.translate(delta);
-
-				engine::graphics::renderer::post_add_panel(
-					comp.entity,
-					engine::graphics::data::ui::PanelC{
-						comp.render_matrix(),
-						comp.render_size(),
-						comp.color });
-				if (comp.selectable)
-				{
-					engine::graphics::renderer::post_make_selectable(comp.entity);
-				}
-			}
-
-			for (PanelT & comp : components.get<PanelT>())
-			{
-				comp.translate(delta);
-
-				engine::graphics::renderer::post_add_panel(
-					comp.entity,
-					engine::graphics::data::ui::PanelT{
-						comp.render_matrix(),
-						comp.render_size(),
-						comp.texture });
-				if (comp.selectable)
-				{
-					engine::graphics::renderer::post_make_selectable(comp.entity);
-				}
-			}
-
-			for (Text & comp : components.get<Text>())
-			{
-				comp.translate(delta);
-
-				engine::graphics::renderer::post_add_text(
-					comp.entity,
-					engine::graphics::data::ui::Text{
-					comp.render_matrix(),
-					comp.color,
-					comp.display });
-			}
+			Group::translate(delta);
 		}
 
-		void hide()
-		{
-			debug_assert(this->shown);
-			this->shown = false;
-
-			for (PanelC & comp : components.get<PanelC>())
-			{
-				engine::graphics::renderer::post_remove(comp.entity);
-			}
-
-			for (PanelT & comp : components.get<PanelT>())
-			{
-				engine::graphics::renderer::post_remove(comp.entity);
-			}
-
-			for (Text & comp : components.get<Text>())
-			{
-				engine::graphics::renderer::post_remove(comp.entity);
-			}
-		}
-
-		void reorder(const int window_order)
+		void reorder_window(const int window_order)
 		{
 			if (!this->shown) return;
 			if (this->order == window_order) return;
@@ -864,83 +899,7 @@ namespace
 
 			this->order = window_order;
 
-			this->operator=(Vector3f{ 0.f, 0.f, delta_depth });
-		}
-
-		struct Update
-		{
-			engine::gui::Data data;
-
-			void operator () (PanelC & panel)
-			{
-				panel.color = data.color;
-			}
-			void operator () (PanelT & panel)
-			{
-				panel.texture = data.texture;
-			}
-			void operator () (Text & text)
-			{
-				text.color = data.color;
-				text.display = data.display;
-			}
-
-			template <typename T>
-			void operator () (const T & t)
-			{
-			}
-		};
-
-		void operator = (engine::gui::Datas && datas)
-		{
-			for (auto & data : datas)
-			{
-				if (!lookup.contains(data.first))
-					continue;
-
-				engine::Entity entity = lookup.get<engine::Entity>(data.first);
-
-				components.call(entity, Update{ data.second });
-			}
-
-			measure_components();
-		}
-
-		// the window has been moved, all its drawable components needs to post
-		// position updates to renderer.
-		void operator = (core::maths::Vector3f delta)
-		{
-			this->position += delta;
-
-			for (PanelC & child : components.get<PanelC>())
-			{
-				child.translate(delta);
-
-				// send position update to renderer
-				engine::graphics::renderer::post_update_modelviewmatrix(
-					child.entity,
-					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
-			}
-
-			for (PanelT & child : components.get<PanelT>())
-			{
-				child.translate(delta);
-
-				// send position update to renderer
-				engine::graphics::renderer::post_update_modelviewmatrix(
-					child.entity,
-					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
-			}
-
-			for (Text & child : components.get<Text>())
-			{
-				child.translate(delta);
-
-				// send position update to renderer
-				engine::graphics::renderer::post_update_modelviewmatrix(
-					child.entity,
-					engine::graphics::data::ModelviewMatrix{ child.render_matrix() });
-			}
+			translate_window(Vector3f{ 0.f, 0.f, delta_depth });
 		}
 	};
 
@@ -1149,23 +1108,25 @@ namespace
 		engine::Asset window;
 	};
 
-	struct MoveAction
-	{
-	};
-
-	struct SelectAction
-	{
-		engine::Asset window;
-	};
-
 	core::container::Collection
-	<
-		engine::Entity, 101,
+		<
+		engine::Entity, 201,
 		std::array<CloseAction, 10>,
-		std::array<MoveAction, 10>,
-		std::array<SelectAction, 10>
-	>
-	actions;
+		std::array<Group, 40>,
+		std::array<PanelC, 50>,
+		std::array<PanelT, 50>,
+		std::array<Text, 50>
+		>
+		components;
+
+	// lookup table for "named" components.
+	core::container::Collection
+		<
+		engine::Asset, 201,
+		std::array<engine::Entity, 100>,
+		std::array<int, 1>
+		>
+		lookup;
 
 	struct Components
 	{
@@ -1191,17 +1152,17 @@ namespace
 			{
 			case engine::Asset{ "close" }:
 
-				actions.emplace<CloseAction>(entity, CloseAction{ this->window.name });
+				components.emplace<CloseAction>(entity, CloseAction{ this->window.name });
 				break;
 
 			case engine::Asset{ "mover" }:
 
-				actions.emplace<MoveAction>(entity, MoveAction{});
+				// TODO: manage move with MoveAction
 				break;
 
 			case engine::Asset{ "selectable" }:
 
-				actions.emplace<SelectAction>(entity, SelectAction{ this->window.name });
+				// TODO: manage selection with SelectionAction
 				break;
 
 			default:
@@ -1218,7 +1179,7 @@ namespace
 
 			const json jgroup = jcomponent["group"];
 
-			return this->window.components.emplace<Group>(
+			return components.emplace<Group>(
 				entity,
 				this->load.gravity(jcomponent),
 				this->load.margin(jcomponent),
@@ -1236,7 +1197,7 @@ namespace
 			View::Margin margin = this->load.margin(jcomponent);
 			margin.top += 6;
 
-			return this->window.components.emplace<Text>(
+			return components.emplace<Text>(
 				entity,
 				entity,
 				this->load.gravity(jcomponent),
@@ -1252,7 +1213,7 @@ namespace
 
 			const json jpanel = jcomponent["panel"];
 
-			return this->window.components.emplace<PanelC>(
+			return components.emplace<PanelC>(
 				entity,
 				entity,
 				this->load.gravity(jcomponent),
@@ -1268,7 +1229,7 @@ namespace
 
 			const json jtexture = jcomponent["texture"];
 
-			return this->window.components.emplace<PanelT>(
+			return components.emplace<PanelT>(
 				entity,
 				entity,
 				this->load.gravity(jcomponent),
@@ -1330,7 +1291,7 @@ namespace
 					{
 						std::string str = jcomponent["name"];
 						debug_assert(str.length() > std::size_t{ 0 });
-						this->window.lookup.emplace<engine::Entity>(str, entity);
+						lookup.emplace<engine::Entity>(str, entity);
 					}
 				}
 
@@ -1409,7 +1370,7 @@ namespace gui
 			// loads the components of the window
 			Components(window, resourceLoader).setup(jwindow);
 
-			window.measure_components();
+			window.measure_window();
 		}
 	}
 
@@ -1421,20 +1382,20 @@ namespace gui
 	void show(engine::Asset window)
 	{
 		select(window);
-		windows.get<Window>(window).show();
+		windows.get<Window>(window).show_window();
 	}
 
 	void hide(engine::Asset window)
 	{
-		windows.get<Window>(window).hide();
+		windows.get<Window>(window).hide_window();
 	}
 
 	void toggle(engine::Asset window)
 	{
 		auto & w = windows.get<Window>(window);
 
-		if (w.isShown()) w.hide();
-		else w.show();
+		if (w.isShown()) w.hide_window();
+		else w.show_window();
 	}
 
 	struct Trigger
@@ -1442,16 +1403,6 @@ namespace gui
 		void operator() (const CloseAction & action)
 		{
 			hide(action.window);
-		}
-
-		void operator() (const MoveAction & action)
-		{
-			// TODO: can the movement logic be moved here?
-		}
-
-		void operator() (const SelectAction & action)
-		{
-			// TODO: can the selection logic be moved here?
 		}
 
 		template<typename T>
@@ -1474,26 +1425,25 @@ namespace gui
 		for (std::size_t i = 0; i < window_stack.size(); i++)
 		{
 			const int order = static_cast<int>(i);
-			window_stack[i]->reorder(-order * 10);
+			window_stack[i]->reorder_window(-order * 10);
 		}
 	}
 
 	void trigger(engine::Entity entity)
 	{
 		// TODO: use thread safe queue
-		actions.call(entity, Trigger{});
+		components.call(entity, Trigger{});
 	}
 
 	void update(engine::Asset window, engine::gui::Datas && datas)
 	{
 		// TODO: use thread safe queue
-		windows.update(window, std::move(datas));
 	}
 
 	void update(engine::Asset window, core::maths::Vector3f delta)
 	{
 		// TODO: use thread safe queue
-		windows.update(window, delta);
+		windows.get<Window>(window).translate_window(delta);
 	}
 }
 }
