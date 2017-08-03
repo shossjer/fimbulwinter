@@ -8,7 +8,7 @@
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
-#include <engine/gui/views.hpp>
+#include <engine/gui/gui.hpp>
 #include <engine/physics/physics.hpp>
 
 #include <gameplay/level_placeholder.hpp>
