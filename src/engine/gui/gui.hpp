@@ -1,6 +1,6 @@
 
-#ifndef ENGINE_GUI_VIEWS_HPP
-#define ENGINE_GUI_VIEWS_HPP
+#ifndef ENGINE_GUI_GUI_HPP
+#define ENGINE_GUI_GUI_HPP
 
 #include <engine/Asset.hpp>
 #include <engine/common.hpp>
