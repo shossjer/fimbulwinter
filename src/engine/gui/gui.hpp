@@ -15,23 +15,45 @@ namespace gui
 {
 	struct Data
 	{
+		enum Type
+		{
+			COLOR,
+			DISPLAY,
+			LIST,
+			PROGRESS,
+			TEXTURE
+		} type;
+
 		engine::graphics::data::Color color;
 		std::string display;
-		engine::Asset texture;
 		std::vector<std::pair<engine::Asset, Data>> list;
+		float progress;
+		engine::Asset texture;
 		// TODO: visibility
 
-		Data(engine::graphics::data::Color color, std::string display)
-			: color(color)
+		Data(std::string display)
+			: type(DISPLAY)
 			, display(display)
 		{}
 
 		Data(engine::graphics::data::Color color)
-			: color(color)
+			: type(COLOR)
+			, color(color)
 		{}
 
-		Data(engine::Asset texture)
-			: texture(texture)
+		Data(std::vector<std::pair<engine::Asset, Data>> && list)
+			: type(LIST)
+			, list(std::move(list))
+		{}
+
+		Data(float progress)
+			: type(PROGRESS)
+			, progress(progress)
+		{}
+
+		explicit Data(engine::Asset texture)
+			: type(TEXTURE)
+			, texture(texture)
 		{}
 	};
 

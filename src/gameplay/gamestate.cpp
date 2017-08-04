@@ -563,8 +563,9 @@ namespace
 		{
 			// update "data" of the profile window
 			engine::gui::Datas datas;
-			datas.emplace_back("title", engine::gui::Data{ 0xffffffff, "Worker name" });
-			datas.emplace_back("status", engine::gui::Data{ 0xff000000, "status unavailable" });
+			datas.emplace_back("title", std::string("Worker name"));
+			datas.emplace_back("status", std::string("status unavailable"));
+			datas.emplace_back("status", 0xffff0000);
 			datas.emplace_back("photo", engine::Asset{ "photo" });
 			engine::gui::update("profile", std::move(datas));
 
@@ -910,6 +911,14 @@ namespace gamestate
 		{
 			station.update();
 		}
+
+		// totally the way to do this
+		static int progress = 0;
+		progress++;
+		progress %= 101;
+		engine::gui::Datas datas;
+		datas.emplace_back("profile_progress", progress/100.f);
+		engine::gui::update("profile", std::move(datas));
 	}
 
 	void post_command(engine::Entity entity, engine::Command command)

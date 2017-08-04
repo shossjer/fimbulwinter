@@ -201,6 +201,15 @@ namespace
 			return View::Gravity{ h | v };
 		}
 
+		bool has_name(const json & jdata) { return contains(jdata, "name"); }
+
+		engine::Asset name(const json & jdata)
+		{
+			std::string str = jdata["name"];
+			debug_assert(str.length() > std::size_t{ 0 });
+			return engine::Asset{ str };
+		}
+
 		View::Margin margin(const json & jdata)
 		{
 			View::Margin margin;
@@ -287,6 +296,44 @@ namespace
 			}
 
 			gameplay::gamestate::post_add(entity, this->window.name, action);
+		}
+
+		bool has_function(const json & jcomponent) { return contains(jcomponent, "function"); }
+
+		void load_function(engine::gui::View * target, const json & jcomponent)
+		{
+			const json & jfunction = jcomponent["function"];
+
+			debug_assert(load.has_name(jfunction));
+			const engine::Asset name = load.name(jfunction);
+
+			debug_assert(contains(jfunction, "type"));
+			engine::Asset type{ jfunction["type"].get<std::string>() };
+
+			const auto entity = engine::Entity::create();
+
+			switch (type)
+			{
+			case engine::Asset{ "progressBar" }:
+			{
+				debug_assert(contains(jfunction, "direction"));
+				const std::string direction = jfunction["direction"];
+				debug_assert(((direction == "vertical") || (direction == "horizontal")));
+
+				this->components.emplace<engine::gui::ProgressBar>(
+					entity,
+					engine::gui::ProgressBar{
+						this->window.name,
+						target,
+						direction == "horizontal" ?
+							engine::gui::ProgressBar::HORIZONTAL : engine::gui::ProgressBar::VERTICAL });
+				break;
+			}
+			default:
+				break;
+			}
+
+			engine::gui::lookup.emplace<engine::Entity>(name, entity);
 		}
 
 		Group & load_group(engine::Entity entity, const json & jcomponent)
@@ -404,15 +451,19 @@ namespace
 					}
 
 					// register the component in the "lookup" table (asset -> entity) if it is named.
-					if (contains(jcomponent, "name"))
+					if (load.has_name(jcomponent))
 					{
-						std::string str = jcomponent["name"];
-						debug_assert(str.length() > std::size_t{ 0 });
-						engine::gui::lookup.emplace<engine::Entity>(str, entity);
+						engine::gui::lookup.emplace<engine::Entity>(load.name(jcomponent), entity);
 					}
 				}
 
 				parent.adopt(child);
+
+				// load the view functionality if any
+				if (has_function(jcomponent))
+				{
+					load_function(child, jcomponent);
+				}
 			}
 		}
 

@@ -5,6 +5,7 @@
 #define ENGINE_GUI_DEFINES_HPP
 
 #include "actions.hpp"
+#include "functions.hpp"
 #include "views.hpp"
 
 #include <core/container/Collection.hpp>
@@ -25,10 +26,13 @@ namespace gui
 	typedef core::container::Collection
 		<
 			engine::Entity, 201,
+			// Views
 			std::array<engine::gui::Group, 40>,
 			std::array<engine::gui::PanelC, 50>,
 			std::array<engine::gui::PanelT, 50>,
-			std::array<engine::gui::Text, 50>
+			std::array<engine::gui::Text, 50>,
+			// Functionality
+			std::array<engine::gui::ProgressBar, 50>
 		>
 		COMPONENTS;
 

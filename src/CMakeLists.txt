@@ -71,6 +71,7 @@ set(HEADER_FILES
 	src/engine/graphics/viewer.hpp
 	src/engine/gui/actions.hpp
 	src/engine/gui/defines.hpp
+	src/engine/gui/functions.hpp
 	src/engine/gui/gui.hpp
 	src/engine/gui/views.hpp
 	src/engine/hid/input.hpp

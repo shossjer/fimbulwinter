@@ -164,6 +164,9 @@ namespace engine
 
 			// void post_update_characterskinning(engine::Entity entity, CharacterSkinning && data);
 			void post_update_modelviewmatrix(engine::Entity entity, data::ModelviewMatrix && data);
+			void post_update_panel(engine::Entity entity, data::ui::PanelC && data);
+			void post_update_panel(engine::Entity entity, data::ui::PanelT && data);
+			void post_update_text(engine::Entity entity, data::ui::Text && data);
 
 			void post_select(int x, int y, engine::Entity entity);
 

@@ -156,7 +156,7 @@ namespace gui
 		engine::graphics::renderer::post_add_panel(
 			this->entity,
 			engine::graphics::data::ui::PanelC{
-			this->render_matrix(),
+				this->render_matrix(),
 				this->render_size(),
 				this->color });
 
@@ -164,6 +164,16 @@ namespace gui
 		{
 			engine::graphics::renderer::post_make_selectable(this->entity);
 		}
+	}
+
+	void PanelC::refresh()
+	{
+		engine::graphics::renderer::post_update_panel(
+			this->entity,
+			engine::graphics::data::ui::PanelC{
+				this->render_matrix(),
+				this->render_size(),
+				this->color });
 	}
 
 	void PanelT::measure(const Size parent)
@@ -217,7 +227,7 @@ namespace gui
 		engine::graphics::renderer::post_add_panel(
 			this->entity,
 			engine::graphics::data::ui::PanelT{
-			this->render_matrix(),
+				this->render_matrix(),
 				this->render_size(),
 				this->texture });
 
@@ -225,6 +235,16 @@ namespace gui
 		{
 			engine::graphics::renderer::post_make_selectable(this->entity);
 		}
+	}
+
+	void PanelT::refresh()
+	{
+		engine::graphics::renderer::post_update_panel(
+			this->entity,
+			engine::graphics::data::ui::PanelT{
+				this->render_matrix(),
+				this->render_size(),
+				this->texture });
 	}
 
 	void Text::measure(const Size parent)
@@ -283,7 +303,7 @@ namespace gui
 		engine::graphics::renderer::post_add_text(
 			this->entity,
 			engine::graphics::data::ui::Text{
-			this->render_matrix(),
+				this->render_matrix(),
 				this->color,
 				this->display });
 
@@ -291,6 +311,16 @@ namespace gui
 		{
 			engine::graphics::renderer::post_make_selectable(this->entity);
 		}
+	}
+
+	void Text::refresh()
+	{
+		engine::graphics::renderer::post_update_text(
+			this->entity,
+			engine::graphics::data::ui::Text{
+				this->render_matrix(),
+				this->color,
+				this->display });
 	}
 
 	void Group::measure_children()
@@ -468,6 +498,14 @@ namespace gui
 		}
 	}
 
+	void Group::refresh()
+	{
+		for (auto child : this->children)
+		{
+			child->refresh();
+		}
+	}
+
 	void Group::translate(const Vector3f delta)
 	{
 		for (auto child : this->children)
@@ -528,11 +566,14 @@ namespace gui
 		this->group.arrange_children(this->position, depth);
 	}
 
-	void Window::translate_window(const Vector3f delta)
+	void Window::update_window()
 	{
-		this->position += delta;
+		measure_window();
 
-		this->group.translate(delta);
+		if (is_shown())
+		{
+			this->group.refresh();
+		}
 	}
 
 	void Window::reorder_window(const int window_order)
@@ -545,6 +586,13 @@ namespace gui
 		this->order = window_order;
 
 		translate_window(Vector3f{ 0.f, 0.f, delta_depth });
+	}
+
+	void Window::translate_window(const Vector3f delta)
+	{
+		this->position += delta;
+
+		this->group.translate(delta);
 	}
 }
 }

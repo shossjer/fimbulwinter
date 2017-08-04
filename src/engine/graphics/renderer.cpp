@@ -811,6 +811,21 @@ namespace
 		engine::Entity entity;
 		engine::graphics::data::ModelviewMatrix modelview_matrix;
 	};
+	struct MessageUpdatePanelC
+	{
+		engine::Entity entity;
+		engine::graphics::data::ui::PanelC panel;
+	};
+	struct MessageUpdatePanelT
+	{
+		engine::Entity entity;
+		engine::graphics::data::ui::PanelT panel;
+	};
+	struct MessageUpdateText
+	{
+		engine::Entity entity;
+		engine::graphics::data::ui::Text text;
+	};
 	using EntityMessage = utility::variant
 	<
 		MessageAddBar,
@@ -826,7 +841,10 @@ namespace
 		MessageMakeTransparent,
 		MessageRemove,
 		MessageUpdateCharacterSkinning,
-		MessageUpdateModelviewMatrix
+		MessageUpdateModelviewMatrix,
+		MessageUpdatePanelC,
+		MessageUpdatePanelT,
+		MessageUpdateText
 	>;
 
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera2D> queue_notify_camera2d;
@@ -991,6 +1009,31 @@ namespace
 				{
 					debug_assert(objects.contains(x.entity));
 					objects.call(x.entity, update_modelview{std::move(x.modelview_matrix)});
+				}
+				void operator () (MessageUpdatePanelC && x)
+				{
+					debug_assert(components.contains(x.entity));
+					auto & view = components.get<ui::PanelC>(x.entity);
+					view.object->modelview = x.panel.matrix;
+					view.color = color_from(x.panel.color);
+					view.size = x.panel.size;
+				}
+				void operator () (MessageUpdatePanelT && x)
+				{
+					debug_assert(components.contains(x.entity));
+					const auto & texture = materials.get<texture_t>(x.panel.texture);
+					auto & view = components.get<ui::PanelT>(x.entity);
+					view.object->modelview = x.panel.matrix;
+					view.size = x.panel.size;
+					view.texture = &texture;
+				}
+				void operator () (MessageUpdateText && x)
+				{
+					debug_assert(components.contains(x.entity));
+					auto & view = components.get<ui::Text>(x.entity);
+					view.object->modelview = x.text.matrix;
+					view.color = color_from(x.text.color);
+					view.display = x.text.display;
 				}
 			};
 			visit(ProcessMessage{}, std::move(entity_message));
@@ -1934,6 +1977,21 @@ namespace engine
 			void post_update_modelviewmatrix(engine::Entity entity, data::ModelviewMatrix && data)
 			{
 				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateModelviewMatrix>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_panel(engine::Entity entity, data::ui::PanelC && data)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdatePanelC>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_panel(engine::Entity entity, data::ui::PanelT && data)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdatePanelT>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_text(engine::Entity entity, data::ui::Text && data)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateText>, entity, std::move(data));
 				debug_assert(res);
 			}
 

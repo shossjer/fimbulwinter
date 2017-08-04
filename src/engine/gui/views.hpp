@@ -18,6 +18,7 @@ namespace gui
 
 	class View
 	{
+		friend struct Updater;
 		friend class Window;
 
 	public:
@@ -206,6 +207,8 @@ namespace gui
 
 		virtual void hide() = 0;
 
+		virtual void refresh() = 0;
+
 		virtual void translate(const Vector3f delta) = 0;
 
 		// total height of the view including margins
@@ -286,6 +289,8 @@ namespace gui
 		void measure(const Size parent) override;
 
 		void show(const Vector3f delta) override;
+
+		void refresh() override;
 	};
 
 	class PanelT : public Drawable
@@ -307,6 +312,8 @@ namespace gui
 		void measure(const Size parent) override;
 
 		void show(const Vector3f delta) override;
+
+		void refresh() override;
 	};
 
 	class Text : public Drawable
@@ -329,6 +336,8 @@ namespace gui
 		void measure(const Size parent) override;
 
 		void show(const Vector3f delta) override;
+
+		void refresh() override;
 	};
 
 	class Group : public View
@@ -379,6 +388,8 @@ namespace gui
 
 		void hide() override;
 
+		void refresh() override;
+
 		void translate(const Vector3f delta) override;
 	};
 
@@ -420,9 +431,11 @@ namespace gui
 
 		void measure_window();
 
-		void translate_window(const Vector3f delta);
+		void update_window();
 
 		void reorder_window(const int window_order);
+
+		void translate_window(const Vector3f delta);
 	};
 }
 }
