@@ -14,6 +14,7 @@ set(SOURCE_FILES
 	src/engine/graphics/renderer.cpp
 	src/engine/graphics/viewer.cpp
 	src/engine/gui/gui.cpp
+	src/engine/gui/json_parser.cpp
 	src/engine/gui/views.cpp
 	src/engine/model/loader.cpp
 	src/engine/hid/input.cpp
@@ -68,6 +69,8 @@ set(HEADER_FILES
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/viewer.hpp
+	src/engine/gui/actions.hpp
+	src/engine/gui/defines.hpp
 	src/engine/gui/gui.hpp
 	src/engine/gui/views.hpp
 	src/engine/hid/input.hpp
