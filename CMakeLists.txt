@@ -74,6 +74,14 @@ enable_testing (true)
 add_subdirectory (tst)
 
 # lookup dependencies
+# Freetype
+message(STATUS "Looking for freetype")
+find_file(FILE_FT2BUILD_H ft2build.h)
+find_file(FILE_FREETYPE2_FT2BUILD_H freetype2/ft2build.h)
+message(STATUS "Looking for freetype - ${FILE_FT2BUILD_H}")
+message(STATUS "Looking for freetype - ${FILE_FREETYPE2_FT2BUILD_H}")
+find_library(LIBRARY_FREETYPE freetype)
+message(STATUS "Looking for freetype - ${LIBRARY_FREETYPE}")
 # User32
 message(STATUS "Looking for Gdi32")
 find_library(LIBRARY_GDI32 gdi32)
@@ -332,6 +340,28 @@ elseif(FILE_X11_XLIB_H AND
   set(WINDOW_USE_X11 1)
 else()
   message(FATAL_ERROR "Window - Disabled")
+endif()
+
+# additional libraries
+# text
+if ((FILE_FT2BUILD_H OR
+	  FILE_FREETYPE2_FT2BUILD_H) AND
+	LIBRARY_FREETYPE)
+  message(STATUS "Text - Freetype")
+  if (FILE_FREETYPE2_FT2BUILD_H)
+	get_filename_component(INCLUDE_DIRECTORY_FREETYPE "${FILE_FREETYPE2_FT2BUILD_H}" DIRECTORY)
+	include_directories("${INCLUDE_DIRECTORY_FREETYPE}")
+  endif()
+  target_link_libraries(HellsKitchen ${LIBRARY_FREETYPE})
+  set(TEXT_USE_FREETYPE 1)
+elseif (WINDOW_USE_USER32)
+  message(WARNING "Text - User32")
+  set(TEXT_USE_USER32 1)
+elseif (WINDOW_USE_X11)
+  message(WARNING "Text - X11")
+  set(TEXT_USE_X11 1)
+else()
+  message(WARNING "Text - Disabled")
 endif()
 
 # lookup features

@@ -255,6 +255,7 @@ namespace engine
 				SwapBuffers(hDC);
 			}
 
+#if TEXT_USE_USER32
 			void buildFont(HFONT hFont, const DWORD count, const DWORD listBase)
 			{
 				HGDIOBJ hPrevious = SelectObject(hDC, hFont);
@@ -284,6 +285,7 @@ namespace engine
 				                  VARIABLE_PITCH,
 				                  TEXT(name));
 			}
+#endif
 
 			int execute()
 			{
