@@ -6,6 +6,7 @@
 
 #include <utility/preprocessor.hpp>
 #include <utility/type_traits.hpp>
+#include <utility/utility.hpp>
 
 #include <array>
 #include <numeric>
@@ -74,7 +75,7 @@ namespace core
 				template <typename ...Ps>
 				void construct(const std::size_t index, Ps && ...ps)
 				{
-					new (components + index) C(std::forward<Ps>(ps)...);
+					utility::construct_at<C>(components + index, std::forward<Ps>(ps)...);
 				}
 				void destruct(const std::size_t index)
 				{
@@ -449,7 +450,7 @@ namespace core
 				template <typename ...Ps>
 				void construct(const std::size_t index, Ps && ...ps)
 				{
-					new (components + index) C(std::forward<Ps>(ps)...);
+					utility::construct_at<C>(components + index, std::forward<Ps>(ps)...);
 				}
 				void destruct(const std::size_t index)
 				{
