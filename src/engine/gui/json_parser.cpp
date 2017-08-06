@@ -1,43 +1,15 @@
 
-#include "defines.hpp"
+#include "actions.hpp"
+#include "functions.hpp"
+#include "loading.hpp"
 
 #include <utility/json.hpp>
 
 #include <fstream>
 
-// TODO: this should be solved better.
-namespace gameplay
-{
-namespace gamestate
-{
-	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name);
-}
-}
-
-namespace engine
-{
-namespace gui
-{
-	extern core::container::Collection
-		<
-		engine::Asset, 201,
-		std::array<engine::Entity, 100>,
-		std::array<int, 1>
-		>
-		lookup;
-}
-}
-
 namespace
 {
-	using value_t = engine::gui::value_t;
-
-	using Group = engine::gui::Group;
-	using PanelC = engine::gui::PanelC;
-	using PanelT = engine::gui::PanelT;
-	using Text = engine::gui::Text;
-	using View = engine::gui::View;
-	using Window = engine::gui::Window;
+	using namespace engine::gui;
 
 	struct ResourceLoader
 	{
@@ -130,6 +102,25 @@ namespace
 
 	public:
 
+		std::string string(const json & jdata, const std::string key)
+		{
+			debug_assert(contains(jdata, key));
+			return jdata[key].get<std::string>();
+		}
+
+		engine::Asset asset(const json & jdata, const std::string key)
+		{
+			debug_assert(contains(jdata, key));
+			return engine::Asset{ jdata[key].get<std::string>() };
+		}
+
+		engine::Asset asset_or_null(const json & jdata, const std::string key)
+		{
+			if (contains(jdata, key))
+				return engine::Asset{ jdata[key].get<std::string>() };
+			return engine::Asset{ "" };
+		}
+
 		engine::graphics::data::Color color(const json & jdata)
 		{
 			debug_assert(contains(jdata, "color"));
@@ -201,13 +192,23 @@ namespace
 			return View::Gravity{ h | v };
 		}
 
-		bool has_name(const json & jdata) { return contains(jdata, "name"); }
-
 		engine::Asset name(const json & jdata)
 		{
+			debug_assert(contains(jdata, "name"));
 			std::string str = jdata["name"];
 			debug_assert(str.length() > std::size_t{ 0 });
 			return engine::Asset{ str };
+		}
+
+		engine::Asset name_or_null(const json & jdata)
+		{
+			if (contains(jdata, "name"))
+			{
+				std::string str = jdata["name"];
+				debug_assert(str.length() > std::size_t{ 0 });
+				return engine::Asset{ str };
+			}
+			return engine::Asset::null();
 		}
 
 		View::Margin margin(const json & jdata)
@@ -246,28 +247,31 @@ namespace
 				return View::Size{ View::Size::TYPE::WRAP, View::Size::TYPE::WRAP };
 			return extract_size(jdata);
 		}
+
+		engine::Asset type(const json & jdata)
+		{
+			debug_assert(contains(jdata, "type"));
+			return engine::Asset{ jdata["type"].get<std::string>() };
+		}
 	};
 
-	struct Components
+	struct WindowLoader
 	{
-		Window & window;
+	private:
+
 		ResourceLoader & load;
 
-		engine::gui::ACTIONS & actions;
-		engine::gui::COMPONENTS & components;
+	public:
 
-		Components(Window & window, ResourceLoader & load, engine::gui::ACTIONS & actions, engine::gui::COMPONENTS & components)
-			: window(window)
-			, load(load)
-			, actions(actions)
-			, components(components)
+		WindowLoader(ResourceLoader & load)
+			: load(load)
 		{}
 
 	private:
 
 		bool has_action(const json & jcomponent) { return contains(jcomponent, "trigger"); }
 
-		void load_action(engine::Entity entity, const json & jcomponent)
+		void load_action(DataView & view, const json & jcomponent)
 		{
 			const json & jtrigger = jcomponent["trigger"];
 
@@ -275,237 +279,234 @@ namespace
 
 			switch (action)
 			{
-			case engine::Asset{ "close" }:
-
-				this->actions.emplace<engine::gui::CloseAction>(entity, engine::gui::CloseAction{ this->window.name });
+			case DataView::Action::CLOSE:
+				view.action.type = DataView::Action::CLOSE;
 				break;
-
-			case engine::Asset{ "mover" }:
-
-				this->actions.emplace<engine::gui::MoveAction>(entity, engine::gui::MoveAction{ this->window.name });
+			case DataView::Action::MOVER:
+				view.action.type = DataView::Action::MOVER;
 				break;
-
-			case engine::Asset{ "selectable" }:
-
-				this->actions.emplace<engine::gui::SelectAction>(entity, engine::gui::SelectAction{ this->window.name });
+			case DataView::Action::SELECT:
+				view.action.type = DataView::Action::SELECT;
 				break;
 
 			default:
 				debug_printline(0xffffffff, "GUI - unknown trigger action in component: ", jcomponent);
 				debug_unreachable();
 			}
-
-			gameplay::gamestate::post_add(entity, this->window.name, action);
 		}
 
 		bool has_function(const json & jcomponent) { return contains(jcomponent, "function"); }
 
-		void load_function(engine::gui::View * target, const json & jcomponent)
+		void load_function(DataView & target, const json & jcomponent)
 		{
 			const json & jfunction = jcomponent["function"];
 
-			debug_assert(load.has_name(jfunction));
-			const engine::Asset name = load.name(jfunction);
-
-			debug_assert(contains(jfunction, "type"));
-			engine::Asset type{ jfunction["type"].get<std::string>() };
+			target.function.name = this->load.name(jfunction);
+			target.function.type = this->load.type(jfunction);
 
 			const auto entity = engine::Entity::create();
 
-			switch (type)
+			switch (target.function.type)
 			{
-			case engine::Asset{ "progressBar" }:
+			case DataView::Function::PROGRESS:
 			{
-				debug_assert(contains(jfunction, "direction"));
-				const std::string direction = jfunction["direction"];
-				debug_assert(((direction == "vertical") || (direction == "horizontal")));
+				if (contains(jfunction, "direction"))
+				{
+					const std::string direction = jfunction["direction"];
 
-				this->components.emplace<engine::gui::ProgressBar>(
-					entity,
-					engine::gui::ProgressBar{
-						this->window.name,
-						target,
-						direction == "horizontal" ?
-							engine::gui::ProgressBar::HORIZONTAL : engine::gui::ProgressBar::VERTICAL });
+					if (direction == "horizontal")
+					{
+						target.function.direction = ProgressBar::HORIZONTAL;
+					}
+					else
+					if (direction == "vertical")
+					{
+						target.function.direction = ProgressBar::VERTICAL;
+					}
+					else
+					{
+						debug_printline(0xffffffff, "GUI - Progress bar invalid direction: ", jcomponent);
+						debug_unreachable();
+					}
+				}
+				else
+				{
+					target.function.direction = ProgressBar::HORIZONTAL;
+				}
 				break;
 			}
 			default:
-				break;
+				debug_printline(0xffffffff, "GUI - Unknown function type: ", jcomponent);
+				debug_unreachable();
 			}
-
-			engine::gui::lookup.emplace<engine::Entity>(name, entity);
 		}
 
-		Group & load_group(engine::Entity entity, const json & jcomponent)
+		DataGroup & load_group(DataGroup & parent, const json & jcomponent)
 		{
 			debug_assert(contains(jcomponent, "group"));
-
 			const json jgroup = jcomponent["group"];
 
-			return this->components.emplace<Group>(
-				entity,
-				this->load.gravity(jcomponent),
-				this->load.margin(jcomponent),
+			parent.children.emplace_back(
+				utility::in_place_type<DataGroup>,
+				engine::Asset::null(),
 				this->load.size_def_parent(jcomponent),
-				this->load.layout(jgroup));
-		}
-
-		Text & load_text(engine::Entity entity, const json & jcomponent, bool selectable)
-		{
-			debug_assert(contains(jcomponent, "text"));
-
-			const json jtext = jcomponent["text"];
-
-			// to compensate for text height somewhat
-			View::Margin margin = this->load.margin(jcomponent);
-			margin.top += 6;
-
-			return this->components.emplace<Text>(
-				entity,
-				entity,
+				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
-				margin,
-				this->load.size_def_wrap(jcomponent),
-				this->load.color(jtext, 0xff000000),
-				jtext["display"]);
+				this->load.layout(jgroup));
+
+			DataGroup & view = utility::get<DataGroup>(parent.children.back());
+
+			return view;
 		}
 
-		PanelC & load_panel(engine::Entity entity, const json & jcomponent, bool selectable)
+		DataPanel & load_panel(DataGroup & parent, const json & jcomponent)
 		{
 			debug_assert(contains(jcomponent, "panel"));
-
 			const json jpanel = jcomponent["panel"];
 
-			return this->components.emplace<PanelC>(
-				entity,
-				entity,
-				this->load.gravity(jcomponent),
-				this->load.margin(jcomponent),
+			parent.children.emplace_back(
+				utility::in_place_type<DataPanel>,
+				this->load.name_or_null(jcomponent),
 				this->load.size_def_parent(jcomponent),
-				this->load.color(jpanel),
-				selectable);
+				this->load.margin(jcomponent),
+				this->load.gravity(jcomponent),
+				this->load.color(jpanel));
+
+			DataPanel & view = utility::get<DataPanel>(parent.children.back());
+
+			return view;
 		}
 
-		PanelT & load_texture(engine::Entity entity, const json & jcomponent, bool selectable)
+		DataText & load_text(DataGroup & parent, const json & jcomponent)
+		{
+			debug_assert(contains(jcomponent, "text"));
+			const json jtext = jcomponent["text"];
+
+			parent.children.emplace_back(
+				utility::in_place_type<DataText>,
+				this->load.name_or_null(jcomponent),
+				this->load.size_def_wrap(jcomponent),
+				this->load.margin(jcomponent),
+				this->load.gravity(jcomponent),
+				this->load.color(jtext, 0xff000000),
+				this->load.string(jtext, "display"));
+
+			DataText & view = utility::get<DataText>(parent.children.back());
+
+			// to compensate for text height somewhat
+			view.margin.top += 6;
+
+			return view;
+		}
+
+		DataTexture & load_texture(DataGroup & parent, const json & jcomponent)
 		{
 			debug_assert(contains(jcomponent, "texture"));
-
 			const json jtexture = jcomponent["texture"];
 
-			return this->components.emplace<PanelT>(
-				entity,
-				entity,
-				this->load.gravity(jcomponent),
-				this->load.margin(jcomponent),
+			parent.children.emplace_back(
+				utility::in_place_type<DataTexture>,
+				this->load.name_or_null(jcomponent),
 				this->load.size(jcomponent),
-				jtexture["res"],
-				selectable);
+				this->load.margin(jcomponent),
+				this->load.gravity(jcomponent),
+				this->load.asset(jtexture, "res"));
+
+			DataTexture & view = utility::get<DataTexture>(parent.children.back());
+
+			return view;
 		}
 
-		void load_components(Group & parent, const json & jcomponents)
+		void load_components(DataGroup & parent, const json & jcomponents)
 		{
 			for (const auto & jcomponent : jcomponents)
 			{
 				debug_assert(contains(jcomponent, "type"));
-
-				const auto entity = engine::Entity::create();
-
 				const std::string type = jcomponent["type"];
-
-				View * child;
 
 				if (type == "group")
 				{
-					auto & group = load_group(entity, jcomponent);
-					child = &group;
-
+					auto & group = load_group(parent, jcomponent);
 					load_components(group, jcomponent["components"]);
+
+					if (has_function(jcomponent))
+					{
+						load_function(group, jcomponent);
+					}
 				}
 				else
+				if (type == "panel")
 				{
-					const bool selectable = has_action(jcomponent);
+					auto & view = load_panel(parent, jcomponent);
 
-					if (type == "panel")
+					if (has_action(jcomponent))
 					{
-						child = &load_panel(entity, jcomponent, selectable);
+						load_action(view, jcomponent);
 					}
-					else
-					if (type == "texture")
+					if (has_function(jcomponent))
 					{
-						child = &load_texture(entity, jcomponent, selectable);
-					}
-					else
-					if (type == "text")
-					{
-						child = &load_text(entity, jcomponent, selectable);
-					}
-					else
-					{
-						debug_printline(0xffffffff, "GUI - unknown component type: ", jcomponent);
-						debug_unreachable();
-					}
-
-					if (selectable)
-					{
-						load_action(entity, jcomponent);
-					}
-
-					// register the component in the "lookup" table (asset -> entity) if it is named.
-					if (load.has_name(jcomponent))
-					{
-						engine::gui::lookup.emplace<engine::Entity>(load.name(jcomponent), entity);
+						load_function(view, jcomponent);
 					}
 				}
-
-				parent.adopt(child);
-
-				// load the view functionality if any
-				if (has_function(jcomponent))
+				else
+				if (type == "text")
 				{
-					load_function(child, jcomponent);
+					auto & view = load_text(parent, jcomponent);
+
+					if (has_action(jcomponent))
+					{
+						load_action(view, jcomponent);
+					}
+					if (has_function(jcomponent))
+					{
+						load_function(view, jcomponent);
+					}
+				}
+				else
+				if (type == "texture")
+				{
+					auto & view = load_texture(parent, jcomponent);
+
+					if (has_action(jcomponent))
+					{
+						load_action(view, jcomponent);
+					}
+					if (has_function(jcomponent))
+					{
+						load_function(view, jcomponent);
+					}
 				}
 			}
 		}
 
 	public:
 
-		void setup(const json & jwindow)
+		void create(std::vector<DataVariant> & windows, const json & jwindow)
 		{
-			load_components(this->window.group, jwindow["components"]);
+			debug_assert(contains(jwindow, "group"));
+			const json jgroup = jwindow["group"];
+
+			windows.emplace_back(
+				utility::in_place_type<DataGroup>,
+				this->load.name(jwindow),
+				this->load.size(jwindow),
+				this->load.margin(jwindow),
+				View::Gravity(),
+				this->load.layout(jgroup));
+
+			DataGroup & window = utility::get<DataGroup>(windows.back());
+
+			// load the windows components
+			load_components(window, jwindow["components"]);
 		}
 	};
-
-	auto & create_window(engine::gui::WINDOWS & windows, ResourceLoader & load, const json & jwindow)
-	{
-		debug_assert(contains(jwindow, "name"));
-		debug_assert(contains(jwindow, "group"));
-
-		const std::string name = jwindow["name"];
-
-		debug_printline(0xffffffff, "GUI - creating window: ", name);
-
-		const engine::Asset asset{ name };
-
-		// TODO: read gravity for window position
-
-		const json jgroup = jwindow["group"];
-
-		auto & window = windows.emplace<Window>(
-			asset,
-			asset,
-			load.size(jwindow),
-			load.layout(jgroup),
-			load.margin(jwindow));
-
-		return window;
-	}
 }
 
 namespace engine
 {
 namespace gui
 {
-	void load(ACTIONS & actions, COMPONENTS & components, WINDOWS & windows)
+	void load(std::vector<DataVariant> & windows)
 	{
 		std::ifstream file("res/gui.json");
 
@@ -520,15 +521,11 @@ namespace gui
 		ResourceLoader resourceLoader(jcontent);
 
 		const auto & jwindows = jcontent["windows"];
+		windows.reserve(jwindows.size());
 
 		for (const auto & jwindow : jwindows)
 		{
-			Window & window = create_window(windows, resourceLoader, jwindow);
-
-			// loads the components of the window
-			Components(window, resourceLoader, actions, components).setup(jwindow);
-
-			window.measure_window();
+			WindowLoader(resourceLoader).create(windows, jwindow);
 		}
 	}
 }

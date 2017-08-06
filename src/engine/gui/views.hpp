@@ -97,7 +97,7 @@ namespace gui
 
 			struct Dimen
 			{
-				const TYPE type;
+				TYPE type;
 
 				// the fixed / percentage / weight value
 				value_t meta;

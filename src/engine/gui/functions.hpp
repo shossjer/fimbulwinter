@@ -28,7 +28,7 @@ namespace gui
 		engine::Asset window;
 		View * target;
 
-		enum
+		enum Direction
 		{
 			HORIZONTAL,
 			VERTICAL

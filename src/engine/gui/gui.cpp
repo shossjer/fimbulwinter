@@ -1,45 +1,242 @@
 
-#include "defines.hpp"
+#include "actions.hpp"
+#include "functions.hpp"
 #include "gui.hpp"
+#include "loading.hpp"
+#include "views.hpp"
+
+#include <core/container/Collection.hpp>
 
 #include <utility/json.hpp>
 
 #include <fstream>
 
+// TODO: this should be solved better.
+namespace gameplay
+{
+namespace gamestate
+{
+	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name);
+}
+}
+
 namespace
 {
-	engine::gui::ACTIONS actions;
+	using namespace engine::gui;
 
-	engine::gui::COMPONENTS components;
+	core::container::Collection
+		<
+			engine::Entity, 61,
+			std::array<CloseAction, 10>,
+			std::array<MoveAction, 10>,
+			std::array<SelectAction, 10>
+		>
+		actions;
 
-	engine::gui::WINDOWS windows;
+	core::container::Collection
+		<
+			engine::Entity, 201,
+			// Views
+			std::array<engine::gui::Group, 40>,
+			std::array<engine::gui::PanelC, 50>,
+			std::array<engine::gui::PanelT, 50>,
+			std::array<engine::gui::Text, 50>,
+			// Functionality
+			std::array<engine::gui::ProgressBar, 50>
+		>
+		components;
 
-	std::vector<engine::gui::Window *> window_stack;
+	core::container::Collection
+		<
+			engine::Asset, 21,
+			std::array<engine::gui::Window, 10>,
+			std::array<int, 10>
+		>
+		windows;
+
+	// lookup table for "named" components (asset -> entity)
+	// used when gamestate requests updates of components.
+	core::container::Collection
+		<
+			engine::Asset, 201,
+			std::array<engine::Entity, 100>,
+			std::array<int, 1>
+		>
+		lookup;
+
+	std::vector<Window *> window_stack;
+
+	struct Creator
+	{
+		Window & window;
+
+		Creator(Window & window)
+			: window(window)
+		{}
+
+	private:
+
+		void create_action(const Drawable & drawable, const DataView & data)
+		{
+			if (!data.has_action()) return;
+
+			switch (data.action.type)
+			{
+			case DataView::Action::CLOSE:
+
+				actions.emplace<engine::gui::CloseAction>(drawable.entity, engine::gui::CloseAction{ this->window.name });
+				break;
+
+			case DataView::Action::MOVER:
+
+				actions.emplace<engine::gui::MoveAction>(drawable.entity, engine::gui::MoveAction{ this->window.name });
+				break;
+
+			case DataView::Action::SELECT:
+
+				actions.emplace<engine::gui::SelectAction>(drawable.entity, engine::gui::SelectAction{ this->window.name });
+				break;
+			}
+
+			gameplay::gamestate::post_add(drawable.entity, this->window.name, data.action.type);
+		}
+
+		void create_function(View & view, const DataView & data)
+		{
+			switch (data.function.type)
+			{
+			case DataView::Function::PROGRESS:
+			{
+				const auto entity = engine::Entity::create();
+
+				components.emplace<ProgressBar>(
+					entity,
+					this->window.name,
+					&view,
+					data.function.direction);
+
+				lookup.emplace<engine::Entity>(data.function.name, entity);
+				break;
+			}
+			default:
+				break;
+			}
+		}
+
+	public:
+
+		View & operator() (DataGroup & data)
+		{
+			const auto entity = engine::Entity::create();
+			auto & view = components.emplace<Group>(
+				entity,
+				data.gravity,
+				data.margin,
+				data.size,
+				data.layout);
+			create_views(view, data);
+			create_function(view, data);
+
+			return view;
+		}
+
+		View & operator() (DataPanel & data)
+		{
+			const auto entity = engine::Entity::create();
+			auto & view = components.emplace<PanelC>(
+				entity,
+				entity,
+				data.gravity,
+				data.margin,
+				data.size,
+				data.color,
+				data.has_action());
+			create_action(view, data);
+			create_function(view, data);
+
+			if (data.has_name()) lookup.emplace<engine::Entity>(data.name, entity);
+
+			return view;
+		}
+
+		View & operator() (DataText & data)
+		{
+			const auto entity = engine::Entity::create();
+			auto & view = components.emplace<Text>(
+				entity,
+				entity,
+				data.gravity,
+				data.margin,
+				data.size,
+				data.color,
+				data.display);
+			create_action(view, data);
+			create_function(view, data);
+
+			if (data.has_name()) lookup.emplace<engine::Entity>(data.name, entity);
+
+			return view;
+		}
+
+		View & operator() (DataTexture & data)
+		{
+			const auto entity = engine::Entity::create();
+			auto & view = components.emplace<PanelT>(
+				entity,
+				entity,
+				data.gravity,
+				data.margin,
+				data.size,
+				data.res,
+				data.has_action());
+			create_action(view, data);
+
+			if (data.has_name()) lookup.emplace<engine::Entity>(data.name, entity);
+
+			return view;
+		}
+
+		void create_views(Group & parent, DataGroup & dataGroup)
+		{
+			for (auto & data : dataGroup.children)
+			{
+				View & view = visit(*this, data);
+
+				parent.adopt(&view);
+			}
+		}
+	};
 }
 
 namespace engine
 {
 namespace gui
 {
-	extern void load(ACTIONS &, COMPONENTS &, WINDOWS & windows);
-
-	// lookup table for "named" components (asset -> entity)
-	// used when gamestate requests updates of components.
-	core::container::Collection
-		<
-		engine::Asset, 201,
-		std::array<engine::Entity, 100>,
-		std::array<int, 1>
-		>
-		lookup;
+	void load(std::vector<DataVariant> & windows);
 
 	void create()
 	{
-		load(actions, components, windows);
+		std::vector<DataVariant> windowDatas;
 
-		for (Window & window : windows.get<Window>())
+		// load windows and views data from somewhere.
+		load(windowDatas);
+
+		window_stack.reserve(windowDatas.size());
+
+		for (auto & windowData : windowDatas)
 		{
+			DataGroup data = utility::get<DataGroup>(windowData);
+
+			auto & window = windows.emplace<Window>(
+				data.name,
+				data.name,
+				data.size,
+				data.layout,
+				data.margin);
+
 			window_stack.push_back(&window);
+
+			Creator(window).create_views(window.group, data);
 		}
 	}
 
