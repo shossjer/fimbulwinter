@@ -76,23 +76,23 @@ namespace
 
 	private:
 
-		void create_action(const Drawable & drawable, const DataView & data)
+		void create_action(const Drawable & drawable, const ViewData & data)
 		{
 			if (!data.has_action()) return;
 
 			switch (data.action.type)
 			{
-			case DataView::Action::CLOSE:
+			case ViewData::Action::CLOSE:
 
 				actions.emplace<engine::gui::CloseAction>(drawable.entity, engine::gui::CloseAction{ this->window.name });
 				break;
 
-			case DataView::Action::MOVER:
+			case ViewData::Action::MOVER:
 
 				actions.emplace<engine::gui::MoveAction>(drawable.entity, engine::gui::MoveAction{ this->window.name });
 				break;
 
-			case DataView::Action::SELECT:
+			case ViewData::Action::SELECT:
 
 				actions.emplace<engine::gui::SelectAction>(drawable.entity, engine::gui::SelectAction{ this->window.name });
 				break;
@@ -101,11 +101,11 @@ namespace
 			gameplay::gamestate::post_add(drawable.entity, this->window.name, data.action.type);
 		}
 
-		void create_function(View & view, const DataView & data)
+		void create_function(View & view, const ViewData & data)
 		{
 			switch (data.function.type)
 			{
-			case DataView::Function::PROGRESS:
+			case ViewData::Function::PROGRESS:
 			{
 				const auto entity = engine::Entity::create();
 
@@ -125,7 +125,7 @@ namespace
 
 	public:
 
-		View & operator() (DataGroup & data)
+		View & operator() (GroupData & data)
 		{
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<Group>(
@@ -140,7 +140,7 @@ namespace
 			return view;
 		}
 
-		View & operator() (DataPanel & data)
+		View & operator() (PanelData & data)
 		{
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<PanelC>(
@@ -159,7 +159,7 @@ namespace
 			return view;
 		}
 
-		View & operator() (DataText & data)
+		View & operator() (TextData & data)
 		{
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<Text>(
@@ -178,7 +178,7 @@ namespace
 			return view;
 		}
 
-		View & operator() (DataTexture & data)
+		View & operator() (TextureData & data)
 		{
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<PanelT>(
@@ -196,7 +196,7 @@ namespace
 			return view;
 		}
 
-		void create_views(Group & parent, DataGroup & dataGroup)
+		void create_views(Group & parent, GroupData & dataGroup)
 		{
 			for (auto & data : dataGroup.children)
 			{
@@ -225,7 +225,7 @@ namespace gui
 
 		for (auto & windowData : windowDatas)
 		{
-			DataGroup data = utility::get<DataGroup>(windowData);
+			GroupData data = utility::get<GroupData>(windowData);
 
 			auto & window = windows.emplace<Window>(
 				data.name,
@@ -368,12 +368,12 @@ namespace gui
 
 				if (pb.direction == ProgressBar::HORIZONTAL)
 				{
-					debug_assert(pb.target->size.width.type == View::Size::TYPE::PERCENTAGE);
+					debug_assert(pb.target->size.width.type == Size::TYPE::PERCENTAGE);
 					pb.target->size.width.set_meta(this->data.progress);
 				}
 				else
 				{
-					debug_assert(pb.target->size.height.type == View::Size::TYPE::PERCENTAGE);
+					debug_assert(pb.target->size.height.type == Size::TYPE::PERCENTAGE);
 					pb.target->size.height.set_meta(this->data.progress);
 				}
 				break;

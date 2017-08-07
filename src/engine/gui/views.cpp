@@ -539,11 +539,11 @@ namespace gui
 
 	void Window::measure_window()
 	{
-		View::Size & size = this->group.size;
+		Size & size = this->group.size;
 
 		switch (size.height.type)
 		{
-		case View::Size::TYPE::FIXED:
+		case Size::TYPE::FIXED:
 			size.height.value = size.height.meta;
 			break;
 
@@ -552,7 +552,7 @@ namespace gui
 		}
 		switch (size.width.type)
 		{
-		case View::Size::TYPE::FIXED:
+		case Size::TYPE::FIXED:
 			size.width.value = size.width.meta;
 			break;
 

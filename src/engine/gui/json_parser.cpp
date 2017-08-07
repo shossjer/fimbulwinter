@@ -3,6 +3,8 @@
 #include "functions.hpp"
 #include "loading.hpp"
 
+#include <engine/graphics/renderer.hpp>
+
 #include <utility/json.hpp>
 
 #include <fstream>
@@ -62,7 +64,7 @@ namespace
 			return this->jdimensions[str].get<value_t>();
 		}
 
-		View::Size::Dimen extract_dimen(const json & jd)
+		Size::Dimen extract_dimen(const json & jd)
 		{
 			if (jd.is_string())
 			{
@@ -71,33 +73,33 @@ namespace
 				debug_assert(str.length() > std::size_t{ 0 });
 
 				if (str[0] == '#')
-					return View::Size::Dimen{
-						View::Size::TYPE::FIXED,
+					return Size::Dimen{
+						Size::TYPE::FIXED,
 						this->jdimensions[str].get<value_t>() };
 
 				if (str[str.length() - 1] == '%')
 				{
 					value_t val = std::stof(str.substr(0, str.length() - 1));
-					return View::Size::Dimen{ View::Size::TYPE::PERCENTAGE, val / value_t{ 100 } };
+					return Size::Dimen{ Size::TYPE::PERCENTAGE, val / value_t{ 100 } };
 				}
-				if (str == "parent") return View::Size::Dimen{ View::Size::TYPE::PARENT };
-				if (str == "wrap") return View::Size::Dimen{ View::Size::TYPE::WRAP };
+				if (str == "parent") return Size::Dimen{ Size::TYPE::PARENT };
+				if (str == "wrap") return Size::Dimen{ Size::TYPE::WRAP };
 
 				debug_printline(0xffffffff, "GUI - invalid size dimen: ", str);
 				debug_unreachable();
 			}
 
-			return View::Size::Dimen{ View::Size::TYPE::FIXED, jd.get<value_t>() };
+			return Size::Dimen{ Size::TYPE::FIXED, jd.get<value_t>() };
 		}
 
-		View::Size extract_size(const json & jdata)
+		Size extract_size(const json & jdata)
 		{
 			const json jsize = jdata["size"];
 
 			debug_assert(contains(jsize, "w"));
 			debug_assert(contains(jsize, "h"));
 
-			return View::Size{ extract_dimen(jsize["w"]), extract_dimen(jsize["h"]) };
+			return Size{ extract_dimen(jsize["w"]), extract_dimen(jsize["h"]) };
 		}
 
 	public:
@@ -133,24 +135,24 @@ namespace
 			return extract_color(jdata);
 		}
 
-		Group::Layout layout(const json & jgroup)
+		Layout layout(const json & jgroup)
 		{
 			debug_assert(contains(jgroup, "layout"));
 
 			const std::string str = jgroup["layout"];
 
-			if (str == "horizontal")return Group::Layout::HORIZONTAL;
-			if (str == "vertical") return Group::Layout::VERTICAL;
-			if (str == "relative") return Group::Layout::RELATIVE;
+			if (str == "horizontal")return Layout::HORIZONTAL;
+			if (str == "vertical") return Layout::VERTICAL;
+			if (str == "relative") return Layout::RELATIVE;
 
 			debug_printline(0xffffffff, "GUI - invalid layout: ", str);
 			debug_unreachable();
 		}
 
-		View::Gravity gravity(const json & jdata)
+		Gravity gravity(const json & jdata)
 		{
-			uint_fast16_t h = View::Gravity::HORIZONTAL_LEFT;
-			uint_fast16_t v = View::Gravity::VERTICAL_TOP;
+			uint_fast16_t h = Gravity::HORIZONTAL_LEFT;
+			uint_fast16_t v = Gravity::VERTICAL_TOP;
 
 			if (contains(jdata, "gravity"))
 			{
@@ -160,11 +162,11 @@ namespace
 				{
 					const std::string str = jgravity["h"];
 
-					if (str == "left") h = View::Gravity::HORIZONTAL_LEFT;
+					if (str == "left") h = Gravity::HORIZONTAL_LEFT;
 					else
-					if (str == "centre") h = View::Gravity::HORIZONTAL_CENTRE;
+					if (str == "centre") h = Gravity::HORIZONTAL_CENTRE;
 					else
-					if (str == "right") h = View::Gravity::HORIZONTAL_RIGHT;
+					if (str == "right") h = Gravity::HORIZONTAL_RIGHT;
 					else
 					{
 						debug_printline(0xffffffff, "GUI - invalid horizontal gravity: ", str);
@@ -176,11 +178,11 @@ namespace
 				{
 					const std::string str = jgravity["v"];
 
-					if (str == "top") v = View::Gravity::VERTICAL_TOP;
+					if (str == "top") v = Gravity::VERTICAL_TOP;
 					else
-					if (str == "centre") v = View::Gravity::VERTICAL_CENTRE;
+					if (str == "centre") v = Gravity::VERTICAL_CENTRE;
 					else
-					if (str == "bottom") v = View::Gravity::VERTICAL_BOTTOM;
+					if (str == "bottom") v = Gravity::VERTICAL_BOTTOM;
 					else
 					{
 						debug_printline(0xffffffff, "GUI - invalid vertical gravity: ", str);
@@ -189,7 +191,7 @@ namespace
 				}
 			}
 
-			return View::Gravity{ h | v };
+			return Gravity{ h | v };
 		}
 
 		engine::Asset name(const json & jdata)
@@ -211,9 +213,9 @@ namespace
 			return engine::Asset::null();
 		}
 
-		View::Margin margin(const json & jdata)
+		Margin margin(const json & jdata)
 		{
-			View::Margin margin;
+			Margin margin;
 
 			if (contains(jdata, "margin"))
 			{
@@ -228,23 +230,23 @@ namespace
 			return margin;
 		}
 
-		View::Size size(const json & jdata)
+		Size size(const json & jdata)
 		{
 			debug_assert(contains(jdata, "size"));
 			return extract_size(jdata);
 		}
 
-		View::Size size_def_parent(const json & jdata)
+		Size size_def_parent(const json & jdata)
 		{
 			if (!contains(jdata, "size"))
-				return View::Size{ View::Size::TYPE::PARENT, View::Size::TYPE::PARENT };
+				return Size{ Size::TYPE::PARENT, Size::TYPE::PARENT };
 			return extract_size(jdata);
 		}
 
-		View::Size size_def_wrap(const json & jdata)
+		Size size_def_wrap(const json & jdata)
 		{
 			if (!contains(jdata, "size"))
-				return View::Size{ View::Size::TYPE::WRAP, View::Size::TYPE::WRAP };
+				return Size{ Size::TYPE::WRAP, Size::TYPE::WRAP };
 			return extract_size(jdata);
 		}
 
@@ -271,7 +273,7 @@ namespace
 
 		bool has_action(const json & jcomponent) { return contains(jcomponent, "trigger"); }
 
-		void load_action(DataView & view, const json & jcomponent)
+		void load_action(ViewData & view, const json & jcomponent)
 		{
 			const json & jtrigger = jcomponent["trigger"];
 
@@ -279,14 +281,14 @@ namespace
 
 			switch (action)
 			{
-			case DataView::Action::CLOSE:
-				view.action.type = DataView::Action::CLOSE;
+			case ViewData::Action::CLOSE:
+				view.action.type = ViewData::Action::CLOSE;
 				break;
-			case DataView::Action::MOVER:
-				view.action.type = DataView::Action::MOVER;
+			case ViewData::Action::MOVER:
+				view.action.type = ViewData::Action::MOVER;
 				break;
-			case DataView::Action::SELECT:
-				view.action.type = DataView::Action::SELECT;
+			case ViewData::Action::SELECT:
+				view.action.type = ViewData::Action::SELECT;
 				break;
 
 			default:
@@ -297,7 +299,7 @@ namespace
 
 		bool has_function(const json & jcomponent) { return contains(jcomponent, "function"); }
 
-		void load_function(DataView & target, const json & jcomponent)
+		void load_function(ViewData & target, const json & jcomponent)
 		{
 			const json & jfunction = jcomponent["function"];
 
@@ -308,7 +310,7 @@ namespace
 
 			switch (target.function.type)
 			{
-			case DataView::Function::PROGRESS:
+			case ViewData::Function::PROGRESS:
 			{
 				if (contains(jfunction, "direction"))
 				{
@@ -341,49 +343,49 @@ namespace
 			}
 		}
 
-		DataGroup & load_group(DataGroup & parent, const json & jcomponent)
+		GroupData & load_group(GroupData & parent, const json & jcomponent)
 		{
 			debug_assert(contains(jcomponent, "group"));
 			const json jgroup = jcomponent["group"];
 
 			parent.children.emplace_back(
-				utility::in_place_type<DataGroup>,
+				utility::in_place_type<GroupData>,
 				engine::Asset::null(),
 				this->load.size_def_parent(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
 				this->load.layout(jgroup));
 
-			DataGroup & view = utility::get<DataGroup>(parent.children.back());
+			GroupData & view = utility::get<GroupData>(parent.children.back());
 
 			return view;
 		}
 
-		DataPanel & load_panel(DataGroup & parent, const json & jcomponent)
+		PanelData & load_panel(GroupData & parent, const json & jcomponent)
 		{
 			debug_assert(contains(jcomponent, "panel"));
 			const json jpanel = jcomponent["panel"];
 
 			parent.children.emplace_back(
-				utility::in_place_type<DataPanel>,
+				utility::in_place_type<PanelData>,
 				this->load.name_or_null(jcomponent),
 				this->load.size_def_parent(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
 				this->load.color(jpanel));
 
-			DataPanel & view = utility::get<DataPanel>(parent.children.back());
+			PanelData & view = utility::get<PanelData>(parent.children.back());
 
 			return view;
 		}
 
-		DataText & load_text(DataGroup & parent, const json & jcomponent)
+		TextData & load_text(GroupData & parent, const json & jcomponent)
 		{
 			debug_assert(contains(jcomponent, "text"));
 			const json jtext = jcomponent["text"];
 
 			parent.children.emplace_back(
-				utility::in_place_type<DataText>,
+				utility::in_place_type<TextData>,
 				this->load.name_or_null(jcomponent),
 				this->load.size_def_wrap(jcomponent),
 				this->load.margin(jcomponent),
@@ -391,7 +393,7 @@ namespace
 				this->load.color(jtext, 0xff000000),
 				this->load.string(jtext, "display"));
 
-			DataText & view = utility::get<DataText>(parent.children.back());
+			TextData & view = utility::get<TextData>(parent.children.back());
 
 			// to compensate for text height somewhat
 			view.margin.top += 6;
@@ -399,25 +401,25 @@ namespace
 			return view;
 		}
 
-		DataTexture & load_texture(DataGroup & parent, const json & jcomponent)
+		TextureData & load_texture(GroupData & parent, const json & jcomponent)
 		{
 			debug_assert(contains(jcomponent, "texture"));
 			const json jtexture = jcomponent["texture"];
 
 			parent.children.emplace_back(
-				utility::in_place_type<DataTexture>,
+				utility::in_place_type<TextureData>,
 				this->load.name_or_null(jcomponent),
 				this->load.size(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
 				this->load.asset(jtexture, "res"));
 
-			DataTexture & view = utility::get<DataTexture>(parent.children.back());
+			TextureData & view = utility::get<TextureData>(parent.children.back());
 
 			return view;
 		}
 
-		void load_components(DataGroup & parent, const json & jcomponents)
+		void load_components(GroupData & parent, const json & jcomponents)
 		{
 			for (const auto & jcomponent : jcomponents)
 			{
@@ -487,14 +489,14 @@ namespace
 			const json jgroup = jwindow["group"];
 
 			windows.emplace_back(
-				utility::in_place_type<DataGroup>,
+				utility::in_place_type<GroupData>,
 				this->load.name(jwindow),
 				this->load.size(jwindow),
 				this->load.margin(jwindow),
-				View::Gravity(),
+				Gravity(),
 				this->load.layout(jgroup));
 
-			DataGroup & window = utility::get<DataGroup>(windows.back());
+			GroupData & window = utility::get<GroupData>(windows.back());
 
 			// load the windows components
 			load_components(window, jwindow["components"]);

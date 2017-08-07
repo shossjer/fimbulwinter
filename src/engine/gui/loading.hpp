@@ -4,10 +4,11 @@
 #ifndef ENGINE_GUI_LOADING_HPP
 #define ENGINE_GUI_LOADING_HPP
 
-#include "views.hpp"
 #include "functions.hpp"
+#include "placers.hpp"
 
 #include <engine/common.hpp>
+#include <engine/graphics/renderer.hpp>
 
 #include <utility/variant.hpp>
 
@@ -17,25 +18,27 @@ namespace engine
 {
 namespace gui
 {
-	struct DataGroup;
-	struct DataPanel;
-	struct DataText;
-	struct DataTexture;
+	typedef engine::graphics::data::Color Color;
+
+	struct GroupData;
+	struct PanelData;
+	struct TextData;
+	struct TextureData;
 
 	using DataVariant = utility::variant
 	<
-		DataGroup,
-		DataPanel,
-		DataText,
-		DataTexture
+		GroupData,
+		PanelData,
+		TextData,
+		TextureData
 	>;
 
-	struct DataView
+	struct ViewData
 	{
 		engine::Asset name;
-		View::Size size;
-		View::Margin margin;
-		View::Gravity gravity;
+		Size size;
+		Margin margin;
+		Gravity gravity;
 
 		struct Action
 		{
@@ -57,7 +60,7 @@ namespace gui
 		}
 		function;
 
-		DataView(engine::Asset name, View::Size size, View::Margin margin, View::Gravity gravity)
+		ViewData(engine::Asset name, Size size, Margin margin, Gravity gravity)
 			: name(name)
 			, size(size)
 			, margin(margin)
@@ -83,45 +86,45 @@ namespace gui
 		}
 	};
 
-	struct DataGroup : DataView
+	struct GroupData : ViewData
 	{
-		Group::Layout layout;
+		Layout layout;
 		std::vector<DataVariant> children;
 
-		DataGroup(engine::Asset name, View::Size size, View::Margin margin, View::Gravity gravity, Group::Layout layout)
-			: DataView(name, size, margin, gravity)
+		GroupData(engine::Asset name, Size size, Margin margin, Gravity gravity, Layout layout)
+			: ViewData(name, size, margin, gravity)
 			, layout(layout)
 		{}
 	};
 
-	struct DataPanel : DataView
+	struct PanelData : ViewData
 	{
 		Color color;
 
-		DataPanel(engine::Asset name, View::Size size, View::Margin margin, View::Gravity gravity, Color color)
-			: DataView(name, size, margin, gravity)
+		PanelData(engine::Asset name, Size size, Margin margin, Gravity gravity, Color color)
+			: ViewData(name, size, margin, gravity)
 			, color(color)
 		{}
 	};
 
-	struct DataText : DataView
+	struct TextData : ViewData
 	{
 		Color color;
 		std::string display;
 
-		DataText(engine::Asset name, View::Size size, View::Margin margin, View::Gravity gravity, Color color, std::string display)
-			: DataView(name, size, margin, gravity)
+		TextData(engine::Asset name, Size size, Margin margin, Gravity gravity, Color color, std::string display)
+			: ViewData(name, size, margin, gravity)
 			, color(color)
 			, display(display)
 		{}
 	};
 
-	struct DataTexture : DataView
+	struct TextureData : ViewData
 	{
 		engine::Asset res;
 
-		DataTexture(engine::Asset name, View::Size size, View::Margin margin, View::Gravity gravity, engine::Asset res)
-			: DataView(name, size, margin, gravity)
+		TextureData(engine::Asset name, Size size, Margin margin, Gravity gravity, engine::Asset res)
+			: ViewData(name, size, margin, gravity)
 			, res(res)
 		{}
 	};
