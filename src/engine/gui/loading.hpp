@@ -21,6 +21,7 @@ namespace gui
 	typedef engine::graphics::data::Color Color;
 
 	struct GroupData;
+	struct ListData;
 	struct PanelData;
 	struct TextData;
 	struct TextureData;
@@ -28,6 +29,7 @@ namespace gui
 	using DataVariant = utility::variant
 	<
 		GroupData,
+		ListData,
 		PanelData,
 		TextData,
 		TextureData
@@ -94,6 +96,13 @@ namespace gui
 		GroupData(engine::Asset name, Size size, Margin margin, Gravity gravity, Layout layout)
 			: ViewData(name, size, margin, gravity)
 			, layout(layout)
+		{}
+	};
+
+	struct ListData : GroupData
+	{
+		ListData(engine::Asset name, Size size, Margin margin, Gravity gravity, Layout layout)
+			: GroupData(name, size, margin, gravity, layout)
 		{}
 	};
 

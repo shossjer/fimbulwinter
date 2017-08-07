@@ -361,6 +361,24 @@ namespace
 			return view;
 		}
 
+		ListData & load_list(GroupData & parent, const json & jcomponent)
+		{
+			debug_assert(contains(jcomponent, "list"));
+			const json jgroup = jcomponent["list"];
+
+			parent.children.emplace_back(
+				utility::in_place_type<ListData>,
+				this->load.name(jcomponent),
+				this->load.size_def_parent(jcomponent),
+				this->load.margin(jcomponent),
+				this->load.gravity(jcomponent),
+				this->load.layout(jgroup));
+
+			ListData & view = utility::get<ListData>(parent.children.back());
+
+			return view;
+		}
+
 		PanelData & load_panel(GroupData & parent, const json & jcomponent)
 		{
 			debug_assert(contains(jcomponent, "panel"));
@@ -435,6 +453,14 @@ namespace
 					{
 						load_function(group, jcomponent);
 					}
+				}
+				else
+				if (type == "list")
+				{
+					auto & list = load_list(parent, jcomponent);
+					const json & jitem_template = jcomponent["components"];
+					debug_assert(jitem_template.size()== 1);
+					load_components(list, jitem_template);
 				}
 				else
 				if (type == "panel")

@@ -567,6 +567,29 @@ namespace
 			datas.emplace_back("status", std::string("status unavailable"));
 			datas.emplace_back("status", 0xffff0000);
 			datas.emplace_back("photo", engine::Asset{ "photo" });
+			{
+				std::vector<engine::gui::Datas> list;
+				{
+					list.emplace_back(); // add one list item
+					list.back().emplace_back(
+						engine::Asset{ "title" },
+						std::string("Skill 1 - Chopping"));
+				}
+				{
+					list.emplace_back(); // add second list item
+					list.back().emplace_back(
+						engine::Asset{ "title" },
+						std::string("Skill 2 - Crushing"));
+				}
+				{
+					list.emplace_back(); // add third list item
+					list.back().emplace_back(
+						engine::Asset{ "title" },
+						std::string("Skill 3 - Potato"));
+				}
+
+				datas.emplace_back("profile_skills", std::move(list));
+			}
 			engine::gui::update("profile", std::move(datas));
 
 			// show the window

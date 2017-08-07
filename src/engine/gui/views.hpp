@@ -4,11 +4,16 @@
 #ifndef ENGINE_GUI_VIEWS_HPP
 #define ENGINE_GUI_VIEWS_HPP
 
+#include "gui.hpp"
 #include "loading.hpp"
 #include "placers.hpp"
 
 #include <engine/common.hpp>
 #include <engine/graphics/renderer.hpp>
+
+#include <core/container/Collection.hpp>
+
+#include <unordered_map>
 
 namespace engine
 {
@@ -16,7 +21,36 @@ namespace gui
 {
 	constexpr float DEPTH_INC = .1f;
 
-	typedef engine::graphics::data::Color Color;
+	using Color = engine::graphics::data::Color;
+
+	class Lookup
+	{
+	private:
+		// TODO: make map
+		core::container::Collection
+			<
+			engine::Asset,
+			201,
+			std::array<engine::Entity, 100>
+			> data;
+
+	public:
+
+		void put(engine::Asset name, engine::Entity entity)
+		{
+			this->data.emplace<engine::Entity>(name, entity);
+		}
+
+		bool contains(engine::Asset name)
+		{
+			return this->data.contains(name);
+		}
+
+		engine::Entity get(engine::Asset name)
+		{
+			return this->data.get<engine::Entity>(name);
+		}
+	};
 
 	class View
 	{
@@ -235,6 +269,24 @@ namespace gui
 		void refresh() override;
 
 		void translate(const Vector3f delta) override;
+	};
+
+	class List : public Group
+	{
+		friend struct Updater;
+
+	private:
+
+		std::vector<Lookup> lookups;
+
+		const ListData view_template;
+
+	public:
+
+		List(Gravity gravity, Margin margin, Size size, Layout layout, const ListData & view_template)
+			: Group(gravity, margin, size, layout)
+			, view_template(view_template)
+		{}
 	};
 
 	class Window

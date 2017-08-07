@@ -35,9 +35,10 @@ namespace
 
 	core::container::Collection
 		<
-			engine::Entity, 201,
+			engine::Entity, 301,
 			// Views
-			std::array<engine::gui::Group, 40>,
+			std::array<engine::gui::Group, 100>,
+			std::array<engine::gui::List, 20>,
 			std::array<engine::gui::PanelC, 50>,
 			std::array<engine::gui::PanelT, 50>,
 			std::array<engine::gui::Text, 50>,
@@ -56,22 +57,18 @@ namespace
 
 	// lookup table for "named" components (asset -> entity)
 	// used when gamestate requests updates of components.
-	core::container::Collection
-		<
-			engine::Asset, 201,
-			std::array<engine::Entity, 100>,
-			std::array<int, 1>
-		>
-		lookup;
+	Lookup lookup;
 
 	std::vector<Window *> window_stack;
 
 	struct Creator
 	{
+		Lookup & lookup;
 		Window & window;
 
-		Creator(Window & window)
-			: window(window)
+		Creator(Lookup & lookup, Window & window)
+			: lookup(lookup)
+			, window(window)
 		{}
 
 	private:
@@ -115,7 +112,7 @@ namespace
 					&view,
 					data.function.direction);
 
-				lookup.emplace<engine::Entity>(data.function.name, entity);
+				lookup.put(data.function.name, entity);
 				break;
 			}
 			default:
@@ -125,7 +122,7 @@ namespace
 
 	public:
 
-		View & operator() (GroupData & data)
+		View & operator() (const GroupData & data)
 		{
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<Group>(
@@ -140,7 +137,23 @@ namespace
 			return view;
 		}
 
-		View & operator() (PanelData & data)
+		View & operator() (const ListData & data)
+		{
+			const auto entity = engine::Entity::create();
+			auto & view = components.emplace<List>(
+				entity,
+				data.gravity,
+				data.margin,
+				data.size,
+				data.layout,
+				data);
+
+			if (data.has_name()) lookup.put(data.name, entity);
+
+			return view;
+		}
+
+		View & operator() (const PanelData & data)
 		{
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<PanelC>(
@@ -154,12 +167,12 @@ namespace
 			create_action(view, data);
 			create_function(view, data);
 
-			if (data.has_name()) lookup.emplace<engine::Entity>(data.name, entity);
+			if (data.has_name()) lookup.put(data.name, entity);
 
 			return view;
 		}
 
-		View & operator() (TextData & data)
+		View & operator() (const TextData & data)
 		{
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<Text>(
@@ -173,12 +186,12 @@ namespace
 			create_action(view, data);
 			create_function(view, data);
 
-			if (data.has_name()) lookup.emplace<engine::Entity>(data.name, entity);
+			if (data.has_name()) lookup.put(data.name, entity);
 
 			return view;
 		}
 
-		View & operator() (TextureData & data)
+		View & operator() (const TextureData & data)
 		{
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<PanelT>(
@@ -191,12 +204,12 @@ namespace
 				data.has_action());
 			create_action(view, data);
 
-			if (data.has_name()) lookup.emplace<engine::Entity>(data.name, entity);
+			if (data.has_name()) lookup.put(data.name, entity);
 
 			return view;
 		}
 
-		void create_views(Group & parent, GroupData & dataGroup)
+		void create_views(Group & parent, const GroupData & dataGroup)
 		{
 			for (auto & data : dataGroup.children)
 			{
@@ -236,7 +249,7 @@ namespace gui
 
 			window_stack.push_back(&window);
 
-			Creator(window).create_views(window.group, data);
+			Creator(lookup, window).create_views(window.group, data);
 		}
 	}
 
@@ -305,7 +318,58 @@ namespace gui
 
 	struct Updater
 	{
-		Data data;
+		Window & window;
+		Data & data;
+
+		void operator() (List & list)
+		{
+			switch (this->data.type)
+			{
+			case Data::LIST:
+			{
+				const std::size_t list_size = this->data.list.size();
+
+				// create item views if needed
+				if (list.lookups.capacity() < list_size)
+				{
+					list.lookups.reserve(list_size);
+
+					// create item views to match the size
+					for (std::size_t i = list.lookups.size(); i < list_size; i++)
+					{
+						list.lookups.emplace_back();
+						Creator{list.lookups[i], window}.create_views(list, list.view_template);
+					}
+				}
+
+				// TODO: hide item views if needed
+
+				// update the view data
+				for (std::size_t i = 0; i < list_size; i++)
+				{
+					auto & item = this->data.list[i];
+
+					for (auto & kv : item)
+					{
+						auto & lookup = list.lookups[i];
+
+						if (!lookup.contains(kv.first))
+						{
+							debug_printline(0xffffffff, "GUI - cannot find named component for list.");
+							continue;
+						}
+
+						components.call(lookup.get(kv.first), Updater{ window, std::move(kv.second) });
+					}
+				}
+				break;
+			}
+			default:
+
+				debug_printline(0xffffffff, "GUI - invalid update type for list (needs list).");
+				debug_unreachable();
+			}
+		}
 
 		void operator() (PanelC & panel)
 		{
@@ -396,6 +460,8 @@ namespace gui
 	{
 		// TODO: use thread safe queue
 
+		Window & w = windows.get<Window>(window);
+
 		for (auto & data : datas)
 		{
 			if (!lookup.contains(data.first))
@@ -404,13 +470,11 @@ namespace gui
 				continue;
 			}
 
-			engine::Entity entity = lookup.get<engine::Entity>(data.first);
-
-			components.call(entity, Updater{ std::move(data.second) });
+			components.call(lookup.get(data.first), Updater{ w, std::move(data.second) });
 		}
 
 		// updates and sends updated views to renderer (if shown)
-		windows.get<Window>(window).update_window();
+		w.update_window();
 	}
 
 	void update(engine::Asset window, core::maths::Vector3f delta)
