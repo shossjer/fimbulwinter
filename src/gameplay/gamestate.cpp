@@ -20,6 +20,12 @@ namespace
 {
 	void entityClick(engine::Entity id);
 
+	template<typename T>
+	T & access_component(const engine::Entity entity);
+
+	// update "profile" of entity if it is currently shown (will not set entity as selected).
+	void profile_update(const engine::Entity entity);
+
 	struct CameraActivator
 	{
 		engine::Entity camera;
@@ -339,7 +345,29 @@ namespace
 		engine::Entity id;
 		engine::Entity workstation;
 
-		Worker(engine::Entity id) : id(id)
+		unsigned int finishedCarrots;
+		float progress;
+		bool working;
+
+		unsigned int skillCutting;
+		float skillCuttingProgress;
+		unsigned int skillPotato;
+		float skillPotatoProgress;
+		unsigned int skillWorking;
+		float skillWorkingProgress;
+
+		Worker(engine::Entity id)
+			: id(id)
+			, workstation(engine::Entity::null())
+			, finishedCarrots(0)
+			, progress(0.f)
+			, working(false)
+			, skillCuttingProgress(0.f)
+			, skillCutting(0)
+			, skillPotato(2)
+			, skillPotatoProgress(0.3)
+			, skillWorking(7)
+			, skillWorkingProgress(0.7)
 		{
 		}
 	};
@@ -389,6 +417,7 @@ namespace
 
 		void start()
 		{
+			access_component<Worker>(this->worker).working = true;
 			engine::animation::update(this->worker, engine::animation::action{"work", true});
 
 			if (this->boardModel!= engine::Entity::null()) return;
@@ -410,6 +439,7 @@ namespace
 
 		void cleanup()
 		{
+			access_component<Worker>(this->worker).working = false;
 			engine::animation::update(this->worker, engine::animation::action{"idle", true});
 
 			engine::graphics::renderer::post_remove(this->boardModel);
@@ -427,14 +457,30 @@ namespace
 			if (this->boardModel == engine::Entity::null())
 				return;
 
+			Worker & w = access_component<Worker>(this->worker);
+
 			this->progress += (1000./50.);
 
-			barUpdate(static_cast<float>(this->progress / (4. * 1000.)));
+			const auto progress_percentage = static_cast<float>(this->progress / (4. * 1000.));
+			w.progress = progress_percentage;
+			barUpdate(progress_percentage);
 
 			if (this->progress < (4. * 1000.))
+			{
+				profile_update(this->worker);
 				return;
+			}
 
 			// carrot is finished! either stop working or auto checkout a new carrot...
+			w.finishedCarrots++;
+			w.working = false;
+			w.skillCuttingProgress += 0.35f;
+			if (w.skillCuttingProgress >= 1.f)
+			{
+				w.skillCuttingProgress -= 1.f;
+				w.skillCutting++;
+			}
+			profile_update(this->worker);
 
 			this->progress = 0.;
 
@@ -444,6 +490,80 @@ namespace
 			cleanup();
 		}
 	};
+
+	struct
+	{
+		// entity of currently "profiled" object
+		engine::Entity entity;
+
+		void operator() (Worker & worker)
+		{
+			// update "data" of the profile window
+			engine::gui::Datas datas;
+			datas.emplace_back("title", std::string("Worker Bob"));
+
+			if (worker.working)
+			{
+				datas.emplace_back("status", std::string("Working hard"));
+				datas.emplace_back("status", 0xff00ff00);
+			}
+			else
+			{
+				datas.emplace_back("status", std::string("Idle"));
+				datas.emplace_back("status", 0xff0000ff);
+			}
+			datas.emplace_back("photo", engine::Asset{ "photo" });
+			datas.emplace_back("profile_progress", worker.progress);
+
+			{
+				std::vector<engine::gui::Datas> list;
+				for (int i = 0; i < worker.finishedCarrots; i++)
+				{
+					list.emplace_back();
+					list.back().emplace_back(
+						engine::Asset{ "title" },
+						std::string("Finished cutting a carrot."));
+				}
+				datas.emplace_back("profile_accomp", std::move(list));
+			}
+			{
+				std::vector<engine::gui::Datas> list;
+
+				list.emplace_back();
+				list.back().emplace_back(
+					engine::Asset{ "title" },
+					std::string("Skill - Cutting: ") + std::to_string(worker.skillCutting));
+				list.back().emplace_back(
+					engine::Asset{ "progress" },
+					worker.skillCuttingProgress);
+
+				list.emplace_back();
+				list.back().emplace_back(
+					engine::Asset{ "title" },
+					std::string("Skill - Working: ") + std::to_string(worker.skillWorking));
+				list.back().emplace_back(
+					engine::Asset{ "progress" },
+					worker.skillWorkingProgress);
+
+				list.emplace_back();
+				list.back().emplace_back(
+					engine::Asset{ "title" },
+					std::string("Skill - Potato: ") + std::to_string(worker.skillPotato));
+				list.back().emplace_back(
+					engine::Asset{ "progress" },
+					worker.skillPotatoProgress);
+
+				datas.emplace_back("profile_skills", std::move(list));
+			}
+
+			engine::gui::update("profile", std::move(datas));
+		}
+
+		template<typename T>
+		void operator() (const T &)
+		{}
+	}
+	profile_updater;
 
 	struct WindowInventory
 	{
@@ -561,36 +681,8 @@ namespace
 
 		void operator () (const Worker & w)
 		{
-			// update "data" of the profile window
-			engine::gui::Datas datas;
-			datas.emplace_back("title", std::string("Worker name"));
-			datas.emplace_back("status", std::string("status unavailable"));
-			datas.emplace_back("status", 0xffff0000);
-			datas.emplace_back("photo", engine::Asset{ "photo" });
-			{
-				std::vector<engine::gui::Datas> list;
-				{
-					list.emplace_back(); // add one list item
-					list.back().emplace_back(
-						engine::Asset{ "title" },
-						std::string("Skill 1 - Chopping"));
-				}
-				{
-					list.emplace_back(); // add second list item
-					list.back().emplace_back(
-						engine::Asset{ "title" },
-						std::string("Skill 2 - Crushing"));
-				}
-				{
-					list.emplace_back(); // add third list item
-					list.back().emplace_back(
-						engine::Asset{ "title" },
-						std::string("Skill 3 - Potato"));
-				}
-
-				datas.emplace_back("profile_skills", std::move(list));
-			}
-			engine::gui::update("profile", std::move(datas));
+			profile_updater.entity = w.id;
+			profile_update(w.id);
 
 			// show the window
 			engine::gui::show("profile");
@@ -654,6 +746,20 @@ namespace
 		100> queue_gui_components;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
+	template<typename T>
+	T & access_component(const engine::Entity entity)
+	{
+		return components.get<T>(entity);
+	}
+
+	void profile_update(const engine::Entity entity)
+	{
+		if (entity == profile_updater.entity)
+		{
+			components.call(entity, profile_updater);
+		}
+	}
+
 	void move_to_workstation(Worker & w, Workstation & s)
 	{
 		// clear prev. station if any
@@ -710,9 +816,7 @@ namespace
 
 		template <typename W>
 		void operator() (const W & w)
-		{
-			debug_printline(0xffffffff, "You have failed!");
-		}
+		{}
 
 	} playerInteraction;
 
@@ -768,6 +872,7 @@ namespace gamestate
 		gameplay::ui::post_bind("game", pancontrol, 0);
 		gameplay::ui::post_bind("game", bordercontrol, 0);
 
+		profile_updater.entity = engine::Entity::null();
 		auto inventorycontrol = engine::Entity::create();
 		gameplay::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
 		gameplay::ui::post_bind("debug", inventorycontrol, 0);
@@ -934,14 +1039,6 @@ namespace gamestate
 		{
 			station.update();
 		}
-
-		// totally the way to do this
-		static int progress = 0;
-		progress++;
-		progress %= 101;
-		engine::gui::Datas datas;
-		datas.emplace_back("profile_progress", progress/100.f);
-		engine::gui::update("profile", std::move(datas));
 	}
 
 	void post_command(engine::Entity entity, engine::Command command)

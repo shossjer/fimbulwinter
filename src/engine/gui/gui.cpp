@@ -340,9 +340,22 @@ namespace gui
 						list.lookups.emplace_back();
 						Creator{list.lookups[i], window}.create_views(list, list.view_template);
 					}
+
+					if (window.is_shown())
+					{
+						list.show(Vector3f{0.f, 0.f, 0.f});
+					}
 				}
 
-				// TODO: hide item views if needed
+				// hide item views if needed (if the update contains less items than previously)
+				{
+					const std::size_t items_remove = list.shown_items - list_size;
+
+					for (std::size_t i = list.lookups.size() - items_remove; i < list.lookups.size(); i++)
+					{
+						list.children[i]->hide();
+					}
+				}
 
 				// update the view data
 				for (std::size_t i = 0; i < list_size; i++)
@@ -362,6 +375,8 @@ namespace gui
 						components.call(lookup.get(kv.first), Updater{ window, std::move(kv.second) });
 					}
 				}
+
+				list.shown_items = list_size;
 				break;
 			}
 			default:

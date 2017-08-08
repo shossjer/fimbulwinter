@@ -88,7 +88,8 @@ namespace gui
 
 	void Drawable::hide()
 	{
-		// TODO: check if view is visible
+		if (!this->shown) return;
+		this->shown = false;
 
 		engine::graphics::renderer::post_remove(this->entity);
 	}
@@ -149,7 +150,8 @@ namespace gui
 
 	void PanelC::show(const Vector3f delta)
 	{
-		// TODO: check that view is not hidden
+		if (this->shown) return;
+		this->shown = true;
 
 		update_translation(delta);
 
@@ -220,7 +222,8 @@ namespace gui
 
 	void PanelT::show(const Vector3f delta)
 	{
-		// TODO: check that view is not hidden
+		if (this->shown) return;
+		this->shown = true;
 
 		update_translation(delta);
 
@@ -296,7 +299,8 @@ namespace gui
 
 	void Text::show(const Vector3f delta)
 	{
-		// TODO: check that view is not hidden
+		if (this->shown) return;
+		this->shown = true;
 
 		update_translation(delta);
 

@@ -67,6 +67,8 @@ namespace gui
 
 		Size size;
 
+		bool shown;
+
 	protected:
 
 		View(
@@ -76,6 +78,7 @@ namespace gui
 			: gravity(gravity)
 			, margin(margin)
 			, size(size)
+			, shown(false)
 		{}
 
 	public:
@@ -231,7 +234,7 @@ namespace gui
 	{
 		friend class Window;
 
-	private:
+	protected:
 
 		std::vector<View*> children;
 
@@ -281,11 +284,14 @@ namespace gui
 
 		const ListData view_template;
 
+		std::size_t shown_items;
+
 	public:
 
 		List(Gravity gravity, Margin margin, Size size, Layout layout, const ListData & view_template)
 			: Group(gravity, margin, size, layout)
 			, view_template(view_template)
+			, shown_items(0)
 		{}
 	};
 
