@@ -26,29 +26,32 @@ namespace gui
 	class Lookup
 	{
 	private:
-		// TODO: make map
-		core::container::Collection
-			<
-			engine::Asset,
-			201,
-			std::array<engine::Entity, 100>
-			> data;
+
+		struct Hasher
+		{
+			std::size_t operator() (const Asset & asset) const
+			{
+				return asset;
+			}
+		};
+
+		std::unordered_map<engine::Asset, engine::Entity, Hasher> data;
 
 	public:
 
 		void put(engine::Asset name, engine::Entity entity)
 		{
-			this->data.emplace<engine::Entity>(name, entity);
+			this->data.emplace(name, entity);
 		}
 
 		bool contains(engine::Asset name)
 		{
-			return this->data.contains(name);
+			return this->data.find(name) != this->data.end();
 		}
 
 		engine::Entity get(engine::Asset name)
 		{
-			return this->data.get<engine::Entity>(name);
+			return this->data.find(name)->second;
 		}
 	};
 

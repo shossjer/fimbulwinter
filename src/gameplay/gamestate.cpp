@@ -365,9 +365,9 @@ namespace
 			, skillCuttingProgress(0.f)
 			, skillCutting(0)
 			, skillPotato(2)
-			, skillPotatoProgress(0.3)
+			, skillPotatoProgress(0.3f)
 			, skillWorking(7)
-			, skillWorkingProgress(0.7)
+			, skillWorkingProgress(0.7f)
 		{
 		}
 	};

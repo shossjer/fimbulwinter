@@ -550,6 +550,7 @@ namespace gui
 		case Size::TYPE::FIXED:
 			size.height.value = size.height.meta;
 			break;
+			// TODO: allow wrap as window size
 
 		default:
 			debug_unreachable();
@@ -559,6 +560,7 @@ namespace gui
 		case Size::TYPE::FIXED:
 			size.width.value = size.width.meta;
 			break;
+			// TODO: allow wrap as window size
 
 		default:
 			debug_unreachable();
