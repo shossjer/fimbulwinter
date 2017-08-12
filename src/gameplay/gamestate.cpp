@@ -3,10 +3,12 @@
 
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
+#include <core/container/ExchangeQueue.hpp>
 
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
+#include <engine/gui/gui.hpp>
 #include <engine/physics/physics.hpp>
 
 #include <gameplay/level_placeholder.hpp>
@@ -17,6 +19,12 @@
 namespace
 {
 	void entityClick(engine::Entity id);
+
+	template<typename T>
+	T & access_component(const engine::Entity entity);
+
+	// update "profile" of entity if it is currently shown (will not set entity as selected).
+	void profile_update(const engine::Entity entity);
 
 	struct CameraActivator
 	{
@@ -337,7 +345,29 @@ namespace
 		engine::Entity id;
 		engine::Entity workstation;
 
-		Worker(engine::Entity id) : id(id)
+		unsigned int finishedCarrots;
+		float progress;
+		bool working;
+
+		unsigned int skillCutting;
+		float skillCuttingProgress;
+		unsigned int skillPotato;
+		float skillPotatoProgress;
+		unsigned int skillWorking;
+		float skillWorkingProgress;
+
+		Worker(engine::Entity id)
+			: id(id)
+			, workstation(engine::Entity::null())
+			, finishedCarrots(0)
+			, progress(0.f)
+			, working(false)
+			, skillCutting(0)
+			, skillCuttingProgress(0.f)
+			, skillPotato(2)
+			, skillPotatoProgress(0.3f)
+			, skillWorking(7)
+			, skillWorkingProgress(0.7f)
 		{
 		}
 	};
@@ -380,13 +410,14 @@ namespace
 
 	public:
 
-		bool isBusy()
+		bool isBusy() const
 		{
 			return this->worker != engine::Entity::null();
 		}
 
 		void start()
 		{
+			access_component<Worker>(this->worker).working = true;
 			engine::animation::update(this->worker, engine::animation::action{"work", true});
 
 			if (this->boardModel!= engine::Entity::null()) return;
@@ -402,13 +433,13 @@ namespace
 			this->boardModel = engine::Entity::create();
 			gameplay::level::load(this->boardModel, "board", this->top);
 
-			const auto pos = to_xyz(this->front.get_column<3>());
 			this->bar = engine::Entity::create();
 			barUpdate(0.f);
 		}
 
 		void cleanup()
 		{
+			access_component<Worker>(this->worker).working = false;
 			engine::animation::update(this->worker, engine::animation::action{"idle", true});
 
 			engine::graphics::renderer::post_remove(this->boardModel);
@@ -426,14 +457,30 @@ namespace
 			if (this->boardModel == engine::Entity::null())
 				return;
 
+			Worker & w = access_component<Worker>(this->worker);
+
 			this->progress += (1000./50.);
 
-			barUpdate(static_cast<float>(this->progress / (4. * 1000.)));
+			const auto progress_percentage = static_cast<float>(this->progress / (4. * 1000.));
+			w.progress = progress_percentage;
+			barUpdate(progress_percentage);
 
 			if (this->progress < (4. * 1000.))
+			{
+				profile_update(this->worker);
 				return;
+			}
 
 			// carrot is finished! either stop working or auto checkout a new carrot...
+			w.finishedCarrots++;
+			w.working = false;
+			w.skillCuttingProgress += 0.35f;
+			if (w.skillCuttingProgress >= 1.f)
+			{
+				w.skillCuttingProgress -= 1.f;
+				w.skillCutting++;
+			}
+			profile_update(this->worker);
 
 			this->progress = 0.;
 
@@ -444,18 +491,240 @@ namespace
 		}
 	};
 
+	struct
+	{
+		// entity of currently "profiled" object
+		engine::Entity entity;
+
+		void operator() (Worker & worker)
+		{
+			// update "data" of the profile window
+			engine::gui::Datas datas;
+			datas.emplace_back("title", std::string("Worker Bob"));
+
+			if (worker.working)
+			{
+				datas.emplace_back("status", std::string("Working hard"));
+				datas.emplace_back("status", 0xff00ff00);
+			}
+			else
+			{
+				datas.emplace_back("status", std::string("Idle"));
+				datas.emplace_back("status", 0xff0000ff);
+			}
+			datas.emplace_back("photo", engine::Asset{ "photo" });
+			datas.emplace_back("profile_progress", worker.progress);
+
+			{
+				std::vector<engine::gui::Datas> list;
+				for (int i = 0; i < worker.finishedCarrots; i++)
+				{
+					list.emplace_back();
+					list.back().emplace_back(
+						engine::Asset{ "title" },
+						std::string("Finished cutting a carrot."));
+				}
+				datas.emplace_back("profile_accomp", std::move(list));
+			}
+			{
+				std::vector<engine::gui::Datas> list;
+
+				list.emplace_back();
+				list.back().emplace_back(
+					engine::Asset{ "title" },
+					std::string("Skill - Cutting: ") + std::to_string(worker.skillCutting));
+				list.back().emplace_back(
+					engine::Asset{ "progress" },
+					worker.skillCuttingProgress);
+
+				list.emplace_back();
+				list.back().emplace_back(
+					engine::Asset{ "title" },
+					std::string("Skill - Working: ") + std::to_string(worker.skillWorking));
+				list.back().emplace_back(
+					engine::Asset{ "progress" },
+					worker.skillWorkingProgress);
+
+				list.emplace_back();
+				list.back().emplace_back(
+					engine::Asset{ "title" },
+					std::string("Skill - Potato: ") + std::to_string(worker.skillPotato));
+				list.back().emplace_back(
+					engine::Asset{ "progress" },
+					worker.skillPotatoProgress);
+
+				datas.emplace_back("profile_skills", std::move(list));
+			}
+
+			engine::gui::post_update_data("profile", std::move(datas));
+		}
+
+		template<typename T>
+		void operator() (const T &)
+		{}
+	}
+	profile_updater;
+
+	struct WindowInventory
+	{
+		void operator = (std::pair<engine::Command, utility::any> && args)
+		{
+			switch (args.first)
+			{
+			case engine::Command::BUTTON_DOWN_ACTIVE:
+				debug_assert(!args.second.has_value());
+				engine::gui::post_state_show("inventory");
+				break;
+			case engine::Command::BUTTON_DOWN_INACTIVE:
+				debug_assert(!args.second.has_value());
+				engine::gui::post_state_hide("inventory");
+				break;
+			case engine::Command::BUTTON_UP_ACTIVE:
+			case engine::Command::BUTTON_UP_INACTIVE:
+				debug_assert(!args.second.has_value());
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+	};
+	struct WindowProfile
+	{
+		void operator = (std::pair<engine::Command, utility::any> && args)
+		{
+			switch (args.first)
+			{
+			case engine::Command::BUTTON_DOWN_ACTIVE:
+			case engine::Command::BUTTON_DOWN_INACTIVE:
+				debug_assert(!args.second.has_value());
+				engine::gui::post_state_toggle("profile");
+				break;
+			case engine::Command::BUTTON_UP_ACTIVE:
+			case engine::Command::BUTTON_UP_INACTIVE:
+				debug_assert(!args.second.has_value());
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+	};
+
+	struct GUIComponent
+	{
+		engine::Entity id;
+		engine::Asset window;
+		engine::Asset action;
+	};
+
+	struct GUIMover
+	{
+		const int16_t dx;
+		const int16_t dy;
+
+		GUIMover(const int16_t dx, const int16_t dy)
+			: dx(dx)
+			, dy(dy)
+		{}
+
+		void operator () (const GUIComponent & c)
+		{
+			if (c.action == engine::Asset{ "mover" })
+				engine::gui::post_update_translate(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	};
+
+	// mouse button pressed on entity (the entity is not "selected" yet).
+	struct PlayerEntitySelection
+	{
+		void operator () (const GUIComponent & c)
+		{
+			engine::gui::post_interaction_select(c.window);
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	};
+
+	struct PlayerEntityDeselection
+	{
+		void operator () (const GUIComponent & c)
+		{
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	};
+
+	// when mouse button is released and the entity is selected.
+	struct PlayerEntitySelected
+	{
+		// was it selected for first time or "re"-selected?
+		const bool reselected;
+
+		PlayerEntitySelected(bool reselected)
+			: reselected(reselected)
+		{}
+
+		void operator () (const GUIComponent & c)
+		{
+			engine::gui::post_interaction_click(c.id);
+		}
+
+		void operator () (const Worker & w)
+		{
+			profile_updater.entity = w.id;
+			profile_update(w.id);
+
+			// show the window
+			engine::gui::post_state_show("profile");
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	};
+
+	// the selected entity has been cleared.
+	struct PlayerEntityCleared
+	{
+		void operator () (const GUIComponent & c)
+		{
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
-		141,
+		241,
 		std::array<CameraActivator, 2>,
 		std::array<FreeCamera, 1>,
+		std::array<GUIComponent, 100>,
 		std::array<OverviewCamera, 1>,
 		std::array<Selector, 1>,
+		std::array<WindowInventory, 1>,
+		std::array<WindowProfile, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>
 	>
 	components;
+
+	std::pair<int16_t, int16_t> mouse_coords{ 0, 0 };
+	core::container::ExchangeQueueSRSW<std::pair<int16_t, int16_t>> queue_mouse_coords;
 
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, utility::any>, 100> queue_commands;
 
@@ -468,7 +737,28 @@ namespace
 			Matrix4x4f
 		>,
 		100> queue_workstations;
+	core::container::CircleQueueSRMW<std::tuple
+		<
+			engine::Entity,
+			engine::Asset,
+			engine::Asset
+		>,
+		100> queue_gui_components;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
+
+	template<typename T>
+	T & access_component(const engine::Entity entity)
+	{
+		return components.get<T>(entity);
+	}
+
+	void profile_update(const engine::Entity entity)
+	{
+		if (entity == profile_updater.entity)
+		{
+			components.call(entity, profile_updater);
+		}
+	}
 
 	void move_to_workstation(Worker & w, Workstation & s)
 	{
@@ -526,9 +816,7 @@ namespace
 
 		template <typename W>
 		void operator() (const W & w)
-		{
-			debug_printline(0xffffffff, "You have failed!");
-		}
+		{}
 
 	} playerInteraction;
 
@@ -583,6 +871,18 @@ namespace gamestate
 		gameplay::ui::post_bind("debug", flycontrol, 0);
 		gameplay::ui::post_bind("game", pancontrol, 0);
 		gameplay::ui::post_bind("game", bordercontrol, 0);
+
+		profile_updater.entity = engine::Entity::null();
+		auto inventorycontrol = engine::Entity::create();
+		gameplay::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
+		gameplay::ui::post_bind("debug", inventorycontrol, 0);
+		gameplay::ui::post_bind("game", inventorycontrol, 0);
+		components.emplace<WindowInventory>(inventorycontrol);
+		auto profilecontrol = engine::Entity::create();
+		gameplay::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
+		gameplay::ui::post_bind("debug", profilecontrol, 0);
+		gameplay::ui::post_bind("game", profilecontrol, 0);
+		components.emplace<WindowProfile>(profilecontrol);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
@@ -639,14 +939,89 @@ namespace gamestate
 					std::get<2>(workstation_args),
 					std::get<3>(workstation_args));
 			}
+
+			std::tuple<engine::Entity, engine::Asset, engine::Asset> gui_component_args;
+			while (queue_gui_components.try_pop(gui_component_args))
+			{
+				components.emplace<GUIComponent>(
+					std::get<0>(gui_component_args),
+					GUIComponent{
+						std::get<0>(gui_component_args),
+						std::get<1>(gui_component_args),
+						std::get<2>(gui_component_args) });
+			}
 		}
 
 		// commands
 		{
+			static engine::Entity highlighted_entity = engine::Entity::null();
+			static engine::Entity pressed_entity = engine::Entity::null();
+			static engine::Entity selected_entity = engine::Entity::null();
+
 			std::tuple<engine::Entity, engine::Command, utility::any> command_args;
 			while (queue_commands.try_pop(command_args))
 			{
-				components.update(std::get<0>(command_args), std::make_pair(std::get<1>(command_args), std::move(std::get<2>(command_args))));
+				if (std::get<0>(command_args) != engine::Entity::null())
+				{
+					components.update(std::get<0>(command_args), std::make_pair(std::get<1>(command_args), std::move(std::get<2>(command_args))));
+					continue;
+				}
+				switch (std::get<1>(command_args))
+				{
+				case engine::Command::RENDER_HIGHLIGHT:
+					highlighted_entity = utility::any_cast<engine::Entity>(std::get<2>(command_args));
+
+					if (pressed_entity != engine::Entity::null())
+					{
+						debug_printline(0xffffffff, "Gamestate - Leaving entity: ", pressed_entity);
+						components.call(pressed_entity, PlayerEntityDeselection{});
+						pressed_entity = engine::Entity::null();
+					}
+
+					break;
+				case engine::Command::MOUSE_LEFT_DOWN:
+
+					if (selected_entity!= engine::Entity::null() && selected_entity != highlighted_entity)
+					{
+						debug_printline(0xffffffff, "Gamestate - Clearing entity: ", selected_entity);
+						components.call(selected_entity, PlayerEntityCleared{});
+						selected_entity = engine::Entity::null();
+					}
+
+					if (components.contains(highlighted_entity))
+					{
+						debug_printline(0xffffffff, "Gamestate - Pressed entity: ", highlighted_entity);
+						pressed_entity = highlighted_entity;
+						components.call(highlighted_entity, PlayerEntitySelection{});
+					}
+					break;
+				case engine::Command::MOUSE_LEFT_UP:
+
+					if (pressed_entity != engine::Entity::null())
+					{
+						debug_printline(0xffffffff, "Gamestate - Selecting entity: ", pressed_entity);
+						selected_entity = pressed_entity;
+						components.call(selected_entity, PlayerEntitySelected{ selected_entity == pressed_entity });
+
+						pressed_entity = engine::Entity::null();
+					}
+					break;
+				default:
+					debug_unreachable();
+				}
+			}
+
+			std::pair<int16_t, int16_t> mouse_update;
+			if (queue_mouse_coords.try_pop(mouse_update))
+			{
+				if (pressed_entity != engine::Entity::null())
+				{
+					const int16_t dx = mouse_update.first - mouse_coords.first;
+					const int16_t dy = mouse_update.second - mouse_coords.second;
+					components.call(pressed_entity, GUIMover{ dx, dy });
+				}
+
+				mouse_coords = mouse_update;
 			}
 		}
 
@@ -674,6 +1049,19 @@ namespace gamestate
 	void post_command(engine::Entity entity, engine::Command command, utility::any && data)
 	{
 		const auto res = queue_commands.try_emplace(entity, command, std::move(data));
+		debug_assert(res);
+	}
+
+	void notify(int16_t dx, int16_t dy)
+	{
+		const auto res = queue_mouse_coords.try_push(dx, dy);
+		debug_assert(res);
+	}
+
+	//void post_add(engine::Entity entity, engine::gui::Component component)
+	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name)
+	{
+		const auto res = queue_gui_components.try_emplace(entity, window, name);
 		debug_assert(res);
 	}
 

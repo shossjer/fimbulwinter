@@ -194,12 +194,14 @@ namespace gameplay
 						asset,
 						r + (g << 8) + (b << 16) + (0xff << 24) });
 
+				const auto entity = engine::Entity::create();
 				engine::graphics::renderer::post_add_component(
-					engine::Entity::create(),
+					entity,
 					engine::graphics::data::CompC{
 						data.matrix,
 						Vector3f{1.f, 1.f, 1.f},
 						assets});
+				engine::graphics::renderer::post_make_obstruction(entity);
 			}
 
 			for (const auto & ph : level.placeholders)

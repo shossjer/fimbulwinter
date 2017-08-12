@@ -5,11 +5,15 @@
 namespace utility
 {
 	template <bool Cond>
-	struct enable_default_constructor {};
+	struct enable_default_constructor
+	{
+		enable_default_constructor() = default;
+		enable_default_constructor(int) {}
+	};
 	template <>
 	struct enable_default_constructor<false>
 	{
-		enable_default_constructor() = delete;
+		enable_default_constructor(int) {}
 	};
 
 	template <bool Cond>

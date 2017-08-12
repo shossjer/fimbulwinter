@@ -6,6 +6,7 @@
 
 #include <utility/preprocessor.hpp>
 #include <utility/type_traits.hpp>
+#include <utility/utility.hpp>
 
 #include <array>
 #include <numeric>
@@ -74,7 +75,7 @@ namespace core
 				template <typename ...Ps>
 				void construct(const std::size_t index, Ps && ...ps)
 				{
-					new (components + index) C(std::forward<Ps>(ps)...);
+					utility::construct_at<C>(components + index, std::forward<Ps>(ps)...);
 				}
 				void destruct(const std::size_t index)
 				{
@@ -449,7 +450,7 @@ namespace core
 				template <typename ...Ps>
 				void construct(const std::size_t index, Ps && ...ps)
 				{
-					new (components + index) C(std::forward<Ps>(ps)...);
+					utility::construct_at<C>(components + index, std::forward<Ps>(ps)...);
 				}
 				void destruct(const std::size_t index)
 				{
@@ -680,7 +681,7 @@ namespace core
 			void remove_impl(mpl::index_constant<type>, bucket_t bucket, uint24_t index)
 			{
 				auto & array = std::get<type>(arrays);
-				debug_assert(index < array.size);
+				debug_assert(index < array.capacity);
 
 				slots[bucket].clear();
 				// keys[bucket] = ??? // not needed
@@ -716,7 +717,7 @@ namespace core
 				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				auto & array = std::get<type>(arrays);
-				debug_assert(index < array.size);
+				debug_assert(index < array.capacity);
 
 				return func(array.get(index));
 			}

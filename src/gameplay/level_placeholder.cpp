@@ -101,6 +101,7 @@ namespace level
 					matrix,
 					Vector3f{ 1.f, 1.f, 1.f },
 					assets });
+			engine::graphics::renderer::post_make_obstruction(id);
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_worker(id);

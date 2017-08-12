@@ -723,17 +723,20 @@ namespace utility
 		          REQUIRES((!is_in_place_type<std::remove_pointer_t<mpl::decay_t<P>>>::value)),
 		          typename T = mpl::best_convertible_t<P, Ts...>,
 		          REQUIRES((std::is_constructible<T, P>::value))>
-		variant(P && p) noexcept(detail::variant_is_nothrow_constructible<T, P>::value) :
-			storage(in_place_index<mpl::index_of<T, Ts...>::value>, std::forward<P>(p))
+		variant(P && p) noexcept(detail::variant_is_nothrow_constructible<T, P>::value)
+			: enable_default_constructor<detail::variant_is_default_constructible<Ts...>::value>(0)
+			, storage(in_place_index<mpl::index_of<T, Ts...>::value>, std::forward<P>(p))
 		{}
 		template <size_t I, typename ...Ps>
-		variant(in_place_index_t<I>, Ps && ...ps) noexcept(detail::variant_is_nothrow_constructible<mpl::type_at<I, Ts...>, Ps...>::value) :
-			storage(in_place_index<I>, std::forward<Ps>(ps)...)
+		variant(in_place_index_t<I>, Ps && ...ps) noexcept(detail::variant_is_nothrow_constructible<mpl::type_at<I, Ts...>, Ps...>::value)
+			: enable_default_constructor<detail::variant_is_default_constructible<Ts...>::value>(0)
+			, storage(in_place_index<I>, std::forward<Ps>(ps)...)
 		{}
 		template <typename T, typename ...Ps,
 		          REQUIRES((mpl::member_of<T, Ts...>::value))>
-		variant(in_place_type_t<T>, Ps && ...ps) noexcept(detail::variant_is_nothrow_constructible<T, Ps...>::value) :
-			storage(in_place_index<mpl::index_of<T, Ts...>::value>, std::forward<Ps>(ps)...)
+		variant(in_place_type_t<T>, Ps && ...ps) noexcept(detail::variant_is_nothrow_constructible<T, Ps...>::value)
+			: enable_default_constructor<detail::variant_is_default_constructible<Ts...>::value>(0)
+			, storage(in_place_index<mpl::index_of<T, Ts...>::value>, std::forward<Ps>(ps)...)
 		{}
 		template <typename P,
 		          REQUIRES((!mpl::is_same<mpl::decay_t<P>, this_type>::value)),

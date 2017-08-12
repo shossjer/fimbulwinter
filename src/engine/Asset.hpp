@@ -47,6 +47,10 @@ namespace engine
 			get_lookup_table().emplace(id, str);
 #endif
 		}
+	private:
+		constexpr Asset(value_type val) : id(val)
+		{
+		}
 
 	public:
 		constexpr operator value_type () const
@@ -54,6 +58,11 @@ namespace engine
 			return this->id;
 		}
 
+	public:
+		static constexpr Asset null()
+		{
+			return Asset(0);
+		}
 #if MODE_DEBUG
 	private:
 		static std::unordered_map<value_type, std::string> & get_lookup_table()
@@ -88,5 +97,17 @@ namespace engine
 		}
 	};
 }
+
+namespace std
+{
+	template<> struct hash<engine::Asset>
+	{
+		std::size_t operator () (const engine::Asset asset) const
+		{
+			return asset;
+		}
+	};
+}
+
 
 #endif /* ENGINE_ASSET_HPP */

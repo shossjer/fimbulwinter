@@ -71,6 +71,32 @@ namespace engine
 				float progress;
 			};
 
+			namespace ui
+			{
+				struct PanelC
+				{
+					core::maths::Matrix4x4f matrix;
+					core::maths::Vector2f size;
+					Color color;
+				};
+
+				struct PanelT
+				{
+					core::maths::Matrix4x4f matrix;
+					core::maths::Vector2f size;
+					engine::Asset texture;
+				};
+
+				struct Text
+				{
+					core::maths::Matrix4x4f matrix;
+					Color color;
+					std::string display;
+					// TODO: asset font resource
+					// TODO: font size
+				};
+			}
+
 			// modelview matrix
 			struct ModelviewMatrix
 			{
@@ -126,14 +152,21 @@ namespace engine
 			void post_add_component(engine::Entity entity, data::CompC && data);
 			void post_add_component(engine::Entity entity, data::CompT && data);
 			void post_add_line(engine::Entity entity, data::LineC && data);
+			void post_add_panel(engine::Entity entity, data::ui::PanelC && data);
+			void post_add_panel(engine::Entity entity, data::ui::PanelT && data);
+			void post_add_text(engine::Entity entity, data::ui::Text && data);
 
 			void post_make_selectable(engine::Entity entity);
-			void post_make_nonselectable(engine::Entity entity);
+			void post_make_obstruction(engine::Entity entity);
+			void post_make_transparent(engine::Entity entity);
 
 			void post_remove(engine::Entity entity);
 
 			// void post_update_characterskinning(engine::Entity entity, CharacterSkinning && data);
 			void post_update_modelviewmatrix(engine::Entity entity, data::ModelviewMatrix && data);
+			void post_update_panel(engine::Entity entity, data::ui::PanelC && data);
+			void post_update_panel(engine::Entity entity, data::ui::PanelT && data);
+			void post_update_text(engine::Entity entity, data::ui::Text && data);
 
 			void post_select(int x, int y, engine::Entity entity);
 

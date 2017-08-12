@@ -24,6 +24,10 @@ namespace viewer
 	extern void update();
 }
 }
+namespace gui
+{
+	extern void update();
+}
 }
 namespace gameplay
 {
@@ -75,10 +79,12 @@ namespace looper
 			::engine::physics::update_finish();
 
 			// 
-			gameplay::ui::update();
+			::gameplay::ui::update();
 		
 			// update characters
 			::gameplay::gamestate::update();
+
+			::engine::gui::update();
 
 			//
 			::engine::graphics::viewer::update();
