@@ -19,6 +19,7 @@ namespace
 		const json & jcolors;
 		const json & jdimensions;
 		const json & jstrings;
+		const json & jtemplates;
 
 	public:
 
@@ -26,13 +27,20 @@ namespace
 			: jcolors(jcontent["colors"])
 			, jdimensions(jcontent["dimensions"])
 			, jstrings(jcontent["strings"])
+			, jtemplates(jcontent["templates"])
 		{
 			// load colors and themes and strings? into resources...
 		}
 
 	private:
 
-		engine::graphics::data::Color extract_color(const json & jdata)
+		engine::Asset extract_asset(const json & jdata, const std::string key) const
+		{
+			debug_assert(contains(jdata, key));
+			return engine::Asset{ jdata[key].get<std::string>() };
+		}
+
+		engine::graphics::data::Color extract_color(const json & jdata) const
 		{
 			const std::string str = jdata["color"];
 			debug_assert(str.length() > std::size_t{ 0 });
@@ -48,7 +56,7 @@ namespace
 			return std::stoul(str, nullptr, 16);
 		}
 
-		value_t extract_margin(const std::string key, const json & jmargin)
+		value_t extract_margin(const std::string key, const json & jmargin) const
 		{
 			if (!contains(jmargin, key))
 				return 0;
@@ -64,7 +72,7 @@ namespace
 			return this->jdimensions[str].get<value_t>();
 		}
 
-		Size::Dimen extract_dimen(const json & jd)
+		Size::Dimen extract_dimen(const json & jd) const
 		{
 			if (jd.is_string())
 			{
@@ -92,9 +100,9 @@ namespace
 			return Size::Dimen{ Size::TYPE::FIXED, jd.get<value_t>() };
 		}
 
-		Size extract_size(const json & jdata)
+		Size extract_size(const json & jdata) const
 		{
-			const json jsize = jdata["size"];
+			const json & jsize = jdata["size"];
 
 			debug_assert(contains(jsize, "w"));
 			debug_assert(contains(jsize, "h"));
@@ -104,38 +112,41 @@ namespace
 
 	public:
 
-		std::string string(const json & jdata, const std::string key)
+		bool has_color(const json & jdata) const
 		{
-			debug_assert(contains(jdata, key));
-			return jdata[key].get<std::string>();
+			return contains(jdata, "color");
 		}
 
-		engine::Asset asset(const json & jdata, const std::string key)
-		{
-			debug_assert(contains(jdata, key));
-			return engine::Asset{ jdata[key].get<std::string>() };
-		}
-
-		engine::Asset asset_or_null(const json & jdata, const std::string key)
-		{
-			if (contains(jdata, key))
-				return engine::Asset{ jdata[key].get<std::string>() };
-			return engine::Asset{ "" };
-		}
-
-		engine::graphics::data::Color color(const json & jdata)
+		engine::graphics::data::Color color(const json & jdata) const
 		{
 			debug_assert(contains(jdata, "color"));
 			return extract_color(jdata);
 		}
 
-		engine::graphics::data::Color color(const json & jdata, const engine::graphics::data::Color def_val)
+		engine::graphics::data::Color color(const json & jdata, const engine::graphics::data::Color def_val) const
 		{
 			if (!contains(jdata, "color")) return def_val;
 			return extract_color(jdata);
 		}
 
-		Layout layout(const json & jgroup)
+		const json & components(const json & jdata) const
+		{
+			debug_assert(contains(jdata, "components"));
+			return jdata["components"];
+		}
+
+		bool has_display(const json & jdata) const
+		{
+			return contains(jdata, "display");
+		}
+
+		std::string display(const json & jdata) const
+		{
+			debug_assert(has_display(jdata));
+			return jdata["display"].get<std::string>();
+		}
+
+		Layout layout(const json & jgroup) const
 		{
 			debug_assert(contains(jgroup, "layout"));
 
@@ -149,14 +160,14 @@ namespace
 			debug_unreachable();
 		}
 
-		Gravity gravity(const json & jdata)
+		Gravity gravity(const json & jdata) const
 		{
 			uint_fast16_t h = Gravity::HORIZONTAL_LEFT;
 			uint_fast16_t v = Gravity::VERTICAL_TOP;
 
 			if (contains(jdata, "gravity"))
 			{
-				const json jgravity = jdata["gravity"];
+				const json & jgravity = jdata["gravity"];
 
 				if (contains(jgravity, "h"))
 				{
@@ -194,32 +205,32 @@ namespace
 			return Gravity{ h | v };
 		}
 
-		engine::Asset name(const json & jdata)
+		std::string name(const json & jdata) const
 		{
 			debug_assert(contains(jdata, "name"));
 			std::string str = jdata["name"];
 			debug_assert(str.length() > std::size_t{ 0 });
-			return engine::Asset{ str };
+			return str;
 		}
 
-		engine::Asset name_or_null(const json & jdata)
+		std::string name_or_null(const json & jdata) const
 		{
 			if (contains(jdata, "name"))
 			{
 				std::string str = jdata["name"];
 				debug_assert(str.length() > std::size_t{ 0 });
-				return engine::Asset{ str };
+				return str;
 			}
-			return engine::Asset::null();
+			return "";
 		}
 
-		Margin margin(const json & jdata)
+		Margin margin(const json & jdata) const
 		{
 			Margin margin;
 
 			if (contains(jdata, "margin"))
 			{
-				const json jmargin = jdata["margin"];
+				const json & jmargin = jdata["margin"];
 
 				margin.bottom = extract_margin("b", jmargin);
 				margin.left = extract_margin("l", jmargin);
@@ -230,30 +241,95 @@ namespace
 			return margin;
 		}
 
-		Size size(const json & jdata)
+		bool has_res(const json & jdata) const
+		{
+			return contains(jdata, "res");
+		}
+		engine::Asset res(const json & jdata) const
+		{
+			return extract_asset(jdata, "res");
+		}
+
+		Size size(const json & jdata) const
 		{
 			debug_assert(contains(jdata, "size"));
 			return extract_size(jdata);
 		}
 
-		Size size_def_parent(const json & jdata)
+		Size size_def_parent(const json & jdata) const
 		{
 			if (!contains(jdata, "size"))
 				return Size{ Size::TYPE::PARENT, Size::TYPE::PARENT };
 			return extract_size(jdata);
 		}
 
-		Size size_def_wrap(const json & jdata)
+		Size size_def_wrap(const json & jdata) const
 		{
 			if (!contains(jdata, "size"))
 				return Size{ Size::TYPE::WRAP, Size::TYPE::WRAP };
 			return extract_size(jdata);
 		}
 
-		engine::Asset type(const json & jdata)
+		const json & template_data(const std::string key) const
+		{
+			debug_assert(contains(this->jtemplates, key));
+			return this->jtemplates[key];
+		}
+
+		engine::Asset type(const json & jdata) const
 		{
 			debug_assert(contains(jdata, "type"));
 			return engine::Asset{ jdata["type"].get<std::string>() };
+		}
+
+		bool has_type_group(const json & jdata) const
+		{
+			return contains(jdata, "group");
+		}
+		const json & type_group(const json & jdata) const
+		{
+			debug_assert(has_type_group(jdata));
+			return jdata["group"];
+		}
+
+		bool has_type_list(const json & jdata) const
+		{
+			return contains(jdata, "list");
+		}
+		const json & type_list(const json & jdata) const
+		{
+			debug_assert(has_type_list(jdata));
+			return jdata["list"];
+		}
+
+		bool has_type_panel(const json & jdata) const
+		{
+			return contains(jdata, "panel");
+		}
+		const json & type_panel(const json & jdata) const
+		{
+			debug_assert(has_type_panel(jdata));
+			return jdata["panel"];
+		}
+
+		bool has_type_text(const json & jdata) const
+		{
+			return contains(jdata, "text");
+		}
+		const json & type_text(const json & jdata) const
+		{
+			debug_assert(has_type_text(jdata));
+			return jdata["text"];
+		}
+
+		bool has_type_texture(const json & jdata) const
+		{
+			return contains(jdata, "texture");
+		}
+		const json & type_texture(const json & jdata) const
+		{
+			debug_assert(has_type_texture(jdata));
+			return jdata["texture"];
 		}
 	};
 
@@ -345,12 +421,11 @@ namespace
 
 		GroupData & load_group(GroupData & parent, const json & jcomponent)
 		{
-			debug_assert(contains(jcomponent, "group"));
-			const json jgroup = jcomponent["group"];
+			const json & jgroup = this->load.type_group(jcomponent);
 
 			parent.children.emplace_back(
 				utility::in_place_type<GroupData>,
-				engine::Asset::null(),
+				this->load.name_or_null(jcomponent),
 				this->load.size_def_parent(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
@@ -363,8 +438,7 @@ namespace
 
 		ListData & load_list(GroupData & parent, const json & jcomponent)
 		{
-			debug_assert(contains(jcomponent, "list"));
-			const json jgroup = jcomponent["list"];
+			const json & jgroup = this->load.type_list(jcomponent);
 
 			parent.children.emplace_back(
 				utility::in_place_type<ListData>,
@@ -381,8 +455,7 @@ namespace
 
 		PanelData & load_panel(GroupData & parent, const json & jcomponent)
 		{
-			debug_assert(contains(jcomponent, "panel"));
-			const json jpanel = jcomponent["panel"];
+			const json & jpanel = this->load.type_panel(jcomponent);
 
 			parent.children.emplace_back(
 				utility::in_place_type<PanelData>,
@@ -399,8 +472,7 @@ namespace
 
 		TextData & load_text(GroupData & parent, const json & jcomponent)
 		{
-			debug_assert(contains(jcomponent, "text"));
-			const json jtext = jcomponent["text"];
+			const json & jtext = this->load.type_text(jcomponent);
 
 			parent.children.emplace_back(
 				utility::in_place_type<TextData>,
@@ -409,7 +481,7 @@ namespace
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
 				this->load.color(jtext, 0xff000000),
-				this->load.string(jtext, "display"));
+				this->load.display(jtext));
 
 			TextData & view = utility::get<TextData>(parent.children.back());
 
@@ -421,8 +493,7 @@ namespace
 
 		TextureData & load_texture(GroupData & parent, const json & jcomponent)
 		{
-			debug_assert(contains(jcomponent, "texture"));
-			const json jtexture = jcomponent["texture"];
+			const json & jtexture = this->load.type_texture(jcomponent);
 
 			parent.children.emplace_back(
 				utility::in_place_type<TextureData>,
@@ -430,12 +501,206 @@ namespace
 				this->load.size(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
-				this->load.asset(jtexture, "res"));
+				this->load.res(jtexture));
 
 			TextureData & view = utility::get<TextureData>(parent.children.back());
 
 			return view;
 		}
+
+		void load_views(GroupData & parent, const std::string type, const json & jcomponent)
+		{
+			if (type == "group")
+			{
+				auto & group = load_group(parent, jcomponent);
+				load_components(group, this->load.components(jcomponent));
+
+				if (has_function(jcomponent))
+				{
+					load_function(group, jcomponent);
+				}
+			}
+			else
+			if (type == "list")
+			{
+				auto & list = load_list(parent, jcomponent);
+				const json & jitem_template = this->load.components(jcomponent);
+				debug_assert(jitem_template.size()== 1);
+				load_components(list, jitem_template);
+			}
+			else
+			if (type == "panel")
+			{
+				auto & view = load_panel(parent, jcomponent);
+
+				if (has_action(jcomponent))
+				{
+					load_action(view, jcomponent);
+				}
+				if (has_function(jcomponent))
+				{
+					load_function(view, jcomponent);
+				}
+			}
+			else
+			if (type == "text")
+			{
+				auto & view = load_text(parent, jcomponent);
+
+				if (has_action(jcomponent))
+				{
+					load_action(view, jcomponent);
+				}
+				if (has_function(jcomponent))
+				{
+					load_function(view, jcomponent);
+				}
+			}
+			else
+			if (type == "texture")
+			{
+				auto & view = load_texture(parent, jcomponent);
+
+				if (has_action(jcomponent))
+				{
+					load_action(view, jcomponent);
+				}
+				if (has_function(jcomponent))
+				{
+					load_function(view, jcomponent);
+				}
+			}
+		}
+
+		void load_views(GroupData & parent, const json & jcomponent)
+		{
+			debug_assert(contains(jcomponent, "type"));
+			const std::string type = jcomponent["type"];
+			debug_assert(!type.empty());
+
+			load_views(parent, type, jcomponent);
+		}
+
+		struct Customize
+		{
+			const ResourceLoader & load;
+			const json & jdata;
+
+		private:
+
+			// checks if the view has a custom definition in the implementation of the view.
+			bool is_customized(ViewData & data)
+			{
+				if (data.name.empty())
+					return false;
+
+				if (!contains(jdata, data.name))
+				{
+					// remove "template name" from instance if set and no overrider provided.
+					// this is because the name needs to be unique.
+					data.name = "";
+					return false;
+				}
+				return true;
+			}
+
+			const json & get_customized(ViewData & data)
+			{
+				const json & jcustomize = this->jdata[data.name];
+
+				// remove "template name" from instance if set and no overrider provided.
+				// this is because the name needs to be unique.
+				data.name = "";
+				return jcustomize;
+			}
+
+		public:
+
+			void operator() (GroupData & data)
+			{
+				if (is_customized(data))
+				{
+					const json & jcustomize = get_customized(data);
+
+					data.name = this->load.name_or_null(jcustomize);
+				}
+
+				// customize any template children of the group
+				for (auto & child : data.children)
+				{
+					visit(*this, child);
+				}
+			}
+			void operator() (ListData & data)
+			{
+				if (is_customized(data))
+				{
+					const json & jcustomize = get_customized(data);
+
+					data.name = this->load.name_or_null(jcustomize);
+				}
+
+				// customize the list item template
+				for (auto & child : data.children)
+				{
+					visit(*this, child);
+				}
+			}
+			void operator() (PanelData & data)
+			{
+				if (is_customized(data))
+				{
+					const json & jcustomize = get_customized(data);
+
+					data.name = this->load.name_or_null(jcustomize);
+
+					if (this->load.has_type_panel(jcustomize))
+					{
+						const json & jpanel = this->load.type_panel(jcustomize);
+
+						if (this->load.has_color(jpanel))
+							data.color = this->load.color(jpanel);
+					}
+				}
+			}
+			void operator() (TextData & data)
+			{
+				if (is_customized(data))
+				{
+					const json & jcustomize = get_customized(data);
+
+					data.name = this->load.name_or_null(jcustomize);
+
+					if (this->load.has_type_text(jcustomize))
+					{
+						const json & jtext = this->load.type_text(jcustomize);
+
+						if (this->load.has_display(jtext))
+							data.display = this->load.display(jtext);
+
+						if (this->load.has_color(jtext))
+							data.color = this->load.color(jtext);
+					}
+				}
+			}
+			void operator() (TextureData & data)
+			{
+				if (is_customized(data))
+				{
+					const json & jcustomize = get_customized(data);
+
+					data.name = this->load.name_or_null(jcustomize);
+
+					if (this->load.has_type_texture(jcustomize))
+					{
+						const json & jtexture = this->load.type_texture(jcustomize);
+
+						if (this->load.has_res(jtexture))
+							data.res = this->load.res(jtexture);
+					}
+				}
+			}
+		};
 
 		void load_components(GroupData & parent, const json & jcomponents)
 		{
@@ -443,66 +708,17 @@ namespace
 			{
 				debug_assert(contains(jcomponent, "type"));
 				const std::string type = jcomponent["type"];
+				debug_assert(!type.empty());
 
-				if (type == "group")
+				if (type[0] == '#')
 				{
-					auto & group = load_group(parent, jcomponent);
-					load_components(group, jcomponent["components"]);
-
-					if (has_function(jcomponent))
-					{
-						load_function(group, jcomponent);
-					}
+					load_views(parent, this->load.template_data(type));
+					DataVariant & datav = parent.children.back();
+					visit(Customize{ this->load, jcomponent }, datav);
 				}
 				else
-				if (type == "list")
 				{
-					auto & list = load_list(parent, jcomponent);
-					const json & jitem_template = jcomponent["components"];
-					debug_assert(jitem_template.size()== 1);
-					load_components(list, jitem_template);
-				}
-				else
-				if (type == "panel")
-				{
-					auto & view = load_panel(parent, jcomponent);
-
-					if (has_action(jcomponent))
-					{
-						load_action(view, jcomponent);
-					}
-					if (has_function(jcomponent))
-					{
-						load_function(view, jcomponent);
-					}
-				}
-				else
-				if (type == "text")
-				{
-					auto & view = load_text(parent, jcomponent);
-
-					if (has_action(jcomponent))
-					{
-						load_action(view, jcomponent);
-					}
-					if (has_function(jcomponent))
-					{
-						load_function(view, jcomponent);
-					}
-				}
-				else
-				if (type == "texture")
-				{
-					auto & view = load_texture(parent, jcomponent);
-
-					if (has_action(jcomponent))
-					{
-						load_action(view, jcomponent);
-					}
-					if (has_function(jcomponent))
-					{
-						load_function(view, jcomponent);
-					}
+					load_views(parent, type, jcomponent);
 				}
 			}
 		}
@@ -511,8 +727,7 @@ namespace
 
 		void create(std::vector<DataVariant> & windows, const json & jwindow)
 		{
-			debug_assert(contains(jwindow, "group"));
-			const json jgroup = jwindow["group"];
+			const json & jgroup = this->load.type_group(jwindow);
 
 			windows.emplace_back(
 				utility::in_place_type<GroupData>,
@@ -525,7 +740,7 @@ namespace
 			GroupData & window = utility::get<GroupData>(windows.back());
 
 			// load the windows components
-			load_components(window, jwindow["components"]);
+			load_components(window, this->load.components(jwindow));
 		}
 	};
 }

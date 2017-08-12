@@ -37,7 +37,7 @@ namespace gui
 
 	struct ViewData
 	{
-		engine::Asset name;
+		std::string name;
 		Size size;
 		Margin margin;
 		Gravity gravity;
@@ -57,12 +57,12 @@ namespace gui
 			constexpr static engine::Asset PROGRESS{ "progressBar" };
 
 			engine::Asset type;
-			engine::Asset name;
+			std::string name;
 			engine::gui::ProgressBar::Direction direction;
 		}
 		function;
 
-		ViewData(engine::Asset name, Size size, Margin margin, Gravity gravity)
+		ViewData(std::string name, Size size, Margin margin, Gravity gravity)
 			: name(name)
 			, size(size)
 			, margin(margin)
@@ -84,7 +84,7 @@ namespace gui
 
 		bool has_name() const
 		{
-			return this->name != engine::Asset::null();
+			return !this->name.empty();
 		}
 	};
 
@@ -93,7 +93,7 @@ namespace gui
 		Layout layout;
 		std::vector<DataVariant> children;
 
-		GroupData(engine::Asset name, Size size, Margin margin, Gravity gravity, Layout layout)
+		GroupData(std::string name, Size size, Margin margin, Gravity gravity, Layout layout)
 			: ViewData(name, size, margin, gravity)
 			, layout(layout)
 		{}
@@ -101,7 +101,7 @@ namespace gui
 
 	struct ListData : GroupData
 	{
-		ListData(engine::Asset name, Size size, Margin margin, Gravity gravity, Layout layout)
+		ListData(std::string name, Size size, Margin margin, Gravity gravity, Layout layout)
 			: GroupData(name, size, margin, gravity, layout)
 		{}
 	};
@@ -110,7 +110,7 @@ namespace gui
 	{
 		Color color;
 
-		PanelData(engine::Asset name, Size size, Margin margin, Gravity gravity, Color color)
+		PanelData(std::string name, Size size, Margin margin, Gravity gravity, Color color)
 			: ViewData(name, size, margin, gravity)
 			, color(color)
 		{}
@@ -121,7 +121,7 @@ namespace gui
 		Color color;
 		std::string display;
 
-		TextData(engine::Asset name, Size size, Margin margin, Gravity gravity, Color color, std::string display)
+		TextData(std::string name, Size size, Margin margin, Gravity gravity, Color color, std::string display)
 			: ViewData(name, size, margin, gravity)
 			, color(color)
 			, display(display)
@@ -132,7 +132,7 @@ namespace gui
 	{
 		engine::Asset res;
 
-		TextureData(engine::Asset name, Size size, Margin margin, Gravity gravity, engine::Asset res)
+		TextureData(std::string name, Size size, Margin margin, Gravity gravity, engine::Asset res)
 			: ViewData(name, size, margin, gravity)
 			, res(res)
 		{}
