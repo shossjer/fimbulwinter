@@ -98,4 +98,16 @@ namespace engine
 	};
 }
 
+namespace std
+{
+	template<> struct hash<engine::Asset>
+	{
+		std::size_t operator () (const engine::Asset asset) const
+		{
+			return asset;
+		}
+	};
+}
+
+
 #endif /* ENGINE_ASSET_HPP */

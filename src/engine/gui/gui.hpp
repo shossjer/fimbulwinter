@@ -3,7 +3,6 @@
 #define ENGINE_GUI_GUI_HPP
 
 #include <engine/Asset.hpp>
-#include <engine/common.hpp>
 #include <engine/Entity.hpp>
 #include <engine/graphics/renderer.hpp>
 
@@ -61,21 +60,21 @@ namespace gui
 
 	using Datas = std::vector<std::pair<engine::Asset, Data>>;
 
-	void show(engine::Asset window);
+	void post_interaction_click(engine::Entity entity);
 
-	void hide(engine::Asset window);
+	void post_interaction_select(engine::Asset window);
 
-	void toggle(engine::Asset window);
+	void post_state_hide(engine::Asset window);
 
-	void select(engine::Asset window);
+	void post_state_show(engine::Asset window);
 
-	void trigger(engine::Entity entity);
+	void post_state_toggle(engine::Asset window);
 
-	void update(
+	void post_update_data(
 		engine::Asset window,
 		Datas && datas);
 
-	void update(
+	void post_update_translate(
 		engine::Asset window,
 		core::maths::Vector3f delta);
 }

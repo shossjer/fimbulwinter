@@ -4,7 +4,7 @@
 #ifndef ENGINE_GUI_PLACERS_HPP
 #define ENGINE_GUI_PLACERS_HPP
 
-#include <engine/common.hpp>
+#include <engine/debug.hpp>
 
 namespace engine
 {
@@ -43,7 +43,7 @@ namespace gui
 
 	public:
 
-		// checks is Gravity is set and allowed by parent
+		// checks if Gravity is set and allowed by parent
 		bool place(const Gravity mask, const uint_fast16_t flag) const
 		{
 			return ((this->flags & mask.flags) & flag) != 0;

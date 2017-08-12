@@ -8,7 +8,8 @@
 #include "loading.hpp"
 #include "placers.hpp"
 
-#include <engine/common.hpp>
+#include <engine/Asset.hpp>
+#include <engine/Entity.hpp>
 #include <engine/graphics/renderer.hpp>
 
 #include <core/container/Collection.hpp>
@@ -27,15 +28,7 @@ namespace gui
 	{
 	private:
 
-		struct Hasher
-		{
-			std::size_t operator() (const Asset & asset) const
-			{
-				return asset;
-			}
-		};
-
-		std::unordered_map<engine::Asset, engine::Entity, Hasher> data;
+		std::unordered_map<engine::Asset, engine::Entity> data;
 
 	public:
 
@@ -146,9 +139,9 @@ namespace gui
 
 		void update_translation(core::maths::Vector3f delta);
 
-		auto render_matrix() const;
+		Matrix4x4f render_matrix() const;
 
-		auto render_size() const;
+		core::maths::Vector2f render_size() const;
 
 	public:
 

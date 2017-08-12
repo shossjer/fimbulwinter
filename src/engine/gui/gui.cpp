@@ -5,6 +5,7 @@
 #include "loading.hpp"
 #include "views.hpp"
 
+#include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 
 #include <utility/json.hpp>
@@ -25,35 +26,79 @@ namespace
 	using namespace engine::gui;
 
 	core::container::Collection
-		<
-			engine::Entity, 61,
-			std::array<CloseAction, 10>,
-			std::array<MoveAction, 10>,
-			std::array<SelectAction, 10>
-		>
-		actions;
+	<
+		engine::Entity, 61,
+		std::array<CloseAction, 10>,
+		std::array<MoveAction, 10>,
+		std::array<SelectAction, 10>
+	>
+	actions;
 
 	core::container::Collection
-		<
-			engine::Entity, 301,
-			// Views
-			std::array<engine::gui::Group, 100>,
-			std::array<engine::gui::List, 20>,
-			std::array<engine::gui::PanelC, 50>,
-			std::array<engine::gui::PanelT, 50>,
-			std::array<engine::gui::Text, 50>,
-			// Functionality
-			std::array<engine::gui::ProgressBar, 50>
-		>
-		components;
+	<
+		engine::Entity, 301,
+		// Views
+		std::array<engine::gui::Group, 100>,
+		std::array<engine::gui::List, 20>,
+		std::array<engine::gui::PanelC, 50>,
+		std::array<engine::gui::PanelT, 50>,
+		std::array<engine::gui::Text, 50>,
+		// Functionality
+		std::array<engine::gui::ProgressBar, 50>
+	>
+	components;
 
 	core::container::Collection
-		<
-			engine::Asset, 21,
-			std::array<engine::gui::Window, 10>,
-			std::array<int, 10>
-		>
-		windows;
+	<
+		engine::Asset, 21,
+		std::array<engine::gui::Window, 10>,
+		std::array<int, 10>
+	>
+	windows;
+
+	struct MessageInteractionClick
+	{
+		engine::Entity entity;
+	};
+	struct MessageInteractionSelect
+	{
+		engine::Asset window;
+	};
+	struct MessageStateHide
+	{
+		engine::Asset window;
+	};
+	struct MessageStateShow
+	{
+		engine::Asset window;
+	};
+	struct MessageStateToggle
+	{
+		engine::Asset window;
+	};
+	struct MessageUpdateData
+	{
+		engine::Asset window;
+		Datas datas;
+	};
+	struct MessageUpdateTranslate
+	{
+		engine::Asset window;
+		core::maths::Vector3f delta;
+	};
+
+	using UpdateMessage = utility::variant
+	<
+		MessageInteractionClick,
+		MessageInteractionSelect,
+		MessageStateHide,
+		MessageStateShow,
+		MessageStateToggle,
+		MessageUpdateData,
+		MessageUpdateTranslate
+	>;
+
+	core::container::CircleQueueSRMW<UpdateMessage, 100> queue_posts;
 
 	// lookup table for "named" components (asset -> entity)
 	// used when gamestate requests updates of components.
@@ -219,13 +264,43 @@ namespace
 			}
 		}
 	};
+
+	void select(const engine::Asset window)
+	{
+		for (std::size_t i = 0; i < window_stack.size(); i++)
+		{
+			if (window_stack[i]->name == window)
+			{
+				window_stack.erase(window_stack.begin() + i);
+				window_stack.insert(window_stack.begin(), &windows.get<Window>(window));
+				break;
+			}
+		}
+
+		for (std::size_t i = 0; i < window_stack.size(); i++)
+		{
+			const int order = static_cast<int>(i);
+			window_stack[i]->reorder_window(-order * 10);
+		}
+	}
+
+	void hide(const engine::Asset window)
+	{
+		windows.get<Window>(window).hide_window();
+	}
+
+	void show(const engine::Asset window)
+	{
+		select(window);
+		windows.get<Window>(window).show_window();
+	}
 }
 
 namespace engine
 {
 namespace gui
 {
-	void load(std::vector<DataVariant> & windows);
+	extern void load(std::vector<DataVariant> & windows);
 
 	void create()
 	{
@@ -258,25 +333,6 @@ namespace gui
 		// TODO: destroy something
 	}
 
-	void show(engine::Asset window)
-	{
-		select(window);
-		windows.get<Window>(window).show_window();
-	}
-
-	void hide(engine::Asset window)
-	{
-		windows.get<Window>(window).hide_window();
-	}
-
-	void toggle(engine::Asset window)
-	{
-		auto & w = windows.get<Window>(window);
-
-		if (w.is_shown()) w.hide_window();
-		else w.show_window();
-	}
-
 	struct Trigger
 	{
 		void operator() (const CloseAction & action)
@@ -288,33 +344,6 @@ namespace gui
 		void operator() (const T &)
 		{}
 	};
-
-	void select(engine::Asset window)
-	{
-		for (std::size_t i = 0; i < window_stack.size(); i++)
-		{
-			if (window_stack[i]->name == window)
-			{
-				window_stack.erase(window_stack.begin() + i);
-				window_stack.insert(window_stack.begin(), &windows.get<Window>(window));
-				break;
-			}
-		}
-
-		for (std::size_t i = 0; i < window_stack.size(); i++)
-		{
-			const int order = static_cast<int>(i);
-			window_stack[i]->reorder_window(-order * 10);
-		}
-	}
-
-	void trigger(engine::Entity entity)
-	{
-		debug_assert(actions.contains(entity));
-
-		// TODO: use thread safe queue
-		actions.call(entity, Trigger{});
-	}
 
 	struct Updater
 	{
@@ -471,31 +500,110 @@ namespace gui
 		}
 	};
 
-	void update(engine::Asset window, engine::gui::Datas && datas)
+	void update()
 	{
-		// TODO: use thread safe queue
-
-		Window & w = windows.get<Window>(window);
-
-		for (auto & data : datas)
+		struct
 		{
-			if (!lookup.contains(data.first))
+			void operator () (MessageInteractionClick && x)
 			{
-				debug_printline(0xffffffff, "GUI - cannot find named component for update.");
-				continue;
+				debug_assert(actions.contains(x.entity));
+				actions.call(x.entity, Trigger{});
+			}
+			void operator () (MessageInteractionSelect && x)
+			{
+				select(x.window);
+			}
+			void operator () (MessageStateHide && x)
+			{
+				hide(x.window);
+			}
+			void operator () (MessageStateShow && x)
+			{
+				show(x.window);
+			}
+			void operator () (MessageStateToggle && x)
+			{
+				auto & w = windows.get<Window>(x.window);
+
+				if (w.is_shown()) w.hide_window();
+				else w.show_window();
+			}
+			void operator () (MessageUpdateData && x)
+			{
+				Window & w = windows.get<Window>(x.window);
+
+				for (auto & data : x.datas)
+				{
+					if (!lookup.contains(data.first))
+					{
+						debug_printline(0xffffffff, "GUI - cannot find named component for update.");
+						continue;
+					}
+
+					components.call(lookup.get(data.first), Updater{ w, std::move(data.second) });
+				}
+
+				// updates and sends updated views to renderer (if shown)
+				w.update_window();
+			}
+			void operator () (MessageUpdateTranslate && x)
+			{
+				windows.get<Window>(x.window).translate_window(x.delta);
 			}
 
-			components.call(lookup.get(data.first), Updater{ w, std::move(data.second) });
-		}
+		} processMessage;
 
-		// updates and sends updated views to renderer (if shown)
-		w.update_window();
+		UpdateMessage message;
+		while (::queue_posts.try_pop(message))
+		{
+			visit(processMessage, std::move(message));
+		}
 	}
 
-	void update(engine::Asset window, core::maths::Vector3f delta)
+	void post_interaction_click(engine::Entity entity)
 	{
-		// TODO: use thread safe queue
-		windows.get<Window>(window).translate_window(delta);
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionClick>, entity);
+		debug_assert(res);
+	}
+
+	void post_interaction_select(engine::Asset window)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionSelect>, window);
+		debug_assert(res);
+	}
+
+	void post_state_hide(engine::Asset window)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageStateHide>, window);
+		debug_assert(res);
+	}
+
+	void post_state_show(engine::Asset window)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageStateShow>, window);
+		debug_assert(res);
+	}
+
+	void post_state_toggle(engine::Asset window)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageStateToggle>, window);
+		debug_assert(res);
+	}
+
+	void post_update_data(
+		engine::Asset window,
+		Datas && datas)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageUpdateData>, window, std::move(datas));
+		debug_assert(res);
+	}
+
+	void post_update_translate(
+		engine::Asset window,
+		core::maths::Vector3f delta)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageUpdateTranslate>, window, std::move(delta));
+		debug_assert(res);
 	}
 }
 }

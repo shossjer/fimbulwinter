@@ -63,12 +63,12 @@ namespace gui
 		this->offset += delta;
 	}
 
-	auto Drawable::render_matrix() const
+	Matrix4x4f Drawable::render_matrix() const
 	{
 		return make_translation_matrix(this->offset);
 	}
 
-	auto Drawable::render_size() const
+	core::maths::Vector2f Drawable::render_size() const
 	{
 		return core::maths::Vector2f{
 			static_cast<float>(this->size.width.value),

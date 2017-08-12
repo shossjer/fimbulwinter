@@ -15,7 +15,7 @@
 	the view of the action does not need to be "named". so it
 	does not have to be registered in the "lookup" table.
  */
-#include <engine/common.hpp>
+#include <engine/Asset.hpp>
 
 namespace engine
 {

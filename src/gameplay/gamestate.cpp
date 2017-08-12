@@ -556,7 +556,7 @@ namespace
 				datas.emplace_back("profile_skills", std::move(list));
 			}
 
-			engine::gui::update("profile", std::move(datas));
+			engine::gui::post_update_data("profile", std::move(datas));
 		}
 
 		template<typename T>
@@ -573,11 +573,11 @@ namespace
 			{
 			case engine::Command::BUTTON_DOWN_ACTIVE:
 				debug_assert(!args.second.has_value());
-				engine::gui::show("inventory");
+				engine::gui::post_state_show("inventory");
 				break;
 			case engine::Command::BUTTON_DOWN_INACTIVE:
 				debug_assert(!args.second.has_value());
-				engine::gui::hide("inventory");
+				engine::gui::post_state_hide("inventory");
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
@@ -597,7 +597,7 @@ namespace
 			case engine::Command::BUTTON_DOWN_ACTIVE:
 			case engine::Command::BUTTON_DOWN_INACTIVE:
 				debug_assert(!args.second.has_value());
-				engine::gui::toggle("profile");
+				engine::gui::post_state_toggle("profile");
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
@@ -629,7 +629,7 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			if (c.action == engine::Asset{ "mover" })
-				engine::gui::update(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
+				engine::gui::post_update_translate(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
 		}
 
 		template <typename W>
@@ -643,7 +643,7 @@ namespace
 	{
 		void operator () (const GUIComponent & c)
 		{
-			engine::gui::select(c.window);
+			engine::gui::post_interaction_select(c.window);
 		}
 
 		template <typename W>
@@ -676,7 +676,7 @@ namespace
 
 		void operator () (const GUIComponent & c)
 		{
-			engine::gui::trigger(c.id);
+			engine::gui::post_interaction_click(c.id);
 		}
 
 		void operator () (const Worker & w)
@@ -685,7 +685,7 @@ namespace
 			profile_update(w.id);
 
 			// show the window
-			engine::gui::show("profile");
+			engine::gui::post_state_show("profile");
 		}
 
 		template <typename W>

@@ -7,7 +7,7 @@
 #include "functions.hpp"
 #include "placers.hpp"
 
-#include <engine/common.hpp>
+#include <engine/Asset.hpp>
 #include <engine/graphics/renderer.hpp>
 
 #include <utility/variant.hpp>
@@ -18,7 +18,7 @@ namespace engine
 {
 namespace gui
 {
-	typedef engine::graphics::data::Color Color;
+	using Color = engine::graphics::data::Color;
 
 	struct GroupData;
 	struct ListData;
