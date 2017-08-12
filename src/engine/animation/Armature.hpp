@@ -52,6 +52,7 @@ namespace engine
 
 				std::vector<Frame> frames;
 				std::vector<core::maths::Vector3f> positions;
+				std::vector<core::maths::Quaternionf> orientations;
 
 				bool operator == (const std::string & name) const
 				{

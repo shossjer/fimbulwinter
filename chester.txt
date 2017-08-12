@@ -2,8 +2,8 @@ dev/bench.blend        6107c38748941cf233db55766237c137cc4671e0032f018b357426e76
 dev/board.blend        8cdfeb01ceadab2c8baf3a662058fa3979e318451af2ce35bb88c7719cd7da59
 dev/box.xcf            172a4c1e5915ce4a8c002738d8d01a0b222495d13a6f1ee614e82896849d7ff2
 dev/dude.blend         a09fee3370608c4c15c3962c6ab7ee183a0fa17ff5cf5e509df5f892d03965d9
-dev/dude2.blend        929cf31a106737222df3e6ba76606105d38b79f1c1d6da29f8d16b10181d1aff
-dev/export_armature.py 65776efc9d1d1ffdfde8d6be54e2d6e7ccf550976982221673f6ca7a67432420
+dev/dude2.blend        1007a61e5ba17f81c1b2fdb01a73bda9714e6f17058fb8b01d79d0672ce6d608
+dev/export_armature.py 0e88648d058e5d19115c2e9d50f3a98411188902b9e96d25ac13ad947c9ad9d3
 dev/level.blend        2470daf086dc6e033e30bc8b37bb25c87d538064e9dc0d820c1361884d13b6dd
 dev/level.py           6cf42bc737d06dcb5fd039d3d94b08ba814c635cd947047af90a4f01b5ed68ee
 dev/model.py           c03ff7dd602093585b6beb35130ef88b382e0f1ed569aeb6cb06e91f216bc3bb
@@ -13,7 +13,7 @@ res/bench.json         c19c4a08caa7943415affcead5d0b97c764e6fe9609d7b329f6f267b1
 res/board.json         71ea0a4c10760c9e1f3f95930ec6ca086e0e7acb0652579ebcad3b734c88da86
 res/box.png            b8f428a0bdd971532c354d8222728bfce9bb66eedb5c875832c234b395fd7922
 res/dude1.json         60f9d47cd0698aa595fac66f7d3d0c2edd8ed021fa886f7cdb4af4d10ebc476e
-res/dude2.arm          cab6cb47c929585d42164e83b65a1e944e6511ad704ead1cda9eca0f51142056
+res/dude2.arm          e7c6fe6ba8c93fbffa33fd09a0382d9987ffbc91dd421fb82cbbf4450168124d
 res/dude2.json         1a2b5059688c7e3c7b52688a653c286fba94c991f4d952bb46d4842d4469fd5b
 res/dude2.msh          21265087d2e02457abf8df3df82ea753ced1ec61588157912c8c8e690c8723e8
 res/gui.json           ade96f0a94a600bb3f8b6fd9281a8773e399177e072b5bb9195747cad1d7b20b

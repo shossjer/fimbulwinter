@@ -1,9 +1,15 @@
 
 #include "physics.hpp"
 
+#include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
+#include <core/debug.hpp>
+#include <core/maths/algorithm.hpp>
 
+#include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
+
+#include <utility/variant.hpp>
 
 #include <limits>
 
@@ -112,6 +118,97 @@ namespace camera
 }
 }
 
+namespace
+{
+	struct object_t
+	{
+		core::maths::Vector3f position;
+		core::maths::Quaternionf orientation;
+
+		object_t(core::maths::Vector3f position,
+		         core::maths::Quaternionf orientation)
+			: position(position)
+			, orientation(orientation)
+		{}
+	};
+
+	core::container::Collection
+	<
+		engine::Entity,
+		201,
+		std::array<object_t, 100>,
+		std::array<object_t, 1>
+	>
+	objects;
+
+	struct update_movement
+	{
+		core::maths::Vector3f && movement;
+
+		void operator () (object_t & x)
+		{
+			x.position += rotate(movement, x.orientation);
+		}
+	};
+	struct update_orientation_movement
+	{
+		core::maths::Quaternionf && movement;
+
+		void operator () (object_t & x)
+		{
+			x.orientation *= movement;
+		}
+	};
+	struct update_transform
+	{
+		engine::transform_t && transform;
+
+		void operator () (object_t & x)
+		{
+			x.position = std::move(transform.pos);
+			x.orientation = std::move(transform.quat);
+		}
+	};
+}
+
+namespace
+{
+	struct MessageAddObject
+	{
+		engine::Entity entity;
+		engine::transform_t transform;
+	};
+	struct MessageRemove
+	{
+		engine::Entity entity;
+	};
+	struct MessageUpdateMovement
+	{
+		engine::Entity entity;
+		engine::physics::movement_data movement;
+	};
+	struct MessageUpdateOrientationMovement
+	{
+		engine::Entity entity;
+		engine::physics::orientation_movement movement;
+	};
+	struct MessageUpdateTransform
+	{
+		engine::Entity entity;
+		engine::transform_t transform;
+	};
+	using EntityMessage = utility::variant
+	<
+		MessageAddObject,
+		MessageRemove,
+		MessageUpdateMovement,
+		MessageUpdateOrientationMovement,
+		MessageUpdateTransform
+	>;
+
+	core::container::CircleQueueSRMW<EntityMessage, 100> queue_entities;
+}
+
 namespace engine
 {
 namespace physics
@@ -128,7 +225,39 @@ namespace physics
 
 	void update_start()
 	{
-
+		EntityMessage entity_message;
+		while (queue_entities.try_pop(entity_message))
+		{
+			struct ProcessMessage
+			{
+				void operator () (MessageAddObject && x)
+				{
+					debug_assert(!objects.contains(x.entity));
+					objects.emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat));
+				}
+				void operator () (MessageRemove && x)
+				{
+					debug_assert(objects.contains(x.entity));
+					objects.remove(x.entity);
+				}
+				void operator () (MessageUpdateMovement && x)
+				{
+					debug_assert(objects.contains(x.entity));
+					objects.call(x.entity, update_movement{std::move(x.movement.vec)});
+				}
+				void operator () (MessageUpdateOrientationMovement && x)
+				{
+					debug_assert(objects.contains(x.entity));
+					objects.call(x.entity, update_orientation_movement{std::move(x.movement.quaternion)});
+				}
+				void operator () (MessageUpdateTransform && x)
+				{
+					debug_assert(objects.contains(x.entity));
+					objects.call(x.entity, update_transform{std::move(x.transform)});
+				}
+			};
+			visit(ProcessMessage{}, std::move(entity_message));
+		}
 	}
 
 	void update_joints()
@@ -137,23 +266,46 @@ namespace physics
 	}
 	void update_finish()
 	{
-
+		for (const auto & object : objects.get<object_t>())
+		{
+			auto matrix = make_translation_matrix(object.position) * make_matrix(object.orientation);
+			engine::graphics::renderer::post_update_modelviewmatrix(objects.get_key(object), engine::graphics::data::ModelviewMatrix{std::move(matrix)});
+		}
 	}
 
-	/**
-	*	\note update Character or Dynamic object with delta movement or force.
-	*/
-	void post_update_movement(const engine::Entity id, const movement_data movement)
+	void post_add_object(engine::Entity entity, engine::transform_t && data)
 	{
-
+		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddObject>, entity, std::move(data));
+		debug_assert(res);
 	}
 
-	/**
-	*	\note update Kinematic object with position and rotation
-	*/
+	void post_remove(engine::Entity entity)
+	{
+		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
+		debug_assert(res);
+	}
+
+	void post_update_movement(engine::Entity entity, movement_data && data)
+	{
+		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateMovement>, entity, std::move(data));
+		debug_assert(res);
+	}
+
 	void post_update_movement(const engine::Entity id, const transform_t translation)
 	{
 
+	}
+
+	void post_update_orientation_movement(engine::Entity entity, orientation_movement && data)
+	{
+		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateOrientationMovement>, entity, std::move(data));
+		debug_assert(res);
+	}
+
+	void post_update_transform(engine::Entity entity, engine::transform_t && data)
+	{
+		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateTransform>, entity, std::move(data));
+		debug_assert(res);
 	}
 }
 }

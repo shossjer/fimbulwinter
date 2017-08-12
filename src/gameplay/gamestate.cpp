@@ -4,6 +4,7 @@
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 #include <core/container/ExchangeQueue.hpp>
+#include <core/maths/algorithm.hpp>
 
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
@@ -773,9 +774,11 @@ namespace
 		s.start();
 
 		// move the worker
-		engine::graphics::renderer::post_update_modelviewmatrix(
-				w.id,
-				engine::graphics::data::ModelviewMatrix{ s.front });
+		core::maths::Vector3f translation;
+		core::maths::Quaternionf rotation;
+		core::maths::Vector3f scale;
+		decompose(s.front, translation, rotation, scale);
+		engine::physics::post_update_transform(w.id, engine::transform_t{translation, rotation});
 	}
 
 	// manages player interaction (clicking) with entities.

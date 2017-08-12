@@ -43,6 +43,12 @@ namespace physics
 		 */
 		void update(engine::Entity camera, Vector3f movement);
 	}
+
+	struct orientation_movement
+	{
+		core::maths::Quaternionf quaternion;
+	};
+
 	/**
 	 *	\note manages creation and removal of actors
 	 */
@@ -73,11 +79,13 @@ namespace physics
 
 	void add(const engine::Entity id, const asset_instance_t & data);
 
+	void post_add_object(engine::Entity entity, engine::transform_t && data);
+
 	void post_create(const engine::Entity id, const ActorData & data);
 
 	void post_create(const engine::Entity id, const PlaneData & data);
 
-	void post_remove(const engine::Entity id);
+	void post_remove(engine::Entity entity);
 
 	struct joint_t
 	{
@@ -124,12 +132,15 @@ namespace physics
 	/**
 	 *	\note update Character or Dynamic object with delta movement or force.
 	 */
-	void post_update_movement(const engine::Entity id, const movement_data movement);
+	void post_update_movement(engine::Entity entity, movement_data && data);
 
 	/**
 	 *	\note update Kinematic object with position and rotation
 	 */
 	void post_update_movement(const engine::Entity id, const transform_t translation);
+
+	void post_update_orientation_movement(engine::Entity entity, orientation_movement && data);
+	void post_update_transform(engine::Entity entity, engine::transform_t && data);
 }
 }
 

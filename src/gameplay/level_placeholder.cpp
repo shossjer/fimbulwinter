@@ -3,6 +3,7 @@
 
 #include <engine/animation/mixer.hpp>
 #include <engine/model/loader.hpp>
+#include <engine/physics/physics.hpp>
 
 #include <core/maths/algorithm.hpp>
 
@@ -140,8 +141,9 @@ namespace level
 					engine::Asset{placeholder.name},
 					engine::Asset{ "dude" }});
 			engine::graphics::renderer::post_make_selectable(id);
+			engine::physics::post_add_object(id, engine::transform_t(placeholder.transform));
 			engine::animation::add(id, engine::animation::armature{utility::to_string("res/", placeholder.name, ".arm")});
-			engine::animation::update(id, engine::animation::action{"idle", true});
+			engine::animation::update(id, engine::animation::action{"turn-left", true});
 
 			// register new asset in gamestate
 			gameplay::gamestate::post_add_worker(id);
