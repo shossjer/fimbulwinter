@@ -15,6 +15,7 @@ set(SOURCE_FILES
 	src/engine/graphics/viewer.cpp
 	src/engine/gui/gui.cpp
 	src/engine/gui/json_parser.cpp
+	src/engine/gui/loading.cpp
 	src/engine/gui/views.cpp
 	src/engine/model/loader.cpp
 	src/engine/hid/input.cpp

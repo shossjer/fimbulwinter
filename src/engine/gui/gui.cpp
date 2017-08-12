@@ -401,7 +401,7 @@ namespace gui
 							continue;
 						}
 
-						components.call(lookup.get(kv.first), Updater{ window, std::move(kv.second) });
+						components.call(lookup.get(kv.first), Updater{ window, kv.second });
 					}
 				}
 
@@ -540,7 +540,7 @@ namespace gui
 						continue;
 					}
 
-					components.call(lookup.get(data.first), Updater{ w, std::move(data.second) });
+					components.call(lookup.get(data.first), Updater{ w, data.second });
 				}
 
 				// updates and sends updated views to renderer (if shown)

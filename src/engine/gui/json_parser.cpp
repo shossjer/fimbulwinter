@@ -382,8 +382,6 @@ namespace
 			target.function.name = this->load.name(jfunction);
 			target.function.type = this->load.type(jfunction);
 
-			const auto entity = engine::Entity::create();
-
 			switch (target.function.type)
 			{
 			case ViewData::Function::PROGRESS:

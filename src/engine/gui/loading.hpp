@@ -44,9 +44,9 @@ namespace gui
 
 		struct Action
 		{
-			constexpr static engine::Asset CLOSE{ "close" };
-			constexpr static engine::Asset MOVER{ "mover" };
-			constexpr static engine::Asset SELECT{ "selectable" };
+			static constexpr engine::Asset CLOSE{ "close" };
+			static constexpr engine::Asset MOVER{ "mover" };
+			static constexpr engine::Asset SELECT{ "selectable" };
 
 			engine::Asset type;
 		}
