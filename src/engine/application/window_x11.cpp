@@ -552,6 +552,7 @@ namespace engine
 #endif
 			}
 
+#if TEXT_USE_X11
 			void buildFont(XFontStruct *const font_struct, const unsigned int first, const unsigned int last ,const int base)
 			{
 				glXUseXFont(font_struct->fid, first, last - first + 1, base + first);
@@ -585,6 +586,7 @@ namespace engine
 
 				return font_struct;
 			}
+#endif
 
 			int execute()
 			{

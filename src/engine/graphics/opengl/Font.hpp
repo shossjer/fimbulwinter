@@ -8,12 +8,14 @@
 
 #include <utility/string.hpp>
 
-#include <sstream>
-#include <string>
+# include <string>
 
-#if WINDOW_USE_USER32
+#if TEXT_USE_FREETYPE
+# include <ft2build.h>
+# include FT_FREETYPE_H
+#elif TEXT_USE_USER32
 # include <windows.h>
-#elif WINDOW_USE_X11
+#elif TEXT_USE_X11
 # include <X11/Xlib.h>
 #endif
 
@@ -33,11 +35,42 @@ namespace engine
 				class Data
 				{
 				private:
-#if WINDOW_USE_USER32
+#if TEXT_USE_FREETYPE
+					/**
+					 */
+					struct Param
+					{
+						int16_t bitmap_left;
+						int16_t bitmap_top;
+						int16_t advance_x;
+						int16_t advance_y;
+					};
+					/**
+					 */
+					FT_Library library;
+					/**
+					 */
+					FT_Face face;
+					/**
+					 */
+					int16_t max_bitmap_width;
+					/**
+					 */
+					int16_t max_bitmap_height;
+					/**
+					 */
+					int32_t texture_size;
+					/**
+					 */
+					std::vector<unsigned char> pixels;
+					/**
+					 */
+					std::vector<Param> params;
+#elif TEXT_USE_USER32
 					/**
 					 */
 					HFONT hFont;
-#elif WINDOW_USE_X11
+#elif TEXT_USE_X11
 					/**
 					 */
 					XFontStruct *font_struct;
@@ -71,10 +104,30 @@ namespace engine
 				};
 
 			private:
+#if TEXT_USE_FREETYPE
+				/**
+				 */
+				GLuint id;
+				/**
+				 */
+				int16_t max_bitmap_width;
+				/**
+				 */
+				int16_t max_bitmap_height;
+				/**
+				 */
+				int32_t texture_size;
+				/**
+				 */
+				std::vector<Data::Param> params;
+#elif TEXT_USE_USER32
 				/**
 				 */
 				GLuint base;
-#if WINDOW_USE_X11
+#elif TEXT_USE_X11
+				/**
+				 */
+				GLuint base;
 				/**
 				 */
 				unsigned int count;
@@ -104,22 +157,22 @@ namespace engine
 
 				/**
 				 */
-				void draw(const char c) const;
+				void draw(int x, int y, char c) const;
 				/**
 				 */
-				void draw(const char *text) const;
+				void draw(int x, int y, const char *text) const;
 				/**
 				 */
-				void draw(const std::string & string) const;
+				void draw(int x, int y, const std::string & string) const;
 				/**
 				 */
-				void draw(const char *const text, const unsigned int length) const;
+				void draw(int x, int y, const char * text, unsigned int length) const;
 				/**
 				 */
 				template <class ...Args>
-				void drawt(Args && ... args) const
+				void drawt(int x, int y, Args && ... args) const
 				{
-					this->draw(utility::to_string(std::forward<Args>(args)...));
+					draw(x, y, utility::to_string(std::forward<Args>(args)...));
 				}
 			};
 		}

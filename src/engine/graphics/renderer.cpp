@@ -190,7 +190,6 @@ namespace
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT/*GL_CLAMP*/);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, /*GL_LINEAR*/GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, /*GL_LINEAR_MIPMAP_LINEAR*/GL_NEAREST);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
 			switch (image.color())
 			{
@@ -211,6 +210,7 @@ namespace
 		{
 			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, id);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 		}
 		void disable() const
 		{
@@ -1262,7 +1262,11 @@ namespace
 		{
 			engine::graphics::opengl::Font::Data data;
 
+#if TEXT_USE_FREETYPE
+			if (!data.load("res/font/consolas.ttf", 12))
+#else
 			if (!data.load("consolas", 12))
+#endif
 			{
 				debug_fail();
 			}
@@ -1684,9 +1688,8 @@ namespace
 		// draw gui
 		// ...
 		glLoadMatrix(modelview_matrix);
-		glColor3ub(255, 255, 255);
-		glRasterPos2i(10, 10 + 12);
-		normal_font.draw("herp derp herp derp herp derp herp derp herp derp etc.");
+		glColor3ub(255, 255, 0);
+		normal_font.draw(10, 10 + 12, "herp derp herp derp herp derp herp derp herp derp etc.");
 
 		for (const auto & component : ::components.get<::ui::PanelC>())
 		{
@@ -1742,16 +1745,18 @@ namespace
 
 		for (const ::ui::Text & component : ::components.get<::ui::Text>())
 		{
-			glLoadMatrix(modelview_matrix);
-
 			core::maths::Vector4f vec = component.object->modelview.get_column<3>();
 			core::maths::Vector4f::array_type pos;
 			vec.get_aligned(pos);
 
-			glColor(component.color);
-			glRasterPos3f(pos[0], pos[1], pos[2]);
+			modelview_matrix.push();
+			modelview_matrix.translate(pos[0], pos[1], pos[2]);
+			glLoadMatrix(modelview_matrix);
 
-			normal_font.draw(component.display);
+			glColor(component.color);
+			normal_font.draw(0, 0, component.display);
+
+			modelview_matrix.pop();
 		}
 
 		glDisable(GL_DEPTH_TEST);

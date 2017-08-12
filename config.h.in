@@ -18,6 +18,16 @@
 
 /**
  */
+#cmakedefine TEXT_USE_FREETYPE 1
+/**
+ */
+#cmakedefine TEXT_USE_USER32 1
+/**
+ */
+#cmakedefine TEXT_USE_X11 1
+
+/**
+ */
 #cmakedefine THREAD_USE_KERNEL32 1
 /**
  */
