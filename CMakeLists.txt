@@ -9,6 +9,7 @@ if (MSVC)
 	set(CMAKE_CXX_FLAGS_DEBUG
 		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
 		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
+    add_definitions(-DNOMINMAX)
 endif()
 
 # make debug build default
@@ -81,7 +82,9 @@ find_file(FILE_FREETYPE2_FT2BUILD_H freetype2/ft2build.h)
 message(STATUS "Looking for freetype - ${FILE_FT2BUILD_H}")
 message(STATUS "Looking for freetype - ${FILE_FREETYPE2_FT2BUILD_H}")
 find_library(LIBRARY_FREETYPE freetype)
+find_library(LIBRARY_FREETYPED freetyped)
 message(STATUS "Looking for freetype - ${LIBRARY_FREETYPE}")
+message(STATUS "Looking for freetype - ${LIBRARY_FREETYPED}")
 # User32
 message(STATUS "Looking for Gdi32")
 find_library(LIBRARY_GDI32 gdi32)
@@ -346,13 +349,17 @@ endif()
 # text
 if ((FILE_FT2BUILD_H OR
 	  FILE_FREETYPE2_FT2BUILD_H) AND
-	LIBRARY_FREETYPE)
+	(LIBRARY_FREETYPE OR LIBRARY_FREETYPED))
   message(STATUS "Text - Freetype")
   if (FILE_FREETYPE2_FT2BUILD_H)
 	get_filename_component(INCLUDE_DIRECTORY_FREETYPE "${FILE_FREETYPE2_FT2BUILD_H}" DIRECTORY)
 	include_directories("${INCLUDE_DIRECTORY_FREETYPE}")
   endif()
-  target_link_libraries(HellsKitchen ${LIBRARY_FREETYPE})
+  if (LIBRARY_FREETYPE)
+    target_link_libraries(HellsKitchen ${LIBRARY_FREETYPE})
+  else()
+    target_link_libraries(HellsKitchen ${LIBRARY_FREETYPED})
+  endif()
   set(TEXT_USE_FREETYPE 1)
 elseif (WINDOW_USE_USER32)
   message(WARNING "Text - User32")

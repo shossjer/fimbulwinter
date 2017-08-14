@@ -48,6 +48,7 @@ namespace engine
 				}
 			}
 			Font::Data::Data()
+				: face(nullptr)
 			{
 				if (FT_Init_FreeType(&library))
 					debug_fail();
