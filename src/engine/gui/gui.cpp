@@ -476,12 +476,12 @@ namespace gui
 
 				if (pb.direction == ProgressBar::HORIZONTAL)
 				{
-					debug_assert(pb.target->size.width.type == Size::TYPE::PERCENTAGE);
+					debug_assert(pb.target->size.width.type == Size::TYPE::PERCENT);
 					pb.target->size.width.set_meta(this->data.progress);
 				}
 				else
 				{
-					debug_assert(pb.target->size.height.type == Size::TYPE::PERCENTAGE);
+					debug_assert(pb.target->size.height.type == Size::TYPE::PERCENT);
 					pb.target->size.height.set_meta(this->data.progress);
 				}
 				break;

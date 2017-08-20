@@ -119,7 +119,7 @@ namespace gui
 			case Size::TYPE::PARENT:
 				this->size.height.parent(max_height);
 				break;
-			case Size::TYPE::PERCENTAGE:
+			case Size::TYPE::PERCENT:
 				this->size.height.percentage(max_height);
 				break;
 
@@ -138,7 +138,7 @@ namespace gui
 			case Size::TYPE::PARENT:
 				this->size.width.parent(max_width);
 				break;
-			case Size::TYPE::PERCENTAGE:
+			case Size::TYPE::PERCENT:
 				this->size.width.percentage(max_width);
 				break;
 
@@ -191,7 +191,7 @@ namespace gui
 			case Size::TYPE::PARENT:
 				this->size.height.parent(max_height);
 				break;
-			case Size::TYPE::PERCENTAGE:
+			case Size::TYPE::PERCENT:
 				this->size.height.percentage(max_height);
 				break;
 
@@ -210,7 +210,7 @@ namespace gui
 			case Size::TYPE::PARENT:
 				this->size.width.parent(max_width);
 				break;
-			case Size::TYPE::PERCENTAGE:
+			case Size::TYPE::PERCENT:
 				this->size.width.percentage(max_width);
 				break;
 
@@ -263,7 +263,7 @@ namespace gui
 			case Size::TYPE::PARENT:
 				this->size.height.parent(max_height);
 				break;
-			case Size::TYPE::PERCENTAGE:
+			case Size::TYPE::PERCENT:
 				this->size.height.percentage(max_height);
 				break;
 			case Size::TYPE::WRAP:
@@ -284,7 +284,7 @@ namespace gui
 			case Size::TYPE::PARENT:
 				this->size.width.parent(max_width);
 				break;
-			case Size::TYPE::PERCENTAGE:
+			case Size::TYPE::PERCENT:
 				this->size.width.percentage(max_width);
 				break;
 			case Size::TYPE::WRAP:
@@ -342,7 +342,7 @@ namespace gui
 			}
 
 			if (this->size.width == Size::TYPE::WRAP)
-				this->size.width -= size_children.width;
+				this->size.width.wrap(size_children.width.value);
 
 			break;
 		}
@@ -355,7 +355,7 @@ namespace gui
 			}
 
 			if (this->size.height == Size::TYPE::WRAP)
-				this->size.height -= size_children.height;
+				this->size.height.wrap(size_children.height.value);
 
 			break;
 		}
@@ -372,10 +372,10 @@ namespace gui
 			}
 
 			if (this->size.width == Size::TYPE::WRAP)
-				this->size.width.value = size_children.width.value;
+				this->size.width.wrap(size_children.width.value);
 
 			if (this->size.height == Size::TYPE::WRAP)
-				this->size.height.value = size_children.height.value;
+				this->size.height.wrap(size_children.height.value);
 
 			break;
 		}
@@ -449,7 +449,7 @@ namespace gui
 			case Size::TYPE::PARENT:
 				this->size.height.parent(max_height);
 				break;
-			case Size::TYPE::PERCENTAGE:
+			case Size::TYPE::PERCENT:
 				this->size.height.percentage(max_height);
 				break;
 			case Size::TYPE::WRAP:
@@ -471,7 +471,7 @@ namespace gui
 			case Size::TYPE::PARENT:
 				this->size.width.parent(max_width);
 				break;
-			case Size::TYPE::PERCENTAGE:
+			case Size::TYPE::PERCENT:
 				this->size.width.percentage(max_width);
 				break;
 			case Size::TYPE::WRAP:

@@ -34,6 +34,28 @@ namespace
 
 	private:
 
+		value_t _int(const json & jv) const
+		{
+			if (!jv.is_string())
+				return jv.get<value_t>();
+
+			const std::string str = jv;
+			debug_assert(str.length() > std::size_t{ 0 });
+			debug_assert(str[0] == '#');
+			return this->jdimensions[str].get<value_t>();
+		}
+		value_t _int(const std::string key, const json & jdata) const
+		{
+			debug_assert(contains(jdata, key));
+			return _int(jdata[key]);
+		}
+		value_t _int(const std::string key, const json & jdata, const value_t def) const
+		{
+			if (!contains(jdata, key))
+				return def;
+			return _int(jdata[key]);
+		}
+
 		engine::Asset extract_asset(const json & jdata, const std::string key) const
 		{
 			debug_assert(contains(jdata, key));
@@ -56,24 +78,34 @@ namespace
 			return std::stoul(str, nullptr, 16);
 		}
 
-		value_t extract_margin(const std::string key, const json & jmargin) const
-		{
-			if (!contains(jmargin, key))
-				return 0;
-
-			const json & jv = jmargin[key];
-
-			if (!jv.is_string())
-				return jv.get<value_t>();
-
-			const std::string str = jv;
-			debug_assert(str.length() > std::size_t{ 0 });
-			debug_assert(str[0] == '#');
-			return this->jdimensions[str].get<value_t>();
-		}
-
 		Size::Dimen extract_dimen(const json & jd) const
 		{
+			if (jd.is_object())
+			{
+				debug_assert(contains(jd, "t"));
+				const std::string type = jd["t"];
+
+				if (type == "fixed")
+				{
+					return Size::Dimen{ Size::TYPE::FIXED, _int("v", jd) };
+				}
+				else
+				if (type == "parent")
+				{
+					return Size::Dimen{ Size::TYPE::PARENT };
+				}
+				else
+				if (type == "percent")
+				{
+					return Size::Dimen{ Size::TYPE::PERCENT, _int("v", jd, 0) };
+				}
+				else
+				if (type == "wrap")
+				{
+					return Size::Dimen{ Size::TYPE::WRAP, _int("min", jd, 0) };
+				}
+			}
+			else
 			if (jd.is_string())
 			{
 				const std::string str = jd;
@@ -85,19 +117,21 @@ namespace
 						Size::TYPE::FIXED,
 						this->jdimensions[str].get<value_t>() };
 
-				if (str[str.length() - 1] == '%')
-				{
-					value_t val = std::stof(str.substr(0, str.length() - 1));
-					return Size::Dimen{ Size::TYPE::PERCENTAGE, val / value_t{ 100 } };
-				}
+				if (str == "percent")return Size::Dimen{ Size::TYPE::PERCENT };
 				if (str == "parent") return Size::Dimen{ Size::TYPE::PARENT };
 				if (str == "wrap") return Size::Dimen{ Size::TYPE::WRAP };
 
-				debug_printline(0xffffffff, "GUI - invalid size dimen: ", str);
+				debug_printline(0xffffffff, "GUI - invalid size dimen: ", jd);
 				debug_unreachable();
 			}
+			else
+			if (jd.is_number_integer())
+			{
+				return Size::Dimen{ Size::TYPE::FIXED, jd.get<value_t>() };
+			}
 
-			return Size::Dimen{ Size::TYPE::FIXED, jd.get<value_t>() };
+			debug_printline(0xffffffff, "GUI - invalid size value: ", jd);
+			debug_unreachable();
 		}
 
 		Size extract_size(const json & jdata) const
@@ -232,10 +266,10 @@ namespace
 			{
 				const json & jmargin = jdata["margin"];
 
-				margin.bottom = extract_margin("b", jmargin);
-				margin.left = extract_margin("l", jmargin);
-				margin.right = extract_margin("r", jmargin);
-				margin.top = extract_margin("t", jmargin);
+				margin.bottom = _int("b", jmargin, 0);
+				margin.left = _int("l", jmargin, 0);
+				margin.right = _int("r", jmargin, 0);
+				margin.top = _int("t", jmargin, 0);
 			}
 
 			return margin;

@@ -86,7 +86,7 @@ namespace gui
 		{
 			FIXED,
 			PARENT,
-			PERCENTAGE,
+			PERCENT,
 			// WEIGHT
 			WRAP
 		};
@@ -95,10 +95,13 @@ namespace gui
 		{
 			TYPE type;
 
-			// the fixed / percentage / weight value
+			// fixed - the fixed value...
+			// parent - NA
+			// percentage - the percentage value, can be updated dynamically
+			// wrap - min size, when view is wrapped it will be min this
 			value_t meta;
 
-			// the calculated used size value
+			// the calculated and used size value
 			value_t value;
 
 			Dimen(TYPE type)
@@ -107,7 +110,6 @@ namespace gui
 				, value(value_t{ 0 })
 			{
 				debug_assert(type != TYPE::FIXED);
-				debug_assert(type != TYPE::PERCENTAGE);
 			}
 
 			Dimen(TYPE type, value_t meta)
@@ -116,7 +118,6 @@ namespace gui
 				, value(value_t{ 0 })
 			{
 				debug_assert(type != TYPE::PARENT);
-				debug_assert(type != TYPE::WRAP);
 			}
 
 			void fixed(const value_t max_size, const value_t margin)
@@ -136,10 +137,12 @@ namespace gui
 			}
 
 			// limit value, used with wrap content
-			void limit(const value_t value)
+			void wrap(const value_t delta)
 			{
-				debug_assert(this->value <= value);
-				this->value = value;
+				debug_assert(this->value >= delta);
+				this->value -= delta;
+				if (this->value < this->meta)
+					this->value = this->meta;
 			}
 
 			void set_meta(const value_t meta)
