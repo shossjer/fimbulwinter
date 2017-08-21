@@ -58,12 +58,30 @@ namespace
 
 	struct MessageInteractionClick
 	{
+		engine::Asset window;
 		engine::Entity entity;
 	};
-	struct MessageInteractionSelect
+	struct MessageInteractionHighlight
 	{
 		engine::Asset window;
+		engine::Entity entity;
 	};
+	struct MessageInteractionLowlight
+	{
+		engine::Asset window;
+		engine::Entity entity;
+	};
+	struct MessageInteractionPress
+	{
+		engine::Asset window;
+		engine::Entity entity;
+	};
+	struct MessageInteractionRelease
+	{
+		engine::Asset window;
+		engine::Entity entity;
+	};
+
 	struct MessageStateHide
 	{
 		engine::Asset window;
@@ -90,7 +108,10 @@ namespace
 	using UpdateMessage = utility::variant
 	<
 		MessageInteractionClick,
-		MessageInteractionSelect,
+		MessageInteractionHighlight,
+		MessageInteractionLowlight,
+		MessageInteractionPress,
+		MessageInteractionRelease,
 		MessageStateHide,
 		MessageStateShow,
 		MessageStateToggle,
@@ -509,9 +530,22 @@ namespace gui
 				debug_assert(actions.contains(x.entity));
 				actions.call(x.entity, Trigger{});
 			}
-			void operator () (MessageInteractionSelect && x)
+			void operator () (MessageInteractionHighlight && x)
 			{
-				select(x.window);
+			}
+			void operator () (MessageInteractionLowlight && x)
+			{
+			}
+			void operator () (MessageInteractionPress && x)
+			{
+				// check if window should be selected
+				if (window_stack.front()->name != x.window)
+				{
+					select(x.window);
+				}
+			}
+			void operator () (MessageInteractionRelease && x)
+			{
 			}
 			void operator () (MessageStateHide && x)
 			{
@@ -560,15 +594,33 @@ namespace gui
 		}
 	}
 
-	void post_interaction_click(engine::Entity entity)
+	void post_interaction_click(engine::Asset window, engine::Entity entity)
 	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionClick>, entity);
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionClick>, window, entity);
 		debug_assert(res);
 	}
 
-	void post_interaction_select(engine::Asset window)
+	void post_interaction_highlight(engine::Asset window, engine::Entity entity)
 	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionSelect>, window);
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionHighlight>, window, entity);
+		debug_assert(res);
+	}
+
+	void post_interaction_lowlight(engine::Asset window, engine::Entity entity)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionLowlight>, window, entity);
+		debug_assert(res);
+	}
+
+	void post_interaction_press(engine::Asset window, engine::Entity entity)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionPress>, window, entity);
+		debug_assert(res);
+	}
+
+	void post_interaction_release(engine::Asset window, engine::Entity entity)
+	{
+		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionRelease>, window, entity);
 		debug_assert(res);
 	}
 

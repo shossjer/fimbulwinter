@@ -60,9 +60,22 @@ namespace gui
 
 	using Datas = std::vector<std::pair<engine::Asset, Data>>;
 
-	void post_interaction_click(engine::Entity entity);
+	// can be called after "press" has been called. but a press does not always generate a click.
+	void post_interaction_click(engine::Asset window, engine::Entity entity);
 
-	void post_interaction_select(engine::Asset window);
+	void post_interaction_highlight(engine::Asset window, engine::Entity entity);
+
+	// can only be called after highlight
+	void post_interaction_lowlight(engine::Asset window, engine::Entity entity);
+
+	// press will only be called on "highlighted" components
+	// triggers "select" on window
+	void post_interaction_press(engine::Asset window, engine::Entity entity);
+
+	// can only be called after press", "click" can be triggered before release.
+	void post_interaction_release(engine::Asset window, engine::Entity entity);
+
+	//void post_interaction_select(engine::Asset window);
 
 	void post_state_hide(engine::Asset window);
 
