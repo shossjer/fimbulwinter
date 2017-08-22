@@ -4,6 +4,7 @@
 
 #include <core/debug.hpp>
 
+#include <utility/bitmanip.hpp>
 #include <utility/preprocessor.hpp>
 #include <utility/type_traits.hpp>
 #include <utility/utility.hpp>
@@ -490,22 +491,28 @@ namespace core
 				template <size_t type>
 				bool empty() const
 				{
-					return (type_mask & uint64_t(1) << type) == uint64_t(0);
+					return (type_mask & uint64_t(1) << uint64_t(type)) == uint64_t(0);
+				}
+				int get_first_type() const
+				{
+					debug_assert(!empty());
+					return utility::ntz(type_mask);
 				}
 				template <size_t type>
 				uint16_t get_index() const
 				{
+					debug_assert(!empty<type>());
 					return indices[type];
 				}
 				template <size_t type>
 				void clear()
 				{
-					type_mask &= ~(uint64_t(1) << type);
+					type_mask &= ~(uint64_t(1) << uint64_t(type));
 				}
 				template <size_t type>
 				void set(uint16_t index)
 				{
-					type_mask |= uint64_t(1) << type;
+					type_mask |= uint64_t(1) << uint64_t(type);
 					indices[type] = index;
 				}
 				template <size_t type>
@@ -524,6 +531,17 @@ namespace core
 			bool contains(K key)
 			{
 				return try_find(key) != bucket_t(-1);
+			}
+			template <typename C>
+			bool contains(K key)
+			{
+				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
+
+				const auto bucket = try_find(key);
+				if (bucket == bucket_t(-1))
+					return false;
+
+				return !slots[bucket].template empty<type>();
 			}
 			template <typename C>
 			auto get() ->
@@ -578,11 +596,13 @@ namespace core
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
 
 				const auto bucket = place(key);
+				debug_assert(slots[bucket].template empty<type>());
+
 				auto & array = std::get<type>(arrays);
 				debug_assert(array.size < array.capacity);
 				const auto index = array.size;
 
-				slots[bucket].set<type>(index);
+				slots[bucket].template set<type>(index);
 				keys[bucket] = key;
 				array.construct(index, std::forward<Ps>(ps)...);
 				array.buckets[index] = bucket;
@@ -601,31 +621,38 @@ namespace core
 
 				remove_at_impl<type>(bucket, index);
 			}
-			void remove_all(K key)
+			void remove(K key)
 			{
 				remove_impl(find(key), mpl::make_index_sequence<sizeof...(Cs)>{});
 			}
 
 			template <typename F>
 			auto call(K key, F && func) ->
-				decltype(call_impl(find(key), std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{}))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
-				return call_impl(find(key), std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{});
+				const auto bucket = find(key);
+
+				switch (slots[bucket].get_first_type())
+				{
+#define CASE(n) case (n):	  \
+					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
+					                 bucket, std::forward<F>(func))
+
+					PP_EXPAND_128(CASE, 0);
+#undef CASE
+				default:
+					return call_impl(mpl::index_constant<std::size_t(-1)>{},
+					                 bucket, std::forward<F>(func));
+				}
 			}
 			template <typename C, typename F>
 			auto call(K key, F && func) ->
-				decltype(func(std::declval<C &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
 
-				const auto bucket = try_find(key);
-				const auto index = slots[bucket].template get_index<type>();
-				debug_assert(index >= 0);
-
-				auto & array = std::get<type>(arrays);
-				debug_assert(index < array.size);
-
-				return func(array.get(index));
+				return call_impl(mpl::index_constant<type>{},
+				                 find(key), std::forward<F>(func));
 			}
 			template <typename F>
 			void call_all(K key, F && func)
@@ -635,17 +662,28 @@ namespace core
 
 			template <typename F>
 			auto try_call(K key, F && func) ->
-				decltype(call_impl(std::declval<bucket_t>(), std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{}))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = try_find(key);
 				if (bucket == bucket_t(-1))
 					return func();
 
-				return call_impl(bucket, std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{});
+				switch (slots[bucket].get_first_type())
+				{
+#define CASE(n) case (n):	  \
+					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
+					                 bucket, std::forward<F>(func))
+
+					PP_EXPAND_128(CASE, 0);
+#undef CASE
+				default:
+					return call_impl(mpl::index_constant<std::size_t(-1)>{},
+					                 bucket, std::forward<F>(func));
+				}
 			}
 			template <typename C, typename F>
 			auto try_call(K key, F && func) ->
-				decltype(func(std::declval<C &>()))
+				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
 
@@ -653,13 +691,11 @@ namespace core
 				if (bucket == bucket_t(-1))
 					return func();
 
-				const auto index = slots[bucket].template get_index<type>();
-				debug_assert(index >= 0);
+				if (slots[bucket].template empty<type>())
+					return func();
 
-				auto & array = std::get<type>(arrays);
-				debug_assert(index < array.size);
-
-				return func(array.get(index));
+				return call_impl(mpl::index_constant<type>{},
+				                 bucket, std::forward<F>(func));
 			}
 			template <typename F>
 			void try_call_all(K key, F && func)
@@ -681,12 +717,16 @@ namespace core
 			 */
 			bucket_t place(K key)
 			{
+				const auto maybe_bucket = try_find(key);
+				if (maybe_bucket != bucket_t(-1))
+					return maybe_bucket;
+
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				int count = 0; // debug count that asserts if taken too many steps
 				// search again if...
 				while (!slots[bucket].empty()) // ... this bucket is not empty!
 				{
-					debug_assert(count++ < std::size_t{4});
+					debug_assert(count++ < 4);
 					if (bucket++ >= M - 1)
 						bucket -= M;
 				}
@@ -698,12 +738,12 @@ namespace core
 			bucket_t find(K key)
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				int count = 0; // debug count that asserts if taken too many steps
 				// search again if...
 				while (slots[bucket].empty() || // ... this bucket is empty, or
 				       keys[bucket] != key) // ... this is not the right one!
 				{
-					debug_assert(count++ < std::size_t{4});
+					debug_assert(count++ < 4);
 					if (bucket++ >= M - 1)
 						bucket -= M;
 				}
@@ -715,7 +755,7 @@ namespace core
 			bucket_t try_find(K key)
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0;
+				int count = 0;
 				// search again if...
 				while (slots[bucket].empty() || // ... this bucket is empty, or
 				       keys[bucket] != key) // ... this is not the right one!
@@ -740,7 +780,7 @@ namespace core
 				// keys[bucket] = ??? // not needed
 				if (index < last)
 				{
-					slots[array.buckets[last]].set_index<type>(index);
+					slots[array.buckets[last]].template set_index<type>(index);
 					array.get(index) = std::move(array.get(last));
 					array.buckets[index] = array.buckets[last];
 				}
@@ -754,14 +794,18 @@ namespace core
 			template <size_t type, size_t ...types>
 			void remove_impl(bucket_t bucket, mpl::index_sequence<type, types...>)
 			{
-				const auto index = slots[bucket].template get_index<type>();
-				if (index >= 0)
+				if (!slots[bucket].template empty<type>())
+				{
+					const auto index = slots[bucket].template get_index<type>();
+					debug_assert(index >= 0);
+
 					remove_at_impl<type>(bucket, index);
+				}
 				remove_impl(bucket, mpl::index_sequence<types...>{});
 			}
 
 			template <typename F>
-			auto call_impl(bucket_t bucket, F && func, mpl::index_sequence<>) ->
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, bucket_t bucket, F && func) ->
 				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();
@@ -769,19 +813,17 @@ namespace core
 				// we should never get here
 				return func(*reinterpret_cast<mpl::car<Cs...> *>(0));
 			}
-			template <typename F, size_t type, size_t ...types>
-			auto call_impl(bucket_t bucket, F && func, mpl::index_sequence<type, types...>) ->
+			template <std::size_t type, typename F>
+			auto call_impl(mpl::index_constant<type>, bucket_t bucket, F && func) ->
 				decltype(func(std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto index = slots[bucket].template get_index<type>();
-				if (index >= 0)
-				{
-					auto & array = std::get<type>(arrays);
-					debug_assert(index < array.size);
+				debug_assert(index >= 0);
 
-					return func(array.get(index));
-				}
-				return call_impl(bucket, mpl::index_sequence<types...>{});
+				auto & array = std::get<type>(arrays);
+				debug_assert(index < array.size);
+
+				return func(array.get(index));
 			}
 
 			template <typename F>
@@ -791,15 +833,17 @@ namespace core
 			template <typename F, size_t type, size_t ...types>
 			void call_all_impl(bucket_t bucket, F && func, mpl::index_sequence<type, types...>)
 			{
-				const auto index = slots[bucket].template get_index<type>();
-				if (index >= 0)
+				if (!slots[bucket].template empty<type>())
 				{
+					const auto index = slots[bucket].template get_index<type>();
+					debug_assert(index >= 0);
+
 					auto & array = std::get<type>(arrays);
 					debug_assert(index < array.size);
 
 					func(array.get(index));
 				}
-				call_all_impl(bucket, mpl::index_sequence<types...>{});
+				call_all_impl(bucket, std::forward<F>(func), mpl::index_sequence<types...>{});
 			}
 		};
 

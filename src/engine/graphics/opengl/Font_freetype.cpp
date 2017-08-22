@@ -7,26 +7,16 @@
 
 #include <core/debug.hpp>
 
+#include <utility/bitmanip.hpp>
+
 #include <cmath>
 #include <numeric>
 
 namespace
 {
-	// Hacker's Delight Second Edition, Henry S. Warren, Jr.
-	unsigned clp2(unsigned x)
-	{
-		x = x - 1;
-		x = x | (x >> 1);
-		x = x | (x >> 2);
-		x = x | (x >> 4);
-		x = x | (x >> 8);
-		x = x | (x >> 16);
-		return x + 1;
-	}
-
 	int smallest_power_of_two(int minimum)
 	{
-		return clp2(minimum);
+		return utility::clp2(minimum);
 	}
 }
 

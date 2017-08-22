@@ -29,6 +29,7 @@ if(ENABLE_TEST)
 	set(TRIBUNAL_TEST_SOURCE
 		main.cpp
 		core/async/delayTest.cpp
+		core/container/Collection.cpp
 		core/crypto/crc.cpp
 		core/debug.cpp
 		core/maths/Matrix.cpp
