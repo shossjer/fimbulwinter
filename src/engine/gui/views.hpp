@@ -160,11 +160,11 @@ namespace gui
 	{
 	public:
 
-		Color color;
+		const resource::ColorResource * color;
 
 	public:
 
-		PanelC(engine::Entity entity, Gravity gravity, Margin margin, Size size, Color color, bool selectable)
+		PanelC(engine::Entity entity, Gravity gravity, Margin margin, Size size, const resource::ColorResource * color, bool selectable)
 			: Drawable(entity, gravity, margin, size, selectable)
 			, color(color)
 		{
@@ -206,13 +206,13 @@ namespace gui
 	{
 	public:
 
-		Color color;
+		const resource::ColorResource * color;
 
 		std::string display;
 
 	public:
 
-		Text(engine::Entity entity, Gravity gravity, Margin margin, Size size, Color color, std::string display)
+		Text(engine::Entity entity, Gravity gravity, Margin margin, Size size, const resource::ColorResource * color, std::string display)
 			: Drawable(entity, gravity, margin, size, false)
 			, color(color)
 			, display(display)

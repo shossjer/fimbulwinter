@@ -3,6 +3,7 @@
 #include "functions.hpp"
 #include "gui.hpp"
 #include "loading.hpp"
+#include "resources.hpp"
 #include "views.hpp"
 
 #include <core/container/CircleQueue.hpp>
@@ -228,7 +229,7 @@ namespace
 				data.gravity,
 				data.margin,
 				data.size,
-				data.color,
+				resource::color(data.color),
 				data.has_action());
 			create_action(view, data);
 			create_function(view, data);
@@ -247,7 +248,7 @@ namespace
 				data.gravity,
 				data.margin,
 				data.size,
-				data.color,
+				resource::color(data.color),
 				data.display);
 			create_action(view, data);
 			create_function(view, data);
@@ -266,7 +267,7 @@ namespace
 				data.gravity,
 				data.margin,
 				data.size,
-				data.res,
+				data.texture,
 				data.has_action());
 			create_action(view, data);
 
@@ -442,7 +443,7 @@ namespace gui
 			{
 			case Data::COLOR:
 
-				panel.color = data.color;
+				//panel.color = data.color;
 				break;
 
 			default:
@@ -474,7 +475,7 @@ namespace gui
 			{
 			case Data::COLOR:
 
-				text.color = data.color;
+				//text.color = data.color;
 				break;
 
 			case Data::DISPLAY:

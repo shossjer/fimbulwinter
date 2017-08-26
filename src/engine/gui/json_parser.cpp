@@ -2,6 +2,7 @@
 #include "actions.hpp"
 #include "functions.hpp"
 #include "loading.hpp"
+#include "resources.hpp"
 
 #include <engine/graphics/renderer.hpp>
 
@@ -16,7 +17,7 @@ namespace
 	struct ResourceLoader
 	{
 	private:
-		const json & jcolors;
+
 		const json & jdimensions;
 		const json & jstrings;
 		const json & jtemplates;
@@ -24,12 +25,40 @@ namespace
 	public:
 
 		ResourceLoader(const json & jcontent)
-			: jcolors(jcontent["colors"])
-			, jdimensions(jcontent["dimensions"])
+			: jdimensions(jcontent["dimensions"])
 			, jstrings(jcontent["strings"])
 			, jtemplates(jcontent["templates"])
 		{
-			// load colors and themes and strings? into resources...
+			if (contains(jcontent, "colors"))
+			{
+				const json & jcolors = jcontent["colors"];
+
+				for (auto & i = jcolors.begin(); i != jcolors.end(); ++i)
+				{
+					const std::string str = i.value();
+
+					debug_assert(str.length() == 10);
+
+					const auto val = std::stoul(str, nullptr, 16);
+
+					resource::put(engine::Asset{ i.key() }, val);
+					debug_printline(0xffffffff, "GUI - loading color: ", i.key());
+				}
+			}
+
+			if (contains(jcontent, "selectors"))
+			{
+				const json & jselectors = jcontent["selectors"];
+
+				for (auto & i = jselectors.begin(); i != jselectors.end(); ++i)
+				{
+					auto & jval = i.value();
+					debug_assert(jval.is_object());
+
+					//resources.emplace<ColorSelector>(engine::Asset{ i.key() }, ColorSelector{} );
+					debug_printline(0xffffffff, "GUI - loading selector: ", i.key());
+				}
+			}
 		}
 
 	private:
@@ -60,22 +89,6 @@ namespace
 		{
 			debug_assert(contains(jdata, key));
 			return engine::Asset{ jdata[key].get<std::string>() };
-		}
-
-		engine::graphics::data::Color extract_color(const json & jdata) const
-		{
-			const std::string str = jdata["color"];
-			debug_assert(str.length() > std::size_t{ 0 });
-
-			if (str[0] == '#')
-			{
-				std::string res = this->jcolors[str];
-				debug_assert(res.length() > std::size_t{ 0 });
-
-				return std::stoul(res, nullptr, 16);
-			}
-
-			return std::stoul(str, nullptr, 16);
 		}
 
 		Size::Dimen extract_dimen(const json & jd) const
@@ -151,16 +164,18 @@ namespace
 			return contains(jdata, "color");
 		}
 
-		engine::graphics::data::Color color(const json & jdata) const
+		engine::Asset color(const json & jdata) const
 		{
 			debug_assert(contains(jdata, "color"));
-			return extract_color(jdata);
-		}
 
-		engine::graphics::data::Color color(const json & jdata, const engine::graphics::data::Color def_val) const
-		{
-			if (!contains(jdata, "color")) return def_val;
-			return extract_color(jdata);
+			const std::string str = jdata["color"];
+			debug_assert(str.length() > std::size_t{ 0 });
+
+			const engine::Asset asset{ str };
+
+			debug_assert(resource::color(asset)!= nullptr);
+
+			return asset;
 		}
 
 		const json & components(const json & jdata) const
@@ -275,11 +290,11 @@ namespace
 			return margin;
 		}
 
-		bool has_res(const json & jdata) const
+		bool has_texture(const json & jdata) const
 		{
 			return contains(jdata, "res");
 		}
-		engine::Asset res(const json & jdata) const
+		engine::Asset texture(const json & jdata) const
 		{
 			return extract_asset(jdata, "res");
 		}
@@ -512,7 +527,7 @@ namespace
 				this->load.size_def_wrap(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
-				this->load.color(jtext, 0xff000000),
+				this->load.color(jtext),
 				this->load.display(jtext));
 
 			TextData & view = utility::get<TextData>(parent.children.back());
@@ -533,7 +548,7 @@ namespace
 				this->load.size(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
-				this->load.res(jtexture));
+				this->load.texture(jtexture));
 
 			TextureData & view = utility::get<TextureData>(parent.children.back());
 
@@ -727,8 +742,8 @@ namespace
 					{
 						const json & jtexture = this->load.type_texture(jcustomize);
 
-						if (this->load.has_res(jtexture))
-							data.res = this->load.res(jtexture);
+						if (this->load.has_texture(jtexture))
+							data.texture = this->load.texture(jtexture);
 					}
 				}
 			}

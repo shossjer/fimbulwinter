@@ -108,9 +108,9 @@ namespace gui
 
 	struct PanelData : ViewData
 	{
-		Color color;
+		Asset color;
 
-		PanelData(std::string name, Size size, Margin margin, Gravity gravity, Color color)
+		PanelData(std::string name, Size size, Margin margin, Gravity gravity, Asset color)
 			: ViewData(name, size, margin, gravity)
 			, color(color)
 		{}
@@ -118,10 +118,10 @@ namespace gui
 
 	struct TextData : ViewData
 	{
-		Color color;
+		Asset color;
 		std::string display;
 
-		TextData(std::string name, Size size, Margin margin, Gravity gravity, Color color, std::string display)
+		TextData(std::string name, Size size, Margin margin, Gravity gravity, Asset color, std::string display)
 			: ViewData(name, size, margin, gravity)
 			, color(color)
 			, display(display)
@@ -130,11 +130,11 @@ namespace gui
 
 	struct TextureData : ViewData
 	{
-		engine::Asset res;
+		Asset texture;
 
-		TextureData(std::string name, Size size, Margin margin, Gravity gravity, engine::Asset res)
+		TextureData(std::string name, Size size, Margin margin, Gravity gravity, Asset texture)
 			: ViewData(name, size, margin, gravity)
-			, res(res)
+			, texture(texture)
 		{}
 	};
 }

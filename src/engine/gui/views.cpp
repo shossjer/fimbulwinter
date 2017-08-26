@@ -1,4 +1,5 @@
 
+#include "resources.hpp"
 #include "views.hpp"
 
 namespace engine
@@ -160,7 +161,7 @@ namespace gui
 			engine::graphics::data::ui::PanelC{
 				this->render_matrix(),
 				this->render_size(),
-				this->color });
+				this->color->get(this) });
 
 		if (is_selectable())
 		{
@@ -175,7 +176,7 @@ namespace gui
 			engine::graphics::data::ui::PanelC{
 				this->render_matrix(),
 				this->render_size(),
-				this->color });
+				this->color->get(this) });
 	}
 
 	void PanelT::measure(const Size parent)
@@ -308,7 +309,7 @@ namespace gui
 			this->entity,
 			engine::graphics::data::ui::Text{
 				this->render_matrix(),
-				this->color,
+				this->color->get(this),
 				this->display });
 
 		if (is_selectable())
@@ -323,7 +324,7 @@ namespace gui
 			this->entity,
 			engine::graphics::data::ui::Text{
 				this->render_matrix(),
-				this->color,
+				this->color->get(this),
 				this->display });
 	}
 
