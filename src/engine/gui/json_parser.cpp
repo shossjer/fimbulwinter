@@ -55,7 +55,22 @@ namespace
 					auto & jval = i.value();
 					debug_assert(jval.is_object());
 
-					//resources.emplace<ColorSelector>(engine::Asset{ i.key() }, ColorSelector{} );
+					debug_assert(contains(jval, "default"));
+					engine::Asset defColor = jval["default"].get<std::string>();
+
+					engine::Asset highColor;
+					if (contains(jval, "highlight"))
+						highColor = jval["highlight"].get<std::string>();
+					else
+						highColor = defColor;
+
+					engine::Asset pressedColor;
+					if (contains(jval, "pressed"))
+						pressedColor = jval["pressed"].get<std::string>();
+					else
+						pressedColor = defColor;
+
+					resource::put(engine::Asset{ i.key() }, defColor, highColor, pressedColor);
 					debug_printline(0xffffffff, "GUI - loading selector: ", i.key());
 				}
 			}
@@ -408,6 +423,13 @@ namespace
 			{
 			case ViewData::Action::CLOSE:
 				view.action.type = ViewData::Action::CLOSE;
+				break;
+			case ViewData::Action::INTERACTION:
+				view.action.type = ViewData::Action::INTERACTION;
+				if (contains(jtrigger, "target"))
+					view.action.target = jtrigger["target"].get<std::string>();
+				else
+					view.action.target = engine::Asset::null();
 				break;
 			case ViewData::Action::MOVER:
 				view.action.type = ViewData::Action::MOVER;

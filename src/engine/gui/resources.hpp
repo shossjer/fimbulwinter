@@ -28,6 +28,8 @@ namespace gui
 		const ColorResource * color(const engine::Asset asset);
 
 		void put(const engine::Asset asset, const Color val);
+
+		void put(const engine::Asset asset, const engine::Asset def, const engine::Asset high, const engine::Asset press);
 	}
 }
 }

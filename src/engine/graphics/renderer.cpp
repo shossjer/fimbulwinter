@@ -1749,7 +1749,8 @@ namespace
 			core::maths::Vector2f::array_type size;
 			component.size.get_aligned(size);
 
-			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
+			//glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
+			glColor(component.color);
 
 			glBegin(GL_QUADS);
 			{

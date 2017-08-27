@@ -28,8 +28,9 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity, 61,
+		engine::Entity, 101,
 		std::array<CloseAction, 10>,
+		std::array<InteractionAction, 10>,
 		std::array<MoveAction, 10>,
 		std::array<SelectAction, 10>
 	>
@@ -128,6 +129,28 @@ namespace
 
 	std::vector<Window *> window_stack;
 
+	View * find(const engine::Asset name, const Lookup & lookup)
+	{
+		if (!lookup.contains(name))
+			return nullptr;
+
+		auto entity = lookup.get(name);
+
+		struct
+		{
+			View * operator() (Group & view) { return &view; }
+			View * operator() (List & view) { return &view; }
+			View * operator() (PanelC & view) { return &view; }
+			View * operator() (PanelT & view) { return &view; }
+			View * operator() (Text & view) { return &view; }
+
+			View * operator() (const ProgressBar &) { return nullptr; }
+		}
+		finder;
+
+		return components.call(entity, finder);
+	}
+
 	struct Creator
 	{
 		Lookup & lookup;
@@ -140,7 +163,7 @@ namespace
 
 	private:
 
-		void create_action(const Drawable & drawable, const ViewData & data)
+		void create_action(Drawable & drawable, const ViewData & data)
 		{
 			if (!data.has_action()) return;
 
@@ -151,6 +174,21 @@ namespace
 				actions.emplace<engine::gui::CloseAction>(drawable.entity, engine::gui::CloseAction{ this->window.name });
 				break;
 
+			case ViewData::Action::INTERACTION:
+			{
+				View * view;
+
+				if (data.action.target == engine::Asset::null())
+					view = &drawable;
+				else
+				{
+					view = find(data.action.target, this->lookup);
+					debug_assert(view != nullptr);
+				}
+
+				actions.emplace<engine::gui::InteractionAction>(drawable.entity, this->window.name, view);
+				break;
+			}
 			case ViewData::Action::MOVER:
 
 				actions.emplace<engine::gui::MoveAction>(drawable.entity, engine::gui::MoveAction{ this->window.name });
@@ -198,6 +236,9 @@ namespace
 				data.margin,
 				data.size,
 				data.layout);
+
+			if (data.has_name()) lookup.put(data.name, entity);
+
 			create_views(view, data);
 			create_function(view, data);
 
@@ -363,9 +404,47 @@ namespace gui
 		}
 
 		template<typename T>
-		void operator() (const T &)
-		{}
+		void operator() (const T &) {}
 	};
+
+	struct
+	{
+		void operator() (const InteractionAction & action)
+		{
+			action.target->update(View::State::DEFAULT);
+			action.target->refresh();
+		}
+
+		template<typename T>
+		void operator() (const T &) {}
+	}
+	selectionStateDefault;
+
+	struct
+	{
+		void operator() (const InteractionAction & action)
+		{
+			action.target->update(View::State::HIGHLIGHT);
+			action.target->refresh();
+		}
+
+		template<typename T>
+		void operator() (const T &) {}
+	}
+	selectionStateHighlight;
+
+	struct
+	{
+		void operator() (const InteractionAction & action)
+		{
+			action.target->update(View::State::PRESSED);
+			action.target->refresh();
+		}
+
+		template<typename T>
+		void operator() (const T &) {}
+	}
+	selectionStatePressed;
 
 	struct Updater
 	{
@@ -533,9 +612,13 @@ namespace gui
 			}
 			void operator () (MessageInteractionHighlight && x)
 			{
+				if (actions.contains(x.entity))
+					actions.call(x.entity, selectionStateHighlight);
 			}
 			void operator () (MessageInteractionLowlight && x)
 			{
+				if (actions.contains(x.entity))
+					actions.call(x.entity, selectionStateDefault);
 			}
 			void operator () (MessageInteractionPress && x)
 			{
@@ -544,9 +627,14 @@ namespace gui
 				{
 					select(x.window);
 				}
+
+				if (actions.contains(x.entity))
+					actions.call(x.entity, selectionStatePressed);
 			}
 			void operator () (MessageInteractionRelease && x)
 			{
+				if (actions.contains(x.entity))
+					actions.call(x.entity, selectionStateHighlight);
 			}
 			void operator () (MessageStateHide && x)
 			{

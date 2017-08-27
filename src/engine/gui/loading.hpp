@@ -45,10 +45,12 @@ namespace gui
 		struct Action
 		{
 			static constexpr engine::Asset CLOSE{ "close" };
+			static constexpr engine::Asset INTERACTION{ "interaction" };
 			static constexpr engine::Asset MOVER{ "mover" };
 			static constexpr engine::Asset SELECT{ "selectable" };
 
 			engine::Asset type;
+			engine::Asset target;
 		}
 		action;
 

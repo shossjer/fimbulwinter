@@ -34,15 +34,15 @@ namespace gui
 
 		void put(engine::Asset name, engine::Entity entity)
 		{
-			this->data.emplace(name, entity);
+			this->data.insert_or_assign(name, entity);
 		}
 
-		bool contains(engine::Asset name)
+		bool contains(engine::Asset name) const
 		{
 			return this->data.find(name) != this->data.end();
 		}
 
-		engine::Entity get(engine::Asset name)
+		engine::Entity get(engine::Asset name) const
 		{
 			return this->data.find(name)->second;
 		}
@@ -56,6 +56,14 @@ namespace gui
 	public:
 
 		const Gravity gravity;
+
+		enum class State
+		{
+			DEFAULT,
+			HIGHLIGHT,
+			PRESSED
+		}
+		state;
 
 	protected:
 
@@ -72,6 +80,7 @@ namespace gui
 			Margin margin,
 			Size size)
 			: gravity(gravity)
+			, state(State::DEFAULT)
 			, margin(margin)
 			, size(size)
 			, shown(false)
@@ -92,6 +101,8 @@ namespace gui
 		virtual void show(const Vector3f delta) = 0;
 
 		virtual void hide() = 0;
+
+		virtual void update(const State state) = 0;
 
 		virtual void refresh() = 0;
 
@@ -152,6 +163,8 @@ namespace gui
 			float & offset_depth) override;
 
 		void hide() override;
+
+		void update(const State state) override;
 
 		void translate(core::maths::Vector3f delta) override;
 	};
@@ -264,6 +277,8 @@ namespace gui
 		void show(const Vector3f delta) override;
 
 		void hide() override;
+
+		void update(const State state) override;
 
 		void refresh() override;
 

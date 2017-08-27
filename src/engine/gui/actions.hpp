@@ -21,9 +21,22 @@ namespace engine
 {
 namespace gui
 {
+	class View;
+
 	struct CloseAction
 	{
 		engine::Asset window;
+	};
+
+	struct InteractionAction
+	{
+		engine::Asset window;
+		View * target;
+
+		InteractionAction(engine::Asset window, View * target)
+			: window(window)
+			, target(target)
+		{}
 	};
 
 	struct MoveAction

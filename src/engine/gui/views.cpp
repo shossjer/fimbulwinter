@@ -95,6 +95,11 @@ namespace gui
 		engine::graphics::renderer::post_remove(this->entity);
 	}
 
+	void Drawable::update(const State state)
+	{
+		this->state = state;
+	}
+
 	void Drawable::translate(core::maths::Vector3f delta)
 	{
 		// TODO: check if view is visible
@@ -500,6 +505,16 @@ namespace gui
 		for (auto child : this->children)
 		{
 			child->hide();
+		}
+	}
+
+	void Group::update(const State state)
+	{
+		this->state = state;
+
+		for (auto child : this->children)
+		{
+			child->update(state);
 		}
 	}
 

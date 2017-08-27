@@ -1007,7 +1007,8 @@ namespace gamestate
 
 					if (highlighted_entity != engine::Entity::null())
 					{
-						components.call(highlighted_entity, ::playerEntityHighlight);
+						if (components.contains(highlighted_entity))
+							components.call(highlighted_entity, ::playerEntityHighlight);
 					}
 					break;
 				case engine::Command::MOUSE_LEFT_DOWN:
