@@ -269,9 +269,14 @@ namespace
 			return Gravity{ h | v };
 		}
 
+		bool has_name(const json & jdata) const
+		{
+			return contains(jdata, "name");
+		}
+
 		std::string name(const json & jdata) const
 		{
-			debug_assert(contains(jdata, "name"));
+			debug_assert(has_name(jdata));
 			std::string str = jdata["name"];
 			debug_assert(str.length() > std::size_t{ 0 });
 			return str;
@@ -279,7 +284,7 @@ namespace
 
 		std::string name_or_null(const json & jdata) const
 		{
-			if (contains(jdata, "name"))
+			if (has_name(jdata))
 			{
 				std::string str = jdata["name"];
 				debug_assert(str.length() > std::size_t{ 0 });
@@ -428,8 +433,6 @@ namespace
 				view.action.type = ViewData::Action::INTERACTION;
 				if (contains(jtrigger, "target"))
 					view.action.target = jtrigger["target"].get<std::string>();
-				else
-					view.action.target = engine::Asset::null();
 				break;
 			case ViewData::Action::MOVER:
 				view.action.type = ViewData::Action::MOVER;
@@ -655,43 +658,58 @@ namespace
 			const ResourceLoader & load;
 			const json & jdata;
 
+			std::unordered_map<std::string, std::string> customized_names;
+
 		private:
 
 			// checks if the view has a custom definition in the implementation of the view.
 			bool is_customized(ViewData & data)
 			{
-				if (data.name.empty())
-					return false;
-
-				if (!contains(jdata, data.name))
-				{
-					// remove "template name" from instance if set and no overrider provided.
-					// this is because the name needs to be unique.
-					data.name = "";
-					return false;
-				}
-				return true;
+				return data.has_name() && contains(jdata, data.name);
 			}
 
-			const json & get_customized(ViewData & data)
+			const json & customize_common(ViewData & data)
 			{
 				const json & jcustomize = this->jdata[data.name];
 
-				// remove "template name" from instance if set and no overrider provided.
-				// this is because the name needs to be unique.
-				data.name = "";
+				// customize the name and register the change.
+				if (this->load.has_name(jcustomize))
+				{
+					const std::string name = this->load.name(jcustomize);
+					customized_names.insert_or_assign(data.name, name);
+					data.name = name;
+				}
+
 				return jcustomize;
+			}
+
+			// actions can have "named targets" make sure to update the name
+			// if it has been "customized".
+			void update_actions(ViewData & data)
+			{
+				if (data.action.target == engine::Asset::null())
+					return;
+
+				for (const auto & d : customized_names)
+				{
+					// not optimal...
+					if (engine::Asset{ d.first } == data.action.target)
+					{
+						data.action.target = engine::Asset{ d.second };
+						return;
+					}
+				}
 			}
 
 		public:
 
 			void operator() (GroupData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					customize_common(data);
 				}
 
 				// customize any template children of the group
@@ -702,11 +720,11 @@ namespace
 			}
 			void operator() (ListData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					customize_common(data);
 				}
 
 				// customize the list item template
@@ -717,11 +735,11 @@ namespace
 			}
 			void operator() (PanelData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					const json & jcustomize = customize_common(data);
 
 					if (this->load.has_type_panel(jcustomize))
 					{
@@ -734,11 +752,11 @@ namespace
 			}
 			void operator() (TextData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					const json & jcustomize = customize_common(data);
 
 					if (this->load.has_type_text(jcustomize))
 					{
@@ -754,11 +772,11 @@ namespace
 			}
 			void operator() (TextureData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					const json & jcustomize = customize_common(data);
 
 					if (this->load.has_type_texture(jcustomize))
 					{

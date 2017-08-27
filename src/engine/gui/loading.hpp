@@ -71,6 +71,7 @@ namespace gui
 			, gravity(gravity)
 		{
 			action.type = engine::Asset::null();
+			action.target = engine::Asset::null();
 			function.type = engine::Asset::null();
 		}
 
