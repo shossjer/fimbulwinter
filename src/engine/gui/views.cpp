@@ -176,6 +176,8 @@ namespace gui
 
 	void PanelC::refresh()
 	{
+		if (!this->shown) return;
+
 		engine::graphics::renderer::post_update_panel(
 			this->entity,
 			engine::graphics::data::ui::PanelC{
@@ -248,6 +250,8 @@ namespace gui
 
 	void PanelT::refresh()
 	{
+		if (!this->shown) return;
+
 		engine::graphics::renderer::post_update_panel(
 			this->entity,
 			engine::graphics::data::ui::PanelT{
@@ -325,6 +329,8 @@ namespace gui
 
 	void Text::refresh()
 	{
+		if (!this->shown) return;
+
 		engine::graphics::renderer::post_update_text(
 			this->entity,
 			engine::graphics::data::ui::Text{

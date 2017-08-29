@@ -170,10 +170,20 @@ namespace
 			switch (data.action.type)
 			{
 			case ViewData::Action::CLOSE:
+			{
+				View * view;
 
-				actions.emplace<engine::gui::CloseAction>(drawable.entity, engine::gui::CloseAction{ this->window.name });
+				if (data.action.target == engine::Asset::null())
+					view = &drawable;
+				else
+				{
+					view = find(data.action.target, this->lookup);
+					debug_assert(view != nullptr);
+				}
+
+				actions.emplace<engine::gui::CloseAction>(drawable.entity, this->window.name, view);
 				break;
-
+			}
 			case ViewData::Action::INTERACTION:
 			{
 				View * view;
@@ -396,7 +406,7 @@ namespace gui
 		// TODO: destroy something
 	}
 
-	struct Trigger
+	struct
 	{
 		void operator() (const CloseAction & action)
 		{
@@ -405,10 +415,16 @@ namespace gui
 
 		template<typename T>
 		void operator() (const T &) {}
-	};
+	}
+	interactionClick;
 
 	struct
 	{
+		void operator() (const CloseAction & action)
+		{
+			action.target->update(View::State::DEFAULT);
+			action.target->refresh();
+		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::DEFAULT);
@@ -422,6 +438,11 @@ namespace gui
 
 	struct
 	{
+		void operator() (const CloseAction & action)
+		{
+			action.target->update(View::State::HIGHLIGHT);
+			action.target->refresh();
+		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::HIGHLIGHT);
@@ -435,6 +456,11 @@ namespace gui
 
 	struct
 	{
+		void operator() (const CloseAction & action)
+		{
+			action.target->update(View::State::PRESSED);
+			action.target->refresh();
+		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::PRESSED);
@@ -608,7 +634,7 @@ namespace gui
 			void operator () (MessageInteractionClick && x)
 			{
 				debug_assert(actions.contains(x.entity));
-				actions.call(x.entity, Trigger{});
+				actions.call(x.entity, interactionClick);
 			}
 			void operator () (MessageInteractionHighlight && x)
 			{

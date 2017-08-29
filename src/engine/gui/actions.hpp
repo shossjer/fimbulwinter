@@ -26,6 +26,12 @@ namespace gui
 	struct CloseAction
 	{
 		engine::Asset window;
+		View * target;
+
+		CloseAction(engine::Asset window, View * target)
+			: window(window)
+			, target(target)
+		{}
 	};
 
 	struct InteractionAction

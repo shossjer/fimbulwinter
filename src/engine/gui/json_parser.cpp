@@ -428,6 +428,8 @@ namespace
 			{
 			case ViewData::Action::CLOSE:
 				view.action.type = ViewData::Action::CLOSE;
+				if (contains(jtrigger, "target"))
+					view.action.target = jtrigger["target"].get<std::string>();
 				break;
 			case ViewData::Action::INTERACTION:
 				view.action.type = ViewData::Action::INTERACTION;
