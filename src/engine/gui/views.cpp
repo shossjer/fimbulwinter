@@ -16,6 +16,15 @@ namespace gui
 		return this->margin.width() + this->size.width.value;
 	}
 
+	View * View::find(const engine::Asset name)
+	{
+		return this->name == name ? this : nullptr;
+	}
+	View * View::find(const engine::Entity entity)
+	{
+		return this->entity == entity ? this : nullptr;
+	}
+
 	Vector3f View::arrange_offset(
 		const Size size_parent,
 		const Gravity gravity_mask_parent,
@@ -120,7 +129,7 @@ namespace gui
 			switch (this->size.height.type)
 			{
 			case Size::TYPE::FIXED:
-				this->size.height.fixed(max_height, this->margin.height());
+				this->size.height.fixed(max_height);
 				break;
 			case Size::TYPE::PARENT:
 				this->size.height.parent(max_height);
@@ -139,7 +148,7 @@ namespace gui
 			switch (this->size.width.type)
 			{
 			case Size::TYPE::FIXED:
-				this->size.width.fixed(max_width, this->margin.width());
+				this->size.width.fixed(max_width);
 				break;
 			case Size::TYPE::PARENT:
 				this->size.width.parent(max_width);
@@ -194,7 +203,7 @@ namespace gui
 			switch (this->size.height.type)
 			{
 			case Size::TYPE::FIXED:
-				this->size.height.fixed(max_height, this->margin.height());
+				this->size.height.fixed(max_height);
 				break;
 			case Size::TYPE::PARENT:
 				this->size.height.parent(max_height);
@@ -213,7 +222,7 @@ namespace gui
 			switch (this->size.width.type)
 			{
 			case Size::TYPE::FIXED:
-				this->size.width.fixed(max_width, this->margin.width());
+				this->size.width.fixed(max_width);
 				break;
 			case Size::TYPE::PARENT:
 				this->size.width.parent(max_width);
@@ -268,7 +277,7 @@ namespace gui
 			switch (this->size.height.type)
 			{
 			case Size::TYPE::FIXED:
-				this->size.height.fixed(max_height, this->margin.height());
+				this->size.height.fixed(max_height);
 				break;
 			case Size::TYPE::PARENT:
 				this->size.height.parent(max_height);
@@ -289,7 +298,7 @@ namespace gui
 			switch (this->size.width.type)
 			{
 			case Size::TYPE::FIXED:
-				this->size.width.fixed(max_width, this->margin.width());
+				this->size.width.fixed(max_width);
 				break;
 			case Size::TYPE::PARENT:
 				this->size.width.parent(max_width);
@@ -337,6 +346,35 @@ namespace gui
 				this->render_matrix(),
 				this->color->get(this),
 				this->display });
+	}
+
+	View * Group::find(const engine::Asset name)
+	{
+		if (this->name == name)
+			return this;
+
+		for (auto vp : this->children)
+		{
+			auto fp = vp->find(name);
+			if (fp != nullptr)
+				return fp;
+		}
+
+		return nullptr;
+	}
+	View * Group::find(const engine::Entity entity)
+	{
+		if (this->entity == entity)
+			return this;
+
+		for (auto vp : this->children)
+		{
+			auto fp = vp->find(entity);
+			if (fp != nullptr)
+				return fp;
+		}
+
+		return nullptr;
 	}
 
 	void Group::measure_children()
@@ -456,7 +494,7 @@ namespace gui
 			switch (this->size.height.type)
 			{
 			case Size::TYPE::FIXED:
-				this->size.height.fixed(max_height, this->margin.height());
+				this->size.height.fixed(max_height);
 				break;
 			case Size::TYPE::PARENT:
 				this->size.height.parent(max_height);
@@ -478,7 +516,7 @@ namespace gui
 			switch (this->size.width.type)
 			{
 			case Size::TYPE::FIXED:
-				this->size.width.fixed(max_width, this->margin.width());
+				this->size.width.fixed(max_width);
 				break;
 			case Size::TYPE::PARENT:
 				this->size.width.parent(max_width);

@@ -55,6 +55,9 @@ namespace gui
 
 	public:
 
+		const engine::Entity entity;
+		const engine::Asset name;
+
 		const Gravity gravity;
 
 		enum class State
@@ -76,10 +79,14 @@ namespace gui
 	protected:
 
 		View(
+			engine::Entity entity,
+			engine::Asset name,
 			Gravity gravity,
 			Margin margin,
 			Size size)
-			: gravity(gravity)
+			: entity(entity)
+			, name(name)
+			, gravity(gravity)
 			, state(State::DEFAULT)
 			, margin(margin)
 			, size(size)
@@ -94,6 +101,9 @@ namespace gui
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent,
 			float & offset_depth) = 0;
+
+		virtual View * find(const engine::Asset name);
+		virtual View * find(const engine::Entity entity);
 
 		// needs to be called after any changes has been made to Components
 		virtual void measure(const Size size_parent) = 0;
@@ -124,10 +134,6 @@ namespace gui
 
 	class Drawable : public View
 	{
-	public:
-
-		engine::Entity entity;
-
 	private:
 
 		bool selectable;
@@ -137,9 +143,14 @@ namespace gui
 
 	protected:
 
-		Drawable(engine::Entity entity, Gravity gravity, Margin margin, Size size, bool selectable)
-			: View(gravity, margin, size)
-			, entity(entity)
+		Drawable(
+			engine::Entity entity,
+			engine::Asset name,
+			Gravity gravity,
+			Margin margin,
+			Size size,
+			bool selectable)
+			: View(entity, name, gravity, margin, size)
 			, selectable(selectable)
 		{
 		}
@@ -177,8 +188,15 @@ namespace gui
 
 	public:
 
-		PanelC(engine::Entity entity, Gravity gravity, Margin margin, Size size, const resource::ColorResource * color, bool selectable)
-			: Drawable(entity, gravity, margin, size, selectable)
+		PanelC(
+			engine::Entity entity,
+			engine::Asset name,
+			Gravity gravity,
+			Margin margin,
+			Size size,
+			const resource::ColorResource * color,
+			bool selectable)
+			: Drawable(entity, name, gravity, margin, size, selectable)
 			, color(color)
 		{
 			debug_assert(size.height.type != Size::TYPE::WRAP);
@@ -200,8 +218,15 @@ namespace gui
 
 	public:
 
-		PanelT(engine::Entity entity, Gravity gravity, Margin margin, Size size, engine::Asset texture, bool selectable)
-			: Drawable(entity, gravity, margin, size, selectable)
+		PanelT(
+			engine::Entity entity,
+			engine::Asset name,
+			Gravity gravity,
+			Margin margin,
+			Size size,
+			engine::Asset texture,
+			bool selectable)
+			: Drawable(entity, name, gravity, margin, size, selectable)
 			, texture(texture)
 		{
 			debug_assert(size.height.type != Size::TYPE::WRAP);
@@ -225,8 +250,14 @@ namespace gui
 
 	public:
 
-		Text(engine::Entity entity, Gravity gravity, Margin margin, Size size, const resource::ColorResource * color, std::string display)
-			: Drawable(entity, gravity, margin, size, false)
+		Text(
+			engine::Entity entity,
+			engine::Asset name,
+			Gravity gravity,
+			Margin margin, Size size,
+			const resource::ColorResource * color,
+			std::string display)
+			: Drawable(entity, name, gravity, margin, size, false)
 			, color(color)
 			, display(display)
 		{
@@ -243,7 +274,7 @@ namespace gui
 	{
 		friend class Window;
 
-	protected:
+	public:
 
 		std::vector<View*> children;
 
@@ -251,8 +282,14 @@ namespace gui
 
 	public:
 
-		Group(Gravity gravity, Margin margin, Size size, Layout layout)
-			: View(gravity, margin, size)
+		Group(
+			engine::Entity entity,
+			engine::Asset name,
+			Gravity gravity,
+			Margin margin,
+			Size size,
+			Layout layout)
+			: View(entity, name, gravity, margin, size)
 			, layout(layout)
 		{}
 
@@ -271,6 +308,9 @@ namespace gui
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent,
 			float & offset_depth) override;
+
+		View * find(const engine::Asset name) override;
+		View * find(const engine::Entity name) override;
 
 		void measure(const Size parent) override;
 
@@ -299,8 +339,15 @@ namespace gui
 
 	public:
 
-		List(Gravity gravity, Margin margin, Size size, Layout layout, const ListData & view_template)
-			: Group(gravity, margin, size, layout)
+		List(
+			engine::Entity entity,
+			engine::Asset name,
+			Gravity gravity,
+			Margin margin,
+			Size size,
+			Layout layout,
+			const ListData & view_template)
+			: Group(entity, name, gravity, margin, size, layout)
 			, view_template(view_template)
 			, shown_items(0)
 		{}
@@ -327,7 +374,7 @@ namespace gui
 
 		Window(engine::Asset name, Size size, Layout layout, Margin margin)
 			: name(name)
-			, group{ Gravity{}, Margin{}, size, layout }
+			, group{ engine::Entity::create(), name, Gravity{}, Margin{}, size, layout }
 			, position({ static_cast<float>(margin.left), static_cast<float>(margin.top), 0.f })
 			, shown(false)
 			, order(0)

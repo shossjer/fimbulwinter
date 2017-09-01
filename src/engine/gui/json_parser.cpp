@@ -424,23 +424,25 @@ namespace
 
 			engine::Asset action { jtrigger["action"].get<std::string>() };
 
+			if (contains(jtrigger, "target"))
+				view.action.target = jtrigger["target"].get<std::string>();
+
 			switch (action)
 			{
 			case ViewData::Action::CLOSE:
-				view.action.type = ViewData::Action::CLOSE;
-				if (contains(jtrigger, "target"))
-					view.action.target = jtrigger["target"].get<std::string>();
+				view.action.type = ViewData::Action::CLOSE;			
 				break;
 			case ViewData::Action::INTERACTION:
 				view.action.type = ViewData::Action::INTERACTION;
-				if (contains(jtrigger, "target"))
-					view.action.target = jtrigger["target"].get<std::string>();
 				break;
 			case ViewData::Action::MOVER:
 				view.action.type = ViewData::Action::MOVER;
 				break;
 			case ViewData::Action::SELECT:
 				view.action.type = ViewData::Action::SELECT;
+				break;
+			case ViewData::Action::TRIGGER:
+				view.action.type = ViewData::Action::TRIGGER;
 				break;
 
 			default:
@@ -485,6 +487,10 @@ namespace
 				{
 					target.function.direction = ProgressBar::HORIZONTAL;
 				}
+				break;
+			}
+			case ViewData::Function::TAB:
+			{
 				break;
 			}
 			default:

@@ -16,6 +16,7 @@
 	does not have to be registered in the "lookup" table.
  */
 #include <engine/Asset.hpp>
+#include <engine/Entity.hpp>
 
 namespace engine
 {
@@ -53,6 +54,17 @@ namespace gui
 	struct SelectAction
 	{
 		engine::Asset window;
+	};
+
+	struct TriggerAction
+	{
+		engine::Asset window;
+		engine::Entity entity;
+
+		TriggerAction(engine::Asset window, engine::Entity entity)
+			: window(window)
+			, entity(entity)
+		{}
 	};
 }
 }

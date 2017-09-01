@@ -32,7 +32,8 @@ namespace
 		std::array<CloseAction, 10>,
 		std::array<InteractionAction, 10>,
 		std::array<MoveAction, 10>,
-		std::array<SelectAction, 10>
+		std::array<SelectAction, 10>,
+		std::array<TriggerAction, 10>
 	>
 	actions;
 
@@ -46,7 +47,8 @@ namespace
 		std::array<engine::gui::PanelT, 50>,
 		std::array<engine::gui::Text, 50>,
 		// Functionality
-		std::array<engine::gui::ProgressBar, 50>
+		std::array<engine::gui::ProgressBar, 20>,
+		std::array<engine::gui::TabBar, 5>
 	>
 	components;
 
@@ -129,7 +131,17 @@ namespace
 
 	std::vector<Window *> window_stack;
 
-	View * find(const engine::Asset name, const Lookup & lookup)
+	engine::Entity find_entity(const engine::Asset name, const Lookup & lookup)
+	{
+		if (!lookup.contains(name))
+		{
+			debug_printline(0xffffffff, "GUI - could not find asset in lookup.");
+			debug_unreachable();
+		}
+
+		return lookup.get(name);
+	}
+	View * find_view(const engine::Asset name, const Lookup & lookup)
 	{
 		if (!lookup.contains(name))
 			return nullptr;
@@ -145,6 +157,7 @@ namespace
 			View * operator() (Text & view) { return &view; }
 
 			View * operator() (const ProgressBar &) { return nullptr; }
+			View * operator() (const TabBar &) { return nullptr; }
 		}
 		finder;
 
@@ -177,7 +190,7 @@ namespace
 					view = &drawable;
 				else
 				{
-					view = find(data.action.target, this->lookup);
+					view = find_view(data.action.target, this->lookup);
 					debug_assert(view != nullptr);
 				}
 
@@ -192,7 +205,7 @@ namespace
 					view = &drawable;
 				else
 				{
-					view = find(data.action.target, this->lookup);
+					view = find_view(data.action.target, this->lookup);
 					debug_assert(view != nullptr);
 				}
 
@@ -208,31 +221,71 @@ namespace
 
 				actions.emplace<engine::gui::SelectAction>(drawable.entity, engine::gui::SelectAction{ this->window.name });
 				break;
+			case ViewData::Action::TRIGGER:
+			{
+				engine::Entity entity;
+
+				if (data.action.target == engine::Asset::null())
+					entity = drawable.entity;
+				else
+					entity = find_entity(data.action.target, this->lookup);
+
+				actions.emplace<engine::gui::TriggerAction>(drawable.entity, this->window.name, entity);
+				break;
+			}
 			}
 
 			gameplay::gamestate::post_add(drawable.entity, this->window.name, data.action.type);
 		}
 
-		void create_function(View & view, const ViewData & data)
+		void create_function(engine::Entity entity, View & view, const ViewData & data)
 		{
 			switch (data.function.type)
 			{
 			case ViewData::Function::PROGRESS:
 			{
-				const auto entity = engine::Entity::create();
-
 				components.emplace<ProgressBar>(
 					entity,
 					this->window.name,
 					&view,
 					data.function.direction);
 
-				lookup.put(data.function.name, entity);
+				break;
+			}
+			case ViewData::Function::TAB:
+			{
+				Group * const base = dynamic_cast<Group*>(&view);
+				debug_assert(base != nullptr);
+
+				auto & tabBar = components.emplace<TabBar>(
+					entity,
+					this->window.name,
+					base,
+					dynamic_cast<Group*>(base->find("tabs")),
+					dynamic_cast<Group*>(base->find("views")));
+
+				debug_assert(tabBar.tab_container != nullptr);
+				debug_assert(tabBar.views_container != nullptr);
+				debug_assert(tabBar.tab_container->children.size() == tabBar.views_container->children.size());
 				break;
 			}
 			default:
-				break;
+
+				debug_printline(0xffffffff, "GUI - invalid function type.");
+				debug_unreachable();
 			}
+		}
+		void create_function(View & view, const ViewData & data)
+		{
+			if (data.function.type == engine::Asset::null())
+				return;
+
+			const auto entity = engine::Entity::create();
+
+			if (!data.function.name.empty())
+				lookup.put(data.function.name, entity);
+
+			create_function(entity, view, data);
 		}
 
 	public:
@@ -242,6 +295,8 @@ namespace
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<Group>(
 				entity,
+				entity,
+				data.name,
 				data.gravity,
 				data.margin,
 				data.size,
@@ -249,8 +304,20 @@ namespace
 
 			if (data.has_name()) lookup.put(data.name, entity);
 
-			create_views(view, data);
-			create_function(view, data);
+			if (data.function.type != engine::Asset::null())
+			{
+				const auto function_entity = engine::Entity::create();
+
+				if (!data.function.name.empty())
+					lookup.put(data.function.name, function_entity);
+
+				create_views(view, data);
+				create_function(function_entity, view, data);
+			}
+			else
+			{
+				create_views(view, data);
+			}
 
 			return view;
 		}
@@ -260,6 +327,8 @@ namespace
 			const auto entity = engine::Entity::create();
 			auto & view = components.emplace<List>(
 				entity,
+				entity,
+				data.name,
 				data.gravity,
 				data.margin,
 				data.size,
@@ -277,6 +346,7 @@ namespace
 			auto & view = components.emplace<PanelC>(
 				entity,
 				entity,
+				data.name,
 				data.gravity,
 				data.margin,
 				data.size,
@@ -296,6 +366,7 @@ namespace
 			auto & view = components.emplace<Text>(
 				entity,
 				entity,
+				data.name,
 				data.gravity,
 				data.margin,
 				data.size,
@@ -315,6 +386,7 @@ namespace
 			auto & view = components.emplace<PanelT>(
 				entity,
 				entity,
+				data.name,
 				data.gravity,
 				data.margin,
 				data.size,
@@ -398,6 +470,8 @@ namespace gui
 			window_stack.push_back(&window);
 
 			Creator(lookup, window).create_views(window.group, data);
+
+			window.measure_window();
 		}
 	}
 
@@ -406,17 +480,60 @@ namespace gui
 		// TODO: destroy something
 	}
 
-	struct
+	struct Trigger
 	{
+		engine::Entity caller;
+
+		void operator() (TabBar & function)
+		{
+			debug_printline(0xffffffff, "Trigger function!");
+			std::size_t clicked_index = function.active_index;
+			for (std::size_t i = 0; i < function.tab_container->children.size(); i++)
+			{
+				if (function.tab_container->children[i]->find(this->caller) != nullptr)
+				{
+					clicked_index = i;
+					break;
+				}
+			}
+
+			if (function.active_index == clicked_index)
+				return;
+
+			//// hide / unselect the prev. tab
+			function.tab_container->children[function.active_index]->state = View::State::DEFAULT;
+			//function.views_container->children[function.active_index]->hide();
+			function.tab_container->children[function.active_index]->refresh();
+
+			//// show / select the new tab.
+			function.tab_container->children[clicked_index]->state = View::State::PRESSED;
+			//function.views_container->children[clicked_index]->show();
+			function.tab_container->children[clicked_index]->refresh();
+
+			function.active_index = clicked_index;
+		}
+
+		template<typename T>
+		void operator() (const T&) {}
+	};
+
+	struct InteractionClick
+	{
+		engine::Entity caller;
+
 		void operator() (const CloseAction & action)
 		{
 			hide(action.window);
 		}
 
+		void operator() (const TriggerAction & action)
+		{
+			components.call(action.entity, Trigger{ caller });
+		}
+
 		template<typename T>
 		void operator() (const T &) {}
-	}
-	interactionClick;
+	};
 
 	struct
 	{
@@ -634,7 +751,7 @@ namespace gui
 			void operator () (MessageInteractionClick && x)
 			{
 				debug_assert(actions.contains(x.entity));
-				actions.call(x.entity, interactionClick);
+				actions.call(x.entity, InteractionClick{ x.entity });
 			}
 			void operator () (MessageInteractionHighlight && x)
 			{

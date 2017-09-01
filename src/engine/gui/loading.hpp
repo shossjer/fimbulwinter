@@ -48,6 +48,7 @@ namespace gui
 			static constexpr engine::Asset INTERACTION{ "interaction" };
 			static constexpr engine::Asset MOVER{ "mover" };
 			static constexpr engine::Asset SELECT{ "selectable" };
+			static constexpr engine::Asset TRIGGER{ "trigger" };
 
 			engine::Asset type;
 			engine::Asset target;
@@ -56,7 +57,8 @@ namespace gui
 
 		struct Function
 		{
-			constexpr static engine::Asset PROGRESS{ "progressBar" };
+			static constexpr engine::Asset PROGRESS{ "progressBar" };
+			static constexpr engine::Asset TAB{ "tabBar" };
 
 			engine::Asset type;
 			std::string name;
