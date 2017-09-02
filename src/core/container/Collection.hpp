@@ -602,7 +602,7 @@ namespace core
 				debug_assert(array.size < array.capacity);
 				const auto index = array.size;
 
-				slots[bucket].template set<type>(index);
+				slots[bucket].template set<type>(static_cast<uint16_t>(index));
 				keys[bucket] = key;
 				array.construct(index, std::forward<Ps>(ps)...);
 				array.buckets[index] = bucket;

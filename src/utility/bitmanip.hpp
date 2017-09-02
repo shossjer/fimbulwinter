@@ -18,6 +18,10 @@ namespace utility
 		return x + 1;
 	}
 
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4146 )
+#endif
 	inline int ntz(uint64_t x)
 	{
 #ifdef __GNUG__
@@ -25,6 +29,7 @@ namespace utility
 			return 64;
 		return __builtin_ctzll(x);
 #else
+
 		// Hacker's Delight Second Edition, Henry S. Warren, Jr.
 		// Gaudet's algorithm
 		const uint64_t y = x & -x;
@@ -38,6 +43,9 @@ namespace utility
 		return bz + b5 + b4 + b3 + b2 + b1 + b0;
 #endif
 	}
+#ifdef _MSC_VER
+#pragma warning( pop )
+#endif
 }
 
 #endif /* UTILITY_BITMANIP_HPP */
