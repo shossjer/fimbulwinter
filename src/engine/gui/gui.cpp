@@ -194,7 +194,7 @@ namespace
 					debug_assert(view != nullptr);
 				}
 
-				actions.emplace<engine::gui::CloseAction>(drawable.entity, this->window.name, view);
+				actions.emplace<engine::gui::CloseAction>(drawable.entity, this->window.name(), view);
 				break;
 			}
 			case ViewData::Action::INTERACTION:
@@ -209,17 +209,17 @@ namespace
 					debug_assert(view != nullptr);
 				}
 
-				actions.emplace<engine::gui::InteractionAction>(drawable.entity, this->window.name, view);
+				actions.emplace<engine::gui::InteractionAction>(drawable.entity, this->window.name(), view);
 				break;
 			}
 			case ViewData::Action::MOVER:
 
-				actions.emplace<engine::gui::MoveAction>(drawable.entity, engine::gui::MoveAction{ this->window.name });
+				actions.emplace<engine::gui::MoveAction>(drawable.entity, engine::gui::MoveAction{ this->window.name() });
 				break;
 
 			case ViewData::Action::SELECT:
 
-				actions.emplace<engine::gui::SelectAction>(drawable.entity, engine::gui::SelectAction{ this->window.name });
+				actions.emplace<engine::gui::SelectAction>(drawable.entity, engine::gui::SelectAction{ this->window.name() });
 				break;
 			case ViewData::Action::TRIGGER:
 			{
@@ -230,12 +230,12 @@ namespace
 				else
 					entity = find_entity(data.action.target, this->lookup);
 
-				actions.emplace<engine::gui::TriggerAction>(drawable.entity, this->window.name, entity);
+				actions.emplace<engine::gui::TriggerAction>(drawable.entity, this->window.name(), entity);
 				break;
 			}
 			}
 
-			gameplay::gamestate::post_add(drawable.entity, this->window.name, data.action.type);
+			gameplay::gamestate::post_add(drawable.entity, this->window.name(), data.action.type);
 		}
 
 		void create_function(engine::Entity entity, View & view, const ViewData & data)
@@ -246,7 +246,7 @@ namespace
 			{
 				components.emplace<ProgressBar>(
 					entity,
-					this->window.name,
+					this->window.name(),
 					&view,
 					data.function.direction);
 
@@ -259,7 +259,7 @@ namespace
 
 				auto & tabBar = components.emplace<TabBar>(
 					entity,
-					this->window.name,
+					this->window.name(),
 					base,
 					dynamic_cast<Group*>(base->find("tabs")),
 					dynamic_cast<Group*>(base->find("views")));
@@ -267,6 +267,12 @@ namespace
 				debug_assert(tabBar.tab_container != nullptr);
 				debug_assert(tabBar.views_container != nullptr);
 				debug_assert(tabBar.tab_container->children.size() == tabBar.views_container->children.size());
+
+				for (std::size_t i = 1; i < tabBar.views_container->children.size(); i++)
+				{
+					auto content = tabBar.views_container->children[i];
+					content->visibility_hide();
+				}
 				break;
 			}
 			default:
@@ -414,7 +420,7 @@ namespace
 	{
 		for (std::size_t i = 0; i < window_stack.size(); i++)
 		{
-			if (window_stack[i]->name == window)
+			if (window_stack[i]->name() == window)
 			{
 				window_stack.erase(window_stack.begin() + i);
 				window_stack.insert(window_stack.begin(), &windows.get<Window>(window));
@@ -470,8 +476,6 @@ namespace gui
 			window_stack.push_back(&window);
 
 			Creator(lookup, window).create_views(window.group, data);
-
-			window.measure_window();
 		}
 	}
 
@@ -502,13 +506,12 @@ namespace gui
 
 			//// hide / unselect the prev. tab
 			function.tab_container->children[function.active_index]->state = View::State::DEFAULT;
-			//function.views_container->children[function.active_index]->hide();
-			function.tab_container->children[function.active_index]->refresh();
+			function.views_container->children[function.active_index]->visibility_hide();
 
 			//// show / select the new tab.
 			function.tab_container->children[clicked_index]->state = View::State::PRESSED;
-			//function.views_container->children[clicked_index]->show();
-			function.tab_container->children[clicked_index]->refresh();
+			function.views_container->children[clicked_index]->visibility_show();
+			function.views_container->children[clicked_index]->renderer_show();
 
 			function.active_index = clicked_index;
 		}
@@ -540,12 +543,10 @@ namespace gui
 		void operator() (const CloseAction & action)
 		{
 			action.target->update(View::State::DEFAULT);
-			action.target->refresh();
 		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::DEFAULT);
-			action.target->refresh();
 		}
 
 		template<typename T>
@@ -558,12 +559,10 @@ namespace gui
 		void operator() (const CloseAction & action)
 		{
 			action.target->update(View::State::HIGHLIGHT);
-			action.target->refresh();
 		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::HIGHLIGHT);
-			action.target->refresh();
 		}
 
 		template<typename T>
@@ -576,12 +575,10 @@ namespace gui
 		void operator() (const CloseAction & action)
 		{
 			action.target->update(View::State::PRESSED);
-			action.target->refresh();
 		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::PRESSED);
-			action.target->refresh();
 		}
 
 		template<typename T>
@@ -612,11 +609,11 @@ namespace gui
 					{
 						list.lookups.emplace_back();
 						Creator{list.lookups[i], window}.create_views(list, list.view_template);
-					}
 
-					if (window.is_shown())
-					{
-						list.show(Vector3f{0.f, 0.f, 0.f});
+						if (window.is_shown())
+						{
+							list.children[i]->renderer_show();
+						}
 					}
 				}
 
@@ -626,7 +623,7 @@ namespace gui
 
 					for (std::size_t i = list.lookups.size() - items_remove; i < list.lookups.size(); i++)
 					{
-						list.children[i]->hide();
+						list.children[i]->renderer_hide();
 					}
 				}
 
@@ -650,6 +647,7 @@ namespace gui
 				}
 
 				list.shown_items = list_size;
+				list.is_dirty = true;
 				break;
 			}
 			default:
@@ -682,6 +680,7 @@ namespace gui
 			case Data::TEXTURE:
 
 				panel.texture = data.texture;
+				panel.is_dirty = true;
 				break;
 
 			default:
@@ -703,6 +702,7 @@ namespace gui
 			case Data::DISPLAY:
 
 				text.display = data.display;
+				text.is_dirty = true;
 				break;
 
 			default:
@@ -728,6 +728,7 @@ namespace gui
 					debug_assert(pb.target->size.height.type == Size::TYPE::PERCENT);
 					pb.target->size.height.set_meta(this->data.progress);
 				}
+				pb.target->is_dirty = true;
 				break;
 
 			default:
@@ -752,32 +753,41 @@ namespace gui
 			{
 				debug_assert(actions.contains(x.entity));
 				actions.call(x.entity, InteractionClick{ x.entity });
+				windows.get<Window>(x.window).splash_mud();
 			}
 			void operator () (MessageInteractionHighlight && x)
 			{
 				if (actions.contains(x.entity))
 					actions.call(x.entity, selectionStateHighlight);
+
+				windows.get<Window>(x.window).splash_mud();
 			}
 			void operator () (MessageInteractionLowlight && x)
 			{
 				if (actions.contains(x.entity))
 					actions.call(x.entity, selectionStateDefault);
+
+				windows.get<Window>(x.window).splash_mud();
 			}
 			void operator () (MessageInteractionPress && x)
 			{
 				// check if window should be selected
-				if (window_stack.front()->name != x.window)
+				if (window_stack.front()->name() != x.window)
 				{
 					select(x.window);
 				}
 
 				if (actions.contains(x.entity))
 					actions.call(x.entity, selectionStatePressed);
+
+				windows.get<Window>(x.window).splash_mud();
 			}
 			void operator () (MessageInteractionRelease && x)
 			{
 				if (actions.contains(x.entity))
 					actions.call(x.entity, selectionStateHighlight);
+
+				windows.get<Window>(x.window).splash_mud();
 			}
 			void operator () (MessageStateHide && x)
 			{
@@ -798,6 +808,10 @@ namespace gui
 			{
 				Window & w = windows.get<Window>(x.window);
 
+				// NOTE: if the gui is requesting data instead we dont need this check
+				if (!w.is_shown())
+					return;
+
 				for (auto & data : x.datas)
 				{
 					if (!lookup.contains(data.first))
@@ -809,8 +823,7 @@ namespace gui
 					components.call(lookup.get(data.first), Updater{ w, data.second });
 				}
 
-				// updates and sends updated views to renderer (if shown)
-				w.update_window();
+				w.splash_mud();
 			}
 			void operator () (MessageUpdateTranslate && x)
 			{
@@ -823,6 +836,14 @@ namespace gui
 		while (::queue_posts.try_pop(message))
 		{
 			visit(processMessage, std::move(message));
+		}
+
+		for (auto & window : windows.get<Window>())
+		{
+			if (window.is_dirty())
+			{
+				window.refresh_window();
+			}
 		}
 	}
 

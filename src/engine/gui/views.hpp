@@ -74,7 +74,10 @@ namespace gui
 
 		Size size;
 
-		bool shown;
+		bool is_dirty;
+		bool is_invisible;
+		bool is_rendered;
+		bool should_render;
 
 	protected:
 
@@ -90,7 +93,10 @@ namespace gui
 			, state(State::DEFAULT)
 			, margin(margin)
 			, size(size)
-			, shown(false)
+			, is_dirty(false)
+			, is_invisible(false)
+			, is_rendered(false)
+			, should_render(false)
 		{}
 
 	public:
@@ -108,12 +114,31 @@ namespace gui
 		// needs to be called after any changes has been made to Components
 		virtual void measure(const Size size_parent) = 0;
 
-		virtual void show(const Vector3f delta) = 0;
+		// NOTE: could have these as show/hide and "make_invisible", "make_visible"
+		// removes the view from renderer
+		virtual void renderer_hide();
+		// adds the view from renderer
+		// only adds if it is "visible"
+		virtual void renderer_show();
 
-		virtual void hide() = 0;
+		// makes the view "hidden", will remove the view from renderer
+		// the view cannot be added to renderer while visibly "hidden"
+		virtual void visibility_hide();
+		// makes the view possible to show in rederer.
+		// this will not add the view to renderer!
+		virtual void visibility_show();
+
+		//// sets view (and children if group) should_render = true
+		//virtual void show();
+
+		//// sets view (and children if group) should_render = false
+		//virtual void hide();
 
 		virtual void update(const State state) = 0;
 
+		// the only method to send data to renderer.
+		// sends updated drawable view data to renderer if views has changed.
+		// sends add, update, remove based on changes made in the view.
 		virtual void refresh() = 0;
 
 		virtual void translate(const Vector3f delta) = 0;
@@ -165,6 +190,9 @@ namespace gui
 
 		core::maths::Vector2f render_size() const;
 
+		virtual void renderer_send_add() const = 0;
+		virtual void renderer_send_update() const = 0;
+
 	public:
 
 		void arrange(
@@ -173,7 +201,7 @@ namespace gui
 			const Vector3f offset_parent,
 			float & offset_depth) override;
 
-		void hide() override;
+		void refresh() override;
 
 		void update(const State state) override;
 
@@ -205,9 +233,10 @@ namespace gui
 
 		void measure(const Size parent) override;
 
-		void show(const Vector3f delta) override;
+	protected:
 
-		void refresh() override;
+		void renderer_send_add() const override;
+		void renderer_send_update() const override;
 	};
 
 	class PanelT : public Drawable
@@ -235,9 +264,10 @@ namespace gui
 
 		void measure(const Size parent) override;
 
-		void show(const Vector3f delta) override;
+	protected:
 
-		void refresh() override;
+		void renderer_send_add() const override;
+		void renderer_send_update() const override;
 	};
 
 	class Text : public Drawable
@@ -265,9 +295,10 @@ namespace gui
 
 		void measure(const Size parent) override;
 
-		void show(const Vector3f delta) override;
+	protected:
 
-		void refresh() override;
+		void renderer_send_add() const override;
+		void renderer_send_update() const override;
 	};
 
 	class Group : public View
@@ -314,9 +345,13 @@ namespace gui
 
 		void measure(const Size parent) override;
 
-		void show(const Vector3f delta) override;
+		void renderer_hide() override;
 
-		void hide() override;
+		void renderer_show() override;
+
+		void visibility_hide() override;
+
+		void visibility_show() override;
 
 		void update(const State state) override;
 
@@ -357,45 +392,51 @@ namespace gui
 	{
 	public:
 
-		engine::Asset name;
-
 		Group group;
 
 	private:
 
 		Vector3f position;
 
-		bool shown;
-
 		// used to determine the drawing order / depth of the window components.
 		int order;
+
+		bool dirty;
+		bool shown;
 
 	public:
 
 		Window(engine::Asset name, Size size, Layout layout, Margin margin)
-			: name(name)
-			, group{ engine::Entity::create(), name, Gravity{}, Margin{}, size, layout }
+			: group{ engine::Entity::create(), name, Gravity{}, Margin{}, size, layout }
 			, position({ static_cast<float>(margin.left), static_cast<float>(margin.top), 0.f })
-			, shown(false)
 			, order(0)
+			, dirty(false)
+			, shown(false)
 		{
 			debug_assert(size.height.type != Size::TYPE::PARENT);
 			debug_assert(size.width.type != Size::TYPE::PARENT);
 		}
 
+		engine::Asset name() const { return this->group.name; }
+
+		bool is_dirty() const { return this->dirty; }
 		bool is_shown() const { return this->shown; }
+
+		void splash_mud() { this->dirty = true; }
+
+		void refresh_window();
 
 		void show_window();
 
 		void hide_window();
 
-		void measure_window();
-
-		void update_window();
-
 		void reorder_window(const int window_order);
 
 		void translate_window(const Vector3f delta);
+
+	private:
+
+		void measure_window();
 	};
 }
 }

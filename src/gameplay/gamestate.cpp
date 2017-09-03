@@ -650,11 +650,11 @@ namespace
 
 		bool operator () (const Worker & w)
 		{
-			profile_updater.entity = w.id;
-			profile_update(w.id);
-
 			// show the window
 			engine::gui::post_state_show("profile");
+
+			profile_updater.entity = w.id;
+			profile_update(w.id);
 			return true;
 		}
 

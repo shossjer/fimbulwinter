@@ -25,6 +25,37 @@ namespace gui
 		return this->entity == entity ? this : nullptr;
 	}
 
+	void View::renderer_hide()
+	{
+		if (!this->should_render) return;
+		this->should_render = false;
+		this->is_dirty = true;
+	}
+	void View::renderer_show()
+	{
+		if (this->should_render) return;	// already/marked for rendering
+		if (this->is_invisible) return;		// if invisible it cannot be rendered
+
+		this->should_render = true;
+		this->is_dirty = true;
+	}
+	void View::visibility_hide()
+	{
+		if (this->is_invisible) return; // already invisible
+
+		if (this->is_rendered)	// set as dirty if shown
+			this->is_dirty = true;
+
+		this->is_invisible = true;
+		this->should_render = false;
+	}
+	void View::visibility_show()
+	{
+		if (!this->is_invisible) return; // already visible
+
+		this->is_invisible = false;
+	}
+
 	Vector3f View::arrange_offset(
 		const Size size_parent,
 		const Gravity gravity_mask_parent,
@@ -96,29 +127,55 @@ namespace gui
 		offset_depth += DEPTH_INC;
 	}
 
-	void Drawable::hide()
+	void Drawable::refresh()
 	{
-		if (!this->shown) return;
-		this->shown = false;
+		//if (!this->is_dirty) return;	// no change
 
-		engine::graphics::renderer::post_remove(this->entity);
+		if (this->should_render != this->is_rendered)
+		{
+			if (this->should_render)	// check if view should be shown or hidden
+			{
+				renderer_send_add();
+
+				if (is_selectable())
+				{
+					engine::graphics::renderer::post_make_selectable(this->entity);
+				}
+				this->is_rendered = true;
+			}
+			else
+			{
+				engine::graphics::renderer::post_remove(this->entity);
+				this->is_rendered = false;
+			}
+		}
+		else
+		{
+			// TEMP
+			if (!this->is_dirty) return;
+
+			// should not be "dirty" while not rendered
+			debug_assert(this->should_render);
+			renderer_send_update();
+		}
+
+		this->is_dirty = false;
 	}
 
 	void Drawable::update(const State state)
 	{
+		if (!this->should_render) return;
+
 		this->state = state;
+		this->is_dirty = true;
 	}
 
 	void Drawable::translate(core::maths::Vector3f delta)
 	{
-		// TODO: check if view is visible
+		if (!this->should_render) return;
 
 		update_translation(delta);
-
-		// send the updated matrix
-		engine::graphics::renderer::post_update_modelviewmatrix(
-			this->entity,
-			engine::graphics::data::ModelviewMatrix{ render_matrix() });
+		this->is_dirty = true;
 	}
 
 	void PanelC::measure(const Size parent)
@@ -163,30 +220,17 @@ namespace gui
 		}
 	}
 
-	void PanelC::show(const Vector3f delta)
+	void PanelC::renderer_send_add() const
 	{
-		if (this->shown) return;
-		this->shown = true;
-
-		update_translation(delta);
-
 		engine::graphics::renderer::post_add_panel(
 			this->entity,
 			engine::graphics::data::ui::PanelC{
 				this->render_matrix(),
 				this->render_size(),
 				this->color->get(this) });
-
-		if (is_selectable())
-		{
-			engine::graphics::renderer::post_make_selectable(this->entity);
-		}
 	}
-
-	void PanelC::refresh()
+	void PanelC::renderer_send_update() const
 	{
-		if (!this->shown) return;
-
 		engine::graphics::renderer::post_update_panel(
 			this->entity,
 			engine::graphics::data::ui::PanelC{
@@ -237,30 +281,17 @@ namespace gui
 		}
 	}
 
-	void PanelT::show(const Vector3f delta)
+	void PanelT::renderer_send_add() const
 	{
-		if (this->shown) return;
-		this->shown = true;
-
-		update_translation(delta);
-
 		engine::graphics::renderer::post_add_panel(
 			this->entity,
 			engine::graphics::data::ui::PanelT{
 				this->render_matrix(),
 				this->render_size(),
 				this->texture });
-
-		if (is_selectable())
-		{
-			engine::graphics::renderer::post_make_selectable(this->entity);
-		}
 	}
-
-	void PanelT::refresh()
+	void PanelT::renderer_send_update() const
 	{
-		if (!this->shown) return;
-
 		engine::graphics::renderer::post_update_panel(
 			this->entity,
 			engine::graphics::data::ui::PanelT{
@@ -316,30 +347,17 @@ namespace gui
 		}
 	}
 
-	void Text::show(const Vector3f delta)
+	void Text::renderer_send_add() const
 	{
-		if (this->shown) return;
-		this->shown = true;
-
-		update_translation(delta);
-
 		engine::graphics::renderer::post_add_text(
 			this->entity,
 			engine::graphics::data::ui::Text{
 				this->render_matrix(),
 				this->color->get(this),
 				this->display });
-
-		if (is_selectable())
-		{
-			engine::graphics::renderer::post_make_selectable(this->entity);
-		}
 	}
-
-	void Text::refresh()
+	void Text::renderer_send_update() const
 	{
-		if (!this->shown) return;
-
 		engine::graphics::renderer::post_update_text(
 			this->entity,
 			engine::graphics::data::ui::Text{
@@ -536,20 +554,56 @@ namespace gui
 		measure_children();
 	}
 
-	void Group::show(const Vector3f delta)
+	void Group::renderer_hide()
 	{
-		for (auto child : this->children)
-		{
-			child->show(delta);
-		}
-	}
+		if (!this->should_render) return;
 
-	void Group::hide()
-	{
 		for (auto child : this->children)
 		{
-			child->hide();
+			child->renderer_hide();
 		}
+
+		this->should_render = false;
+		this->is_dirty = true;
+	}
+	void Group::renderer_show()
+	{
+		if (this->should_render) return;	// already/marked for rendering
+		if (this->is_invisible) return;		// if invisible it cannot be rendered
+
+		for (auto child : this->children)
+		{
+			child->renderer_show();
+		}
+
+		this->should_render = true;
+		this->is_dirty = true;
+	}
+	void Group::visibility_hide()
+	{
+		if (this->is_invisible) return; // already invisible
+
+		for (auto child : this->children)
+		{
+			child->visibility_hide();
+		}
+
+		if (this->is_rendered)	// set as dirty if shown
+			this->is_dirty = true;
+
+		this->is_invisible = true;
+		this->should_render = false;
+	}
+	void Group::visibility_show()
+	{
+		if (!this->is_invisible) return; // already visible
+
+		for (auto child : this->children)
+		{
+			child->visibility_show();
+		}
+
+		this->is_invisible = false;
 	}
 
 	void Group::update(const State state)
@@ -578,11 +632,17 @@ namespace gui
 		}
 	}
 
+	void Window::refresh_window()
+	{
+		debug_assert(this->dirty);
+		measure_window();
+		this->group.refresh();
+		this->dirty = false;
+	}
+
 	void Window::show_window()
 	{
-		if (this->shown) return;
-
-		this->shown = true;
+		if (is_shown()) return;
 
 		const Vector3f delta{ 0.f, 0.f, static_cast<float>(-(this->order)) };
 
@@ -590,15 +650,19 @@ namespace gui
 		this->order = 0;
 		this->position += delta;
 
-		this->group.show(delta);
+		this->group.renderer_show();
+		this->group.translate(delta);
+
+		this->shown = true;
+		this->dirty = true;
 	}
 
 	void Window::hide_window()
 	{
-		debug_assert(this->shown);
+		debug_assert(is_shown());
+		this->group.renderer_hide();
 		this->shown = false;
-
-		this->group.hide();
+		this->dirty = true;
 	}
 
 	void Window::measure_window()
@@ -632,19 +696,9 @@ namespace gui
 		this->group.arrange_children(this->position, depth);
 	}
 
-	void Window::update_window()
-	{
-		measure_window();
-
-		if (is_shown())
-		{
-			this->group.refresh();
-		}
-	}
-
 	void Window::reorder_window(const int window_order)
 	{
-		if (!this->shown) return;
+		if (!is_shown()) return;
 		if (this->order == window_order) return;
 
 		const float delta_depth = static_cast<float>(window_order - this->order);
@@ -659,6 +713,8 @@ namespace gui
 		this->position += delta;
 
 		this->group.translate(delta);
+
+		if (is_shown()) this->dirty = true;
 	}
 }
 }
