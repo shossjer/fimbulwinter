@@ -164,16 +164,12 @@ namespace gui
 
 	void Drawable::update(const State state)
 	{
-		if (!this->should_render) return;
-
 		this->state = state;
 		this->is_dirty = true;
 	}
 
 	void Drawable::translate(core::maths::Vector3f delta)
 	{
-		if (!this->should_render) return;
-
 		update_translation(delta);
 		this->is_dirty = true;
 	}
@@ -622,6 +618,8 @@ namespace gui
 		{
 			child->refresh();
 		}
+
+		this->is_rendered = this->should_render;
 	}
 
 	void Group::translate(const Vector3f delta)
@@ -636,7 +634,10 @@ namespace gui
 	{
 		debug_assert(this->dirty);
 		measure_window();
-		this->group.refresh();
+
+		if (this->group.is_rendered || this->group.should_render)
+			this->group.refresh();
+
 		this->dirty = false;
 	}
 

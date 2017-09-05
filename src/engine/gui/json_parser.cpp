@@ -416,38 +416,43 @@ namespace
 
 	private:
 
-		bool has_action(const json & jcomponent) { return contains(jcomponent, "trigger"); }
+		bool has_action(const json & jcomponent) { return contains(jcomponent, "actions"); }
 
 		void load_action(ViewData & view, const json & jcomponent)
 		{
-			const json & jtrigger = jcomponent["trigger"];
+			const json & jactions = jcomponent["actions"];
 
-			engine::Asset action { jtrigger["action"].get<std::string>() };
-
-			if (contains(jtrigger, "target"))
-				view.action.target = jtrigger["target"].get<std::string>();
-
-			switch (action)
+			for (const auto & jaction : jactions)
 			{
-			case ViewData::Action::CLOSE:
-				view.action.type = ViewData::Action::CLOSE;			
-				break;
-			case ViewData::Action::INTERACTION:
-				view.action.type = ViewData::Action::INTERACTION;
-				break;
-			case ViewData::Action::MOVER:
-				view.action.type = ViewData::Action::MOVER;
-				break;
-			case ViewData::Action::SELECT:
-				view.action.type = ViewData::Action::SELECT;
-				break;
-			case ViewData::Action::TRIGGER:
-				view.action.type = ViewData::Action::TRIGGER;
-				break;
+				view.actions.emplace_back();
+				auto & action = view.actions.back();
 
-			default:
-				debug_printline(0xffffffff, "GUI - unknown trigger action in component: ", jcomponent);
-				debug_unreachable();
+				action.type = this->load.type(jaction);
+				action.target = contains(jaction, "target") ? jaction["target"].get<std::string>() : engine::Asset::null();
+
+				// validate action
+				switch (action.type)
+				{
+				case ViewData::Action::CLOSE:
+
+					break;
+				case ViewData::Action::INTERACTION:
+
+					break;
+				case ViewData::Action::MOVER:
+
+					break;
+				case ViewData::Action::SELECT:
+
+					break;
+				case ViewData::Action::TRIGGER:
+					debug_assert(action.target != engine::Asset::null());
+					break;
+
+				default:
+					debug_printline(0xffffffff, "GUI - unknown trigger action in component: ", jcomponent);
+					debug_unreachable();
+				}
 			}
 		}
 
@@ -695,16 +700,16 @@ namespace
 			// if it has been "customized".
 			void update_actions(ViewData & data)
 			{
-				if (data.action.target == engine::Asset::null())
-					return;
-
-				for (const auto & d : customized_names)
+				for (auto & action : data.actions)
 				{
-					// not optimal...
-					if (engine::Asset{ d.first } == data.action.target)
+					for (const auto & d : customized_names)
 					{
-						data.action.target = engine::Asset{ d.second };
-						return;
+						// not optimal...
+						if (engine::Asset{ d.first } == action.target)
+						{
+							action.target = engine::Asset{ d.second };
+							return;
+						}
 					}
 				}
 			}

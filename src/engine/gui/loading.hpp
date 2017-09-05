@@ -52,8 +52,9 @@ namespace gui
 
 			engine::Asset type;
 			engine::Asset target;
-		}
-		action;
+		};
+
+		std::vector<Action> actions;
 
 		struct Function
 		{
@@ -72,14 +73,12 @@ namespace gui
 			, margin(margin)
 			, gravity(gravity)
 		{
-			action.type = engine::Asset::null();
-			action.target = engine::Asset::null();
 			function.type = engine::Asset::null();
 		}
 
 		bool has_action() const
 		{
-			return this->action.type!= engine::Asset::null();
+			return !this->actions.empty();
 		}
 
 		bool has_function() const

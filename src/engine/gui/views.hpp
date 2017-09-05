@@ -128,12 +128,6 @@ namespace gui
 		// this will not add the view to renderer!
 		virtual void visibility_show();
 
-		//// sets view (and children if group) should_render = true
-		//virtual void show();
-
-		//// sets view (and children if group) should_render = false
-		//virtual void hide();
-
 		virtual void update(const State state) = 0;
 
 		// the only method to send data to renderer.

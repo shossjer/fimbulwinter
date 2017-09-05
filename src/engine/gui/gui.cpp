@@ -26,7 +26,7 @@ namespace
 {
 	using namespace engine::gui;
 
-	core::container::Collection
+	core::container::MultiCollection
 	<
 		engine::Entity, 101,
 		std::array<CloseAction, 10>,
@@ -176,66 +176,85 @@ namespace
 
 	private:
 
-		void create_action(Drawable & drawable, const ViewData & data)
+		void create_action_close(Drawable & drawable, const ViewData::Action & data)
 		{
-			if (!data.has_action()) return;
+			View * view;
 
-			switch (data.action.type)
+			if (data.target == engine::Asset::null())
+				view = &drawable;
+			else
 			{
-			case ViewData::Action::CLOSE:
-			{
-				View * view;
+				view = find_view(data.target, this->lookup);
+				debug_assert(view != nullptr);
+			}
 
-				if (data.action.target == engine::Asset::null())
-					view = &drawable;
-				else
+			actions.emplace<engine::gui::CloseAction>(drawable.entity, this->window.name(), view);
+		}
+		void create_action_interaction(Drawable & drawable, const ViewData::Action & data)
+		{
+			View * view;
+
+			if (data.target == engine::Asset::null())
+				view = &drawable;
+			else
+			{
+				view = find_view(data.target, this->lookup);
+				debug_assert(view != nullptr);
+			}
+
+			actions.emplace<engine::gui::InteractionAction>(drawable.entity, this->window.name(), view);
+		}
+		void create_action_mover(Drawable & drawable, const ViewData::Action & data)
+		{
+
+		}
+		void create_action_select(Drawable & drawable, const ViewData::Action & data)
+		{
+
+		}
+		void create_action_trigger(Drawable & drawable, const ViewData::Action & data)
+		{
+			engine::Entity entity;
+
+			if (data.target == engine::Asset::null())
+				entity = drawable.entity;
+			else
+				entity = find_entity(data.target, this->lookup);
+
+			actions.emplace<engine::gui::TriggerAction>(drawable.entity, this->window.name(), entity);
+		}
+
+		void create_action(Drawable & drawable, const ViewData & datas)
+		{
+			for (auto & data : datas.actions)
+			{
+				switch (data.type)
 				{
-					view = find_view(data.action.target, this->lookup);
-					debug_assert(view != nullptr);
+				case ViewData::Action::CLOSE:
+					create_action_close(drawable, data);
+					break;
+
+				case ViewData::Action::INTERACTION:
+					create_action_interaction(drawable, data);
+					break;
+
+				case ViewData::Action::MOVER:
+
+					actions.emplace<engine::gui::MoveAction>(drawable.entity, engine::gui::MoveAction{ this->window.name() });
+					break;
+
+				case ViewData::Action::SELECT:
+
+					actions.emplace<engine::gui::SelectAction>(drawable.entity, engine::gui::SelectAction{ this->window.name() });
+					break;
+				case ViewData::Action::TRIGGER:
+
+					create_action_trigger(drawable, data);
+					break;
 				}
 
-				actions.emplace<engine::gui::CloseAction>(drawable.entity, this->window.name(), view);
-				break;
+				gameplay::gamestate::post_add(drawable.entity, this->window.name(), data.type);
 			}
-			case ViewData::Action::INTERACTION:
-			{
-				View * view;
-
-				if (data.action.target == engine::Asset::null())
-					view = &drawable;
-				else
-				{
-					view = find_view(data.action.target, this->lookup);
-					debug_assert(view != nullptr);
-				}
-
-				actions.emplace<engine::gui::InteractionAction>(drawable.entity, this->window.name(), view);
-				break;
-			}
-			case ViewData::Action::MOVER:
-
-				actions.emplace<engine::gui::MoveAction>(drawable.entity, engine::gui::MoveAction{ this->window.name() });
-				break;
-
-			case ViewData::Action::SELECT:
-
-				actions.emplace<engine::gui::SelectAction>(drawable.entity, engine::gui::SelectAction{ this->window.name() });
-				break;
-			case ViewData::Action::TRIGGER:
-			{
-				engine::Entity entity;
-
-				if (data.action.target == engine::Asset::null())
-					entity = drawable.entity;
-				else
-					entity = find_entity(data.action.target, this->lookup);
-
-				actions.emplace<engine::gui::TriggerAction>(drawable.entity, this->window.name(), entity);
-				break;
-			}
-			}
-
-			gameplay::gamestate::post_add(drawable.entity, this->window.name(), data.action.type);
 		}
 
 		void create_function(engine::Entity entity, View & view, const ViewData & data)
@@ -540,15 +559,10 @@ namespace gui
 
 	struct
 	{
-		void operator() (const CloseAction & action)
-		{
-			action.target->update(View::State::DEFAULT);
-		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::DEFAULT);
 		}
-
 		template<typename T>
 		void operator() (const T &) {}
 	}
@@ -556,15 +570,10 @@ namespace gui
 
 	struct
 	{
-		void operator() (const CloseAction & action)
-		{
-			action.target->update(View::State::HIGHLIGHT);
-		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::HIGHLIGHT);
 		}
-
 		template<typename T>
 		void operator() (const T &) {}
 	}
@@ -572,15 +581,10 @@ namespace gui
 
 	struct
 	{
-		void operator() (const CloseAction & action)
-		{
-			action.target->update(View::State::PRESSED);
-		}
 		void operator() (const InteractionAction & action)
 		{
 			action.target->update(View::State::PRESSED);
 		}
-
 		template<typename T>
 		void operator() (const T &) {}
 	}
@@ -752,20 +756,21 @@ namespace gui
 			void operator () (MessageInteractionClick && x)
 			{
 				debug_assert(actions.contains(x.entity));
-				actions.call(x.entity, InteractionClick{ x.entity });
+				actions.call_all(x.entity, InteractionClick{ x.entity });
+
 				windows.get<Window>(x.window).splash_mud();
 			}
 			void operator () (MessageInteractionHighlight && x)
 			{
 				if (actions.contains(x.entity))
-					actions.call(x.entity, selectionStateHighlight);
+					actions.call_all(x.entity, selectionStateHighlight);
 
 				windows.get<Window>(x.window).splash_mud();
 			}
 			void operator () (MessageInteractionLowlight && x)
 			{
 				if (actions.contains(x.entity))
-					actions.call(x.entity, selectionStateDefault);
+					actions.call_all(x.entity, selectionStateDefault);
 
 				windows.get<Window>(x.window).splash_mud();
 			}
@@ -778,14 +783,14 @@ namespace gui
 				}
 
 				if (actions.contains(x.entity))
-					actions.call(x.entity, selectionStatePressed);
+					actions.call_all(x.entity, selectionStatePressed);
 
 				windows.get<Window>(x.window).splash_mud();
 			}
 			void operator () (MessageInteractionRelease && x)
 			{
 				if (actions.contains(x.entity))
-					actions.call(x.entity, selectionStateHighlight);
+					actions.call_all(x.entity, selectionStateHighlight);
 
 				windows.get<Window>(x.window).splash_mud();
 			}
@@ -807,10 +812,6 @@ namespace gui
 			void operator () (MessageUpdateData && x)
 			{
 				Window & w = windows.get<Window>(x.window);
-
-				// NOTE: if the gui is requesting data instead we dont need this check
-				if (!w.is_shown())
-					return;
 
 				for (auto & data : x.datas)
 				{
