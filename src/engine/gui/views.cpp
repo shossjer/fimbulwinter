@@ -99,11 +99,6 @@ namespace gui
 		return Vector3f(offset_horizontal, offset_vertical, buff[2]);
 	}
 
-	void Drawable::update_translation(core::maths::Vector3f delta)
-	{
-		this->offset += delta;
-	}
-
 	Matrix4x4f Drawable::render_matrix() const
 	{
 		return make_translation_matrix(this->offset);
@@ -116,20 +111,75 @@ namespace gui
 			static_cast<float>(this->size.height.value) };
 	}
 
-	void Drawable::arrange(
-		const Size size_parent,
-		const Gravity gravity_mask_parent,
-		const Vector3f offset_parent,
-		float & offset_depth)
+	void Drawable::update(const State state)
 	{
-		const Vector3f ret = arrange_offset(size_parent, gravity_mask_parent, offset_parent);
-		this->offset = ret + Vector3f{ 0.f, 0.f, offset_depth };
-		offset_depth += DEPTH_INC;
+		this->state = state;
+		this->is_dirty = true;
 	}
 
-	void Drawable::refresh()
+	void Drawable::translate(core::maths::Vector3f delta)
 	{
-		//if (!this->is_dirty) return;	// no change
+		this->offset += delta;
+		this->is_dirty = true;
+	}
+	void Drawable::translate(unsigned & order)
+	{
+		this->order_depth = static_cast<float>(order) / 100.f;
+		order++;
+	}
+
+	void Drawable::refresh2(
+		const Size size_parent,
+		const Gravity gravity_mask_parent,
+		const Vector3f offset_parent)
+	{
+		if (!this->is_dirty) return;	// no change
+
+		{
+			const auto max_height = size_parent.height.value - this->margin.height();
+
+			switch (this->size.height.type)
+			{
+			case Size::TYPE::FIXED:
+				// do nothing
+				break;
+			case Size::TYPE::PARENT:
+				this->size.height.parent(max_height);
+				break;
+			case Size::TYPE::PERCENT:
+				this->size.height.percentage(max_height);
+				break;
+			case Size::TYPE::WRAP:
+				// do nothing
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+		{
+			const auto max_width = size_parent.width.value - this->margin.width();
+
+			switch (this->size.width.type)
+			{
+			case Size::TYPE::FIXED:
+				// do nothing
+				break;
+			case Size::TYPE::PARENT:
+				this->size.width.parent(max_width);
+				break;
+			case Size::TYPE::PERCENT:
+				this->size.width.percentage(max_width);
+				break;
+			case Size::TYPE::WRAP:
+				// do nothing
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+
+		const Vector3f ret = arrange_offset(size_parent, gravity_mask_parent, offset_parent);
+		this->offset = ret + Vector3f{ 0.f, 0.f, this->order_depth };
 
 		if (this->should_render != this->is_rendered)
 		{
@@ -151,9 +201,6 @@ namespace gui
 		}
 		else
 		{
-			// TEMP
-			if (!this->is_dirty) return;
-
 			// should not be "dirty" while not rendered
 			debug_assert(this->should_render);
 			renderer_send_update();
@@ -162,58 +209,41 @@ namespace gui
 		this->is_dirty = false;
 	}
 
-	void Drawable::update(const State state)
+	unsigned PanelC::refresh1()
 	{
-		this->state = state;
-		this->is_dirty = true;
-	}
+		if (!this->is_dirty) return 0;
 
-	void Drawable::translate(core::maths::Vector3f delta)
-	{
-		update_translation(delta);
-		this->is_dirty = true;
-	}
-
-	void PanelC::measure(const Size parent)
-	{
+		switch (this->size.height.type)
 		{
-			const auto max_height = parent.height.value - this->margin.height();
+		case Size::TYPE::FIXED:
+			this->size.height.fixed();
+			break;
+		case Size::TYPE::PARENT:
+		case Size::TYPE::PERCENT:
+			// do nothing
+			break;
 
-			switch (this->size.height.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.height.fixed(max_height);
-				break;
-			case Size::TYPE::PARENT:
-				this->size.height.parent(max_height);
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.height.percentage(max_height);
-				break;
-
-			default:
-				debug_unreachable();
-			}
+		case Size::TYPE::WRAP:
+		default:
+			debug_unreachable();
 		}
+
+		switch (this->size.width.type)
 		{
-			const auto max_width = parent.width.value - this->margin.width();
+		case Size::TYPE::FIXED:
+			this->size.width.fixed();
+			break;
+		case Size::TYPE::PARENT:
+		case Size::TYPE::PERCENT:
+			// do nothing
+			break;
 
-			switch (this->size.width.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.width.fixed(max_width);
-				break;
-			case Size::TYPE::PARENT:
-				this->size.width.parent(max_width);
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.width.percentage(max_width);
-				break;
-
-			default:
-				debug_unreachable();
-			}
+		case Size::TYPE::WRAP:
+		default:
+			debug_unreachable();
 		}
+
+		return 1;
 	}
 
 	void PanelC::renderer_send_add() const
@@ -235,46 +265,43 @@ namespace gui
 				this->color->get(this) });
 	}
 
-	void PanelT::measure(const Size parent)
+	unsigned PanelT::refresh1()
 	{
+		if (!this->is_dirty) return 0;
+
+		switch (this->size.height.type)
 		{
-			const auto max_height = parent.height.value - this->margin.height();
+		case Size::TYPE::FIXED:
+			this->size.height.fixed();
+			break;
+		case Size::TYPE::PARENT:
+		case Size::TYPE::PERCENT:
+			// do nothing
+			break;
 
-			switch (this->size.height.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.height.fixed(max_height);
-				break;
-			case Size::TYPE::PARENT:
-				this->size.height.parent(max_height);
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.height.percentage(max_height);
-				break;
-
-			default:
-				debug_unreachable();
-			}
+		case Size::TYPE::WRAP:
+			// disable until we have access to TextureInfo object
+		default:
+			debug_unreachable();
 		}
+
+		switch (this->size.width.type)
 		{
-			const auto max_width = parent.width.value - this->margin.width();
+		case Size::TYPE::FIXED:
+			this->size.width.fixed();
+			break;
+		case Size::TYPE::PARENT:
+		case Size::TYPE::PERCENT:
+			// do nothing
+			break;
 
-			switch (this->size.width.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.width.fixed(max_width);
-				break;
-			case Size::TYPE::PARENT:
-				this->size.width.parent(max_width);
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.width.percentage(max_width);
-				break;
-
-			default:
-				debug_unreachable();
-			}
+		case Size::TYPE::WRAP:
+			// disable until we have access to TextureInfo object
+		default:
+			debug_unreachable();
 		}
+
+		return 1;
 	}
 
 	void PanelT::renderer_send_add() const
@@ -296,51 +323,45 @@ namespace gui
 				this->texture });
 	}
 
-	void Text::measure(const Size parent)
+	unsigned Text::refresh1()
 	{
+		if (!this->is_dirty) return 0;
+
+		switch (this->size.height.type)
 		{
-			const auto max_height = parent.height.value - this->margin.height();
+		case Size::TYPE::FIXED:
+			this->size.height.fixed();
+			break;
+		case Size::TYPE::PARENT:
+		case Size::TYPE::PERCENT:
+			// do nothing
+			break;
+		case Size::TYPE::WRAP:
+			this->size.height.value = 6;
+			break;
 
-			switch (this->size.height.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.height.fixed(max_height);
-				break;
-			case Size::TYPE::PARENT:
-				this->size.height.parent(max_height);
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.height.percentage(max_height);
-				break;
-			case Size::TYPE::WRAP:
-				this->size.height.value = 6;
-				break;
-			default:
-				debug_unreachable();
-			}
+		default:
+			debug_unreachable();
 		}
+
+		switch (this->size.width.type)
 		{
-			const auto max_width = parent.width.value - this->margin.width();
+		case Size::TYPE::FIXED:
+			this->size.width.fixed();
+			break;
+		case Size::TYPE::PARENT:
+		case Size::TYPE::PERCENT:
+			// do nothing
+			break;
+		case Size::TYPE::WRAP:
+			this->size.width.value = this->display.length() * value_t { 6 };
+			break;
 
-			switch (this->size.width.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.width.fixed(max_width);
-				break;
-			case Size::TYPE::PARENT:
-				this->size.width.parent(max_width);
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.width.percentage(max_width);
-				break;
-			case Size::TYPE::WRAP:
-				this->size.width.value = this->display.length() * value_t { 6 };
-				break;
-
-			default:
-				debug_unreachable();
-			}
+		default:
+			debug_unreachable();
 		}
+
+		return 1;
 	}
 
 	void Text::renderer_send_add() const
@@ -391,8 +412,9 @@ namespace gui
 		return nullptr;
 	}
 
-	void Group::measure_children()
+	unsigned Group::measure_children()
 	{
+		unsigned children_dirty = 0;
 		Size size_children = this->size;
 
 		switch (this->layout)
@@ -401,7 +423,7 @@ namespace gui
 		{
 			for (auto p : this->children)
 			{
-				p->measure(size_children);
+				children_dirty |= p->refresh1();
 				size_children.width -= p->width();
 			}
 
@@ -414,7 +436,7 @@ namespace gui
 		{
 			for (auto p : this->children)
 			{
-				p->measure(size_children);
+				children_dirty |= p->refresh1();
 				size_children.height -= p->height();
 			}
 
@@ -428,7 +450,7 @@ namespace gui
 		{
 			for (auto p : this->children)
 			{
-				p->measure(this->size);
+				children_dirty |= p->refresh1();
 
 				// used if this size is wrap
 				size_children.width.value = std::max(size_children.width.value, p->width());
@@ -444,9 +466,10 @@ namespace gui
 			break;
 		}
 		}
+		return children_dirty;
 	}
 
-	void Group::arrange_children(Vector3f offset, float & offset_depth)
+	void Group::arrange_children(Vector3f offset)
 	{
 		switch (this->layout)
 		{
@@ -456,7 +479,7 @@ namespace gui
 
 			for (auto p : this->children)
 			{
-				p->arrange(this->size, mask, offset, offset_depth);
+				p->refresh2(this->size, mask, offset);
 				offset += Vector3f(static_cast<float>(p->width()), 0.f, 0.f);
 			}
 
@@ -468,7 +491,7 @@ namespace gui
 
 			for (auto p : this->children)
 			{
-				p->arrange(this->size, mask, offset, offset_depth);
+				p->refresh2(this->size, mask, offset);
 				offset += Vector3f(0.f, static_cast<float>(p->height()), 0.f);
 			}
 
@@ -481,73 +504,12 @@ namespace gui
 
 			for (auto p : this->children)
 			{
-				p->arrange(this->size, mask, offset, offset_depth);
+				p->refresh2(this->size, mask, offset);
 			}
 
 			break;
 		}
 		}
-	}
-
-	void Group::arrange(
-		const Size size_parent,
-		const Gravity gravity_mask_parent,
-		const Vector3f offset_parent,
-		float & offset_depth)
-	{
-		Vector3f offset = arrange_offset(size_parent, gravity_mask_parent, offset_parent);
-
-		arrange_children(offset, offset_depth);
-	}
-
-	void Group::measure(const Size parent)
-	{
-		{
-			const auto max_height = parent.height.value - this->margin.height();
-
-			switch (this->size.height.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.height.fixed(max_height);
-				break;
-			case Size::TYPE::PARENT:
-				this->size.height.parent(max_height);
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.height.percentage(max_height);
-				break;
-			case Size::TYPE::WRAP:
-				this->size.height.value = parent.height.value;
-				break;
-
-			default:
-				debug_unreachable();
-			}
-		}
-		{
-			const auto max_width = parent.width.value - this->margin.width();
-
-			switch (this->size.width.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.width.fixed(max_width);
-				break;
-			case Size::TYPE::PARENT:
-				this->size.width.parent(max_width);
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.width.percentage(max_width);
-				break;
-			case Size::TYPE::WRAP:
-				this->size.width.value = parent.width.value;
-				break;
-
-			default:
-				debug_unreachable();
-			}
-		}
-
-		measure_children();
 	}
 
 	void Group::renderer_hide()
@@ -612,16 +574,6 @@ namespace gui
 		}
 	}
 
-	void Group::refresh()
-	{
-		for (auto child : this->children)
-		{
-			child->refresh();
-		}
-
-		this->is_rendered = this->should_render;
-	}
-
 	void Group::translate(const Vector3f delta)
 	{
 		for (auto child : this->children)
@@ -630,13 +582,135 @@ namespace gui
 		}
 	}
 
+	void Group::translate(unsigned & order)
+	{
+		for (auto child : this->children)
+		{
+			child->translate(order);
+		}
+	}
+
+	unsigned Group::refresh1()
+	{
+		switch (this->size.height.type)
+		{
+		case Size::TYPE::FIXED:
+			this->size.height.fixed();
+			break;
+		case Size::TYPE::PARENT:
+		case Size::TYPE::PERCENT:
+			// do nothing
+			break;
+		case Size::TYPE::WRAP:
+			// do nothing - yet
+			break;
+
+		default:
+			debug_unreachable();
+		}
+
+		switch (this->size.width.type)
+		{
+		case Size::TYPE::FIXED:
+			this->size.width.fixed();
+			break;
+		case Size::TYPE::PARENT:
+		case Size::TYPE::PERCENT:
+			// do nothing
+			break;
+		case Size::TYPE::WRAP:
+			// do nothing - yet
+			break;
+
+		default:
+			debug_unreachable();
+		}
+
+		auto r = measure_children();
+		this->is_dirty = r > 0;
+		return r;
+	}
+
+	void Group::refresh2(
+		const Size size_parent,
+		const Gravity gravity_mask_parent,
+		const Vector3f offset_parent)
+	{
+		if (!this->is_dirty) return;
+
+		{
+			const auto max_height = size_parent.height.value - this->margin.height();
+
+			switch (this->size.height.type)
+			{
+			case Size::TYPE::FIXED:
+				// do nothing
+				break;
+			case Size::TYPE::PARENT:
+				this->size.height.parent(max_height);
+				break;
+			case Size::TYPE::PERCENT:
+				this->size.height.percentage(max_height);
+				break;
+			case Size::TYPE::WRAP:
+				// do nothing
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+		{
+			const auto max_width = size_parent.width.value - this->margin.width();
+
+			switch (this->size.width.type)
+			{
+			case Size::TYPE::FIXED:
+				// do nothing
+				break;
+			case Size::TYPE::PARENT:
+				this->size.width.parent(max_width);
+				break;
+			case Size::TYPE::PERCENT:
+				this->size.width.percentage(max_width);
+				break;
+			case Size::TYPE::WRAP:
+				// do nothing
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+
+		Vector3f offset = arrange_offset(size_parent, gravity_mask_parent, offset_parent);
+
+		arrange_children(offset);
+
+		this->is_dirty = false;
+		this->is_rendered = this->should_render;
+	}
+
+	void List::translate(unsigned & order)
+	{
+		for (auto child : this->children)
+		{
+			child->translate(order);
+		}
+
+		// this local order is used when list dynamically creates more views.
+		this->order = order;
+	}
+
 	void Window::refresh_window()
 	{
 		debug_assert(this->dirty);
-		measure_window();
 
 		if (this->group.is_rendered || this->group.should_render)
-			this->group.refresh();
+		{
+			this->group.refresh1();
+			this->group.arrange_children(
+				this->position + Vector3f{ 0.f, 0.f, static_cast<float>(this->order) });
+			this->group.is_rendered = this->group.should_render;
+		}
 
 		this->dirty = false;
 	}
@@ -666,35 +740,10 @@ namespace gui
 		this->dirty = true;
 	}
 
-	void Window::measure_window()
+	void Window::init_window()
 	{
-		Size & size = this->group.size;
-
-		switch (size.height.type)
-		{
-		case Size::TYPE::FIXED:
-			size.height.value = size.height.meta;
-			break;
-			// TODO: allow wrap as window size
-
-		default:
-			debug_unreachable();
-		}
-		switch (size.width.type)
-		{
-		case Size::TYPE::FIXED:
-			size.width.value = size.width.meta;
-			break;
-			// TODO: allow wrap as window size
-
-		default:
-			debug_unreachable();
-		}
-
-		this->group.measure_children();
-
-		float depth = static_cast<float>(this->order);
-		this->group.arrange_children(this->position, depth);
+		unsigned view_order = 0;
+		this->group.translate(view_order);
 	}
 
 	void Window::reorder_window(const int window_order)

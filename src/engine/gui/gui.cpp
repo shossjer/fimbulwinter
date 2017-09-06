@@ -495,6 +495,8 @@ namespace gui
 			window_stack.push_back(&window);
 
 			Creator(lookup, window).create_views(window.group, data);
+
+			window.init_window();
 		}
 	}
 
@@ -613,6 +615,7 @@ namespace gui
 					{
 						list.lookups.emplace_back();
 						Creator{list.lookups[i], window}.create_views(list, list.view_template);
+						list.children.back()->translate(list.order);
 
 						if (window.is_shown())
 						{

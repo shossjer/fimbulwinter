@@ -120,9 +120,8 @@ namespace gui
 				debug_assert(type != TYPE::PARENT);
 			}
 
-			void fixed(const value_t max_size)
+			void fixed()
 			{
-				debug_assert(max_size >= (this->meta));
 				this->value = this->meta;
 			}
 

@@ -50,8 +50,9 @@ namespace gui
 
 	class View
 	{
-		friend struct Updater;
+		friend class Group;
 		friend class Window;
+		friend struct Updater;
 
 	public:
 
@@ -101,18 +102,8 @@ namespace gui
 
 	public:
 
-		// called after size has been measured
-		virtual void arrange(
-			const Size size_parent,
-			const Gravity gravity_mask_parent,
-			const Vector3f offset_parent,
-			float & offset_depth) = 0;
-
 		virtual View * find(const engine::Asset name);
 		virtual View * find(const engine::Entity entity);
-
-		// needs to be called after any changes has been made to Components
-		virtual void measure(const Size size_parent) = 0;
 
 		// NOTE: could have these as show/hide and "make_invisible", "make_visible"
 		// removes the view from renderer
@@ -130,12 +121,11 @@ namespace gui
 
 		virtual void update(const State state) = 0;
 
-		// the only method to send data to renderer.
-		// sends updated drawable view data to renderer if views has changed.
-		// sends add, update, remove based on changes made in the view.
-		virtual void refresh() = 0;
-
 		virtual void translate(const Vector3f delta) = 0;
+
+		virtual void translate(unsigned & order) = 0;
+
+	public:
 
 		// total height of the view including margins
 		value_t height() const;
@@ -144,6 +134,18 @@ namespace gui
 		value_t width() const;
 
 	protected:
+
+		// needs to be called after any changes has been made to Components
+		virtual unsigned refresh1() = 0;
+
+		// called after size has been measured
+		// the only method to send data to renderer.
+		// sends updated drawable view data to renderer if views has changed.
+		// sends add, update, remove based on changes made in the view.
+		virtual void refresh2(
+			const Size size_parent,
+			const Gravity gravity_mask_parent,
+			const Vector3f offset_parent) = 0;
 
 		Vector3f arrange_offset(
 			const Size size_parent,
@@ -158,6 +160,7 @@ namespace gui
 		bool selectable;
 
 		// turned into matrix and sent to renderer
+		float order_depth;
 		Vector3f offset;
 
 	protected:
@@ -178,8 +181,6 @@ namespace gui
 
 		bool is_selectable() const { return this->selectable; }
 
-		void update_translation(core::maths::Vector3f delta);
-
 		Matrix4x4f render_matrix() const;
 
 		core::maths::Vector2f render_size() const;
@@ -189,17 +190,19 @@ namespace gui
 
 	public:
 
-		void arrange(
-			const Size size_parent,
-			const Gravity gravity_mask_parent,
-			const Vector3f offset_parent,
-			float & offset_depth) override;
-
-		void refresh() override;
-
 		void update(const State state) override;
 
 		void translate(core::maths::Vector3f delta) override;
+
+		void translate(unsigned & order) override;
+
+	protected:
+
+		void refresh2(
+			const Size size_parent,
+			const Gravity gravity_mask_parent,
+			const Vector3f offset_parent) override;
+
 	};
 
 	class PanelC : public Drawable
@@ -225,9 +228,9 @@ namespace gui
 			debug_assert(size.width.type != Size::TYPE::WRAP);
 		}
 
-		void measure(const Size parent) override;
-
 	protected:
+
+		unsigned refresh1() override;
 
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
@@ -256,9 +259,9 @@ namespace gui
 			debug_assert(size.width.type != Size::TYPE::WRAP);
 		}
 
-		void measure(const Size parent) override;
-
 	protected:
+
+		unsigned refresh1() override;
 
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
@@ -287,9 +290,9 @@ namespace gui
 		{
 		}
 
-		void measure(const Size parent) override;
-
 	protected:
+
+		unsigned refresh1() override;
 
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
@@ -320,24 +323,16 @@ namespace gui
 
 	private:
 
-		void measure_children();
+		unsigned measure_children();
 
-		void arrange_children(Vector3f offset, float & offset_depth);
+		void arrange_children(Vector3f offset);
 
 	public:
 
 		void adopt(View * child) { this->children.push_back(child); }
 
-		void arrange(
-			const Size size_parent,
-			const Gravity gravity_mask_parent,
-			const Vector3f offset_parent,
-			float & offset_depth) override;
-
 		View * find(const engine::Asset name) override;
 		View * find(const engine::Entity name) override;
-
-		void measure(const Size parent) override;
 
 		void renderer_hide() override;
 
@@ -349,9 +344,18 @@ namespace gui
 
 		void update(const State state) override;
 
-		void refresh() override;
-
 		void translate(const Vector3f delta) override;
+
+		virtual void translate(unsigned & order) override;
+
+	protected:
+
+		unsigned refresh1() override;
+
+		void refresh2(
+			const Size size_parent,
+			const Gravity gravity_mask_parent,
+			const Vector3f offset_parent) override;
 	};
 
 	class List : public Group
@@ -365,6 +369,8 @@ namespace gui
 		const ListData view_template;
 
 		std::size_t shown_items;
+
+		unsigned order;
 
 	public:
 
@@ -380,6 +386,10 @@ namespace gui
 			, view_template(view_template)
 			, shown_items(0)
 		{}
+
+	public:
+
+		void translate(unsigned & order) override;
 	};
 
 	class Window
@@ -424,13 +434,11 @@ namespace gui
 
 		void hide_window();
 
+		void init_window();
+
 		void reorder_window(const int window_order);
 
 		void translate_window(const Vector3f delta);
-
-	private:
-
-		void measure_window();
 	};
 }
 }
