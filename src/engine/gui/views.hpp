@@ -75,7 +75,9 @@ namespace gui
 
 		Size size;
 
-		bool is_dirty;
+		Vector3f offset;
+
+		unsigned update_flags;
 		bool is_invisible;
 		bool is_rendered;
 		bool should_render;
@@ -94,7 +96,8 @@ namespace gui
 			, state(State::DEFAULT)
 			, margin(margin)
 			, size(size)
-			, is_dirty(false)
+			, offset()
+			, update_flags(0b11)
 			, is_invisible(false)
 			, is_rendered(false)
 			, should_render(false)
@@ -133,10 +136,16 @@ namespace gui
 		// total width of the view including margins
 		value_t width() const;
 
+		Size get_size() const { return this->size; };
+
+		void set_update(const unsigned flag);
+
 	protected:
 
 		// needs to be called after any changes has been made to Components
 		virtual unsigned refresh1() = 0;
+
+		virtual void refresh2(const Group *const parent) = 0;
 
 		// called after size has been measured
 		// the only method to send data to renderer.
@@ -161,7 +170,6 @@ namespace gui
 
 		// turned into matrix and sent to renderer
 		float order_depth;
-		Vector3f offset;
 
 	protected:
 
@@ -198,11 +206,16 @@ namespace gui
 
 	protected:
 
+		void refresh2(const Group * const) override;
+
 		void refresh2(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent) override;
 
+	private:
+
+		void refresh();
 	};
 
 	class PanelC : public Drawable
@@ -323,8 +336,6 @@ namespace gui
 
 	private:
 
-		unsigned measure_children();
-
 		void arrange_children(Vector3f offset);
 
 	public:
@@ -351,6 +362,8 @@ namespace gui
 	protected:
 
 		unsigned refresh1() override;
+
+		void refresh2(const Group *const parent) override;
 
 		void refresh2(
 			const Size size_parent,

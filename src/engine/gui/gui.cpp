@@ -292,6 +292,7 @@ namespace
 					auto content = tabBar.views_container->children[i];
 					content->visibility_hide();
 				}
+				tabBar.tab_container->children[0]->update(View::State::PRESSED);
 				break;
 			}
 			default:
@@ -511,7 +512,6 @@ namespace gui
 
 		void operator() (TabBar & function)
 		{
-			debug_printline(0xffffffff, "Trigger function!");
 			std::size_t clicked_index = function.active_index;
 			for (std::size_t i = 0; i < function.tab_container->children.size(); i++)
 			{
@@ -526,11 +526,11 @@ namespace gui
 				return;
 
 			//// hide / unselect the prev. tab
-			function.tab_container->children[function.active_index]->state = View::State::DEFAULT;
+			function.tab_container->children[function.active_index]->update(View::State::DEFAULT);
 			function.views_container->children[function.active_index]->visibility_hide();
 
 			//// show / select the new tab.
-			function.tab_container->children[clicked_index]->state = View::State::PRESSED;
+			function.tab_container->children[clicked_index]->update(View::State::PRESSED);
 			function.views_container->children[clicked_index]->visibility_show();
 			function.views_container->children[clicked_index]->renderer_show();
 
@@ -653,8 +653,8 @@ namespace gui
 					}
 				}
 
+				list.set_update((list.shown_items != list_size) ? 2 : 1);
 				list.shown_items = list_size;
-				list.is_dirty = true;
 				break;
 			}
 			default:
@@ -687,7 +687,7 @@ namespace gui
 			case Data::TEXTURE:
 
 				panel.texture = data.texture;
-				panel.is_dirty = true;
+				panel.set_update(2);
 				break;
 
 			default:
@@ -709,7 +709,7 @@ namespace gui
 			case Data::DISPLAY:
 
 				text.display = data.display;
-				text.is_dirty = true;
+				text.set_update((text.size.width == Size::TYPE::WRAP) ? 2 : 1);
 				break;
 
 			default:
@@ -735,7 +735,7 @@ namespace gui
 					debug_assert(pb.target->size.height.type == Size::TYPE::PERCENT);
 					pb.target->size.height.set_meta(this->data.progress);
 				}
-				pb.target->is_dirty = true;
+				pb.target->set_update(2);
 				break;
 
 			default:

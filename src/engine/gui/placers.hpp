@@ -127,21 +127,18 @@ namespace gui
 
 			void parent(const value_t max_size)
 			{
-				this->value = max_size;
+				this->value = (max_size > 0) ? max_size : 0;
 			}
 
 			void percentage(const value_t max_size)
 			{
-				this->value = max_size * this->meta;
+				this->value = (max_size > 0) ? (max_size * this->meta) : 0;
 			}
 
 			// limit value, used with wrap content
-			void wrap(const value_t delta)
+			void wrap(const value_t value)
 			{
-				debug_assert(this->value >= delta);
-				this->value -= delta;
-				if (this->value < this->meta)
-					this->value = this->meta;
+				this->value = (value > this->meta) ? value : this->meta;
 			}
 
 			void set_meta(const value_t meta)

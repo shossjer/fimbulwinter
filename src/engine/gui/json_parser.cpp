@@ -125,7 +125,7 @@ namespace
 				else
 				if (type == "percent")
 				{
-					return Size::Dimen{ Size::TYPE::PERCENT, _int("v", jd, 0) };
+					return Size::Dimen{ Size::TYPE::PERCENT, _int("v", jd, 0) / value_t{100.f} };
 				}
 				else
 				if (type == "wrap")
