@@ -27,8 +27,9 @@ set(SOURCE_FILES
 	src/engine/physics/creation_physx.cpp
 	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
+	src/engine/resource/loader.cpp
+	src/engine/resource/reader.cpp
 	src/gameplay/gamestate.cpp
-	src/gameplay/level.cpp
 	src/gameplay/level_placeholder.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/ui.cpp
@@ -90,9 +91,10 @@ set(HEADER_FILES
 	src/engine/physics/material_physx.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/physics_physx.hpp
+	src/engine/resource/loader.hpp
+	src/engine/resource/reader.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp
-	src/gameplay/level.hpp
 	src/gameplay/level_placeholder.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp

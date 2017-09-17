@@ -11,6 +11,7 @@
 #include <engine/graphics/viewer.hpp>
 #include <engine/gui/gui.hpp>
 #include <engine/physics/physics.hpp>
+#include <engine/resource/loader.hpp>
 
 #include <gameplay/level_placeholder.hpp>
 #include <gameplay/ui.hpp>
@@ -726,6 +727,15 @@ namespace
 	}
 	playerEntityRelease;
 
+	struct Loader
+	{
+		void operator = (std::pair<engine::Command, utility::any> && args)
+		{
+			debug_assert(args.first == engine::Command::LOADER_FINISHED);
+			debug_printline(0xffffffff, "WOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOW");
+		}
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
@@ -738,7 +748,8 @@ namespace
 		std::array<WindowInventory, 1>,
 		std::array<WindowProfile, 1>,
 		std::array<Worker, 10>,
-		std::array<Workstation, 20>
+		std::array<Workstation, 20>,
+		std::array<Loader, 1>
 	>
 	components;
 
@@ -931,6 +942,11 @@ namespace gamestate
 		gameplay::ui::post_add_renderselect(game_renderselect);
 		gameplay::ui::post_bind("debug", game_renderselect, 5);
 		gameplay::ui::post_bind("game", game_renderselect, 5);
+
+		// vvvv tmp vvvv
+		auto loader = engine::Entity::create();
+		components.emplace<Loader>(loader);
+		engine::external::post_load_level(loader, engine::external::loader::Level{std::string("res/level.lvl")});
 	}
 
 	void destroy()
