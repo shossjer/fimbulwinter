@@ -44,6 +44,28 @@ set(PHYSICS_USE_BOX2D 0)
 set(PHYSICS_USE_PHYSX 0)
 
 # lookup dependencies
+if (PHYSICS_USE_BOX2D)
+	find_file(FILE_PHYSICS_BOX_HEADERS Box2D/Box2D.h)
+	message(STATUS "Looking for Physics Box header files - ${FILE_PHYSICS_BOX_HEADERS}")
+
+	if (MODE_DEBUG)
+	  add_definitions(-D_DEBUG)
+	elseif (MODE_RELEASE)
+	  add_definitions(-DNDEBUG)
+	endif()
+
+	find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
+	if (NOT LIBRARY_PHYSICS_BOX_CORE_D)
+	  find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
+	endif()
+
+	find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
+	if (NOT LIBRARY_PHYSICS_BOX_CORE)
+	  find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
+	endif()
+
+	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
+endif()
 # Freetype
 message(STATUS "Looking for freetype")
 find_file(FILE_FT2BUILD_H ft2build.h)
@@ -86,57 +108,10 @@ find_library(LIBRARY_GLEXT GLext)
 find_library(LIBRARY_GLEXT32 glext32)
 message(STATUS "Looking for OpenGL - ${LIBRARY_GLEXT}")
 message(STATUS "Looking for OpenGL - ${LIBRARY_GLEXT32}")
-# Pthread
-message(STATUS "Looking for Pthread")
-find_file(FILE_PTHREAD_H pthread.h)
-message(STATUS "Looking for Pthread - ${FILE_PTHREAD_H}")
-find_library(LIBRARY_PTHREAD pthread)
-message(STATUS "Looking for Pthread - ${LIBRARY_PTHREAD}")
-# User32
-message(STATUS "Looking for User32")
-find_library(LIBRARY_USER32 user32)
-message(STATUS "Looking for User32 - ${LIBRARY_USER32}")
-# Pthread
-message(STATUS "Looking for X11")
-find_file(FILE_X11_XLIB_H X11/Xlib.h)
-message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
-find_library(LIBRARY_X11 X11)
-message(STATUS "Looking for X11 - ${LIBRARY_X11}")
-
-# look for JSON library hpp file
-find_file(FILE_JSON_HEADER nlohmann/json.hpp)
-message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
-if (FILE_JSON_HEADER)
-else()
-  message(FATAL_ERROR "JSON parser - You need to get one!")
-endif()
-
-# zlib
-message(STATUS "Looking for z")
-find_library(LIBRARY_Z z)
-message(STATUS "Looking for z - ${LIBRARY_Z}")
-
-message(STATUS "Looking for zlibd")
-find_library(LIBRARY_ZLIB zlibd)
-message(STATUS "Looking for zlibd - ${LIBRARY_ZLIB}")
-
-# libpng
-message(STATUS "Looking for png")
-find_library(LIBRARY_PNG png)
-message(STATUS "Looking for png - ${LIBRARY_PNG}")
-
-message(STATUS "Looking for libpng16d")
-find_library(LIBRARY_LIBPNG libpng16d)
-message(STATUS "Looking for libpng16d - ${LIBRARY_LIBPNG}")
-
 # physics PHYSX
-#
-# Check that Physx header files exist
 if (PHYSICS_USE_PHYSX)
 	find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
-
 	message(STATUS "Looking for Physx header files - ${FILE_PHYSX_HEADERS}")
-
 	# release
 	find_library(LIBRARY_PHYSX_CORE PhysX3_x64)
 	if (NOT LIBRARY_PHYSX_CORE)
@@ -156,7 +131,6 @@ if (PHYSICS_USE_PHYSX)
 	if (NOT LIBRARY_PHYSX_COOKING)
 	  find_library(LIBRARY_PHYSX_COOKING PhysX3Cooking_x86)
 	endif()
-
 	# debug
 	find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x64)
 	if (NOT LIBRARY_PHYSX_CORE_D)
@@ -191,31 +165,98 @@ if (PHYSICS_USE_PHYSX)
 	message(STATUS "Looking for Physx character debug - ${LIBRARY_PHYSX_CHARACTER_D}")
 	message(STATUS "Looking for Physx cooking debug - ${LIBRARY_PHYSX_COOKING_D}")
 endif()
+# Pthread
+message(STATUS "Looking for Pthread")
+find_file(FILE_PTHREAD_H pthread.h)
+message(STATUS "Looking for Pthread - ${FILE_PTHREAD_H}")
+find_library(LIBRARY_PTHREAD pthread)
+message(STATUS "Looking for Pthread - ${LIBRARY_PTHREAD}")
+# User32
+message(STATUS "Looking for User32")
+find_library(LIBRARY_USER32 user32)
+message(STATUS "Looking for User32 - ${LIBRARY_USER32}")
+# X11
+message(STATUS "Looking for X11")
+find_file(FILE_X11_XLIB_H X11/Xlib.h)
+message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
+find_library(LIBRARY_X11 X11)
+message(STATUS "Looking for X11 - ${LIBRARY_X11}")
+
+# look for JSON library hpp file
+find_file(FILE_JSON_HEADER nlohmann/json.hpp)
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
+if (FILE_JSON_HEADER)
+else()
+  message(FATAL_ERROR "JSON parser - You need to get one!")
+endif()
+
+# zlib
+message(STATUS "Looking for z")
+find_library(LIBRARY_Z z)
+message(STATUS "Looking for z - ${LIBRARY_Z}")
+
+message(STATUS "Looking for zlibd")
+find_library(LIBRARY_ZLIB zlibd)
+message(STATUS "Looking for zlibd - ${LIBRARY_ZLIB}")
+
+# libpng
+message(STATUS "Looking for png")
+find_library(LIBRARY_PNG png)
+message(STATUS "Looking for png - ${LIBRARY_PNG}")
+
+message(STATUS "Looking for libpng16d")
+find_library(LIBRARY_LIBPNG libpng16d)
+message(STATUS "Looking for libpng16d - ${LIBRARY_LIBPNG}")
+
+set(GENERAL_LIBRARIES)
+set(DEBUG_LIBRARIES)
+set(OPTIMIZED_LIBRARIES)
+
+if(LIBRARY_Z)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_Z}")
+elseif(LIBRARY_ZLIB)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_ZLIB}")
+else()
+  message(FATAL_ERROR "Needs zlib")
+endif()
+
+if(LIBRARY_PNG)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_PNG}")
+elseif(LIBRARY_LIBPNG)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_LIBPNG}")
+else()
+  message(FATAL_ERROR "Needs png")
+endif()
+
+# physics PHYSX
+if (PHYSICS_USE_PHYSX)
+	# graphics libraries
+	if (LIBRARY_PHYSX_CORE)
+	  # debug sets lib for "debug" in VS and optimized sets lib for "release" mode in VS
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_CORE_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_CORE}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_COMMON_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_COMMON}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_EXTENSIONS_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_EXTENSIONS}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_PROFILE_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_PROFILE}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_CHARACTER_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_CHARACTER}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_COOKING_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_COOKING}")
+	endif()
+endif()
 
 # physics BOX2D
-#
-# Check that BOX2d header files exist
 if (PHYSICS_USE_BOX2D)
-	find_file(FILE_PHYSICS_BOX_HEADERS Box2D/Box2D.h)
-	message(STATUS "Looking for Physics Box header files - ${FILE_PHYSICS_BOX_HEADERS}")
-
-	if (MODE_DEBUG)
-	  add_definitions(-D_DEBUG)
-	elseif (MODE_RELEASE)
-	  add_definitions(-DNDEBUG)
-	endif()
-
-	find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
-	if (NOT LIBRARY_PHYSICS_BOX_CORE_D)
-	  find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
-	endif()
-
-	find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
-	if (NOT LIBRARY_PHYSICS_BOX_CORE)
-	  find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
-	endif()
-
-	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
+	set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSICS_BOX_CORE_D}")
+	set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSICS_BOX_CORE}")
 endif()
 
 # select libraries
@@ -224,10 +265,12 @@ if (FILE_GL_GL_H AND
 	LIBRARY_GL)
   message(STATUS "Graphics - OpenGL")
   set(GRAPHICS_USE_OPENGL 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_GL}")
 elseif (FILE_GL_GL_H AND
 	LIBRARY_OPENGL32)
   message(STATUS "Graphics - OpenGL")
   set(GRAPHICS_USE_OPENGL 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENGL32}")
 else()
   message(FATAL_ERROR "Graphics - Disabled")
 endif()
@@ -238,11 +281,13 @@ if (FILE_AL_AL_H AND
 	LIBRARY_OPENAL)
   message(STATUS "Sound - OpenAL")
   set(SOUND_USE_OPENAL 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENAL}")
 elseif(FILE_AL_AL_H AND
 	FILE_AL_ALC_H AND
 	LIBRARY_OPENAL32)
   message(STATUS "Sound - OpenAL")
   set(SOUND_USE_OPENAL 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENAL32}")
 else()
   message(WARNING "Sound - Disabled")
 endif()
@@ -251,10 +296,12 @@ endif()
 if (LIBRARY_KERNEL32)
   message(STATUS "Thread - Kernel32")
   set(THREAD_USE_KERNEL32 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_KERNEL32}")
 elseif(FILE_PTHREAD_H AND
 	LIBRARY_PTHREAD)
   message(STATUS "Thread - Pthread")
   set(THREAD_USE_PTHREAD 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_PTHREAD}")
 else()
   message(FATAL_ERROR "Thread - Disabled")
 endif()
@@ -264,10 +311,12 @@ if (LIBRARY_GDI32 AND
 	LIBRARY_USER32)
   message(STATUS "Window - User32")
   set(WINDOW_USE_USER32 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_USER32}")
 elseif(FILE_X11_XLIB_H AND
 	LIBRARY_X11)
   message(STATUS "Window - X11")
   set(WINDOW_USE_X11 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_X11}")
 else()
   message(FATAL_ERROR "Window - Disabled")
 endif()
@@ -279,6 +328,13 @@ if ((FILE_FT2BUILD_H OR
 	(LIBRARY_FREETYPE OR LIBRARY_FREETYPED))
   message(STATUS "Text - Freetype")
   set(TEXT_USE_FREETYPE 1)
+
+  if (LIBRARY_FREETYPE)
+	set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FREETYPE}")
+  else()
+	set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FREETYPED}")
+  endif()
+
 elseif (WINDOW_USE_USER32)
   message(WARNING "Text - User32")
   set(TEXT_USE_USER32 1)
