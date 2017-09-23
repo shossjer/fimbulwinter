@@ -18,6 +18,7 @@ set(SOURCE_FILES
 	src/engine/gui/gui.cpp
 	src/engine/gui/json_parser.cpp
 	src/engine/gui/loading.cpp
+	src/engine/gui/resources.cpp
 	src/engine/gui/views.cpp
 	src/engine/model/loader.cpp
 	src/engine/hid/input.cpp
@@ -77,6 +78,7 @@ set(HEADER_FILES
 	src/engine/gui/gui.hpp
 	src/engine/gui/loading.hpp
 	src/engine/gui/placers.hpp
+	src/engine/gui/resources.hpp
 	src/engine/gui/views.hpp
 	src/engine/hid/input.hpp
 	src/engine/model/loader.hpp

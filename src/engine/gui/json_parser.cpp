@@ -2,6 +2,7 @@
 #include "actions.hpp"
 #include "functions.hpp"
 #include "loading.hpp"
+#include "resources.hpp"
 
 #include <engine/graphics/renderer.hpp>
 
@@ -16,7 +17,7 @@ namespace
 	struct ResourceLoader
 	{
 	private:
-		const json & jcolors;
+
 		const json & jdimensions;
 		const json & jstrings;
 		const json & jtemplates;
@@ -24,45 +25,61 @@ namespace
 	public:
 
 		ResourceLoader(const json & jcontent)
-			: jcolors(jcontent["colors"])
-			, jdimensions(jcontent["dimensions"])
+			: jdimensions(jcontent["dimensions"])
 			, jstrings(jcontent["strings"])
 			, jtemplates(jcontent["templates"])
 		{
-			// load colors and themes and strings? into resources...
+			if (contains(jcontent, "colors"))
+			{
+				const json & jcolors = jcontent["colors"];
+
+				for (auto i = jcolors.begin(); i != jcolors.end(); ++i)
+				{
+					const std::string str = i.value();
+
+					debug_assert(str.length() == 10);
+
+					const auto val = std::stoul(str, nullptr, 16);
+
+					resource::put(engine::Asset{ i.key() }, val);
+					debug_printline(0xffffffff, "GUI - loading color: ", i.key());
+				}
+			}
+
+			if (contains(jcontent, "selectors"))
+			{
+				const json & jselectors = jcontent["selectors"];
+
+				for (auto i = jselectors.begin(); i != jselectors.end(); ++i)
+				{
+					auto & jval = i.value();
+					debug_assert(jval.is_object());
+
+					debug_assert(contains(jval, "default"));
+					engine::Asset defColor = jval["default"].get<std::string>();
+
+					engine::Asset highColor;
+					if (contains(jval, "highlight"))
+						highColor = jval["highlight"].get<std::string>();
+					else
+						highColor = defColor;
+
+					engine::Asset pressedColor;
+					if (contains(jval, "pressed"))
+						pressedColor = jval["pressed"].get<std::string>();
+					else
+						pressedColor = defColor;
+
+					resource::put(engine::Asset{ i.key() }, defColor, highColor, pressedColor);
+					debug_printline(0xffffffff, "GUI - loading selector: ", i.key());
+				}
+			}
 		}
 
 	private:
 
-		engine::Asset extract_asset(const json & jdata, const std::string key) const
+		value_t _int(const json & jv) const
 		{
-			debug_assert(contains(jdata, key));
-			return engine::Asset{ jdata[key].get<std::string>() };
-		}
-
-		engine::graphics::data::Color extract_color(const json & jdata) const
-		{
-			const std::string str = jdata["color"];
-			debug_assert(str.length() > std::size_t{ 0 });
-
-			if (str[0] == '#')
-			{
-				std::string res = this->jcolors[str];
-				debug_assert(res.length() > std::size_t{ 0 });
-
-				return std::stoul(res, nullptr, 16);
-			}
-
-			return std::stoul(str, nullptr, 16);
-		}
-
-		value_t extract_margin(const std::string key, const json & jmargin) const
-		{
-			if (!contains(jmargin, key))
-				return 0;
-
-			const json & jv = jmargin[key];
-
 			if (!jv.is_string())
 				return jv.get<value_t>();
 
@@ -71,9 +88,52 @@ namespace
 			debug_assert(str[0] == '#');
 			return this->jdimensions[str].get<value_t>();
 		}
+		value_t _int(const std::string key, const json & jdata) const
+		{
+			debug_assert(contains(jdata, key));
+			return _int(jdata[key]);
+		}
+		value_t _int(const std::string key, const json & jdata, const value_t def) const
+		{
+			if (!contains(jdata, key))
+				return def;
+			return _int(jdata[key]);
+		}
+
+		engine::Asset extract_asset(const json & jdata, const std::string key) const
+		{
+			debug_assert(contains(jdata, key));
+			return engine::Asset{ jdata[key].get<std::string>() };
+		}
 
 		Size::Dimen extract_dimen(const json & jd) const
 		{
+			if (jd.is_object())
+			{
+				debug_assert(contains(jd, "t"));
+				const std::string type = jd["t"];
+
+				if (type == "fixed")
+				{
+					return Size::Dimen{ Size::TYPE::FIXED, _int("v", jd) };
+				}
+				else
+				if (type == "parent")
+				{
+					return Size::Dimen{ Size::TYPE::PARENT };
+				}
+				else
+				if (type == "percent")
+				{
+					return Size::Dimen{ Size::TYPE::PERCENT, _int("v", jd, 0) / value_t{100.f} };
+				}
+				else
+				if (type == "wrap")
+				{
+					return Size::Dimen{ Size::TYPE::WRAP, _int("min", jd, 0) };
+				}
+			}
+			else
 			if (jd.is_string())
 			{
 				const std::string str = jd;
@@ -85,19 +145,21 @@ namespace
 						Size::TYPE::FIXED,
 						this->jdimensions[str].get<value_t>() };
 
-				if (str[str.length() - 1] == '%')
-				{
-					value_t val = std::stof(str.substr(0, str.length() - 1));
-					return Size::Dimen{ Size::TYPE::PERCENTAGE, val / value_t{ 100 } };
-				}
+				if (str == "percent")return Size::Dimen{ Size::TYPE::PERCENT };
 				if (str == "parent") return Size::Dimen{ Size::TYPE::PARENT };
 				if (str == "wrap") return Size::Dimen{ Size::TYPE::WRAP };
 
-				debug_printline(0xffffffff, "GUI - invalid size dimen: ", str);
+				debug_printline(0xffffffff, "GUI - invalid size dimen: ", jd);
 				debug_unreachable();
 			}
+			else
+			if (jd.is_number_integer())
+			{
+				return Size::Dimen{ Size::TYPE::FIXED, jd.get<value_t>() };
+			}
 
-			return Size::Dimen{ Size::TYPE::FIXED, jd.get<value_t>() };
+			debug_printline(0xffffffff, "GUI - invalid size value: ", jd);
+			debug_unreachable();
 		}
 
 		Size extract_size(const json & jdata) const
@@ -117,16 +179,18 @@ namespace
 			return contains(jdata, "color");
 		}
 
-		engine::graphics::data::Color color(const json & jdata) const
+		engine::Asset color(const json & jdata) const
 		{
 			debug_assert(contains(jdata, "color"));
-			return extract_color(jdata);
-		}
 
-		engine::graphics::data::Color color(const json & jdata, const engine::graphics::data::Color def_val) const
-		{
-			if (!contains(jdata, "color")) return def_val;
-			return extract_color(jdata);
+			const std::string str = jdata["color"];
+			debug_assert(str.length() > std::size_t{ 0 });
+
+			const engine::Asset asset{ str };
+
+			debug_assert(resource::color(asset)!= nullptr);
+
+			return asset;
 		}
 
 		const json & components(const json & jdata) const
@@ -205,9 +269,14 @@ namespace
 			return Gravity{ h | v };
 		}
 
+		bool has_name(const json & jdata) const
+		{
+			return contains(jdata, "name");
+		}
+
 		std::string name(const json & jdata) const
 		{
-			debug_assert(contains(jdata, "name"));
+			debug_assert(has_name(jdata));
 			std::string str = jdata["name"];
 			debug_assert(str.length() > std::size_t{ 0 });
 			return str;
@@ -215,7 +284,7 @@ namespace
 
 		std::string name_or_null(const json & jdata) const
 		{
-			if (contains(jdata, "name"))
+			if (has_name(jdata))
 			{
 				std::string str = jdata["name"];
 				debug_assert(str.length() > std::size_t{ 0 });
@@ -232,20 +301,20 @@ namespace
 			{
 				const json & jmargin = jdata["margin"];
 
-				margin.bottom = extract_margin("b", jmargin);
-				margin.left = extract_margin("l", jmargin);
-				margin.right = extract_margin("r", jmargin);
-				margin.top = extract_margin("t", jmargin);
+				margin.bottom = _int("b", jmargin, 0);
+				margin.left = _int("l", jmargin, 0);
+				margin.right = _int("r", jmargin, 0);
+				margin.top = _int("t", jmargin, 0);
 			}
 
 			return margin;
 		}
 
-		bool has_res(const json & jdata) const
+		bool has_texture(const json & jdata) const
 		{
 			return contains(jdata, "res");
 		}
-		engine::Asset res(const json & jdata) const
+		engine::Asset texture(const json & jdata) const
 		{
 			return extract_asset(jdata, "res");
 		}
@@ -347,29 +416,43 @@ namespace
 
 	private:
 
-		bool has_action(const json & jcomponent) { return contains(jcomponent, "trigger"); }
+		bool has_action(const json & jcomponent) { return contains(jcomponent, "actions"); }
 
 		void load_action(ViewData & view, const json & jcomponent)
 		{
-			const json & jtrigger = jcomponent["trigger"];
+			const json & jactions = jcomponent["actions"];
 
-			engine::Asset action { jtrigger["action"].get<std::string>() };
-
-			switch (action)
+			for (const auto & jaction : jactions)
 			{
-			case ViewData::Action::CLOSE:
-				view.action.type = ViewData::Action::CLOSE;
-				break;
-			case ViewData::Action::MOVER:
-				view.action.type = ViewData::Action::MOVER;
-				break;
-			case ViewData::Action::SELECT:
-				view.action.type = ViewData::Action::SELECT;
-				break;
+				view.actions.emplace_back();
+				auto & action = view.actions.back();
 
-			default:
-				debug_printline(0xffffffff, "GUI - unknown trigger action in component: ", jcomponent);
-				debug_unreachable();
+				action.type = this->load.type(jaction);
+				action.target = contains(jaction, "target") ? jaction["target"].get<std::string>() : engine::Asset::null();
+
+				// validate action
+				switch (action.type)
+				{
+				case ViewData::Action::CLOSE:
+
+					break;
+				case ViewData::Action::INTERACTION:
+
+					break;
+				case ViewData::Action::MOVER:
+
+					break;
+				case ViewData::Action::SELECT:
+
+					break;
+				case ViewData::Action::TRIGGER:
+					debug_assert(action.target != engine::Asset::null());
+					break;
+
+				default:
+					debug_printline(0xffffffff, "GUI - unknown trigger action in component: ", jcomponent);
+					debug_unreachable();
+				}
 			}
 		}
 
@@ -409,6 +492,10 @@ namespace
 				{
 					target.function.direction = ProgressBar::HORIZONTAL;
 				}
+				break;
+			}
+			case ViewData::Function::TAB:
+			{
 				break;
 			}
 			default:
@@ -478,7 +565,7 @@ namespace
 				this->load.size_def_wrap(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
-				this->load.color(jtext, 0xff000000),
+				this->load.color(jtext),
 				this->load.display(jtext));
 
 			TextData & view = utility::get<TextData>(parent.children.back());
@@ -499,7 +586,7 @@ namespace
 				this->load.size(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
-				this->load.res(jtexture));
+				this->load.texture(jtexture));
 
 			TextureData & view = utility::get<TextureData>(parent.children.back());
 
@@ -584,43 +671,62 @@ namespace
 			const ResourceLoader & load;
 			const json & jdata;
 
+			std::unordered_map<std::string, std::string> customized_names;
+
 		private:
 
 			// checks if the view has a custom definition in the implementation of the view.
 			bool is_customized(ViewData & data)
 			{
-				if (data.name.empty())
-					return false;
-
-				if (!contains(jdata, data.name))
-				{
-					// remove "template name" from instance if set and no overrider provided.
-					// this is because the name needs to be unique.
-					data.name = "";
-					return false;
-				}
-				return true;
+				return data.has_name() && contains(jdata, data.name);
 			}
 
-			const json & get_customized(ViewData & data)
+			const json & customize_common(ViewData & data)
 			{
 				const json & jcustomize = this->jdata[data.name];
 
-				// remove "template name" from instance if set and no overrider provided.
-				// this is because the name needs to be unique.
-				data.name = "";
+				// customize the name and register the change.
+				if (this->load.has_name(jcustomize))
+				{
+					const std::string name = this->load.name(jcustomize);
+					auto r = customized_names.emplace(data.name, name);
+					if (!r.second)
+					{
+						r.first->second = name;
+					}
+					data.name = name;
+				}
+
 				return jcustomize;
+			}
+
+			// actions can have "named targets" make sure to update the name
+			// if it has been "customized".
+			void update_actions(ViewData & data)
+			{
+				for (auto & action : data.actions)
+				{
+					for (const auto & d : customized_names)
+					{
+						// not optimal...
+						if (engine::Asset{ d.first } == action.target)
+						{
+							action.target = engine::Asset{ d.second };
+							return;
+						}
+					}
+				}
 			}
 
 		public:
 
 			void operator() (GroupData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					customize_common(data);
 				}
 
 				// customize any template children of the group
@@ -631,11 +737,11 @@ namespace
 			}
 			void operator() (ListData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					customize_common(data);
 				}
 
 				// customize the list item template
@@ -646,11 +752,11 @@ namespace
 			}
 			void operator() (PanelData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					const json & jcustomize = customize_common(data);
 
 					if (this->load.has_type_panel(jcustomize))
 					{
@@ -663,11 +769,11 @@ namespace
 			}
 			void operator() (TextData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					const json & jcustomize = customize_common(data);
 
 					if (this->load.has_type_text(jcustomize))
 					{
@@ -683,18 +789,18 @@ namespace
 			}
 			void operator() (TextureData & data)
 			{
+				update_actions(data);
+
 				if (is_customized(data))
 				{
-					const json & jcustomize = get_customized(data);
-
-					data.name = this->load.name_or_null(jcustomize);
+					const json & jcustomize = customize_common(data);
 
 					if (this->load.has_type_texture(jcustomize))
 					{
 						const json & jtexture = this->load.type_texture(jcustomize);
 
-						if (this->load.has_res(jtexture))
-							data.res = this->load.res(jtexture);
+						if (this->load.has_texture(jtexture))
+							data.texture = this->load.texture(jtexture);
 					}
 				}
 			}

@@ -10,6 +10,7 @@ namespace engine
 {
 namespace gui
 {
+	class Group;
 	class View;
 
 	struct ProgressBar
@@ -21,8 +22,17 @@ namespace gui
 		{
 			HORIZONTAL,
 			VERTICAL
-		} direction;
+		}
+		direction;
+	};
 
+	struct TabBar
+	{
+		engine::Asset window;
+		Group * base;
+		Group * tab_container;
+		Group * views_container;
+		std::size_t active_index;
 	};
 }
 }

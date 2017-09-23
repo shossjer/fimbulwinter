@@ -1683,6 +1683,55 @@ namespace
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(core::maths::Matrix4x4f::identity());
 
+		// disable depth test to make the bar drawings show above the 3d content
+		glDisable(GL_DEPTH_TEST);
+
+		// 2d
+		// ...
+		for (const Bar & component : components.get<Bar>())
+		{
+			modelview_matrix.push();
+
+			// calculate modelview of bar position in world space
+			core::maths::Vector2f screenCoord;
+			engine::graphics::viewer::from_world_to_screen(component.worldPosition, screenCoord);
+			core::maths::Vector2f::array_type b;
+			screenCoord.get_aligned(b);
+
+			Matrix4x4f modelview = make_translation_matrix(Vector3f{ b[0], b[1], 0.f });
+
+			modelview_matrix.mult(modelview);
+			glLoadMatrix(modelview_matrix);
+
+			const float WF = 28.f;
+			const float WI = WF - 2.f;
+			const float HF = 5.f;
+			const float HI = HF - 2.f;
+
+			glBegin(GL_QUADS);
+			{
+				glColor3ub(20, 20, 40);
+
+				glVertex2f(-WF, HF);
+				glVertex2f(+WF, HF);
+				glVertex2f(+WF,-HF);
+				glVertex2f(-WF,-HF);
+
+				glColor3ub(100, 255, 80);
+
+				const float ws = -WI + component.progress * WI * 2;
+				glVertex2f(-WI, HI);
+				glVertex2f(ws, HI);
+				glVertex2f(ws, -HI);
+				glVertex2f(-WI, -HI);
+			}
+			glEnd();
+
+			modelview_matrix.pop();
+		}
+
+		// clear depth to make GUI show over all prev. rendering
+		glClearDepth(1.0);
 		glEnable(GL_DEPTH_TEST);
 
 		// draw gui
@@ -1700,7 +1749,8 @@ namespace
 			core::maths::Vector2f::array_type size;
 			component.size.get_aligned(size);
 
-			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
+			//glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
+			glColor(component.color);
 
 			glBegin(GL_QUADS);
 			{
@@ -1755,52 +1805,6 @@ namespace
 
 			glColor(component.color);
 			normal_font.draw(0, 0, component.display);
-
-			modelview_matrix.pop();
-		}
-
-		glDisable(GL_DEPTH_TEST);
-
-		// 2d
-		// ...
-		for (const Bar & component : components.get<Bar>())
-		{
-			modelview_matrix.push();
-
-			// calculate modelview of bar position in world space
-			core::maths::Vector2f screenCoord;
-			engine::graphics::viewer::from_world_to_screen(component.worldPosition, screenCoord);
-			core::maths::Vector2f::array_type b;
-			screenCoord.get_aligned(b);
-
-			Matrix4x4f modelview = make_translation_matrix(Vector3f{ b[0], b[1], 0.f });
-
-			modelview_matrix.mult(modelview);
-			glLoadMatrix(modelview_matrix);
-
-			const float WF = 28.f;
-			const float WI = WF - 2.f;
-			const float HF = 5.f;
-			const float HI = HF - 2.f;
-
-			glBegin(GL_QUADS);
-			{
-				glColor3ub(20, 20, 40);
-
-				glVertex2f(-WF, HF);
-				glVertex2f(+WF, HF);
-				glVertex2f(+WF,-HF);
-				glVertex2f(-WF,-HF);
-
-				glColor3ub(100, 255, 80);
-
-				const float ws = -WI + component.progress * WI * 2;
-				glVertex2f(-WI, HI);
-				glVertex2f(ws, HI);
-				glVertex2f(ws, -HI);
-				glVertex2f(-WI, -HI);
-			}
-			glEnd();
 
 			modelview_matrix.pop();
 		}

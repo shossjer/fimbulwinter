@@ -16,14 +16,34 @@
 	does not have to be registered in the "lookup" table.
  */
 #include <engine/Asset.hpp>
+#include <engine/Entity.hpp>
 
 namespace engine
 {
 namespace gui
 {
+	class View;
+
 	struct CloseAction
 	{
 		engine::Asset window;
+		View * target;
+
+		CloseAction(engine::Asset window, View * target)
+			: window(window)
+			, target(target)
+		{}
+	};
+
+	struct InteractionAction
+	{
+		engine::Asset window;
+		View * target;
+
+		InteractionAction(engine::Asset window, View * target)
+			: window(window)
+			, target(target)
+		{}
 	};
 
 	struct MoveAction
@@ -34,6 +54,17 @@ namespace gui
 	struct SelectAction
 	{
 		engine::Asset window;
+	};
+
+	struct TriggerAction
+	{
+		engine::Asset window;
+		engine::Entity entity;
+
+		TriggerAction(engine::Asset window, engine::Entity entity)
+			: window(window)
+			, entity(entity)
+		{}
 	};
 }
 }

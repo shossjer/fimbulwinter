@@ -45,16 +45,21 @@ namespace gui
 		struct Action
 		{
 			static constexpr engine::Asset CLOSE{ "close" };
+			static constexpr engine::Asset INTERACTION{ "interaction" };
 			static constexpr engine::Asset MOVER{ "mover" };
 			static constexpr engine::Asset SELECT{ "selectable" };
+			static constexpr engine::Asset TRIGGER{ "trigger" };
 
 			engine::Asset type;
-		}
-		action;
+			engine::Asset target;
+		};
+
+		std::vector<Action> actions;
 
 		struct Function
 		{
-			constexpr static engine::Asset PROGRESS{ "progressBar" };
+			static constexpr engine::Asset PROGRESS{ "progressBar" };
+			static constexpr engine::Asset TAB{ "tabBar" };
 
 			engine::Asset type;
 			std::string name;
@@ -68,13 +73,12 @@ namespace gui
 			, margin(margin)
 			, gravity(gravity)
 		{
-			action.type = engine::Asset::null();
 			function.type = engine::Asset::null();
 		}
 
 		bool has_action() const
 		{
-			return this->action.type!= engine::Asset::null();
+			return !this->actions.empty();
 		}
 
 		bool has_function() const
@@ -108,9 +112,9 @@ namespace gui
 
 	struct PanelData : ViewData
 	{
-		Color color;
+		Asset color;
 
-		PanelData(std::string name, Size size, Margin margin, Gravity gravity, Color color)
+		PanelData(std::string name, Size size, Margin margin, Gravity gravity, Asset color)
 			: ViewData(name, size, margin, gravity)
 			, color(color)
 		{}
@@ -118,10 +122,10 @@ namespace gui
 
 	struct TextData : ViewData
 	{
-		Color color;
+		Asset color;
 		std::string display;
 
-		TextData(std::string name, Size size, Margin margin, Gravity gravity, Color color, std::string display)
+		TextData(std::string name, Size size, Margin margin, Gravity gravity, Asset color, std::string display)
 			: ViewData(name, size, margin, gravity)
 			, color(color)
 			, display(display)
@@ -130,11 +134,11 @@ namespace gui
 
 	struct TextureData : ViewData
 	{
-		engine::Asset res;
+		Asset texture;
 
-		TextureData(std::string name, Size size, Margin margin, Gravity gravity, engine::Asset res)
+		TextureData(std::string name, Size size, Margin margin, Gravity gravity, Asset texture)
 			: ViewData(name, size, margin, gravity)
-			, res(res)
+			, texture(texture)
 		{}
 	};
 }

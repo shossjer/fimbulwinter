@@ -639,74 +639,92 @@ namespace
 		}
 	};
 
-	// mouse button pressed on entity (the entity is not "selected" yet).
-	struct PlayerEntitySelection
+	// when mouse button is released and the entity is "clicked".
+	struct
 	{
-		void operator () (const GUIComponent & c)
+		bool operator () (const GUIComponent & c)
 		{
-			engine::gui::post_interaction_select(c.window);
+			engine::gui::post_interaction_click(c.window, c.id);
+			return false;
 		}
 
-		template <typename W>
-		void operator () (const W & w)
+		bool operator () (const Worker & w)
 		{
-		}
-	};
-
-	struct PlayerEntityDeselection
-	{
-		void operator () (const GUIComponent & c)
-		{
-		}
-
-		template <typename W>
-		void operator () (const W & w)
-		{
-		}
-	};
-
-	// when mouse button is released and the entity is selected.
-	struct PlayerEntitySelected
-	{
-		// was it selected for first time or "re"-selected?
-		const bool reselected;
-
-		PlayerEntitySelected(bool reselected)
-			: reselected(reselected)
-		{}
-
-		void operator () (const GUIComponent & c)
-		{
-			engine::gui::post_interaction_click(c.id);
-		}
-
-		void operator () (const Worker & w)
-		{
-			profile_updater.entity = w.id;
-			profile_update(w.id);
-
 			// show the window
 			engine::gui::post_state_show("profile");
+
+			profile_updater.entity = w.id;
+			profile_update(w.id);
+			return true;
 		}
 
 		template <typename W>
-		void operator () (const W & w)
+		bool operator () (const W & w)
 		{
+			return false;
 		}
-	};
+	}
+	playerEntityClick;
 
-	// the selected entity has been cleared.
-	struct PlayerEntityCleared
+	struct
 	{
 		void operator () (const GUIComponent & c)
 		{
+			debug_printline(0xffffffff, "Gamestate - Highlight entity: ", c.id);
+			engine::gui::post_interaction_highlight(c.window, c.id);
 		}
 
 		template <typename W>
 		void operator () (const W & w)
 		{
 		}
-	};
+	}
+	playerEntityHighlight;
+
+	struct
+	{
+		void operator () (const GUIComponent & c)
+		{
+			debug_printline(0xffffffff, "Gamestate - Lowlight entity: ", c.id);
+			engine::gui::post_interaction_lowlight(c.window, c.id);
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	}
+	playerEntityLowlight;
+
+	struct
+	{
+		void operator () (const GUIComponent & c)
+		{
+			debug_printline(0xffffffff, "Gamestate - Pressing entity: ", c.id);
+			engine::gui::post_interaction_press(c.window, c.id);
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	}
+	playerEntityPress;
+
+	struct
+	{
+		void operator () (const GUIComponent & c)
+		{
+			debug_printline(0xffffffff, "Gamestate - Releasing entity: ", c.id);
+			engine::gui::post_interaction_release(c.window, c.id);
+		}
+
+		template <typename W>
+		void operator () (const W & w)
+		{
+		}
+	}
+	playerEntityRelease;
 
 	core::container::Collection
 	<
@@ -972,40 +990,57 @@ namespace gamestate
 				switch (std::get<1>(command_args))
 				{
 				case engine::Command::RENDER_HIGHLIGHT:
-					highlighted_entity = utility::any_cast<engine::Entity>(std::get<2>(command_args));
 
+					// check if anything is "pressed" it will need to be "released" before "lowlighted"
 					if (pressed_entity != engine::Entity::null())
 					{
-						debug_printline(0xffffffff, "Gamestate - Leaving entity: ", pressed_entity);
-						components.call(pressed_entity, PlayerEntityDeselection{});
+						components.call(pressed_entity, ::playerEntityRelease);
 						pressed_entity = engine::Entity::null();
 					}
 
+					if (highlighted_entity != engine::Entity::null())
+					{
+						components.call(highlighted_entity, ::playerEntityLowlight);
+					}
+
+					highlighted_entity = utility::any_cast<engine::Entity>(std::get<2>(command_args));
+
+					if (highlighted_entity != engine::Entity::null())
+					{
+						if (components.contains(highlighted_entity))
+							components.call(highlighted_entity, ::playerEntityHighlight);
+					}
 					break;
 				case engine::Command::MOUSE_LEFT_DOWN:
 
-					if (selected_entity!= engine::Entity::null() && selected_entity != highlighted_entity)
-					{
-						debug_printline(0xffffffff, "Gamestate - Clearing entity: ", selected_entity);
-						components.call(selected_entity, PlayerEntityCleared{});
-						selected_entity = engine::Entity::null();
-					}
-
 					if (components.contains(highlighted_entity))
 					{
-						debug_printline(0xffffffff, "Gamestate - Pressed entity: ", highlighted_entity);
 						pressed_entity = highlighted_entity;
-						components.call(highlighted_entity, PlayerEntitySelection{});
+						components.call(highlighted_entity, ::playerEntityPress);
 					}
 					break;
 				case engine::Command::MOUSE_LEFT_UP:
 
+
 					if (pressed_entity != engine::Entity::null())
 					{
-						debug_printline(0xffffffff, "Gamestate - Selecting entity: ", pressed_entity);
-						selected_entity = pressed_entity;
-						components.call(selected_entity, PlayerEntitySelected{ selected_entity == pressed_entity });
+						if (components.call(pressed_entity, ::playerEntityClick))
+						{
+							if (selected_entity == pressed_entity)
+							{
+								// do nothing
+							}
+							else
+							{
+								if (selected_entity != engine::Entity::null())
+								{
+									// TODO: clear prev. selection
+								}
 
+								selected_entity = pressed_entity;
+							}
+						}
+						components.call(pressed_entity, ::playerEntityRelease);
 						pressed_entity = engine::Entity::null();
 					}
 					break;
