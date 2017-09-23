@@ -33,7 +33,7 @@ namespace
 			{
 				const json & jcolors = jcontent["colors"];
 
-				for (auto & i = jcolors.begin(); i != jcolors.end(); ++i)
+				for (auto i = jcolors.begin(); i != jcolors.end(); ++i)
 				{
 					const std::string str = i.value();
 
@@ -50,7 +50,7 @@ namespace
 			{
 				const json & jselectors = jcontent["selectors"];
 
-				for (auto & i = jselectors.begin(); i != jselectors.end(); ++i)
+				for (auto i = jselectors.begin(); i != jselectors.end(); ++i)
 				{
 					auto & jval = i.value();
 					debug_assert(jval.is_object());
@@ -689,7 +689,11 @@ namespace
 				if (this->load.has_name(jcustomize))
 				{
 					const std::string name = this->load.name(jcustomize);
-					customized_names.insert_or_assign(data.name, name);
+					auto r = customized_names.emplace(data.name, name);
+					if (!r.second)
+					{
+						r.first->second = name;
+					}
 					data.name = name;
 				}
 

@@ -34,7 +34,11 @@ namespace gui
 
 		void put(engine::Asset name, engine::Entity entity)
 		{
-			this->data.insert_or_assign(name, entity);
+			auto r = this->data.emplace(name, entity);
+			if (!r.second)
+			{
+				r.first->second = entity;
+			}
 		}
 
 		bool contains(engine::Asset name) const

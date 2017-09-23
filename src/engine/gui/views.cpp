@@ -17,7 +17,7 @@ namespace gui
 				for (auto child : children)
 				{
 					// TODO: if a child is "Size::PARENT" perhaps it should fill remaining view?
-					auto & s = child->get_size().height;
+					const auto & s = child->get_size().height;
 					if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
 					{
 						val+= child->height();
@@ -27,7 +27,7 @@ namespace gui
 			default:
 				for (auto child : children)	// find "tallest" view
 				{
-					auto & s = child->get_size().height;
+					const auto & s = child->get_size().height;
 					if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
 					{
 						auto h = child->height();
@@ -47,7 +47,7 @@ namespace gui
 				for (auto child : children)
 				{
 					// TODO: if a child is "Size::PARENT" perhaps it should fill remaining view?
-					auto & s = child->get_size().width;
+					const auto & s = child->get_size().width;
 					if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
 					{
 						val += child->width();
@@ -57,7 +57,7 @@ namespace gui
 			default:
 				for (auto child : children)	// find "tallest" view
 				{
-					auto & s = child->get_size().width;
+					const auto & s = child->get_size().width;
 					if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
 					{
 						auto w = child->width();
