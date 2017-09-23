@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 2.8)
 project(hellskitchen)
 
 if (MSVC)
-	include_directories("C:/Program Files (x86)/Windows Kits/8.1/Include/um;C:/gaia/dep/src")
-	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um;C:/gaia/dep/src")
-	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86;C:/gaia/dep/lib")
+	include_directories("C:/Program Files (x86)/Windows Kits/10/Include/10.0.15063.0/um;C:/gaia/dep/src")
+	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/10/Include/10.0.15063.0/um;C:/gaia/dep/src")
+	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/10/Lib/10.0.15063.0/um/x86;C:/gaia/dep/lib")
 	set(CMAKE_CXX_FLAGS_DEBUG
 		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
 		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
@@ -42,37 +42,6 @@ message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
 # flags to control physics library linking
 set(PHYSICS_USE_BOX2D 0)
 set(PHYSICS_USE_PHYSX 0)
-
-include (src/CMakeLists.txt)
-
-set(ALL_FILES ${SOURCE_FILES} ${HEADER_FILES})
-
-foreach(FILE ${ALL_FILES})
-	get_filename_component(PARENT_DIR "${FILE}" PATH)
-
-	# skip src or include and changes /'s to \\'s
-	string(REGEX REPLACE "(\\./)?(src|include)/?" "" GROUP "${PARENT_DIR}")
-	string(REPLACE "/" "\\" GROUP "${GROUP}")
-
-	# group into "Source Files" and "Header Files"
-	if ("${FILE}" MATCHES ".*\\.cpp")
-		set(GROUP "Source Files\\${GROUP}")
-	elseif("${FILE}" MATCHES ".*\\.h")
-		set(GROUP "Header Files\\${GROUP}")
-	else()
-		set(GROUP "Other Files\\${GROUP}")
-	endif()
-
-	source_group("${GROUP}" FILES "${FILE}")
-endforeach()
-
-include_directories("${PROJECT_BINARY_DIR}")
-include_directories("${PROJECT_SOURCE_DIR}/src")
-
-add_executable(HellsKitchen ${ALL_FILES})
-
-enable_testing (true)
-add_subdirectory (tst)
 
 # lookup dependencies
 # Freetype
@@ -151,14 +120,6 @@ message(STATUS "Looking for zlibd")
 find_library(LIBRARY_ZLIB zlibd)
 message(STATUS "Looking for zlibd - ${LIBRARY_ZLIB}")
 
-if(LIBRARY_Z)
-  target_link_libraries(HellsKitchen ${LIBRARY_Z})
-elseif(LIBRARY_ZLIB)
-  target_link_libraries(HellsKitchen ${LIBRARY_ZLIB})
-else()
-  message(FATAL_ERROR "Needs zlib")
-endif()
-
 # libpng
 message(STATUS "Looking for png")
 find_library(LIBRARY_PNG png)
@@ -168,21 +129,11 @@ message(STATUS "Looking for libpng16d")
 find_library(LIBRARY_LIBPNG libpng16d)
 message(STATUS "Looking for libpng16d - ${LIBRARY_LIBPNG}")
 
-if(LIBRARY_PNG)
-  target_link_libraries(HellsKitchen ${LIBRARY_PNG})
-elseif(LIBRARY_LIBPNG)
-  target_link_libraries(HellsKitchen ${LIBRARY_LIBPNG})
-else()
-  message(FATAL_ERROR "Needs png")
-endif()
-
 # physics PHYSX
 #
 # Check that Physx header files exist
 if (PHYSICS_USE_PHYSX)
 	find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
-	get_filename_component(DIRECTORY_OF_PHYSX "${FILE_PHYSX_HEADERS}" DIRECTORY)
-	include_directories("${DIRECTORY_OF_PHYSX}")
 
 	message(STATUS "Looking for Physx header files - ${FILE_PHYSX_HEADERS}")
 
@@ -239,17 +190,6 @@ if (PHYSICS_USE_PHYSX)
 	message(STATUS "Looking for Physx profile debug - ${LIBRARY_PHYSX_PROFILE_D}")
 	message(STATUS "Looking for Physx character debug - ${LIBRARY_PHYSX_CHARACTER_D}")
 	message(STATUS "Looking for Physx cooking debug - ${LIBRARY_PHYSX_COOKING_D}")
-
-	# graphics libraries
-	if (LIBRARY_PHYSX_CORE)
-	  # debug sets lib for "debug" in VS and optimized sets lib for "release" mode in VS
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_CORE_D} optimized ${LIBRARY_PHYSX_CORE})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_COMMON_D} optimized ${LIBRARY_PHYSX_COMMON})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_EXTENSIONS_D} optimized ${LIBRARY_PHYSX_EXTENSIONS})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_PROFILE_D} optimized ${LIBRARY_PHYSX_PROFILE})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_CHARACTER_D} optimized ${LIBRARY_PHYSX_CHARACTER})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_COOKING_D} optimized ${LIBRARY_PHYSX_COOKING})
-	endif()
 endif()
 
 # physics BOX2D
@@ -259,8 +199,6 @@ if (PHYSICS_USE_BOX2D)
 	find_file(FILE_PHYSICS_BOX_HEADERS Box2D/Box2D.h)
 	message(STATUS "Looking for Physics Box header files - ${FILE_PHYSICS_BOX_HEADERS}")
 
-	get_filename_component(DIRECTORY_OF_PHYSICS_BOX "${FILE_PHYSICS_BOX_HEADERS}" DIRECTORY)
-	include_directories("${DIRECTORY_OF_PHYSICS_BOX}")
 	if (MODE_DEBUG)
 	  add_definitions(-D_DEBUG)
 	elseif (MODE_RELEASE)
@@ -278,22 +216,17 @@ if (PHYSICS_USE_BOX2D)
 	endif()
 
 	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
-
-	target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSICS_BOX_CORE_D} optimized ${LIBRARY_PHYSICS_BOX_CORE})
 endif()
-
 
 # select libraries
 # graphics
 if (FILE_GL_GL_H AND
 	LIBRARY_GL)
   message(STATUS "Graphics - OpenGL")
-  target_link_libraries(HellsKitchen ${LIBRARY_GL})
   set(GRAPHICS_USE_OPENGL 1)
 elseif (FILE_GL_GL_H AND
 	LIBRARY_OPENGL32)
   message(STATUS "Graphics - OpenGL")
-  target_link_libraries(HellsKitchen ${LIBRARY_OPENGL32})
   set(GRAPHICS_USE_OPENGL 1)
 else()
   message(FATAL_ERROR "Graphics - Disabled")
@@ -304,13 +237,11 @@ if (FILE_AL_AL_H AND
 	FILE_AL_ALC_H AND
 	LIBRARY_OPENAL)
   message(STATUS "Sound - OpenAL")
-  target_link_libraries(HellsKitchen ${LIBRARY_OPENAL})
   set(SOUND_USE_OPENAL 1)
 elseif(FILE_AL_AL_H AND
 	FILE_AL_ALC_H AND
 	LIBRARY_OPENAL32)
   message(STATUS "Sound - OpenAL")
-  target_link_libraries(HellsKitchen ${LIBRARY_OPENAL32})
   set(SOUND_USE_OPENAL 1)
 else()
   message(WARNING "Sound - Disabled")
@@ -319,12 +250,10 @@ endif()
 # thread
 if (LIBRARY_KERNEL32)
   message(STATUS "Thread - Kernel32")
-  target_link_libraries(HellsKitchen ${LIBRARY_KERNEL32})
   set(THREAD_USE_KERNEL32 1)
 elseif(FILE_PTHREAD_H AND
 	LIBRARY_PTHREAD)
   message(STATUS "Thread - Pthread")
-  target_link_libraries(HellsKitchen ${LIBRARY_PTHREAD})
   set(THREAD_USE_PTHREAD 1)
 else()
   message(FATAL_ERROR "Thread - Disabled")
@@ -334,12 +263,10 @@ endif()
 if (LIBRARY_GDI32 AND
 	LIBRARY_USER32)
   message(STATUS "Window - User32")
-  target_link_libraries(HellsKitchen ${LIBRARY_USER32})
   set(WINDOW_USE_USER32 1)
 elseif(FILE_X11_XLIB_H AND
 	LIBRARY_X11)
   message(STATUS "Window - X11")
-  target_link_libraries(HellsKitchen ${LIBRARY_X11})
   set(WINDOW_USE_X11 1)
 else()
   message(FATAL_ERROR "Window - Disabled")
@@ -351,15 +278,6 @@ if ((FILE_FT2BUILD_H OR
 	  FILE_FREETYPE2_FT2BUILD_H) AND
 	(LIBRARY_FREETYPE OR LIBRARY_FREETYPED))
   message(STATUS "Text - Freetype")
-  if (FILE_FREETYPE2_FT2BUILD_H)
-	get_filename_component(INCLUDE_DIRECTORY_FREETYPE "${FILE_FREETYPE2_FT2BUILD_H}" DIRECTORY)
-	include_directories("${INCLUDE_DIRECTORY_FREETYPE}")
-  endif()
-  if (LIBRARY_FREETYPE)
-    target_link_libraries(HellsKitchen ${LIBRARY_FREETYPE})
-  else()
-    target_link_libraries(HellsKitchen ${LIBRARY_FREETYPED})
-  endif()
   set(TEXT_USE_FREETYPE 1)
 elseif (WINDOW_USE_USER32)
   message(WARNING "Text - User32")
@@ -395,6 +313,12 @@ if (WINDOW_USE_USER32)
     set(HAVE_VERSIONHELPERS_H 1)
   endif()
 endif()
+
+add_subdirectory(code)
+add_subdirectory(game)
+
+enable_testing(false)
+add_subdirectory(tst)
 
 # write config
 configure_file(
