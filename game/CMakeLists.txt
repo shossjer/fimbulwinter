@@ -37,6 +37,10 @@ endif()
 
 add_executable(HellsKitchen ${ALL_FILES})
 
+if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
+	set_target_properties(HellsKitchen PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+endif()
+
 add_dependencies(HellsKitchen Code)
 
 target_link_libraries(HellsKitchen Code)
