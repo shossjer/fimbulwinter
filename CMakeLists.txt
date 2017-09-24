@@ -3,14 +3,27 @@ cmake_minimum_required(VERSION 3.6)
 project(hellskitchen CXX)
 
 if (MSVC)
-	include_directories("C:/Program Files (x86)/Windows Kits/10/Include/10.0.15063.0/um;C:/gaia/dep/src")
-	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/10/Include/10.0.15063.0/um;C:/gaia/dep/src")
-	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/10/Lib/10.0.15063.0/um/x86;C:/gaia/dep/lib")
+	include_directories("${PROJECT_SOURCE_DIR}/../dep/include")
+	set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/../dep/include")
+	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/../dep/lib")
 	set(CMAKE_CXX_FLAGS_DEBUG
 		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
 		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
+	set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} /MT")
+	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MTd")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
     add_definitions(-DNOMINMAX)
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT HellsKitchen)
+endif()
+
+include(settings.cmake)
+
+if (CUSTOM_INCLUDE)
+	include_directories(${CUSTOM_INCLUDE})
+	set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${CUSTOM_INCLUDE}")
+endif()
+if (CUSTOM_LIBRARY)
+	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CUSTOM_LIBRARY}")
 endif()
 
 # make debug build default
