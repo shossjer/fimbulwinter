@@ -5,8 +5,6 @@
 
 #include <iostream>
 
-#include <core/crypto/crc.cpp> // solves linker error
-
 TEST_CASE( "crc32", "[utility]" )
 {
 	constexpr uint32_t code1 = core::crypto::crc32("1");

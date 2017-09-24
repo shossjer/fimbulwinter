@@ -1,15 +1,29 @@
 #
-cmake_minimum_required(VERSION 2.8)
-project(hellskitchen)
+cmake_minimum_required(VERSION 3.6)
+project(hellskitchen CXX)
 
 if (MSVC)
-	include_directories("C:/Program Files (x86)/Windows Kits/8.1/Include/um;C:/gaia/dep/src")
-	set(CMAKE_INCLUDE_PATH "C:/Program Files (x86)/Windows Kits/8.1/Include/um;C:/gaia/dep/src")
-	set(CMAKE_PREFIX_PATH "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/x86;C:/gaia/dep/lib")
+	include_directories("${PROJECT_SOURCE_DIR}/../dep/include")
+	set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/../dep/include")
+	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/../dep/lib")
 	set(CMAKE_CXX_FLAGS_DEBUG
 		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
 		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
+	set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} /MT")
+	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MTd")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
     add_definitions(-DNOMINMAX)
+	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT HellsKitchen)
+endif()
+
+include(settings.cmake)
+
+if (CUSTOM_INCLUDE)
+	include_directories(${CUSTOM_INCLUDE})
+	set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${CUSTOM_INCLUDE}")
+endif()
+if (CUSTOM_LIBRARY)
+	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CUSTOM_LIBRARY}")
 endif()
 
 # make debug build default
@@ -43,38 +57,29 @@ message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
 set(PHYSICS_USE_BOX2D 0)
 set(PHYSICS_USE_PHYSX 0)
 
-include (src/CMakeLists.txt)
+# lookup dependencies
+if (PHYSICS_USE_BOX2D)
+	find_file(FILE_PHYSICS_BOX_HEADERS Box2D/Box2D.h)
+	message(STATUS "Looking for Physics Box header files - ${FILE_PHYSICS_BOX_HEADERS}")
 
-set(ALL_FILES ${SOURCE_FILES} ${HEADER_FILES})
-
-foreach(FILE ${ALL_FILES})
-	get_filename_component(PARENT_DIR "${FILE}" PATH)
-
-	# skip src or include and changes /'s to \\'s
-	string(REGEX REPLACE "(\\./)?(src|include)/?" "" GROUP "${PARENT_DIR}")
-	string(REPLACE "/" "\\" GROUP "${GROUP}")
-
-	# group into "Source Files" and "Header Files"
-	if ("${FILE}" MATCHES ".*\\.cpp")
-		set(GROUP "Source Files\\${GROUP}")
-	elseif("${FILE}" MATCHES ".*\\.h")
-		set(GROUP "Header Files\\${GROUP}")
-	else()
-		set(GROUP "Other Files\\${GROUP}")
+	if (MODE_DEBUG)
+	  add_definitions(-D_DEBUG)
+	elseif (MODE_RELEASE)
+	  add_definitions(-DNDEBUG)
 	endif()
 
-	source_group("${GROUP}" FILES "${FILE}")
-endforeach()
+	find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
+	if (NOT LIBRARY_PHYSICS_BOX_CORE_D)
+	  find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
+	endif()
 
-include_directories("${PROJECT_BINARY_DIR}")
-include_directories("${PROJECT_SOURCE_DIR}/src")
+	find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
+	if (NOT LIBRARY_PHYSICS_BOX_CORE)
+	  find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
+	endif()
 
-add_executable(HellsKitchen ${ALL_FILES})
-
-enable_testing (true)
-add_subdirectory (tst)
-
-# lookup dependencies
+	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
+endif()
 # Freetype
 message(STATUS "Looking for freetype")
 find_file(FILE_FT2BUILD_H ft2build.h)
@@ -117,75 +122,10 @@ find_library(LIBRARY_GLEXT GLext)
 find_library(LIBRARY_GLEXT32 glext32)
 message(STATUS "Looking for OpenGL - ${LIBRARY_GLEXT}")
 message(STATUS "Looking for OpenGL - ${LIBRARY_GLEXT32}")
-# Pthread
-message(STATUS "Looking for Pthread")
-find_file(FILE_PTHREAD_H pthread.h)
-message(STATUS "Looking for Pthread - ${FILE_PTHREAD_H}")
-find_library(LIBRARY_PTHREAD pthread)
-message(STATUS "Looking for Pthread - ${LIBRARY_PTHREAD}")
-# User32
-message(STATUS "Looking for User32")
-find_library(LIBRARY_USER32 user32)
-message(STATUS "Looking for User32 - ${LIBRARY_USER32}")
-# Pthread
-message(STATUS "Looking for X11")
-find_file(FILE_X11_XLIB_H X11/Xlib.h)
-message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
-find_library(LIBRARY_X11 X11)
-message(STATUS "Looking for X11 - ${LIBRARY_X11}")
-
-# look for JSON library hpp file
-find_file(FILE_JSON_HEADER nlohmann/json.hpp)
-message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
-if (FILE_JSON_HEADER)
-else()
-  message(FATAL_ERROR "JSON parser - You need to get one!")
-endif()
-
-# zlib
-message(STATUS "Looking for z")
-find_library(LIBRARY_Z z)
-message(STATUS "Looking for z - ${LIBRARY_Z}")
-
-message(STATUS "Looking for zlibd")
-find_library(LIBRARY_ZLIB zlibd)
-message(STATUS "Looking for zlibd - ${LIBRARY_ZLIB}")
-
-if(LIBRARY_Z)
-  target_link_libraries(HellsKitchen ${LIBRARY_Z})
-elseif(LIBRARY_ZLIB)
-  target_link_libraries(HellsKitchen ${LIBRARY_ZLIB})
-else()
-  message(FATAL_ERROR "Needs zlib")
-endif()
-
-# libpng
-message(STATUS "Looking for png")
-find_library(LIBRARY_PNG png)
-message(STATUS "Looking for png - ${LIBRARY_PNG}")
-
-message(STATUS "Looking for libpng16d")
-find_library(LIBRARY_LIBPNG libpng16d)
-message(STATUS "Looking for libpng16d - ${LIBRARY_LIBPNG}")
-
-if(LIBRARY_PNG)
-  target_link_libraries(HellsKitchen ${LIBRARY_PNG})
-elseif(LIBRARY_LIBPNG)
-  target_link_libraries(HellsKitchen ${LIBRARY_LIBPNG})
-else()
-  message(FATAL_ERROR "Needs png")
-endif()
-
 # physics PHYSX
-#
-# Check that Physx header files exist
 if (PHYSICS_USE_PHYSX)
 	find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
-	get_filename_component(DIRECTORY_OF_PHYSX "${FILE_PHYSX_HEADERS}" DIRECTORY)
-	include_directories("${DIRECTORY_OF_PHYSX}")
-
 	message(STATUS "Looking for Physx header files - ${FILE_PHYSX_HEADERS}")
-
 	# release
 	find_library(LIBRARY_PHYSX_CORE PhysX3_x64)
 	if (NOT LIBRARY_PHYSX_CORE)
@@ -205,7 +145,6 @@ if (PHYSICS_USE_PHYSX)
 	if (NOT LIBRARY_PHYSX_COOKING)
 	  find_library(LIBRARY_PHYSX_COOKING PhysX3Cooking_x86)
 	endif()
-
 	# debug
 	find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x64)
 	if (NOT LIBRARY_PHYSX_CORE_D)
@@ -239,62 +178,121 @@ if (PHYSICS_USE_PHYSX)
 	message(STATUS "Looking for Physx profile debug - ${LIBRARY_PHYSX_PROFILE_D}")
 	message(STATUS "Looking for Physx character debug - ${LIBRARY_PHYSX_CHARACTER_D}")
 	message(STATUS "Looking for Physx cooking debug - ${LIBRARY_PHYSX_COOKING_D}")
+endif()
+# Pthread
+message(STATUS "Looking for Pthread")
+find_file(FILE_PTHREAD_H pthread.h)
+message(STATUS "Looking for Pthread - ${FILE_PTHREAD_H}")
+find_library(LIBRARY_PTHREAD pthread)
+message(STATUS "Looking for Pthread - ${LIBRARY_PTHREAD}")
+# User32
+message(STATUS "Looking for User32")
+find_library(LIBRARY_USER32 user32)
+message(STATUS "Looking for User32 - ${LIBRARY_USER32}")
+# X11
+message(STATUS "Looking for X11")
+find_file(FILE_X11_XLIB_H X11/Xlib.h)
+message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
+find_library(LIBRARY_X11 X11)
+message(STATUS "Looking for X11 - ${LIBRARY_X11}")
+
+# look for JSON library hpp file
+find_file(FILE_JSON_HEADER nlohmann/json.hpp)
+message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
+if (FILE_JSON_HEADER)
+else()
+  message(FATAL_ERROR "JSON parser - You need to get one!")
+endif()
+
+# zlib
+message(STATUS "Looking for z")
+find_library(LIBRARY_Z z)
+message(STATUS "Looking for z - ${LIBRARY_Z}")
+
+message(STATUS "Looking for zlibd")
+find_library(LIBRARY_ZLIB zlibd)
+message(STATUS "Looking for zlibd - ${LIBRARY_ZLIB}")
+
+# libpng
+message(STATUS "Looking for png")
+find_library(LIBRARY_PNG png)
+message(STATUS "Looking for png - ${LIBRARY_PNG}")
+
+message(STATUS "Looking for libpng16d")
+find_library(LIBRARY_LIBPNG libpng16d)
+message(STATUS "Looking for libpng16d - ${LIBRARY_LIBPNG}")
+
+set(GENERAL_INCLUDES)
+
+set(GENERAL_LIBRARIES)
+set(DEBUG_LIBRARIES)
+set(OPTIMIZED_LIBRARIES)
+
+if(LIBRARY_Z)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_Z}")
+elseif(LIBRARY_ZLIB)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_ZLIB}")
+else()
+  message(FATAL_ERROR "Needs zlib")
+endif()
+
+if(LIBRARY_PNG)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_PNG}")
+elseif(LIBRARY_LIBPNG)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_LIBPNG}")
+else()
+  message(FATAL_ERROR "Needs png")
+endif()
+
+# physics PHYSX
+if (PHYSICS_USE_PHYSX)
+	get_filename_component(DIRECTORY_OF_PHYSX "${FILE_PHYSX_HEADERS}" DIRECTORY)
+	set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${DIRECTORY_OF_PHYSX}")
 
 	# graphics libraries
 	if (LIBRARY_PHYSX_CORE)
 	  # debug sets lib for "debug" in VS and optimized sets lib for "release" mode in VS
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_CORE_D} optimized ${LIBRARY_PHYSX_CORE})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_COMMON_D} optimized ${LIBRARY_PHYSX_COMMON})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_EXTENSIONS_D} optimized ${LIBRARY_PHYSX_EXTENSIONS})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_PROFILE_D} optimized ${LIBRARY_PHYSX_PROFILE})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_CHARACTER_D} optimized ${LIBRARY_PHYSX_CHARACTER})
-	  target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSX_COOKING_D} optimized ${LIBRARY_PHYSX_COOKING})
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_CORE_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_CORE}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_COMMON_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_COMMON}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_EXTENSIONS_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_EXTENSIONS}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_PROFILE_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_PROFILE}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_CHARACTER_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_CHARACTER}")
+
+	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_COOKING_D}")
+	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_COOKING}")
 	endif()
 endif()
 
 # physics BOX2D
-#
-# Check that BOX2d header files exist
 if (PHYSICS_USE_BOX2D)
-	find_file(FILE_PHYSICS_BOX_HEADERS Box2D/Box2D.h)
-	message(STATUS "Looking for Physics Box header files - ${FILE_PHYSICS_BOX_HEADERS}")
-
 	get_filename_component(DIRECTORY_OF_PHYSICS_BOX "${FILE_PHYSICS_BOX_HEADERS}" DIRECTORY)
-	include_directories("${DIRECTORY_OF_PHYSICS_BOX}")
-	if (MODE_DEBUG)
-	  add_definitions(-D_DEBUG)
-	elseif (MODE_RELEASE)
-	  add_definitions(-DNDEBUG)
-	endif()
+	set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${DIRECTORY_OF_PHYSICS_BOX}")
 
-	find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
-	if (NOT LIBRARY_PHYSICS_BOX_CORE_D)
-	  find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
-	endif()
-
-	find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
-	if (NOT LIBRARY_PHYSICS_BOX_CORE)
-	  find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
-	endif()
-
-	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
-
-	target_link_libraries(HellsKitchen debug ${LIBRARY_PHYSICS_BOX_CORE_D} optimized ${LIBRARY_PHYSICS_BOX_CORE})
+	set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSICS_BOX_CORE_D}")
+	set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSICS_BOX_CORE}")
 endif()
-
 
 # select libraries
 # graphics
 if (FILE_GL_GL_H AND
 	LIBRARY_GL)
   message(STATUS "Graphics - OpenGL")
-  target_link_libraries(HellsKitchen ${LIBRARY_GL})
   set(GRAPHICS_USE_OPENGL 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_GL}")
 elseif (FILE_GL_GL_H AND
 	LIBRARY_OPENGL32)
   message(STATUS "Graphics - OpenGL")
-  target_link_libraries(HellsKitchen ${LIBRARY_OPENGL32})
   set(GRAPHICS_USE_OPENGL 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENGL32}")
 else()
   message(FATAL_ERROR "Graphics - Disabled")
 endif()
@@ -304,14 +302,14 @@ if (FILE_AL_AL_H AND
 	FILE_AL_ALC_H AND
 	LIBRARY_OPENAL)
   message(STATUS "Sound - OpenAL")
-  target_link_libraries(HellsKitchen ${LIBRARY_OPENAL})
   set(SOUND_USE_OPENAL 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENAL}")
 elseif(FILE_AL_AL_H AND
 	FILE_AL_ALC_H AND
 	LIBRARY_OPENAL32)
   message(STATUS "Sound - OpenAL")
-  target_link_libraries(HellsKitchen ${LIBRARY_OPENAL32})
   set(SOUND_USE_OPENAL 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENAL32}")
 else()
   message(WARNING "Sound - Disabled")
 endif()
@@ -319,13 +317,13 @@ endif()
 # thread
 if (LIBRARY_KERNEL32)
   message(STATUS "Thread - Kernel32")
-  target_link_libraries(HellsKitchen ${LIBRARY_KERNEL32})
   set(THREAD_USE_KERNEL32 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_KERNEL32}")
 elseif(FILE_PTHREAD_H AND
 	LIBRARY_PTHREAD)
   message(STATUS "Thread - Pthread")
-  target_link_libraries(HellsKitchen ${LIBRARY_PTHREAD})
   set(THREAD_USE_PTHREAD 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_PTHREAD}")
 else()
   message(FATAL_ERROR "Thread - Disabled")
 endif()
@@ -334,13 +332,13 @@ endif()
 if (LIBRARY_GDI32 AND
 	LIBRARY_USER32)
   message(STATUS "Window - User32")
-  target_link_libraries(HellsKitchen ${LIBRARY_USER32})
   set(WINDOW_USE_USER32 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_USER32}")
 elseif(FILE_X11_XLIB_H AND
 	LIBRARY_X11)
   message(STATUS "Window - X11")
-  target_link_libraries(HellsKitchen ${LIBRARY_X11})
   set(WINDOW_USE_X11 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_X11}")
 else()
   message(FATAL_ERROR "Window - Disabled")
 endif()
@@ -351,16 +349,19 @@ if ((FILE_FT2BUILD_H OR
 	  FILE_FREETYPE2_FT2BUILD_H) AND
 	(LIBRARY_FREETYPE OR LIBRARY_FREETYPED))
   message(STATUS "Text - Freetype")
+  set(TEXT_USE_FREETYPE 1)
+
   if (FILE_FREETYPE2_FT2BUILD_H)
 	get_filename_component(INCLUDE_DIRECTORY_FREETYPE "${FILE_FREETYPE2_FT2BUILD_H}" DIRECTORY)
-	include_directories("${INCLUDE_DIRECTORY_FREETYPE}")
+	set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${INCLUDE_DIRECTORY_FREETYPE}")
   endif()
+
   if (LIBRARY_FREETYPE)
-    target_link_libraries(HellsKitchen ${LIBRARY_FREETYPE})
+	set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FREETYPE}")
   else()
-    target_link_libraries(HellsKitchen ${LIBRARY_FREETYPED})
+	set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FREETYPED}")
   endif()
-  set(TEXT_USE_FREETYPE 1)
+
 elseif (WINDOW_USE_USER32)
   message(WARNING "Text - User32")
   set(TEXT_USE_USER32 1)
@@ -395,6 +396,12 @@ if (WINDOW_USE_USER32)
     set(HAVE_VERSIONHELPERS_H 1)
   endif()
 endif()
+
+add_subdirectory(code)
+add_subdirectory(game)
+
+enable_testing(false)
+add_subdirectory(codetest)
 
 # write config
 configure_file(

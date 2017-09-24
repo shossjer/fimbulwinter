@@ -1,5 +1,17 @@
 # Hell's Kitchen
 
+### How do I get set up? ###
+
+Create a file "settings.cmake" in the project folder.
+Windows users need to specify path to visual studio include and library files.
+```
+#!cmake
+
+set(CUSTOM_INCLUDE "C:/Program Files (x86)/Windows Kits/10/Include/10.0.15063.0/um")
+set(CUSTOM_LIBRARY "C:/Program Files (x86)/Windows Kits/10/Lib/10.0.15063.0/um/x86")
+
+```
+
 This is also not an electric cat.
 
     oooooooooooooooooooooooooooooosoosssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss

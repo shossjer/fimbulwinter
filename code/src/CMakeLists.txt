@@ -1,7 +1,6 @@
 
 # source listing
 set(SOURCE_FILES
-	src/main.cpp
 	src/core/async/Thread.cpp
 	src/core/crypto/crc.cpp
 	src/core/graphics/Image.cpp
