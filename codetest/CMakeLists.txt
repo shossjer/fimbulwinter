@@ -5,7 +5,6 @@ if(ENABLE_TEST)
 
 	message(STATUS "Catch tests are enabled")
 	cmake_minimum_required(VERSION 2.8)
-	project(TribunalTest CXX)
 	include(ExternalProject)
 	find_package(Git REQUIRED)
 
@@ -22,34 +21,11 @@ if(ENABLE_TEST)
 		LOG_DOWNLOAD ON
 	)
 
-	# include catch headers
-	include_directories("${CMAKE_BINARY_DIR}/catch/src/catch/include")
+	include (src/CMakeLists.txt)
 
-	# source listing
-	set(TRIBUNAL_TEST_SOURCE
-		main.cpp
-		core/async/delayTest.cpp
-		core/container/Collection.cpp
-		core/crypto/crc.cpp
-		core/debug.cpp
-		core/maths/Matrix.cpp
-		core/maths/Quaternion.cpp
-		core/maths/Vector.cpp
-		core/maths/util.cpp
-		utility/any.cpp
-		utility/array.cpp
-		utility/optional.cpp
-		utility/property.cpp
-		utility/variant.cpp
-		)
+	set(CODE_TEST_FILES ${CODE_TEST_SOURCE} ${CODE_TEST_HEADER})
 
-	# source listing
-	set(TRIBUNAL_TEST_HEADER
-		)
-
-	set(TRIBUNAL_TEST_FILES ${TRIBUNAL_TEST_SOURCE} ${TRIBUNAL_TEST_HEADER})
-
-	foreach(FILE ${TRIBUNAL_TEST_FILES})
+	foreach(FILE ${CODE_TEST_FILES})
 		get_filename_component(PARENT_DIR "${FILE}" PATH)
 
 		# skip src or include and changes /'s to \\'s
@@ -68,10 +44,24 @@ if(ENABLE_TEST)
 		source_group("${GROUP}" FILES "${FILE}")
 	endforeach()
 
-	add_executable(TribunalTest ${TRIBUNAL_TEST_FILES})
+	# include catch headers
+	include_directories("${CMAKE_BINARY_DIR}/catch/src/catch/include")
+	include_directories("${PROJECT_BINARY_DIR}")
+	include_directories("src")
+	include_directories("../code/src")
+	if (GENERAL_INCLUDES)
+		include_directories("${GENERAL_INCLUDES}")
+	endif()
 
-	add_dependencies(TribunalTest HellsKitchen)
-	add_dependencies(TribunalTest catch)
+	add_executable(CodeTest ${CODE_TEST_FILES})
+
+	add_dependencies(CodeTest catch)
+	add_dependencies(CodeTest Code)
+
+	target_link_libraries(CodeTest Code)
+	target_link_libraries(CodeTest ${GENERAL_LIBRARIES})
+	target_link_libraries(CodeTest ${DEBUG_LIBRARIES})
+	target_link_libraries(CodeTest ${OPTIMIZED_LIBRARIES})
 
 else()
 	message(STATUS "Catch tests are disabled")

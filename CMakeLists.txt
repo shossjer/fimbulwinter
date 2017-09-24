@@ -1,6 +1,6 @@
 #
 cmake_minimum_required(VERSION 3.6)
-project(hellskitchen)
+project(hellskitchen CXX)
 
 if (MSVC)
 	include_directories("C:/Program Files (x86)/Windows Kits/10/Include/10.0.15063.0/um;C:/gaia/dep/src")
@@ -388,7 +388,7 @@ add_subdirectory(code)
 add_subdirectory(game)
 
 enable_testing(false)
-add_subdirectory(tst)
+add_subdirectory(codetest)
 
 # write config
 configure_file(
