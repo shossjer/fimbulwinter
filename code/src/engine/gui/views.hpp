@@ -10,7 +10,6 @@
 
 #include <engine/Asset.hpp>
 #include <engine/Entity.hpp>
-#include <engine/graphics/renderer.hpp>
 
 #include <core/container/Collection.hpp>
 
@@ -22,7 +21,11 @@ namespace gui
 {
 	constexpr float DEPTH_INC = .1f;
 
-	using Color = engine::graphics::data::Color;
+
+	using Color = uint32_t;
+
+	class View;
+	using Children = std::vector<View*>;
 
 	class Lookup
 	{
@@ -94,7 +97,7 @@ namespace gui
 	{
 		friend class Group;
 		friend class Window;
-		friend struct Updater;
+		friend struct ViewUpdater;
 
 	public:
 
@@ -114,6 +117,8 @@ namespace gui
 	protected:
 
 		change_t change;
+
+		Children children;
 
 		Margin margin;
 
@@ -151,24 +156,6 @@ namespace gui
 		virtual View * find(const engine::Asset name);
 		virtual View * find(const engine::Entity entity);
 
-		// NOTE: could have these as show/hide and "make_invisible", "make_visible"
-		// removes the view from renderer
-		virtual void renderer_hide();
-		// adds the view from renderer
-		// only adds if it is "visible"
-		virtual void renderer_show();
-
-		// makes the view "hidden", will remove the view from renderer
-		// the view cannot be added to renderer while visibly "hidden"
-		virtual void visibility_hide();
-		// makes the view possible to show in rederer.
-		// this will not add the view to renderer!
-		virtual void visibility_show();
-
-		virtual void update(const State state) = 0;
-
-		virtual void translate(const Vector3f delta) = 0;
-
 		virtual void translate(unsigned & order) = 0;
 
 	public:
@@ -179,7 +166,9 @@ namespace gui
 		// total width of the view including margins
 		value_t width() const;
 
-		Size get_size() const { return this->size; };
+		const Children & get_children() const { return this->children; }
+
+		const Size & get_size() const { return this->size; };
 
 	protected:
 
@@ -197,6 +186,8 @@ namespace gui
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent) = 0;
 
+	protected:
+
 		Vector3f arrange_offset(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
@@ -205,10 +196,13 @@ namespace gui
 
 	class Drawable : public View
 	{
+		friend struct ViewUpdater;
+
 	private:
 
 		bool selectable;
 
+		// TODO: replace this with something better
 		// turned into matrix and sent to renderer
 		float order_depth;
 
@@ -239,10 +233,6 @@ namespace gui
 
 	public:
 
-		void update(const State state) override;
-
-		void translate(core::maths::Vector3f delta) override;
-
 		void translate(unsigned & order) override;
 
 	protected:
@@ -261,6 +251,8 @@ namespace gui
 
 	class PanelC : public Drawable
 	{
+		friend struct ViewUpdater;
+
 	public:
 
 		const resource::ColorResource * color;
@@ -292,6 +284,8 @@ namespace gui
 
 	class PanelT : public Drawable
 	{
+		friend struct ViewUpdater;
+
 	public:
 
 		engine::Asset texture;
@@ -323,6 +317,8 @@ namespace gui
 
 	class Text : public Drawable
 	{
+		friend struct ViewUpdater;
+
 	public:
 
 		const resource::ColorResource * color;
@@ -354,11 +350,10 @@ namespace gui
 
 	class Group : public View
 	{
+		friend struct ViewUpdater;
 		friend class Window;
 
 	public:
-
-		std::vector<View*> children;
 
 		Layout layout;
 
@@ -386,18 +381,6 @@ namespace gui
 		View * find(const engine::Asset name) override;
 		View * find(const engine::Entity name) override;
 
-		void renderer_hide() override;
-
-		void renderer_show() override;
-
-		void visibility_hide() override;
-
-		void visibility_show() override;
-
-		void update(const State state) override;
-
-		void translate(const Vector3f delta) override;
-
 		virtual void translate(unsigned & order) override;
 
 	protected:
@@ -414,6 +397,7 @@ namespace gui
 
 	class List : public Group
 	{
+		friend struct ViewUpdater;
 		friend struct Updater;
 
 	private:

@@ -1,5 +1,6 @@
 
 #include "resources.hpp"
+#include "updater.hpp"
 #include "views.hpp"
 
 namespace engine
@@ -95,44 +96,6 @@ namespace gui
 		return this->entity == entity ? this : nullptr;
 	}
 
-	void View::renderer_hide()
-	{
-		if (!this->should_render) return;
-		this->should_render = false;
-		this->change.set_hidden();
-	}
-	void View::renderer_show()
-	{
-		if (this->should_render) return;	// already/marked for rendering
-		if (this->is_invisible) return;		// if invisible it cannot be rendered
-
-		this->should_render = true;
-		this->change.set_shown();
-	}
-	void View::visibility_hide()
-	{
-		if (this->is_invisible) return; // already invisible
-
-		if (this->is_rendered)	// set as dirty if shown
-		{
-			this->change.set_hidden();
-			this->change.set_resized();
-		}
-		else
-			this->change.clear();
-
-		this->is_invisible = true;
-		this->should_render = false;
-	}
-	void View::visibility_show()
-	{
-		if (!this->is_invisible) return; // already visible
-
-		this->is_invisible = false;
-		this->change.set_shown();
-		this->change.set_resized();
-	}
-
 	Vector3f View::arrange_offset(
 		const Size size_parent,
 		const Gravity gravity_mask_parent,
@@ -188,17 +151,6 @@ namespace gui
 			static_cast<float>(this->size.height.value) };
 	}
 
-	void Drawable::update(const State state)
-	{
-		this->state = state;
-		this->change.set_data();
-	}
-
-	void Drawable::translate(core::maths::Vector3f delta)
-	{
-		this->offset += delta;
-		this->change.set_moved();
-	}
 	void Drawable::translate(unsigned & order)
 	{
 		this->order_depth = static_cast<float>(order) / 100.f;
@@ -574,81 +526,6 @@ namespace gui
 		}
 	}
 
-	void Group::renderer_hide()
-	{
-		if (!this->should_render) return;
-
-		for (auto child : this->children)
-		{
-			child->renderer_hide();
-		}
-
-		this->should_render = false;
-		this->change.set_hidden();
-	}
-	void Group::renderer_show()
-	{
-		if (this->should_render) return;	// already/marked for rendering
-		if (this->is_invisible) return;		// if invisible it cannot be rendered
-
-		for (auto child : this->children)
-		{
-			child->renderer_show();
-		}
-
-		this->should_render = true;
-		this->change.set_shown();
-	}
-	void Group::visibility_hide()
-	{
-		if (this->is_invisible) return; // already invisible
-
-		for (auto child : this->children)
-		{
-			child->visibility_hide();
-		}
-
-		if (this->is_rendered)	// set as dirty if shown
-		{
-			this->change.set_hidden();
-			this->change.set_resized();
-		}
-
-		this->is_invisible = true;
-		this->should_render = false;
-	}
-	void Group::visibility_show()
-	{
-		if (!this->is_invisible) return; // already visible
-
-		for (auto child : this->children)
-		{
-			child->visibility_show();
-		}
-
-		this->is_invisible = false;
-		this->change.set_shown();
-		this->change.set_resized();
-	}
-
-	void Group::update(const State state)
-	{
-		this->state = state;
-
-		for (auto child : this->children)
-		{
-			child->update(state);
-		}
-	}
-
-	void Group::translate(const Vector3f delta)
-	{
-		for (auto child : this->children)
-		{
-			child->translate(delta);
-		}
-	}
-
 	void Group::translate(unsigned & order)
 	{
 		for (auto child : this->children)
@@ -858,9 +735,8 @@ namespace gui
 		this->order = 0;
 		this->position += delta;
 
-		this->group.renderer_show();
-		this->group.translate(delta);
-
+		ViewUpdater::renderer_add(this->group);
+		ViewUpdater::translate(this->group, delta);
 		this->shown = true;
 		this->dirty = true;
 	}
@@ -868,7 +744,7 @@ namespace gui
 	void Window::hide_window()
 	{
 		debug_assert(is_shown());
-		this->group.renderer_hide();
+		ViewUpdater::renderer_remove(this->group);
 		this->shown = false;
 		this->dirty = true;
 	}
@@ -895,7 +771,7 @@ namespace gui
 	{
 		this->position += delta;
 
-		this->group.translate(delta);
+		ViewUpdater::translate(this->group, delta);
 
 		if (is_shown()) this->dirty = true;
 	}

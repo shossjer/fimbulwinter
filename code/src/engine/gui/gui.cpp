@@ -4,6 +4,7 @@
 #include "gui.hpp"
 #include "loading.hpp"
 #include "resources.hpp"
+#include "updater.hpp"
 #include "views.hpp"
 
 #include <core/container/CircleQueue.hpp>
@@ -287,14 +288,16 @@ namespace
 
 				debug_assert(tabBar.tab_container != nullptr);
 				debug_assert(tabBar.views_container != nullptr);
-				debug_assert(tabBar.tab_container->children.size() == tabBar.views_container->children.size());
+				debug_assert(tabBar.tab_container->get_children().size() == tabBar.views_container->get_children().size());
 
-				for (std::size_t i = 1; i < tabBar.views_container->children.size(); i++)
+				for (std::size_t i = 1; i < tabBar.views_container->get_children().size(); i++)
 				{
-					auto content = tabBar.views_container->children[i];
-					content->visibility_hide();
+					auto content = tabBar.views_container->get_children()[i];
+					ViewUpdater::visibility_hide(*content);
 				}
-				tabBar.tab_container->children[0]->update(View::State::PRESSED);
+				ViewUpdater::state(
+					*tabBar.tab_container->get_children()[0],
+					View::State::PRESSED);
 				break;
 			}
 			default:
@@ -515,9 +518,9 @@ namespace gui
 		void operator() (TabBar & function)
 		{
 			std::size_t clicked_index = function.active_index;
-			for (std::size_t i = 0; i < function.tab_container->children.size(); i++)
+			for (std::size_t i = 0; i < function.tab_container->get_children().size(); i++)
 			{
-				if (function.tab_container->children[i]->find(this->caller) != nullptr)
+				if (function.tab_container->get_children()[i]->find(this->caller) != nullptr)
 				{
 					clicked_index = i;
 					break;
@@ -527,14 +530,21 @@ namespace gui
 			if (function.active_index == clicked_index)
 				return;
 
-			//// hide / unselect the prev. tab
-			function.tab_container->children[function.active_index]->update(View::State::DEFAULT);
-			function.views_container->children[function.active_index]->visibility_hide();
+			// hide / unselect the prev. tab
+			ViewUpdater::state(
+				*function.tab_container->get_children()[function.active_index],
+				View::State::DEFAULT);
+			ViewUpdater::visibility_hide(
+				*function.views_container->get_children()[function.active_index]);
 
-			//// show / select the new tab.
-			function.tab_container->children[clicked_index]->update(View::State::PRESSED);
-			function.views_container->children[clicked_index]->visibility_show();
-			function.views_container->children[clicked_index]->renderer_show();
+			// show / select the new tab.
+			ViewUpdater::state(
+				*function.tab_container->get_children()[clicked_index],
+				View::State::PRESSED);
+			ViewUpdater::visibility_show(
+				*function.views_container->get_children()[clicked_index]);
+			ViewUpdater::renderer_add(
+				*function.views_container->get_children()[clicked_index]);
 
 			function.active_index = clicked_index;
 		}
@@ -565,7 +575,7 @@ namespace gui
 	{
 		void operator() (const InteractionAction & action)
 		{
-			action.target->update(View::State::DEFAULT);
+			ViewUpdater::state(*action.target, View::State::DEFAULT);
 		}
 		template<typename T>
 		void operator() (const T &) {}
@@ -576,7 +586,7 @@ namespace gui
 	{
 		void operator() (const InteractionAction & action)
 		{
-			action.target->update(View::State::HIGHLIGHT);
+			ViewUpdater::state(*action.target, View::State::HIGHLIGHT);
 		}
 		template<typename T>
 		void operator() (const T &) {}
@@ -587,7 +597,7 @@ namespace gui
 	{
 		void operator() (const InteractionAction & action)
 		{
-			action.target->update(View::State::PRESSED);
+			ViewUpdater::state(*action.target, View::State::PRESSED);
 		}
 		template<typename T>
 		void operator() (const T &) {}
@@ -621,7 +631,7 @@ namespace gui
 
 						if (window.is_shown())
 						{
-							list.children[i]->renderer_show();
+							ViewUpdater::renderer_add(*list.children[i]);
 						}
 					}
 				}
@@ -632,7 +642,7 @@ namespace gui
 
 					for (std::size_t i = list.lookups.size() - items_remove; i < list.lookups.size(); i++)
 					{
-						list.children[i]->renderer_hide();
+						ViewUpdater::renderer_remove(*list.children[i]);
 					}
 				}
 
@@ -655,16 +665,7 @@ namespace gui
 					}
 				}
 
-				if (list.shown_items != list_size)
-				{
-					list.change.set_data();
-					list.change.set_resized();
-				}
-				else
-				{
-					list.change.set_data();
-				}
-				list.shown_items = list_size;
+				ViewUpdater::list(list, list_size);
 				break;
 			}
 			default:
@@ -674,13 +675,12 @@ namespace gui
 			}
 		}
 
-		void operator() (PanelC & panel)
+		void operator() (PanelC & view)
 		{
 			switch (this->data.type)
 			{
 			case Data::COLOR:
-
-				//panel.color = data.color;
+				// TODO: handle color update
 				break;
 
 			default:
@@ -690,14 +690,12 @@ namespace gui
 			}
 		}
 
-		void operator() (PanelT & panel)
+		void operator() (PanelT & view)
 		{
 			switch (this->data.type)
 			{
 			case Data::TEXTURE:
-
-				panel.texture = data.texture;
-				panel.change.set_data();
+				ViewUpdater::texture(view, data.texture);
 				break;
 
 			default:
@@ -707,19 +705,16 @@ namespace gui
 			}
 		}
 
-		void operator() (Text & text)
+		void operator() (Text & view)
 		{
 			switch (this->data.type)
 			{
 			case Data::COLOR:
-
-				//text.color = data.color;
+				// TODO: handle color update
 				break;
 
 			case Data::DISPLAY:
-
-				text.display = data.display;
-				text.change.set_data();
+				ViewUpdater::text(view, data.display);
 				break;
 
 			default:
@@ -734,18 +729,7 @@ namespace gui
 			switch (this->data.type)
 			{
 			case Data::PROGRESS:
-
-				if (pb.direction == ProgressBar::HORIZONTAL)
-				{
-					debug_assert(pb.target->size.width.type == Size::TYPE::PERCENT);
-					pb.target->size.width.set_meta(this->data.progress);
-				}
-				else
-				{
-					debug_assert(pb.target->size.height.type == Size::TYPE::PERCENT);
-					pb.target->size.height.set_meta(this->data.progress);
-				}
-				pb.target->change.set_resized();
+				ViewUpdater::progress(pb, data.progress);
 				break;
 
 			default:

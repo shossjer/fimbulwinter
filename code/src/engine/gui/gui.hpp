@@ -14,6 +14,11 @@ namespace gui
 {
 	struct Data
 	{
+		using ListData =
+			std::vector<		// vector of list items
+				std::vector<	// vector of item key value
+					std::pair<engine::Asset, Data>>>;
+
 		enum Type
 		{
 			COLOR,
@@ -25,9 +30,7 @@ namespace gui
 
 		engine::graphics::data::Color color;
 		std::string display;
-		std::vector<		// vector of list items
-			std::vector<	// vector of item key value
-				std::pair<engine::Asset, Data>>> list;
+		ListData list;
 		float progress;
 		engine::Asset texture;
 		// TODO: visibility
@@ -42,7 +45,7 @@ namespace gui
 			, color(color)
 		{}
 
-		Data(std::vector<std::vector<std::pair<engine::Asset, Data>>> && list)
+		Data(ListData && list)
 			: type(LIST)
 			, list(std::move(list))
 		{}
