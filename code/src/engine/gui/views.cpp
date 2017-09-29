@@ -6,6 +6,12 @@ namespace engine
 {
 namespace gui
 {
+	constexpr change_t::value_t change_t::NONE;
+	constexpr change_t::value_t change_t::INITIAL;
+	constexpr change_t::value_t change_t::MOVE;
+	constexpr change_t::value_t change_t::SIZE;
+	constexpr change_t::value_t change_t::VISIBILITY;
+
 	namespace
 	{
 		value_t wrap_height(const Layout layout, const std::vector<View*> & children)
@@ -80,13 +86,6 @@ namespace gui
 		return this->margin.width() + this->size.width.value;
 	}
 
-	void View::set_update(const unsigned flag)
-	{
-		if (this->is_invisible)
-			return;
-		this->update_flags |= flag;
-	}
-
 	View * View::find(const engine::Asset name)
 	{
 		return this->name == name ? this : nullptr;
@@ -100,7 +99,7 @@ namespace gui
 	{
 		if (!this->should_render) return;
 		this->should_render = false;
-		this->update_flags |= 1;
+		this->change.set_hidden();
 	}
 	void View::renderer_show()
 	{
@@ -108,16 +107,19 @@ namespace gui
 		if (this->is_invisible) return;		// if invisible it cannot be rendered
 
 		this->should_render = true;
-		this->update_flags |= 1;
+		this->change.set_shown();
 	}
 	void View::visibility_hide()
 	{
 		if (this->is_invisible) return; // already invisible
 
 		if (this->is_rendered)	// set as dirty if shown
-			this->update_flags |= 2;
+		{
+			this->change.set_hidden();
+			this->change.set_resized();
+		}
 		else
-			this->update_flags = 0;
+			this->change.clear();
 
 		this->is_invisible = true;
 		this->should_render = false;
@@ -127,7 +129,8 @@ namespace gui
 		if (!this->is_invisible) return; // already visible
 
 		this->is_invisible = false;
-		this->update_flags |= 2;
+		this->change.set_shown();
+		this->change.set_resized();
 	}
 
 	Vector3f View::arrange_offset(
@@ -188,13 +191,13 @@ namespace gui
 	void Drawable::update(const State state)
 	{
 		this->state = state;
-		set_update(1);
+		this->change.set_data();
 	}
 
 	void Drawable::translate(core::maths::Vector3f delta)
 	{
 		this->offset += delta;
-		set_update(1);
+		this->change.set_moved();
 	}
 	void Drawable::translate(unsigned & order)
 	{
@@ -204,9 +207,9 @@ namespace gui
 
 	void Drawable::refresh2(const Group * const group)
 	{
-		if (this->update_flags == 0) return;
+		if (!this->change.any()) return;
 
-		if (this->update_flags > 1)
+		if (this->change.affects_size())
 		{
 			switch (this->size.height.type)
 			{
@@ -316,13 +319,12 @@ namespace gui
 			renderer_send_update();
 		}
 
-		this->update_flags = 0;
+		this->change.clear();
 	}
 
-	unsigned PanelC::refresh1()
+	change_t PanelC::refresh1()
 	{
-		if (this->update_flags == 0)
-			return 0;
+		if (!this->change.any()) return this->change;
 
 		switch (this->size.height.type)
 		{
@@ -354,7 +356,7 @@ namespace gui
 			debug_unreachable();
 		}
 
-		return 1;
+		return this->change;
 	}
 
 	void PanelC::renderer_send_add() const
@@ -376,10 +378,9 @@ namespace gui
 				this->color->get(this) });
 	}
 
-	unsigned PanelT::refresh1()
+	change_t PanelT::refresh1()
 	{
-		if (this->update_flags == 0)
-			return 0;
+		if (!this->change.any()) return this->change;
 
 		switch (this->size.height.type)
 		{
@@ -413,7 +414,7 @@ namespace gui
 			debug_unreachable();
 		}
 
-		return 1;
+		return this->change;
 	}
 
 	void PanelT::renderer_send_add() const
@@ -435,10 +436,9 @@ namespace gui
 				this->texture });
 	}
 
-	unsigned Text::refresh1()
+	change_t Text::refresh1()
 	{
-		if (this->update_flags == 0)
-			return 0;
+		if (!this->change.any()) return this->change;
 
 		switch (this->size.height.type)
 		{
@@ -474,7 +474,7 @@ namespace gui
 			debug_unreachable();
 		}
 
-		return 1;
+		return this->change;
 	}
 
 	void Text::renderer_send_add() const
@@ -584,7 +584,7 @@ namespace gui
 		}
 
 		this->should_render = false;
-		this->update_flags |= 1;
+		this->change.set_hidden();
 	}
 	void Group::renderer_show()
 	{
@@ -597,7 +597,7 @@ namespace gui
 		}
 
 		this->should_render = true;
-		this->update_flags |= 1;
+		this->change.set_shown();
 	}
 	void Group::visibility_hide()
 	{
@@ -609,7 +609,10 @@ namespace gui
 		}
 
 		if (this->is_rendered)	// set as dirty if shown
-			this->update_flags |= 2;
+		{
+			this->change.set_hidden();
+			this->change.set_resized();
+		}
 
 		this->is_invisible = true;
 		this->should_render = false;
@@ -624,7 +627,8 @@ namespace gui
 		}
 
 		this->is_invisible = false;
-		this->update_flags |= 2;
+		this->change.set_shown();
+		this->change.set_resized();
 	}
 
 	void Group::update(const State state)
@@ -653,14 +657,14 @@ namespace gui
 		}
 	}
 
-	unsigned Group::refresh1()
+	change_t Group::refresh1()
 	{
 		for (auto p : this->children)
 		{
-			this->update_flags |= p->refresh1();
+			this->change.set(p->refresh1());
 		}
 
-		if (this->update_flags > 1)
+		if (this->change.affects_size())
 		{
 			// TODO: check if flag status can be downgraded from > 1 to just 1 (content updated)
 
@@ -699,14 +703,14 @@ namespace gui
 			}
 		}
 
-		return this->update_flags;
+		return this->change;
 	}
 
 	void Group::refresh2(const Group *const parent)
 	{
-		if (this->update_flags == 0) return;
+		if (!this->change.any()) return;
 
-		if (this->update_flags == 1)
+		if (!this->change.affects_size())
 		{
 			// content has been updated of child view - does not change size
 			for (auto & child : this->children)
@@ -758,7 +762,7 @@ namespace gui
 		}
 
 		this->is_rendered = this->should_render;
-		this->update_flags = 0;
+		this->change.clear();
 	}
 
 	void Group::refresh2(
@@ -768,7 +772,7 @@ namespace gui
 	{
 		if (this->is_invisible && !this->is_rendered)
 		{
-			this->update_flags = 0;
+			this->change.clear();
 			return;
 		}
 		// called if "parent" has changed its size
@@ -817,7 +821,7 @@ namespace gui
 			arrange_offset(size_parent, gravity_mask_parent, offset_parent));
 
 		this->is_rendered = this->should_render;
-		this->update_flags = 0;
+		this->change.clear();
 	}
 
 	void List::translate(unsigned & order)

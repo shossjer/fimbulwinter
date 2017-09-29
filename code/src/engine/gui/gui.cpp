@@ -616,7 +616,7 @@ namespace gui
 					for (std::size_t i = list.lookups.size(); i < list_size; i++)
 					{
 						list.lookups.emplace_back();
-						Creator{list.lookups[i], window}.create_views(list, list.view_template);
+						Creator{ list.lookups[i], window }.create_views(list, list.view_template);
 						list.children.back()->translate(list.order);
 
 						if (window.is_shown())
@@ -655,7 +655,15 @@ namespace gui
 					}
 				}
 
-				list.set_update((list.shown_items != list_size) ? 2 : 1);
+				if (list.shown_items != list_size)
+				{
+					list.change.set_data();
+					list.change.set_resized();
+				}
+				else
+				{
+					list.change.set_data();
+				}
 				list.shown_items = list_size;
 				break;
 			}
@@ -689,7 +697,7 @@ namespace gui
 			case Data::TEXTURE:
 
 				panel.texture = data.texture;
-				panel.set_update(2);
+				panel.change.set_data();
 				break;
 
 			default:
@@ -711,7 +719,7 @@ namespace gui
 			case Data::DISPLAY:
 
 				text.display = data.display;
-				text.set_update((text.size.width == Size::TYPE::WRAP) ? 2 : 1);
+				text.change.set_data();
 				break;
 
 			default:
@@ -737,7 +745,7 @@ namespace gui
 					debug_assert(pb.target->size.height.type == Size::TYPE::PERCENT);
 					pb.target->size.height.set_meta(this->data.progress);
 				}
-				pb.target->set_update(2);
+				pb.target->change.set_resized();
 				break;
 
 			default:

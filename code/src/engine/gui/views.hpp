@@ -52,6 +52,44 @@ namespace gui
 		}
 	};
 
+	struct change_t
+	{
+	private:
+		using value_t = uint32_t;
+
+		static constexpr value_t NONE = 0;
+		static constexpr value_t VISIBILITY = 1 << 1;
+		static constexpr value_t MOVE = 1 << 2;
+		static constexpr value_t SIZE = 1 << 3;
+		static constexpr value_t INITIAL = 1 << 4;
+
+	private:
+		value_t flags;
+
+	public:
+		change_t() : flags(INITIAL) {}
+
+	private:
+		bool is_set(const value_t flag) const { return (this->flags & flag) != 0; }
+		void set(const value_t flags) { this->flags |= flags; };
+
+	public:
+		bool any() const { return this->flags != NONE; }
+
+		bool affects_offset() const { return is_set(MOVE); }
+		bool affects_size() const { return is_set(SIZE); }
+
+		void clear() { this->flags = NONE; }
+
+		void set_moved() { set(MOVE); }
+		void set_resized() { set(MOVE); }
+		void set_hidden() { set(MOVE); }
+		void set_shown() { set(MOVE); }
+		void set_data() { set(MOVE); }
+
+		void set(const change_t other) { set(other.flags); }
+	};
+
 	class View
 	{
 		friend class Group;
@@ -75,13 +113,14 @@ namespace gui
 
 	protected:
 
-		const Margin margin;
+		change_t change;
+
+		Margin margin;
 
 		Size size;
 
 		Vector3f offset;
 
-		unsigned update_flags;
 		bool is_invisible;
 		bool is_rendered;
 		bool should_render;
@@ -98,10 +137,10 @@ namespace gui
 			, name(name)
 			, gravity(gravity)
 			, state(State::DEFAULT)
+			, change()
 			, margin(margin)
 			, size(size)
 			, offset()
-			, update_flags(0b11)
 			, is_invisible(false)
 			, is_rendered(false)
 			, should_render(false)
@@ -142,12 +181,10 @@ namespace gui
 
 		Size get_size() const { return this->size; };
 
-		void set_update(const unsigned flag);
-
 	protected:
 
 		// needs to be called after any changes has been made to Components
-		virtual unsigned refresh1() = 0;
+		virtual change_t refresh1() = 0;
 
 		virtual void refresh2(const Group *const parent) = 0;
 
@@ -247,7 +284,7 @@ namespace gui
 
 	protected:
 
-		unsigned refresh1() override;
+		change_t refresh1() override;
 
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
@@ -278,7 +315,7 @@ namespace gui
 
 	protected:
 
-		unsigned refresh1() override;
+		change_t refresh1() override;
 
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
@@ -309,7 +346,7 @@ namespace gui
 
 	protected:
 
-		unsigned refresh1() override;
+		change_t refresh1() override;
 
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
@@ -365,7 +402,7 @@ namespace gui
 
 	protected:
 
-		unsigned refresh1() override;
+		change_t refresh1() override;
 
 		void refresh2(const Group *const parent) override;
 
