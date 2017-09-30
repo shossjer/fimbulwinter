@@ -7,6 +7,7 @@
 #include "gui.hpp"
 #include "loading.hpp"
 #include "placers.hpp"
+#include "resources.hpp"
 
 #include <engine/Asset.hpp>
 #include <engine/Entity.hpp>
@@ -57,14 +58,17 @@ namespace gui
 
 	struct change_t
 	{
+		friend struct ViewTester;
+
 	private:
 		using value_t = uint32_t;
 
 		static constexpr value_t NONE = 0;
 		static constexpr value_t VISIBILITY = 1 << 1;
-		static constexpr value_t MOVE = 1 << 2;
-		static constexpr value_t SIZE = 1 << 3;
-		static constexpr value_t INITIAL = 1 << 4;
+		static constexpr value_t DATA = 1 << 2;
+		static constexpr value_t MOVE = 1 << 3;
+		static constexpr value_t SIZE = 1 << 4;
+		static constexpr value_t INITIAL = 1 << 5;
 
 	private:
 		value_t flags;
@@ -79,16 +83,18 @@ namespace gui
 	public:
 		bool any() const { return this->flags != NONE; }
 
+		bool affects_content() const { return is_set(DATA); }
 		bool affects_offset() const { return is_set(MOVE); }
 		bool affects_size() const { return is_set(SIZE); }
+		bool affects_visibility() const { return is_set(VISIBILITY); }
 
 		void clear() { this->flags = NONE; }
 
 		void set_moved() { set(MOVE); }
-		void set_resized() { set(MOVE); }
-		void set_hidden() { set(MOVE); }
-		void set_shown() { set(MOVE); }
-		void set_data() { set(MOVE); }
+		void set_resized() { set(SIZE); }
+		void set_hidden() { set(VISIBILITY); }
+		void set_shown() { set(VISIBILITY); }
+		void set_content() { set(DATA); }
 
 		void set(const change_t other) { set(other.flags); }
 	};
@@ -98,6 +104,7 @@ namespace gui
 		friend class Group;
 		friend class Window;
 		friend struct ViewUpdater;
+		friend struct ViewTester;
 
 	public:
 
@@ -398,6 +405,7 @@ namespace gui
 	class List : public Group
 	{
 		friend struct ViewUpdater;
+		friend struct ViewTester;
 		friend struct Updater;
 
 	private:

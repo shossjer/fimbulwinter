@@ -10,6 +10,7 @@ set(CODE_TEST_SOURCE
 	src/core/maths/Quaternion.cpp
 	src/core/maths/Vector.cpp
 	src/core/maths/util.cpp
+	src/engine/gui/updater.cpp
 	src/utility/any.cpp
 	src/utility/array.cpp
 	src/utility/optional.cpp
@@ -19,4 +20,5 @@ set(CODE_TEST_SOURCE
 
 # test source listing
 set(CODE_TEST_HEADER
+	src/engine/gui/views_test.hpp
 	)

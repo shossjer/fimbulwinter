@@ -21,7 +21,7 @@ namespace gui
 				view.change.set_resized();
 			}
 
-			view.change.set_data();
+			view.change.set_content();
 			view.shown_items = size;
 		}
 
@@ -71,7 +71,7 @@ namespace gui
 		static void state(View & view, const Drawable::State data)
 		{
 			view.state = data;
-			view.change.set_data();
+			view.change.set_content();
 
 			for (auto child : view.get_children())
 			{
@@ -82,13 +82,13 @@ namespace gui
 		static void text(Text & view, const std::string data)
 		{
 			view.display = data;
-			view.change.set_data();
+			view.change.set_content();
 		}
 
 		static void texture(PanelT & view, const Asset data)
 		{
 			view.texture = data;
-			view.change.set_data();
+			view.change.set_content();
 			view.change.set_resized();
 		}
 
