@@ -1,4 +1,5 @@
 
+#include "measure.hpp"
 #include "resources.hpp"
 #include "updater.hpp"
 #include "views.hpp"
@@ -13,75 +14,10 @@ namespace gui
 	constexpr change_t::value_t change_t::SIZE;
 	constexpr change_t::value_t change_t::VISIBILITY;
 
-	namespace
-	{
-		value_t wrap_height(const Layout layout, const std::vector<View*> & children)
-		{
-			value_t val = 0;
-			switch (layout)
-			{
-			case Layout::VERTICAL:
-				for (auto child : children)
-				{
-					// TODO: if a child is "Size::PARENT" perhaps it should fill remaining view?
-					const auto & s = child->get_size().height;
-					if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
-					{
-						val+= child->height();
-					}
-				}
-				break;
-			default:
-				for (auto child : children)	// find "tallest" view
-				{
-					const auto & s = child->get_size().height;
-					if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
-					{
-						auto h = child->height();
-						if (val < h) val = h;
-					}
-				}
-				break;
-			}
-			return val;
-		}
-		value_t wrap_width(const Layout layout, const std::vector<View*> & children)
-		{
-			value_t val = 0;
-			switch (layout)
-			{
-			case Layout::HORIZONTAL:
-				for (auto child : children)
-				{
-					// TODO: if a child is "Size::PARENT" perhaps it should fill remaining view?
-					const auto & s = child->get_size().width;
-					if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
-					{
-						val += child->width();
-					}
-				}
-				break;
-			default:
-				for (auto child : children)	// find "tallest" view
-				{
-					const auto & s = child->get_size().width;
-					if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
-					{
-						auto w = child->width();
-						if (val < w) val = w;
-					}
-				}
-				break;
-			}
-			return val;
-		}
-	}
-
 	value_t View::height() const
 	{
 		return this->margin.height() + this->size.height.value;
 	}
-
 	value_t View::width() const
 	{
 		return this->margin.width() + this->size.width.value;
@@ -96,47 +32,17 @@ namespace gui
 		return this->entity == entity ? this : nullptr;
 	}
 
-	Vector3f View::arrange_offset(
-		const Size size_parent,
-		const Gravity gravity_mask_parent,
-		const Vector3f offset_parent) const
+	change_t View::refresh()
 	{
-		Vector3f::array_type buff;
-		offset_parent.get_aligned(buff);
-
-		float offset_horizontal;
-
-		if (this->gravity.place(gravity_mask_parent, Gravity::HORIZONTAL_RIGHT))
+		for (auto p : this->children)
 		{
-			offset_horizontal = buff[0] + size_parent.width.value - this->size.width.value - this->margin.right;
-		}
-		else
-		if (this->gravity.place(gravity_mask_parent, Gravity::HORIZONTAL_CENTRE))
-		{
-			offset_horizontal = buff[0] + (size_parent.width.value / 2) - (this->size.width.value / 2);
-		}
-		else // LEFT default
-		{
-			offset_horizontal = buff[0] + this->margin.left;
+			this->change.set(p->refresh());
 		}
 
-		float offset_vertical;
+		// measure view if needed
+		ViewMeasure::measure_active(*this);
 
-		if (this->gravity.place(gravity_mask_parent, Gravity::VERTICAL_BOTTOM))
-		{
-			offset_vertical = buff[1] + size_parent.height.value - this->size.height.value - this->margin.bottom;
-		}
-		else
-		if (this->gravity.place(gravity_mask_parent, Gravity::VERTICAL_CENTRE))
-		{
-			offset_vertical = buff[1] + (size_parent.height.value / 2) - (this->size.height.value / 2) + this->margin.top - this->margin.bottom;
-		}
-		else // TOP default
-		{
-			offset_vertical = buff[1] + this->margin.top;
-		}
-
-		return Vector3f(offset_horizontal, offset_vertical, buff[2]);
+		return this->change;
 	}
 
 	Matrix4x4f Drawable::render_matrix() const
@@ -157,95 +63,30 @@ namespace gui
 		order++;
 	}
 
-	void Drawable::refresh2(const Group * const group)
+	void Drawable::refresh_changes(const Group * const group)
 	{
-		if (!this->change.any()) return;
-
-		if (this->change.affects_size())
-		{
-			switch (this->size.height.type)
-			{
-			case Size::TYPE::FIXED:
-			case Size::TYPE::PARENT:
-			case Size::TYPE::WRAP:
-				// do nothing
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.height.percentage(group->get_size().height.value - this->margin.height());
-				break;
-			default:
-				debug_unreachable();
-			}
-
-			switch (this->size.width.type)
-			{
-			case Size::TYPE::FIXED:
-			case Size::TYPE::PARENT:
-			case Size::TYPE::WRAP:
-				// do nothing
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.width.percentage(group->get_size().width.value - this->margin.width());
-				break;
-			default:
-				debug_unreachable();
-			}
-		}
-
-		refresh();
+		ViewMeasure::measure_passive(*this, group);
+		refresh_renderer();
 	}
 
-	void Drawable::refresh2(
+	void Drawable::refresh_changes(
 		const Size size_parent,
 		const Gravity gravity_mask_parent,
 		const Vector3f offset_parent)
 	{
-		// force update (parent has changed)
+		ViewMeasure::measure_passive_forced(*this, size_parent, gravity_mask_parent, offset_parent);
 
-		switch (this->size.height.type)
-		{
-		case Size::TYPE::FIXED:
-			// do nothing
-			break;
-		case Size::TYPE::PARENT:
-			this->size.height.parent(size_parent.height.value - this->margin.height());
-			break;
-		case Size::TYPE::PERCENT:
-			this->size.height.percentage(size_parent.height.value - this->margin.height());
-			break;
-		case Size::TYPE::WRAP:
-			// do nothing
-			break;
-		default:
-			debug_unreachable();
-		}
-
-		switch (this->size.width.type)
-		{
-		case Size::TYPE::FIXED:
-			// do nothing
-			break;
-		case Size::TYPE::PARENT:
-			this->size.width.parent(size_parent.width.value - this->margin.width());
-			break;
-		case Size::TYPE::PERCENT:
-			this->size.width.percentage(size_parent.width.value - this->margin.width());
-			break;
-		case Size::TYPE::WRAP:
-			// do nothing
-			break;
-		default:
-			debug_unreachable();
-		}
-
-		const Vector3f ret = arrange_offset(size_parent, gravity_mask_parent, offset_parent);
+		// TODO: have it here or in ViewMeasure?
+		const Vector3f ret = ViewMeasure::offset(*this, size_parent, gravity_mask_parent, offset_parent);
 		this->offset = ret + Vector3f{ 0.f, 0.f, this->order_depth };
 
-		refresh();
+		refresh_renderer();
 	}
 
-	void Drawable::refresh()
+	void Drawable::refresh_renderer()
 	{
+		if (!this->change.any()) return;
+
 		if (this->should_render != this->is_rendered)
 		{
 			if (this->should_render)	// check if view should be shown or hidden
@@ -274,43 +115,6 @@ namespace gui
 		this->change.clear();
 	}
 
-	change_t PanelC::refresh1()
-	{
-		if (!this->change.any()) return this->change;
-
-		switch (this->size.height.type)
-		{
-		case Size::TYPE::FIXED:
-			this->size.height.fixed();
-			break;
-		case Size::TYPE::PARENT:
-		case Size::TYPE::PERCENT:
-			// do nothing
-			break;
-
-		case Size::TYPE::WRAP:
-		default:
-			debug_unreachable();
-		}
-
-		switch (this->size.width.type)
-		{
-		case Size::TYPE::FIXED:
-			this->size.width.fixed();
-			break;
-		case Size::TYPE::PARENT:
-		case Size::TYPE::PERCENT:
-			// do nothing
-			break;
-
-		case Size::TYPE::WRAP:
-		default:
-			debug_unreachable();
-		}
-
-		return this->change;
-	}
-
 	void PanelC::renderer_send_add() const
 	{
 		engine::graphics::renderer::post_add_panel(
@@ -329,44 +133,15 @@ namespace gui
 				this->render_size(),
 				this->color->get(this) });
 	}
-
-	change_t PanelT::refresh1()
+	value_t PanelC::wrap_height() const
 	{
-		if (!this->change.any()) return this->change;
-
-		switch (this->size.height.type)
-		{
-		case Size::TYPE::FIXED:
-			this->size.height.fixed();
-			break;
-		case Size::TYPE::PARENT:
-		case Size::TYPE::PERCENT:
-			// do nothing
-			break;
-
-		case Size::TYPE::WRAP:
-			// disable until we have access to TextureInfo object
-		default:
-			debug_unreachable();
-		}
-
-		switch (this->size.width.type)
-		{
-		case Size::TYPE::FIXED:
-			this->size.width.fixed();
-			break;
-		case Size::TYPE::PARENT:
-		case Size::TYPE::PERCENT:
-			// do nothing
-			break;
-
-		case Size::TYPE::WRAP:
-			// disable until we have access to TextureInfo object
-		default:
-			debug_unreachable();
-		}
-
-		return this->change;
+		debug_printline(0xffffffff, "GUI - Wrap not possible for Color!");
+		debug_unreachable();
+	}
+	value_t PanelC::wrap_width() const
+	{
+		debug_printline(0xffffffff, "GUI - Wrap not possible for Color!");
+		debug_unreachable();
 	}
 
 	void PanelT::renderer_send_add() const
@@ -387,46 +162,15 @@ namespace gui
 				this->render_size(),
 				this->texture });
 	}
-
-	change_t Text::refresh1()
+	value_t PanelT::wrap_height() const
 	{
-		if (!this->change.any()) return this->change;
-
-		switch (this->size.height.type)
-		{
-		case Size::TYPE::FIXED:
-			this->size.height.fixed();
-			break;
-		case Size::TYPE::PARENT:
-		case Size::TYPE::PERCENT:
-			// do nothing
-			break;
-		case Size::TYPE::WRAP:
-			this->size.height.value = 6;
-			break;
-
-		default:
-			debug_unreachable();
-		}
-
-		switch (this->size.width.type)
-		{
-		case Size::TYPE::FIXED:
-			this->size.width.fixed();
-			break;
-		case Size::TYPE::PARENT:
-		case Size::TYPE::PERCENT:
-			// do nothing
-			break;
-		case Size::TYPE::WRAP:
-			this->size.width.value = this->display.length() * value_t { 6 };
-			break;
-
-		default:
-			debug_unreachable();
-		}
-
-		return this->change;
+		debug_printline(0xffffffff, "GUI - Wrap not implemented for Texture");
+		debug_unreachable();
+	}
+	value_t PanelT::wrap_width() const
+	{
+		debug_printline(0xffffffff, "GUI - Wrap not implemented for Texture");
+		debug_unreachable();
 	}
 
 	void Text::renderer_send_add() const
@@ -446,6 +190,14 @@ namespace gui
 				this->render_matrix(),
 				this->color->get(this),
 				this->display });
+	}
+	value_t Text::wrap_height() const
+	{
+		return 6;
+	}
+	value_t Text::wrap_width() const
+	{
+		return this->display.length() * value_t { 6 };
 	}
 
 	View * Group::find(const engine::Asset name)
@@ -488,7 +240,7 @@ namespace gui
 
 			for (auto p : this->children)
 			{
-				p->refresh2(playground, mask, offset);
+				p->refresh_changes(playground, mask, offset);
 				const auto ps = p->width();
 				offset += Vector3f(static_cast<float>(ps), 0.f, 0.f);
 				playground.width.value -= ps;
@@ -503,7 +255,7 @@ namespace gui
 
 			for (auto p : this->children)
 			{
-				p->refresh2(playground, mask, offset);
+				p->refresh_changes(playground, mask, offset);
 				const auto ps = p->height();
 				offset += Vector3f(0.f, static_cast<float>(ps), 0.f);
 				playground.height.value -= ps;
@@ -518,7 +270,7 @@ namespace gui
 
 			for (auto p : this->children)
 			{
-				p->refresh2(this->size, mask, offset);
+				p->refresh_changes(this->size, mask, offset);
 			}
 
 			break;
@@ -534,56 +286,7 @@ namespace gui
 		}
 	}
 
-	change_t Group::refresh1()
-	{
-		for (auto p : this->children)
-		{
-			this->change.set(p->refresh1());
-		}
-
-		if (this->change.affects_size())
-		{
-			// TODO: check if flag status can be downgraded from > 1 to just 1 (content updated)
-
-			switch (this->size.height.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.height.fixed();
-				break;
-			case Size::TYPE::PARENT:
-			case Size::TYPE::PERCENT:
-				// do nothing
-				break;
-			case Size::TYPE::WRAP:
-				this->size.height.wrap(wrap_height(this->layout, this->children));
-				break;
-
-			default:
-				debug_unreachable();
-			}
-
-			switch (this->size.width.type)
-			{
-			case Size::TYPE::FIXED:
-				this->size.width.fixed();
-				break;
-			case Size::TYPE::PARENT:
-			case Size::TYPE::PERCENT:
-				// do nothing
-				break;
-			case Size::TYPE::WRAP:
-				this->size.width.wrap(wrap_width(this->layout, this->children));
-				break;
-
-			default:
-				debug_unreachable();
-			}
-		}
-
-		return this->change;
-	}
-
-	void Group::refresh2(const Group *const parent)
+	void Group::refresh_changes(const Group *const parent)
 	{
 		if (!this->change.any()) return;
 
@@ -592,7 +295,7 @@ namespace gui
 			// content has been updated of child view - does not change size
 			for (auto & child : this->children)
 			{
-				child->refresh2(this);
+				child->refresh_changes(this);
 			}
 		}
 		else
@@ -606,99 +309,100 @@ namespace gui
 			//	   GroupA update{1}
 			//	   GroupB update{1}
 			//	   GroupC update{2} this case!
-			switch (this->size.height.type)
-			{
-			case Size::TYPE::FIXED:
-			case Size::TYPE::PARENT:
-			case Size::TYPE::WRAP:
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.height.percentage(
-					parent->size.height.value - this->margin.height());
-				break;
-			default:
-				debug_unreachable();
-			}
-
-			switch (this->size.width.type)
-			{
-			case Size::TYPE::FIXED:
-			case Size::TYPE::PARENT:
-			case Size::TYPE::WRAP:
-				break;
-			case Size::TYPE::PERCENT:
-				this->size.width.percentage(
-					parent->size.width.value - this->margin.width());
-				break;
-			default:
-				debug_unreachable();
-			}
+			ViewMeasure::measure_passive_forced(
+				*this, parent->size, parent->gravity, parent->offset);
 
 			arrange_children(
-				arrange_offset(parent->size, parent->gravity, parent->offset));
+				ViewMeasure::offset(*this, parent->size, parent->gravity, parent->offset));
 		}
 
 		this->is_rendered = this->should_render;
 		this->change.clear();
 	}
 
-	void Group::refresh2(
+	void Group::refresh_changes(
 		const Size size_parent,
 		const Gravity gravity_mask_parent,
 		const Vector3f offset_parent)
 	{
+		// called if "parent" has changed its size
+
+		// TODO: REMOVE!
 		if (this->is_invisible && !this->is_rendered)
 		{
 			this->change.clear();
 			return;
 		}
-		// called if "parent" has changed its size
 
-		switch (this->size.height.type)
-		{
-		case Size::TYPE::FIXED:
-			// do nothing
-			break;
-		case Size::TYPE::PARENT:
-			this->size.height.parent(
-				size_parent.height.value - this->margin.height());
-			break;
-		case Size::TYPE::PERCENT:
-			this->size.height.percentage(
-				size_parent.height.value - this->margin.height());
-			break;
-		case Size::TYPE::WRAP:
-			// do nothing
-			break;
-		default:
-			debug_unreachable();
-		}
-
-		switch (this->size.width.type)
-		{
-		case Size::TYPE::FIXED:
-			// do nothing
-			break;
-		case Size::TYPE::PARENT:
-			this->size.width.parent(
-				size_parent.width.value - this->margin.width());
-			break;
-		case Size::TYPE::PERCENT:
-			this->size.width.percentage(
-				size_parent.width.value - this->margin.width());
-			break;
-		case Size::TYPE::WRAP:
-			// do nothing
-			break;
-		default:
-			debug_unreachable();
-		}
+		ViewMeasure::measure_passive_forced(
+			*this, size_parent, gravity_mask_parent, offset_parent);
 
 		arrange_children(
-			arrange_offset(size_parent, gravity_mask_parent, offset_parent));
+			ViewMeasure::offset(*this, size_parent, gravity_mask_parent, offset_parent));
 
 		this->is_rendered = this->should_render;
 		this->change.clear();
+	}
+
+	value_t Group::wrap_height() const
+	{
+		value_t val = 0;
+		switch (layout)
+		{
+		case Layout::VERTICAL:
+			for (auto child : children)
+			{
+				// TODO: if a child is "Size::PARENT" perhaps it should fill remaining view?
+				const auto & s = child->get_size().height;
+				if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
+				{
+					val += child->height();
+				}
+			}
+			break;
+		default:
+			for (auto child : children)	// find "tallest" view
+			{
+				const auto & s = child->get_size().height;
+				if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
+				{
+					auto h = child->height();
+					if (val < h) val = h;
+				}
+			}
+			break;
+		}
+		return val;
+	}
+	value_t Group::wrap_width() const
+	{
+		value_t val = 0;
+		switch (layout)
+		{
+		case Layout::HORIZONTAL:
+			for (auto child : children)
+			{
+				// TODO: if a child is "Size::PARENT" perhaps it should fill remaining view?
+				const auto & s = child->get_size().width;
+				if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
+				{
+					val += child->width();
+				}
+			}
+			break;
+		default:
+			for (auto child : children)	// find "tallest" view
+			{
+				const auto & s = child->get_size().width;
+				if (s == Size::TYPE::FIXED || s == Size::TYPE::WRAP)
+				{
+					auto w = child->width();
+					if (val < w) val = w;
+				}
+			}
+			break;
+		}
+		return val;
 	}
 
 	void List::translate(unsigned & order)
@@ -718,8 +422,8 @@ namespace gui
 
 		if (this->group.is_rendered || this->group.should_render)
 		{
-			this->group.refresh1();
-			this->group.refresh2(&this->group);
+			this->group.refresh();
+			this->group.refresh_changes(&this->group);
 		}
 
 		this->dirty = false;

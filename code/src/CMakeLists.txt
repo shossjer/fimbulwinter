@@ -76,6 +76,7 @@ set(HEADER_FILES
 	src/engine/gui/functions.hpp
 	src/engine/gui/gui.hpp
 	src/engine/gui/loading.hpp
+	src/engine/gui/measure.hpp
 	src/engine/gui/placers.hpp
 	src/engine/gui/resources.hpp
 	src/engine/gui/updater.hpp

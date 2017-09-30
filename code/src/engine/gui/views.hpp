@@ -103,6 +103,7 @@ namespace gui
 	{
 		friend class Group;
 		friend class Window;
+		friend struct ViewMeasure;
 		friend struct ViewUpdater;
 		friend struct ViewTester;
 
@@ -165,6 +166,9 @@ namespace gui
 
 		virtual void translate(unsigned & order) = 0;
 
+		virtual value_t wrap_height() const = 0;
+		virtual value_t wrap_width() const = 0;
+
 	public:
 
 		// total height of the view including margins
@@ -179,26 +183,19 @@ namespace gui
 
 	protected:
 
-		// needs to be called after any changes has been made to Components
-		virtual change_t refresh1() = 0;
+		// called after changes has been made to the views
+		change_t refresh();
 
-		virtual void refresh2(const Group *const parent) = 0;
+		virtual void refresh_changes(const Group *const parent) = 0;
 
 		// called after size has been measured
 		// the only method to send data to renderer.
 		// sends updated drawable view data to renderer if views has changed.
 		// sends add, update, remove based on changes made in the view.
-		virtual void refresh2(
+		virtual void refresh_changes(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent) = 0;
-
-	protected:
-
-		Vector3f arrange_offset(
-			const Size size_parent,
-			const Gravity gravity_mask_parent,
-			const Vector3f offset_parent) const;
 	};
 
 	class Drawable : public View
@@ -244,16 +241,17 @@ namespace gui
 
 	protected:
 
-		void refresh2(const Group * const) override;
+		void refresh_changes(const Group * const) override;
 
-		void refresh2(
+		void refresh_changes(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent) override;
 
 	private:
 
-		void refresh();
+		// sends add, remove or update to renderer of the View
+		void refresh_renderer();
 	};
 
 	class PanelC : public Drawable
@@ -283,10 +281,11 @@ namespace gui
 
 	protected:
 
-		change_t refresh1() override;
-
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
+
+		value_t wrap_height() const override;
+		value_t wrap_width() const override;
 	};
 
 	class PanelT : public Drawable
@@ -316,10 +315,11 @@ namespace gui
 
 	protected:
 
-		change_t refresh1() override;
-
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
+
+		value_t wrap_height() const override;
+		value_t wrap_width() const override;
 	};
 
 	class Text : public Drawable
@@ -349,10 +349,11 @@ namespace gui
 
 	protected:
 
-		change_t refresh1() override;
-
 		void renderer_send_add() const override;
 		void renderer_send_update() const override;
+
+		value_t wrap_height() const override;
+		value_t wrap_width() const override;
 	};
 
 	class Group : public View
@@ -390,13 +391,14 @@ namespace gui
 
 		virtual void translate(unsigned & order) override;
 
+		value_t wrap_height() const override;
+		value_t wrap_width() const override;
+
 	protected:
 
-		change_t refresh1() override;
+		void refresh_changes(const Group *const parent) override;
 
-		void refresh2(const Group *const parent) override;
-
-		void refresh2(
+		void refresh_changes(
 			const Size size_parent,
 			const Gravity gravity_mask_parent,
 			const Vector3f offset_parent) override;

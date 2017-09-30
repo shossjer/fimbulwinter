@@ -36,22 +36,26 @@ namespace engine
 
 			}
 
-			change_t refresh1() override
-			{
-				return this->change;
-			}
-
-			void refresh2(const Group *const parent) override
+			void refresh_changes(const Group *const parent) override
 			{
 
 			}
 
-			void refresh2(
+			void refresh_changes(
 				const Size size_parent,
 				const Gravity gravity_mask_parent,
 				const Vector3f offset_parent) override
 			{
 
+			}
+
+			value_t TestView::wrap_height() const
+			{
+				return value_t{ 0 };
+			}
+			value_t TestView::wrap_width() const
+			{
+				return value_t{ 0 };
 			}
 		};
 	}
