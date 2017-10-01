@@ -120,25 +120,37 @@ namespace gui
 				debug_assert(type != TYPE::PARENT);
 			}
 
-			void fixed()
+			// returns bool size changed
+			bool fixed()
 			{
+				const value_t prev = this->value;
 				this->value = this->meta;
+				return this->value != prev;
 			}
 
-			void parent(const value_t max_size)
+			// returns bool size changed
+			bool parent(const value_t max_size)
 			{
+				const value_t prev = this->value;
 				this->value = (max_size > 0) ? max_size : 0;
+				return this->value != prev;
 			}
 
-			void percentage(const value_t max_size)
+			// returns bool size changed
+			bool percentage(const value_t max_size)
 			{
+				const value_t prev = this->value;
 				this->value = (max_size > 0) ? (max_size * this->meta) : 0;
+				return this->value != prev;
 			}
 
 			// limit value, used with wrap content
-			void wrap(const value_t value)
+			// returns bool size changed
+			bool wrap(const value_t value)
 			{
+				const value_t prev = this->value;
 				this->value = (value > this->meta) ? value : this->meta;
+				return this->value != prev;
 			}
 
 			void set_meta(const value_t meta)
@@ -161,8 +173,8 @@ namespace gui
 			}
 		};
 
-		Dimen width;
 		Dimen height;
+		Dimen width;
 	};
 }
 }

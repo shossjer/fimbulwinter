@@ -16,20 +16,24 @@ namespace engine
 		{
 			static void measure_active(View & view)
 			{
+				// NOTE: could be made to handle H / V more separately
 				if (!view.change.affects_size())
 					return;
+
+				bool changed;
 
 				switch (view.size.height.type)
 				{
 				case Size::TYPE::FIXED:
-					view.size.height.fixed();
+					changed = view.size.height.fixed();
 					break;
 				case Size::TYPE::PARENT:
 				case Size::TYPE::PERCENT:
+					changed = false;
 					// do nothing
 					break;
 				case Size::TYPE::WRAP:
-					view.size.height.wrap(view.wrap_height());
+					changed = view.size.height.wrap(view.wrap_height());
 					break;
 
 				default:
@@ -39,37 +43,43 @@ namespace engine
 				switch (view.size.width.type)
 				{
 				case Size::TYPE::FIXED:
-					view.size.width.fixed();
+					changed |= view.size.width.fixed();
 					break;
 				case Size::TYPE::PARENT:
 				case Size::TYPE::PERCENT:
 					// do nothing
 					break;
 				case Size::TYPE::WRAP:
-					view.size.width.wrap(view.wrap_width());
+					changed |= view.size.width.wrap(view.wrap_width());
 					break;
 
 				default:
 					debug_unreachable();
 				}
 
-				// TODO: check if changed, clear "size" if unchanged!
+				if (!changed)
+				{
+					view.change.clear_size();
+				}
 			}
 
+			// only updates if "percentage" (which is not "size" change)
+			// updates state of "size" change
 			static void measure_passive(View & view, const Group * const parent)
 			{
-				if (!view.change.affects_size())
-					return;
+				// NOTE: could be made to handle H / V more separately
+				bool changed;
 
 				switch (view.size.height.type)
 				{
 				case Size::TYPE::FIXED:
 				case Size::TYPE::PARENT:
 				case Size::TYPE::WRAP:
+					changed = view.change.affects_size();
 					// do nothing
 					break;
 				case Size::TYPE::PERCENT:
-					view.size.height.percentage(parent->get_size().height.value - view.margin.height());
+					changed = view.size.height.percentage(parent->get_size().height.value - view.margin.height());
 					break;
 				default:
 					debug_unreachable();
@@ -83,35 +93,40 @@ namespace engine
 					// do nothing
 					break;
 				case Size::TYPE::PERCENT:
-					view.size.width.percentage(parent->get_size().width.value - view.margin.width());
+					changed |= view.size.width.percentage(parent->get_size().width.value - view.margin.width());
 					break;
 				default:
 					debug_unreachable();
 				}
 
-				// TODO: check if changed, clear "size" if unchanged!
+				if (changed)
+				{
+					view.change.set_resized();
+				}
+				else
+				{
+					view.change.clear_size();
+				}
 			}
 
-			static void measure_passive_forced(
-				View & view,
-				const Size size_parent,
-				const Gravity gravity_mask_parent,
-				const Vector3f offset_parent)
+			static void measure_passive_forced(View & view, const Size size_parent)
 			{
+				// NOTE: could be made to handle H / V more separately
 				// force update (parent has changed)
+
+				bool changed;
 
 				switch (view.size.height.type)
 				{
-				case Size::TYPE::FIXED:
-					// do nothing
-					break;
 				case Size::TYPE::PARENT:
-					view.size.height.parent(size_parent.height.value - view.margin.height());
+					changed = view.size.height.parent(size_parent.height.value - view.margin.height());
 					break;
 				case Size::TYPE::PERCENT:
-					view.size.height.percentage(size_parent.height.value - view.margin.height());
+					changed = view.size.height.percentage(size_parent.height.value - view.margin.height());
 					break;
+				case Size::TYPE::FIXED:
 				case Size::TYPE::WRAP:
+					changed = view.change.affects_size();
 					// do nothing
 					break;
 				default:
@@ -120,15 +135,13 @@ namespace engine
 
 				switch (view.size.width.type)
 				{
-				case Size::TYPE::FIXED:
-					// do nothing
-					break;
 				case Size::TYPE::PARENT:
-					view.size.width.parent(size_parent.width.value - view.margin.width());
+					changed |= view.size.width.parent(size_parent.width.value - view.margin.width());
 					break;
 				case Size::TYPE::PERCENT:
-					view.size.width.percentage(size_parent.width.value - view.margin.width());
+					changed |= view.size.width.percentage(size_parent.width.value - view.margin.width());
 					break;
+				case Size::TYPE::FIXED:
 				case Size::TYPE::WRAP:
 					// do nothing
 					break;
@@ -136,9 +149,14 @@ namespace engine
 					debug_unreachable();
 				}
 
-				//// TODO: have it here or in drawable?
-				//const Vector3f ret = ViewMeasure::offset(view, size_parent, gravity_mask_parent, offset_parent);
-				//view.offset = ret + Vector3f{ 0.f, 0.f, view.order_depth };
+				if (changed)
+				{
+					view.change.set_resized();
+				}
+				else
+				{
+					view.change.clear_size();
+				}
 			}
 
 			static Vector3f offset(
@@ -147,6 +165,7 @@ namespace engine
 				const Gravity gravity_mask_parent,
 				const Vector3f offset_parent)
 			{
+				// NOTE: could be made to handle H / V more separately
 				Vector3f::array_type buff;
 				offset_parent.get_aligned(buff);
 

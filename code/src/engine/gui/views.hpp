@@ -74,11 +74,14 @@ namespace gui
 		value_t flags;
 
 	public:
-		change_t() : flags(INITIAL) {}
+		change_t()
+			: flags(INITIAL | SIZE | DATA | VISIBILITY)
+		{}
 
 	private:
 		bool is_set(const value_t flag) const { return (this->flags & flag) != 0; }
 		void set(const value_t flags) { this->flags |= flags; };
+		void clear(const value_t flags) { this->flags &=(~flags); };
 
 	public:
 		bool any() const { return this->flags != NONE; }
@@ -89,6 +92,7 @@ namespace gui
 		bool affects_visibility() const { return is_set(VISIBILITY); }
 
 		void clear() { this->flags = NONE; }
+		void clear_size() { clear(SIZE); }
 
 		void set_moved() { set(MOVE); }
 		void set_resized() { set(SIZE); }

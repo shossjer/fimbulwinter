@@ -167,10 +167,10 @@ namespace
 		{
 			const json & jsize = jdata["size"];
 
-			debug_assert(contains(jsize, "w"));
 			debug_assert(contains(jsize, "h"));
+			debug_assert(contains(jsize, "w"));
 
-			return Size{ extract_dimen(jsize["w"]), extract_dimen(jsize["h"]) };
+			return Size{ extract_dimen(jsize["h"]), extract_dimen(jsize["w"]) };
 		}
 
 	public:

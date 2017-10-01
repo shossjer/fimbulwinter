@@ -65,6 +65,8 @@ namespace gui
 
 	void Drawable::refresh_changes(const Group * const group)
 	{
+		// TODO: do some check and return?
+
 		ViewMeasure::measure_passive(*this, group);
 		refresh_renderer();
 	}
@@ -74,7 +76,7 @@ namespace gui
 		const Gravity gravity_mask_parent,
 		const Vector3f offset_parent)
 	{
-		ViewMeasure::measure_passive_forced(*this, size_parent, gravity_mask_parent, offset_parent);
+		ViewMeasure::measure_passive_forced(*this, size_parent);
 
 		// TODO: have it here or in ViewMeasure?
 		const Vector3f ret = ViewMeasure::offset(*this, size_parent, gravity_mask_parent, offset_parent);
@@ -309,8 +311,7 @@ namespace gui
 			//	   GroupA update{1}
 			//	   GroupB update{1}
 			//	   GroupC update{2} this case!
-			ViewMeasure::measure_passive_forced(
-				*this, parent->size, parent->gravity, parent->offset);
+			ViewMeasure::measure_passive_forced(*this, parent->size);
 
 			arrange_children(
 				ViewMeasure::offset(*this, parent->size, parent->gravity, parent->offset));
@@ -334,8 +335,7 @@ namespace gui
 			return;
 		}
 
-		ViewMeasure::measure_passive_forced(
-			*this, size_parent, gravity_mask_parent, offset_parent);
+		ViewMeasure::measure_passive_forced(*this, size_parent);
 
 		arrange_children(
 			ViewMeasure::offset(*this, size_parent, gravity_mask_parent, offset_parent));
