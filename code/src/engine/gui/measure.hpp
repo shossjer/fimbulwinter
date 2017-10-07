@@ -14,52 +14,109 @@ namespace engine
 	{
 		struct ViewMeasure
 		{
-			static void measure_active(View & view)
+			static void measure_active(Drawable & view)
 			{
 				// NOTE: could be made to handle H / V more separately
 				if (!view.change.affects_size())
 					return;
 
-				bool changed;
-
 				switch (view.size.height.type)
 				{
 				case Size::TYPE::FIXED:
-					changed = view.size.height.fixed();
-					break;
-				case Size::TYPE::PARENT:
-				case Size::TYPE::PERCENT:
-					changed = false;
-					// do nothing
+					if (!view.size.height.fixed())
+					{
+						view.change.clear_size_h();
+					}
 					break;
 				case Size::TYPE::WRAP:
-					changed = view.size.height.wrap(view.wrap_height());
+					if (!view.size.height.wrap(view.wrap_height()))
+					{
+						view.change.clear_size_h();
+					}
 					break;
-
 				default:
-					debug_unreachable();
+					break;
 				}
 
 				switch (view.size.width.type)
 				{
 				case Size::TYPE::FIXED:
-					changed |= view.size.width.fixed();
-					break;
-				case Size::TYPE::PARENT:
-				case Size::TYPE::PERCENT:
-					// do nothing
+					if (!view.size.width.fixed())
+					{
+						view.change.clear_size_w();
+					}
 					break;
 				case Size::TYPE::WRAP:
-					changed |= view.size.width.wrap(view.wrap_width());
+					if (!view.size.width.wrap(view.wrap_width()))
+					{
+						view.change.clear_size_w();
+					}
+					break;
+				default:
+					break;
+				}
+			}
+
+			static void measure_active(Group & view, const change_t children_changes)
+			{
+				// NOTE: could be made to handle H / V more separately
+
+				switch (view.size.height.type)
+				{
+				case Size::TYPE::FIXED:
+					if (view.change.affects_size())
+					{
+						if (view.size.height.fixed())
+						{
+							view.change.clear_size_h();
+						}
+					}
+					break;
+				case Size::TYPE::WRAP:
+					if (children_changes.affects_size())
+					{
+						if (view.size.height.wrap(view.wrap_height()))
+						{
+							view.change.set_resized_h();
+						}
+						else
+						{
+							view.change.clear_size_h();
+						}
+					}
 					break;
 
 				default:
-					debug_unreachable();
+					break;
 				}
 
-				if (!changed)
+				switch (view.size.width.type)
 				{
-					view.change.clear_size();
+				case Size::TYPE::FIXED:
+					if (view.change.affects_size())
+					{
+						if (view.size.width.fixed())
+						{
+							view.change.clear_size_w();
+						}
+					}
+					break;
+				case Size::TYPE::WRAP:
+					if (children_changes.affects_size())
+					{
+						if (view.size.width.wrap(view.wrap_width()))
+						{
+							view.change.set_resized_w();
+						}
+						else
+						{
+							view.change.clear_size_w();
+						}
+					}
+					break;
+
+				default:
+					break;
 				}
 			}
 
@@ -68,44 +125,32 @@ namespace engine
 			static void measure_passive(View & view, const Group * const parent)
 			{
 				// NOTE: could be made to handle H / V more separately
-				bool changed;
+
+				if (!view.change.affects_size())
+					return;
 
 				switch (view.size.height.type)
 				{
-				case Size::TYPE::FIXED:
-				case Size::TYPE::PARENT:
-				case Size::TYPE::WRAP:
-					changed = view.change.affects_size();
-					// do nothing
-					break;
 				case Size::TYPE::PERCENT:
-					changed = view.size.height.percentage(parent->get_size().height.value - view.margin.height());
+					if (!view.size.height.percentage(parent->get_size().height.value - view.margin.height()))
+					{
+						view.change.clear_size_h();
+					}
 					break;
 				default:
-					debug_unreachable();
+					break;
 				}
 
 				switch (view.size.width.type)
 				{
-				case Size::TYPE::FIXED:
-				case Size::TYPE::PARENT:
-				case Size::TYPE::WRAP:
-					// do nothing
-					break;
 				case Size::TYPE::PERCENT:
-					changed |= view.size.width.percentage(parent->get_size().width.value - view.margin.width());
+					if (!view.size.width.percentage(parent->get_size().width.value - view.margin.width()))
+					{
+						view.change.clear_size_w();
+					}
 					break;
 				default:
-					debug_unreachable();
-				}
-
-				if (changed)
-				{
-					view.change.set_resized();
-				}
-				else
-				{
-					view.change.clear_size();
+					break;
 				}
 			}
 
@@ -114,48 +159,58 @@ namespace engine
 				// NOTE: could be made to handle H / V more separately
 				// force update (parent has changed)
 
-				bool changed;
-
 				switch (view.size.height.type)
 				{
 				case Size::TYPE::PARENT:
-					changed = view.size.height.parent(size_parent.height.value - view.margin.height());
+					if (!view.size.height.parent(size_parent.height.value - view.margin.height()))
+					{
+						view.change.clear_size_h();
+					}
+					else
+					{
+						view.change.set_resized_h();
+					}
 					break;
 				case Size::TYPE::PERCENT:
-					changed = view.size.height.percentage(size_parent.height.value - view.margin.height());
+					if (!view.size.height.percentage(size_parent.height.value - view.margin.height()))
+					{
+						view.change.clear_size_h();
+					}
+					else
+					{
+						view.change.set_resized_h();
+					}
 					break;
-				case Size::TYPE::FIXED:
-				case Size::TYPE::WRAP:
-					changed = view.change.affects_size();
-					// do nothing
-					break;
+
 				default:
-					debug_unreachable();
+					break;
 				}
 
 				switch (view.size.width.type)
 				{
 				case Size::TYPE::PARENT:
-					changed |= view.size.width.parent(size_parent.width.value - view.margin.width());
+					if (!view.size.width.parent(size_parent.width.value - view.margin.width()))
+					{
+						view.change.clear_size_w();
+					}
+					else
+					{
+						view.change.set_resized_w();
+					}
 					break;
 				case Size::TYPE::PERCENT:
-					changed |= view.size.width.percentage(size_parent.width.value - view.margin.width());
+					if (!view.size.width.percentage(size_parent.width.value - view.margin.width()))
+					{
+						view.change.clear_size_w();
+					}
+					else
+					{
+						view.change.set_resized_w();
+					}
 					break;
-				case Size::TYPE::FIXED:
-				case Size::TYPE::WRAP:
-					// do nothing
-					break;
-				default:
-					debug_unreachable();
-				}
 
-				if (changed)
-				{
-					view.change.set_resized();
-				}
-				else
-				{
-					view.change.clear_size();
+				default:
+					break;
 				}
 			}
 

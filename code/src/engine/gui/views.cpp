@@ -9,10 +9,11 @@ namespace engine
 namespace gui
 {
 	constexpr change_t::value_t change_t::NONE;
-	constexpr change_t::value_t change_t::INITIAL;
+	constexpr change_t::value_t change_t::DATA;
 	constexpr change_t::value_t change_t::MOVE;
-	constexpr change_t::value_t change_t::SIZE;
 	constexpr change_t::value_t change_t::VISIBILITY;
+	constexpr change_t::value_t change_t::SIZE_HEIGHT;
+	constexpr change_t::value_t change_t::SIZE_WIDTH;
 
 	value_t View::height() const
 	{
@@ -32,19 +33,6 @@ namespace gui
 		return this->entity == entity ? this : nullptr;
 	}
 
-	change_t View::refresh()
-	{
-		for (auto p : this->children)
-		{
-			this->change.set(p->refresh());
-		}
-
-		// measure view if needed
-		ViewMeasure::measure_active(*this);
-
-		return this->change;
-	}
-
 	Matrix4x4f Drawable::render_matrix() const
 	{
 		return make_translation_matrix(this->offset);
@@ -61,6 +49,14 @@ namespace gui
 	{
 		this->order_depth = static_cast<float>(order) / 100.f;
 		order++;
+	}
+
+	change_t Drawable::refresh()
+	{
+		// measure view if needed
+		ViewMeasure::measure_active(*this);
+
+		return this->change;
 	}
 
 	void Drawable::refresh_changes(const Group * const group)
@@ -288,6 +284,23 @@ namespace gui
 		}
 	}
 
+	change_t Group::refresh()
+	{
+		change_t child_changes{ this->change };
+
+		for (auto p : this->children)
+		{
+			child_changes.set(p->refresh());
+		}
+
+		// measure view if needed
+		ViewMeasure::measure_active(*this, child_changes);
+
+		this->change.transfer(child_changes);
+
+		return this->change;
+	}
+
 	void Group::refresh_changes(const Group *const parent)
 	{
 		if (!this->change.any()) return;
@@ -302,19 +315,8 @@ namespace gui
 		}
 		else
 		{
-			// Scenario:
-			// GroupA{FIXED} -> GroupB{PARENT} -> GroupC{WRAP} -> Text{WRAP}
-			//	 Refresh1:
-			//	   Text is changed -> GroupC is changed
-			//	   GroupB is unchanged
-			//   Refresh2:
-			//	   GroupA update{1}
-			//	   GroupB update{1}
-			//	   GroupC update{2} this case!
 			ViewMeasure::measure_passive_forced(*this, parent->size);
-
-			arrange_children(
-				ViewMeasure::offset(*this, parent->size, parent->gravity, parent->offset));
+			arrange_children(this->offset);
 		}
 
 		this->is_rendered = this->should_render;
@@ -337,8 +339,8 @@ namespace gui
 
 		ViewMeasure::measure_passive_forced(*this, size_parent);
 
-		arrange_children(
-			ViewMeasure::offset(*this, size_parent, gravity_mask_parent, offset_parent));
+		this->offset = ViewMeasure::offset(*this, size_parent, gravity_mask_parent, offset_parent);
+		arrange_children(this->offset);
 
 		this->is_rendered = this->should_render;
 		this->change.clear();

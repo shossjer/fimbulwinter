@@ -2,6 +2,7 @@
 #ifndef TEST_ENGINE_GUI_VIEWS_TEST_HPP
 #define TEST_ENGINE_GUI_VIEWS_TEST_HPP
 
+#include <engine/gui/measure.hpp>
 #include <engine/gui/views.hpp>
 
 namespace engine
@@ -12,6 +13,7 @@ namespace engine
 		{
 			static change_t & change(View & view) { return view.change; }
 			static Size & size(View & view) { return view.size; }
+			static Vector3f & offset(View & view) { return view.offset; }
 
 			static change_t::value_t flags(change_t & change) { return change.flags; }
 			static std::size_t items(const List & view) { return view.shown_items; }
@@ -19,9 +21,12 @@ namespace engine
 			static bool & should_render(View & view) { return view.should_render; }
 			static bool & is_rendered(View & view) { return view.is_rendered; }
 			static bool & is_invisible(View & view) { return view.is_invisible; }
+
+			static change_t refresh(View & view) { return view.refresh(); }
+			static void refresh_changes(View & view, Group * parent) { view.refresh_changes(parent); }
 		};
 
-		class TestView : public View
+		class TestView : public Drawable
 		{
 		public:
 			const value_t size_wrap_h;
@@ -29,7 +34,7 @@ namespace engine
 
 		private:
 			TestView(Size size, value_t size_wrap_h, value_t size_wrap_w)
-				: View(engine::Entity{}, engine::Asset{}, Gravity{}, Margin{}, size)
+				: Drawable(engine::Entity{}, engine::Asset{}, Gravity{}, Margin{}, size, false)
 				, size_wrap_h(size_wrap_h)
 				, size_wrap_w(size_wrap_w)
 			{}
@@ -51,16 +56,37 @@ namespace engine
 			{}
 
 			void refresh_changes(const Group *const parent) override
-			{}
+			{
+				ViewMeasure::measure_passive(*this, parent);
+
+				// dont reset changes.
+			}
 
 			void refresh_changes(
 				const Size size_parent,
 				const Gravity gravity_mask_parent,
 				const Vector3f offset_parent) override
-			{}
+			{
+				ViewMeasure::measure_passive_forced(*this, size_parent);
+
+				// TODO: have it here or in ViewMeasure?
+				const Vector3f ret = ViewMeasure::offset(*this, size_parent, gravity_mask_parent, offset_parent);
+				this->offset = ret + Vector3f{ 0.f, 0.f, 0.f };
+
+				// dont reset changes
+			}
 
 			value_t wrap_height() const override { return this->size_wrap_h; }
 			value_t wrap_width() const override { return this->size_wrap_w; }
+
+			void renderer_send_add() const override
+			{
+
+			}
+			void renderer_send_update() const override
+			{
+
+			}
 		};
 
 		class TestGroup : public Group
@@ -68,12 +94,14 @@ namespace engine
 		public:
 			const value_t size_wrap_h;
 			const value_t size_wrap_w;
+			bool wrap_children;
 
 		private:
 			TestGroup(Size size, Layout layout, value_t size_wrap_h, value_t size_wrap_w)
 				: Group(engine::Entity{}, engine::Asset{}, Gravity{}, Margin{}, size, layout)
 				, size_wrap_h(size_wrap_h)
 				, size_wrap_w(size_wrap_w)
+				, wrap_children(false)
 			{}
 		public:
 			TestGroup(value_t size_wrap_h, value_t size_wrap_w)
@@ -90,20 +118,18 @@ namespace engine
 				: TestGroup(Size{ { Size::TYPE::PARENT },{ Size::TYPE::PARENT } }, Layout{})
 			{}
 
-			void translate(unsigned & order) override
-			{}
-
-			void refresh_changes(const Group *const parent) override
-			{}
-
-			void refresh_changes(
-				const Size size_parent,
-				const Gravity gravity_mask_parent,
-				const Vector3f offset_parent) override
-			{}
-
-			value_t wrap_height() const override { return this->size_wrap_h; }
-			value_t wrap_width() const override { return this->size_wrap_w; }
+			value_t wrap_height() const override
+			{
+				if (this->wrap_children)
+					return Group::wrap_height();
+				return this->size_wrap_h;
+			}
+			value_t wrap_width() const override
+			{
+				if (this->wrap_children)
+					return Group::wrap_width();
+				return this->size_wrap_w;
+			}
 		};
 	}
 }

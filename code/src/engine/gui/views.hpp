@@ -64,19 +64,18 @@ namespace gui
 		using value_t = uint32_t;
 
 		static constexpr value_t NONE = 0;
-		static constexpr value_t VISIBILITY = 1 << 1;
 		static constexpr value_t DATA = 1 << 2;
 		static constexpr value_t MOVE = 1 << 3;
-		static constexpr value_t SIZE = 1 << 4;
-		static constexpr value_t INITIAL = 1 << 5;
+		static constexpr value_t VISIBILITY = 1 << 4;
+		static constexpr value_t SIZE_HEIGHT = 1 << 5;
+		static constexpr value_t SIZE_WIDTH = 1 << 6;
 
 	private:
 		value_t flags;
 
 	public:
-		change_t()
-			: flags(INITIAL | SIZE | DATA | VISIBILITY)
-		{}
+		change_t() : flags(0xFF) {}
+		change_t(value_t val) : flags(val) {}
 
 	private:
 		bool is_set(const value_t flag) const { return (this->flags & flag) != 0; }
@@ -87,20 +86,24 @@ namespace gui
 		bool any() const { return this->flags != NONE; }
 
 		bool affects_content() const { return is_set(DATA); }
-		bool affects_offset() const { return is_set(MOVE); }
-		bool affects_size() const { return is_set(SIZE); }
+		bool affects_size() const { return this->flags >= SIZE_HEIGHT; }
 		bool affects_visibility() const { return is_set(VISIBILITY); }
 
 		void clear() { this->flags = NONE; }
-		void clear_size() { clear(SIZE); }
+		void clear_size() { clear(SIZE_HEIGHT | SIZE_WIDTH); }
+		void clear_size_h() { clear(SIZE_HEIGHT); }
+		void clear_size_w() { clear(SIZE_WIDTH); }
 
 		void set_moved() { set(MOVE); }
-		void set_resized() { set(SIZE); }
+		void set_resized() { set(SIZE_HEIGHT | SIZE_WIDTH); }
+		void set_resized_h() { set(SIZE_HEIGHT); }
+		void set_resized_w() { set(SIZE_WIDTH); }
 		void set_hidden() { set(VISIBILITY); }
 		void set_shown() { set(VISIBILITY); }
 		void set_content() { set(DATA); }
 
 		void set(const change_t other) { set(other.flags); }
+		void transfer(const change_t other) { set((DATA & other.flags)); }
 	};
 
 	class View
@@ -188,7 +191,7 @@ namespace gui
 	protected:
 
 		// called after changes has been made to the views
-		change_t refresh();
+		virtual change_t refresh() = 0;
 
 		virtual void refresh_changes(const Group *const parent) = 0;
 
@@ -244,6 +247,8 @@ namespace gui
 		void translate(unsigned & order) override;
 
 	protected:
+
+		change_t refresh() override;
 
 		void refresh_changes(const Group * const) override;
 
@@ -399,6 +404,8 @@ namespace gui
 		value_t wrap_width() const override;
 
 	protected:
+
+		change_t refresh() override;
 
 		void refresh_changes(const Group *const parent) override;
 
