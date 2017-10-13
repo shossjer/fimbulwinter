@@ -132,6 +132,17 @@ namespace core
 				return try_find(key) != bucket_t(-1);
 			}
 			template <typename C>
+			bool contains(K key)
+			{
+				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
+
+				const auto bucket = try_find(key);
+				if (bucket == bucket_t(-1))
+					return false;
+
+				return slots[bucket].get_type() == type;
+			}
+			template <typename C>
 			auto get() ->
 				decltype(std::get<mpl::index_of<C, mpl::type_list<Cs...>>::value>(arrays))
 			{
@@ -192,6 +203,8 @@ namespace core
 			Component & emplace(K key, Ps && ...ps)
 			{
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
+
+				debug_assert(!contains(key));
 
 				const auto bucket = place(key);
 				auto & array = std::get<type>(arrays);
@@ -949,6 +962,17 @@ namespace core
 				return try_find(key) != bucket_t(-1);
 			}
 			template <typename C>
+			bool contains(K key)
+			{
+				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
+
+				const auto bucket = try_find(key);
+				if (bucket == bucket_t(-1))
+					return false;
+
+				return slots[bucket].get_type() == type;
+			}
+			template <typename C>
 			C & get(K key)
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
@@ -985,6 +1009,8 @@ namespace core
 			Component & emplace(K key, Ps && ...ps)
 			{
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
+
+				debug_assert(!contains(key));
 
 				const auto bucket = place(key);
 				auto & array = std::get<type>(arrays);

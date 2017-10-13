@@ -19,7 +19,6 @@ set(SOURCE_FILES
 	src/engine/gui/loading.cpp
 	src/engine/gui/resources.cpp
 	src/engine/gui/views.cpp
-	src/engine/model/loader.cpp
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
@@ -29,8 +28,8 @@ set(SOURCE_FILES
 	src/engine/physics/physics_physx.cpp
 	src/engine/resource/loader.cpp
 	src/engine/resource/reader.cpp
+	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
-	src/gameplay/level_placeholder.cpp
 	src/gameplay/looper.cpp
 	src/gameplay/ui.cpp
 	)
@@ -81,7 +80,6 @@ set(HEADER_FILES
 	src/engine/gui/resources.hpp
 	src/engine/gui/views.hpp
 	src/engine/hid/input.hpp
-	src/engine/model/loader.hpp
 	src/engine/model/data.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
@@ -93,9 +91,9 @@ set(HEADER_FILES
 	src/engine/physics/physics_physx.hpp
 	src/engine/resource/loader.hpp
 	src/engine/resource/reader.hpp
+	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp
-	src/gameplay/level_placeholder.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
 	src/utility/aligned_array.hpp

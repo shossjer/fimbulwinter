@@ -11,9 +11,8 @@
 #include <engine/graphics/viewer.hpp>
 #include <engine/gui/gui.hpp>
 #include <engine/physics/physics.hpp>
-#include <engine/resource/loader.hpp>
 
-#include <gameplay/level_placeholder.hpp>
+#include <gameplay/factory.hpp>
 #include <gameplay/ui.hpp>
 
 #include <utility>
@@ -398,7 +397,8 @@ namespace
 			, front(front)
 			, top(top)
 			, worker(engine::Entity::null())
-			, boardModel(engine::Entity::null())
+			, boardModel(engine::Entity::create())
+			, bar(engine::Entity::null())
 		{
 		}
 
@@ -406,6 +406,7 @@ namespace
 
 		void barUpdate(const float progress)
 		{
+			debug_assert(this->bar != engine::Entity::null());
 			engine::graphics::renderer::post_add_bar(this->bar, engine::graphics::data::Bar{
 				to_xyz(this->top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, progress});
 		}
@@ -422,7 +423,7 @@ namespace
 			access_component<Worker>(this->worker).working = true;
 			engine::animation::update(this->worker, engine::animation::action{"work", true});
 
-			if (this->boardModel!= engine::Entity::null()) return;
+			if (this->bar != engine::Entity::null()) return;
 
 			if (!storage.checkoutRawCarrot())
 			{
@@ -432,8 +433,7 @@ namespace
 
 			storage.print();
 
-			this->boardModel = engine::Entity::create();
-			gameplay::level::load(this->boardModel, "board", this->top);
+			gameplay::create_board(this->boardModel, this->top);
 
 			this->bar = engine::Entity::create();
 			barUpdate(0.f);
@@ -444,8 +444,7 @@ namespace
 			access_component<Worker>(this->worker).working = false;
 			engine::animation::update(this->worker, engine::animation::action{"idle", true});
 
-			engine::graphics::renderer::post_remove(this->boardModel);
-			this->boardModel = engine::Entity::null();
+			gameplay::destroy(this->boardModel);
 
 			engine::graphics::renderer::post_remove(this->bar);
 			this->bar = engine::Entity::null();
@@ -456,7 +455,7 @@ namespace
 			if (this->worker == engine::Entity::null())
 				return;
 
-			if (this->boardModel == engine::Entity::null())
+			if (this->bar == engine::Entity::null())
 				return;
 
 			Worker & w = access_component<Worker>(this->worker);
@@ -944,9 +943,7 @@ namespace gamestate
 		gameplay::ui::post_bind("game", game_renderselect, 5);
 
 		// vvvv tmp vvvv
-		auto loader = engine::Entity::create();
-		components.emplace<Loader>(loader);
-		engine::external::post_load_level(loader, engine::external::loader::Level{std::string("res/level.lvl")});
+		gameplay::create_level(engine::Entity::create(), "level");
 	}
 
 	void destroy()
@@ -980,12 +977,12 @@ namespace gamestate
 			std::tuple<engine::Entity, engine::Asset, engine::Asset> gui_component_args;
 			while (queue_gui_components.try_pop(gui_component_args))
 			{
-				components.emplace<GUIComponent>(
-					std::get<0>(gui_component_args),
-					GUIComponent{
-						std::get<0>(gui_component_args),
-						std::get<1>(gui_component_args),
-						std::get<2>(gui_component_args) });
+				// components.emplace<GUIComponent>(
+				// 	std::get<0>(gui_component_args),
+				// 	GUIComponent{
+				// 		std::get<0>(gui_component_args),
+				// 		std::get<1>(gui_component_args),
+				// 		std::get<2>(gui_component_args) });
 			}
 		}
 

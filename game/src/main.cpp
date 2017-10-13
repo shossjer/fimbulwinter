@@ -12,11 +12,19 @@
 
 namespace engine
 {
-namespace external
-{
-	extern void create();
-	extern void destroy();
-}
+	namespace resource
+	{
+		namespace loader
+		{
+			extern void create();
+			extern void destroy();
+		}
+		namespace reader
+		{
+			extern void create();
+			extern void destroy();
+		}
+	}
 
 namespace graphics
 {
@@ -34,12 +42,6 @@ namespace gui
 }
 
 namespace physics
-{
-	extern void create();
-	extern void destroy();
-}
-
-namespace resource
 {
 	extern void create();
 	extern void destroy();
@@ -69,8 +71,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 # endif
 	engine::application::window::create(hInstance, nCmdShow);
 
-	::engine::resource::create();
-	::engine::external::create();
+	::engine::resource::reader::create();
+	::engine::resource::loader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
 	::engine::gui::create();
@@ -88,8 +90,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::gui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
-	::engine::external::destroy();
-	::engine::resource::destroy();
+	::engine::resource::loader::destroy();
+	::engine::resource::reader::destroy();
 
 	engine::application::window::destroy(hInstance);
 
@@ -100,8 +102,8 @@ int main(const int argc, const char *const argv[])
 {
 	engine::application::window::create();
 
-	::engine::resource::create();
-	::engine::external::create();
+	::engine::resource::reader::create();
+	::engine::resource::loader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
 	::engine::gui::create();
@@ -119,8 +121,8 @@ int main(const int argc, const char *const argv[])
 	::engine::gui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
-	::engine::external::destroy();
-	::engine::resource::destroy();
+	::engine::resource::loader::destroy();
+	::engine::resource::reader::destroy();
 
 	engine::application::window::destroy();
 

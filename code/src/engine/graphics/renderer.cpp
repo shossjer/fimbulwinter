@@ -682,6 +682,9 @@ namespace
 
 		void update()
 		{
+			if (matrix_pallet.empty())
+				return;
+
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
 			const int nvertices = object->vertices.count() / 3; // assume xyz

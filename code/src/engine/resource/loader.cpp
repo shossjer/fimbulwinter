@@ -20,29 +20,6 @@
 
 #include <unordered_map>
 
-namespace gameplay
-{
-namespace gamestate
-{
-	extern void post_command(engine::Entity entity, engine::Command command);
-	extern void post_command(engine::Entity entity, engine::Command command, utility::any && data);
-
-	enum class WorkstationType
-	{
-		BENCH,
-		OVEN
-	};
-
-	extern void post_add_workstation(
-		engine::Entity entity,
-		WorkstationType type,
-		Matrix4x4f front,
-		Matrix4x4f top);
-
-	extern void post_add_worker(engine::Entity entity);
-}
-}
-
 namespace
 {
 	// represents model data in file
@@ -260,79 +237,22 @@ namespace
 		return model;
 	}
 
-	struct asset_template_t
+	const engine::resource::loader::asset_template_t & load(const std::string & modelName, const json & jcontent)
 	{
-		struct component_t
-		{
-			engine::Asset mesh;
-			engine::graphics::data::Color color;
-		};
+		static std::unordered_map<engine::Asset, engine::resource::loader::asset_template_t> asset_templates;
 
-		std::unordered_map<
-			std::string,
-			std::vector<component_t> > components;
-
-		struct joint_t
-		{
-			engine::transform_t transform;
-		};
-
-		std::unordered_map<std::string, joint_t> joints;
-
-		struct location_t
-		{
-			engine::transform_t transform;
-		};
-
-		std::unordered_map<std::string, location_t> locations;
-
-		template<typename T>
-		const T & get(
-			const std::unordered_map<std::string, T> & items,
-			const std::string name) const
-		{
-			auto itr = items.find(name);
-
-			if (itr == items.end())
-			{
-				debug_unreachable();
-			}
-
-			return itr->second;
-		}
-
-		const std::vector<component_t> & part(const std::string name) const
-		{
-			return get<std::vector<component_t> >(this->components, name);
-		}
-
-		const joint_t & joint(const std::string name) const
-		{
-			return get<joint_t>(this->joints, name);
-		}
-
-		const location_t & location(const std::string name) const
-		{
-			return get<location_t>(this->locations, name);
-		}
-	};
-
-	const asset_template_t & load(const std::string & modelName, const json & jcontent)
-	{
-		static std::unordered_map<engine::Asset, asset_template_t> asset_templates;
-
-		auto it = asset_templates.emplace(modelName, asset_template_t{});
+		auto it = asset_templates.emplace(modelName, engine::resource::loader::asset_template_t{});
 		if (!it.second)
 			return it.first->second;
 
 		// the asset has not previously been loaded
-		asset_template_t & asset_template = it.first->second;
+		engine::resource::loader::asset_template_t & asset_template = it.first->second;
 
 		const model_t model = load_model_data(jcontent);
 
 		for (const auto & part : model.parts)
 		{
-			std::vector<asset_template_t::component_t> components;
+			std::vector<engine::resource::loader::asset_template_t::component_t> components;
 			components.reserve(part.render.shapes.size());
 
 			for (const auto & mesh : part.render.shapes)
@@ -348,7 +268,7 @@ namespace
 						core::container::Buffer{} });
 
 				components.emplace_back(
-					asset_template_t::component_t{ meshId, mesh.color });
+					engine::resource::loader::asset_template_t::component_t{ meshId, mesh.color });
 			}
 
 			if (!part.physic.shapes.empty())
@@ -392,142 +312,45 @@ namespace
 
 		for (const auto & joint : model.joints)
 		{
-			asset_template.joints.emplace(joint.name, asset_template_t::joint_t{ joint.transform });
+			asset_template.joints.emplace(joint.name, engine::resource::loader::asset_template_t::joint_t{ joint.transform });
 		}
 
 		for (const auto & location : model.locations)
 		{
-			asset_template.locations.emplace(location.name, asset_template_t::location_t{ location.transform });
+			asset_template.locations.emplace(location.name, engine::resource::loader::asset_template_t::location_t{ location.transform });
 		}
 
 		return asset_template;
-	}
-
-	auto extract(
-		const asset_template_t & assetTemplate,
-		const std::string & name)
-	{
-		const auto & components = assetTemplate.part(name);
-		std::vector<engine::graphics::data::CompC::asset> assets;
-		for (const auto & c : components)
-		{
-			assets.emplace_back(
-				engine::graphics::data::CompC::asset{ c.mesh, c.color });
-		}
-		return assets;
 	}
 }
 
 namespace
 {
-	struct MessageLoadLevel;
-	struct MessageLoadPlaceholder;
-	struct MessageReadLevel;
-	struct MessageReadPlaceholder;
-
-	template <typename MessageLoad, typename MessageRead, typename Data>
-	struct Asset;
-
-	using AssetLevel = Asset<MessageLoadLevel, MessageReadLevel, engine::resource::data::Level>;
-	using AssetPlaceholder = Asset<MessageLoadPlaceholder, MessageReadPlaceholder, engine::resource::data::Placeholder>;
-
 	template <typename MessageType, typename ...Ps>
 	void post_message(Ps && ...ps);
 }
 
 namespace
 {
-	struct Progression
-	{
-		int count;
-		int parent;
-	};
-	std::unordered_map<int, Progression> progressions;
-	int next_id = 1; // 0 is reserved
-
-	void increase_count(int id)
-	{
-		auto maybe = progressions.find(id);
-		debug_assert(maybe != progressions.end());
-
-		maybe->second.count++;
-	}
-
-	int create_child(int parent)
-	{
-		if (parent != 0)
-			increase_count(parent);
-
-		auto maybe = progressions.emplace(next_id++, Progression{0, parent});
-		return maybe.first->first;
-	}
-	int create_root()
-	{
-		return create_child(0);
-	}
-
-	bool decrease_count(int id)
-	{
-		auto maybe = progressions.find(id);
-		debug_assert(maybe != progressions.end());
-		debug_assert(maybe->second.count > 0);
-
-		maybe->second.count--;
-		return maybe->second.count == 0;
-	}
-
-	void destroy_child(engine::Entity entity, int id)
-	{
-		auto maybe = progressions.find(id);
-		debug_assert(maybe != progressions.end());
-		debug_assert(maybe->second.count == 0);
-
-		if (maybe->second.parent == 0)
-		{
-			gameplay::gamestate::post_command(entity, engine::Command::LOADER_FINISHED);
-		}
-		else if (decrease_count(maybe->second.parent))
-		{
-			destroy_child(entity, maybe->second.parent);
-		}
-	}
-}
-
-namespace
-{
-	struct MessageLoadInfo
-	{
-		engine::Entity entity;
-		int id;
-	};
-
 	struct MessageLoadLevel
 	{
-		using AssetType = AssetLevel;
-
-		MessageLoadInfo info;
-		engine::external::loader::Level data;
+		std::string name;
+		void (* callback)(std::string name, const engine::resource::loader::Level & data);
 	};
 	struct MessageLoadPlaceholder
 	{
-		using AssetType = AssetPlaceholder;
-
-		MessageLoadInfo info;
-		engine::external::loader::Placeholder data;
+		std::string name;
+		void (* callback)(std::string name, const engine::resource::loader::Placeholder & data);
 	};
 	struct MessageReadLevel
 	{
-		using AssetType = AssetLevel;
-
-		engine::Asset asset;
-		engine::resource::data::Level data;
+		std::string name;
+		engine::resource::reader::Level data;
 	};
 	struct MessageReadPlaceholder
 	{
-		using AssetType = AssetPlaceholder;
-
-		engine::Asset asset;
-		engine::resource::data::Placeholder data;
+		std::string name;
+		engine::resource::reader::Placeholder data;
 	};
 	using Message = utility::variant
 	<
@@ -542,248 +365,183 @@ namespace
 
 namespace
 {
-	void post_read(const std::string & filename, void (* callback)(const std::string &, engine::resource::data::Level && data))
-	{
-		engine::resource::post_read_level(filename, callback);
-	}
-	void post_read(const std::string & filename, void (* callback)(const std::string &, engine::resource::data::Placeholder && data))
-	{
-		engine::resource::post_read_placeholder(filename, callback);
-	}
-
-	void create_asset(const MessageLoadInfo & info, const engine::resource::data::Level & level)
+	engine::resource::loader::Level create_asset(std::string && name, engine::resource::reader::Level && data)
 	{
 		engine::physics::camera::set(engine::physics::camera::Bounds{
 				Vector3f{-6.f, 0.f, -4.f},
 				Vector3f{6.f, 10.f, 12.f} });
 
-		for (const auto & data : level.meshes)
+		engine::resource::loader::Level level;
+
+		level.meshes.reserve(data.meshes.size());
+		for (const auto & mesh : data.meshes)
 		{
-			const engine::Asset asset = data.name;
+			const engine::Asset asset = mesh.name;
 
 			engine::graphics::renderer::post_register_mesh(
 				asset,
 				engine::graphics::data::Mesh{
-					data.vertices,
-						data.triangles,
-						data.normals,
+					mesh.vertices,
+						mesh.triangles,
+						mesh.normals,
 						core::container::Buffer{} });
 
-			std::vector<engine::graphics::data::CompC::asset> assets;
+			const uint32_t r = mesh.color[0] * 255;
+			const uint32_t g = mesh.color[1] * 255;
+			const uint32_t b = mesh.color[2] * 255;
+			const auto color = r + (g << 8) + (b << 16) + (0xff << 24);
 
-			const uint32_t r = data.color[0] * 255;
-			const uint32_t g = data.color[1] * 255;
-			const uint32_t b = data.color[2] * 255;
-			assets.emplace_back(
-				engine::graphics::data::CompC::asset{
-					asset,
-						r + (g << 8) + (b << 16) + (0xff << 24) });
-
-			const auto entity = engine::Entity::create();
-			engine::graphics::renderer::post_add_component(
-				entity,
-				engine::graphics::data::CompC{
-					data.matrix,
-						Vector3f{1.f, 1.f, 1.f},
-						assets});
-			engine::graphics::renderer::post_make_obstruction(entity);
+			level.meshes.push_back(engine::resource::loader::Level::Mesh{mesh.name, mesh.matrix, color});
 		}
 
-		for (auto & placeholder : level.placeholders)
+		level.placeholders.reserve(data.placeholders.size());
+		for (const auto & placeholder : data.placeholders)
 		{
-			post_message<MessageLoadPlaceholder>(MessageLoadInfo{info.entity, create_child(info.id)}, engine::external::loader::Placeholder{placeholder.name, placeholder.translation, placeholder.rotation, placeholder.scale});
+			level.placeholders.push_back(engine::resource::loader::Level::Placeholder{placeholder.name, placeholder.translation, placeholder.rotation, placeholder.scale});
 		}
-	}
-	void create_entity(MessageLoadLevel && x, const engine::resource::data::Level & level)
-	{
+
+		return level;
 	}
 
-	void create_asset(const MessageLoadInfo & info, const engine::resource::data::Placeholder & data)
+	engine::resource::loader::Placeholder create_asset(std::string && name, engine::resource::reader::Placeholder && data)
 	{
 		struct CreateAsset
 		{
-			const engine::resource::data::Placeholder::Header & header;
+			std::string && name;
 
-			void operator () (const engine::model::mesh_t & data)
+			engine::resource::loader::Placeholder operator () (engine::model::mesh_t && data)
 			{
-				engine::graphics::renderer::post_register_character(header.asset, engine::model::mesh_t(data));
+				debug_printline(0xffffffff, "registering character \"", name, "\"");
+				engine::graphics::renderer::post_register_character(std::move(name), std::move(data));
+
+				return engine::resource::loader::Placeholder();
 			}
-			void operator () (const json & data)
+			engine::resource::loader::Placeholder operator () (json && data)
 			{
-			}
-		};
-		visit(CreateAsset{data.header}, data.data);
-	}
-	void create_entity(MessageLoadPlaceholder && x, const engine::resource::data::Placeholder & data)
-	{
-		struct CreateEntity
-		{
-			MessageLoadPlaceholder && x;
-			const engine::resource::data::Placeholder::Header & header;
+				const engine::resource::loader::asset_template_t & assetTemplate = load(std::move(name), std::move(data));
 
-			void operator () (const engine::model::mesh_t & data)
-			{
-				engine::Entity id = engine::Entity::create();
-
-				engine::graphics::renderer::post_add_character(
-					id, engine::graphics::data::CompT{
-						make_translation_matrix(x.data.translation) *
-							make_matrix(x.data.rotation),
-							Vector3f { 1.f, 1.f, 1.f },
-							header.asset,
-								engine::Asset{ "dude" }});
-				engine::graphics::renderer::post_make_selectable(id);
-				engine::physics::post_add_object(id, engine::transform_t{x.data.translation, x.data.rotation});
-				engine::animation::add(id, engine::animation::armature{utility::to_string("res/", header.name, ".arm")});
-				engine::animation::update(id, engine::animation::action{"turn-left", true});
-
-				// register new asset in gamestate
-				gameplay::gamestate::post_add_worker(id);
-			}
-			void operator () (const json & data)
-			{
-				const asset_template_t & assetTemplate = load(header.name, data);
-
-				const core::maths::Matrix4x4f matrix =
-					make_translation_matrix(x.data.translation) *
-					make_matrix(x.data.rotation);
-
-				switch (header.asset)
-				{
-				case engine::Asset{ "bench" }:
-				{
-					const auto & assets = extract(assetTemplate, "bench");
-
-					const engine::Entity id = engine::Entity::create();
-					// register new asset in renderer
-					engine::graphics::renderer::post_add_component(
-						id,
-						engine::graphics::data::CompC{
-							matrix,
-								Vector3f{ 1.f, 1.f, 1.f },
-								assets });
-					engine::graphics::renderer::post_make_selectable(id);
-
-					// register new asset in gamestate
-					gameplay::gamestate::post_add_workstation(
-						id,
-						gameplay::gamestate::WorkstationType::BENCH,
-						matrix * assetTemplate.location("front").transform.matrix(),
-						matrix * assetTemplate.location("top").transform.matrix());
-					break;
-				}
-				case engine::Asset{ "oven" }:
-				{
-					const auto & assets = extract(assetTemplate, "oven");
-
-					const engine::Entity id = engine::Entity::create();
-					// register new asset in renderer
-					engine::graphics::renderer::post_add_component(
-						id,
-						engine::graphics::data::CompC{
-							matrix,
-								Vector3f{ 1.f, 1.f, 1.f },
-								assets });
-					engine::graphics::renderer::post_make_selectable(id);
-
-					// register new asset in gamestate
-					gameplay::gamestate::post_add_workstation(
-						id,
-						gameplay::gamestate::WorkstationType::OVEN,
-						matrix * assetTemplate.location("front").transform.matrix(),
-						matrix * assetTemplate.location("top").transform.matrix());
-					break;
-				}
-				case engine::Asset{ "dude1" }:
-				case engine::Asset{ "dude2" }:
-				{
-					const auto & assets = extract(assetTemplate, "dude");
-
-					const engine::Entity id = engine::Entity::create();
-					// register new asset in renderer
-					engine::graphics::renderer::post_add_component(
-						id,
-						engine::graphics::data::CompC{
-							matrix,
-								Vector3f{ 1.f, 1.f, 1.f },
-								assets });
-					engine::graphics::renderer::post_make_obstruction(id);
-
-					// register new asset in gamestate
-					gameplay::gamestate::post_add_worker(id);
-					break;
-				}
-				case engine::Asset{ "board" }:
-				{
-					const auto & assets = extract(assetTemplate, "all");
-
-					const engine::Entity id = engine::Entity::create();
-					// register new asset in renderer
-					engine::graphics::renderer::post_add_component(
-						id,
-						engine::graphics::data::CompC{
-							matrix,
-								Vector3f{ 1.f, 1.f, 1.f },
-								assets });
-
-					break;
-				}
-				default:
-					break;
-				}
+				return engine::resource::loader::Placeholder(assetTemplate);
 			}
 		};
-		visit(CreateEntity{std::move(x), data.header}, data.data);
-
-		destroy_child(x.info.entity, x.info.id);
+		return visit(CreateAsset{std::move(name)}, std::move(data.data));
 	}
 
-	template <typename MessageRead, typename Data>
-	void read_callback(const std::string & filename, Data && data);
-
-	template <typename MessageLoad, typename MessageRead, typename Data>
-	struct Asset
+	struct AssetLevel
 	{
-		int refcount;
-		bool ready_to_use;
-
-		MessageLoadInfo info;
-		Data data;
-
-		std::vector<MessageLoad> xs;
-
-		Asset(const MessageLoad & x)
-			: refcount(0)
-			, ready_to_use(false)
-			, info(x.info)
+		struct Loaded
 		{
-			post_read(x.data.name, read_callback<MessageRead, Data>);
+			engine::resource::loader::Level data;
+
+			Loaded(engine::resource::loader::Level && data)
+				: data(std::move(data))
+			{}
+		};
+		struct Loading
+		{
+			std::vector<MessageLoadLevel> messages;
+
+			Loading(MessageLoadLevel && message)
+			{
+				messages.push_back(std::move(message));
+			}
+		};
+		using State = utility::variant<Loading, Loaded>;
+
+		State state;
+
+		AssetLevel(MessageLoadLevel && message)
+			: state(utility::in_place_type<Loading>, std::move(message))
+		{}
+
+		void call_or_add(MessageLoadLevel && message)
+		{
+			struct AddOrCall
+			{
+				MessageLoadLevel && message;
+
+				void operator () (const Loaded & x)
+				{
+					message.callback(message.name, x.data);
+				}
+				void operator () (Loading & x)
+				{
+					x.messages.push_back(std::move(message));
+				}
+			};
+			visit(AddOrCall{std::move(message)}, state);
 		}
 
-		void load(MessageLoad && x)
+		void load(std::string && name, engine::resource::reader::Level && data)
 		{
-			refcount++;
-			if (ready_to_use)
+			debug_assert(utility::holds_alternative<Loading>(state));
+
+			std::vector<MessageLoadLevel> messages = std::move(utility::get<Loading>(state).messages);
+
+			const Loaded & loaded = state.emplace<Loaded>(create_asset(std::move(name), std::move(data)));
+
+			for (const auto & message : messages)
 			{
-				create_entity(std::move(x), data);
-			}
-			else
-			{
-				xs.push_back(std::move(x));
+				message.callback(message.name, loaded.data);
 			}
 		}
-
-		void set(Data && data)
+	};
+	struct AssetPlaceholder
+	{
+		struct Loaded
 		{
-			ready_to_use = true;
-			this->data = std::move(data);
-			create_asset(info, this->data);
+			engine::resource::loader::Placeholder data;
 
-			for (auto & x : xs)
+			Loaded(engine::resource::loader::Placeholder && data)
+				: data(std::move(data))
+			{}
+		};
+		struct Loading
+		{
+			std::vector<MessageLoadPlaceholder> messages;
+
+			Loading(MessageLoadPlaceholder && message)
 			{
-				create_entity(std::move(x), this->data);
+				messages.push_back(std::move(message));
 			}
-			xs.clear();
+		};
+		using State = utility::variant<Loading, Loaded>;
+
+		State state;
+
+		AssetPlaceholder(MessageLoadPlaceholder && message)
+			: state(utility::in_place_type<Loading>, std::move(message))
+		{}
+
+		void call_or_add(MessageLoadPlaceholder && message)
+		{
+			struct AddOrCall
+			{
+				MessageLoadPlaceholder && message;
+
+				void operator () (const Loaded & x)
+				{
+					message.callback(message.name, x.data);
+				}
+				void operator () (Loading & x)
+				{
+					x.messages.push_back(std::move(message));
+				}
+			};
+			visit(AddOrCall{std::move(message)}, state);
+		}
+
+		void load(std::string && name, engine::resource::reader::Placeholder && data)
+		{
+			debug_assert(utility::holds_alternative<Loading>(state));
+
+			std::vector<MessageLoadPlaceholder> messages = std::move(utility::get<Loading>(state).messages);
+
+			const Loaded & loaded = state.emplace<Loaded>(create_asset(std::move(name), std::move(data)));
+
+			for (const auto & message : messages)
+			{
+				message.callback(message.name, loaded.data);
+			}
 		}
 	};
 
@@ -798,40 +556,71 @@ namespace
 
 namespace
 {
-	struct ProcessMessage
-	{
-		template <typename T>
-		auto operator () (T && x) -> decltype((void)x.info)
-		{
-			engine::Asset asset(x.data.name);
-			if (assets.contains(asset))
-			{
-				assets.get<typename T::AssetType>(asset).load(std::forward<T>(x));
-			}
-			else
-			{
-				auto & kjhs = assets.emplace<typename T::AssetType>(asset, x);
-				kjhs.load(std::forward<T>(x));
-			}
-		}
-		template <typename T>
-		auto operator () (T && x) -> decltype((void)x.asset)
-		{
-			if (!assets.contains(x.asset))
-			{
-				debug_printline(0xffffffff, "We have read an asset that is not used any more");
-				debug_fail();
-			}
-			auto & kjhs = assets.get<typename T::AssetType>(x.asset);
-			kjhs.set(std::move(x.data));
-		}
-	};
+	template <typename MessageRead>
+	void read_callback(std::string name, decltype(std::declval<MessageRead>().data) && data);
 
 	void loader_load()
 	{
 		Message message;
 		while (queue_messages.try_pop(message))
 		{
+			struct ProcessMessage
+			{
+				void operator () (MessageLoadLevel && x)
+				{
+					const engine::Asset asset = x.name;
+					if (assets.contains(asset))
+					{
+						debug_assert(assets.contains<AssetLevel>(asset));
+
+						assets.get<AssetLevel>(asset).call_or_add(std::move(x));
+					}
+					else
+					{
+						engine::resource::reader::post_read_level(x.name, read_callback<MessageReadLevel>);
+						assets.emplace<AssetLevel>(asset, std::move(x));
+					}
+				}
+				void operator () (MessageLoadPlaceholder && x)
+				{
+					const engine::Asset asset = x.name;
+					if (assets.contains(asset))
+					{
+						debug_assert(assets.contains<AssetPlaceholder>(asset));
+
+						assets.get<AssetPlaceholder>(asset).call_or_add(std::move(x));
+					}
+					else
+					{
+						engine::resource::reader::post_read_placeholder(x.name, read_callback<MessageReadPlaceholder>);
+						assets.emplace<AssetPlaceholder>(asset, std::move(x));
+					}
+				}
+				void operator () (MessageReadLevel && x)
+				{
+					const engine::Asset asset = x.name;
+					if (!assets.contains(asset))
+					{
+						debug_printline(0xffffffff, "We have read an asset that is not used any more");
+						debug_fail();
+					}
+					debug_assert(assets.contains<AssetLevel>(asset));
+
+					assets.get<AssetLevel>(asset).load(std::move(x.name), std::move(x.data));
+				}
+				void operator () (MessageReadPlaceholder && x)
+				{
+					const engine::Asset asset = x.name;
+					if (!assets.contains(asset))
+					{
+						debug_printline(0xffffffff, "We have read an asset that is not used any more");
+						debug_fail();
+					}
+					debug_assert(assets.contains<AssetPlaceholder>(asset));
+
+					assets.get<AssetPlaceholder>(asset).load(std::move(x.name), std::move(x.data));
+				}
+			};
 			visit(ProcessMessage{}, std::move(message));
 		}
 	}
@@ -865,42 +654,45 @@ namespace
 		}
 	}
 
-	template <typename MessageRead, typename Data>
-	void read_callback(const std::string & filename, Data && data)
+	template <typename MessageRead>
+	void read_callback(std::string name, decltype(std::declval<MessageRead>().data) && data)
 	{
-		post_message<MessageRead>(filename, std::move(data));
+		post_message<MessageRead>(std::move(name), std::move(data));
 	}
 }
 
 namespace engine
 {
-	namespace external
+	namespace resource
 	{
-		void create()
+		namespace loader
 		{
-			debug_assert(!active);
+			void create()
+			{
+				debug_assert(!active);
 
-			active = true;
-			renderThread = core::async::Thread{ run };
-		}
+				active = true;
+				renderThread = core::async::Thread{ run };
+			}
 
-		void destroy()
-		{
-			debug_assert(active);
+			void destroy()
+			{
+				debug_assert(active);
 
-			active = false;
-			event.set();
+				active = false;
+				event.set();
 
-			renderThread.join();
-		}
+				renderThread.join();
+			}
 
-		void post_load_level(engine::Entity entity, loader::Level && data)
-		{
-			post_message<MessageLoadLevel>(MessageLoadInfo{entity, create_root()}, std::move(data));
-		}
-		void post_load_placeholder(engine::Entity entity, loader::Placeholder && data)
-		{
-			post_message<MessageLoadPlaceholder>(MessageLoadInfo{entity, create_root()}, std::move(data));
+			void post_load_level(std::string name, void (* callback)(std::string name, const Level & data))
+			{
+				post_message<MessageLoadLevel>(std::move(name), callback);
+			}
+			void post_load_placeholder(std::string name, void (* callback)(std::string name, const Placeholder & data))
+			{
+				post_message<MessageLoadPlaceholder>(std::move(name), callback);
+			}
 		}
 	}
 }

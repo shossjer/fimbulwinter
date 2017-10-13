@@ -19,7 +19,7 @@ namespace engine
 {
 	namespace resource
 	{
-		namespace data
+		namespace reader
 		{
 			struct Level
 			{
@@ -43,36 +43,23 @@ namespace engine
 				std::vector<Mesh> meshes;
 				std::vector<Placeholder> placeholders;
 			};
-			// using Placeholder = utility::variant<engine::model::mesh_t, json>;
+
 			struct Placeholder
 			{
-				struct Header
-				{
-					std::string name;
-					engine::Asset asset;
-
-					Header() = default;
-					Header(const std::string & name)
-						: name(name)
-						, asset(name)
-					{}
-				} header;
 				utility::variant<engine::model::mesh_t, json> data;
 
 				Placeholder() = default;
-				Placeholder(const std::string & name, engine::model::mesh_t && data)
-					: header(name)
-					, data(std::move(data))
+				Placeholder(engine::model::mesh_t && data)
+					: data(std::move(data))
 				{}
-				Placeholder(const std::string & name, json && data)
-					: header(name)
-					, data(std::move(data))
+				Placeholder(json && data)
+					: data(std::move(data))
 				{}
 			};
-		}
 
-		void post_read_level(const std::string & filename, void (* callback)(const std::string & filename, data::Level && data));
-		void post_read_placeholder(const std::string & filename, void (* callback)(const std::string & filename, data::Placeholder && data));
+			void post_read_level(std::string name, void (* callback)(std::string name, Level && data));
+			void post_read_placeholder(std::string name, void (* callback)(std::string name, Placeholder && data));
+		}
 	}
 }
 

@@ -74,7 +74,7 @@ namespace
 		vec.set_aligned(buffer);
 	}
 
-	void read_meshes(std::ifstream & ifile, std::vector<engine::resource::data::Level::Mesh> & meshes)
+	void read_meshes(std::ifstream & ifile, std::vector<engine::resource::reader::Level::Mesh> & meshes)
 	{
 		uint16_t nmeshes;
 		read_count(ifile, nmeshes);
@@ -108,7 +108,7 @@ namespace
 		}
 	}
 
-	void read_placeholders(std::ifstream & ifile, std::vector<engine::resource::data::Level::Placeholder> & placeholders)
+	void read_placeholders(std::ifstream & ifile, std::vector<engine::resource::reader::Level::Placeholder> & placeholders)
 	{
 		uint16_t nplaceholders;
 		read_count(ifile, nplaceholders);
@@ -123,7 +123,7 @@ namespace
 		}
 	}
 
-	void read_level(std::ifstream & ifile, engine::resource::data::Level & level)
+	void read_level(std::ifstream & ifile, engine::resource::reader::Level & level)
 	{
 		read_meshes(ifile, level.meshes);
 
@@ -203,13 +203,13 @@ namespace
 {
 	struct MessageReadLevel
 	{
-		std::string filename;
-		void (* callback)(const std::string & filename, engine::resource::data::Level && data);
+		std::string name;
+		void (* callback)(std::string name, engine::resource::reader::Level && data);
 	};
 	struct MessageReadPlaceholder
 	{
-		std::string filename;
-		void (* callback)(const std::string & filename, engine::resource::data::Placeholder && data);
+		std::string name;
+		void (* callback)(std::string name, engine::resource::reader::Placeholder && data);
 	};
 	using Message = utility::variant
 	<
@@ -222,51 +222,50 @@ namespace
 
 namespace
 {
-	struct ProcessMessage
-	{
-		void operator () (MessageReadLevel && x)
-		{
-			engine::resource::data::Level level;
-			{
-				std::ifstream ifile(x.filename, std::ifstream::binary);
-				debug_assert(ifile);
-
-				read_level(ifile, level);
-			}
-			x.callback(x.filename, std::move(level));
-		}
-		void operator () (MessageReadPlaceholder && x)
-		{
-			if (check_if_msh(x.filename))
-			{
-				std::ifstream ifile(utility::to_string("res/", x.filename, ".msh"), std::ifstream::binary);
-				debug_assert(ifile);
-
-				engine::model::mesh_t mesh;
-				read_mesh(ifile, mesh);
-				x.callback(x.filename, engine::resource::data::Placeholder(x.filename, std::move(mesh)));
-			}
-			else if (check_if_json(x.filename))
-			{
-				std::ifstream ifile("res/" + x.filename + ".json");
-				debug_assert(ifile);
-
-				json j;
-				read_json(ifile, j);
-				x.callback(x.filename, engine::resource::data::Placeholder(x.filename, std::move(j)));
-			}
-			else
-			{
-				debug_fail();
-			}
-		}
-	};
-
-	void loader_load()
+	void process_messages()
 	{
 		Message message;
 		while (queue_messages.try_pop(message))
 		{
+			struct ProcessMessage
+			{
+				void operator () (MessageReadLevel && x)
+				{
+					engine::resource::reader::Level level;
+					{
+						std::ifstream ifile(utility::to_string("res/", x.name, ".lvl"), std::ifstream::binary);
+						debug_assert(ifile);
+
+						read_level(ifile, level);
+					}
+					x.callback(std::move(x.name), std::move(level));
+				}
+				void operator () (MessageReadPlaceholder && x)
+				{
+					if (check_if_msh(x.name))
+					{
+						std::ifstream ifile(utility::to_string("res/", x.name, ".msh"), std::ifstream::binary);
+						debug_assert(ifile);
+
+						engine::model::mesh_t mesh;
+						read_mesh(ifile, mesh);
+						x.callback(std::move(x.name), engine::resource::reader::Placeholder(std::move(mesh)));
+					}
+					else if (check_if_json(x.name))
+					{
+						std::ifstream ifile("res/" + x.name + ".json");
+						debug_assert(ifile);
+
+						json j;
+						read_json(ifile, j);
+						x.callback(std::move(x.name), engine::resource::reader::Placeholder(std::move(j)));
+					}
+					else
+					{
+						debug_fail();
+					}
+				}
+			};
 			visit(ProcessMessage{}, std::move(message));
 		}
 	}
@@ -282,7 +281,7 @@ namespace
 
 		while (active)
 		{
-			loader_load();
+			process_messages();
 
 			event.wait();
 			event.reset();
@@ -305,31 +304,34 @@ namespace engine
 {
 	namespace resource
 	{
-		void create()
+		namespace reader
 		{
-			debug_assert(!active);
+			void create()
+			{
+				debug_assert(!active);
 
-			active = true;
-			renderThread = core::async::Thread{ run };
-		}
+				active = true;
+				renderThread = core::async::Thread{ run };
+			}
 
-		void destroy()
-		{
-			debug_assert(active);
+			void destroy()
+			{
+				debug_assert(active);
 
-			active = false;
-			event.set();
+				active = false;
+				event.set();
 
-			renderThread.join();
-		}
+				renderThread.join();
+			}
 
-		void post_read_level(const std::string & filename, void (* callback)(const std::string & filename, data::Level && data))
-		{
-			post_message<MessageReadLevel>(filename, callback);
-		}
-		void post_read_placeholder(const std::string & filename, void (* callback)(const std::string & filename, data::Placeholder && data))
-		{
-			post_message<MessageReadPlaceholder>(filename, callback);
+			void post_read_level(std::string name, void (* callback)(std::string name, Level && data))
+			{
+				post_message<MessageReadLevel>(std::move(name), callback);
+			}
+			void post_read_placeholder(std::string name, void (* callback)(std::string name, Placeholder && data))
+			{
+				post_message<MessageReadPlaceholder>(std::move(name), callback);
+			}
 		}
 	}
 }
