@@ -2,7 +2,6 @@
 #include <core/debug.hpp>
 #include <engine/application/window.hpp>
 #include <gameplay/gamestate.hpp>
-#include <gameplay/level.hpp>
 #include <gameplay/ui.hpp>
 
 #include <config.h>
@@ -13,6 +12,20 @@
 
 namespace engine
 {
+	namespace resource
+	{
+		namespace loader
+		{
+			extern void create();
+			extern void destroy();
+		}
+		namespace reader
+		{
+			extern void create();
+			extern void destroy();
+		}
+	}
+
 namespace graphics
 {
 namespace renderer
@@ -58,12 +71,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 # endif
 	engine::application::window::create(hInstance, nCmdShow);
 
+	::engine::resource::reader::create();
+	::engine::resource::loader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
 	::engine::gui::create();
 	::gameplay::ui::create();
 	::gameplay::gamestate::create();
-	::gameplay::level::create("res/level.lvl");
 	::gameplay::looper::create();
 
 	const int ret = engine::application::window::execute();
@@ -71,12 +85,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	debug_printline(0xffffffff, "loop is no more");
 
 	::gameplay::looper::destroy();
-	::gameplay::level::destroy();
 	::gameplay::gamestate::destroy();
 	::gameplay::ui::destroy();
 	::engine::gui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
+	::engine::resource::loader::destroy();
+	::engine::resource::reader::destroy();
 
 	engine::application::window::destroy(hInstance);
 
@@ -87,12 +102,13 @@ int main(const int argc, const char *const argv[])
 {
 	engine::application::window::create();
 
+	::engine::resource::reader::create();
+	::engine::resource::loader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
 	::engine::gui::create();
 	::gameplay::ui::create();
 	::gameplay::gamestate::create();
-	::gameplay::level::create("res/level.lvl");
 	::gameplay::looper::create();
 
 	const int ret = engine::application::window::execute();
@@ -100,12 +116,13 @@ int main(const int argc, const char *const argv[])
 	debug_printline(0xffffffff, "loop is no more");
 
 	::gameplay::looper::destroy();
-	::gameplay::level::destroy();
 	::gameplay::gamestate::destroy();
 	::gameplay::ui::destroy();
 	::engine::gui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
+	::engine::resource::loader::destroy();
+	::engine::resource::reader::destroy();
 
 	engine::application::window::destroy();
 

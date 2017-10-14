@@ -42,7 +42,10 @@ namespace sync
 #endif
 
 	public:
-#if THREAD_USE_KERNEL32
+#if THREAD_USE_PTHREAD
+		/**  */
+		CriticalSection() = default;
+#elif THREAD_USE_KERNEL32
 		/**  */
 		~CriticalSection();
 		/**  */
