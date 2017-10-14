@@ -1,17 +1,40 @@
 
 #include <core/debug.hpp>
+
 #include <engine/application/window.hpp>
+
 #include <gameplay/gamestate.hpp>
 #include <gameplay/ui.hpp>
 
 #include <config.h>
 
 #if WINDOW_USE_USER32
-#include <windows.h>
+# include <windows.h>
 #endif
 
 namespace engine
 {
+	namespace graphics
+	{
+		namespace renderer
+		{
+			extern void create();
+			extern void destroy();
+		}
+	}
+
+	namespace gui
+	{
+		extern void create();
+		extern void destroy();
+	}
+
+	namespace physics
+	{
+		extern void create();
+		extern void destroy();
+	}
+
 	namespace resource
 	{
 		namespace loader
@@ -19,41 +42,22 @@ namespace engine
 			extern void create();
 			extern void destroy();
 		}
+
 		namespace reader
 		{
 			extern void create();
 			extern void destroy();
 		}
 	}
-
-namespace graphics
-{
-namespace renderer
-{
-	extern void create();
-	extern void destroy();
-}
 }
 
-namespace gui
-{
-	extern void create();
-	extern void destroy();
-}
-
-namespace physics
-{
-	extern void create();
-	extern void destroy();
-}
-}
 namespace gameplay
 {
-namespace looper
-{
-	extern void create();
-	extern void destroy();
-}
+	namespace looper
+	{
+		extern void create();
+		extern void destroy();
+	}
 }
 
 #if WINDOW_USE_USER32
@@ -63,8 +67,9 @@ int main(const int argc, const char *const argv[])
 	HINSTANCE hInstance = GetModuleHandle(nullptr);
 	int nCmdShow = SW_SHOW;
 
+	debug_assert(hInstance);
 	if (hInstance == nullptr)
-		throw std::runtime_error("GetModuleHandle failed");
+		return -1;
 # else
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
