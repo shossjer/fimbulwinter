@@ -7,11 +7,9 @@
 #ifdef __GNUG__
 # define gameplay_debug_print(...)     debug_print(gameplay::gameplay_channel, ##__VA_ARGS__)
 # define gameplay_debug_printline(...) debug_printline(gameplay::gameplay_channel, ##__VA_ARGS__)
-# define gameplay_debug_trace(...)     debug_trace(gameplay::gameplay_channel, ##__VA_ARGS__)
 #else
 # define gameplay_debug_print(...)     debug_print(gameplay::gameplay_channel, __VA_ARGS__)
 # define gameplay_debug_printline(...) debug_printline(gameplay::gameplay_channel, __VA_ARGS__)
-# define gameplay_debug_trace(...)     debug_trace(gameplay::gameplay_channel, __VA_ARGS__)
 #endif
 
 namespace gameplay

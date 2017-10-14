@@ -1239,12 +1239,12 @@ namespace
 
 	void render_setup()
 	{
-		graphics_debug_trace("render_callback starting");
+		graphics_debug_printline("render_callback starting");
 		engine::application::window::make_current();
 
-		graphics_debug_trace("glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
-		graphics_debug_trace("glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
-		graphics_debug_trace("glGetString GL_VERSION: ", glGetString(GL_VERSION));
+		graphics_debug_printline("glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
+		graphics_debug_printline("glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
+		graphics_debug_printline("glGetString GL_VERSION: ", glGetString(GL_VERSION));
 
 		engine::graphics::opengl::init();
 
@@ -1828,7 +1828,7 @@ namespace
 
 	void render_teardown()
 	{
-		graphics_debug_trace("render_callback stopping");
+		graphics_debug_printline("render_callback stopping");
 		// vvvvvvvv tmp vvvvvvvv
 		{
 			normal_font.decompile();

@@ -310,7 +310,7 @@ namespace engine
 					{
 						throw std::runtime_error("glXQueryExtension: failed");
 					}
-					application_debug_trace("glXQueryExtension: ", errorBase, " ", eventBase);
+					application_debug_printline("glXQueryExtension: ", errorBase, " ", eventBase);
 				}
 				// glXQueryVersion
 				{
@@ -321,26 +321,26 @@ namespace engine
 					{
 						throw std::runtime_error("glXQueryVersion: failed");
 					}
-					application_debug_trace("glXQueryVersion: ", major, " ", minor);
+					application_debug_printline("glXQueryVersion: ", major, " ", minor);
 				}
 				// XDefaultScreen
 				const int screen = XDefaultScreen(render_display);
 #ifdef GLX_VERSION_1_1
 				// glXGetClientString
 				{
-					application_debug_trace("glXGetClientString GLX_VENDOR: ", glXGetClientString(render_display, GLX_VENDOR));
-					application_debug_trace("glXGetClientString GLX_VERSION: ", glXGetClientString(render_display, GLX_VERSION));
-					// application_debug_trace("glXGetClientString GLX_EXTENSIONS: ", glXGetClientString(render_display, GLX_EXTENSIONS));
+					application_debug_printline("glXGetClientString GLX_VENDOR: ", glXGetClientString(render_display, GLX_VENDOR));
+					application_debug_printline("glXGetClientString GLX_VERSION: ", glXGetClientString(render_display, GLX_VERSION));
+					// application_debug_printline("glXGetClientString GLX_EXTENSIONS: ", glXGetClientString(render_display, GLX_EXTENSIONS));
 				}
 				// glXQueryServerString
 				{
-					application_debug_trace("glXQueryServerString GLX_VENDOR: ", glXQueryServerString(render_display, screen, GLX_VENDOR));
-					application_debug_trace("glXQueryServerString GLX_VERSION: ", glXQueryServerString(render_display, screen, GLX_VERSION));
-					// application_debug_trace("glXQueryServerString GLX_EXTENSIONS: ", glXQueryServerString(render_display, screen, GLX_EXTENSIONS));
+					application_debug_printline("glXQueryServerString GLX_VENDOR: ", glXQueryServerString(render_display, screen, GLX_VENDOR));
+					application_debug_printline("glXQueryServerString GLX_VERSION: ", glXQueryServerString(render_display, screen, GLX_VERSION));
+					// application_debug_printline("glXQueryServerString GLX_EXTENSIONS: ", glXQueryServerString(render_display, screen, GLX_EXTENSIONS));
 				}
 				// glXQueryExtensionsString
 				{
-					// application_debug_trace("glXQueryExtensionsString: ", glXQueryExtensionsString(render_display, screen));
+					// application_debug_printline("glXQueryExtensionsString: ", glXQueryExtensionsString(render_display, screen));
 				}
 #endif
 

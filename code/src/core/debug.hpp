@@ -42,12 +42,6 @@
 #  define debug_printline(channels, ...) core::debug::instance().printline(__FILE__, __LINE__, channels, __VA_ARGS__)
 # endif
 /**
- * Prints the arguements to the debug log.
- *
- * \note Is thread-safe.
- */
-# define debug_trace(channels, ...) core::debug::instance().trace(__FILE__, __LINE__, channels, __VA_ARGS__)
-/**
  * Fails unconditionally.
  */
 # define debug_unreachable() do { debug_fail(); std::terminate(); } while(false)
@@ -65,10 +59,6 @@
  */
 # define debug_printline(channels, ...)
 /**
- * Does nothing.
- */
-# define debug_trace(channels, ...)
-/**
  * Hint to the compiler that this path will never be reached.
  */
 # define debug_unreachable() intrinsic_unreachable()
@@ -76,10 +66,8 @@
 
 #ifdef __GNUG__
 # define core_debug_printline(...) debug_printline(core::core_channel, ##__VA_ARGS__)
-# define core_debug_trace(...)     debug_trace(core::core_channel, ##__VA_ARGS__)
 #else
 # define core_debug_printline(...) debug_printline(core::core_channel, __VA_ARGS__)
-# define core_debug_trace(...)     debug_trace(core::core_channel, __VA_ARGS__)
 #endif
 
 namespace core
@@ -234,16 +222,6 @@ namespace core
 			std::lock_guard<lock_t> guard{this->lock};
 			utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
 			std::cout.flush();
-		}
-		/**
-		 */
-		template <std::size_t N, typename ...Ts>
-		void trace(const char (&file_name)[N], const int line_number, const channel_t channels, Ts &&...ts)
-		{
-			// TODO:
-			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
-			std::cerr.flush();
 		}
 
 	public:
