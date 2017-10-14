@@ -61,20 +61,25 @@ namespace
 
 		void load(
 			engine::Asset && mesh,
-			std::string && name)
-		{
-			debug_assert(utility::holds_alternative<Loading>(state));
-
-			Loading loading = utility::get<Loading>(std::move(state));
-			const auto& loaded = state.emplace<Loaded>(std::move(mesh), std::move(name));
-
-			for (engine::Entity entity : loading.entities)
-			{
-				void create_entity(engine::Entity entity, const ResourceCharacter::Loaded & resource);
-				create_entity(entity, loaded);
-			}
-		}
+			std::string && name);
 	};
+	void create_entity(engine::Entity entity, const ResourceCharacter::Loaded & resource);
+
+	void ResourceCharacter::load(
+		engine::Asset && mesh,
+		std::string && name)
+	{
+		debug_assert(utility::holds_alternative<Loading>(state));
+
+		Loading loading = utility::get<Loading>(std::move(state));
+		const auto& loaded = state.emplace<Loaded>(std::move(mesh), std::move(name));
+
+		for (engine::Entity entity : loading.entities)
+		{
+			create_entity(entity, loaded);
+		}
+	}
+
 	struct ResourceDecoration
 	{
 		struct Loaded
@@ -113,20 +118,25 @@ namespace
 		}
 
 		void load(
-			std::vector<engine::graphics::data::CompC::asset> && assets)
-		{
-			debug_assert(utility::holds_alternative<Loading>(state));
-
-			Loading loading = utility::get<Loading>(std::move(state));
-			const auto& loaded = state.emplace<Loaded>(std::move(assets));
-
-			for (engine::Entity entity : loading.entities)
-			{
-				void create_entity(engine::Entity entity, const ResourceDecoration::Loaded & resource);
-				create_entity(entity, loaded);
-			}
-		}
+			std::vector<engine::graphics::data::CompC::asset> && assets);
 	};
+
+	void create_entity(engine::Entity entity, const ResourceDecoration::Loaded & resource);
+
+	void ResourceDecoration::load(
+		std::vector<engine::graphics::data::CompC::asset> && assets)
+	{
+		debug_assert(utility::holds_alternative<Loading>(state));
+
+		Loading loading = utility::get<Loading>(std::move(state));
+		const auto& loaded = state.emplace<Loaded>(std::move(assets));
+
+		for (engine::Entity entity : loading.entities)
+		{
+			create_entity(entity, loaded);
+		}
+	}
+
 	struct ResourceTable
 	{
 		struct Loaded
@@ -175,20 +185,26 @@ namespace
 		void load(
 			std::vector<engine::graphics::data::CompC::asset> && assets,
 			core::maths::Matrix4x4f && front,
-			core::maths::Matrix4x4f && top)
-		{
-			debug_assert(utility::holds_alternative<Loading>(state));
-
-			Loading loading = utility::get<Loading>(std::move(state));
-			const auto& loaded = state.emplace<Loaded>(std::move(assets), std::move(front), std::move(top));
-
-			for (engine::Entity entity : loading.entities)
-			{
-				void create_entity(engine::Entity entity, const ResourceTable::Loaded & resource);
-				create_entity(entity, loaded);
-			}
-		}
+			core::maths::Matrix4x4f && top);
 	};
+
+	void create_entity(engine::Entity entity, const ResourceTable::Loaded & resource);
+
+	void ResourceTable::load(
+		std::vector<engine::graphics::data::CompC::asset> && assets,
+		core::maths::Matrix4x4f && front,
+		core::maths::Matrix4x4f && top)
+	{
+		debug_assert(utility::holds_alternative<Loading>(state));
+
+		Loading loading = utility::get<Loading>(std::move(state));
+		const auto& loaded = state.emplace<Loaded>(std::move(assets), std::move(front), std::move(top));
+
+		for (engine::Entity entity : loading.entities)
+		{
+			create_entity(entity, loaded);
+		}
+	}
 
 	core::container::UnorderedCollection
 	<
