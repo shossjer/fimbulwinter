@@ -281,7 +281,7 @@ namespace
 			case UnmapNotify:
 				return 0;
 			default:
-				application_debug_printline("Event type(event_display): ", event.type);
+				debug_printline(engine::application_channel, "Event type(event_display): ", event.type);
 			}
 		}
 		return -1;
@@ -310,7 +310,7 @@ namespace engine
 					{
 						throw std::runtime_error("glXQueryExtension: failed");
 					}
-					application_debug_printline("glXQueryExtension: ", errorBase, " ", eventBase);
+					debug_printline(engine::application_channel, "glXQueryExtension: ", errorBase, " ", eventBase);
 				}
 				// glXQueryVersion
 				{
@@ -321,26 +321,26 @@ namespace engine
 					{
 						throw std::runtime_error("glXQueryVersion: failed");
 					}
-					application_debug_printline("glXQueryVersion: ", major, " ", minor);
+					debug_printline(engine::application_channel, "glXQueryVersion: ", major, " ", minor);
 				}
 				// XDefaultScreen
 				const int screen = XDefaultScreen(render_display);
 #ifdef GLX_VERSION_1_1
 				// glXGetClientString
 				{
-					application_debug_printline("glXGetClientString GLX_VENDOR: ", glXGetClientString(render_display, GLX_VENDOR));
-					application_debug_printline("glXGetClientString GLX_VERSION: ", glXGetClientString(render_display, GLX_VERSION));
-					// application_debug_printline("glXGetClientString GLX_EXTENSIONS: ", glXGetClientString(render_display, GLX_EXTENSIONS));
+					debug_printline(engine::application_channel, "glXGetClientString GLX_VENDOR: ", glXGetClientString(render_display, GLX_VENDOR));
+					debug_printline(engine::application_channel, "glXGetClientString GLX_VERSION: ", glXGetClientString(render_display, GLX_VERSION));
+					// debug_printline(engine::application_channel, "glXGetClientString GLX_EXTENSIONS: ", glXGetClientString(render_display, GLX_EXTENSIONS));
 				}
 				// glXQueryServerString
 				{
-					application_debug_printline("glXQueryServerString GLX_VENDOR: ", glXQueryServerString(render_display, screen, GLX_VENDOR));
-					application_debug_printline("glXQueryServerString GLX_VERSION: ", glXQueryServerString(render_display, screen, GLX_VERSION));
-					// application_debug_printline("glXQueryServerString GLX_EXTENSIONS: ", glXQueryServerString(render_display, screen, GLX_EXTENSIONS));
+					debug_printline(engine::application_channel, "glXQueryServerString GLX_VENDOR: ", glXQueryServerString(render_display, screen, GLX_VENDOR));
+					debug_printline(engine::application_channel, "glXQueryServerString GLX_VERSION: ", glXQueryServerString(render_display, screen, GLX_VERSION));
+					// debug_printline(engine::application_channel, "glXQueryServerString GLX_EXTENSIONS: ", glXQueryServerString(render_display, screen, GLX_EXTENSIONS));
 				}
 				// glXQueryExtensionsString
 				{
-					// application_debug_printline("glXQueryExtensionsString: ", glXQueryExtensionsString(render_display, screen));
+					// debug_printline(engine::application_channel, "glXQueryExtensionsString: ", glXQueryExtensionsString(render_display, screen));
 				}
 #endif
 
@@ -534,13 +534,13 @@ namespace engine
 						case ClientMessage:
 							if ((Atom)event.xclient.data.l[0] == wm_delete_window)
 							{
-								application_debug_printline("wm_delete_window");
+								debug_printline(engine::application_channel, "wm_delete_window");
 
 								XUnmapWindow(render_display, event.xclient.window);
 							}
 							break;
 						default:
-							application_debug_printline("Event type(render_display): ", event.type);
+							debug_printline(engine::application_channel, "Event type(render_display): ", event.type);
 						}
 					}
 				}
@@ -595,7 +595,7 @@ namespace engine
 
 			void close()
 			{
-				application_debug_printline("WARNING: 'cronus::application::close' is not implemented");
+				debug_printline(engine::application_channel, "WARNING: 'cronus::application::close' is not implemented");
 			}
 		}
 	}

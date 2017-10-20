@@ -4,12 +4,12 @@
 #include <core/async/Thread.hpp>
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
-#include <core/debug.hpp>
 #include <core/sync/Event.hpp>
 
 #include <engine/animation/mixer.hpp>
 #include <engine/Asset.hpp>
 #include <engine/Command.hpp>
+#include <engine/debug.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/physics/physics.hpp>
 #include <engine/resource/reader.hpp>
@@ -411,7 +411,7 @@ namespace
 
 			engine::resource::loader::Placeholder operator () (engine::model::mesh_t && data)
 			{
-				debug_printline(0xffffffff, "registering character \"", name, "\"");
+				debug_printline(engine::resource_channel, "registering character \"", name, "\"");
 				engine::graphics::renderer::post_register_character(std::move(name), std::move(data));
 
 				return engine::resource::loader::Placeholder();
@@ -601,7 +601,7 @@ namespace
 					const engine::Asset asset = x.name;
 					if (!assets.contains(asset))
 					{
-						debug_printline(0xffffffff, "We have read an asset that is not used any more");
+						debug_printline(engine::resource_channel, "We have read an asset that is not used any more");
 						debug_fail();
 					}
 					debug_assert(assets.contains<AssetLevel>(asset));
@@ -613,7 +613,7 @@ namespace
 					const engine::Asset asset = x.name;
 					if (!assets.contains(asset))
 					{
-						debug_printline(0xffffffff, "We have read an asset that is not used any more");
+						debug_printline(engine::resource_channel, "We have read an asset that is not used any more");
 						debug_fail();
 					}
 					debug_assert(assets.contains<AssetPlaceholder>(asset));

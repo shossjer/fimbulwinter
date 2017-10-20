@@ -5,6 +5,8 @@
 #include <core/container/CircleQueue.hpp>
 #include <core/sync/Event.hpp>
 
+#include <engine/debug.hpp>
+
 #include <utility/string.hpp>
 #include <utility/variant.hpp>
 
@@ -173,24 +175,24 @@ namespace
 	{
 		std::string name;
 		read_string(ifile, name);
-		debug_printline(0xffffffff, "mesh name: ", name);
+		debug_printline(engine::resource_channel, "mesh name: ", name);
 
 		read_matrix(ifile, mesh.matrix);
 
 		read_buffer<float, 3>(ifile, mesh.xyz);
-		debug_printline(0xffffffff, "mesh vertices: ", mesh.xyz.count() / 3);
+		debug_printline(engine::resource_channel, "mesh vertices: ", mesh.xyz.count() / 3);
 
 		read_buffer<float, 2>(ifile, mesh.uv);
-		debug_printline(0xffffffff, "mesh uv's: ", mesh.uv.count() / 2);
+		debug_printline(engine::resource_channel, "mesh uv's: ", mesh.uv.count() / 2);
 
 		read_buffer<float, 3>(ifile, mesh.normals);
-		debug_printline(0xffffffff, "mesh normals: ", mesh.normals.count() / 3);
+		debug_printline(engine::resource_channel, "mesh normals: ", mesh.normals.count() / 3);
 
 		read_weights(ifile, mesh);
-		debug_printline(0xffffffff, "mesh weights: ", mesh.weights.size());
+		debug_printline(engine::resource_channel, "mesh weights: ", mesh.weights.size());
 
 		read_buffer<unsigned int, 3>(ifile, mesh.triangles);
-		debug_printline(0xffffffff, "mesh triangles: ", mesh.triangles.count() / 3);
+		debug_printline(engine::resource_channel, "mesh triangles: ", mesh.triangles.count() / 3);
 	}
 
 	void read_json(std::ifstream & ifile, json & j)

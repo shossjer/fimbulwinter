@@ -84,12 +84,12 @@ namespace core
 			const int image_height = png_get_image_height(png_ptr, info_ptr);
 			const int bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 			const int row_size = image_width * channels * (bit_depth / 8);
-			debug_printline(0xffffffff, "texture: ", filename);
-			debug_printline(0xffffffff, "channels: ", channels);
-			debug_printline(0xffffffff, "color_type: ", color_type);
-			debug_printline(0xffffffff, "image_width: ", image_width);
-			debug_printline(0xffffffff, "image_height: ", image_height);
-			debug_printline(0xffffffff, "bit_depth: ", bit_depth);
+			debug_printline(core::core_channel, "texture: ", filename);
+			debug_printline(core::core_channel, "channels: ", channels);
+			debug_printline(core::core_channel, "color_type: ", color_type);
+			debug_printline(core::core_channel, "image_width: ", image_width);
+			debug_printline(core::core_channel, "image_height: ", image_height);
+			debug_printline(core::core_channel, "bit_depth: ", bit_depth);
 			std::vector<char> pixels(row_size * image_height);
 			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
 			std::vector<png_bytep> rows(image_height);

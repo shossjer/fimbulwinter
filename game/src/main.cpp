@@ -87,7 +87,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	const int ret = engine::application::window::execute();
 
-	debug_printline(0xffffffff, "loop is no more");
+	debug_printline("loop is no more");
 
 	::gameplay::looper::destroy();
 	::gameplay::gamestate::destroy();
@@ -118,7 +118,7 @@ int main(const int argc, const char *const argv[])
 
 	const int ret = engine::application::window::execute();
 
-	debug_printline(0xffffffff, "loop is no more");
+	debug_printline("loop is no more");
 
 	::gameplay::looper::destroy();
 	::gameplay::gamestate::destroy();

@@ -167,7 +167,7 @@ namespace engine
 				}
 
 				//GetVersionEx(&osvi);
-				//application_debug_printline("GetVersionEx: ", osvi.dwMajorVersion, " ", osvi.dwMinorVersion);
+				//debug_printline(engine::application_channel, "GetVersionEx: ", osvi.dwMajorVersion, " ", osvi.dwMinorVersion);
 
 				// register window class
 				const WNDCLASSEX WndClass = {sizeof(WNDCLASSEX),

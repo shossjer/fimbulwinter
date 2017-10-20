@@ -9,6 +9,8 @@
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 
+#include <engine/debug.hpp>
+
 #include <utility/json.hpp>
 
 #include <fstream>
@@ -135,7 +137,7 @@ namespace
 	{
 		if (!lookup.contains(name))
 		{
-			debug_printline(0xffffffff, "GUI - could not find asset in lookup.");
+			debug_printline(engine::gui_channel, "GUI - could not find asset in lookup.");
 			debug_unreachable();
 		}
 
@@ -297,7 +299,7 @@ namespace
 			}
 			default:
 
-				debug_printline(0xffffffff, "GUI - invalid function type.");
+				debug_printline(engine::gui_channel, "GUI - invalid function type.");
 				debug_unreachable();
 			}
 		}
@@ -645,7 +647,7 @@ namespace gui
 
 						if (!lookup.contains(kv.first))
 						{
-							debug_printline(0xffffffff, "GUI - cannot find named component for list.");
+							debug_printline(engine::gui_channel, "GUI - cannot find named component for list.");
 							continue;
 						}
 
@@ -659,7 +661,7 @@ namespace gui
 			}
 			default:
 
-				debug_printline(0xffffffff, "GUI - invalid update type for list (needs list).");
+				debug_printline(engine::gui_channel, "GUI - invalid update type for list (needs list).");
 				debug_unreachable();
 			}
 		}
@@ -675,7 +677,7 @@ namespace gui
 
 			default:
 
-				debug_printline(0xffffffff, "GUI - invalid update type for color panel.");
+				debug_printline(engine::gui_channel, "GUI - invalid update type for color panel.");
 				debug_unreachable();
 			}
 		}
@@ -692,7 +694,7 @@ namespace gui
 
 			default:
 
-				debug_printline(0xffffffff, "GUI - invalid update type for texture panel.");
+				debug_printline(engine::gui_channel, "GUI - invalid update type for texture panel.");
 				debug_unreachable();
 			}
 		}
@@ -714,7 +716,7 @@ namespace gui
 
 			default:
 
-				debug_printline(0xffffffff, "GUI - invalid update type for text.");
+				debug_printline(engine::gui_channel, "GUI - invalid update type for text.");
 				debug_unreachable();
 			}
 		}
@@ -740,7 +742,7 @@ namespace gui
 
 			default:
 
-				debug_printline(0xffffffff, "GUI - invalid update type for progress bar.");
+				debug_printline(engine::gui_channel, "GUI - invalid update type for progress bar.");
 				debug_unreachable();
 			}
 		}
@@ -748,7 +750,7 @@ namespace gui
 		template<typename T>
 		void operator() (const T &)
 		{
-			debug_printline(0xffffffff, "GUI - update of unknown component type.");
+			debug_printline(engine::gui_channel, "GUI - update of unknown component type.");
 		}
 	};
 
@@ -820,7 +822,7 @@ namespace gui
 				{
 					if (!lookup.contains(data.first))
 					{
-						debug_printline(0xffffffff, "GUI - cannot find named component for update.");
+						debug_printline(engine::gui_channel, "GUI - cannot find named component for update.");
 						continue;
 					}
 

@@ -2,7 +2,6 @@
 #include "factory.hpp"
 
 #include <core/container/Collection.hpp>
-#include <core/debug.hpp>
 #include <core/maths/algorithm.hpp>
 #include <core/sync/CriticalSection.hpp>
 
@@ -11,6 +10,7 @@
 #include <engine/physics/physics.hpp>
 #include <engine/resource/loader.hpp>
 
+#include <gameplay/debug.hpp>
 #include <gameplay/gamestate.hpp>
 
 #include <utility/string.hpp>
@@ -569,7 +569,7 @@ namespace
 			void operator () (const engine::resource::loader::asset_template_t & x)
 			{
 				const engine::Asset asset = name;
-				debug_printline(0xffffffff, "KJHS: ", name);
+				debug_printline(gameplay::gameplay_channel, "KJHS: ", name);
 
 				std::lock_guard<core::sync::CriticalSection> load(resources_cs);
 				debug_assert(resources.contains(asset));

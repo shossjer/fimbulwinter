@@ -4,6 +4,7 @@
 #include "loading.hpp"
 #include "resources.hpp"
 
+#include <engine/debug.hpp>
 #include <engine/graphics/renderer.hpp>
 
 #include <utility/json.hpp>
@@ -42,7 +43,7 @@ namespace
 					const auto val = std::stoul(str, nullptr, 16);
 
 					resource::put(engine::Asset{ i.key() }, val);
-					debug_printline(0xffffffff, "GUI - loading color: ", i.key());
+					debug_printline(engine::gui_channel, "GUI - loading color: ", i.key());
 				}
 			}
 
@@ -71,7 +72,7 @@ namespace
 						pressedColor = defColor;
 
 					resource::put(engine::Asset{ i.key() }, defColor, highColor, pressedColor);
-					debug_printline(0xffffffff, "GUI - loading selector: ", i.key());
+					debug_printline(engine::gui_channel, "GUI - loading selector: ", i.key());
 				}
 			}
 		}
@@ -149,7 +150,7 @@ namespace
 				if (str == "parent") return Size::Dimen{ Size::TYPE::PARENT };
 				if (str == "wrap") return Size::Dimen{ Size::TYPE::WRAP };
 
-				debug_printline(0xffffffff, "GUI - invalid size dimen: ", jd);
+				debug_printline(engine::gui_channel, "GUI - invalid size dimen: ", jd);
 				debug_unreachable();
 			}
 			else
@@ -158,7 +159,7 @@ namespace
 				return Size::Dimen{ Size::TYPE::FIXED, jd.get<value_t>() };
 			}
 
-			debug_printline(0xffffffff, "GUI - invalid size value: ", jd);
+			debug_printline(engine::gui_channel, "GUI - invalid size value: ", jd);
 			debug_unreachable();
 		}
 
@@ -220,7 +221,7 @@ namespace
 			if (str == "vertical") return Layout::VERTICAL;
 			if (str == "relative") return Layout::RELATIVE;
 
-			debug_printline(0xffffffff, "GUI - invalid layout: ", str);
+			debug_printline(engine::gui_channel, "GUI - invalid layout: ", str);
 			debug_unreachable();
 		}
 
@@ -244,7 +245,7 @@ namespace
 					if (str == "right") h = Gravity::HORIZONTAL_RIGHT;
 					else
 					{
-						debug_printline(0xffffffff, "GUI - invalid horizontal gravity: ", str);
+						debug_printline(engine::gui_channel, "GUI - invalid horizontal gravity: ", str);
 						debug_unreachable();
 					}
 				}
@@ -260,7 +261,7 @@ namespace
 					if (str == "bottom") v = Gravity::VERTICAL_BOTTOM;
 					else
 					{
-						debug_printline(0xffffffff, "GUI - invalid vertical gravity: ", str);
+						debug_printline(engine::gui_channel, "GUI - invalid vertical gravity: ", str);
 						debug_unreachable();
 					}
 				}
@@ -450,7 +451,7 @@ namespace
 					break;
 
 				default:
-					debug_printline(0xffffffff, "GUI - unknown trigger action in component: ", jcomponent);
+					debug_printline(engine::gui_channel, "GUI - unknown trigger action in component: ", jcomponent);
 					debug_unreachable();
 				}
 			}
@@ -484,7 +485,7 @@ namespace
 					}
 					else
 					{
-						debug_printline(0xffffffff, "GUI - Progress bar invalid direction: ", jcomponent);
+						debug_printline(engine::gui_channel, "GUI - Progress bar invalid direction: ", jcomponent);
 						debug_unreachable();
 					}
 				}
@@ -499,7 +500,7 @@ namespace
 				break;
 			}
 			default:
-				debug_printline(0xffffffff, "GUI - Unknown function type: ", jcomponent);
+				debug_printline(engine::gui_channel, "GUI - Unknown function type: ", jcomponent);
 				debug_unreachable();
 			}
 		}
@@ -859,7 +860,7 @@ namespace gui
 
 		if (!file.is_open())
 		{
-			debug_printline(0xffffffff, "GUI - res/gui.json file is missing. No GUI is loaded.");
+			debug_printline(engine::gui_channel, "GUI - res/gui.json file is missing. No GUI is loaded.");
 			return;
 		}
 

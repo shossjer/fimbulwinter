@@ -37,9 +37,9 @@
  * \note Also prints the arguments to the debug log.
  */
 # ifdef __GNUG__
-#  define debug_printline(channels, ...) core::debug::instance().printline(__FILE__, __LINE__, channels, ##__VA_ARGS__)
+#  define debug_printline(...) core::debug::instance().printline(__FILE__, __LINE__, ##__VA_ARGS__)
 # else
-#  define debug_printline(channels, ...) core::debug::instance().printline(__FILE__, __LINE__, channels, __VA_ARGS__)
+#  define debug_printline(...) core::debug::instance().printline(__FILE__, __LINE__, __VA_ARGS__)
 # endif
 /**
  * Fails unconditionally.
@@ -57,26 +57,19 @@
 /**
  * Does nothing.
  */
-# define debug_printline(channels, ...)
+# define debug_printline(...)
 /**
  * Hint to the compiler that this path will never be reached.
  */
 # define debug_unreachable() intrinsic_unreachable()
 #endif
 
-#ifdef __GNUG__
-# define core_debug_printline(...) debug_printline(core::core_channel, ##__VA_ARGS__)
-#else
-# define core_debug_printline(...) debug_printline(core::core_channel, __VA_ARGS__)
-#endif
-
 namespace core
 {
-	enum channel_t : unsigned
-	{
-		core_channel = 1 << 0,
-		n_channels  = 1
-	};
+	template <uint64_t Bitmask>
+	struct channel_t { explicit channel_t() = default; };
+
+	constexpr auto core_channel = channel_t<0x0000000000000001ull>{};
 
 	/**
 	 */
@@ -155,24 +148,19 @@ namespace core
 	private:
 		using lock_t = utility::spinlock;
 
-	public:
-		/**
-		 */
-		using channel_t = unsigned int;
-
 	private:
 		/**
 		 */
 		lock_t lock;
 		/**
 		 */
-		channel_t mask;
+		uint64_t mask;
 
 	private:
 		/**
 		 */
 		debug() :
-			mask(0xffffffff)
+			mask(0xffffffffffffffffull)
 		{
 		}
 
@@ -213,14 +201,31 @@ namespace core
 		}
 		/**
 		 */
-		template <std::size_t N, typename ...Ts>
-		void printline(const char (&file_name)[N], const int line_number, const channel_t channels, Ts && ...ts)
-		{
-			// TODO:
-			if ((this->mask & channels) == 0) return;
 
+		/**
+		 */
+		template <std::size_t N, uint64_t Bitmask, typename ...Ps>
+		void printline(const char (& file_name)[N], int line_number, channel_t<Bitmask>, Ps && ...ps)
+		{
+			if ((mask & Bitmask) == 0)
+				return;
+
+			printline_all(file_name, line_number, std::forward<Ps>(ps)...);
+		}
+		/**
+		 */
+		template <std::size_t N, typename ...Ps>
+		void printline(const char (& file_name)[N], int line_number, Ps && ...ps)
+		{
+			printline_all(file_name, line_number, std::forward<Ps>(ps)...);
+		}
+		/**
+		 */
+		template <std::size_t N, typename ...Ps>
+		void printline_all(const char (& file_name)[N], int line_number, Ps && ...ps)
+		{
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ts>(ts)..., "\n");
+			utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ps>(ps)..., "\n");
 			std::cout.flush();
 		}
 
