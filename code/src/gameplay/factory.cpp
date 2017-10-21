@@ -530,9 +530,9 @@ namespace
 		for (auto & placeholder : data.placeholders)
 		{
 			const auto modelview =
-				make_scale_matrix(placeholder.scale) *
 				make_translation_matrix(placeholder.translation) *
-				make_matrix(placeholder.rotation);
+				make_matrix(placeholder.rotation) *
+				make_scale_matrix(placeholder.scale);
 			gameplay::create_placeholder(placeholder.name, engine::Entity::create(), modelview);
 		}
 	}
