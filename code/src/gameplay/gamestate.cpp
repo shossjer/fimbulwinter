@@ -12,6 +12,7 @@
 #include <engine/gui/gui.hpp>
 #include <engine/physics/physics.hpp>
 
+#include <gameplay/debug.hpp>
 #include <gameplay/factory.hpp>
 #include <gameplay/ui.hpp>
 
@@ -39,11 +40,11 @@ namespace
 			{
 			case engine::Command::CONTEXT_CHANGED:
 				debug_assert(!args.second.has_value());
-				debug_printline(0xffffffff, "Switching to camera: ", camera);
+				debug_printline(gameplay::gameplay_channel, "Switching to camera: ", camera);
 				engine::graphics::viewer::set_active_3d(camera);
 				break;
 			default:
-				debug_printline(0xffffffff, "CameraActivator: Unknown command: ", static_cast<int>(args.first));
+				debug_printline(gameplay::gameplay_channel, "CameraActivator: Unknown command: ", static_cast<int>(args.first));
 			}
 		}
 	};
@@ -170,7 +171,7 @@ namespace
 				elevate_up = false;
 				break;
 			default:
-				debug_printline(0xffffffff, "FreeCamera: Unknown command: ", static_cast<int>(args.first));
+				debug_printline(gameplay::gameplay_channel, "FreeCamera: Unknown command: ", static_cast<int>(args.first));
 			}
 		}
 
@@ -268,7 +269,7 @@ namespace
 				move_up--;
 				break;
 			default:
-				debug_printline(0xffffffff, "OverviewCamera: Unknown command: ", static_cast<int>(args.first));
+				debug_printline(gameplay::gameplay_channel, "OverviewCamera: Unknown command: ", static_cast<int>(args.first));
 			}
 		}
 
@@ -303,7 +304,7 @@ namespace
 				entityClick(utility::any_cast<engine::Entity>(args.second));
 				break;
 			default:
-				debug_printline(0xffffffff, "Selector: Unknown command: ", static_cast<int>(args.first));
+				debug_printline(gameplay::gameplay_channel, "Selector: Unknown command: ", static_cast<int>(args.first));
 			}
 		}
 	};
@@ -337,7 +338,7 @@ namespace
 
 		void print()
 		{
-			debug_printline(0xffffffff, "Carrot status - raw: ", this->carrotsRaw, " chopped: ", this->carrotsChopped);
+			debug_printline(gameplay::gameplay_channel, "Carrot status - raw: ", this->carrotsRaw, " chopped: ", this->carrotsChopped);
 		}
 	} storage;
 
@@ -427,7 +428,7 @@ namespace
 
 			if (!storage.checkoutRawCarrot())
 			{
-				debug_printline(0xffffffff, "No more raw carrots to chopp!");
+				debug_printline(gameplay::gameplay_channel, "No more raw carrots to chopp!");
 				return;
 			}
 
@@ -670,7 +671,7 @@ namespace
 	{
 		void operator () (const GUIComponent & c)
 		{
-			debug_printline(0xffffffff, "Gamestate - Highlight entity: ", c.id);
+			debug_printline(gameplay::gameplay_channel, "Gamestate - Highlight entity: ", c.id);
 			engine::gui::post_interaction_highlight(c.window, c.id);
 		}
 
@@ -685,7 +686,7 @@ namespace
 	{
 		void operator () (const GUIComponent & c)
 		{
-			debug_printline(0xffffffff, "Gamestate - Lowlight entity: ", c.id);
+			debug_printline(gameplay::gameplay_channel, "Gamestate - Lowlight entity: ", c.id);
 			engine::gui::post_interaction_lowlight(c.window, c.id);
 		}
 
@@ -700,7 +701,7 @@ namespace
 	{
 		void operator () (const GUIComponent & c)
 		{
-			debug_printline(0xffffffff, "Gamestate - Pressing entity: ", c.id);
+			debug_printline(gameplay::gameplay_channel, "Gamestate - Pressing entity: ", c.id);
 			engine::gui::post_interaction_press(c.window, c.id);
 		}
 
@@ -715,7 +716,7 @@ namespace
 	{
 		void operator () (const GUIComponent & c)
 		{
-			debug_printline(0xffffffff, "Gamestate - Releasing entity: ", c.id);
+			debug_printline(gameplay::gameplay_channel, "Gamestate - Releasing entity: ", c.id);
 			engine::gui::post_interaction_release(c.window, c.id);
 		}
 
@@ -731,7 +732,7 @@ namespace
 		void operator = (std::pair<engine::Command, utility::any> && args)
 		{
 			debug_assert(args.first == engine::Command::LOADER_FINISHED);
-			debug_printline(0xffffffff, "WOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOW");
+			debug_printline(gameplay::gameplay_channel, "WOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOW");
 		}
 	};
 
@@ -820,7 +821,7 @@ namespace
 		// performs whatever should be done when a Worker is clicked
 		void operator() (Worker & w)
 		{
-			debug_printline(0xffffffff, "You have clicked worker!");
+			debug_printline(gameplay::gameplay_channel, "You have clicked worker!");
 			this->selectedWorker = w.id;
 		}
 
@@ -834,10 +835,10 @@ namespace
 			{
 				if (s.worker == selectedWorker)
 				{
-					debug_printline(0xffffffff, "I'm already working as fast as I can!");
+					debug_printline(gameplay::gameplay_channel, "I'm already working as fast as I can!");
 					return;
 				}
-				debug_printline(0xffffffff, "The station is busy!");
+				debug_printline(gameplay::gameplay_channel, "The station is busy!");
 				return;
 			}
 

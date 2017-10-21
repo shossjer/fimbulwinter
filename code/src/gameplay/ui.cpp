@@ -4,11 +4,12 @@
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 #include <core/container/ExchangeQueue.hpp>
-#include <core/debug.hpp>
 
 #include <engine/Command.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/hid/input.hpp>
+
+#include <gameplay/debug.hpp>
 
 #include <algorithm>
 #include <tuple>
@@ -107,7 +108,7 @@ namespace
 
 	void set_active_context(engine::Asset context)
 	{
-		debug_printline(0xffffffff, "Switching context: ", static_cast<int>(active_context), " -> ", static_cast<int>(context));
+		debug_printline(gameplay::gameplay_channel, "Switching context: ", static_cast<int>(active_context), " -> ", static_cast<int>(context));
 		active_context = context;
 	}
 	ContextEntities & get_active_context()

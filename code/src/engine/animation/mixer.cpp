@@ -6,13 +6,13 @@
 
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
-#include <core/debug.hpp>
 #include <core/maths/Matrix.hpp>
 #include <core/maths/Quaternion.hpp>
 #include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
 
 #include <engine/Asset.hpp>
+#include <engine/debug.hpp>
 #include <engine/Entity.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/physics/physics.hpp>
@@ -414,7 +414,7 @@ namespace
 				                        data.name);
 				if (action == x.armature->actions.end())
 				{
-					debug_printline(0xffffffff, "Could not find action ", data.name, " in armature ", x.armature->name);
+					debug_printline(engine::animation_channel, "Could not find action ", data.name, " in armature ", x.armature->name);
 				}
 				else
 				{
@@ -436,7 +436,7 @@ namespace
 				                        data.name);
 				if (action == x.object->actions.end())
 				{
-					debug_printline(0xffffffff, "Could not find action ", data.name, " in object ", x.object->name);
+					debug_printline(engine::animation_channel, "Could not find action ", data.name, " in object ", x.object->name);
 				}
 				else
 				{

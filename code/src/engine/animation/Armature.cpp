@@ -1,7 +1,7 @@
 
 #include "Armature.hpp"
 
-#include <core/debug.hpp>
+#include <engine/debug.hpp>
 
 namespace
 {
@@ -67,10 +67,10 @@ namespace
 		Action & me = actions.back();
 
 		read_string(stream, me.name);
-		debug_printline(0xffffffff, me.name);
+		debug_printline(engine::animation_channel, me.name);
 
 		stream.read(reinterpret_cast<char *>(& me.length), sizeof(int32_t));
-		debug_printline(0xffffffff, me.length);
+		debug_printline(engine::animation_channel, me.length);
 
 		me.frames.reserve(me.length + 1);
 		for (int framei = 0; framei <= me.length; framei++)
@@ -89,7 +89,7 @@ namespace
 
 		uint8_t has_positions;
 		stream.read(reinterpret_cast<char *>(& has_positions), sizeof(uint8_t));
-		debug_printline(0xffffffff, has_positions ? "has positions" : "has NOT positions");
+		debug_printline(engine::animation_channel, has_positions ? "has positions" : "has NOT positions");
 
 		if (has_positions)
 		{
@@ -102,7 +102,7 @@ namespace
 
 		uint8_t has_orientations;
 		stream.read(reinterpret_cast<char *>(& has_orientations), sizeof(uint8_t));
-		debug_printline(0xffffffff, has_orientations ? "has orientations" : "has NOT orientations");
+		debug_printline(engine::animation_channel, has_orientations ? "has orientations" : "has NOT orientations");
 
 		if (has_orientations)
 		{
@@ -117,21 +117,21 @@ namespace
 	void read_armature(std::ifstream & stream, Armature & armature)
 	{
 		read_string(stream, armature.name);
-		debug_printline(0xffffffff, "armature name: ", armature.name);
+		debug_printline(engine::animation_channel, "armature name: ", armature.name);
 
 		read_count(stream, armature.njoints);
-		debug_printline(0xffffffff, "armature njoints: ", armature.njoints);
+		debug_printline(engine::animation_channel, "armature njoints: ", armature.njoints);
 
 		uint16_t nroots;
 		read_count(stream, nroots);
-		debug_printline(0xffffffff, "armature nroots: ", nroots);
+		debug_printline(engine::animation_channel, "armature nroots: ", nroots);
 
 		armature.joints.reserve(armature.njoints);
 		while (armature.joints.size() < armature.njoints)
 			read_joint_chain(stream, armature.joints, -1);
 
 		read_count(stream, armature.nactions);
-		debug_printline(0xffffffff, "armature nactions: ", armature.nactions);
+		debug_printline(engine::animation_channel, "armature nactions: ", armature.nactions);
 
 		armature.actions.reserve(armature.nactions);
 		while (armature.actions.size() < armature.nactions)

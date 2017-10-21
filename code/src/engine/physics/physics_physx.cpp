@@ -13,6 +13,7 @@
 #include "material_physx.hpp"
 #include "Callback.hpp"
 
+#include <engine/debug.hpp>
 #include <engine/graphics/renderer.hpp>
 
 #include <core/container/CircleQueue.hpp>
@@ -73,17 +74,17 @@ namespace physics
 	{
 		void onConstraintBreak(physx::PxConstraintInfo* constraints, physx::PxU32 count)
 		{
-			debug_printline(0xffffffff, "onConstraintBreak");
+			debug_printline(engine::physics_channel, "onConstraintBreak");
 		}
 
 		void onWake(physx::PxActor** actors, physx::PxU32 count)
 		{
-			debug_printline(0xffffffff, "onWake");
+			debug_printline(engine::physics_channel, "onWake");
 		}
 
 		void onSleep(physx::PxActor** actors, physx::PxU32 count)
 		{
-			debug_printline(0xffffffff, "onSleep");
+			debug_printline(engine::physics_channel, "onSleep");
 		}
 
 		void onContact(const physx::PxContactPairHeader & pairHeader, const physx::PxContactPair * pairs, physx::PxU32 nbPairs)
@@ -168,7 +169,7 @@ namespace physics
 
 		if (pFoundation.get()==nullptr)
 		{
-			debug_printline(0xffffffff, "Could not create physx Foundation.");
+			debug_printline(engine::physics_channel, "Could not create physx Foundation.");
 			return false;
 		}
 
@@ -176,13 +177,13 @@ namespace physics
 
 		if (pWorld.get()==nullptr)
 		{
-			debug_printline(0xffffffff, "Could not create physx World.");
+			debug_printline(engine::physics_channel, "Could not create physx World.");
 			return false;
 		}
 
 		if (!PxInitExtensions(*pWorld))
 		{
-			debug_printline(0xffffffff, "Could not init extensions.");
+			debug_printline(engine::physics_channel, "Could not init extensions.");
 			return false;
 		}
 
@@ -190,7 +191,7 @@ namespace physics
 
 		if (pCPUDispatcher.get()==nullptr)
 		{
-			debug_printline(0xffffffff, "Could not create physx DefaultCpuDispatcher.");
+			debug_printline(engine::physics_channel, "Could not create physx DefaultCpuDispatcher.");
 			return false;
 		}
 
@@ -206,7 +207,7 @@ namespace physics
 
 		if (pScene.get()==nullptr)
 		{
-			debug_printline(0xffffffff, "Could not create physx Scene.");
+			debug_printline(engine::physics_channel, "Could not create physx Scene.");
 			return false;
 		}
 
@@ -215,7 +216,7 @@ namespace physics
 
 		if (pCooking.get()==nullptr)
 		{
-			debug_printline(0xffffffff, "Could not create physx Cooking.");
+			debug_printline(engine::physics_channel, "Could not create physx Cooking.");
 			return false;
 		}
 
@@ -229,7 +230,7 @@ namespace physics
 		physx2::pScene = pScene.release();
 		physx2::pCooking = pCooking.release();
 
-		debug_printline(0xffffffff, "Physx successfully created.");
+		debug_printline(engine::physics_channel, "Physx successfully created.");
 
 		// Water (salt)	1,030
 		// Plastics		1,175
