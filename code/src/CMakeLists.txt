@@ -19,6 +19,7 @@ set(SOURCE_FILES
 	src/engine/gui/loading.cpp
 	src/engine/gui/resources.cpp
 	src/engine/gui/views.cpp
+	src/engine/gui2/gui.cpp
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
@@ -81,6 +82,15 @@ set(HEADER_FILES
 	src/engine/gui/resources.hpp
 	src/engine/gui/updater.hpp
 	src/engine/gui/views.hpp
+	src/engine/gui2/actions.hpp
+	src/engine/gui2/common.hpp
+	src/engine/gui2/function.hpp
+	src/engine/gui2/gui.hpp
+	src/engine/gui2/measure.hpp
+	src/engine/gui2/render.hpp
+	src/engine/gui2/resources.hpp
+	src/engine/gui2/update.hpp
+	src/engine/gui2/view.hpp
 	src/engine/hid/input.hpp
 	src/engine/model/data.hpp
 	src/engine/physics/actor_physx.hpp
