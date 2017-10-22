@@ -722,6 +722,20 @@ namespace
 			x.matrix_pallet = std::move(data.matrix_pallet);
 		}
 	};
+
+
+	struct selected_t
+	{
+	};
+
+	core::container::UnorderedCollection
+	<
+		engine::Entity,
+		201,
+		std::array<selected_t, 100>,
+		std::array<selected_t, 1>
+	>
+	selected_components;
 }
 
 namespace
@@ -800,6 +814,17 @@ namespace
 	{
 		engine::Entity entity;
 	};
+	struct MessageMakeClearSelection
+	{
+	};
+	struct MessageMakeDeselect
+	{
+		engine::Entity entity;
+	};
+	struct MessageMakeSelect
+	{
+		engine::Entity entity;
+	};
 	struct MessageRemove
 	{
 		engine::Entity entity;
@@ -842,6 +867,9 @@ namespace
 		MessageMakeObstruction,
 		MessageMakeSelectable,
 		MessageMakeTransparent,
+		MessageMakeClearSelection,
+		MessageMakeDeselect,
+		MessageMakeSelect,
 		MessageRemove,
 		MessageUpdateCharacterSkinning,
 		MessageUpdateModelviewMatrix,
@@ -986,6 +1014,24 @@ namespace
 						selectable_components.remove(x.entity);
 					}
 				}
+				void operator () (MessageMakeClearSelection && x)
+				{
+					debug_fail(); // not implemented yet
+				}
+				void operator () (MessageMakeDeselect && x)
+				{
+					if (selected_components.contains(x.entity))
+					{
+						selected_components.remove(x.entity);
+					}
+				}
+				void operator () (MessageMakeSelect && x)
+				{
+					if (!selected_components.contains(x.entity))
+					{
+						selected_components.emplace<selected_t>(x.entity);
+					}
+				}
 				void operator () (MessageRemove && x)
 				{
 					debug_assert(components.contains(x.entity));
@@ -1068,6 +1114,7 @@ namespace
 	std::atomic<int> entitytoggle;
 	engine::Entity highlighted_entity = engine::Entity::null();
 	engine::graphics::opengl::Color4ub highlighted_color{255, 191, 64, 255};
+	engine::graphics::opengl::Color4ub selected_color{64, 191, 255, 255};
 
 	engine::Entity get_entity_at_screen(int sx, int sy)
 	{
@@ -1555,10 +1602,16 @@ namespace
 			modelview_matrix.mult(component.mesh->modelview);
 			glLoadMatrix(modelview_matrix);
 
-			glColor(highlighted_color);
+			const auto entity = components.get_key(component);
+			const bool is_highlighted = entity == highlighted_entity;
+			const bool is_selected = selected_components.contains(entity);
 
-			// component.update();
-			component.draw(components.get_key(component) == highlighted_entity);
+			if (is_highlighted)
+				glColor(highlighted_color);
+			else if (is_selected)
+				glColor(selected_color);
+
+			component.draw(is_highlighted || is_selected);
 
 			modelview_matrix.pop();
 		}
@@ -1568,8 +1621,18 @@ namespace
 			modelview_matrix.mult(component.modelview);
 			glLoadMatrix(modelview_matrix);
 
+			const auto entity = components.get_key(component);
+			const bool is_highlighted = entity == highlighted_entity;
+			const bool is_selected = selected_components.contains(entity);
+
 			glLineWidth(2.f);
-			glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
+			if (is_highlighted)
+				glColor(highlighted_color);
+			else if (is_selected)
+				glColor(selected_color);
+			else
+				glColor(component.color);
+
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
 			                static_cast<GLenum>(component.vertices.format()), // TODO
@@ -1580,6 +1643,7 @@ namespace
 			               static_cast<GLenum>(component.edges.format()),
 			               component.edges.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
+
 			glLineWidth(1.f);
 
 			modelview_matrix.pop();
@@ -1590,12 +1654,18 @@ namespace
 			modelview_matrix.mult(component.object->modelview);
 			glLoadMatrix(modelview_matrix);
 
+			const auto entity = components.get_key(component);
+			const bool is_highlighted = entity == highlighted_entity;
+			const bool is_selected = selected_components.contains(entity);
+
 			const mesh_t & mesh = *component.mesh;
 
-			if (components.get_key(component) == highlighted_entity)
+			if (is_highlighted || is_selected)
 			{
-				glColor(highlighted_color);
-
+				if (is_highlighted)
+					glColor(highlighted_color);
+				else
+					glColor(selected_color);
 
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glEnableClientState(GL_NORMAL_ARRAY);
@@ -1646,33 +1716,41 @@ namespace
 		for (const comp_c & component : components.get<comp_c>())
 		{
 			modelview_matrix.push();
+			modelview_matrix.mult(component.object->modelview);
+			glLoadMatrix(modelview_matrix);
+
+			const auto entity = components.get_key(component);
+			const bool is_highlighted = entity == highlighted_entity;
+			const bool is_selected = selected_components.contains(entity);
+
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glEnableClientState(GL_NORMAL_ARRAY);
+			for (const auto & a : component.assets)
 			{
-				modelview_matrix.mult(component.object->modelview);
-				glLoadMatrix(modelview_matrix);
+				const mesh_t & mesh = *a.mesh;
 
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glEnableClientState(GL_NORMAL_ARRAY);
-				for (const auto & a : component.assets)
-				{
-					const mesh_t & mesh = *a.mesh;
+				if (is_highlighted)
+					glColor(highlighted_color);
+				else if (is_selected)
+					glColor(selected_color);
+				else
+					glColor(a.color);
 
-					glColor(components.get_key(component) == highlighted_entity ? highlighted_color : a.color);
-
-					glVertexPointer(3, // TODO
-					                static_cast<GLenum>(mesh.vertices.format()), // TODO
-					                0,
-					                mesh.vertices.data());
-					glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
-					                0,
-					                mesh.normals.data());
-					glDrawElements(GL_TRIANGLES,
-					               mesh.triangles.count(),
-					               static_cast<GLenum>(mesh.triangles.format()),
-					               mesh.triangles.data());
-				}
-				glDisableClientState(GL_NORMAL_ARRAY);
-				glDisableClientState(GL_VERTEX_ARRAY);
+				glVertexPointer(3, // TODO
+				                static_cast<GLenum>(mesh.vertices.format()), // TODO
+				                0,
+				                mesh.vertices.data());
+				glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
+				                0,
+				                mesh.normals.data());
+				glDrawElements(GL_TRIANGLES,
+				               mesh.triangles.count(),
+				               static_cast<GLenum>(mesh.triangles.format()),
+				               mesh.triangles.data());
 			}
+			glDisableClientState(GL_NORMAL_ARRAY);
+			glDisableClientState(GL_VERTEX_ARRAY);
+
 			modelview_matrix.pop();
 		}
 
@@ -1972,6 +2050,22 @@ namespace engine
 			void post_make_transparent(engine::Entity entity)
 			{
 				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeTransparent>, entity);
+				debug_assert(res);
+			}
+
+			void post_make_clear_selection()
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeClearSelection>);
+				debug_assert(res);
+			}
+			void post_make_deselect(engine::Entity entity)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeDeselect>, entity);
+				debug_assert(res);
+			}
+			void post_make_select(engine::Entity entity)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeSelect>, entity);
 				debug_assert(res);
 			}
 

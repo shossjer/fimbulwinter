@@ -822,7 +822,9 @@ namespace
 		void operator() (Worker & w)
 		{
 			debug_printline(gameplay::gameplay_channel, "You have clicked worker!");
+			engine::graphics::renderer::post_make_deselect(this->selectedWorker);
 			this->selectedWorker = w.id;
+			engine::graphics::renderer::post_make_select(this->selectedWorker);
 		}
 
 		// performs whatever should be done when a Station is clicked
