@@ -20,46 +20,16 @@ namespace engine
 	}
 }
 
-namespace
-{
-	View create_group(
-		View::Group::Layout layout,
-		Size size,
-		View * parent = nullptr,
-		Margin margin = Margin{})
-	{
-		return View{
-			View::Content{ utility::in_place_type<View::Group>, layout },
-			Gravity{},
-			margin,
-			size,
-			parent };
-	}
-	View create_child(
-		View::Content && content,
-		Size size,
-		View * parent = nullptr,
-		Margin margin = Margin{})
-	{
-		return View{
-			std::move(content),
-			Gravity{},
-			margin,
-			size,
-			parent };
-	}
-}
-
 TEST_CASE("ViewUpdater - Wrap Group", "[gui2][ViewUpdater][wrap][group]")
 {
-	View group = create_group(
+	View group = ViewAccess::create_group(
 		View::Group::Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } });
-	View child1 = create_child(
+	View child1 = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text> },
 		Size{ { Size::FIXED, height_t{ 100 } },{ Size::FIXED, width_t{ 50 } } },
 		&group);
-	View child2 = create_child(
+	View child2 = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text> },
 		Size{ { Size::FIXED, height_t{ 400 } },{ Size::FIXED, width_t{ 200 } } },
 		&group);
@@ -101,7 +71,7 @@ TEST_CASE("ViewUpdater - Wrap Group", "[gui2][ViewUpdater][wrap][group]")
 }
 TEST_CASE("ViewUpdater - Wrap Text", "[gui2][ViewUpdater][wrap][text]")
 {
-	View view = create_child(
+	View view = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text> },
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		nullptr);
@@ -121,10 +91,10 @@ TEST_CASE("ViewUpdater - Wrap Text", "[gui2][ViewUpdater][wrap][text]")
 
 SCENARIO("ViewUpdater - Parent update", "[gui2][ViewUpdater][parent]")
 {
-	View group = create_group(
+	View group = ViewAccess::create_group(
 		View::Group::Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } });
-	View child = create_child(
+	View child = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text>, "1234 6789" },
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group);
@@ -175,18 +145,18 @@ SCENARIO("ViewUpdater - Parent update", "[gui2][ViewUpdater][parent]")
 
 SCENARIO("ViewUpdater - Parent(s) update", "[gui2][ViewUpdater][parent]")
 {
-	View group1 = create_group(
+	View group1 = ViewAccess::create_group(
 		View::Group::Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } });
-	View group2 = create_group(
+	View group2 = ViewAccess::create_group(
 		View::Group::Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group1);
-	View group3 = create_group(
+	View group3 = ViewAccess::create_group(
 		View::Group::Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group2);
-	View child = create_child(
+	View child = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text>, "1234 6789" },
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group3);
@@ -266,7 +236,7 @@ SCENARIO("ViewUpdater - Parent(s) update", "[gui2][ViewUpdater][parent]")
 
 TEST_CASE("ViewUpdater::update<View::Text>", "[gui2][ViewUpdater][child]")
 {
-	View view = create_child(
+	View view = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text>, "1234 6789" },
 		Size{ { Size::WRAP },{ Size::WRAP } });
 

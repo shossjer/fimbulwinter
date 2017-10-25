@@ -12,6 +12,7 @@ set(CODE_TEST_SOURCE
 	src/core/maths/util.cpp
 	src/engine/gui/measure.cpp
 	src/engine/gui/updater.cpp
+	src/engine/gui2/measure.cpp
 	src/engine/gui2/update.cpp
 	src/utility/any.cpp
 	src/utility/array.cpp

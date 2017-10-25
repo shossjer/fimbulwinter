@@ -34,6 +34,8 @@ namespace engine
 
 				Layout layout;
 				std::vector<View *> children;
+
+				void adopt(View * child) { this->children.push_back(child); }
 			};
 
 			struct Color

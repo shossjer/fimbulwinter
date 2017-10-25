@@ -76,6 +76,7 @@ namespace engine
 						for (auto child : content.children)
 						{
 							refresh(*child, offset, size);
+							refresh(view);
 
 							const auto child_size = child->width();
 							offset += child_size;
@@ -91,6 +92,7 @@ namespace engine
 						for (auto child : content.children)
 						{
 							refresh(*child, offset, size);
+							refresh(view);
 
 							const auto child_size = child->height();
 							offset += child_size;
@@ -107,6 +109,7 @@ namespace engine
 						for (auto child : content.children)
 						{
 							refresh(*child, offset, size);
+							refresh(view);
 						}
 
 						break;
@@ -135,6 +138,8 @@ namespace engine
 			{
 				visit(ContentRefresh{ view }, view.content);
 			}
+
+			view.change.clear();
 		}
 
 		// View to be updated based on parents changes.
@@ -164,7 +169,6 @@ namespace engine
 				// check and set if changed
 				if (view.size.update_parent(view.margin, size.height))
 				{
-					view.size += size.height;
 					view.change.set_resized_h();
 				}
 				break;
@@ -183,7 +187,6 @@ namespace engine
 				// check and set if changed
 				if (view.size.update_parent(view.margin, size.width))
 				{
-					view.size += size.width;
 					view.change.set_resized_w();
 				}
 				break;
@@ -195,9 +198,6 @@ namespace engine
 				// Note: could verify view still fits inside parent
 				break;
 			}
-
-			// checks for any changes and updates if so.
-			refresh(view);
 		}
 	}
 }

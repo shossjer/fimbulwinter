@@ -247,6 +247,10 @@ namespace engine
 				{
 					return this->type == type;
 				}
+				bool operator == (const T & other) const
+				{
+					return this->value == other.value;
+				}
 
 				bool is_active() const
 				{
@@ -281,6 +285,7 @@ namespace engine
 			{
 				this->height -= height;
 			}
+
 			void operator += (const width_t & width)
 			{
 				this->width += width;
