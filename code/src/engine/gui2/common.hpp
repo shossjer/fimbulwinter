@@ -45,9 +45,14 @@ namespace engine
 				return this->value > other.value;
 			}
 
+			bool operator == (const T & other) const
+			{
+				return this->value == other.value;
+			}
+
 			bool update(const T & other)
 			{
-				auto updated = this->value == other.value;
+				auto updated = this->value != other.value;
 				this->value = other.value;
 				return updated;
 			}
@@ -55,12 +60,12 @@ namespace engine
 
 		struct height_t : dimen_t<height_t>
 		{
-			height_t(uint32_t value = 0) : dimen_t(value) {}
+			explicit height_t(uint32_t value = 0) : dimen_t(value) {}
 		};
 
 		struct width_t : dimen_t<width_t>
 		{
-			width_t(uint32_t value = 0) : dimen_t(value) {}
+			explicit width_t(uint32_t value = 0) : dimen_t(value) {}
 		};
 
 		struct Change
@@ -94,19 +99,19 @@ namespace engine
 			bool any() const { return this->flags != NONE; }
 
 			bool affects_content() const { return is_set(DATA); }
-			bool affects_size() const { return this->flags >= SIZE_HEIGHT; }
+			bool affects_size() const { return is_set(SIZE_HEIGHT | SIZE_WIDTH); }
 			bool affects_size_h() const { return is_set(SIZE_HEIGHT); }
 			bool affects_size_w() const { return is_set(SIZE_WIDTH); }
 			bool affects_offset() const { return is_set(MOVE); }
 			bool affects_visibility() const { return is_set(VISIBILITY); }
 
 			void clear() { this->flags = NONE; }
-			void clear_size() { clear(SIZE_HEIGHT | SIZE_WIDTH); }
+
 			void clear_size_h() { clear(SIZE_HEIGHT); }
 			void clear_size_w() { clear(SIZE_WIDTH); }
 
 			void set_moved() { set(MOVE); }
-			void set_resized() { set(SIZE_HEIGHT | SIZE_WIDTH); }
+
 			void set_resized_h() { set(SIZE_HEIGHT); }
 			void set_resized_w() { set(SIZE_WIDTH); }
 			void set_hidden() { set(VISIBILITY); }
@@ -138,12 +143,12 @@ namespace engine
 
 		public:
 
-			constexpr Gravity()
-				: flags(HORIZONTAL_LEFT | VERTICAL_TOP)
-			{}
-
 			constexpr Gravity(const value_t flags)
 				: flags(flags)
+			{}
+
+			constexpr Gravity()
+				: Gravity(HORIZONTAL_LEFT | VERTICAL_TOP)
 			{}
 
 			static constexpr Gravity unmasked()
@@ -223,20 +228,19 @@ namespace engine
 			struct extended_dimen_t : T
 			{
 				Type type;
-				/**
-					FIXED:
-						'loaded' fixed value (not changed really)
-					WRAP:
-						min size?
-					PARENT:
-						max size?
-				 */
-				float meta;
+				///**
+				//	FIXED:
+				//		'loaded' fixed value (not changed really)
+				//	WRAP:
+				//		min size?
+				//	PARENT:
+				//		max size?
+				// */
+				//float meta;
 
-				extended_dimen_t(Type type = WRAP, float meta = 0.f)
-					: T()
+				extended_dimen_t(Type type = WRAP, T value = T{ 0 })
+					: T(value)
 					, type(type)
-					, meta(meta)
 				{}
 
 				bool operator == (const Type type) const

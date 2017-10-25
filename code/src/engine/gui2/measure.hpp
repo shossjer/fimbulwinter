@@ -165,7 +165,7 @@ namespace engine
 				if (view.size.update_parent(view.margin, size.height))
 				{
 					view.size += size.height;
-					view.change.set_resized();
+					view.change.set_resized_h();
 				}
 				break;
 
@@ -184,7 +184,7 @@ namespace engine
 				if (view.size.update_parent(view.margin, size.width))
 				{
 					view.size += size.width;
-					view.change.set_resized();
+					view.change.set_resized_w();
 				}
 				break;
 

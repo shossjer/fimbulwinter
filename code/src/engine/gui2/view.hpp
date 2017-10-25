@@ -17,24 +17,23 @@ namespace engine
 	{
 		class View
 		{
+			friend struct ViewAccess;
 			friend struct ViewMeasure;
-			friend struct ViewRefresh;
 			friend struct ViewUpdater;
-			friend struct ViewTester;
 
 		public:
 
 			struct Group
 			{
-				enum class Layout
+				enum Layout
 				{
 					HORIZONTAL,
 					VERTICAL,
 					RELATIVE
 				};
 
-				std::vector<View *> children;
 				Layout layout;
+				std::vector<View *> children;
 			};
 
 			struct Color

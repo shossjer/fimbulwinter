@@ -59,7 +59,7 @@ namespace engine
 					for (View *child : content.children)
 					{
 						// find 'highest' child
-						const auto & height = child->size.height;
+						const auto height = child->size.height;
 						if (height.is_active() && height > wrap)
 						{
 							wrap = height;
@@ -145,7 +145,7 @@ namespace engine
 			template<typename T>
 			static Change update(View & view, const T & content)
 			{
-				auto update_changes = Change{ Change::DATA | Change::SIZE_HEIGHT | Change::SIZE_WIDTH };
+				auto update_changes = Change{ Change::DATA };
 
 				if (ViewUpdater::wrap(view.size.height, content))
 				{
