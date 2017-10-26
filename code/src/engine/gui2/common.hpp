@@ -4,6 +4,10 @@
 #ifndef ENGINE_GUI2_COMMON_HPP
 #define ENGINE_GUI2_COMMON_HPP
 
+#include <engine/Entity.hpp>
+
+#include <stdint.h>
+
 namespace engine
 {
 	namespace gui2
@@ -73,7 +77,6 @@ namespace engine
 			friend struct ViewTester;
 			friend struct ViewUpdater;
 
-		private:
 			using value_t = uint32_t;
 
 			static constexpr value_t NONE = 0;
@@ -298,9 +301,8 @@ namespace engine
 
 		struct Status
 		{
-			// rendered flag
-			// visibility flag
-			// enabled flag
+			bool enabled = true;
+			bool rendered = false;
 		};
 	}
 }

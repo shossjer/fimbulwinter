@@ -10,48 +10,36 @@ namespace engine
 {
 	namespace gui2
 	{
-		void renderer_add(View::Color & content)
+		struct ViewRenderer
 		{
-			// TODO:
-		}
-		void renderer_move(View::Color & content)
-		{
-			// TODO:
-		}
-		void renderer_update(View::Color & content)
-		{
-			// TODO:
-		}
-		void renderer_add(View::Text & content)
-		{
-			// TODO:
-		}
-		void renderer_move(View::Text & content)
-		{
-			// TODO:
-		}
-		void renderer_update(View::Text & content)
-		{
-			// TODO:
-		}
+		private:
 
-		template<typename T>
-		void renderer_refresh(T & content)
-		{
-			if (true)
+			static void add(View & view, View::Color & content);
+
+			static void add(View & view, View::Text & content);
+
+			static void update(View & view, View::Color & content);
+
+			static void update(View & view, View::Text & content);
+
+		public:
+
+			template<typename T>
+			static constexpr void refresh(View & view, T & content)
 			{
-				renderer_add(content);
+				if (view.status.rendered)
+				{
+					// TODO: check if 'just' move
+					update(view, content);
+				}
+				else
+				{
+					add(view, content);
+				}
 			}
-			else if (false)
-			{
-				// TODO: check if 'just' move
-				renderer_update(content);
-			}
-			else
-			{
-				// send remove
-			}
-		}
+
+			static void remove(View & view);
+		};
 	}
 }
 

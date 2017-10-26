@@ -7,6 +7,8 @@
 #include "common.hpp"
 #include "resources.hpp"
 
+#include <engine/debug.hpp>
+
 #include <utility/variant.hpp>
 
 #include <vector>
@@ -36,6 +38,17 @@ namespace engine
 				std::vector<View *> children;
 
 				void adopt(View * child) { this->children.push_back(child); }
+
+				void abandon(View * child)
+				{
+					auto itr = std::find(this->children.begin(), this->children.end(), child);
+					if (itr == this->children.end())
+					{
+						debug_printline(engine::gui_channel, "Child missing from parent.");
+						debug_unreachable();
+					}
+					this->children.erase(itr);
+				}
 			};
 
 			struct Color
@@ -56,7 +69,9 @@ namespace engine
 				Text
 			>;
 
-		private:
+		public:
+
+			Entity entity;
 
 			Content content;
 
@@ -70,8 +85,6 @@ namespace engine
 
 			View *const parent;
 
-		private:
-
 			Change change;
 
 			Status status;
@@ -79,12 +92,14 @@ namespace engine
 		public:
 
 			View(
+				Entity entity,
 				Content && content,
 				Gravity gravity,
 				Margin margin,
 				Size size,
 				View *const parent)
-				: content(std::move(content))
+				: entity(entity)
+				, content(std::move(content))
 				, gravity(gravity)
 				, margin(margin)
 				, size(size)

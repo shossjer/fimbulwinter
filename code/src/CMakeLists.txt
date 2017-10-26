@@ -20,6 +20,7 @@ set(SOURCE_FILES
 	src/engine/gui/resources.cpp
 	src/engine/gui/views.cpp
 	src/engine/gui2/gui.cpp
+	src/engine/gui2/render.cpp
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp

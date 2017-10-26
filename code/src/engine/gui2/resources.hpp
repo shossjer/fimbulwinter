@@ -16,6 +16,7 @@ namespace engine
 			{
 				using value_t = uint32_t;
 
+				value_t get() { return 0; };
 			};
 		}
 	}

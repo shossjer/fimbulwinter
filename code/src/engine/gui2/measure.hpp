@@ -35,7 +35,7 @@ namespace engine
 				template<typename T>
 				void operator() (T & content)
 				{
-					renderer_refresh(content);
+					ViewRenderer::refresh(view, content);
 				}
 				void operator() (View::Group & content)
 				{
@@ -53,7 +53,7 @@ namespace engine
 				template<typename T>
 				void operator() (T & content)
 				{
-					renderer_refresh(content);
+					ViewRenderer::refresh(view, content);
 				}
 				void operator() (View::Group & content)
 				{

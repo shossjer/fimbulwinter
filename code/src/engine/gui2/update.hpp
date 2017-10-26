@@ -8,6 +8,7 @@
 
 #include "common.hpp"
 #include "function.hpp"
+#include "render.hpp"
 #include "view.hpp"
 
 namespace engine
@@ -178,6 +179,27 @@ namespace engine
 				}
 				template<typename T>
 				void operator() (const T &) { debug_unreachable(); }
+			};
+
+			struct VisibilityUpdate
+			{
+				static void hide(View & view)
+				{
+					ViewRenderer::remove(view);
+
+					if (view.parent != nullptr) // remove from parent and notify change
+					{
+						ViewUpdater::content<View::Group>(*view.parent).abandon(&view);
+						ViewUpdater::parent(view, Change::SIZE_HEIGHT | Change::SIZE_WIDTH | Change::VISIBILITY);
+					}
+				}
+				static void show(View & view)
+				{
+					if (view.parent != nullptr) // add to parent and notify change
+					{
+						ViewUpdater::content<View::Group>(*view.parent).adopt(&view);
+					}
+				}
 			};
 		}
 	}

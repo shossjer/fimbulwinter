@@ -30,6 +30,7 @@ namespace engine
 				Margin margin = Margin{})
 			{
 				return View{
+					Entity::create(),
 					View::Content{ utility::in_place_type<View::Group>, layout },
 					Gravity{},
 					margin,
@@ -43,6 +44,7 @@ namespace engine
 				Margin margin = Margin{})
 			{
 				return View{
+					Entity::create(),
 					std::move(content),
 					Gravity{},
 					margin,
