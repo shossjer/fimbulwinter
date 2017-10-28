@@ -3,11 +3,11 @@
 
 #include "gui_access.hpp"
 
-#include <engine/gui2/update.hpp>
+#include <engine/gui/update.hpp>
 
 namespace engine
 {
-	namespace gui2
+	namespace gui
 	{
 		struct ViewTester
 		{
@@ -20,7 +20,7 @@ namespace engine
 	}
 }
 
-TEST_CASE("ViewUpdater - Wrap Group", "[gui2][ViewUpdater][wrap][group]")
+TEST_CASE("ViewUpdater - Wrap Group", "[gui][ViewUpdater][wrap][group]")
 {
 	View group = ViewAccess::create_group(
 		View::Group::Layout::HORIZONTAL,
@@ -69,7 +69,7 @@ TEST_CASE("ViewUpdater - Wrap Group", "[gui2][ViewUpdater][wrap][group]")
 		REQUIRE(width == width_t{ 200 });
 	}
 }
-TEST_CASE("ViewUpdater - Wrap Text", "[gui2][ViewUpdater][wrap][text]")
+TEST_CASE("ViewUpdater - Wrap Text", "[gui][ViewUpdater][wrap][text]")
 {
 	View view = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text> },
@@ -89,7 +89,7 @@ TEST_CASE("ViewUpdater - Wrap Text", "[gui2][ViewUpdater][wrap][text]")
 	}
 }
 
-SCENARIO("ViewUpdater - Parent update", "[gui2][ViewUpdater][parent]")
+SCENARIO("ViewUpdater - Parent update", "[gui][ViewUpdater][parent]")
 {
 	View group = ViewAccess::create_group(
 		View::Group::Layout::HORIZONTAL,
@@ -143,7 +143,7 @@ SCENARIO("ViewUpdater - Parent update", "[gui2][ViewUpdater][parent]")
 	}
 }
 
-SCENARIO("ViewUpdater - Parent(s) update", "[gui2][ViewUpdater][parent]")
+SCENARIO("ViewUpdater - Parent(s) update", "[gui][ViewUpdater][parent]")
 {
 	View group1 = ViewAccess::create_group(
 		View::Group::Layout::HORIZONTAL,
@@ -234,7 +234,7 @@ SCENARIO("ViewUpdater - Parent(s) update", "[gui2][ViewUpdater][parent]")
 	}
 }
 
-TEST_CASE("ViewUpdater::update<View::Text>", "[gui2][ViewUpdater][child]")
+TEST_CASE("ViewUpdater::update<View::Text>", "[gui][ViewUpdater][child]")
 {
 	View view = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text>, "1234 6789" },

@@ -1,8 +1,8 @@
 
 // should not be included outside gui namespace.
 
-#ifndef ENGINE_GUI2_COMMON_HPP
-#define ENGINE_GUI2_COMMON_HPP
+#ifndef ENGINE_GUI_COMMON_HPP
+#define ENGINE_GUI_COMMON_HPP
 
 #include <engine/Entity.hpp>
 
@@ -10,7 +10,7 @@
 
 namespace engine
 {
-	namespace gui2
+	namespace gui
 	{
 		template<typename T>
 		struct dimen_t
@@ -303,6 +303,14 @@ namespace engine
 		{
 			bool enabled = true;
 			bool rendered = false;
+
+			enum State
+			{
+				DEFAULT,
+				HIGHLIGHT,
+				PRESSED
+			}
+			state = DEFAULT;
 		};
 	}
 }

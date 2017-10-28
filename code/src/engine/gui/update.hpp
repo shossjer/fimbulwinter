@@ -1,19 +1,20 @@
 
 // should not be included outside gui namespace.
 
-#ifndef ENGINE_GUI2_UPDATE_HPP
-#define ENGINE_GUI2_UPDATE_HPP
+#ifndef ENGINE_GUI_UPDATE_HPP
+#define ENGINE_GUI_UPDATE_HPP
 
 #include "gui.hpp"
 
 #include "common.hpp"
 #include "function.hpp"
+#include "loading.hpp"
 #include "render.hpp"
 #include "view.hpp"
 
 namespace engine
 {
-	namespace gui2
+	namespace gui
 	{
 		// TODO: possibility to declare "update registration" structure.
 

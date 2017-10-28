@@ -1,11 +1,10 @@
 
 #include "actions.hpp"
-#include "functions.hpp"
+#include "function.hpp"
 #include "loading.hpp"
 #include "resources.hpp"
 
 #include <engine/debug.hpp>
-#include <engine/graphics/renderer.hpp>
 
 #include <utility/json.hpp>
 
@@ -79,26 +78,29 @@ namespace
 
 	private:
 
-		value_t _int(const json & jv) const
+		template<typename N>
+		N number(const json & jv) const
 		{
 			if (!jv.is_string())
-				return jv.get<value_t>();
+				return jv.get<N>();
 
 			const std::string str = jv;
 			debug_assert(str.length() > std::size_t{ 0 });
 			debug_assert(str[0] == '#');
-			return this->jdimensions[str].get<value_t>();
+			return this->jdimensions[str].get<N>();
 		}
-		value_t _int(const std::string key, const json & jdata) const
+		template<typename N>
+		N number(const std::string key, const json & jdata) const
 		{
 			debug_assert(contains(jdata, key));
-			return _int(jdata[key]);
+			return number<N>(jdata[key]);
 		}
-		value_t _int(const std::string key, const json & jdata, const value_t def) const
+		template<typename N>
+		N number(const std::string key, const json & jdata, const N def) const
 		{
 			if (!contains(jdata, key))
 				return def;
-			return _int(jdata[key]);
+			return number<N>(jdata[key]);
 		}
 
 		engine::Asset extract_asset(const json & jdata, const std::string key) const
@@ -107,7 +109,8 @@ namespace
 			return engine::Asset{ jdata[key].get<std::string>() };
 		}
 
-		Size::Dimen extract_dimen(const json & jd) const
+		template<typename S>
+		auto extract_dimen(const json & jd) const
 		{
 			if (jd.is_object())
 			{
@@ -116,22 +119,23 @@ namespace
 
 				if (type == "fixed")
 				{
-					return Size::Dimen{ Size::TYPE::FIXED, _int("v", jd) };
+					return Size::extended_dimen_t<S>{ Size::FIXED, S{ number<uint32_t>("v", jd) } };
 				}
 				else
 				if (type == "parent")
 				{
-					return Size::Dimen{ Size::TYPE::PARENT };
+					return Size::extended_dimen_t<S>{ Size::PARENT };
 				}
 				else
 				if (type == "percent")
 				{
-					return Size::Dimen{ Size::TYPE::PERCENT, _int("v", jd, 0) / value_t{100.f} };
+					return Size::extended_dimen_t<S>{ Size::PARENT };
+			//		return S{ Size::PERCENT, _int("v", jd, 0) / value_t{100.f} };
 				}
 				else
 				if (type == "wrap")
 				{
-					return Size::Dimen{ Size::TYPE::WRAP, _int("min", jd, 0) };
+					return Size::extended_dimen_t<S>{ Size::WRAP, S{ number<uint32_t>("min", jd, 0) } };
 				}
 			}
 			else
@@ -142,13 +146,13 @@ namespace
 				debug_assert(str.length() > std::size_t{ 0 });
 
 				if (str[0] == '#')
-					return Size::Dimen{
-						Size::TYPE::FIXED,
-						this->jdimensions[str].get<value_t>() };
+					return Size::extended_dimen_t<S>{
+						Size::FIXED,
+						S{ this->jdimensions[str].get<uint32_t>() } };
 
-				if (str == "percent")return Size::Dimen{ Size::TYPE::PERCENT };
-				if (str == "parent") return Size::Dimen{ Size::TYPE::PARENT };
-				if (str == "wrap") return Size::Dimen{ Size::TYPE::WRAP };
+				if (str == "percent") return Size::extended_dimen_t<S>{ Size::PARENT };//Size::TYPE::PERCENT };
+				if (str == "parent") return Size::extended_dimen_t<S>{ Size::PARENT };
+				if (str == "wrap") return Size::extended_dimen_t<S>{Size::WRAP };
 
 				debug_printline(engine::gui_channel, "GUI - invalid size dimen: ", jd);
 				debug_unreachable();
@@ -156,7 +160,7 @@ namespace
 			else
 			if (jd.is_number_integer())
 			{
-				return Size::Dimen{ Size::TYPE::FIXED, jd.get<value_t>() };
+				return Size::extended_dimen_t<S>{ Size::FIXED, S{ jd.get<uint32_t>() } };
 			}
 
 			debug_printline(engine::gui_channel, "GUI - invalid size value: ", jd);
@@ -170,7 +174,9 @@ namespace
 			debug_assert(contains(jsize, "h"));
 			debug_assert(contains(jsize, "w"));
 
-			return Size{ extract_dimen(jsize["h"]), extract_dimen(jsize["w"]) };
+			return Size{
+				extract_dimen<height_t>(jsize["h"]),
+				extract_dimen<width_t>(jsize["w"]) };
 		}
 
 	public:
@@ -211,15 +217,15 @@ namespace
 			return jdata["display"].get<std::string>();
 		}
 
-		Layout layout(const json & jgroup) const
+		View::Group::Layout layout(const json & jgroup) const
 		{
 			debug_assert(contains(jgroup, "layout"));
 
 			const std::string str = jgroup["layout"];
 
-			if (str == "horizontal")return Layout::HORIZONTAL;
-			if (str == "vertical") return Layout::VERTICAL;
-			if (str == "relative") return Layout::RELATIVE;
+			if (str == "horizontal")return View::Group::HORIZONTAL;
+			if (str == "vertical") return View::Group::VERTICAL;
+			if (str == "relative") return View::Group::RELATIVE;
 
 			debug_printline(engine::gui_channel, "GUI - invalid layout: ", str);
 			debug_unreachable();
@@ -302,10 +308,10 @@ namespace
 			{
 				const json & jmargin = jdata["margin"];
 
-				margin.bottom = _int("b", jmargin, 0);
-				margin.left = _int("l", jmargin, 0);
-				margin.right = _int("r", jmargin, 0);
-				margin.top = _int("t", jmargin, 0);
+				margin.bottom = height_t{ number<uint32_t>("b", jmargin, 0) };
+				margin.left = width_t{ number<uint32_t>("l", jmargin, 0) };
+				margin.right = width_t{ number<uint32_t>("r", jmargin, 0) };
+				margin.top = height_t{ number<uint32_t>("t", jmargin, 0) };
 			}
 
 			return margin;
@@ -329,14 +335,14 @@ namespace
 		Size size_def_parent(const json & jdata) const
 		{
 			if (!contains(jdata, "size"))
-				return Size{ Size::TYPE::PARENT, Size::TYPE::PARENT };
+				return Size{ Size::PARENT, Size::PARENT };
 			return extract_size(jdata);
 		}
 
 		Size size_def_wrap(const json & jdata) const
 		{
 			if (!contains(jdata, "size"))
-				return Size{ Size::TYPE::WRAP, Size::TYPE::WRAP };
+				return Size{ Size::WRAP, Size::WRAP };
 			return extract_size(jdata);
 		}
 
@@ -421,88 +427,88 @@ namespace
 
 		void load_action(ViewData & view, const json & jcomponent)
 		{
-			const json & jactions = jcomponent["actions"];
+			//const json & jactions = jcomponent["actions"];
 
-			for (const auto & jaction : jactions)
-			{
-				view.actions.emplace_back();
-				auto & action = view.actions.back();
+			//for (const auto & jaction : jactions)
+			//{
+			//	view.actions.emplace_back();
+			//	auto & action = view.actions.back();
 
-				action.type = this->load.type(jaction);
-				action.target = contains(jaction, "target") ? jaction["target"].get<std::string>() : engine::Asset::null();
+			//	action.type = this->load.type(jaction);
+			//	action.target = contains(jaction, "target") ? jaction["target"].get<std::string>() : engine::Asset::null();
 
-				// validate action
-				switch (action.type)
-				{
-				case ViewData::Action::CLOSE:
+			//	// validate action
+			//	switch (action.type)
+			//	{
+			//	case ViewData::Action::CLOSE:
 
-					break;
-				case ViewData::Action::INTERACTION:
+			//		break;
+			//	case ViewData::Action::INTERACTION:
 
-					break;
-				case ViewData::Action::MOVER:
+			//		break;
+			//	case ViewData::Action::MOVER:
 
-					break;
-				case ViewData::Action::SELECT:
+			//		break;
+			//	case ViewData::Action::SELECT:
 
-					break;
-				case ViewData::Action::TRIGGER:
-					debug_assert(action.target != engine::Asset::null());
-					break;
+			//		break;
+			//	case ViewData::Action::TRIGGER:
+			//		debug_assert(action.target != engine::Asset::null());
+			//		break;
 
-				default:
-					debug_printline(engine::gui_channel, "GUI - unknown trigger action in component: ", jcomponent);
-					debug_unreachable();
-				}
-			}
+			//	default:
+			//		debug_printline(engine::gui_channel, "GUI - unknown trigger action in component: ", jcomponent);
+			//		debug_unreachable();
+			//	}
+			//}
 		}
 
 		bool has_function(const json & jcomponent) { return contains(jcomponent, "function"); }
 
 		void load_function(ViewData & target, const json & jcomponent)
 		{
-			const json & jfunction = jcomponent["function"];
+			//const json & jfunction = jcomponent["function"];
 
-			target.function.name = this->load.name(jfunction);
-			target.function.type = this->load.type(jfunction);
+			//target.function.name = this->load.name(jfunction);
+			//target.function.type = this->load.type(jfunction);
 
-			switch (target.function.type)
-			{
-			case ViewData::Function::PROGRESS:
-			{
-				if (contains(jfunction, "direction"))
-				{
-					const std::string direction = jfunction["direction"];
+			//switch (target.function.type)
+			//{
+			//case ViewData::Function::PROGRESS:
+			//{
+			//	if (contains(jfunction, "direction"))
+			//	{
+			//		const std::string direction = jfunction["direction"];
 
-					if (direction == "horizontal")
-					{
-						target.function.direction = ProgressBar::HORIZONTAL;
-					}
-					else
-					if (direction == "vertical")
-					{
-						target.function.direction = ProgressBar::VERTICAL;
-					}
-					else
-					{
-						debug_printline(engine::gui_channel, "GUI - Progress bar invalid direction: ", jcomponent);
-						debug_unreachable();
-					}
-				}
-				else
-				{
-					target.function.direction = ProgressBar::HORIZONTAL;
-				}
-				break;
-			}
-			case ViewData::Function::TAB:
-			{
-				break;
-			}
-			default:
-				debug_printline(engine::gui_channel, "GUI - Unknown function type: ", jcomponent);
-				debug_unreachable();
-			}
+			//		if (direction == "horizontal")
+			//		{
+			//			target.function.direction = ProgressBar::HORIZONTAL;
+			//		}
+			//		else
+			//		if (direction == "vertical")
+			//		{
+			//			target.function.direction = ProgressBar::VERTICAL;
+			//		}
+			//		else
+			//		{
+			//			debug_printline(engine::gui_channel, "GUI - Progress bar invalid direction: ", jcomponent);
+			//			debug_unreachable();
+			//		}
+			//	}
+			//	else
+			//	{
+			//		target.function.direction = ProgressBar::HORIZONTAL;
+			//	}
+			//	break;
+			//}
+			//case ViewData::Function::TAB:
+			//{
+			//	break;
+			//}
+			//default:
+			//	debug_printline(engine::gui_channel, "GUI - Unknown function type: ", jcomponent);
+			//	debug_unreachable();
+			//}
 		}
 
 		GroupData & load_group(GroupData & parent, const json & jcomponent)
@@ -572,7 +578,7 @@ namespace
 			TextData & view = utility::get<TextData>(parent.children.back());
 
 			// to compensate for text height somewhat
-			view.margin.top += 6;
+			view.margin.top += height_t{ 6 };
 
 			return view;
 		}
@@ -854,14 +860,16 @@ namespace engine
 {
 namespace gui
 {
-	void load(std::vector<DataVariant> & windows)
+	std::vector<DataVariant> load()
 	{
+		std::vector<DataVariant> windows;
+
 		std::ifstream file("res/gui.json");
 
 		if (!file.is_open())
 		{
 			debug_printline(engine::gui_channel, "GUI - res/gui.json file is missing. No GUI is loaded.");
-			return;
+			return windows;
 		}
 
 		const json jcontent = json::parse(file);
@@ -875,6 +883,8 @@ namespace gui
 		{
 			WindowLoader(resourceLoader).create(windows, jwindow);
 		}
+
+		return windows;
 	}
 }
 }

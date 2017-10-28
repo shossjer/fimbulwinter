@@ -1,13 +1,13 @@
 
-#ifndef TEST_ENGINE_GUI2_GUI_ACCESS_HPP
-#define TEST_ENGINE_GUI2_GUI_ACCESS_HPP
+#ifndef TEST_ENGINE_GUI_GUI_ACCESS_HPP
+#define TEST_ENGINE_GUI_GUI_ACCESS_HPP
 
-#include <engine/gui2/update.hpp>
-#include <engine/gui2/view.hpp>
+#include <engine/gui/update.hpp>
+#include <engine/gui/view.hpp>
 
 namespace engine
 {
-	namespace gui2
+	namespace gui
 	{
 		struct ViewAccess
 		{
@@ -55,6 +55,6 @@ namespace engine
 	}
 }
 
-using namespace engine::gui2;
+using namespace engine::gui;
 
-#endif // !TEST_ENGINE_GUI2_GUI_ACCESS_HPP
+#endif // !TEST_ENGINE_GUI_GUI_ACCESS_HPP

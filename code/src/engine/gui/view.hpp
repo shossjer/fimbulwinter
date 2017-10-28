@@ -1,8 +1,8 @@
 
 // should not be included outside gui namespace.
 
-#ifndef ENGINE_GUI2_VIEW_HPP
-#define ENGINE_GUI2_VIEW_HPP
+#ifndef ENGINE_GUI_VIEW_HPP
+#define ENGINE_GUI_VIEW_HPP
 
 #include "common.hpp"
 #include "resources.hpp"
@@ -15,7 +15,7 @@
 
 namespace engine
 {
-	namespace gui2
+	namespace gui
 	{
 		class View
 		{
@@ -53,13 +53,13 @@ namespace engine
 
 			struct Color
 			{
-				resource::Color value;
+				resource::Color * color;
 			};
 
 			struct Text
 			{
 				std::string display;
-				resource::Color value;
+				resource::Color * color;
 			};
 
 			using Content = utility::variant

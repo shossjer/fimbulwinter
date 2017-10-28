@@ -4,11 +4,11 @@
 #ifndef ENGINE_GUI_LOADING_HPP
 #define ENGINE_GUI_LOADING_HPP
 
-#include "functions.hpp"
-#include "placers.hpp"
+#include "common.hpp"
+#include "function.hpp"
+#include "view.hpp"
 
 #include <engine/Asset.hpp>
-#include <engine/graphics/renderer.hpp>
 
 #include <utility/variant.hpp>
 
@@ -18,8 +18,6 @@ namespace engine
 {
 namespace gui
 {
-	using Color = engine::graphics::data::Color;
-
 	struct GroupData;
 	struct ListData;
 	struct PanelData;
@@ -44,12 +42,6 @@ namespace gui
 
 		struct Action
 		{
-			static constexpr engine::Asset CLOSE{ "close" };
-			static constexpr engine::Asset INTERACTION{ "interaction" };
-			static constexpr engine::Asset MOVER{ "mover" };
-			static constexpr engine::Asset SELECT{ "selectable" };
-			static constexpr engine::Asset TRIGGER{ "trigger" };
-
 			engine::Asset type;
 			engine::Asset target;
 		};
@@ -58,12 +50,8 @@ namespace gui
 
 		struct Function
 		{
-			static constexpr engine::Asset PROGRESS{ "progressBar" };
-			static constexpr engine::Asset TAB{ "tabBar" };
-
 			engine::Asset type;
 			std::string name;
-			engine::gui::ProgressBar::Direction direction;
 		}
 		function;
 
@@ -94,10 +82,10 @@ namespace gui
 
 	struct GroupData : ViewData
 	{
-		Layout layout;
+		View::Group::Layout layout;
 		std::vector<DataVariant> children;
 
-		GroupData(std::string name, Size size, Margin margin, Gravity gravity, Layout layout)
+		GroupData(std::string name, Size size, Margin margin, Gravity gravity, View::Group::Layout layout)
 			: ViewData(name, size, margin, gravity)
 			, layout(layout)
 		{}
@@ -105,7 +93,7 @@ namespace gui
 
 	struct ListData : GroupData
 	{
-		ListData(std::string name, Size size, Margin margin, Gravity gravity, Layout layout)
+		ListData(std::string name, Size size, Margin margin, Gravity gravity, View::Group::Layout layout)
 			: GroupData(name, size, margin, gravity, layout)
 		{}
 	};

@@ -5,7 +5,7 @@
 
 namespace engine
 {
-	namespace gui2
+	namespace gui
 	{
 		Matrix4x4f render_matrix(const View & view)
 		{
@@ -35,7 +35,7 @@ namespace engine
 				engine::graphics::data::ui::PanelC{
 					render_matrix(view),
 					render_size(view),
-					content.value.get() });
+					content.color != nullptr ? content.color->get(&view) : 0 });
 
 			if (is_selectable(view))
 			{
@@ -48,7 +48,7 @@ namespace engine
 				view.entity,
 				engine::graphics::data::ui::Text{
 					render_matrix(view),
-					content.value.get(),
+					content.color != nullptr ? content.color->get(&view) : 0,
 					content.display});
 
 			if (is_selectable(view))
@@ -64,7 +64,7 @@ namespace engine
 				engine::graphics::data::ui::PanelC{
 					render_matrix(view),
 					render_size(view),
-					content.value.get() });
+					content.color != nullptr ? content.color->get(&view) : 0 });
 		}
 		void ViewRenderer::update(View & view, View::Text & content)
 		{
@@ -72,7 +72,7 @@ namespace engine
 				view.entity,
 				engine::graphics::data::ui::Text{
 					render_matrix(view),
-					content.value.get(),
+					content.color != nullptr ? content.color->get(&view) : 0,
 					content.display});
 		}
 

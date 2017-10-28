@@ -500,65 +500,6 @@ namespace
 
 		void operator() (Worker & worker)
 		{
-			// update "data" of the profile window
-			engine::gui::Datas datas;
-			datas.emplace_back("title", std::string("Worker Bob"));
-
-			if (worker.working)
-			{
-				datas.emplace_back("status", std::string("Working hard"));
-				datas.emplace_back("status", 0xff00ff00);
-			}
-			else
-			{
-				datas.emplace_back("status", std::string("Idle"));
-				datas.emplace_back("status", 0xff0000ff);
-			}
-			datas.emplace_back("photo", engine::Asset{ "photo" });
-			datas.emplace_back("profile_progress", worker.progress);
-
-			{
-				std::vector<engine::gui::Datas> list;
-				for (int i = 0; i < worker.finishedCarrots; i++)
-				{
-					list.emplace_back();
-					list.back().emplace_back(
-						engine::Asset{ "title" },
-						std::string("Finished cutting a carrot."));
-				}
-				datas.emplace_back("profile_accomp", std::move(list));
-			}
-			{
-				std::vector<engine::gui::Datas> list;
-
-				list.emplace_back();
-				list.back().emplace_back(
-					engine::Asset{ "title" },
-					std::string("Skill - Cutting: ") + std::to_string(worker.skillCutting));
-				list.back().emplace_back(
-					engine::Asset{ "progress" },
-					worker.skillCuttingProgress);
-
-				list.emplace_back();
-				list.back().emplace_back(
-					engine::Asset{ "title" },
-					std::string("Skill - Working: ") + std::to_string(worker.skillWorking));
-				list.back().emplace_back(
-					engine::Asset{ "progress" },
-					worker.skillWorkingProgress);
-
-				list.emplace_back();
-				list.back().emplace_back(
-					engine::Asset{ "title" },
-					std::string("Skill - Potato: ") + std::to_string(worker.skillPotato));
-				list.back().emplace_back(
-					engine::Asset{ "progress" },
-					worker.skillPotatoProgress);
-
-				datas.emplace_back("profile_skills", std::move(list));
-			}
-
-			engine::gui::post_update_data("profile", std::move(datas));
 		}
 
 		template<typename T>

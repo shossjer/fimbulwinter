@@ -5,33 +5,41 @@
 #define ENGINE_GUI_RESOURCES_HPP
 
 #include <engine/Asset.hpp>
-#include <engine/graphics/renderer.hpp>
 
-#include <core/container/Collection.hpp>
+#include <stdint.h>
 
 namespace engine
 {
-namespace gui
-{
-	using Color = engine::graphics::data::Color;
-
-	class View;
-
-	namespace resource
+	namespace gui
 	{
+		//namespace resource
+		//{
+		//	struct Color
+		//	{
+		//		using value_t = uint32_t;
 
-		struct ColorResource
+		//		value_t get() { return 0; };
+		//	};
+		//}
+
+		class View;
+
+		namespace resource
 		{
-			virtual Color get(const View * view) const = 0;
-		};
+			using ColorValue = uint32_t;
 
-		const ColorResource * color(const engine::Asset asset);
+			struct Color
+			{
+				virtual ColorValue get(const View * view) const = 0;
+			};
 
-		void put(const engine::Asset asset, const Color val);
+			const Color * color(const engine::Asset asset);
 
-		void put(const engine::Asset asset, const engine::Asset def, const engine::Asset high, const engine::Asset press);
+			void put(const engine::Asset asset, const ColorValue val);
+
+			void put(const engine::Asset asset, const engine::Asset def, const engine::Asset high, const engine::Asset press);
+		}
 	}
 }
-}
 
-#endif // ENGINE_GUI_RESOURCES_HPP
+#endif

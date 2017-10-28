@@ -1,14 +1,14 @@
 
 // should not be included outside gui namespace.
 
-#ifndef ENGINE_GUI2_FUNCTION_HPP
-#define ENGINE_GUI2_FUNCTION_HPP
+#ifndef ENGINE_GUI_FUNCTION_HPP
+#define ENGINE_GUI_FUNCTION_HPP
 
 #include <utility/variant.hpp>
 
 namespace engine
 {
-	namespace gui2
+	namespace gui
 	{
 		class View;
 

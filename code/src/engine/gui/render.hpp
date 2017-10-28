@@ -1,14 +1,14 @@
 
 // should not be included outside gui namespace.
 
-#ifndef ENGINE_GUI2_RENDER_HPP
-#define ENGINE_GUI2_RENDER_HPP
+#ifndef ENGINE_GUI_RENDER_HPP
+#define ENGINE_GUI_RENDER_HPP
 
 #include "view.hpp"
 
 namespace engine
 {
-	namespace gui2
+	namespace gui
 	{
 		struct ViewRenderer
 		{
