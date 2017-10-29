@@ -37,9 +37,7 @@ namespace engine
 
 		void post_state_toggle(engine::Asset window);
 
-		void post_update_translate(
-			engine::Asset window,
-			core::maths::Vector3f delta);
+		void post_update_translate(engine::Asset window, core::maths::Vector3f delta);
 	}
 }
 

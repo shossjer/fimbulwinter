@@ -35,6 +35,11 @@ namespace engine
 				return T{ this->value - other.value };
 			}
 
+			T operator / (const uint32_t divider) const
+			{
+				return T{ this->value / divider };
+			}
+
 			void operator += (const T & other)
 			{
 				this->value += other.value;
@@ -161,10 +166,14 @@ namespace engine
 
 		public:
 
-			// checks if Gravity is set and allowed by parent
-			bool place(const Gravity mask, const value_t flag) const
+			bool operator == (const value_t flag) const
 			{
-				return ((this->flags & mask.flags) & flag) != 0;
+				return (this->flags & flag) != 0;
+			}
+
+			Gravity operator & (const Gravity other) const
+			{
+				return Gravity{ this->flags & other.flags };
 			}
 		};
 
@@ -215,6 +224,19 @@ namespace engine
 			{
 				*this -= other.height;
 				*this -= other.width;
+			}
+
+			bool update(const height_t & value)
+			{
+				const auto changed = this->height != value;
+				this->height = value;
+				return changed;
+			}
+			bool update(const width_t & value)
+			{
+				const auto changed = this->width != value;
+				this->width = value;
+				return changed;
 			}
 		};
 
@@ -272,12 +294,12 @@ namespace engine
 			bool update_parent(const Margin & margin, const height_size_t & size)
 			{
 				// TODO: check "max" size
-				return this->height.update(margin.height() + size);
+				return this->height.update(size - margin.height());
 			}
 			bool update_parent(const Margin & margin, const width_size_t & size)
 			{
 				// TODO: check "max" size
-				return this->width.update(margin.width() + size);
+				return this->width.update(size - margin.width());
 			}
 
 			void operator += (const height_t & height)

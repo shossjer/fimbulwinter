@@ -48,7 +48,7 @@ namespace engine
 			// View to be updated based on parents changes.
 			// Offset for the view (need to check if changed).
 			// Size "remaining" for the view, based on parent group's layout.
-			static void refresh(View & view, const Offset & offset, const Size & size)
+			static void refresh(View & view, const Gravity & mask, const Offset & offset, const Size & size)
 			{
 				// FIXED, WRAP
 				//   Change: can be any
@@ -60,11 +60,7 @@ namespace engine
 				//   Size: can/will be changed here
 				//   Offset: can be changed (based on parent changes and view gravity)
 
-				if (view.offset != offset)	// Note: could check dimen's separately
-				{
-					view.offset = offset;
-					view.change.set_moved();
-				}
+				const Gravity gravity = view.gravity & mask;
 
 				switch (view.size.height.type)
 				{
@@ -74,13 +70,38 @@ namespace engine
 					{
 						view.change.set_resized_h();
 					}
+					if (view.offset.update(offset.height + view.margin.top))
+					{
+						view.change.set_moved();
+					}
 					break;
 
 				case Size::FIXED:
 				case Size::WRAP:
 				default:
-					// nothing to do
 					// Note: could verify view still fits inside parent
+
+					if (gravity == Gravity::VERTICAL_BOTTOM)
+					{
+						if (view.offset.update(offset.height + (size.height - view.size.height - view.margin.bottom)))
+						{
+							view.change.set_moved();
+						}
+					}
+					else if (gravity == Gravity::VERTICAL_CENTRE)
+					{
+						if (view.offset.update(offset.height + ((size.height - view.size.height) / 2) + (view.margin.top - view.margin.bottom)))
+						{
+							view.change.set_moved();
+						}
+					}
+					else
+					{
+						if (view.offset.update(offset.height + view.margin.top))
+						{
+							view.change.set_moved();
+						}
+					}
 					break;
 				}
 
@@ -92,18 +113,52 @@ namespace engine
 					{
 						view.change.set_resized_w();
 					}
+					if (view.offset.update(offset.width + view.margin.left))
+					{
+						view.change.set_moved();
+					}
 					break;
 
 				case Size::FIXED:
 				case Size::WRAP:
 				default:
-					// nothing to do
 					// Note: could verify view still fits inside parent
+
+					if (gravity == Gravity::HORIZONTAL_RIGHT)
+					{
+						if (view.offset.update(offset.width + (size.width - view.size.width - view.margin.right)))
+						{
+							view.change.set_moved();
+						}
+					}
+					else if (gravity == Gravity::HORIZONTAL_CENTRE)
+					{
+						if (view.offset.update(offset.width + ((size.width - view.size.width) / 2) + (view.margin.left - view.margin.right)))
+						{
+							view.change.set_moved();
+						}
+					}
+					else
+					{
+						if (view.offset.update(offset.width + view.margin.left))
+						{
+							view.change.set_moved();
+						}
+					}
 					break;
 				}
 			}
 
 		private:
+
+			static auto height(View const * view)
+			{
+				return view->margin.height() + view->size.height;
+			}
+			static auto width(View const * view)
+			{
+				return view->margin.width() + view->size.width;
+			}
 
 			struct ContentRefresh
 			{
@@ -152,10 +207,10 @@ namespace engine
 
 						for (auto child : content.children)
 						{
-							refresh(*child, offset, size);
-							refresh(view);
+							refresh(*child, mask, offset, size);
+							refresh(*child);
 
-							const auto child_size = child->width();
+							const auto child_size = width(child);
 							offset += child_size;
 							size -= child_size;
 						}
@@ -168,10 +223,10 @@ namespace engine
 
 						for (auto child : content.children)
 						{
-							refresh(*child, offset, size);
-							refresh(view);
+							refresh(*child, mask, offset, size);
+							refresh(*child);
 
-							const auto child_size = child->height();
+							const auto child_size = height(child);
 							offset += child_size;
 							size -= child_size;
 						}
@@ -185,8 +240,8 @@ namespace engine
 
 						for (auto child : content.children)
 						{
-							refresh(*child, offset, size);
-							refresh(view);
+							refresh(*child, mask, offset, size);
+							refresh(*child);
 						}
 
 						break;

@@ -1,4 +1,5 @@
 
+#include "creation.hpp"
 #include "gui.hpp"
 #include "function.hpp"
 #include "loading.hpp"
@@ -7,7 +8,6 @@
 #include "view.hpp"
 
 #include <core/container/CircleQueue.hpp>
-#include <core/container/Collection.hpp>
 
 #include <vector>
 
@@ -15,13 +15,24 @@ using namespace engine::gui;
 
 namespace
 {
-	core::container::UnorderedCollection
+	const uint32_t WINDOW_HEIGHT = 677; // 720
+	const uint32_t WINDOW_WIDTH = 1004; // 1024
+
+	struct Window
+	{
+		engine::Asset name;
+		View * view;
+	};
+
+	core::container::Collection
 		<
-		engine::Entity, 100,
-		std::array<Function, 100>,
-		std::array<View, 100>
+		engine::Asset, 21,
+		std::array<Window, 10>,
+		std::array<int, 1>
 		>
-		components;
+		windows;
+
+	Components components;
 
 	// TODO: update lookup structure
 	// init from "gameplay" data structures
@@ -41,18 +52,11 @@ namespace engine
 
 			for (auto & window_data : windows_data)
 			{
-				GroupData & data = utility::get<GroupData>(window_data);
+				View & view = visit(Creator{ components }, window_data);
 
-				//auto & window = windows.emplace<Window>(
-				//	data.name,
-				//	data.name,
-				//	data.size,
-				//	data.layout,
-				//	data.margin);
-
-				//Creator(lookup, window).create_views(window.group, data);
-
-				//window.init_window();
+				// TODO: use "window size" as size param
+				ViewMeasure::refresh(view, Gravity::unmasked(), Offset{}, Size{ {Size::FIXED, height_t{ WINDOW_HEIGHT } }, { Size::FIXED, width_t{ WINDOW_WIDTH } } });
+				ViewMeasure::refresh(view);
 			}
 		}
 

@@ -13,7 +13,7 @@ namespace engine
 				Vector3f{
 					static_cast<float>(view.offset.width.value),
 					static_cast<float>(view.offset.height.value),
-					0.f });
+					view.depth });
 		}
 
 		core::maths::Vector2f render_size(const View & view)

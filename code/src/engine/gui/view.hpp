@@ -53,13 +53,13 @@ namespace engine
 
 			struct Color
 			{
-				resource::Color * color;
+				resource::Color const * color;
 			};
 
 			struct Text
 			{
 				std::string display;
-				resource::Color * color;
+				resource::Color const * color;
 			};
 
 			using Content = utility::variant
@@ -83,11 +83,14 @@ namespace engine
 
 			Size size;
 
-			View *const parent;
+			View * parent;
 
 			Change change;
 
 			Status status;
+
+			// please remove this somehow
+			float depth;
 
 		public:
 
@@ -107,11 +110,6 @@ namespace engine
 				, change()
 				, status()
 			{}
-
-		public:
-
-			auto height() const { return this->margin.height() + this->size.height; }
-			auto width() const { return this->margin.width() + this->size.width; }
 		};
 	}
 }

@@ -845,7 +845,7 @@ namespace
 				this->load.name(jwindow),
 				this->load.size(jwindow),
 				this->load.margin(jwindow),
-				Gravity(),
+				this->load.gravity(jwindow),
 				this->load.layout(jgroup));
 
 			GroupData & window = utility::get<GroupData>(windows.back());

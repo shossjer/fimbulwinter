@@ -41,12 +41,13 @@ namespace engine
 				View::Content && content,
 				Size size,
 				View * parent = nullptr,
-				Margin margin = Margin{})
+				Margin margin = Margin{},
+				Gravity gravity = Gravity{})
 			{
 				return View{
 					Entity::create(),
 					std::move(content),
-					Gravity{},
+					gravity,
 					margin,
 					size,
 					parent };
