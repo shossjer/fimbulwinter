@@ -35,6 +35,7 @@ namespace engine
 				else
 				{
 					add(view, content);
+					view.status.rendered = true;
 				}
 			}
 

@@ -516,11 +516,11 @@ namespace
 			{
 			case engine::Command::BUTTON_DOWN_ACTIVE:
 				debug_assert(!args.second.has_value());
-				engine::gui::post_state_show("inventory");
+				engine::gui::post(engine::gui::MessageVisibility{ "inventory", engine::gui::MessageVisibility::SHOW });
 				break;
 			case engine::Command::BUTTON_DOWN_INACTIVE:
 				debug_assert(!args.second.has_value());
-				engine::gui::post_state_hide("inventory");
+				engine::gui::post(engine::gui::MessageVisibility{ "inventory", engine::gui::MessageVisibility::HIDE });
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
@@ -540,7 +540,7 @@ namespace
 			case engine::Command::BUTTON_DOWN_ACTIVE:
 			case engine::Command::BUTTON_DOWN_INACTIVE:
 				debug_assert(!args.second.has_value());
-				engine::gui::post_state_toggle("profile");
+				engine::gui::post(engine::gui::MessageVisibility{ "profile", engine::gui::MessageVisibility::TOGGLE });
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
@@ -571,8 +571,8 @@ namespace
 
 		void operator () (const GUIComponent & c)
 		{
-			if (c.action == engine::Asset{ "mover" })
-				engine::gui::post_update_translate(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
+		//	if (c.action == engine::Asset{ "mover" })
+		//		engine::gui::post_update_translate(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
 		}
 
 		template <typename W>
@@ -586,15 +586,14 @@ namespace
 	{
 		bool operator () (const GUIComponent & c)
 		{
-			engine::gui::post_interaction_click(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::CLICK });
 			return false;
 		}
 
 		bool operator () (const Worker & w)
 		{
 			// show the window
-			engine::gui::post_state_show("profile");
-
+		//	engine::gui::post(engine::gui::MessageProfile{ "profile" });
 			profile_updater.entity = w.id;
 			profile_update(w.id);
 			return true;
@@ -613,7 +612,7 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Highlight entity: ", c.id);
-			engine::gui::post_interaction_highlight(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::HIGHLIGHT });
 		}
 
 		template <typename W>
@@ -628,7 +627,8 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Lowlight entity: ", c.id);
-			engine::gui::post_interaction_lowlight(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::LOWLIGHT });
+
 		}
 
 		template <typename W>
@@ -643,7 +643,7 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Pressing entity: ", c.id);
-			engine::gui::post_interaction_press(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::PRESS });
 		}
 
 		template <typename W>
@@ -658,7 +658,7 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Releasing entity: ", c.id);
-			engine::gui::post_interaction_release(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::RELEASE });
 		}
 
 		template <typename W>

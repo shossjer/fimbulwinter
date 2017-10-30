@@ -161,6 +161,52 @@ namespace engine
 				view.change.set(update_changes);
 				return update_changes;
 			}
+
+			static void hide(View & view)
+			{
+				struct Remove
+				{
+					View & view;
+
+					void operator() (View::Group & content)
+					{
+						this->view.change.set_content();
+
+						for (auto child : content.children)
+						{
+							visit(Remove{ *child }, child->content);
+						}
+					}
+					void operator() (View::Color & content)
+					{
+						ViewRenderer::remove(this->view);
+						this->view.change.set_content();
+					}
+					void operator() (View::Text & content)
+					{
+						ViewRenderer::remove(this->view);
+						this->view.change.set_content();
+					}
+				};
+
+				visit(Remove{ view }, view.content);
+
+				if (view.parent != nullptr) // remove from parent and notify change
+				{
+					ViewUpdater::content<View::Group>(*view.parent).abandon(&view);
+					ViewUpdater::parent(view, Change::SIZE_HEIGHT | Change::SIZE_WIDTH | Change::VISIBILITY);
+				}
+			}
+			static void show(View & view)
+			{
+				view.change.set_shown();
+
+				if (view.parent != nullptr) // add to parent and notify change
+				{
+					ViewUpdater::content<View::Group>(*view.parent).adopt(&view);
+					ViewUpdater::parent(view, Change::SIZE_HEIGHT | Change::SIZE_WIDTH | Change::VISIBILITY);
+				}
+			}
 		};
 
 		namespace react
@@ -180,27 +226,6 @@ namespace engine
 				}
 				template<typename T>
 				void operator() (const T &) { debug_unreachable(); }
-			};
-
-			struct VisibilityUpdate
-			{
-				static void hide(View & view)
-				{
-					ViewRenderer::remove(view);
-
-					if (view.parent != nullptr) // remove from parent and notify change
-					{
-						ViewUpdater::content<View::Group>(*view.parent).abandon(&view);
-						ViewUpdater::parent(view, Change::SIZE_HEIGHT | Change::SIZE_WIDTH | Change::VISIBILITY);
-					}
-				}
-				static void show(View & view)
-				{
-					if (view.parent != nullptr) // add to parent and notify change
-					{
-						ViewUpdater::content<View::Group>(*view.parent).adopt(&view);
-					}
-				}
 			};
 		}
 	}

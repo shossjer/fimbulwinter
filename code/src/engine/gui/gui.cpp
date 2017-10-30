@@ -20,8 +20,19 @@ namespace
 
 	struct Window
 	{
-		engine::Asset name;
 		View * view;
+		bool should_render = true;
+
+		void hide()
+		{
+			should_render = false;
+			ViewUpdater::hide(*view);
+		}
+		void show()
+		{
+			should_render = true;
+			ViewUpdater::show(*view);
+		}
 	};
 
 	core::container::Collection
@@ -37,6 +48,14 @@ namespace
 	// TODO: update lookup structure
 	// init from "gameplay" data structures
 	// assign views during creation
+
+	using UpdateMessage = utility::variant
+		<
+		MessageInteraction,
+		MessageVisibility
+		>;
+
+	core::container::CircleQueueSRMW<UpdateMessage, 100> queue_posts;
 }
 
 namespace engine
@@ -54,6 +73,8 @@ namespace engine
 			{
 				View & view = visit(Creator{ components }, window_data);
 
+				windows.emplace<Window>("profile", &view);
+
 				// TODO: use "window size" as size param
 				ViewMeasure::refresh(view, Gravity::unmasked(), Offset{}, Size{ {Size::FIXED, height_t{ WINDOW_HEIGHT } }, { Size::FIXED, width_t{ WINDOW_WIDTH } } });
 				ViewMeasure::refresh(view);
@@ -67,43 +88,66 @@ namespace engine
 
 		void update()
 		{
+			struct
+			{
+				void operator () (MessageInteraction && x)
+				{
+					debug_printline(engine::gui_channel, "MessageInteraction");
+				}
+				void operator () (MessageVisibility && x)
+				{
+					debug_printline(engine::gui_channel, "MessageVisibility");
 
+					if (!windows.contains(x.name))
+					{
+						debug_printline(engine::gui_channel, "Window visibility; window not found");
+						return;
+					}
+
+					auto & window = windows.get<Window>(x.name);
+
+					switch (x.state)
+					{
+					case MessageVisibility::HIDE:
+						window.hide();
+						break;
+					case MessageVisibility::SHOW:
+						window.show();
+						break;
+					case MessageVisibility::TOGGLE:
+						if (window.should_render)
+							window.hide();
+						else
+							window.show();
+						break;
+					}
+				}
+			} processMessage;
+
+			UpdateMessage message;
+			while (::queue_posts.try_pop(message))
+			{
+				visit(processMessage, std::move(message));
+			}
+
+			for (Window & window : windows.get<Window>())
+			{
+				if (window.should_render)
+				{
+					ViewMeasure::refresh(*window.view);
+				}
+			}
 		}
 
-		void post_interaction_click(Asset window, Entity entity)
+		template<typename T>
+		void _post(T && data)
 		{
+			const auto res = queue_posts.try_emplace(utility::in_place_type<T>, std::move(data));
+			debug_assert(res);
 		}
 
-		void post_interaction_highlight(Asset window, Entity entity)
-		{
-		}
-
-		void post_interaction_lowlight(Asset window, Entity entity)
-		{
-		}
-
-		void post_interaction_press(Asset window, Entity entity)
-		{
-		}
-
-		void post_interaction_release(Asset window, Entity entity)
-		{
-		}
-
-		void post_state_hide(Asset window)
-		{
-		}
-
-		void post_state_show(Asset window)
-		{
-		}
-
-		void post_state_toggle(Asset window)
-		{
-		}
-
-		void post_update_translate(Asset window, core::maths::Vector3f delta)
-		{
-		}
+		template<typename T> void post(T && data) = delete;
+		template<> void post(MessageInteraction && data) { _post(std::move(data)); }
+		template<> void post(MessageVisibility && data) { _post(std::move(data)); }
 	}
 }
