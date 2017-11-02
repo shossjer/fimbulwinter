@@ -427,40 +427,40 @@ namespace
 
 		void load_action(ViewData & view, const json & jcomponent)
 		{
-			//const json & jactions = jcomponent["actions"];
+			const json & jactions = jcomponent["actions"];
 
-			//for (const auto & jaction : jactions)
-			//{
-			//	view.actions.emplace_back();
-			//	auto & action = view.actions.back();
+			for (const auto & jaction : jactions)
+			{
+				view.actions.emplace_back();
+				auto & action = view.actions.back();
 
-			//	action.type = this->load.type(jaction);
-			//	action.target = contains(jaction, "target") ? jaction["target"].get<std::string>() : engine::Asset::null();
+				action.type = this->load.type(jaction);
+				action.target = contains(jaction, "target") ? jaction["target"].get<std::string>() : engine::Asset::null();
 
-			//	// validate action
-			//	switch (action.type)
-			//	{
-			//	case ViewData::Action::CLOSE:
+				// validate action
+				switch (action.type)
+				{
+				case ViewData::Action::CLOSE:
 
-			//		break;
-			//	case ViewData::Action::INTERACTION:
+					break;
+				case ViewData::Action::INTERACTION:
 
-			//		break;
-			//	case ViewData::Action::MOVER:
+					break;
+				case ViewData::Action::MOVER:
 
-			//		break;
-			//	case ViewData::Action::SELECT:
+					break;
+				case ViewData::Action::SELECT:
 
-			//		break;
-			//	case ViewData::Action::TRIGGER:
-			//		debug_assert(action.target != engine::Asset::null());
-			//		break;
+					break;
+				case ViewData::Action::TRIGGER:
+					debug_assert(action.target != engine::Asset::null());
+					break;
 
-			//	default:
-			//		debug_printline(engine::gui_channel, "GUI - unknown trigger action in component: ", jcomponent);
-			//		debug_unreachable();
-			//	}
-			//}
+				default:
+					debug_printline(engine::gui_channel, "GUI - unknown trigger action in component: ", jcomponent);
+					debug_unreachable();
+				}
+			}
 		}
 
 		bool has_function(const json & jcomponent) { return contains(jcomponent, "function"); }

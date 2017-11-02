@@ -40,7 +40,10 @@ namespace engine
 		private:
 
 			template<typename D, typename T>
-			static D wrap_content(const T & content) = delete;
+			static D wrap_content(const T & content)
+			{
+				debug_unreachable();
+			}
 
 			template<>
 			static height_t wrap_content<height_t>(const View::Group & content)
@@ -118,6 +121,37 @@ namespace engine
 				return (dimen == Size::WRAP) && dimen.update(wrap_content<D, T>(content));
 			}
 
+			template<typename ...Args>
+			struct ChildUpdater
+			{
+				using Data = std::tuple<Args...>;
+
+				View * view;
+				void(*update_group)(Data & data, View & view, View::Group & content);
+				void(*update_color)(Data & data, View & view, View::Color & content);
+				void(*update_text)(Data & data, View & view, View::Text & content);
+				Data data;
+
+				void operator() (View::Group & content)
+				{
+					update_group(data, *view, content);
+
+					for (auto child : content.children)
+					{
+						view = child;
+						visit(*this, child->content);
+					}
+				}
+				void operator() (View::Color & content)
+				{
+					update_color(data, *view, content);
+				}
+				void operator() (View::Text & content)
+				{
+					update_text(data, *view, content);
+				}
+			};
+
 		public:
 
 			static void parent(View & child, const Change & child_changes)
@@ -164,32 +198,26 @@ namespace engine
 
 			static void hide(View & view)
 			{
-				struct Remove
+				ChildUpdater<> updater
 				{
-					View & view;
-
-					void operator() (View::Group & content)
+					&view,
+					[](auto & data, View & view, View::Group & content)
 					{
-						this->view.change.set_content();
-
-						for (auto child : content.children)
-						{
-							visit(Remove{ *child }, child->content);
-						}
-					}
-					void operator() (View::Color & content)
+						view.change.set_content();
+					},
+					[](auto & data, View & view, View::Color & content)
 					{
-						ViewRenderer::remove(this->view);
-						this->view.change.set_content();
-					}
-					void operator() (View::Text & content)
+						ViewRenderer::remove(view);
+						view.change.set_content();
+					},
+					[](auto & data, View & view, View::Text & content)
 					{
-						ViewRenderer::remove(this->view);
-						this->view.change.set_content();
+						ViewRenderer::remove(view);
+						view.change.set_content();
 					}
 				};
 
-				visit(Remove{ view }, view.content);
+				visit(updater, view.content);
 
 				if (view.parent != nullptr) // remove from parent and notify change
 				{
@@ -206,6 +234,32 @@ namespace engine
 					ViewUpdater::content<View::Group>(*view.parent).adopt(&view);
 					ViewUpdater::parent(view, Change::SIZE_HEIGHT | Change::SIZE_WIDTH | Change::VISIBILITY);
 				}
+			}
+			static void status(View & view, Status::State state)
+			{
+				ChildUpdater<Status::State> updater
+				{
+					&view,
+					[](auto & data, View & view, View::Group & content)
+					{
+						view.status.state = std::get<0>(data);
+						view.change.set_content();
+					},
+					[](auto & data, View & view, View::Color & content)
+					{
+						view.status.state = std::get<0>(data);
+						view.change.set_content();
+					},
+					[](auto & data, View & view, View::Text & content)
+					{
+						view.status.state = std::get<0>(data);
+						view.change.set_content();
+					},
+					state
+				};
+
+				visit(updater, view.content);
+				ViewUpdater::parent(view, Change{ Change::DATA });
 			}
 		};
 

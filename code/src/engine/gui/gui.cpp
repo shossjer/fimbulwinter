@@ -13,6 +13,12 @@
 
 using namespace engine::gui;
 
+constexpr engine::Asset engine::gui::ViewData::Action::CLOSE;
+constexpr engine::Asset engine::gui::ViewData::Action::INTERACTION;
+constexpr engine::Asset engine::gui::ViewData::Action::MOVER;
+constexpr engine::Asset engine::gui::ViewData::Action::SELECT;
+constexpr engine::Asset engine::gui::ViewData::Action::TRIGGER;
+
 namespace
 {
 	const uint32_t WINDOW_HEIGHT = 677; // 720
@@ -43,6 +49,8 @@ namespace
 		>
 		windows;
 
+	Actions actions;
+
 	Components components;
 
 	// TODO: update lookup structure
@@ -71,7 +79,7 @@ namespace engine
 
 			for (auto & window_data : windows_data)
 			{
-				View & view = visit(Creator{ components }, window_data);
+				View & view = visit(Creator{ actions, components }, window_data);
 
 				windows.emplace<Window>("profile", &view);
 
@@ -93,6 +101,31 @@ namespace engine
 				void operator () (MessageInteraction && x)
 				{
 					debug_printline(engine::gui_channel, "MessageInteraction");
+
+					Status::State state;
+					switch (x.interaction)
+					{
+					case MessageInteraction::HIGHLIGHT:
+						state = Status::HIGHLIGHT;
+						break;
+					case MessageInteraction::LOWLIGHT:
+						state = Status::DEFAULT;
+						break;
+					case MessageInteraction::PRESS:
+						state = Status::PRESSED;
+						break;
+					case MessageInteraction::RELEASE:
+						state = Status::HIGHLIGHT;
+						break;
+					default:
+						return;
+					}
+
+					auto & action = actions.get<InteractionAction>(x.entity);
+
+					ViewUpdater::status(
+						components.get<View>(action.target),
+						state);
 				}
 				void operator () (MessageVisibility && x)
 				{

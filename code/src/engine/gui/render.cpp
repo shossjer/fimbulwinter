@@ -25,7 +25,7 @@ namespace engine
 
 		bool is_selectable(View & view)
 		{
-			return false;
+			return view.selectable;
 		}
 
 		void ViewRenderer::add(View & view, View::Color & content)
@@ -82,8 +82,8 @@ namespace engine
 
 			if (status.rendered) // never mind if already removed...
 			{
-				engine::graphics::renderer::post_remove(view.entity);
 				status.rendered = false;
+				engine::graphics::renderer::post_remove(view.entity);
 			}
 		}
 	}

@@ -12,10 +12,26 @@
 
 #include <core/container/Collection.hpp>
 
+#include <vector>
+
+namespace gameplay
+{
+	namespace gamestate
+	{
+		void post_add(engine::Entity entity);
+	}
+}
+
 namespace engine
 {
 	namespace gui
 	{
+		using Actions = core::container::MultiCollection
+			<
+			engine::Entity, 101,
+			std::array<InteractionAction, 20>
+			>;
+
 		using Components = core::container::UnorderedCollection
 			<
 			engine::Entity, 202,
@@ -25,11 +41,15 @@ namespace engine
 
 		struct Creator
 		{
+			Actions & actions;
 			Components & components;
 			float depth = .0f;
 
-			Creator(Components & components)
-				: components(components)
+			std::vector<std::pair<Asset, View*>> named_views;
+
+			Creator(Actions & actions, Components & components)
+				: actions(actions)
+				, components(components)
 			{}
 
 		public:
@@ -41,6 +61,16 @@ namespace engine
 			}
 
 		private:
+
+			View * find_view(const Asset name)
+			{
+				for (auto i = this->named_views.rbegin(); i != this->named_views.rend(); ++i)
+				{
+					if ((*i).first == name)
+						return (*i).second;
+				}
+				return nullptr;
+			}
 
 			View & create(View::Content && content, const ViewData & data)
 			{
@@ -54,6 +84,11 @@ namespace engine
 						data.margin,
 						data.size,
 						nullptr );
+
+				if (!data.name.empty())
+				{
+					named_views.emplace_back(Asset{ data.name }, &view);
+				}
 
 				view.depth = this->depth;
 				this->depth += .01f;
@@ -69,6 +104,38 @@ namespace engine
 					// NOTE: can it be set during construction?
 					view.parent = &parent;
 					content.adopt(&view);
+				}
+			}
+
+			void create_actions(View & view, const ViewData & viewData)
+			{
+				if (!viewData.actions.empty())
+				{
+					for (auto & data : viewData.actions)
+					{
+						Entity target = view.entity;
+
+						if (data.target != Entity::null())
+						{
+							View * view = find_view(data.target);
+							if (view != nullptr) target = view->entity;
+							else
+							{
+								debug_printline(engine::gui_channel, "Could not find 'target' for action: ", data.target);
+								continue;
+							}
+						}
+
+						switch (data.type)
+						{
+						case ViewData::Action::INTERACTION:
+
+							this->actions.emplace<InteractionAction>(view.entity, target);
+							view.selectable = true;
+							break;
+						}
+					}
+					gameplay::gamestate::post_add(view.entity);
 				}
 			}
 
@@ -114,10 +181,7 @@ namespace engine
 
 				ViewUpdater::update(view, get_content<View::Group>(view));
 
-
 				// TODO: List!
-
-				//	if (data.has_name()) lookup.put(data.name, entity);
 
 				return view;
 			}
@@ -128,13 +192,8 @@ namespace engine
 					View::Content{ utility::in_place_type<View::Color>, resource::color(data.color) },
 					data);
 
-				// not applicable for Color!
-				//ViewUpdater::update(view, get_content<View::Color>(view));
-
-				//create_action(view, data);
+				create_actions(view, data);
 				//create_function(view, data);
-
-				//if (data.has_name()) lookup.put(data.name, entity);
 
 				return view;
 			}
@@ -147,10 +206,8 @@ namespace engine
 
 				ViewUpdater::update(view, get_content<View::Text>(view));
 
-				//create_action(view, data);
+				create_actions(view, data);
 				//create_function(view, data);
-
-				//if (data.has_name()) lookup.put(data.name, entity);
 
 				return view;
 			}
@@ -162,12 +219,7 @@ namespace engine
 					View::Content{ utility::in_place_type<View::Color>, nullptr },
 					data);
 
-				// not applicable for Color!
-				//ViewUpdater::update(view, get_content<View::Color>(view));
-
 				//create_action(view, data);
-
-				//if (data.has_name()) lookup.put(data.name, entity);
 
 				return view;
 			}

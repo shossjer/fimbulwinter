@@ -555,8 +555,6 @@ namespace
 	struct GUIComponent
 	{
 		engine::Entity id;
-		engine::Asset window;
-		engine::Asset action;
 	};
 
 	struct GUIMover
@@ -708,13 +706,7 @@ namespace
 			Matrix4x4f
 		>,
 		100> queue_workstations;
-	core::container::CircleQueueSRMW<std::tuple
-		<
-			engine::Entity,
-			engine::Asset,
-			engine::Asset
-		>,
-		100> queue_gui_components;
+	core::container::CircleQueueSRMW<engine::Entity, 100> queue_gui_components;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
 	template<typename T>
@@ -916,15 +908,10 @@ namespace gamestate
 					std::get<3>(workstation_args));
 			}
 
-			std::tuple<engine::Entity, engine::Asset, engine::Asset> gui_component_args;
-			while (queue_gui_components.try_pop(gui_component_args))
+			engine::Entity gui_component;
+			while (queue_gui_components.try_pop(gui_component))
 			{
-				// components.emplace<GUIComponent>(
-				// 	std::get<0>(gui_component_args),
-				// 	GUIComponent{
-				// 		std::get<0>(gui_component_args),
-				// 		std::get<1>(gui_component_args),
-				// 		std::get<2>(gui_component_args) });
+				components.emplace<GUIComponent>(gui_component, gui_component);
 			}
 		}
 
@@ -1051,10 +1038,9 @@ namespace gamestate
 		debug_assert(res);
 	}
 
-	//void post_add(engine::Entity entity, engine::gui::Component component)
-	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name)
+	void post_add(engine::Entity entity)
 	{
-		const auto res = queue_gui_components.try_emplace(entity, window, name);
+		const auto res = queue_gui_components.try_emplace(entity);
 		debug_assert(res);
 	}
 

@@ -92,6 +92,9 @@ namespace engine
 			// please remove this somehow
 			float depth;
 
+			// remove this somehow
+			bool selectable;
+
 		public:
 
 			View(
@@ -109,6 +112,7 @@ namespace engine
 				, parent(parent)
 				, change()
 				, status()
+				, selectable(false)
 			{}
 		};
 	}

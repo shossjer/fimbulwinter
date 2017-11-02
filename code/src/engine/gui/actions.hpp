@@ -4,13 +4,17 @@
 #ifndef ENGINE_GUI_ACTIONS_HPP
 #define ENGINE_GUI_ACTIONS_HPP
 
+#include "gui.hpp"
+
+#include <engine/Entity.hpp>
+
 namespace engine
 {
 	namespace gui
 	{
-		class Action
+		struct InteractionAction
 		{
-
+			Entity target;
 		};
 	}
 }
