@@ -1,5 +1,6 @@
 
 #include "actions.hpp"
+#include "exception.hpp"
 #include "function.hpp"
 #include "loading.hpp"
 #include "resources.hpp"
@@ -14,6 +15,8 @@ namespace
 {
 	using namespace engine::gui;
 
+	using key = std::string;
+
 	struct ResourceLoader
 	{
 	private:
@@ -21,6 +24,15 @@ namespace
 		const json & jdimensions;
 		const json & jstrings;
 		const json & jtemplates;
+
+		struct Map
+		{
+			const json & jdata;
+
+			auto contains(const key key) const { return ::contains(this->jdata, key); }
+			auto get(const key key) const { return jdata[key].get<std::string>(); }
+		};
+		std::vector<Map> overriders;
 
 	public:
 
@@ -76,7 +88,37 @@ namespace
 			}
 		}
 
+	public:
+
+		void push_override(const json & remap)
+		{
+			overriders.emplace_back(Map{ remap });
+		}
+		void pop_override()
+		{
+			overriders.pop_back();
+		}
+
 	private:
+
+		// TODO: make possible to map #key to another #key2
+		auto find_override(const key key) const
+		{
+			for (auto ritr = this->overriders.rbegin(); ritr != this->overriders.rend(); ++ritr)
+			{
+				if ((*ritr).contains(key))
+				{
+					auto value = (*ritr).get(key);
+					debug_printline(engine::gui_channel, "Re-mapping: ", key, " to: ", value);
+					return value;
+				}
+			}
+			if (contains(jstrings, key))
+			{
+				return jstrings[key].get<std::string>();
+			}
+			throw key_missing(key);
+		}
 
 		template<typename N>
 		N number(const json & jv) const
@@ -90,20 +132,20 @@ namespace
 			return this->jdimensions[str].get<N>();
 		}
 		template<typename N>
-		N number(const std::string key, const json & jdata) const
+		N number(const key key, const json & jdata) const
 		{
 			debug_assert(contains(jdata, key));
 			return number<N>(jdata[key]);
 		}
 		template<typename N>
-		N number(const std::string key, const json & jdata, const N def) const
+		N number(const key key, const json & jdata, const N def) const
 		{
 			if (!contains(jdata, key))
 				return def;
 			return number<N>(jdata[key]);
 		}
 
-		engine::Asset extract_asset(const json & jdata, const std::string key) const
+		engine::Asset extract_asset(const json & jdata, const key key) const
 		{
 			debug_assert(contains(jdata, key));
 			return engine::Asset{ jdata[key].get<std::string>() };
@@ -167,7 +209,7 @@ namespace
 			debug_unreachable();
 		}
 
-		Size extract_size(const json & jdata) const
+		auto extract_size(const json & jdata) const
 		{
 			const json & jsize = jdata["size"];
 
@@ -177,6 +219,18 @@ namespace
 			return Size{
 				extract_dimen<height_t>(jsize["h"]),
 				extract_dimen<width_t>(jsize["w"]) };
+		}
+
+		auto extract_string(const key key, const json & jdata) const
+		{
+			debug_assert(contains(jdata, key));
+			auto str = jdata[key].get<std::string>();
+
+			if (!str.empty() && str[0] == '#')
+			{
+				return find_override(str);
+			}
+			return str;
 		}
 
 	public:
@@ -210,11 +264,9 @@ namespace
 		{
 			return contains(jdata, "display");
 		}
-
 		std::string display(const json & jdata) const
 		{
-			debug_assert(has_display(jdata));
-			return jdata["display"].get<std::string>();
+			return extract_string("display", jdata);
 		}
 
 		View::Group::Layout layout(const json & jgroup) const
@@ -276,28 +328,25 @@ namespace
 			return Gravity{ h | v };
 		}
 
-		bool has_name(const json & jdata) const
+		auto has_name(const json & jdata) const
 		{
 			return contains(jdata, "name");
 		}
-
-		std::string name(const json & jdata) const
+		auto name(const json & jdata) const
 		{
-			debug_assert(has_name(jdata));
-			std::string str = jdata["name"];
-			debug_assert(str.length() > std::size_t{ 0 });
-			return str;
+			auto value = extract_string("name", jdata);
+			debug_assert(!value.empty());
+			return value;
 		}
-
-		std::string name_or_null(const json & jdata) const
+		auto name_or_empty(const json & jdata) const
 		{
 			if (has_name(jdata))
 			{
-				std::string str = jdata["name"];
-				debug_assert(str.length() > std::size_t{ 0 });
-				return str;
+				auto value = extract_string("name", jdata);
+				debug_assert(!value.empty());
+				return value;
 			}
-			return "";
+			return std::string{};
 		}
 
 		Margin margin(const json & jdata) const
@@ -346,16 +395,28 @@ namespace
 			return extract_size(jdata);
 		}
 
-		const json & template_data(const std::string key) const
+		const json & template_data(const key key) const
 		{
 			debug_assert(contains(this->jtemplates, key));
 			return this->jtemplates[key];
 		}
 
+		auto has_target(const json & jdata) const
+		{
+			return contains(jdata, "target");
+		}
+		auto target(const json & jdata) const
+		{
+			auto value = extract_string("target", jdata);
+			debug_assert(!value.empty());
+			return value;
+		}
+
 		engine::Asset type(const json & jdata) const
 		{
-			debug_assert(contains(jdata, "type"));
-			return engine::Asset{ jdata["type"].get<std::string>() };
+			auto value = extract_string("type", jdata);
+			debug_assert(!value.empty());
+			return value;
 		}
 
 		bool has_type_group(const json & jdata) const
@@ -435,11 +496,14 @@ namespace
 				auto & action = view.actions.back();
 
 				action.type = this->load.type(jaction);
-				action.target = contains(jaction, "target") ? jaction["target"].get<std::string>() : engine::Asset::null();
+				action.target = this->load.has_target(jaction) ? this->load.target(jaction) : engine::Asset::null();
 
 				// validate action
 				switch (action.type)
 				{
+				case engine::Asset{"none"}:
+
+					break;
 				case ViewData::Action::CLOSE:
 
 					break;
@@ -517,7 +581,7 @@ namespace
 
 			parent.children.emplace_back(
 				utility::in_place_type<GroupData>,
-				this->load.name_or_null(jcomponent),
+				this->load.name_or_empty(jcomponent),
 				this->load.size_def_parent(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
@@ -551,7 +615,7 @@ namespace
 
 			parent.children.emplace_back(
 				utility::in_place_type<PanelData>,
-				this->load.name_or_null(jcomponent),
+				this->load.name_or_empty(jcomponent),
 				this->load.size_def_parent(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
@@ -568,7 +632,7 @@ namespace
 
 			parent.children.emplace_back(
 				utility::in_place_type<TextData>,
-				this->load.name_or_null(jcomponent),
+				this->load.name_or_empty(jcomponent),
 				this->load.size_def_wrap(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
@@ -589,7 +653,7 @@ namespace
 
 			parent.children.emplace_back(
 				utility::in_place_type<TextureData>,
-				this->load.name_or_null(jcomponent),
+				this->load.name_or_empty(jcomponent),
 				this->load.size(jcomponent),
 				this->load.margin(jcomponent),
 				this->load.gravity(jcomponent),
@@ -673,146 +737,6 @@ namespace
 			load_views(parent, type, jcomponent);
 		}
 
-		struct Customize
-		{
-			const ResourceLoader & load;
-			const json & jdata;
-
-			std::unordered_map<std::string, std::string> customized_names;
-
-		private:
-
-			// checks if the view has a custom definition in the implementation of the view.
-			bool is_customized(ViewData & data)
-			{
-				return data.has_name() && contains(jdata, data.name);
-			}
-
-			const json & customize_common(ViewData & data)
-			{
-				const json & jcustomize = this->jdata[data.name];
-
-				// customize the name and register the change.
-				if (this->load.has_name(jcustomize))
-				{
-					const std::string name = this->load.name(jcustomize);
-					auto r = customized_names.emplace(data.name, name);
-					if (!r.second)
-					{
-						r.first->second = name;
-					}
-					data.name = name;
-				}
-
-				return jcustomize;
-			}
-
-			// actions can have "named targets" make sure to update the name
-			// if it has been "customized".
-			void update_actions(ViewData & data)
-			{
-				for (auto & action : data.actions)
-				{
-					for (const auto & d : customized_names)
-					{
-						// not optimal...
-						if (engine::Asset{ d.first } == action.target)
-						{
-							action.target = engine::Asset{ d.second };
-							return;
-						}
-					}
-				}
-			}
-
-		public:
-
-			void operator() (GroupData & data)
-			{
-				update_actions(data);
-
-				if (is_customized(data))
-				{
-					customize_common(data);
-				}
-
-				// customize any template children of the group
-				for (auto & child : data.children)
-				{
-					visit(*this, child);
-				}
-			}
-			void operator() (ListData & data)
-			{
-				update_actions(data);
-
-				if (is_customized(data))
-				{
-					customize_common(data);
-				}
-
-				// customize the list item template
-				for (auto & child : data.children)
-				{
-					visit(*this, child);
-				}
-			}
-			void operator() (PanelData & data)
-			{
-				update_actions(data);
-
-				if (is_customized(data))
-				{
-					const json & jcustomize = customize_common(data);
-
-					if (this->load.has_type_panel(jcustomize))
-					{
-						const json & jpanel = this->load.type_panel(jcustomize);
-
-						if (this->load.has_color(jpanel))
-							data.color = this->load.color(jpanel);
-					}
-				}
-			}
-			void operator() (TextData & data)
-			{
-				update_actions(data);
-
-				if (is_customized(data))
-				{
-					const json & jcustomize = customize_common(data);
-
-					if (this->load.has_type_text(jcustomize))
-					{
-						const json & jtext = this->load.type_text(jcustomize);
-
-						if (this->load.has_display(jtext))
-							data.display = this->load.display(jtext);
-
-						if (this->load.has_color(jtext))
-							data.color = this->load.color(jtext);
-					}
-				}
-			}
-			void operator() (TextureData & data)
-			{
-				update_actions(data);
-
-				if (is_customized(data))
-				{
-					const json & jcustomize = customize_common(data);
-
-					if (this->load.has_type_texture(jcustomize))
-					{
-						const json & jtexture = this->load.type_texture(jcustomize);
-
-						if (this->load.has_texture(jtexture))
-							data.texture = this->load.texture(jtexture);
-					}
-				}
-			}
-		};
-
 		void load_components(GroupData & parent, const json & jcomponents)
 		{
 			for (const auto & jcomponent : jcomponents)
@@ -823,9 +747,12 @@ namespace
 
 				if (type[0] == '#')
 				{
-					load_views(parent, this->load.template_data(type));
-					DataVariant & datav = parent.children.back();
-					visit(Customize{ this->load, jcomponent }, datav);
+					// the json map can contain "overriding values" for the template view.
+					this->load.push_override(jcomponent);
+					{
+						load_views(parent, this->load.template_data(type));
+					}
+					this->load.pop_override();
 				}
 				else
 				{

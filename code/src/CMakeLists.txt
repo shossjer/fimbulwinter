@@ -74,6 +74,7 @@ set(HEADER_FILES
 	src/engine/gui/actions.hpp
 	src/engine/gui/common.hpp
 	src/engine/gui/creation.hpp
+	src/engine/gui/exception.hpp
 	src/engine/gui/function.hpp
 	src/engine/gui/gui.hpp
 	src/engine/gui/loading.hpp
