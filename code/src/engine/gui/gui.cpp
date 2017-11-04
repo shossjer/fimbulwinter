@@ -13,11 +13,11 @@
 
 using namespace engine::gui;
 
-constexpr engine::Asset engine::gui::ViewData::Action::CLOSE;
-constexpr engine::Asset engine::gui::ViewData::Action::INTERACTION;
-constexpr engine::Asset engine::gui::ViewData::Action::MOVER;
-constexpr engine::Asset engine::gui::ViewData::Action::SELECT;
-constexpr engine::Asset engine::gui::ViewData::Action::TRIGGER;
+constexpr engine::Asset ViewData::Action::CLOSE;
+constexpr engine::Asset ViewData::Action::INTERACTION;
+constexpr engine::Asset ViewData::Action::MOVER;
+constexpr engine::Asset ViewData::Action::SELECT;
+constexpr engine::Asset ViewData::Action::TRIGGER;
 
 namespace
 {
@@ -76,7 +76,8 @@ namespace engine
 				View & view = visit(Creator{ actions, components }, window_data);
 
 				// temp
-				lookup.emplace<View*>(Asset{"profile"}, &view);
+				const GroupData & data = utility::get<GroupData>(window_data);
+				lookup.emplace<View*>(Asset{data.name}, &view);
 
 				screen_group->adopt(&view);
 				view.parent = screen_view;

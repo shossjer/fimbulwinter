@@ -56,6 +56,20 @@ namespace engine
 				engine::graphics::renderer::post_make_selectable(view.entity);
 			}
 		}
+		void ViewRenderer::add(View & view, View::Texture & content)
+		{
+			engine::graphics::renderer::post_add_panel(
+				view.entity,
+				engine::graphics::data::ui::PanelT{
+				render_matrix(view),
+				render_size(view),
+				content.res });
+
+			if (is_selectable(view))
+			{
+				engine::graphics::renderer::post_make_selectable(view.entity);
+			}
+		}
 
 		void ViewRenderer::update(View & view, View::Color & content)
 		{
@@ -74,6 +88,15 @@ namespace engine
 					render_matrix(view),
 					content.color != nullptr ? content.color->get(&view) : 0,
 					content.display});
+		}
+		void ViewRenderer::update(View & view, View::Texture & content)
+		{
+			engine::graphics::renderer::post_update_panel(
+				view.entity,
+				engine::graphics::data::ui::PanelT{
+				render_matrix(view),
+				render_size(view),
+				content.res });
 		}
 
 		void ViewRenderer::remove(View & view)

@@ -207,9 +207,8 @@ namespace engine
 
 			View & operator() (const TextureData & data)
 			{
-				// TODO: Texture!
 				View & view = create(
-					View::Content{ utility::in_place_type<View::Color>, nullptr },
+					View::Content{ utility::in_place_type<View::Texture>, data.texture },
 					data);
 
 				create_actions(view, data);

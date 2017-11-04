@@ -130,6 +130,7 @@ namespace engine
 				void(*update_group)(Data & data, View & view, View::Group & content);
 				void(*update_color)(Data & data, View & view, View::Color & content);
 				void(*update_text)(Data & data, View & view, View::Text & content);
+				void(*update_texture)(Data & data, View & view, View::Texture & content);
 				Data data;
 
 				void operator() (View::Group & content)
@@ -149,6 +150,10 @@ namespace engine
 				void operator() (View::Text & content)
 				{
 					update_text(data, *view, content);
+				}
+				void operator() (View::Texture & content)
+				{
+					update_texture(data, *view, content);
 				}
 			};
 
@@ -214,6 +219,11 @@ namespace engine
 					{
 						ViewRenderer::remove(view);
 						view.change.set_content();
+					},
+					[](auto & data, View & view, View::Texture & content)
+					{
+						ViewRenderer::remove(view);
+						view.change.set_content();
 					}
 				};
 
@@ -253,6 +263,11 @@ namespace engine
 						view.change.set_content();
 					},
 					[](auto & data, View & view, View::Text & content)
+					{
+						view.status.state = std::get<0>(data);
+						view.change.set_content();
+					},
+					[](auto & data, View & view, View::Texture & content)
 					{
 						view.status.state = std::get<0>(data);
 						view.change.set_content();

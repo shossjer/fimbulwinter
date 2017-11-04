@@ -18,9 +18,13 @@ namespace engine
 
 			static void add(View & view, View::Text & content);
 
+			static void add(View & view, View::Texture & content);
+
 			static void update(View & view, View::Color & content);
 
 			static void update(View & view, View::Text & content);
+
+			static void update(View & view, View::Texture & content);
 
 		public:
 

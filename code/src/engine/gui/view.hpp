@@ -62,11 +62,17 @@ namespace engine
 				resource::Color const * color;
 			};
 
+			struct Texture
+			{
+				engine::Asset res;
+			};
+
 			using Content = utility::variant
 			<
 				Group,
 				Color,
-				Text
+				Text,
+				Texture
 			>;
 
 		public:
