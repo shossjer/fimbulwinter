@@ -116,45 +116,6 @@ namespace
 			rotation(std::move(data.rotation)),
 			translation(std::move(data.translation))
 		{}
-
-		Camera & operator = (engine::graphics::viewer::rotate && data)
-		{
-			rotation *= data.q;
-			return *this;
-		}
-		Camera & operator = (engine::graphics::viewer::rotation && data)
-		{
-			rotation = data.q;
-			return *this;
-		}
-		Camera & operator = (engine::graphics::viewer::translate && data)
-		{
-			translation += data.v;
-			return *this;
-		}
-		Camera & operator = (engine::graphics::viewer::translation && data)
-		{
-			translation = data.v;
-			return *this;
-		}
-
-		Camera & operator = (engine::graphics::renderer::Camera2D & data)
-		{
-			auto & matrix = data.view;
-			matrix = make_matrix(rotation);
-			matrix.set_column(3, matrix * to_xyz1(-translation));
-			return *this;
-		}
-		Camera & operator = (engine::graphics::renderer::Camera3D & data)
-		{
-			auto & matrix = data.view;
-			matrix = make_matrix(conjugate(rotation));
-			matrix.set_column(3, matrix * to_xyz1(-translation));
-			auto & inv_matrix = data.inv_view;
-			inv_matrix = make_matrix(rotation);
-			inv_matrix.set_column(3, to_xyz1(translation));
-			return *this;
-		}
 	};
 
 	core::container::Collection
@@ -162,10 +123,80 @@ namespace
 		engine::Entity,
 		41,
 		std::array<Camera, 20>,
-		std::array<int, 1>
+		std::array<Camera, 1>
 	>
 	cameras;
 
+	struct camera_rotate
+	{
+		engine::graphics::viewer::rotate && data;
+
+		void operator () (Camera & x)
+		{
+			x.rotation *= data.q;
+		}
+	};
+
+	struct camera_translate
+	{
+		engine::graphics::viewer::translate && data;
+
+		void operator () (Camera & x)
+		{
+			x.translation += data.v;
+		}
+	};
+
+	struct camera_set_rotation
+	{
+		engine::graphics::viewer::rotation && data;
+
+		void operator () (Camera & x)
+		{
+			x.rotation = data.q;
+		}
+	};
+
+	struct camera_set_translation
+	{
+		engine::graphics::viewer::translation && data;
+
+		void operator () (Camera & x)
+		{
+			x.translation = data.v;
+		}
+	};
+
+	struct camera_extract_2d
+	{
+		engine::graphics::renderer::Camera2D & data;
+
+		void operator () (const Camera & x)
+		{
+			auto & matrix = data.view;
+			matrix = make_matrix(x.rotation); // conjugate?
+			matrix.set_column(3, matrix * to_xyz1(-x.translation));
+		}
+	};
+
+	struct camera_extract_3d
+	{
+		engine::graphics::renderer::Camera3D & data;
+
+		void operator () (const Camera & x)
+		{
+			auto & matrix = data.view;
+			matrix = make_matrix(conjugate(x.rotation));
+			matrix.set_column(3, matrix * to_xyz1(-x.translation));
+			auto & inv_matrix = data.inv_view;
+			inv_matrix = make_matrix(x.rotation);
+			inv_matrix.set_column(3, to_xyz1(x.translation));
+		}
+	};
+}
+
+namespace
+{
 	core::container::ExchangeQueueSRSW<dimension_t> queue_dimension;
 
 	// core::container::CircleQueueSRMW<std::pair<engine::Entity,
@@ -227,8 +258,8 @@ namespace engine
 				          engine::graphics::viewer::camera> message_add_camera;
 				while (queue_add_camera.try_pop(message_add_camera))
 				{
-					cameras.add(message_add_camera.first,
-					            std::move(message_add_camera.second));
+					cameras.emplace<Camera>(message_add_camera.first,
+					                        std::move(message_add_camera.second));
 				}
 				engine::Entity message_remove;
 				while (queue_remove.try_pop(message_remove))
@@ -257,8 +288,8 @@ namespace engine
 				          engine::graphics::viewer::rotate> message_update_rotate;
 				while (queue_update_rotate.try_pop(message_update_rotate))
 				{
-					cameras.update(message_update_rotate.first,
-					               std::move(message_update_rotate.second));
+					cameras.call(message_update_rotate.first,
+					             camera_rotate{std::move(message_update_rotate.second)});
 					if (message_update_rotate.first == active_2d) camera2d_has_changed = true;
 					if (message_update_rotate.first == active_3d) camera3d_has_changed = true;
 				}
@@ -266,8 +297,8 @@ namespace engine
 				          engine::graphics::viewer::rotation> message_update_rotation;
 				while (queue_update_rotation.try_pop(message_update_rotation))
 				{
-					cameras.update(message_update_rotation.first,
-					               std::move(message_update_rotation.second));
+					cameras.call(message_update_rotation.first,
+					             camera_set_rotation{std::move(message_update_rotation.second)});
 					if (message_update_rotation.first == active_2d) camera2d_has_changed = true;
 					if (message_update_rotation.first == active_3d) camera3d_has_changed = true;
 				}
@@ -275,8 +306,8 @@ namespace engine
 				          engine::graphics::viewer::translate> message_update_translate;
 				while (queue_update_translate.try_pop(message_update_translate))
 				{
-					cameras.update(message_update_translate.first,
-					               std::move(message_update_translate.second));
+					cameras.call(message_update_translate.first,
+					             camera_translate{std::move(message_update_translate.second)});
 					if (message_update_translate.first == active_2d) camera2d_has_changed = true;
 					if (message_update_translate.first == active_3d) camera3d_has_changed = true;
 				}
@@ -284,8 +315,8 @@ namespace engine
 				          engine::graphics::viewer::translation> message_update_translation;
 				while (queue_update_translation.try_pop(message_update_translation))
 				{
-					cameras.update(message_update_translation.first,
-					               std::move(message_update_translation.second));
+					cameras.call(message_update_translation.first,
+					             camera_set_translation{std::move(message_update_translation.second)});
 					if (message_update_translation.first == active_2d) camera2d_has_changed = true;
 					if (message_update_translation.first == active_3d) camera3d_has_changed = true;
 				}
@@ -310,7 +341,7 @@ namespace engine
 					if (active_2d == engine::Entity::null())
 						data.view = core::maths::Matrix4x4f::identity();
 					else
-						cameras.update(active_2d, data); // ???
+						cameras.call(active_2d, camera_extract_2d{data});
 					notify(std::move(data));
 				}
 				if (camera3d_has_changed)
@@ -323,7 +354,7 @@ namespace engine
 						data.inv_view = core::maths::Matrix4x4f::identity();
 					}
 					else
-						cameras.update(active_3d, data); // ???
+						cameras.call(active_3d, camera_extract_3d{data});
 					projection = data.projection;
 					view = data.view;
 					inv_projection = data.inv_projection;

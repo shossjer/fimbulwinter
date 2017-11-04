@@ -34,17 +34,17 @@ namespace
 
 		CameraActivator(engine::Entity camera) : camera(camera) {}
 
-		void operator = (std::pair<engine::Command, utility::any> && args)
+		void translate(engine::Command command, utility::any && data)
 		{
-			switch (args.first)
+			switch (command)
 			{
 			case engine::Command::CONTEXT_CHANGED:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				debug_printline(gameplay::gameplay_channel, "Switching to camera: ", camera);
 				engine::graphics::viewer::set_active_3d(camera);
 				break;
 			default:
-				debug_printline(gameplay::gameplay_channel, "CameraActivator: Unknown command: ", static_cast<int>(args.first));
+				debug_printline(gameplay::gameplay_channel, "CameraActivator: Unknown command: ", static_cast<int>(command));
 			}
 		}
 	};
@@ -70,108 +70,108 @@ namespace
 
 		FreeCamera(engine::Entity camera) : camera(camera) {}
 
-		void operator = (std::pair<engine::Command, utility::any> && args)
+		void translate(engine::Command command, utility::any && data)
 		{
-			switch (args.first)
+			switch (command)
 			{
 			case engine::Command::MOVE_LEFT_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_left = true;
 				break;
 			case engine::Command::MOVE_LEFT_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_left = false;
 				break;
 			case engine::Command::MOVE_RIGHT_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_right = true;
 				break;
 			case engine::Command::MOVE_RIGHT_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_right = false;
 				break;
 			case engine::Command::MOVE_DOWN_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_down = true;
 				break;
 			case engine::Command::MOVE_DOWN_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_down = false;
 				break;
 			case engine::Command::MOVE_UP_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_up = true;
 				break;
 			case engine::Command::MOVE_UP_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_up = false;
 				break;
 			case engine::Command::TURN_LEFT_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				turn_left = true;
 				break;
 			case engine::Command::TURN_LEFT_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				turn_left = false;
 				break;
 			case engine::Command::TURN_RIGHT_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				turn_right = true;
 				break;
 			case engine::Command::TURN_RIGHT_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				turn_right = false;
 				break;
 			case engine::Command::TURN_DOWN_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				turn_down = true;
 				break;
 			case engine::Command::TURN_DOWN_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				turn_down = false;
 				break;
 			case engine::Command::TURN_UP_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				turn_up = true;
 				break;
 			case engine::Command::TURN_UP_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				turn_up = false;
 				break;
 			case engine::Command::ROLL_LEFT_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				roll_left = true;
 				break;
 			case engine::Command::ROLL_LEFT_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				roll_left = false;
 				break;
 			case engine::Command::ROLL_RIGHT_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				roll_right = true;
 				break;
 			case engine::Command::ROLL_RIGHT_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				roll_right = false;
 				break;
 			case engine::Command::ELEVATE_DOWN_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				elevate_down = true;
 				break;
 			case engine::Command::ELEVATE_DOWN_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				elevate_down = false;
 				break;
 			case engine::Command::ELEVATE_UP_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				elevate_up = true;
 				break;
 			case engine::Command::ELEVATE_UP_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				elevate_up = false;
 				break;
 			default:
-				debug_printline(gameplay::gameplay_channel, "FreeCamera: Unknown command: ", static_cast<int>(args.first));
+				debug_printline(gameplay::gameplay_channel, "FreeCamera: Unknown command: ", static_cast<int>(command));
 			}
 		}
 
@@ -232,44 +232,44 @@ namespace
 
 		OverviewCamera(engine::Entity camera) : camera(camera) {}
 
-		void operator = (std::pair<engine::Command, utility::any> && args)
+		void translate(engine::Command command, utility::any && data)
 		{
-			switch (args.first)
+			switch (command)
 			{
 			case engine::Command::MOVE_LEFT_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_left++;
 				break;
 			case engine::Command::MOVE_LEFT_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_left--;
 				break;
 			case engine::Command::MOVE_RIGHT_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_right++;
 				break;
 			case engine::Command::MOVE_RIGHT_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_right--;
 				break;
 			case engine::Command::MOVE_DOWN_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_down++;
 				break;
 			case engine::Command::MOVE_DOWN_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_down--;
 				break;
 			case engine::Command::MOVE_UP_DOWN:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_up++;
 				break;
 			case engine::Command::MOVE_UP_UP:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				move_up--;
 				break;
 			default:
-				debug_printline(gameplay::gameplay_channel, "OverviewCamera: Unknown command: ", static_cast<int>(args.first));
+				debug_printline(gameplay::gameplay_channel, "OverviewCamera: Unknown command: ", static_cast<int>(command));
 			}
 		}
 
@@ -296,15 +296,15 @@ namespace
 
 	struct Selector
 	{
-		void operator = (std::pair<engine::Command, utility::any> && args)
+		void translate(engine::Command command, utility::any && data)
 		{
-			switch (args.first)
+			switch (command)
 			{
 			case engine::Command::RENDER_SELECT:
-				entityClick(utility::any_cast<engine::Entity>(args.second));
+				entityClick(utility::any_cast<engine::Entity>(data));
 				break;
 			default:
-				debug_printline(gameplay::gameplay_channel, "Selector: Unknown command: ", static_cast<int>(args.first));
+				debug_printline(gameplay::gameplay_channel, "Selector: Unknown command: ", static_cast<int>(command));
 			}
 		}
 	};
@@ -569,21 +569,21 @@ namespace
 
 	struct WindowInventory
 	{
-		void operator = (std::pair<engine::Command, utility::any> && args)
+		void translate(engine::Command command, utility::any && data)
 		{
-			switch (args.first)
+			switch (command)
 			{
 			case engine::Command::BUTTON_DOWN_ACTIVE:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				engine::gui::post_state_show("inventory");
 				break;
 			case engine::Command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				engine::gui::post_state_hide("inventory");
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				break;
 			default:
 				debug_unreachable();
@@ -592,18 +592,18 @@ namespace
 	};
 	struct WindowProfile
 	{
-		void operator = (std::pair<engine::Command, utility::any> && args)
+		void translate(engine::Command command, utility::any && data)
 		{
-			switch (args.first)
+			switch (command)
 			{
 			case engine::Command::BUTTON_DOWN_ACTIVE:
 			case engine::Command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				engine::gui::post_state_toggle("profile");
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				break;
 			default:
 				debug_unreachable();
@@ -729,9 +729,9 @@ namespace
 
 	struct Loader
 	{
-		void operator = (std::pair<engine::Command, utility::any> && args)
+		void translate(engine::Command command, utility::any && data)
 		{
-			debug_assert(args.first == engine::Command::LOADER_FINISHED);
+			debug_assert(command == engine::Command::LOADER_FINISHED);
 			debug_printline(gameplay::gameplay_channel, "WOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOW");
 		}
 	};
@@ -752,6 +752,30 @@ namespace
 		std::array<Loader, 1>
 	>
 	components;
+
+	struct translate_command
+	{
+		engine::Command command;
+		utility::any && data;
+
+		template <typename T,
+		          typename = decltype(std::declval<T>().translate(command, std::move(data)))>
+		void impl(T & x, int)
+		{
+			x.translate(command, std::move(data));
+		}
+		template <typename T>
+		void impl(T & x, ...)
+		{
+			debug_unreachable();
+		}
+
+		template <typename T>
+		void operator () (T & x)
+		{
+			impl(x, 0);
+		}
+	};
 
 	std::pair<int16_t, int16_t> mouse_coords{ 0, 0 };
 	core::container::ExchangeQueueSRSW<std::pair<int16_t, int16_t>> queue_mouse_coords;
@@ -1000,7 +1024,7 @@ namespace gamestate
 			{
 				if (std::get<0>(command_args) != engine::Entity::null())
 				{
-					components.update(std::get<0>(command_args), std::make_pair(std::get<1>(command_args), std::move(std::get<2>(command_args))));
+					components.call(std::get<0>(command_args), translate_command{std::get<1>(command_args), std::move(std::get<2>(command_args))});
 					continue;
 				}
 				switch (std::get<1>(command_args))

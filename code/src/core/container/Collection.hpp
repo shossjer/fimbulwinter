@@ -236,29 +236,6 @@ namespace core
 					intrinsic_unreachable();
 				}
 			}
-			template <typename D>
-			void update(K key, D && data)
-			{
-				const auto bucket = find(key);
-				const auto index = slots[bucket].get_index();
-
-				switch (slots[bucket].get_type())
-				{
-#define CASE(n) case (n):	  \
-					set_impl(mpl::index_constant<(std::is_assignable<mpl::type_at_or<(n), \
-					                                                                 mpl::type_list<Cs...>>, \
-					                                                 D>::value ? \
-					                              (n) : \
-					                              std::size_t(-1))>{}, \
-					         index, std::forward<D>(data)); \
-					break
-
-					PP_EXPAND_128(CASE, 0);
-#undef CASE
-				default:
-					intrinsic_unreachable();
-				}
-			}
 
 			template <typename F>
 			auto call(K key, F && func) ->
@@ -1033,29 +1010,6 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					remove_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, bucket, index); \
-					break
-
-					PP_EXPAND_128(CASE, 0);
-#undef CASE
-				default:
-					intrinsic_unreachable();
-				}
-			}
-			template <typename D>
-			void update(K key, D && data)
-			{
-				const auto bucket = find(key);
-				const auto index = slots[bucket].get_index();
-
-				switch (slots[bucket].get_type())
-				{
-#define CASE(n) case (n):	  \
-					set_impl(mpl::index_constant<(std::is_assignable<mpl::type_at_or<(n), \
-					                                                                 mpl::type_list<Cs...>>, \
-					                                                 D>::value ? \
-					                              (n) : \
-					                              std::size_t(-1))>{}, \
-					         index, std::forward<D>(data)); \
 					break
 
 					PP_EXPAND_128(CASE, 0);
