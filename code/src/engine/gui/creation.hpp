@@ -18,7 +18,7 @@ namespace gameplay
 {
 	namespace gamestate
 	{
-		void post_add(engine::Entity entity);
+		void post_gui(engine::Entity entity);
 	}
 }
 
@@ -29,6 +29,7 @@ namespace engine
 		using Actions = core::container::MultiCollection
 			<
 			engine::Entity, 101,
+			std::array<CloseAction, 20>,
 			std::array<InteractionAction, 20>
 			>;
 
@@ -128,15 +129,21 @@ namespace engine
 
 						switch (data.type)
 						{
-						case ViewData::Action::INTERACTION:
+						case ViewData::Action::CLOSE:
+							this->actions.emplace<CloseAction>(view.entity, target);
+							break;
 
+						case ViewData::Action::INTERACTION:
 							this->actions.emplace<InteractionAction>(view.entity, target);
 							view.selectable = true;
 							break;
 						}
 					}
-					gameplay::gamestate::post_add(view.entity);
+					gameplay::gamestate::post_gui(view.entity);
 				}
+			}
+			void create_function(View & view, const ViewData & viewData)
+			{
 			}
 
 		public:
@@ -151,24 +158,10 @@ namespace engine
 
 				create_views(view, content, data);
 
+				create_actions(view, data);
+				create_function(view, data);
+
 				ViewUpdater::update(view, content);
-
-				//if (data.has_name()) lookup.put(data.name, entity);
-
-				//if (data.function.type != engine::Asset::null())
-				//{
-				//	const auto function_entity = engine::Entity::create();
-
-				//	if (!data.function.name.empty())
-				//		lookup.put(data.function.name, function_entity);
-
-				//	create_views(view, data);
-				//	create_function(function_entity, view, data);
-				//}
-				//else
-				//{
-				//	create_views(view, data);
-				//}
 
 				return view;
 			}
@@ -193,7 +186,7 @@ namespace engine
 					data);
 
 				create_actions(view, data);
-				//create_function(view, data);
+				create_function(view, data);
 
 				return view;
 			}
@@ -207,7 +200,7 @@ namespace engine
 				ViewUpdater::update(view, get_content<View::Text>(view));
 
 				create_actions(view, data);
-				//create_function(view, data);
+				create_function(view, data);
 
 				return view;
 			}
@@ -219,7 +212,8 @@ namespace engine
 					View::Content{ utility::in_place_type<View::Color>, nullptr },
 					data);
 
-				//create_action(view, data);
+				create_actions(view, data);
+				create_function(view, data);
 
 				return view;
 			}

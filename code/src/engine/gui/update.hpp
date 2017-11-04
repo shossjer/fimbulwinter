@@ -217,6 +217,7 @@ namespace engine
 					}
 				};
 
+				view.status.should_render = false;
 				visit(updater, view.content);
 
 				if (view.parent != nullptr) // remove from parent and notify change
@@ -227,6 +228,7 @@ namespace engine
 			}
 			static void show(View & view)
 			{
+				view.status.should_render = true;
 				view.change.set_shown();
 
 				if (view.parent != nullptr) // add to parent and notify change

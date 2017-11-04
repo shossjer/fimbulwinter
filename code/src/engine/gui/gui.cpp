@@ -24,38 +24,17 @@ namespace
 	const uint32_t WINDOW_HEIGHT = 677; // 720
 	const uint32_t WINDOW_WIDTH = 1004; // 1024
 
-	struct Window
-	{
-		View * view;
-		bool should_render = true;
-
-		void hide()
-		{
-			should_render = false;
-			ViewUpdater::hide(*view);
-		}
-		void show()
-		{
-			should_render = true;
-			ViewUpdater::show(*view);
-		}
-	};
-
-	core::container::Collection
-		<
-		engine::Asset, 21,
-		std::array<Window, 10>,
-		std::array<int, 1>
-		>
-		windows;
-
 	Actions actions;
 
 	Components components;
 
+	View * screen_view = nullptr;
+	View::Group * screen_group = nullptr;
+
 	// TODO: update lookup structure
 	// init from "gameplay" data structures
 	// assign views during creation
+	core::container::Collection<engine::Asset, 11, std::array<View*, 10>> lookup;
 
 	using UpdateMessage = utility::variant
 		<
@@ -77,15 +56,30 @@ namespace engine
 			// load windows and views data from somewhere.
 			std::vector<DataVariant> windows_data = load();
 
+			{	// create the "screen" view of the screen
+				// TODO: use "window size" as size param
+				const auto entity = engine::Entity::create();
+				screen_view = &components.emplace<View>(
+					entity,
+					entity,
+					View::Group{ View::Group::Layout::RELATIVE },
+					Gravity{},
+					Margin{},
+					Size{ {Size::FIXED, height_t{ WINDOW_HEIGHT }, }, {Size::FIXED, width_t{ WINDOW_WIDTH } } },
+					nullptr);
+			}
+
+			screen_group = &utility::get<View::Group>(screen_view->content);
+
 			for (auto & window_data : windows_data)
 			{
 				View & view = visit(Creator{ actions, components }, window_data);
 
-				windows.emplace<Window>("profile", &view);
+				// temp
+				lookup.emplace<View*>(Asset{"profile"}, &view);
 
-				// TODO: use "window size" as size param
-				ViewMeasure::refresh(view, Gravity::unmasked(), Offset{}, Size{ {Size::FIXED, height_t{ WINDOW_HEIGHT } }, { Size::FIXED, width_t{ WINDOW_WIDTH } } });
-				ViewMeasure::refresh(view);
+				screen_group->adopt(&view);
+				view.parent = screen_view;
 			}
 		}
 
@@ -102,56 +96,67 @@ namespace engine
 				{
 					debug_printline(engine::gui_channel, "MessageInteraction");
 
-					Status::State state;
-					switch (x.interaction)
+					struct Updater
 					{
-					case MessageInteraction::HIGHLIGHT:
-						state = Status::HIGHLIGHT;
-						break;
-					case MessageInteraction::LOWLIGHT:
-						state = Status::DEFAULT;
-						break;
-					case MessageInteraction::PRESS:
-						state = Status::PRESSED;
-						break;
-					case MessageInteraction::RELEASE:
-						state = Status::HIGHLIGHT;
-						break;
-					default:
-						return;
-					}
+						MessageInteraction & message;
 
-					auto & action = actions.get<InteractionAction>(x.entity);
+						void operator() (const CloseAction & action)
+						{
+							if (message.interaction == MessageInteraction::CLICK)
+							{
+								ViewUpdater::hide(components.get<View>(action.target));
+							}
+						}
+						void operator() (const InteractionAction & action)
+						{
+							Status::State state;
+							switch (message.interaction)
+							{
+							case MessageInteraction::HIGHLIGHT:
+								state = Status::HIGHLIGHT;
+								break;
+							case MessageInteraction::LOWLIGHT:
+								state = Status::DEFAULT;
+								break;
+							case MessageInteraction::PRESS:
+								state = Status::PRESSED;
+								break;
+							case MessageInteraction::RELEASE:
+								state = Status::HIGHLIGHT;
+								break;
+							default:
+								return;
+							}
 
-					ViewUpdater::status(
-						components.get<View>(action.target),
-						state);
+							ViewUpdater::status(
+								components.get<View>(action.target),
+								state);
+						}
+					};
+					actions.call_all(x.entity, Updater{ x });
 				}
 				void operator () (MessageVisibility && x)
 				{
 					debug_printline(engine::gui_channel, "MessageVisibility");
 
-					if (!windows.contains(x.name))
-					{
-						debug_printline(engine::gui_channel, "Window visibility; window not found");
+					if (!lookup.contains(x.window))
 						return;
-					}
 
-					auto & window = windows.get<Window>(x.name);
+					View & view = *lookup.get<View*>(x.window);
 
 					switch (x.state)
 					{
 					case MessageVisibility::HIDE:
-						window.hide();
+						ViewUpdater::hide(view);
 						break;
 					case MessageVisibility::SHOW:
-						window.show();
+						ViewUpdater::show(view);
 						break;
 					case MessageVisibility::TOGGLE:
-						if (window.should_render)
-							window.hide();
+						if (view.status.should_render)
+							ViewUpdater::hide(view);
 						else
-							window.show();
+							ViewUpdater::show(view);
 						break;
 					}
 				}
@@ -163,13 +168,7 @@ namespace engine
 				visit(processMessage, std::move(message));
 			}
 
-			for (Window & window : windows.get<Window>())
-			{
-				if (window.should_render)
-				{
-					ViewMeasure::refresh(*window.view);
-				}
-			}
+			ViewMeasure::refresh(*screen_view);
 		}
 
 		template<typename T>

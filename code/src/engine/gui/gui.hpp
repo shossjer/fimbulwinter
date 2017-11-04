@@ -30,7 +30,7 @@ namespace engine
 
 		struct MessageVisibility
 		{
-			Asset name;
+			engine::Asset window;
 			enum
 			{
 				SHOW,

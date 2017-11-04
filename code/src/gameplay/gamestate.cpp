@@ -508,50 +508,6 @@ namespace
 	}
 	profile_updater;
 
-	struct WindowInventory
-	{
-		void operator = (std::pair<engine::Command, utility::any> && args)
-		{
-			switch (args.first)
-			{
-			case engine::Command::BUTTON_DOWN_ACTIVE:
-				debug_assert(!args.second.has_value());
-				engine::gui::post(engine::gui::MessageVisibility{ "inventory", engine::gui::MessageVisibility::SHOW });
-				break;
-			case engine::Command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!args.second.has_value());
-				engine::gui::post(engine::gui::MessageVisibility{ "inventory", engine::gui::MessageVisibility::HIDE });
-				break;
-			case engine::Command::BUTTON_UP_ACTIVE:
-			case engine::Command::BUTTON_UP_INACTIVE:
-				debug_assert(!args.second.has_value());
-				break;
-			default:
-				debug_unreachable();
-			}
-		}
-	};
-	struct WindowProfile
-	{
-		void operator = (std::pair<engine::Command, utility::any> && args)
-		{
-			switch (args.first)
-			{
-			case engine::Command::BUTTON_DOWN_ACTIVE:
-			case engine::Command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!args.second.has_value());
-				engine::gui::post(engine::gui::MessageVisibility{ "profile", engine::gui::MessageVisibility::TOGGLE });
-				break;
-			case engine::Command::BUTTON_UP_ACTIVE:
-			case engine::Command::BUTTON_UP_INACTIVE:
-				debug_assert(!args.second.has_value());
-				break;
-			default:
-				debug_unreachable();
-			}
-		}
-	};
-
 	struct GUIComponent
 	{
 		engine::Entity id;
@@ -579,6 +535,29 @@ namespace
 		}
 	};
 
+	struct GUIWindow
+	{
+		engine::Asset window;
+
+		void operator = (std::pair<engine::Command, utility::any> && args)
+		{
+			switch (args.first)
+			{
+			case engine::Command::BUTTON_DOWN_ACTIVE:
+			case engine::Command::BUTTON_DOWN_INACTIVE:
+				debug_assert(!args.second.has_value());
+				engine::gui::post(engine::gui::MessageVisibility{ window, engine::gui::MessageVisibility::TOGGLE });
+				break;
+			case engine::Command::BUTTON_UP_ACTIVE:
+			case engine::Command::BUTTON_UP_INACTIVE:
+				debug_assert(!args.second.has_value());
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+	};
+
 	// when mouse button is released and the entity is "clicked".
 	struct
 	{
@@ -591,7 +570,7 @@ namespace
 		bool operator () (const Worker & w)
 		{
 			// show the window
-		//	engine::gui::post(engine::gui::MessageProfile{ "profile" });
+			engine::gui::post(engine::gui::MessageVisibility{ "profile", engine::gui::MessageVisibility::SHOW });
 			profile_updater.entity = w.id;
 			profile_update(w.id);
 			return true;
@@ -682,10 +661,9 @@ namespace
 		std::array<CameraActivator, 2>,
 		std::array<FreeCamera, 1>,
 		std::array<GUIComponent, 100>,
+		std::array<GUIWindow, 10>,
 		std::array<OverviewCamera, 1>,
 		std::array<Selector, 1>,
-		std::array<WindowInventory, 1>,
-		std::array<WindowProfile, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>,
 		std::array<Loader, 1>
@@ -842,12 +820,12 @@ namespace gamestate
 		gameplay::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
 		gameplay::ui::post_bind("debug", inventorycontrol, 0);
 		gameplay::ui::post_bind("game", inventorycontrol, 0);
-		components.emplace<WindowInventory>(inventorycontrol);
+		components.emplace<GUIWindow>(inventorycontrol, "inventory");
 		auto profilecontrol = engine::Entity::create();
 		gameplay::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
 		gameplay::ui::post_bind("debug", profilecontrol, 0);
 		gameplay::ui::post_bind("game", profilecontrol, 0);
-		components.emplace<WindowProfile>(profilecontrol);
+		components.emplace<GUIWindow>(profilecontrol, "profile");
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
@@ -1038,7 +1016,7 @@ namespace gamestate
 		debug_assert(res);
 	}
 
-	void post_add(engine::Entity entity)
+	void post_gui(engine::Entity entity)
 	{
 		const auto res = queue_gui_components.try_emplace(entity);
 		debug_assert(res);

@@ -326,6 +326,8 @@ namespace engine
 			bool enabled = true;
 			bool rendered = false;
 
+			bool should_render = true;
+
 			enum State
 			{
 				DEFAULT,

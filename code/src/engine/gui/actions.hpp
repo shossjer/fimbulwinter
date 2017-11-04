@@ -12,6 +12,10 @@ namespace engine
 {
 	namespace gui
 	{
+		struct CloseAction
+		{
+			Entity target;
+		};
 		struct InteractionAction
 		{
 			Entity target;
