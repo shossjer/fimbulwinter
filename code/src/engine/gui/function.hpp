@@ -4,7 +4,11 @@
 #ifndef ENGINE_GUI_FUNCTION_HPP
 #define ENGINE_GUI_FUNCTION_HPP
 
+#include <engine/Entity.hpp>
+
 #include <utility/variant.hpp>
+
+#include <vector>
 
 namespace engine
 {
@@ -30,10 +34,9 @@ namespace engine
 
 			struct TabCantroller
 			{
-				// List<View * or entity> for tabs
-				// List<View * or entity> for content
-				// selection info
-				// 
+				std::vector<View *> tab_groups;
+				std::vector<View *> page_groups;
+				std::size_t active_index = 0;
 			};
 
 			using Content = utility::variant
@@ -43,7 +46,7 @@ namespace engine
 				TabCantroller
 			>;
 
-		private:
+		public:
 
 			Content content;
 
@@ -59,6 +62,23 @@ namespace engine
 				, view(view)
 			{}
 		};
+
+		namespace fun
+		{
+			struct Trigger
+			{
+				Entity caller;
+				Function * function;
+
+				void operator() (Function::TabCantroller & content);
+
+				template<typename T>
+				void operator() (const T & content)
+				{
+					debug_unreachable();
+				}
+			};
+		}
 	}
 }
 

@@ -19,6 +19,8 @@ constexpr engine::Asset ViewData::Action::MOVER;
 constexpr engine::Asset ViewData::Action::SELECT;
 constexpr engine::Asset ViewData::Action::TRIGGER;
 
+constexpr engine::Asset ViewData::Function::TAB;
+
 namespace
 {
 	const uint32_t WINDOW_HEIGHT = 677; // 720
@@ -132,6 +134,15 @@ namespace engine
 							ViewUpdater::status(
 								components.get<View>(action.target),
 								state);
+						}
+						void operator() (const TriggerAction & action)
+						{
+							if (message.interaction == MessageInteraction::CLICK)
+							{
+								View & view = components.get<View>(action.target);
+
+								visit(fun::Trigger{ message.entity, view.function }, view.function->content);
+							}
 						}
 					};
 					actions.call_all(x.entity, Updater{ x });

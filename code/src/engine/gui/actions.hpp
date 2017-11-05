@@ -20,6 +20,10 @@ namespace engine
 		{
 			Entity target;
 		};
+		struct TriggerAction
+		{
+			Entity target;
+		};
 	}
 }
 

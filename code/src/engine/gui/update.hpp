@@ -16,17 +16,6 @@ namespace engine
 {
 	namespace gui
 	{
-		// TODO: possibility to declare "update registration" structure.
-
-		// Needs to "refresh" size of View (and Parent(s)) when affected.
-		// This will basically fullfill the "refresh1" from before.
-
-		// Gameplay -> Variant{ String, Number? List, Percentage }
-		// ...
-		// ...
-		// The targets? View / Function? or just some data receptors?
-		// Lookup data type...
-
 		struct ViewUpdater
 		{
 			friend struct ViewTester;
@@ -245,6 +234,11 @@ namespace engine
 				{
 					ViewUpdater::content<View::Group>(*view.parent).adopt(&view);
 					ViewUpdater::parent(view, Change::SIZE_HEIGHT | Change::SIZE_WIDTH | Change::VISIBILITY);
+
+					// when a view is added to a group; the children Needs re-update
+					// possibly this can be avoided, but children can need offset update or passive size update
+					view.parent->change.set_resized_h();
+					view.parent->change.set_resized_w();
 				}
 			}
 			static void status(View & view, Status::State state)

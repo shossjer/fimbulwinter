@@ -30,7 +30,8 @@ namespace engine
 			<
 			engine::Entity, 101,
 			std::array<CloseAction, 20>,
-			std::array<InteractionAction, 20>
+			std::array<InteractionAction, 20>,
+			std::array<TriggerAction, 20>
 			>;
 
 		using Components = core::container::UnorderedCollection
@@ -131,10 +132,16 @@ namespace engine
 						{
 						case ViewData::Action::CLOSE:
 							this->actions.emplace<CloseAction>(view.entity, target);
+							view.selectable = true;
 							break;
 
 						case ViewData::Action::INTERACTION:
 							this->actions.emplace<InteractionAction>(view.entity, target);
+							view.selectable = true;
+							break;
+
+						case ViewData::Action::TRIGGER:
+							this->actions.emplace<TriggerAction>(view.entity, target);
 							view.selectable = true;
 							break;
 						}
@@ -144,6 +151,53 @@ namespace engine
 			}
 			void create_function(View & view, const ViewData & viewData)
 			{
+				switch (viewData.function.type)
+				{
+				case Asset{ "progressBar" }:
+				case Asset::null():
+					break;
+
+				// TODO: progress
+				// TODO: list
+
+				case ViewData::Function::TAB:
+				{
+					const auto entity = engine::Entity::create();
+
+					auto & fun = components.emplace<Function>(
+						entity,
+						Function::Content{
+							utility::in_place_type<Function::TabCantroller>}, &view);
+					view.function = &fun;
+
+					auto tabs_group = find_view(Asset{ "tabs" });
+					auto pages_group = find_view(Asset{ "views" });
+
+					auto & content = utility::get<Function::TabCantroller>(fun.content);
+
+					debug_assert(tabs_group != nullptr);
+					debug_assert(pages_group != nullptr);
+
+					auto & tabs_group_content = utility::get<View::Group>(tabs_group->content);
+					auto & pages_group_content = utility::get<View::Group>(pages_group->content);
+					debug_assert(tabs_group_content.children.size() == pages_group_content.children.size());
+					debug_assert(!tabs_group_content.children.empty());
+
+					content.tab_groups = tabs_group_content.children;
+					content.page_groups = pages_group_content.children;
+
+					for (std::size_t i = 1; i < content.page_groups.size(); i++)
+					{
+						ViewUpdater::hide(*content.page_groups[i]);
+					}
+					ViewUpdater::status(*content.tab_groups[0], Status::PRESSED);
+					break;
+				}
+				default:
+
+					debug_printline(0xffffffff, "GUI - invalid function type.");
+					debug_unreachable();
+				}
 			}
 
 		public:

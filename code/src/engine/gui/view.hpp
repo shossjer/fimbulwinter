@@ -17,6 +17,8 @@ namespace engine
 {
 	namespace gui
 	{
+		class Function;
+
 		class View
 		{
 			friend struct ViewAccess;
@@ -95,11 +97,14 @@ namespace engine
 
 			Status status;
 
-			// please remove this somehow
+			// remove this somehow
 			float depth;
 
 			// remove this somehow
 			bool selectable;
+
+			// woulf be nice if it could be removed...
+			Function * function;
 
 		public:
 
@@ -119,6 +124,7 @@ namespace engine
 				, change()
 				, status()
 				, selectable(false)
+				, function(nullptr)
 			{}
 		};
 	}

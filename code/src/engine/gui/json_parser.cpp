@@ -531,13 +531,13 @@ namespace
 
 		void load_function(ViewData & target, const json & jcomponent)
 		{
-			//const json & jfunction = jcomponent["function"];
+			const json & jfunction = jcomponent["function"];
 
-			//target.function.name = this->load.name(jfunction);
-			//target.function.type = this->load.type(jfunction);
+			target.function.name = this->load.name_or_empty(jfunction);
+			target.function.type = this->load.type(jfunction);
 
-			//switch (target.function.type)
-			//{
+			switch (target.function.type)
+			{
 			//case ViewData::Function::PROGRESS:
 			//{
 			//	if (contains(jfunction, "direction"))
@@ -565,14 +565,14 @@ namespace
 			//	}
 			//	break;
 			//}
-			//case ViewData::Function::TAB:
-			//{
-			//	break;
-			//}
-			//default:
-			//	debug_printline(engine::gui_channel, "GUI - Unknown function type: ", jcomponent);
-			//	debug_unreachable();
-			//}
+			case ViewData::Function::TAB:
+			{
+				break;
+			}
+			default:
+				debug_printline(engine::gui_channel, "GUI - Unknown function type: ", jcomponent);
+				//debug_unreachable();
+			}
 		}
 
 		GroupData & load_group(GroupData & parent, const json & jcomponent)

@@ -42,21 +42,23 @@ namespace gui
 
 		struct Action
 		{
-			static constexpr engine::Asset CLOSE{ "close" };
-			static constexpr engine::Asset INTERACTION{ "interaction" };
-			static constexpr engine::Asset MOVER{ "mover" };
-			static constexpr engine::Asset SELECT{ "selectable" };
-			static constexpr engine::Asset TRIGGER{ "trigger" };
+			static constexpr Asset CLOSE{ "close" };
+			static constexpr Asset INTERACTION{ "interaction" };
+			static constexpr Asset MOVER{ "mover" };
+			static constexpr Asset SELECT{ "selectable" };
+			static constexpr Asset TRIGGER{ "trigger" };
 
-			engine::Asset type;
-			engine::Asset target;
+			Asset type;
+			Asset target;
 		};
 
 		std::vector<Action> actions;
 
 		struct Function
 		{
-			engine::Asset type;
+			static constexpr Asset TAB{ "tabBar" };
+
+			Asset type;
 			std::string name;
 		}
 		function;
@@ -67,17 +69,12 @@ namespace gui
 			, margin(margin)
 			, gravity(gravity)
 		{
-			function.type = engine::Asset::null();
+			function.type = Asset::null();
 		}
 
 		bool has_action() const
 		{
 			return !this->actions.empty();
-		}
-
-		bool has_function() const
-		{
-			return this->function.type != engine::Asset::null();
 		}
 
 		bool has_name() const
