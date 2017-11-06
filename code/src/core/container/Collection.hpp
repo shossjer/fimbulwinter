@@ -4,6 +4,7 @@
 
 #include <core/debug.hpp>
 
+#include <utility/array_alloc.hpp>
 #include <utility/bitmanip.hpp>
 #include <utility/preprocessor.hpp>
 #include <utility/type_traits.hpp>
@@ -38,50 +39,21 @@ namespace core
 			{
 				static constexpr std::size_t capacity = N;
 
-				std::size_t size;
-				mpl::aligned_storage_t<sizeof(C), alignof(C)> components[N];
+				std::size_t size = 0;
+				utility::array_alloc<C, N> components;
 				bucket_t buckets[N];
 
-				array_t() :
-					size(0)
-				{
-				}
+				C * begin() { return components.data(); }
+				const C * begin() const { return components.data(); }
+				C * end() { return components.data() + size; }
+				const C * end() const { return components.data() + size; }
 
-				C * begin()
-				{
-					return reinterpret_cast<C *>(&components) + 0;
-				}
-				const C * begin() const
-				{
-					return reinterpret_cast<const C *>(&components) + 0;
-				}
-				C * end()
-				{
-					return reinterpret_cast<C *>(&components) + size;
-				}
-				const C * end() const
-				{
-					return reinterpret_cast<const C *>(&components) + size;
-				}
-
-				C & get(const std::size_t index)
-				{
-					return reinterpret_cast<C &>(components[index]);
-				}
-				const C & get(const std::size_t index) const
-				{
-					return reinterpret_cast<const C &>(components[index]);
-				}
+				C & get(const std::size_t index) { return components[index]; }
+				const C & get(const std::size_t index) const { return components[index]; }
 
 				template <typename ...Ps>
-				void construct(const std::size_t index, Ps && ...ps)
-				{
-					utility::construct_at<C>(components + index, std::forward<Ps>(ps)...);
-				}
-				void destruct(const std::size_t index)
-				{
-					this->get(index).~C();
-				}
+				void construct(const std::size_t index, Ps && ...ps) { (void)components.construct_at(index, std::forward<Ps>(ps)...); }
+				void destruct(const std::size_t index) { components.destruct_at(index); }
 			};
 		private:
 			struct slot_t
@@ -90,8 +62,7 @@ namespace core
 
 				slot_t() :
 					value(0xffffffff)
-				{
-				}
+				{}
 
 				bool empty() const
 				{
@@ -417,50 +388,21 @@ namespace core
 			{
 				static constexpr std::size_t capacity = N;
 
-				std::size_t size;
-				mpl::aligned_storage_t<sizeof(C), alignof(C)> components[N];
+				std::size_t size = 0;
+				utility::array_alloc<C, N> components;
 				bucket_t buckets[N];
 
-				array_t() :
-					size(0)
-				{
-				}
+				C * begin() { return components.data(); }
+				const C * begin() const { return components.data(); }
+				C * end() { return components.data() + size; }
+				const C * end() const { return components.data() + size; }
 
-				C * begin()
-				{
-					return reinterpret_cast<C *>(&components) + 0;
-				}
-				const C * begin() const
-				{
-					return reinterpret_cast<const C *>(&components) + 0;
-				}
-				C * end()
-				{
-					return reinterpret_cast<C *>(&components) + size;
-				}
-				const C * end() const
-				{
-					return reinterpret_cast<const C *>(&components) + size;
-				}
-
-				C & get(const std::size_t index)
-				{
-					return reinterpret_cast<C &>(components[index]);
-				}
-				const C & get(const std::size_t index) const
-				{
-					return reinterpret_cast<const C &>(components[index]);
-				}
+				C & get(const std::size_t index) { return components[index]; }
+				const C & get(const std::size_t index) const { return components[index]; }
 
 				template <typename ...Ps>
-				void construct(const std::size_t index, Ps && ...ps)
-				{
-					utility::construct_at<C>(components + index, std::forward<Ps>(ps)...);
-				}
-				void destruct(const std::size_t index)
-				{
-					this->get(index).~C();
-				}
+				void construct(const std::size_t index, Ps && ...ps) { (void)components.construct_at(index, std::forward<Ps>(ps)...); }
+				void destruct(const std::size_t index) { components.destruct_at(index); }
 			};
 		private:
 			struct slot_t
@@ -861,34 +803,21 @@ namespace core
 			{
 				static constexpr std::size_t capacity = N;
 
-				std::size_t size;
-				mpl::aligned_storage_t<sizeof(C), alignof(C)> components[N];
+				std::size_t size = 0;
+				utility::array_alloc<C, N> components;
 				uint24_t free_indices[N];
 
-				array_t() :
-					size(0)
+				array_t()
 				{
 					std::iota(free_indices + 0, free_indices + N, 0);
 				}
 
-				C & get(const std::size_t index)
-				{
-					return reinterpret_cast<C &>(components[index]);
-				}
-				const C & get(const std::size_t index) const
-				{
-					return reinterpret_cast<const C &>(components[index]);
-				}
+				C & get(const std::size_t index) { return components[index]; }
+				const C & get(const std::size_t index) const { return components[index]; }
 
 				template <typename ...Ps>
-				void construct(const std::size_t index, Ps && ...ps)
-				{
-					utility::construct_at<C>(components + index, std::forward<Ps>(ps)...);
-				}
-				void destruct(const std::size_t index)
-				{
-					this->get(index).~C();
-				}
+				void construct(const std::size_t index, Ps && ...ps) { (void)components.construct_at(index, std::forward<Ps>(ps)...); }
+				void destruct(const std::size_t index) { components.destruct_at(index); }
 			};
 		private:
 			struct slot_t
@@ -897,8 +826,7 @@ namespace core
 
 				slot_t() :
 					value(0xffffffff)
-				{
-				}
+				{}
 
 				bool empty() const
 				{
