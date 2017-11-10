@@ -46,7 +46,7 @@ namespace engine
 					{
 						// calc total height if vertical
 						// only "active" sizes are allowed
-						wrap += child->size.height;
+						wrap += (child->size.height + child->margin.height());
 					}
 					break;
 				default:
@@ -75,7 +75,7 @@ namespace engine
 					{
 						// calc total width if vertical
 						// only "active" sizes are allowed
-						wrap += child->size.width;
+						wrap += (child->size.width + child->margin.width());
 					}
 					break;
 				default:
@@ -148,6 +148,24 @@ namespace engine
 
 		public:
 
+			static void view(View & view, const Change & child_changes)
+			{
+				auto & content = ViewUpdater::content<View::Group>(view);
+
+				auto update_changes = Change{ Change::DATA };
+
+				if (child_changes.affects_size_h() && wrap(view.size.height, content))
+				{
+					update_changes.set_resized_h();
+				}
+				if (child_changes.affects_size_w() && wrap(view.size.width, content))
+				{
+					update_changes.set_resized_w();
+				}
+
+				ViewUpdater::parent(view, update_changes);
+				view.change.set(update_changes);
+			}
 			static void parent(View & child, const Change & child_changes)
 			{
 				if (child.parent == nullptr) return;
@@ -273,26 +291,6 @@ namespace engine
 				ViewUpdater::parent(view, Change{ Change::DATA });
 			}
 		};
-
-		namespace react
-		{
-			struct TextUpdate
-			{
-				View & view;
-
-				void operator() (const TextData & data)
-				{
-					auto & content = ViewUpdater::content<View::Text>(view);
-
-					content.display = data.display;
-
-					auto change = ViewUpdater::update(view, content);
-					ViewUpdater::parent(view, change);
-				}
-				template<typename T>
-				void operator() (const T &) { debug_unreachable(); }
-			};
-		}
 	}
 }
 

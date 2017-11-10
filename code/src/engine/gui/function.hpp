@@ -4,6 +4,8 @@
 #ifndef ENGINE_GUI_FUNCTION_HPP
 #define ENGINE_GUI_FUNCTION_HPP
 
+#include "loading.hpp"
+
 #include <engine/Entity.hpp>
 
 #include <utility/variant.hpp>
@@ -22,9 +24,8 @@ namespace engine
 
 			struct List
 			{
-				// View * or entity
-				// Item template
-				// Active items?
+				DataVariant item_template;
+				std::vector<View *> items;
 			};
 
 			struct Progress

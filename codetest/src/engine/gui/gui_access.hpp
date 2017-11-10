@@ -2,6 +2,7 @@
 #ifndef TEST_ENGINE_GUI_GUI_ACCESS_HPP
 #define TEST_ENGINE_GUI_GUI_ACCESS_HPP
 
+#include <engine/gui/function.hpp>
 #include <engine/gui/update.hpp>
 #include <engine/gui/view.hpp>
 
@@ -51,6 +52,15 @@ namespace engine
 					margin,
 					size,
 					parent };
+			}
+
+			static Function create_function(
+				Function::Content && content,
+				View & view)
+			{
+				return Function{
+					std::move(content),
+					&view };
 			}
 		};
 	}

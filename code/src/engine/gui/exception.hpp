@@ -28,6 +28,10 @@ namespace engine
 			bad_json(std::string message)
 				: exception(message)
 			{}
+			template <typename ...Ts>
+			bad_json(Ts &&...ts)
+				: exception(utility::to_string(std::forward<Ts>(ts)...))
+			{}
 		};
 
 		class key_missing : public bad_json

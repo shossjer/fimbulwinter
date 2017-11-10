@@ -19,7 +19,6 @@ namespace engine
 namespace gui
 {
 	struct GroupData;
-	struct ListData;
 	struct PanelData;
 	struct TextData;
 	struct TextureData;
@@ -27,7 +26,6 @@ namespace gui
 	using DataVariant = utility::variant
 	<
 		GroupData,
-		ListData,
 		PanelData,
 		TextData,
 		TextureData
@@ -56,10 +54,14 @@ namespace gui
 
 		struct Function
 		{
+			static constexpr Asset LIST{ "list" };
+			static constexpr Asset PROGRESS{ "progressBar" };
 			static constexpr Asset TAB{ "tabBar" };
 
 			Asset type;
 			std::string name;
+			std::vector<DataVariant> templates;
+			//GroupData group_template;
 		}
 		function;
 
@@ -81,6 +83,9 @@ namespace gui
 		{
 			return !this->name.empty();
 		}
+
+		// in one place a dynamic cast is performed...
+		virtual void dummy() {};
 	};
 
 	struct GroupData : ViewData
@@ -91,13 +96,6 @@ namespace gui
 		GroupData(std::string name, Size size, Margin margin, Gravity gravity, View::Group::Layout layout)
 			: ViewData(name, size, margin, gravity)
 			, layout(layout)
-		{}
-	};
-
-	struct ListData : GroupData
-	{
-		ListData(std::string name, Size size, Margin margin, Gravity gravity, View::Group::Layout layout)
-			: GroupData(name, size, margin, gravity, layout)
 		{}
 	};
 

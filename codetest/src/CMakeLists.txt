@@ -11,6 +11,7 @@ set(CODE_TEST_SOURCE
 	src/core/maths/Vector.cpp
 	src/core/maths/util.cpp
 	src/engine/gui/measure.cpp
+	src/engine/gui/react.cpp
 	src/engine/gui/update.cpp
 	src/engine/gui/visibility.cpp
 	src/utility/any.cpp

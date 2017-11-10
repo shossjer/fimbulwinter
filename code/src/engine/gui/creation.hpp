@@ -54,6 +54,8 @@ namespace engine
 				, components(components)
 			{}
 
+			static Creator instantiate();
+
 		public:
 
 			template<typename T>
@@ -95,6 +97,20 @@ namespace engine
 				view.depth = this->depth;
 				this->depth += .01f;
 				return view;
+			}
+
+			Function & create(Function::Content && content, View & view)
+			{
+				const auto entity = engine::Entity::create();
+
+				auto & function = components.emplace<Function>(
+					entity,
+					std::move(content),
+					&view);
+
+				view.function = &function;
+
+				return function;
 			}
 
 			void create_views(View & parent, View::Group & content, const GroupData & dataGroup)
@@ -149,32 +165,37 @@ namespace engine
 					gameplay::gamestate::post_gui(view.entity);
 				}
 			}
+
 			void create_function(View & view, const ViewData & viewData)
 			{
 				switch (viewData.function.type)
 				{
-				case Asset{ "progressBar" }:
 				case Asset::null():
 					break;
+				case ViewData::Function::LIST:
+				{
+					auto & fun = create(
+						Function::Content{
+							utility::in_place_type<Function::List>,
+							std::move(viewData.function.templates[0])},
+						view);
 
-				// TODO: progress
-				// TODO: list
+					break;
+				}
+				case ViewData::Function::PROGRESS:
+				{
+					// TODO: progress
 
+					break;
+				}
 				case ViewData::Function::TAB:
 				{
-					const auto entity = engine::Entity::create();
-
-					auto & fun = components.emplace<Function>(
-						entity,
-						Function::Content{
-							utility::in_place_type<Function::TabCantroller>}, &view);
-					view.function = &fun;
+					auto & fun = create(
+						Function::Content{ utility::in_place_type<Function::TabCantroller> },
+						view);
 
 					auto tabs_group = find_view(Asset{ "tabs" });
 					auto pages_group = find_view(Asset{ "views" });
-
-					auto & content = utility::get<Function::TabCantroller>(fun.content);
-
 					debug_assert(tabs_group != nullptr);
 					debug_assert(pages_group != nullptr);
 
@@ -183,6 +204,7 @@ namespace engine
 					debug_assert(tabs_group_content.children.size() == pages_group_content.children.size());
 					debug_assert(!tabs_group_content.children.empty());
 
+					auto & content = utility::get<Function::TabCantroller>(fun.content);
 					content.tab_groups = tabs_group_content.children;
 					content.page_groups = pages_group_content.children;
 
@@ -195,7 +217,7 @@ namespace engine
 				}
 				default:
 
-					debug_printline(0xffffffff, "GUI - invalid function type.");
+					debug_printline(0xffffffff, "GUI - invalid function type: ", viewData.function.type);
 					debug_unreachable();
 				}
 			}
@@ -216,19 +238,6 @@ namespace engine
 				create_function(view, data);
 
 				ViewUpdater::update(view, content);
-
-				return view;
-			}
-
-			View & operator() (const ListData & data)
-			{
-				View & view = create(
-					View::Content{ utility::in_place_type<View::Group>, data.layout },
-					data);
-
-				ViewUpdater::update(view, get_content<View::Group>(view));
-
-				// TODO: List!
 
 				return view;
 			}
@@ -267,6 +276,16 @@ namespace engine
 
 				create_actions(view, data);
 				create_function(view, data);
+
+				return view;
+			}
+
+			View & create(View * parent, View::Group * parent_content, const DataVariant & data)
+			{
+				View & view = visit(*this, data);
+
+				parent_content->adopt(&view);
+				view.parent = parent;
 
 				return view;
 			}

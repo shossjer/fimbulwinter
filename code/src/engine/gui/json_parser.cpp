@@ -488,6 +488,9 @@ namespace
 
 		void load_action(ViewData & view, const json & jcomponent)
 		{
+			if (!has_action(jcomponent))
+				return;
+
 			const json & jactions = jcomponent["actions"];
 
 			for (const auto & jaction : jactions)
@@ -529,17 +532,49 @@ namespace
 
 		bool has_function(const json & jcomponent) { return contains(jcomponent, "function"); }
 
-		void load_function(ViewData & target, const json & jcomponent)
+		void load_function(ViewData & data, const json & jcomponent)
 		{
+			if (!has_function(jcomponent))
+				return;
+
 			const json & jfunction = jcomponent["function"];
 
-			target.function.name = this->load.name_or_empty(jfunction);
-			target.function.type = this->load.type(jfunction);
+			auto & function = data.function;
+			function.name = this->load.name_or_empty(jfunction);
+			function.type = this->load.type(jfunction);
 
-			switch (target.function.type)
+			switch (function.type)
 			{
-			//case ViewData::Function::PROGRESS:
-			//{
+			case ViewData::Function::LIST:
+			{
+				GroupData * group = dynamic_cast<GroupData*>(&data);
+
+				if (group == nullptr)
+				{
+					throw bad_json("'List' can only be added to 'group': ", jfunction);
+				}
+
+				if (!group->children.empty())
+				{
+					throw bad_json("Group with 'list' functionality must have empty component list: ", jfunction);
+				}
+
+				if (!contains(jfunction, "template"))
+				{
+					throw bad_json("'List' must have 'template' definition: ", jfunction);
+				}
+				auto & jtemplate = jfunction["template"];
+
+				load_component(*group, jtemplate);
+				function.templates = std::move(group->children);
+
+				debug_assert(function.templates.size() == 1);
+				debug_assert(group->children.empty());
+
+				break;
+			}
+			case ViewData::Function::PROGRESS:
+			{
 			//	if (contains(jfunction, "direction"))
 			//	{
 			//		const std::string direction = jfunction["direction"];
@@ -563,15 +598,13 @@ namespace
 			//	{
 			//		target.function.direction = ProgressBar::HORIZONTAL;
 			//	}
-			//	break;
-			//}
-			case ViewData::Function::TAB:
-			{
 				break;
 			}
+			case ViewData::Function::TAB:
+				break;
+
 			default:
-				debug_printline(engine::gui_channel, "GUI - Unknown function type: ", jcomponent);
-				//debug_unreachable();
+				throw bad_json("Invalid function type: ", jfunction);
 			}
 		}
 
@@ -588,23 +621,6 @@ namespace
 				this->load.layout(jgroup));
 
 			GroupData & view = utility::get<GroupData>(parent.children.back());
-
-			return view;
-		}
-
-		ListData & load_list(GroupData & parent, const json & jcomponent)
-		{
-			const json & jgroup = this->load.type_list(jcomponent);
-
-			parent.children.emplace_back(
-				utility::in_place_type<ListData>,
-				this->load.name(jcomponent),
-				this->load.size_def_parent(jcomponent),
-				this->load.margin(jcomponent),
-				this->load.gravity(jcomponent),
-				this->load.layout(jgroup));
-
-			ListData & view = utility::get<ListData>(parent.children.back());
 
 			return view;
 		}
@@ -671,60 +687,31 @@ namespace
 				auto & group = load_group(parent, jcomponent);
 				load_components(group, this->load.components(jcomponent));
 
-				if (has_function(jcomponent))
-				{
-					load_function(group, jcomponent);
-				}
-			}
-			else
-			if (type == "list")
-			{
-				auto & list = load_list(parent, jcomponent);
-				const json & jitem_template = this->load.components(jcomponent);
-				debug_assert(jitem_template.size()== 1);
-				load_components(list, jitem_template);
+				load_function(group, jcomponent);
 			}
 			else
 			if (type == "panel")
 			{
 				auto & view = load_panel(parent, jcomponent);
 
-				if (has_action(jcomponent))
-				{
-					load_action(view, jcomponent);
-				}
-				if (has_function(jcomponent))
-				{
-					load_function(view, jcomponent);
-				}
+				load_action(view, jcomponent);
+				load_function(view, jcomponent);
 			}
 			else
 			if (type == "text")
 			{
 				auto & view = load_text(parent, jcomponent);
 
-				if (has_action(jcomponent))
-				{
-					load_action(view, jcomponent);
-				}
-				if (has_function(jcomponent))
-				{
-					load_function(view, jcomponent);
-				}
+				load_action(view, jcomponent);
+				load_function(view, jcomponent);
 			}
 			else
 			if (type == "texture")
 			{
 				auto & view = load_texture(parent, jcomponent);
 
-				if (has_action(jcomponent))
-				{
-					load_action(view, jcomponent);
-				}
-				if (has_function(jcomponent))
-				{
-					load_function(view, jcomponent);
-				}
+				load_action(view, jcomponent);
+				load_function(view, jcomponent);
 			}
 		}
 
@@ -737,27 +724,31 @@ namespace
 			load_views(parent, type, jcomponent);
 		}
 
+		void load_component(GroupData & parent, const json & jcomponent)
+		{
+			debug_assert(contains(jcomponent, "type"));
+			const std::string type = jcomponent["type"];
+			debug_assert(!type.empty());
+
+			if (type[0] == '#')
+			{
+				// the json map can contain "overriding values" for the template view.
+				this->load.push_override(jcomponent);
+				{
+					load_views(parent, this->load.template_data(type));
+				}
+				this->load.pop_override();
+			}
+			else
+			{
+				load_views(parent, type, jcomponent);
+			}
+		}
 		void load_components(GroupData & parent, const json & jcomponents)
 		{
 			for (const auto & jcomponent : jcomponents)
 			{
-				debug_assert(contains(jcomponent, "type"));
-				const std::string type = jcomponent["type"];
-				debug_assert(!type.empty());
-
-				if (type[0] == '#')
-				{
-					// the json map can contain "overriding values" for the template view.
-					this->load.push_override(jcomponent);
-					{
-						load_views(parent, this->load.template_data(type));
-					}
-					this->load.pop_override();
-				}
-				else
-				{
-					load_views(parent, type, jcomponent);
-				}
+				load_component(parent, jcomponent);
 			}
 		}
 

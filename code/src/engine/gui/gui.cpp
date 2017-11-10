@@ -19,6 +19,8 @@ constexpr engine::Asset ViewData::Action::MOVER;
 constexpr engine::Asset ViewData::Action::SELECT;
 constexpr engine::Asset ViewData::Action::TRIGGER;
 
+constexpr engine::Asset ViewData::Function::LIST;
+constexpr engine::Asset ViewData::Function::PROGRESS;
 constexpr engine::Asset ViewData::Function::TAB;
 
 namespace
@@ -51,6 +53,8 @@ namespace engine
 {
 	namespace gui
 	{
+		Creator Creator::instantiate() { return Creator{ ::actions, ::components }; }
+
 		extern std::vector<DataVariant> load();
 
 		void create()
@@ -75,14 +79,11 @@ namespace engine
 
 			for (auto & window_data : windows_data)
 			{
-				View & view = visit(Creator{ actions, components }, window_data);
+				auto & view = Creator::instantiate().create(screen_view, screen_group, window_data);
 
 				// temp
 				const GroupData & data = utility::get<GroupData>(window_data);
 				lookup.emplace<View*>(Asset{data.name}, &view);
-
-				screen_group->adopt(&view);
-				view.parent = screen_view;
 			}
 		}
 

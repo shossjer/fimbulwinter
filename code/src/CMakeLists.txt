@@ -80,6 +80,7 @@ set(HEADER_FILES
 	src/engine/gui/gui.hpp
 	src/engine/gui/loading.hpp
 	src/engine/gui/measure.hpp
+	src/engine/gui/react.hpp
 	src/engine/gui/render.hpp
 	src/engine/gui/resources.hpp
 	src/engine/gui/update.hpp
