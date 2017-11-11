@@ -96,7 +96,6 @@ set(HEADER_FILES
 	src/gameplay/debug.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
-	src/utility/aligned_array.hpp
 	src/utility/any.hpp
 	src/utility/array.hpp
 	src/utility/array_alloc.hpp
