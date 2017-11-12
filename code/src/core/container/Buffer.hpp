@@ -5,7 +5,9 @@
 #include <core/debug.hpp>
 #include <core/format.hpp>
 
-#include <vector>
+#include <utility/scalar_alloc.hpp>
+
+#include <cstring>
 
 namespace core
 {
@@ -14,17 +16,36 @@ namespace core
 		class Buffer
 		{
 		private:
+			utility::scalar_alloc data_;
 			Format format_;
 			uint32_t count_;
-			std::vector<uint8_t> bytes;
 
 		public:
 			Buffer() = default;
 			Buffer(Format format, uint32_t count)
-				: format_(format)
+				: data_(core::format_size(format) * count)
+				, format_(format)
 				, count_(count)
-				, bytes(core::format_size(format_) * count_)
 			{}
+			Buffer(const Buffer & buffer)
+				: data_(buffer.size())
+				, format_(buffer.format_)
+				, count_(buffer.count_)
+			{
+				std::memcpy(data_.data(), buffer.data_.data(), buffer.size());
+			}
+			Buffer(Buffer && buffer) = default;
+			Buffer & operator = (const Buffer & buffer)
+			{
+				data_.resize(buffer.size());
+				format_ = buffer.format_;
+				count_ = buffer.count_;
+
+				std::memcpy(data_.data(), buffer.data_.data(), buffer.size());
+
+				return *this;
+			}
+			Buffer & operator = (Buffer && buffer) = default;
 
 		public:
 			std::size_t count() const
@@ -33,42 +54,42 @@ namespace core
 			}
 			char * data()
 			{
-				return reinterpret_cast<char *>(this->bytes.data());
+				return static_cast<char *>(data_.data());
 			}
 			const char * data() const
 			{
-				return reinterpret_cast<const char *>(this->bytes.data());
+				return static_cast<const char *>(data_.data());
 			}
 			template <typename T>
 			T * data_as()
 			{
-				debug_assert(core::format_of<T>::value == this->format_);
-				return reinterpret_cast<T *>(this->bytes.data());
+				debug_assert(core::format_of<T>::value == format_);
+				return data_.data_as<T>();
 			}
 			template <typename T>
 			const T * data_as() const
 			{
-				debug_assert(core::format_of<T>::value == this->format_);
-				return reinterpret_cast<const T *>(this->bytes.data());
+				debug_assert(core::format_of<T>::value == format_);
+				return data_.data_as<T>();
 			}
 			Format format() const
 			{
-				return this->format_;
+				return format_;
 			}
 			std::size_t size() const
 			{
-				return this->bytes.size();
+				return core::format_size(format_) * count_;
 			}
 
 		public:
 			template <typename T>
-			void resize(std::size_t count_)
+			void resize(std::size_t count)
 			{
-				constexpr Format format_ = core::format_of<T>::value;
+				constexpr Format format = core::format_of<T>::value;
 
-				this->format_ = format_;
-				this->count_ = count_;
-				this->bytes.resize(core::format_size(format_) * count_);
+				data_.resize(core::format_size(format) * count);
+				format_ = format;
+				count_ = count;
 			}
 		};
 	}
