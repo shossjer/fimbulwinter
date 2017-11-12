@@ -189,6 +189,38 @@ namespace mpl
 	struct member_of<T, type_list<Ts...>> :
 		disjunction<is_same<T, Ts>...> {};
 
+	template <typename Lout, typename ...List>
+	struct concat_impl;
+	template <typename Lout>
+	struct concat_impl<Lout> : type_is<Lout> {};
+	template <typename ...Touts, typename ...Tins, typename ...List>
+	struct concat_impl<type_list<Touts...>, type_list<Tins...>, List...> : concat_impl<type_list<Touts..., Tins...>, List...> {};
+	template <typename ...Touts, typename Tin, typename ...List>
+	struct concat_impl<type_list<Touts...>, Tin, List...> : concat_impl<type_list<Touts..., Tin>, List...> {};
+	template <typename ...List>
+	using concat = typename concat_impl<type_list<>, List...>::type;
+
+	template <template <typename> class F, typename List>
+	struct transform_impl;
+	template <template <typename> class F, typename ...Ts>
+	struct transform_impl<F, type_list<Ts...>> : type_is<type_list<F<Ts>...>> {};
+	// F needs to be a type alias
+	template <template <typename> class F, typename ...List>
+	using transform = typename transform_impl<F, concat<List...>>::type;
+
+	template <typename ...Ts>
+	constexpr auto generate_array_impl(type_list<Ts...>)
+		-> std::array<typename car<Ts...>::value_type, sizeof...(Ts)>
+	{
+		return std::array<typename car<Ts...>::value_type, sizeof...(Ts)>{{Ts::value...}};
+	}
+	template <typename ...List>
+	constexpr auto generate_array()
+		-> decltype(generate_array_impl(concat<List...>{}))
+	{
+		return generate_array_impl(concat<List...>{});
+	}
+
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  sequences

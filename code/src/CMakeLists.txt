@@ -2,6 +2,7 @@
 # source listing
 set(SOURCE_FILES
 	src/core/async/Thread.cpp
+	src/core/container/Buffer.cpp
 	src/core/crypto/crc.cpp
 	src/core/graphics/Image.cpp
 	src/engine/animation/Armature.cpp
@@ -46,7 +47,6 @@ set(HEADER_FILES
 	src/core/container/Stack.hpp
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
-	src/core/format.hpp
 	src/core/graphics/Image.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
