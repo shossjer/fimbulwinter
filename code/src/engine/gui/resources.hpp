@@ -12,16 +12,6 @@ namespace engine
 {
 	namespace gui
 	{
-		//namespace resource
-		//{
-		//	struct Color
-		//	{
-		//		using value_t = uint32_t;
-
-		//		value_t get() { return 0; };
-		//	};
-		//}
-
 		class View;
 
 		namespace resource
@@ -38,6 +28,8 @@ namespace engine
 			void put(const engine::Asset asset, const ColorValue val);
 
 			void put(const engine::Asset asset, const engine::Asset def, const engine::Asset high, const engine::Asset press);
+
+			void purge();
 		}
 	}
 }

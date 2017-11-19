@@ -14,6 +14,43 @@ namespace engine
 {
 	namespace gui
 	{
+		namespace data
+		{
+			// post KeyValue as "message"
+
+			struct Values;
+			struct KeyValues;
+
+			using Value = utility::variant
+			<
+				// collections
+				Values,
+				KeyValues,
+				// values
+				std::nullptr_t,
+				std::string
+			>;
+			using KeyValue = std::pair<Asset, Value>;
+
+			struct Values
+			{
+				std::vector<Value> data;
+			};
+			struct KeyValues
+			{
+				std::vector<KeyValue> data;
+			};
+		}
+
+		struct MessageData
+		{
+			data::KeyValue data;
+		};
+		struct MessageDataSetup
+		{
+			data::KeyValue data;
+		};
+
 		struct MessageInteraction
 		{
 			engine::Entity entity;
@@ -26,6 +63,10 @@ namespace engine
 				RELEASE
 			}
 			interaction;
+		};
+
+		struct MessageReload
+		{
 		};
 
 		struct MessageVisibility

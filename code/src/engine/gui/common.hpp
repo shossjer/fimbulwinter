@@ -88,8 +88,10 @@ namespace engine
 			static constexpr value_t DATA = 1 << 2;
 			static constexpr value_t MOVE = 1 << 3;
 			static constexpr value_t VISIBILITY = 1 << 4;
-			static constexpr value_t SIZE_HEIGHT = 1 << 5;
-			static constexpr value_t SIZE_WIDTH = 1 << 6;
+			static constexpr value_t CHILD_OFFSET_H = 1 << 5;
+			static constexpr value_t CHILD_OFFSET_W = 1 << 6;
+			static constexpr value_t SIZE_HEIGHT = 1 << 7;
+			static constexpr value_t SIZE_WIDTH = 1 << 8;
 
 		private:
 			value_t flags;
@@ -112,6 +114,7 @@ namespace engine
 			bool affects_size_w() const { return is_set(SIZE_WIDTH); }
 			bool affects_offset() const { return is_set(MOVE); }
 			bool affects_visibility() const { return is_set(VISIBILITY); }
+			bool affects_child_offset() const { return is_set(CHILD_OFFSET_H | CHILD_OFFSET_W); }
 
 			void clear() { this->flags = NONE; }
 

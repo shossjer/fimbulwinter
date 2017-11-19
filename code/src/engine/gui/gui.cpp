@@ -4,7 +4,9 @@
 #include "function.hpp"
 #include "loading.hpp"
 #include "measure.hpp"
+#include "noodle.hpp"
 #include "update.hpp"
+#include "react.hpp"
 #include "view.hpp"
 
 #include <core/container/CircleQueue.hpp>
@@ -32,6 +34,8 @@ namespace
 
 	Components components;
 
+	data::Nodes nodes;
+
 	View * screen_view = nullptr;
 	View::Group * screen_group = nullptr;
 
@@ -41,10 +45,13 @@ namespace
 	core::container::Collection<engine::Asset, 11, std::array<View*, 10>> lookup;
 
 	using UpdateMessage = utility::variant
-		<
+	<
+		MessageData,
+		MessageDataSetup,
 		MessageInteraction,
+		MessageReload,
 		MessageVisibility
-		>;
+	>;
 
 	core::container::CircleQueueSRMW<UpdateMessage, 100> queue_posts;
 }
@@ -53,38 +60,13 @@ namespace engine
 {
 	namespace gui
 	{
-		Creator Creator::instantiate() { return Creator{ ::actions, ::components }; }
-
 		extern std::vector<DataVariant> load();
+
+		Creator Creator::instantiate(float depth) { return Creator{ ::actions, ::components, ::nodes, depth }; }
 
 		void create()
 		{
-			// load windows and views data from somewhere.
-			std::vector<DataVariant> windows_data = load();
-
-			{	// create the "screen" view of the screen
-				// TODO: use "window size" as size param
-				const auto entity = engine::Entity::create();
-				screen_view = &components.emplace<View>(
-					entity,
-					entity,
-					View::Group{ View::Group::Layout::RELATIVE },
-					Gravity{},
-					Margin{},
-					Size{ {Size::FIXED, height_t{ WINDOW_HEIGHT }, }, {Size::FIXED, width_t{ WINDOW_WIDTH } } },
-					nullptr);
-			}
-
-			screen_group = &utility::get<View::Group>(screen_view->content);
-
-			for (auto & window_data : windows_data)
-			{
-				auto & view = Creator::instantiate().create(screen_view, screen_group, window_data);
-
-				// temp
-				const GroupData & data = utility::get<GroupData>(window_data);
-				lookup.emplace<View*>(Asset{data.name}, &view);
-			}
+			// TODO: create something
 		}
 
 		void destroy()
@@ -96,6 +78,81 @@ namespace engine
 		{
 			struct
 			{
+				static data::Node & find(const Asset key, data::Nodes & nodes)
+				{
+					for (auto & node : nodes)
+						if (node.first == key)
+							return node.second;
+					debug_unreachable();
+				}
+				void operator() (MessageData && x)
+				{
+					struct ParseUpdate
+					{
+						data::Node & node;
+
+						void operator() (const data::Values & values)
+						{
+							debug_assert(!node.nodes.empty());
+
+							// First; check if new Nodes needs to be added
+							for (std::size_t i = node.nodes.size(); i < values.data.size(); i++)
+							{
+								// Note: calls Setup
+								visit(data::ParseSetup{
+									Asset{ std::to_string(i) },
+									node.nodes },
+									values.data[i]);
+							}
+
+							// Second; update all Lists so they can adjust number of items
+							ListReaction reaction{ values };
+
+							for (auto target : node.targets)
+							{
+								::components.call(target, reaction);
+							}
+
+							// Third; update List-Items with new data
+							for (std::size_t i = 0; i < values.data.size(); i++)
+							{
+								auto & value = values.data[i];
+								auto & node = this->node.nodes[i];
+
+								visit(ParseUpdate{ node.second }, value);
+							}
+						}
+						void operator() (const data::KeyValues & map)
+						{
+							for (auto & data : map.data)
+							{
+								visit(ParseUpdate{ find(data.first, node.nodes) }, data.second);
+							}
+						}
+						void operator() (const std::nullptr_t)
+						{
+							for (auto target : node.targets)
+							{
+								// TODO: inform targets of update
+							}
+						}
+						void operator() (const std::string & data)
+						{
+							TextReaction reaction{ data };
+
+							for (auto target : node.targets)
+							{
+								::components.call(target, reaction);
+							}
+						}
+					};
+					visit(ParseUpdate{ find(x.data.first, ::nodes) }, x.data.second);
+				}
+				void operator () (MessageDataSetup && x)
+				{
+					visit(data::ParseSetup{ x.data.first, ::nodes }, x.data.second);
+				}
+
 				void operator () (MessageInteraction && x)
 				{
 					debug_printline(engine::gui_channel, "MessageInteraction");
@@ -148,6 +205,66 @@ namespace engine
 					};
 					actions.call_all(x.entity, Updater{ x });
 				}
+				void operator () (MessageReload && x)
+				{
+					// Clear all prev. data
+					{
+						::actions = Actions{};
+
+						for (View & view : ::components.get<View>())
+						{
+							ViewRenderer::remove(view);
+						}
+
+						::components = Components{};
+
+						resource::purge();
+					}
+
+					// create the "screen" view of the screen
+					// TODO: use "window size" as size param
+					const auto entity = engine::Entity::create();
+					screen_view = &components.emplace<View>(
+						entity,
+						entity,
+						View::Group{ View::Group::Layout::RELATIVE },
+						Gravity{},
+						Margin{},
+						Size{ { Size::FIXED, height_t{ WINDOW_HEIGHT }, },{ Size::FIXED, width_t{ WINDOW_WIDTH } } },
+						nullptr);
+
+					screen_group = &utility::get<View::Group>(screen_view->content);
+
+					// (Re)load data windows and views data from somewhere.
+					std::vector<DataVariant> windows_data = load();
+
+					for (auto & window_data : windows_data)
+					{
+						try
+						{
+							auto & view = Creator::instantiate(0.f).create(screen_view, screen_group, window_data);
+
+							// temp
+							const GroupData & data = utility::get<GroupData>(window_data);
+							lookup.emplace<View*>(Asset{ data.name }, &view);
+						}
+						catch (key_missing e)
+						{
+							debug_printline(engine::gui_channel,
+								"Exception - Could not find data-mapping: ", e.message);
+						}
+						catch (bad_json e)
+						{
+							debug_printline(engine::gui_channel,
+								"Exception - Something not right in JSON: ", e.message);
+						}
+						catch (exception e)
+						{
+							debug_printline(engine::gui_channel,
+								"Exception creating window: ", e.message);
+						}
+					}
+				}
 				void operator () (MessageVisibility && x)
 				{
 					debug_printline(engine::gui_channel, "MessageVisibility");
@@ -185,14 +302,18 @@ namespace engine
 		}
 
 		template<typename T>
-		void _post(T && data)
+		void put_on_queue(T && data)
 		{
 			const auto res = queue_posts.try_emplace(utility::in_place_type<T>, std::move(data));
 			debug_assert(res);
 		}
 
 		template<typename T> void post(T && data) = delete;
-		template<> void post(MessageInteraction && data) { _post(std::move(data)); }
-		template<> void post(MessageVisibility && data) { _post(std::move(data)); }
+
+		template<> void post(MessageData && data) { put_on_queue(std::move(data)); }
+		template<> void post(MessageDataSetup && data) { put_on_queue(std::move(data)); }
+		template<> void post(MessageInteraction && data) { put_on_queue(std::move(data)); }
+		template<> void post(MessageReload && data) { put_on_queue(std::move(data)); }
+		template<> void post(MessageVisibility && data) { put_on_queue(std::move(data)); }
 	}
 }

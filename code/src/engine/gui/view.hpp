@@ -103,7 +103,7 @@ namespace engine
 			// remove this somehow
 			bool selectable;
 
-			// woulf be nice if it could be removed...
+			// would be nice if it could be removed...
 			Function * function;
 
 		public:

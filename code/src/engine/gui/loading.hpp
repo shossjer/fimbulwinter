@@ -59,11 +59,23 @@ namespace gui
 			static constexpr Asset TAB{ "tabBar" };
 
 			Asset type;
-			std::string name;
+			std::string observe;
 			std::vector<DataVariant> templates;
-			//GroupData group_template;
 		}
 		function;
+
+		struct Reaction
+		{
+			enum
+			{
+				NONE,
+				LIST,
+				TEXT
+			} type;
+			// TODO: update type etc, is target needed?
+			std::string observe;
+		}
+		reaction;
 
 		ViewData(std::string name, Size size, Margin margin, Gravity gravity)
 			: name(name)
@@ -72,6 +84,7 @@ namespace gui
 			, gravity(gravity)
 		{
 			function.type = Asset::null();
+			reaction.type = Reaction::NONE;
 		}
 
 		bool has_action() const
@@ -82,6 +95,11 @@ namespace gui
 		bool has_name() const
 		{
 			return !this->name.empty();
+		}
+
+		bool has_reaction() const
+		{
+			return this->reaction.type != Reaction::NONE;
 		}
 
 		// in one place a dynamic cast is performed...

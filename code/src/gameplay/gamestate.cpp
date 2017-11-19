@@ -493,6 +493,50 @@ namespace
 		}
 	};
 
+	struct PlayerData
+	{
+		using Value = engine::gui::data::Value;
+		using Values = engine::gui::data::Values;
+		using KeyValue = engine::gui::data::KeyValue;
+		using KeyValues = engine::gui::data::KeyValues;
+
+		std::string name;
+
+		struct Skill
+		{
+			std::string name;
+		};
+
+		std::vector<Skill> skills;
+
+		KeyValue message() const
+		{
+			KeyValue main{ engine::Asset{ "player" }, utility::in_place_type<KeyValues> };
+			KeyValues & player = utility::get<KeyValues>(main.second);
+
+			player.data.push_back(
+				KeyValue{ engine::Asset{ "name" },{ utility::in_place_type<std::string>, this->name } });
+
+			player.data.push_back(
+				KeyValue{ engine::Asset{ "skills" }, utility::in_place_type<Values> });
+			Values & skills = utility::get<Values>(player.data.back().second);
+
+			skills.data.reserve(this->skills.size());
+
+			for (auto & skill : this->skills)
+			{
+				skills.data.emplace_back(utility::in_place_type<KeyValues>);
+
+				auto & skill_map = utility::get<KeyValues>(skills.data.back());
+
+				skill_map.data.push_back(
+					KeyValue{ engine::Asset{ "name" },{ utility::in_place_type<std::string>, skill.name } });
+			}
+
+			return main;
+		}
+	};
+
 	struct
 	{
 		// entity of currently "profiled" object
@@ -500,6 +544,11 @@ namespace
 
 		void operator() (Worker & worker)
 		{
+			PlayerData data{ "Chef Elzar" };
+			data.skills.push_back(PlayerData::Skill{ "Cutting" });
+			data.skills.push_back(PlayerData::Skill{ "Washing hands" });
+			data.skills.push_back(PlayerData::Skill{ "Potato" });
+			engine::gui::post(engine::gui::MessageData{ data.message() });
 		}
 
 		template<typename T>
@@ -856,6 +905,14 @@ namespace gamestate
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");
+
+		// assign reaction structure to engine::gui
+		PlayerData data{};
+		data.skills.emplace_back(PlayerData::Skill{});
+		engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
+
+		// trigger first load of GUI
+		engine::gui::post(engine::gui::MessageReload{});
 	}
 
 	void destroy()

@@ -59,6 +59,7 @@ namespace engine
 				View & view)
 			{
 				return Function{
+					Entity{0},
 					std::move(content),
 					&view };
 			}
@@ -66,6 +67,7 @@ namespace engine
 	}
 }
 
+using namespace engine;
 using namespace engine::gui;
 
 #endif // !TEST_ENGINE_GUI_GUI_ACCESS_HPP

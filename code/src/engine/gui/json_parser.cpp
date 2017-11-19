@@ -468,6 +468,23 @@ namespace
 			debug_assert(has_type_texture(jdata));
 			return jdata["texture"];
 		}
+
+		bool has_observe(const json & jdata) const
+		{
+			return contains(jdata, "observe");
+		}
+		auto observe(const json & jdata) const
+		{
+			debug_assert(has_observe(jdata));
+			return extract_string("observe", jdata);
+		}
+		auto observe_or_empty(const json & jdata) const
+		{
+			if (!contains(jdata, "observe"))
+				return std::string{};
+
+			return extract_string("observe", jdata);
+		}
 	};
 
 	struct WindowLoader
@@ -540,7 +557,8 @@ namespace
 			const json & jfunction = jcomponent["function"];
 
 			auto & function = data.function;
-			function.name = this->load.name_or_empty(jfunction);
+
+			function.observe = this->load.observe_or_empty(jfunction);
 			function.type = this->load.type(jfunction);
 
 			switch (function.type)
@@ -606,6 +624,21 @@ namespace
 			default:
 				throw bad_json("Invalid function type: ", jfunction);
 			}
+		}
+
+		bool has_reaction(const json & jcomponent) { return contains(jcomponent, "reaction"); }
+
+		void load_reaction(ViewData & view, const json & jcomponent)
+		{
+			if (!has_reaction(jcomponent))
+				return;
+
+			const json & jreaction = jcomponent["reaction"];
+
+			debug_assert(contains(jreaction, "observe"));
+			view.reaction.observe = jreaction["observe"].get<std::string>();
+			// TEMP
+			view.reaction.type = ViewData::Reaction::TEXT;
 		}
 
 		GroupData & load_group(GroupData & parent, const json & jcomponent)
@@ -688,6 +721,7 @@ namespace
 				load_components(group, this->load.components(jcomponent));
 
 				load_function(group, jcomponent);
+				load_reaction(group, jcomponent);
 			}
 			else
 			if (type == "panel")
@@ -696,6 +730,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
+				load_reaction(view, jcomponent);
 			}
 			else
 			if (type == "text")
@@ -704,6 +739,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
+				load_reaction(view, jcomponent);
 			}
 			else
 			if (type == "texture")
@@ -712,6 +748,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
+				load_reaction(view, jcomponent);
 			}
 		}
 

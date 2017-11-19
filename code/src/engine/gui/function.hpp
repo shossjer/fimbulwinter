@@ -49,6 +49,8 @@ namespace engine
 
 		public:
 
+			Entity entity;
+
 			Content content;
 
 			// The view which the functionality belongs to
@@ -57,9 +59,11 @@ namespace engine
 		public:
 
 			Function(
+				Entity entity,
 				Content && content,
 				View * view)
-				: content(std::move(content))
+				: entity(entity)
+				, content(std::move(content))
 				, view(view)
 			{}
 		};

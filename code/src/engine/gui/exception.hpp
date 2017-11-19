@@ -12,6 +12,7 @@ namespace engine
 	{
 		class exception
 		{
+		public:
 			std::string message;
 
 		protected:
@@ -41,6 +42,10 @@ namespace engine
 			key_missing(std::string name)
 				: bad_json(utility::to_string("Key missing: ", name))
 			{}
+		};
+
+		class not_found
+		{
 		};
 	}
 }

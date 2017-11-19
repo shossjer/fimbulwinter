@@ -148,23 +148,35 @@ namespace engine
 
 		public:
 
-			static void view(View & view, const Change & child_changes)
+			// Call on parent if new children has been added to it.
+			// during list creation etc.
+			static void creation(View & parent)
 			{
-				auto & content = ViewUpdater::content<View::Group>(view);
+				auto & content = ViewUpdater::content<View::Group>(parent);
 
 				auto update_changes = Change{ Change::DATA };
 
-				if (child_changes.affects_size_h() && wrap(view.size.height, content))
+				if (wrap(parent.size.height, content))
 				{
 					update_changes.set_resized_h();
 				}
-				if (child_changes.affects_size_w() && wrap(view.size.width, content))
+				else
+				{
+					// Note: only set OFFSET if layout etc requires it.
+					parent.change.set(Change::CHILD_OFFSET_H);
+				}
+
+				if (wrap(parent.size.width, content))
 				{
 					update_changes.set_resized_w();
 				}
+				else
+				{
+					parent.change.set(Change::CHILD_OFFSET_W);
+				}
 
-				ViewUpdater::parent(view, update_changes);
-				view.change.set(update_changes);
+				ViewUpdater::parent(parent, update_changes);
+				parent.change.set(update_changes);
 			}
 			static void parent(View & child, const Change & child_changes)
 			{
@@ -176,13 +188,19 @@ namespace engine
 
 				auto update_changes = Change{ Change::DATA };
 
-				if (child_changes.affects_size_h() && wrap(view.size.height, content))
+				if (child_changes.affects_size_h())
 				{
-					update_changes.set_resized_h();
+					if (wrap(view.size.height, content))
+						update_changes.set_resized_h();
+					else
+						view.change.set(Change::CHILD_OFFSET_H);
 				}
-				if (child_changes.affects_size_w() && wrap(view.size.width, content))
+				if (child_changes.affects_size_w())
 				{
-					update_changes.set_resized_w();
+					if (wrap(view.size.width, content))
+						update_changes.set_resized_w();
+					else
+						view.change.set(Change::CHILD_OFFSET_W);
 				}
 
 				ViewUpdater::parent(view, update_changes);

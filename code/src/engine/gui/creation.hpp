@@ -5,9 +5,12 @@
 #define ENGINE_GUI_CREATION_HPP
 
 #include "actions.hpp"
+#include "exception.hpp"
 #include "function.hpp"
 #include "loading.hpp"
+#include "noodle.hpp"
 #include "update.hpp"
+#include "react.hpp"
 #include "view.hpp"
 
 #include <core/container/Collection.hpp>
@@ -27,34 +30,38 @@ namespace engine
 	namespace gui
 	{
 		using Actions = core::container::MultiCollection
-			<
+		<
 			engine::Entity, 101,
 			std::array<CloseAction, 20>,
 			std::array<InteractionAction, 20>,
 			std::array<TriggerAction, 20>
-			>;
+		>;
 
-		using Components = core::container::UnorderedCollection
-			<
+		using Components = core::container::Collection
+		<
 			engine::Entity, 202,
 			std::array<Function, 101>,
 			std::array<View, 101>
-			>;
+		>;
 
 		struct Creator
 		{
 			Actions & actions;
 			Components & components;
-			float depth = .0f;
+			data::Nodes & nodes;
+			float depth;
 
 			std::vector<std::pair<Asset, View*>> named_views;
 
-			Creator(Actions & actions, Components & components)
+			Creator(Actions & actions, Components & components, data::Nodes & nodes, float depth)
 				: actions(actions)
 				, components(components)
+				, nodes(nodes)
+				, depth(depth)
 			{}
 
-			static Creator instantiate();
+			// Creates and returns instance of Creator
+			static Creator instantiate(float depth);
 
 		public:
 
@@ -74,6 +81,35 @@ namespace engine
 						return (*i).second;
 				}
 				return nullptr;
+			}
+
+			data::Node * find_node(const Asset key, data::Nodes & keyVals)
+			{
+				for (auto & keyVal : keyVals)
+				{
+					if (keyVal.first == key)
+						return &(keyVal.second);
+				}
+				return nullptr;
+			}
+
+			data::Node & find_node(const std::string observe)
+			{
+				data::Node * node = nullptr;
+				data::Nodes * nodes_next = &this->nodes;
+				std::stringstream ss{ observe };
+				std::string node_name;
+				while (std::getline(ss, node_name, '.'))
+				{
+					node = find_node(Asset{ node_name }, *nodes_next);
+
+					if (node == nullptr)
+						throw key_missing{ observe };
+
+					nodes_next = &node->nodes;
+				}
+
+				return *node;
 			}
 
 			View & create(View::Content && content, const ViewData & data)
@@ -104,6 +140,7 @@ namespace engine
 				const auto entity = engine::Entity::create();
 
 				auto & function = components.emplace<Function>(
+					entity,
 					entity,
 					std::move(content),
 					&view);
@@ -180,6 +217,9 @@ namespace engine
 							std::move(viewData.function.templates[0])},
 						view);
 
+					ViewData::Reaction reactionData{ ViewData::Reaction::LIST, viewData.function.observe };
+
+					create_reaction(fun.entity, reactionData);
 					break;
 				}
 				case ViewData::Function::PROGRESS:
@@ -217,9 +257,44 @@ namespace engine
 				}
 				default:
 
-					debug_printline(0xffffffff, "GUI - invalid function type: ", viewData.function.type);
+					debug_printline(engine::gui_channel, "GUI - invalid function type: ", viewData.function.type);
 					debug_unreachable();
 				}
+			}
+
+			void create_reaction(Entity entity, const ViewData::Reaction & reactionData)
+			{
+				// find the node..
+				data::Node & node = find_node(reactionData.observe);
+
+				// create reaction
+				switch (reactionData.type)
+				{
+				case ViewData::Reaction::LIST:
+
+					// TODO: create actual reaction object
+					break;
+
+				case ViewData::Reaction::TEXT:
+
+					// TODO: create actual reaction object
+					break;
+
+				default:
+					debug_printline(engine::gui_channel, "Reaction type not implemented!");
+					debug_unreachable();
+				}
+
+				// add reaction (entity) to node
+				node.targets.emplace_back(entity);
+			}
+
+			void create_reaction(View & view, const ViewData & viewData)
+			{
+				if (!viewData.has_reaction())
+					return;
+
+				create_reaction(view.entity, viewData.reaction);
 			}
 
 		public:
@@ -236,6 +311,7 @@ namespace engine
 
 				create_actions(view, data);
 				create_function(view, data);
+				create_reaction(view, data);
 
 				ViewUpdater::update(view, content);
 
@@ -250,6 +326,7 @@ namespace engine
 
 				create_actions(view, data);
 				create_function(view, data);
+				create_reaction(view, data);
 
 				return view;
 			}
@@ -264,6 +341,7 @@ namespace engine
 
 				create_actions(view, data);
 				create_function(view, data);
+				create_reaction(view, data);
 
 				return view;
 			}
@@ -276,6 +354,7 @@ namespace engine
 
 				create_actions(view, data);
 				create_function(view, data);
+				create_reaction(view, data);
 
 				return view;
 			}

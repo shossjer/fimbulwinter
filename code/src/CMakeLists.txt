@@ -17,6 +17,7 @@ set(SOURCE_FILES
 	src/engine/gui/gui.cpp
 	src/engine/gui/function.cpp
 	src/engine/gui/json_parser.cpp
+	src/engine/gui/react.cpp
 	src/engine/gui/render.cpp
 	src/engine/gui/resources.cpp
 	src/engine/hid/input.cpp
@@ -80,6 +81,7 @@ set(HEADER_FILES
 	src/engine/gui/gui.hpp
 	src/engine/gui/loading.hpp
 	src/engine/gui/measure.hpp
+	src/engine/gui/noodle.hpp
 	src/engine/gui/react.hpp
 	src/engine/gui/render.hpp
 	src/engine/gui/resources.hpp

@@ -33,7 +33,7 @@ namespace engine
 				{
 					visit(ContentResize{ view }, view.content);
 				}
-				else if (view.change.affects_offset())
+				else if (view.change.affects_child_offset())
 				{
 					visit(ContentResize{ view }, view.content);
 				}

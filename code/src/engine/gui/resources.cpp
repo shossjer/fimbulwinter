@@ -37,13 +37,13 @@ namespace
 		resource::ColorValue get(const View * view) const override;
 	};
 
-	core::container::UnorderedCollection
+	using Resources = core::container::UnorderedCollection
 	<
 		engine::Asset, 201,
 		std::array<Simple, 100>,
 		std::array<ColorSelector, 20>
-	>
-	resources;
+	>;
+	Resources resources;
 
 	resource::ColorValue ColorSelector::get(const View * view) const
 	{
@@ -93,6 +93,11 @@ namespace gui
 		void put(const engine::Asset asset, const engine::Asset def, const engine::Asset high, const engine::Asset press)
 		{
 			resources.emplace<ColorSelector>(asset, def, high, press);
+		}
+
+		void purge()
+		{
+			::resources = Resources{};
 		}
 	}
 }
