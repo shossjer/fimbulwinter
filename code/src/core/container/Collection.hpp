@@ -19,6 +19,22 @@ namespace core
 {
 	namespace container
 	{
+		namespace detail
+		{
+			template <typename F, typename K, typename P>
+			auto call_impl_func(F && func, K key, P && p) ->
+				decltype(func(key, std::forward<P>(p)))
+			{
+				return func(key, std::forward<P>(p));
+			}
+			template <typename F, typename K, typename P>
+			auto call_impl_func(F && func, K key, P && p) ->
+				decltype(func(std::forward<P>(p)))
+			{
+				return func(std::forward<P>(p));
+			}
+		}
+
 		/**
 		 * \tparam Key     The identification/lookup key.
 		 * \tparam Maximum Should be about twice as many as is needed.
@@ -210,7 +226,7 @@ namespace core
 
 			template <typename F>
 			auto call(K key, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -219,19 +235,19 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
-					                 index, std::forward<F>(func))
+					                 key, index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 index, std::forward<F>(func));
+					                 key, index, std::forward<F>(func));
 				}
 			}
 
 			template <typename F>
 			auto try_call(K key, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = try_find(key);
 
@@ -243,13 +259,13 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
-					                 index, std::forward<F>(func))
+					                 key, index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-						index, std::forward<F>(func));
+					                 key, index, std::forward<F>(func));
 				}
 			}
 		private:
@@ -332,37 +348,24 @@ namespace core
 				array.destruct(last);
 				array.size--;
 			}
-			template <typename D>
-			void set_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, D && data)
-			{
-				intrinsic_unreachable();
-			}
-			template <std::size_t type, typename D>
-			void set_impl(mpl::index_constant<type>, uint24_t index, D && data)
-			{
-				auto & array = std::get<type>(arrays);
-				debug_assert(index < array.size);
-
-				array.get(index) = std::forward<D>(data);
-			}
 
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, uint24_t index, F && func) ->
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();
 				// this is used to deduce the return type correctly
 				// we should never get here
-				return func(*reinterpret_cast<mpl::car<Cs...> *>(0));
+				return detail::call_impl_func(std::forward<F>(func), key, *reinterpret_cast<mpl::car<Cs...> *>(0));
 			}
 			template <std::size_t type, typename F>
-			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+			auto call_impl(mpl::index_constant<type>, K key, uint24_t index, F && func) ->
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
 
-				return func(array.get(index));
+				return detail::call_impl_func(std::forward<F>(func), key, array.get(index));
 			}
 		};
 
@@ -560,7 +563,7 @@ namespace core
 
 			template <typename F>
 			auto call(K key, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = find(key);
 
@@ -568,33 +571,33 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
-					                 bucket, std::forward<F>(func))
+					                 key, bucket, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 bucket, std::forward<F>(func));
+					                 key, bucket, std::forward<F>(func));
 				}
 			}
 			template <typename C, typename F>
 			auto call(K key, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
 
 				return call_impl(mpl::index_constant<type>{},
-				                 find(key), std::forward<F>(func));
+				                 key, find(key), std::forward<F>(func));
 			}
 			template <typename F>
 			void call_all(K key, F && func)
 			{
-				call_all_impl(find(key), std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{});
+				call_all_impl(key, find(key), std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{});
 			}
 
 			template <typename F>
 			auto try_call(K key, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = try_find(key);
 				if (bucket == bucket_t(-1))
@@ -604,18 +607,18 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
-					                 bucket, std::forward<F>(func))
+					                 key, bucket, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 bucket, std::forward<F>(func));
+					                 key, bucket, std::forward<F>(func));
 				}
 			}
 			template <typename C, typename F>
 			auto try_call(K key, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
 
@@ -627,7 +630,7 @@ namespace core
 					return func();
 
 				return call_impl(mpl::index_constant<type>{},
-				                 bucket, std::forward<F>(func));
+				                 key, bucket, std::forward<F>(func));
 			}
 			template <typename F>
 			void try_call_all(K key, F && func)
@@ -636,7 +639,7 @@ namespace core
 				if (bucket == bucket_t(-1))
 					return func();
 
-				call_all_impl(bucket, std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{});
+				call_all_impl(key, bucket, std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{});
 			}
 		private:
 			// not great
@@ -737,17 +740,17 @@ namespace core
 			}
 
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, bucket_t bucket, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, bucket_t bucket, F && func) ->
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();
 				// this is used to deduce the return type correctly
 				// we should never get here
-				return func(*reinterpret_cast<mpl::car<Cs...> *>(0));
+				return detail::call_impl_func(std::forward<F>(func), key, *reinterpret_cast<mpl::car<Cs...> *>(0));
 			}
 			template <std::size_t type, typename F>
-			auto call_impl(mpl::index_constant<type>, bucket_t bucket, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+			auto call_impl(mpl::index_constant<type>, K key, bucket_t bucket, F && func) ->
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto index = slots[bucket].template get_index<type>();
 				debug_assert(index >= 0);
@@ -755,15 +758,15 @@ namespace core
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
 
-				return func(array.get(index));
+				return detail::call_impl_func(std::forward<F>(func), key, array.get(index));
 			}
 
 			template <typename F>
-			void call_all_impl(bucket_t bucket, F && func, mpl::index_sequence<>)
+			void call_all_impl(K key, bucket_t bucket, F && func, mpl::index_sequence<>)
 			{
 			}
 			template <typename F, size_t type, size_t ...types>
-			void call_all_impl(bucket_t bucket, F && func, mpl::index_sequence<type, types...>)
+			void call_all_impl(K key, bucket_t bucket, F && func, mpl::index_sequence<type, types...>)
 			{
 				if (!slots[bucket].template empty<type>())
 				{
@@ -773,9 +776,9 @@ namespace core
 					auto & array = std::get<type>(arrays);
 					debug_assert(index < array.size);
 
-					func(array.get(index));
+					detail::call_impl_func(std::forward<F>(func), key, array.get(index));
 				}
-				call_all_impl(bucket, std::forward<F>(func), mpl::index_sequence<types...>{});
+				call_all_impl(key, bucket, std::forward<F>(func), mpl::index_sequence<types...>{});
 			}
 		};
 
@@ -949,7 +952,7 @@ namespace core
 
 			template <typename F>
 			auto call(K key, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -958,13 +961,13 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
-					                 index, std::forward<F>(func))
+					                 key, index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 index, std::forward<F>(func));
+					                 key, index, std::forward<F>(func));
 				}
 			}
 		private:
@@ -1040,37 +1043,24 @@ namespace core
 				array.free_indices[array.size - 1] = index;
 				array.size--;
 			}
-			template <typename D>
-			void set_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, D && data)
-			{
-				intrinsic_unreachable();
-			}
-			template <std::size_t type, typename D>
-			void set_impl(mpl::index_constant<type>, uint24_t index, D && data)
-			{
-				auto & array = std::get<type>(arrays);
-				debug_assert(index < array.size);
-
-				array.get(index) = std::forward<D>(data);
-			}
 
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, uint24_t index, F && func) ->
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();
 				// this is used to deduce the return type correctly
 				// we should never get here
-				return func(*reinterpret_cast<mpl::car<Cs...> *>(0));
+				return detail::call_impl_func(std::forward<F>(func), key, *reinterpret_cast<mpl::car<Cs...> *>(0));
 			}
 			template <std::size_t type, typename F>
-			auto call_impl(mpl::index_constant<type>, uint24_t index, F && func) ->
-				decltype(func(std::declval<mpl::car<Cs...> &>()))
+			auto call_impl(mpl::index_constant<type>, K key, uint24_t index, F && func) ->
+				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.capacity);
 
-				return func(array.get(index));
+				return detail::call_impl_func(std::forward<F>(func), key, array.get(index));
 			}
 		};
 	}

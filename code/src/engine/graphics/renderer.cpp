@@ -617,10 +617,9 @@ namespace
 
 	struct add_selectable_color
 	{
-		engine::Entity entity;
 		engine::graphics::opengl::Color4ub color;
 
-		void operator () (comp_c & x)
+		void operator () (engine::Entity entity, comp_c & x)
 		{
 			std::vector<const mesh_t *> meshes;
 			meshes.reserve(x.assets.size());
@@ -630,25 +629,25 @@ namespace
 			}
 			selectable_components.emplace<selectable_comp_c>(entity, meshes, x.object, color);
 		}
-		void operator () (comp_t & x)
+		void operator () (engine::Entity entity, comp_t & x)
 		{
 			selectable_components.emplace<selectable_comp_t>(entity, x.mesh, x.object, color);
 		}
-		void operator () (Character & x)
+		void operator () (engine::Entity entity, Character & x)
 		{
 			selectable_components.emplace<selectable_character_t>(entity, x.mesh, x.object, color);
 		}
-		void operator () (ui::PanelC & x)
+		void operator () (engine::Entity entity, ui::PanelC & x)
 		{
 			selectable_components.emplace<selectable_panel>(entity, x.object, x.size, color);
 		}
-		void operator () (ui::PanelT & x)
+		void operator () (engine::Entity entity, ui::PanelT & x)
 		{
 			selectable_components.emplace<selectable_panel>(entity, x.object, x.size, color);
 		}
 
 		template <typename T>
-		void operator () (T & x)
+		void operator () (engine::Entity entity, T & x)
 		{
 			debug_unreachable();
 		}
@@ -989,7 +988,7 @@ namespace
 					}
 					else
 					{
-						components.call(x.entity, add_selectable_color{x.entity, color});
+						components.call(x.entity, add_selectable_color{color});
 					}
 				}
 				void operator () (MessageMakeSelectable && x)
@@ -1004,7 +1003,7 @@ namespace
 					}
 					else
 					{
-						components.call(x.entity, add_selectable_color{x.entity, color});
+						components.call(x.entity, add_selectable_color{color});
 					}
 				}
 				void operator () (MessageMakeTransparent && x)
