@@ -113,7 +113,7 @@ namespace utility
 
 			T instance;
 
-#if defined(_MSC_VER) && _MSC_VER <= 1911
+#if defined(_MSC_VER) && _MSC_VER <= 1912
 			template <typename ...Ps>
 			variant_alternative(Ps && ...ps) :
 				instance(utility::construct<T>(std::forward<Ps>(ps)...))

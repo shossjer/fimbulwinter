@@ -12,7 +12,7 @@ if(ENABLE_TEST)
 		catch
 		PREFIX "${CMAKE_BINARY_DIR}/catch"
 		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
-		GIT_TAG "master"
+		GIT_TAG "Catch1.x"
 		TIMEOUT 10
 		UPDATE_COMMAND ""
 		CONFIGURE_COMMAND ""
