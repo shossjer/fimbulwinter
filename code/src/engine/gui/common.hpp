@@ -86,10 +86,9 @@ namespace engine
 
 			static constexpr value_t NONE = 0;
 			static constexpr value_t DATA = 1 << 2;
-			static constexpr value_t MOVE = 1 << 3;
 			static constexpr value_t VISIBILITY = 1 << 4;
-			static constexpr value_t CHILD_OFFSET_H = 1 << 5;
-			static constexpr value_t CHILD_OFFSET_W = 1 << 6;
+			static constexpr value_t MOVED_H = 1 << 5;
+			static constexpr value_t MOVED_W = 1 << 6;
 			static constexpr value_t SIZE_HEIGHT = 1 << 7;
 			static constexpr value_t SIZE_WIDTH = 1 << 8;
 
@@ -109,19 +108,23 @@ namespace engine
 			bool any() const { return this->flags != NONE; }
 
 			bool affects_content() const { return is_set(DATA); }
+
+			bool affects_moved() const { return is_set(MOVED_H | MOVED_W); }
+			bool affects_moved_h() const { return is_set(MOVED_H); }
+			bool affects_moved_w() const { return is_set(MOVED_W); }
+
 			bool affects_size() const { return is_set(SIZE_HEIGHT | SIZE_WIDTH); }
 			bool affects_size_h() const { return is_set(SIZE_HEIGHT); }
 			bool affects_size_w() const { return is_set(SIZE_WIDTH); }
-			bool affects_offset() const { return is_set(MOVE); }
 			bool affects_visibility() const { return is_set(VISIBILITY); }
-			bool affects_child_offset() const { return is_set(CHILD_OFFSET_H | CHILD_OFFSET_W); }
 
 			void clear() { this->flags = NONE; }
 
 			void clear_size_h() { clear(SIZE_HEIGHT); }
 			void clear_size_w() { clear(SIZE_WIDTH); }
 
-			void set_moved() { set(MOVE); }
+			void set_moved_h() { set(MOVED_H); }
+			void set_moved_w() { set(MOVED_W); }
 
 			void set_resized_h() { set(SIZE_HEIGHT); }
 			void set_resized_w() { set(SIZE_WIDTH); }

@@ -70,7 +70,7 @@ SCENARIO("Adding items to list - Size", "[gui][Visibility]")
 		}
 	}
 }
-SCENARIO("Adding items to list - Offset", "[gui][Visibility]")
+SCENARIO("Adding items to list - Offset", "[gui][list][Visibility]")
 {
 	if (!resource_added)
 	{
@@ -128,7 +128,7 @@ SCENARIO("Adding items to list - Offset", "[gui][Visibility]")
 
 			ViewMeasure::refresh(base);
 
-			THEN("the view should have its size updated.")
+			THEN("the list items should have thier offset updated.")
 			{
 				auto & gc = utility::get<View::Group>(group.content);
 

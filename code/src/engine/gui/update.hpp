@@ -163,7 +163,7 @@ namespace engine
 				else
 				{
 					// Note: only set OFFSET if layout etc requires it.
-					parent.change.set(Change::CHILD_OFFSET_H);
+					parent.change.set(Change::MOVED_H);
 				}
 
 				if (wrap(parent.size.width, content))
@@ -172,7 +172,7 @@ namespace engine
 				}
 				else
 				{
-					parent.change.set(Change::CHILD_OFFSET_W);
+					parent.change.set(Change::MOVED_W);
 				}
 
 				ViewUpdater::parent(parent, update_changes);
@@ -193,14 +193,14 @@ namespace engine
 					if (wrap(view.size.height, content))
 						update_changes.set_resized_h();
 					else
-						view.change.set(Change::CHILD_OFFSET_H);
+						view.change.set(Change::MOVED_H);
 				}
 				if (child_changes.affects_size_w())
 				{
 					if (wrap(view.size.width, content))
 						update_changes.set_resized_w();
 					else
-						view.change.set(Change::CHILD_OFFSET_W);
+						view.change.set(Change::MOVED_W);
 				}
 
 				ViewUpdater::parent(view, update_changes);

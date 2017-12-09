@@ -74,7 +74,7 @@ TEST_CASE("ViewMeasure - refresh parent offset", "[gui][ViewMeasure]")
 	{
 		ViewMeasure::refresh(view, Gravity{}, Offset{ height_t{ 100 }, width_t{ 200 } }, Size{});
 
-		REQUIRE(ViewAccess::change(view).affects_offset());
+		REQUIRE(ViewAccess::change(view).affects_moved());
 
 		// unaffected
 		REQUIRE(!ViewAccess::change(view).affects_size());
@@ -85,7 +85,7 @@ TEST_CASE("ViewMeasure - refresh parent offset", "[gui][ViewMeasure]")
 		ViewAccess::offset(view) = Offset{ height_t{ 100 }, width_t{ 200 } };
 		ViewMeasure::refresh(view, Gravity{}, Offset{ height_t{ 100 }, width_t{ 200 } }, Size{});
 
-		REQUIRE(!ViewAccess::change(view).affects_offset());
+		REQUIRE(!ViewAccess::change(view).affects_moved());
 
 		// unaffected
 		REQUIRE(!ViewAccess::change(view).affects_size());
@@ -113,7 +113,7 @@ TEST_CASE("ViewMeasure - refresh parent re-sized", "[gui][ViewMeasure]")
 		REQUIRE(ViewAccess::size(view).width == width_t{ 100 });
 
 		// unaffected
-		REQUIRE(!ViewAccess::change(view).affects_offset());
+		REQUIRE(!ViewAccess::change(view).affects_moved());
 		REQUIRE(!ViewAccess::change(view).affects_visibility());
 	}
 	SECTION("Size - un-changed")
@@ -129,7 +129,7 @@ TEST_CASE("ViewMeasure - refresh parent re-sized", "[gui][ViewMeasure]")
 		REQUIRE(!ViewAccess::change(view).affects_size());
 
 		// unaffected
-		REQUIRE(!ViewAccess::change(view).affects_offset());
+		REQUIRE(!ViewAccess::change(view).affects_moved());
 		REQUIRE(!ViewAccess::change(view).affects_visibility());
 	}
 }

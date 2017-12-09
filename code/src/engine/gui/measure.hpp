@@ -33,7 +33,7 @@ namespace engine
 				{
 					visit(ContentResize{ view }, view.content);
 				}
-				else if (view.change.affects_child_offset())
+				else if (view.change.affects_moved())
 				{
 					visit(ContentResize{ view }, view.content);
 				}
@@ -72,7 +72,7 @@ namespace engine
 					}
 					if (view.offset.update(offset.height + view.margin.top))
 					{
-						view.change.set_moved();
+						view.change.set_moved_h();
 					}
 					break;
 
@@ -85,21 +85,21 @@ namespace engine
 					{
 						if (view.offset.update(offset.height + (size.height - view.size.height - view.margin.bottom)))
 						{
-							view.change.set_moved();
+							view.change.set_moved_h();
 						}
 					}
 					else if (gravity == Gravity::VERTICAL_CENTRE)
 					{
 						if (view.offset.update(offset.height + ((size.height - view.size.height) / 2) + (view.margin.top - view.margin.bottom)))
 						{
-							view.change.set_moved();
+							view.change.set_moved_h();
 						}
 					}
 					else
 					{
 						if (view.offset.update(offset.height + view.margin.top))
 						{
-							view.change.set_moved();
+							view.change.set_moved_h();
 						}
 					}
 					break;
@@ -115,7 +115,7 @@ namespace engine
 					}
 					if (view.offset.update(offset.width + view.margin.left))
 					{
-						view.change.set_moved();
+						view.change.set_moved_w();
 					}
 					break;
 
@@ -128,21 +128,21 @@ namespace engine
 					{
 						if (view.offset.update(offset.width + (size.width - view.size.width - view.margin.right)))
 						{
-							view.change.set_moved();
+							view.change.set_moved_w();
 						}
 					}
 					else if (gravity == Gravity::HORIZONTAL_CENTRE)
 					{
 						if (view.offset.update(offset.width + ((size.width - view.size.width) / 2) + (view.margin.left - view.margin.right)))
 						{
-							view.change.set_moved();
+							view.change.set_moved_w();
 						}
 					}
 					else
 					{
 						if (view.offset.update(offset.width + view.margin.left))
 						{
-							view.change.set_moved();
+							view.change.set_moved_w();
 						}
 					}
 					break;

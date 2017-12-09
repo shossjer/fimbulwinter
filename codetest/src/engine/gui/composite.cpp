@@ -119,3 +119,88 @@ TEST_CASE("Update parent size after adding child", "[gui][ViewUpdater][parent]")
 		ViewMeasure::refresh(group);
 	}
 }
+
+// This test verified a problem with an item under a list was not offsetted
+// after the list was updated
+TEST_CASE("View{Group} with Function{List} should WRAP dynamic content", "[list][wrap]")
+{
+	resource::put("make_this_better", 0);
+
+	auto base = ViewAccess::create_group(
+		View::Group::Layout::VERTICAL,
+		Size{ { Size::WRAP },{ Size::FIXED, width_t{ 100 } }, });
+
+	auto group = ViewAccess::create_group(
+		View::Group::Layout::VERTICAL,
+		Size{ { Size::WRAP }, { Size::FIXED, width_t{ 100 } }, },
+		&base);
+
+	auto child_group = ViewAccess::create_group(
+		View::Group::Layout::VERTICAL,
+		Size{ { Size::WRAP },{ Size::WRAP }, },
+		&base);
+	auto child_text = ViewAccess::create_child(
+		View::Content{ utility::in_place_type<View::Text>, "make_this_better" },
+		Size{ { Size::FIXED, height_t{ 20 } },{ Size::FIXED, width_t{ 100 } } },
+		&child_group);
+
+	utility::get<View::Group>(base.content).adopt(&group);
+	utility::get<View::Group>(base.content).adopt(&child_group);
+	utility::get<View::Group>(child_group.content).adopt(&child_text);
+
+	auto function = ViewAccess::create_function(
+		Function::Content
+		{
+			utility::in_place_type<Function::List>,
+			DataVariant
+			{
+				utility::in_place_type<TextData>,
+				"Name",
+				Size{},
+				Margin{},
+				Gravity{},
+				"make_this_better",
+				"Display"
+			},
+		},
+		group);
+
+	auto & group_content = utility::get<View::Group>(group.content);
+	auto & list = utility::get<Function::List>(function.content);
+
+	GIVEN("an view with list function")
+	{
+		ViewMeasure::refresh(base);
+
+		REQUIRE(group.size.height == height_t{ 0 });
+		REQUIRE(group.size.width == width_t{100});
+
+		REQUIRE(child_text.offset.height == height_t{ 0 });
+		REQUIRE(child_text.offset.width == width_t{ 0 });
+
+		WHEN("the list is updated with items.")
+		{
+			std::vector<data::Value> items;
+			items.emplace_back(utility::in_place_type<std::string>, "str1");
+			items.emplace_back(utility::in_place_type<std::string>, "str2");
+			items.emplace_back(utility::in_place_type<std::string>, "str3");
+			ListReaction{ data::Values{ items } }(function);
+
+			REQUIRE(base.change.affects_size());
+
+			ViewMeasure::refresh(base);
+
+			auto child_height = group_content.children[0]->size.height;
+			REQUIRE(child_height.value > 0);
+
+			THEN("the list view should have its size updated.")
+			{
+				REQUIRE(group.size.height == height_t{ child_height.value * 3 });
+				REQUIRE(group.size.width == width_t{ 100 });
+
+				REQUIRE(child_text.offset.height == height_t{ child_height.value * 3 });
+				REQUIRE(child_text.offset.width == width_t{ 0 });
+			}
+		}
+	}
+}
