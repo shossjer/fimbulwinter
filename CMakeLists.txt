@@ -11,7 +11,7 @@ if (MSVC)
 	 "${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
 	 CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
   set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} /MT")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MTd")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MT")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
   add_definitions(-DNOMINMAX)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT HellsKitchen)
@@ -221,9 +221,9 @@ message(STATUS "Looking for png")
 find_library(LIBRARY_PNG png)
 message(STATUS "Looking for png - ${LIBRARY_PNG}")
 
-message(STATUS "Looking for libpng16d")
-find_library(LIBRARY_LIBPNG libpng16d)
-message(STATUS "Looking for libpng16d - ${LIBRARY_LIBPNG}")
+message(STATUS "Looking for libpng16_staticd")
+find_library(LIBRARY_LIBPNG libpng16_staticd)
+message(STATUS "Looking for libpng16_staticd - ${LIBRARY_LIBPNG}")
 
 set(GENERAL_INCLUDES)
 
