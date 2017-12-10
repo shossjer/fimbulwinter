@@ -214,8 +214,8 @@ ModelManifest.xml
 
 .chester.d/
 .git*
+dep/
 dev/
 res/
-s
 script
 build*/
