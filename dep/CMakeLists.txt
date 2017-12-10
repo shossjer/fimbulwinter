@@ -122,3 +122,9 @@ ExternalProject_Add(
   CMAKE_ARGS "${CONFIG_ARGS}"
   LOG_DOWNLOAD ON
   )
+
+
+file(DOWNLOAD "https://www.khronos.org/registry/OpenGL/api/GL/glext.h" "${PROJECT_SOURCE_DIR}/downloads/glext/src/glext.h" TIMEOUT 10)
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/include/GL/glext.h")
+	file(INSTALL "${PROJECT_SOURCE_DIR}/downloads/glext/src/glext.h" DESTINATION "${PROJECT_SOURCE_DIR}/include/GL")
+endif ()

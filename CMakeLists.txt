@@ -83,6 +83,12 @@ if (PHYSICS_USE_BOX2D)
 
 	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
 endif()
+# Catch
+message(STATUS "Looking for catch")
+find_file(FILE_CATCH_HPP catch.hpp)
+find_file(FILE_CATCH_CATCH_HPP catch/catch.hpp)
+message(STATUS "Looking for catch - ${FILE_CATCH_HPP}")
+message(STATUS "Looking for catch - ${FILE_CATCH_CATCH_HPP}")
 # Freetype
 message(STATUS "Looking for freetype")
 find_file(FILE_FT2BUILD_H ft2build.h)
@@ -114,17 +120,15 @@ message(STATUS "Looking for OpenAL - ${LIBRARY_OPENAL32}")
 # OpenGL
 message(STATUS "Looking for OpenGL")
 find_file(FILE_GL_GL_H GL/gl.h)
-find_file(FILE_GL_GLU_H GL/glu.h)
+#find_file(FILE_GL_GLU_H GL/glu.h)
+find_file(FILE_GL_GLEXT_H GL/glext.h)
 message(STATUS "Looking for OpenGL - ${FILE_GL_GL_H}")
-message(STATUS "Looking for OpenGL - ${FILE_GL_GLU_H}")
+#message(STATUS "Looking for OpenGL - ${FILE_GL_GLU_H}")
+message(STATUS "Looking for OpenGL - ${FILE_GL_GLEXT_H}")
 find_library(LIBRARY_GL GL)
 find_library(LIBRARY_OPENGL32 opengl32)
 message(STATUS "Looking for OpenGL - ${LIBRARY_GL}")
 message(STATUS "Looking for OpenGL - ${LIBRARY_OPENGL32}")
-find_library(LIBRARY_GLEXT GLext)
-find_library(LIBRARY_GLEXT32 glext32)
-message(STATUS "Looking for OpenGL - ${LIBRARY_GLEXT}")
-message(STATUS "Looking for OpenGL - ${LIBRARY_GLEXT32}")
 # physics PHYSX
 if (PHYSICS_USE_PHYSX)
 	find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
@@ -287,12 +291,14 @@ endif()
 # select libraries
 # graphics
 if (FILE_GL_GL_H AND
-	LIBRARY_GL)
+	 FILE_GL_GLEXT_H AND
+	 LIBRARY_GL)
   message(STATUS "Graphics - OpenGL")
   set(GRAPHICS_USE_OPENGL 1)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_GL}")
 elseif (FILE_GL_GL_H AND
-	LIBRARY_OPENGL32)
+	 FILE_GL_GLEXT_H AND
+	 LIBRARY_OPENGL32)
   message(STATUS "Graphics - OpenGL")
   set(GRAPHICS_USE_OPENGL 1)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENGL32}")
@@ -316,6 +322,19 @@ elseif(FILE_AL_AL_H AND
 else()
   message(WARNING "Sound - Disabled")
 endif()
+
+# test
+if (FILE_CATCH_HPP OR
+	 FILE_CATCH_CATCH_HPP)
+  message(STATUS "Test - Catch")
+
+  if (FILE_CATCH_CATCH_HPP)
+	 get_filename_component(INCLUDE_DIRECTORY_CATCH "${FILE_CATCH_CATCH_HPP}" DIRECTORY)
+	 set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${INCLUDE_DIRECTORY_CATCH}")
+  endif()
+else ()
+  message(WARNING "Test - Disabled")
+endif ()
 
 # thread
 if (LIBRARY_KERNEL32)
