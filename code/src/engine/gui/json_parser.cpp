@@ -15,7 +15,7 @@ namespace
 {
 	using namespace engine::gui;
 
-	using key = std::string;
+	using key_t = std::string;
 
 	struct ResourceLoader
 	{
@@ -29,8 +29,8 @@ namespace
 		{
 			const json & jdata;
 
-			auto contains(const key key) const { return ::contains(this->jdata, key); }
-			auto get(const key key) const { return jdata[key].get<std::string>(); }
+			auto contains(const key_t key) const { return ::contains(this->jdata, key); }
+			auto get(const key_t key) const { return jdata[key].get<std::string>(); }
 		};
 		std::vector<Map> overriders;
 
@@ -49,12 +49,22 @@ namespace
 				{
 					const std::string str = i.value();
 
-					debug_assert(str.length() == 10);
+					if (str.length() != 10)
+					{
+						debug_printline(engine::gui_channel, "WARNING: color not valid format: ", str, " - should be \"0xAABBGGRR\"");
+						continue;
+					}
 
-					const auto val = std::stoul(str, nullptr, 16);
+					try
+					{
+						const auto val = std::stoul(str, nullptr, 16);
 
-					resource::put(engine::Asset{ i.key() }, val);
-					debug_printline(engine::gui_channel, "GUI - loading color: ", i.key());
+						resource::put(engine::Asset{ i.key() }, val);
+					}
+					catch (const std::invalid_argument &)
+					{
+						debug_printline(engine::gui_channel, "WARNING: color not valid format: ", str, " - should be \"0xAABBGGRR\"");
+					}
 				}
 			}
 
@@ -65,9 +75,19 @@ namespace
 				for (auto i = jselectors.begin(); i != jselectors.end(); ++i)
 				{
 					auto & jval = i.value();
-					debug_assert(jval.is_object());
 
-					debug_assert(contains(jval, "default"));
+					if (!jval.is_object())
+					{
+						debug_printline(engine::gui_channel, "WARNING: selector must be json object: ", jval);
+						continue;
+					}
+
+					if (!contains(jval, "default"))
+					{
+						debug_printline(engine::gui_channel, "WARNING: selector must contain \"default\": ", jval);
+						continue;
+					}
+
 					engine::Asset defColor = jval["default"].get<std::string>();
 
 					engine::Asset highColor;
@@ -83,7 +103,6 @@ namespace
 						pressedColor = defColor;
 
 					resource::put(engine::Asset{ i.key() }, defColor, highColor, pressedColor);
-					debug_printline(engine::gui_channel, "GUI - loading selector: ", i.key());
 				}
 			}
 		}
@@ -102,7 +121,7 @@ namespace
 	private:
 
 		// TODO: make possible to map #key to another #key2
-		auto find_override(const key key) const
+		auto find_override(const key_t key) const
 		{
 			for (auto ritr = this->overriders.rbegin(); ritr != this->overriders.rend(); ++ritr)
 			{
@@ -123,31 +142,48 @@ namespace
 		template<typename N>
 		N number(const json & jv) const
 		{
-			if (!jv.is_string())
-				return jv.get<N>();
+			if (jv.is_number()) return jv.get<N>();
 
-			const std::string str = jv;
-			debug_assert(str.length() > std::size_t{ 0 });
-			debug_assert(str[0] == '#');
-			return this->jdimensions[str].get<N>();
+			if (jv.is_string())
+			{
+				const std::string str = jv;
+				if (str[0] == '#')
+				{
+					return this->jdimensions[str].get<N>();
+				}
+				debug_printline(engine::gui_channel, "WARNING: cannot load number alias: ", jv);
+			}
+			else
+			{
+				debug_printline(engine::gui_channel, "WARNING: cannot load number type: ", jv);
+			}
+			throw bad_json("Invalid number");
 		}
 		template<typename N>
-		N number(const key key, const json & jdata) const
+		N number(const key_t key, const json & jdata) const
 		{
-			debug_assert(contains(jdata, key));
+			if (!contains(jdata, key))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: ", key, "; missing in data: ", jdata);
+				throw key_missing(key);
+			}
 			return number<N>(jdata[key]);
 		}
 		template<typename N>
-		N number(const key key, const json & jdata, const N def) const
+		N number(const key_t key, const json & jdata, const N def) const
 		{
 			if (!contains(jdata, key))
 				return def;
 			return number<N>(jdata[key]);
 		}
 
-		engine::Asset extract_asset(const json & jdata, const key key) const
+		engine::Asset extract_asset(const json & jdata, const key_t key) const
 		{
-			debug_assert(contains(jdata, key));
+			if (!contains(jdata, key))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: ", key, "; missing in data: ", jdata);
+				throw key_missing(key);
+			}
 			return engine::Asset{ jdata[key].get<std::string>() };
 		}
 
@@ -156,7 +192,12 @@ namespace
 		{
 			if (jd.is_object())
 			{
-				debug_assert(contains(jd, "t"));
+				if (!contains(jd, "t"))
+				{
+					debug_printline(engine::gui_channel, "WARNING - dimention json invalid: ", jd);
+					throw bad_json();
+				}
+
 				const std::string type = jd["t"];
 
 				if (type == "fixed")
@@ -185,7 +226,11 @@ namespace
 			{
 				const std::string str = jd;
 
-				debug_assert(str.length() > std::size_t{ 0 });
+				if (str.empty())
+				{
+					debug_printline(engine::gui_channel, "WARNING - dimention json invalid: ", jd);
+					throw bad_json();
+				}
 
 				if (str[0] == '#')
 					return Size::extended_dimen_t<S>{
@@ -196,8 +241,8 @@ namespace
 				if (str == "parent") return Size::extended_dimen_t<S>{ Size::PARENT };
 				if (str == "wrap") return Size::extended_dimen_t<S>{Size::WRAP };
 
-				debug_printline(engine::gui_channel, "GUI - invalid size dimen: ", jd);
-				debug_unreachable();
+				debug_printline(engine::gui_channel, "WARNING - invalid size dimen: ", jd);
+				throw bad_json();
 			}
 			else
 			if (jd.is_number_integer())
@@ -205,25 +250,33 @@ namespace
 				return Size::extended_dimen_t<S>{ Size::FIXED, S{ jd.get<uint32_t>() } };
 			}
 
-			debug_printline(engine::gui_channel, "GUI - invalid size value: ", jd);
-			debug_unreachable();
+			debug_printline(engine::gui_channel, "WARNING - invalid size value: ", jd);
+			throw bad_json();
 		}
 
 		auto extract_size(const json & jdata) const
 		{
 			const json & jsize = jdata["size"];
 
-			debug_assert(contains(jsize, "h"));
-			debug_assert(contains(jsize, "w"));
+			if (!contains(jsize, "h") && !contains(jsize, "w"))
+			{
+				debug_printline(engine::gui_channel, "WARNING - invalid size data: ", jdata);
+				throw bad_json();
+			}
 
 			return Size{
 				extract_dimen<height_t>(jsize["h"]),
 				extract_dimen<width_t>(jsize["w"]) };
 		}
 
-		auto extract_string(const key key, const json & jdata) const
+		auto extract_string(const key_t key, const json & jdata) const
 		{
-			debug_assert(contains(jdata, key));
+			if (!contains(jdata, key))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: ", key, "; missing in data: ", jdata);
+				throw key_missing(key);
+			}
+
 			auto str = jdata[key].get<std::string>();
 
 			if (!str.empty() && str[0] == '#')
@@ -242,10 +295,19 @@ namespace
 
 		engine::Asset color(const json & jdata) const
 		{
-			debug_assert(contains(jdata, "color"));
+			if (!contains(jdata, "color"))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: 'color' missing in data: ", jdata);
+				throw key_missing("color");
+			}
 
 			const std::string str = jdata["color"];
-			debug_assert(str.length() > std::size_t{ 0 });
+
+			if (str.empty())
+			{
+				debug_printline(engine::gui_channel, "WARNING - color value must not be empty", jdata);
+				throw bad_json();
+			}
 
 			const engine::Asset asset{ str };
 
@@ -256,7 +318,12 @@ namespace
 
 		const json & components(const json & jdata) const
 		{
-			debug_assert(contains(jdata, "components"));
+			if (!contains(jdata, "components"))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: 'components' missing in data: ", jdata);
+				throw key_missing("components");
+			}
+
 			return jdata["components"];
 		}
 
@@ -271,7 +338,11 @@ namespace
 
 		View::Group::Layout layout(const json & jgroup) const
 		{
-			debug_assert(contains(jgroup, "layout"));
+			if (!contains(jgroup, "layout"))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: 'layout' missing in data: ", jgroup);
+				throw key_missing("layout");
+			}
 
 			const std::string str = jgroup["layout"];
 
@@ -280,7 +351,7 @@ namespace
 			if (str == "relative") return View::Group::RELATIVE;
 
 			debug_printline(engine::gui_channel, "GUI - invalid layout: ", str);
-			debug_unreachable();
+			throw bad_json();
 		}
 
 		Gravity gravity(const json & jdata) const
@@ -304,7 +375,7 @@ namespace
 					else
 					{
 						debug_printline(engine::gui_channel, "GUI - invalid horizontal gravity: ", str);
-						debug_unreachable();
+						throw bad_json();
 					}
 				}
 
@@ -320,7 +391,7 @@ namespace
 					else
 					{
 						debug_printline(engine::gui_channel, "GUI - invalid vertical gravity: ", str);
-						debug_unreachable();
+						throw bad_json();
 					}
 				}
 			}
@@ -335,16 +406,18 @@ namespace
 		auto name(const json & jdata) const
 		{
 			auto value = extract_string("name", jdata);
-			debug_assert(!value.empty());
+			if (value.empty())
+			{
+				debug_printline(engine::gui_channel, "WARNING - name must not be empty", jdata);
+				throw bad_json();
+			}
 			return value;
 		}
 		auto name_or_empty(const json & jdata) const
 		{
 			if (has_name(jdata))
 			{
-				auto value = extract_string("name", jdata);
-				debug_assert(!value.empty());
-				return value;
+				return extract_string("name", jdata);
 			}
 			return std::string{};
 		}
@@ -377,7 +450,12 @@ namespace
 
 		Size size(const json & jdata) const
 		{
-			debug_assert(contains(jdata, "size"));
+			if (!contains(jdata, "size"))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: 'size' missing in data: ", jdata);
+				throw key_missing("size");
+			}
+
 			return extract_size(jdata);
 		}
 
@@ -395,9 +473,13 @@ namespace
 			return extract_size(jdata);
 		}
 
-		const json & template_data(const key key) const
+		const json & template_data(const key_t key) const
 		{
-			debug_assert(contains(this->jtemplates, key));
+			if (!contains(this->jtemplates, key))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: '", key, "' does not exist in templates");
+				throw key_missing(key);
+			}
 			return this->jtemplates[key];
 		}
 
@@ -408,15 +490,34 @@ namespace
 		auto target(const json & jdata) const
 		{
 			auto value = extract_string("target", jdata);
-			debug_assert(!value.empty());
+			if (value.empty())
+			{
+				debug_printline(engine::gui_channel, "WARNING - 'target' must not be empty: ", jdata);
+				throw bad_json();
+			}
 			return value;
 		}
 
 		engine::Asset type(const json & jdata) const
 		{
 			auto value = extract_string("type", jdata);
-			debug_assert(!value.empty());
+			if (value.empty())
+			{
+				debug_printline(engine::gui_channel, "WARNING - 'type' must not be empty: ", jdata);
+				throw bad_json();
+			}
 			return value;
+		}
+
+		std::string type_key(const json & jdata) const
+		{
+			if (!contains(jdata, "type"))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: 'type' missing in data: ", jdata);
+				throw key_missing("type");
+			}
+
+			return jdata["type"].get<std::string>();
 		}
 
 		bool has_type_group(const json & jdata) const
@@ -425,7 +526,11 @@ namespace
 		}
 		const json & type_group(const json & jdata) const
 		{
-			debug_assert(has_type_group(jdata));
+			if (!has_type_group(jdata))
+			{
+				debug_printline(engine::gui_channel, "WARNING - 'group' missing: ", jdata);
+				throw bad_json();
+			}
 			return jdata["group"];
 		}
 
@@ -435,7 +540,11 @@ namespace
 		}
 		const json & type_list(const json & jdata) const
 		{
-			debug_assert(has_type_list(jdata));
+			if (!has_type_list(jdata))
+			{
+				debug_printline(engine::gui_channel, "WARNING - 'list' missing: ", jdata);
+				throw bad_json();
+			}
 			return jdata["list"];
 		}
 
@@ -445,7 +554,11 @@ namespace
 		}
 		const json & type_panel(const json & jdata) const
 		{
-			debug_assert(has_type_panel(jdata));
+			if (!has_type_panel(jdata))
+			{
+				debug_printline(engine::gui_channel, "WARNING - 'panel' missing: ", jdata);
+				throw bad_json();
+			}
 			return jdata["panel"];
 		}
 
@@ -455,7 +568,11 @@ namespace
 		}
 		const json & type_text(const json & jdata) const
 		{
-			debug_assert(has_type_text(jdata));
+			if (!has_type_text(jdata))
+			{
+				debug_printline(engine::gui_channel, "WARNING - 'text' missing: ", jdata);
+				throw bad_json();
+			}
 			return jdata["text"];
 		}
 
@@ -465,7 +582,11 @@ namespace
 		}
 		const json & type_texture(const json & jdata) const
 		{
-			debug_assert(has_type_texture(jdata));
+			if (!has_type_texture(jdata))
+			{
+				debug_printline(engine::gui_channel, "WARNING - 'texture' missing: ", jdata);
+				throw bad_json();
+			}
 			return jdata["texture"];
 		}
 
@@ -475,7 +596,11 @@ namespace
 		}
 		auto observe(const json & jdata) const
 		{
-			debug_assert(has_observe(jdata));
+			if (!has_observe(jdata))
+			{
+				debug_printline(engine::gui_channel, "WARNING - 'observe' missing: ", jdata);
+				throw bad_json();
+			}
 			return extract_string("observe", jdata);
 		}
 		auto observe_or_empty(const json & jdata) const
@@ -537,12 +662,16 @@ namespace
 
 					break;
 				case ViewData::Action::TRIGGER:
-					debug_assert(action.target != engine::Asset::null());
+					if (action.target == engine::Asset::null())
+					{
+						debug_printline(engine::gui_channel, "WARNING - cannot find 'target' of action: ", jcomponent);
+						throw bad_json();
+					}
 					break;
 
 				default:
 					debug_printline(engine::gui_channel, "GUI - unknown trigger action in component: ", jcomponent);
-					debug_unreachable();
+					throw bad_json();
 				}
 			}
 		}
@@ -586,8 +715,16 @@ namespace
 				load_component(*group, jtemplate);
 				function.templates = std::move(group->children);
 
-				debug_assert(function.templates.size() == 1);
-				debug_assert(group->children.empty());
+				if (function.templates.size() != 1)
+				{
+					debug_printline(engine::gui_channel, "WARNING - 'list' functionality must have exactly 1 'template': ", jcomponent);
+					throw bad_json();
+				}
+				if (!group->children.empty())
+				{
+					debug_printline(engine::gui_channel, "WARNING - group with 'list' functionality must be empty: ", jcomponent);
+					throw bad_json();
+				}
 
 				break;
 			}
@@ -596,7 +733,6 @@ namespace
 			//	if (contains(jfunction, "direction"))
 			//	{
 			//		const std::string direction = jfunction["direction"];
-
 			//		if (direction == "horizontal")
 			//		{
 			//			target.function.direction = ProgressBar::HORIZONTAL;
@@ -609,7 +745,7 @@ namespace
 			//		else
 			//		{
 			//			debug_printline(engine::gui_channel, "GUI - Progress bar invalid direction: ", jcomponent);
-			//			debug_unreachable();
+			//			throw bad_json();
 			//		}
 			//	}
 			//	else
@@ -635,7 +771,12 @@ namespace
 
 			const json & jreaction = jcomponent["reaction"];
 
-			debug_assert(contains(jreaction, "observe"));
+			if (!contains(jreaction, "observe"))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: 'observe' missing in data: ", jreaction);
+				throw key_missing("observe");
+			}
+
 			view.reaction.observe = jreaction["observe"].get<std::string>();
 			// TEMP
 			view.reaction.type = ViewData::Reaction::TEXT;
@@ -750,22 +891,22 @@ namespace
 				load_function(view, jcomponent);
 				load_reaction(view, jcomponent);
 			}
+			else
+			{
+				debug_printline(engine::gui_channel, "WARNING - unrecognized type: ", type);
+			}
 		}
 
 		void load_views(GroupData & parent, const json & jcomponent)
 		{
-			debug_assert(contains(jcomponent, "type"));
-			const std::string type = jcomponent["type"];
-			debug_assert(!type.empty());
+			const std::string type = this->load.type_key(jcomponent);
 
 			load_views(parent, type, jcomponent);
 		}
 
 		void load_component(GroupData & parent, const json & jcomponent)
 		{
-			debug_assert(contains(jcomponent, "type"));
-			const std::string type = jcomponent["type"];
-			debug_assert(!type.empty());
+			const std::string type = this->load.type_key(jcomponent);
 
 			if (type[0] == '#')
 			{
@@ -827,7 +968,17 @@ namespace gui
 			return windows;
 		}
 
-		const json jcontent = json::parse(file);
+		json jcontent;
+
+		try
+		{
+			jcontent = json::parse(file);
+		}
+		catch (const std::invalid_argument & e)
+		{
+			debug_printline(engine::gui_channel, "GUI json file is corrupt! ", e.what());
+			return windows;
+		}
 
 		ResourceLoader resourceLoader(jcontent);
 
@@ -836,7 +987,14 @@ namespace gui
 
 		for (const auto & jwindow : jwindows)
 		{
-			WindowLoader(resourceLoader).create(windows, jwindow);
+			try
+			{
+				WindowLoader(resourceLoader).create(windows, jwindow);
+			}
+			catch (const bad_json &)
+			{
+				debug_printline(engine::gui_channel, "WARNING - window creation was aborted.");
+			}
 		}
 
 		return windows;

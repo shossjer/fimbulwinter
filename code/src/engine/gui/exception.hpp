@@ -25,7 +25,9 @@ namespace engine
 		class bad_json : public exception
 		{
 		public:
-			bad_json() = delete;
+			bad_json()
+				: exception("")
+			{}
 			bad_json(std::string message)
 				: exception(message)
 			{}
