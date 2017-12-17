@@ -9,6 +9,7 @@ set(SOURCE_FILES
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
+	src/engine/console.cpp
 	src/engine/graphics/opengl.cpp
 	src/engine/graphics/opengl/Font_freetype.cpp
 	src/engine/graphics/opengl/Font_user32.cpp
@@ -61,6 +62,7 @@ set(HEADER_FILES
 	src/core/sync/Mutex.hpp
 	src/engine/Asset.hpp
 	src/engine/Command.hpp
+	src/engine/console.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
