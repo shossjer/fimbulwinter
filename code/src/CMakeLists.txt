@@ -107,6 +107,7 @@ set(HEADER_FILES
 	src/utility/optional.hpp
 	src/utility/preprocessor.hpp
 	src/utility/property.hpp
+	src/utility/spinlock.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
 	src/utility/type_traits.hpp
