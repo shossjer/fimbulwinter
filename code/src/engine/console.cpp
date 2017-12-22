@@ -7,6 +7,7 @@
 #include <engine/Asset.hpp>
 #include <engine/debug.hpp>
 
+#include <stdio.h>
 #include <iostream>
 #include <sstream>
 #include <unordered_map>
@@ -23,19 +24,14 @@ namespace
 
 #ifdef _WIN32
 	HANDLE handle = nullptr;
-#else
-	// TODO: linux stuff
 #endif
-
 }
 
 namespace engine
 {
 	namespace console
 	{
-		void observe(
-			const std::string & keyword,
-			const Callback & callback)
+		void observe(const std::string & keyword, const Callback & callback)
 		{
 			const auto key = engine::Asset{ keyword };
 
@@ -57,38 +53,28 @@ namespace engine
 
 		void read_input()
 		{
-			char buffer[256];
-
 			while (active)
 			{
 				std::string line;
+				std::getline(std::cin, line);
 
-#ifdef _WIN32
-				DWORD result;
-				auto success = ReadFile(handle, buffer, 256, &result, NULL);
+				if (line.empty()) continue;
 
-				if (!success || result == 0)
-					break;
-
-				line = std::string{ buffer };
-#else
-				// TODO: linux stuff
-				break;
-#endif
 				std::stringstream stream{ line };
 				std::string keyword;
 				std::getline(stream, keyword, ' ');
 
-				engine::Asset key{ keyword };
+				const engine::Asset key{ keyword };
 
-				auto observer = observer_map.find(engine::Asset{ keyword });
+				auto observers = observer_map.find(engine::Asset{ keyword });
 
-				if (observer != observer_map.end())
+				if (observers != observer_map.end())
 				{
-					for (auto & callback : (*observer).second)
+					std::string data;
+					std::getline(stream, data);
+
+					for (auto & callback : (*observers).second)
 					{
-						std::string data;
-						std::getline(stream, data);
 						callback(data);
 					}
 				}
@@ -100,11 +86,6 @@ namespace engine
 			active = true;
 #ifdef _WIN32
 			handle = GetStdHandle(STD_INPUT_HANDLE);
-
-			if (handle == INVALID_HANDLE_VALUE)
-			{
-				debug_unreachable();
-			}
 #else
 			// TODO: create linux stuff
 #endif
@@ -115,7 +96,7 @@ namespace engine
 		{
 			active = false;
 #ifdef _WIN32
-			CloseHandle(handle);
+			CancelIoEx(handle, NULL);
 #else
 			// TODO: close linux stuff
 #endif

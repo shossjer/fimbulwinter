@@ -2,6 +2,7 @@
 #include <core/debug.hpp>
 
 #include <engine/application/window.hpp>
+#include <engine/console.hpp>
 
 #include <gameplay/gamestate.hpp>
 #include <gameplay/ui.hpp>
@@ -66,6 +67,18 @@ namespace gameplay
 	}
 }
 
+
+unsigned int local_value = 0;
+void local_method(const std::string & data)
+{
+	local_value++;
+	printf("local method called %d times\n", local_value);
+}
+void local_pong(const std::string & data)
+{
+	std::cout << "pong (local) - " << data << std::endl;
+}
+
 #if WINDOW_USE_USER32
 # if MODE_DEBUG
 int main(const int argc, const char *const argv[])
@@ -91,6 +104,19 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::gameplay::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::looper::create();
+
+	::engine::console::observe(
+		"ping",
+		[](const std::string & data)
+		{
+			std::cout << "pong - " << data << std::endl;
+		});
+	::engine::console::observe(
+		"local",
+		&local_method);
+	::engine::console::observe(
+		"ping",
+		&local_pong);
 
 	const int ret = engine::application::window::execute();
 
