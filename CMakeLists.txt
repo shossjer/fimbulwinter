@@ -1,20 +1,23 @@
 #
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.5.1)
 project(hellskitchen CXX)
 
+include_directories("${PROJECT_SOURCE_DIR}/dep/include")
+set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/include")
+set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/dep/lib")
+
 if (MSVC)
-	include_directories("${PROJECT_SOURCE_DIR}/../dep/include")
-	set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/../dep/include")
-	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/../dep/lib")
-	set(CMAKE_CXX_FLAGS_DEBUG
-		"${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
-		CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
-	set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} /MT")
-	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MTd")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-    add_definitions(-DNOMINMAX)
-	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT HellsKitchen)
-endif()
+  set(CMAKE_CXX_FLAGS_DEBUG
+	 "${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
+	 CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
+  set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} /MT")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MT")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+  add_definitions(-DNOMINMAX)
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT HellsKitchen)
+else ()
+  set(CMAKE_CXX_FLAGS "-std=c++14")
+endif ()
 
 include(settings.cmake)
 
@@ -80,6 +83,12 @@ if (PHYSICS_USE_BOX2D)
 
 	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
 endif()
+# Catch
+message(STATUS "Looking for catch")
+find_file(FILE_CATCH_HPP catch.hpp)
+find_file(FILE_CATCH_CATCH_HPP catch/catch.hpp)
+message(STATUS "Looking for catch - ${FILE_CATCH_HPP}")
+message(STATUS "Looking for catch - ${FILE_CATCH_CATCH_HPP}")
 # Freetype
 message(STATUS "Looking for freetype")
 find_file(FILE_FT2BUILD_H ft2build.h)
@@ -111,17 +120,15 @@ message(STATUS "Looking for OpenAL - ${LIBRARY_OPENAL32}")
 # OpenGL
 message(STATUS "Looking for OpenGL")
 find_file(FILE_GL_GL_H GL/gl.h)
-find_file(FILE_GL_GLU_H GL/glu.h)
+#find_file(FILE_GL_GLU_H GL/glu.h)
+find_file(FILE_GL_GLEXT_H GL/glext.h)
 message(STATUS "Looking for OpenGL - ${FILE_GL_GL_H}")
-message(STATUS "Looking for OpenGL - ${FILE_GL_GLU_H}")
+#message(STATUS "Looking for OpenGL - ${FILE_GL_GLU_H}")
+message(STATUS "Looking for OpenGL - ${FILE_GL_GLEXT_H}")
 find_library(LIBRARY_GL GL)
 find_library(LIBRARY_OPENGL32 opengl32)
 message(STATUS "Looking for OpenGL - ${LIBRARY_GL}")
 message(STATUS "Looking for OpenGL - ${LIBRARY_OPENGL32}")
-find_library(LIBRARY_GLEXT GLext)
-find_library(LIBRARY_GLEXT32 glext32)
-message(STATUS "Looking for OpenGL - ${LIBRARY_GLEXT}")
-message(STATUS "Looking for OpenGL - ${LIBRARY_GLEXT32}")
 # physics PHYSX
 if (PHYSICS_USE_PHYSX)
 	find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
@@ -218,9 +225,9 @@ message(STATUS "Looking for png")
 find_library(LIBRARY_PNG png)
 message(STATUS "Looking for png - ${LIBRARY_PNG}")
 
-message(STATUS "Looking for libpng16d")
-find_library(LIBRARY_LIBPNG libpng16d)
-message(STATUS "Looking for libpng16d - ${LIBRARY_LIBPNG}")
+message(STATUS "Looking for libpng16_staticd")
+find_library(LIBRARY_LIBPNG libpng16_staticd)
+message(STATUS "Looking for libpng16_staticd - ${LIBRARY_LIBPNG}")
 
 set(GENERAL_INCLUDES)
 
@@ -228,20 +235,20 @@ set(GENERAL_LIBRARIES)
 set(DEBUG_LIBRARIES)
 set(OPTIMIZED_LIBRARIES)
 
-if(LIBRARY_Z)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_Z}")
-elseif(LIBRARY_ZLIB)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_ZLIB}")
-else()
-  message(FATAL_ERROR "Needs zlib")
-endif()
-
 if(LIBRARY_PNG)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_PNG}")
 elseif(LIBRARY_LIBPNG)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_LIBPNG}")
 else()
   message(FATAL_ERROR "Needs png")
+endif()
+
+if(LIBRARY_Z)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_Z}")
+elseif(LIBRARY_ZLIB)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_ZLIB}")
+else()
+  message(FATAL_ERROR "Needs zlib")
 endif()
 
 # physics PHYSX
@@ -284,12 +291,14 @@ endif()
 # select libraries
 # graphics
 if (FILE_GL_GL_H AND
-	LIBRARY_GL)
+	 FILE_GL_GLEXT_H AND
+	 LIBRARY_GL)
   message(STATUS "Graphics - OpenGL")
   set(GRAPHICS_USE_OPENGL 1)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_GL}")
 elseif (FILE_GL_GL_H AND
-	LIBRARY_OPENGL32)
+	 FILE_GL_GLEXT_H AND
+	 LIBRARY_OPENGL32)
   message(STATUS "Graphics - OpenGL")
   set(GRAPHICS_USE_OPENGL 1)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENGL32}")
@@ -313,6 +322,19 @@ elseif(FILE_AL_AL_H AND
 else()
   message(WARNING "Sound - Disabled")
 endif()
+
+# test
+if (FILE_CATCH_HPP OR
+	 FILE_CATCH_CATCH_HPP)
+  message(STATUS "Test - Catch")
+
+  if (FILE_CATCH_CATCH_HPP)
+	 get_filename_component(INCLUDE_DIRECTORY_CATCH "${FILE_CATCH_CATCH_HPP}" DIRECTORY)
+	 set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${INCLUDE_DIRECTORY_CATCH}")
+  endif()
+else ()
+  message(WARNING "Test - Disabled")
+endif ()
 
 # thread
 if (LIBRARY_KERNEL32)

@@ -12,6 +12,7 @@ dev/oven.blend         6e1732105ec71b618b217037d9aaeef584a400b5847b23e183feb8e85
 res/bench.json         c19c4a08caa7943415affcead5d0b97c764e6fe9609d7b329f6f267b10e2e8c3
 res/board.json         71ea0a4c10760c9e1f3f95930ec6ca086e0e7acb0652579ebcad3b734c88da86
 res/box.png            b8f428a0bdd971532c354d8222728bfce9bb66eedb5c875832c234b395fd7922
+res/dude.png           5601c9fee3c5a8c630e3c5f9f32c09e3b908ac421a5b631b7771561598184ec8
 res/dude1.json         60f9d47cd0698aa595fac66f7d3d0c2edd8ed021fa886f7cdb4af4d10ebc476e
 res/dude2.arm          e7c6fe6ba8c93fbffa33fd09a0382d9987ffbc91dd421fb82cbbf4450168124d
 res/dude2.json         1a2b5059688c7e3c7b52688a653c286fba94c991f4d952bb46d4842d4469fd5b

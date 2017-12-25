@@ -213,9 +213,10 @@ _Pvt_Extensions/
 ModelManifest.xml
 
 .chester.d/
+.dir-locals.el
 .git*
+dep/
 dev/
 res/
-s
 script
 build*/

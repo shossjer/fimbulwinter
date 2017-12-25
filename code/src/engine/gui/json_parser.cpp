@@ -10,6 +10,7 @@
 #include <utility/json.hpp>
 
 #include <fstream>
+#include <unordered_map>
 
 namespace
 {
