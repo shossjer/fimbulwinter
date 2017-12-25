@@ -186,6 +186,10 @@ namespace core
 
 				emplace<mpl::car<Components>>(key, std::forward<D>(data));
 			}
+			void clear()
+			{
+				clear_all_impl(mpl::make_index_sequence<sizeof...(Cs)>{});
+			}
 			template <typename Component, typename ...Ps>
 			Component & emplace(K key, Ps && ...ps)
 			{
@@ -324,6 +328,23 @@ namespace core
 						bucket -= M;
 				}
 				return bucket;
+			}
+
+			void clear_all_impl(mpl::index_sequence<>)
+			{
+			}
+			template <size_t type, size_t ...types>
+			void clear_all_impl(mpl::index_sequence<type, types...>)
+			{
+				auto & array = std::get<type>(arrays);
+				for (int i = 0; i < array.size; i++)
+				{
+					slots[array.buckets[i]].clear();
+				}
+				array.components.destruct_range(0, array.size);
+				array.size = 0;
+
+				clear_all_impl(mpl::index_sequence<types...>{});
 			}
 			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t bucket, uint24_t index)
 			{
@@ -913,6 +934,15 @@ namespace core
 
 				emplace<mpl::car<Components>>(key, std::forward<D>(data));
 			}
+			void clear()
+			{
+				clear_all_impl(mpl::make_index_sequence<sizeof...(Cs)>{});
+
+				for (auto & slot : slots)
+				{
+					slot.clear();
+				}
+			}
 			template <typename Component, typename ...Ps>
 			Component & emplace(K key, Ps && ...ps)
 			{
@@ -1026,6 +1056,33 @@ namespace core
 						bucket -= M;
 				}
 				return bucket;
+			}
+
+			void clear_all_impl(mpl::index_sequence<>)
+			{
+			}
+			template <size_t type, size_t ...types>
+			void clear_all_impl(mpl::index_sequence<type, types...>)
+			{
+				auto & array = std::get<type>(arrays);
+				{
+					uint24_t busy_indices[array.capacity];
+					std::iota(busy_indices + 0, busy_indices + array.capacity, 0);
+					for (int i = array.size; i < array.capacity; i++)
+					{
+						busy_indices[array.free_indices[i]] = -1;
+					}
+					for (const auto busy_index : busy_indices)
+					{
+						if (busy_index == -1)
+							continue;
+
+						array.components.destruct_at(busy_index);
+					}
+				}
+				array.size = 0;
+
+				clear_all_impl(mpl::index_sequence<types...>{});
 			}
 			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t bucket, uint24_t index)
 			{

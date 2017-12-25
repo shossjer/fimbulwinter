@@ -14,7 +14,7 @@ namespace engine
 			template<typename D, typename T>
 			static D wrap_content(const T & content)
 			{
-				return ViewUpdater::wrap_content<D, T>(content);
+				return ViewUpdater::wrap_content(utility::in_place_type<D>, content);
 			}
 		};
 	}

@@ -11,6 +11,7 @@
 
 #include <utility/variant.hpp>
 
+#include <algorithm>
 #include <vector>
 
 namespace engine

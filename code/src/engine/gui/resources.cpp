@@ -97,7 +97,7 @@ namespace gui
 
 		void purge()
 		{
-			::resources = Resources{};
+			::resources.clear();
 		}
 	}
 }

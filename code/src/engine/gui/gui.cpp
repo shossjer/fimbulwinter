@@ -216,7 +216,7 @@ namespace engine
 							ViewRenderer::remove(view);
 						}
 
-						::components = Components{};
+						::components.clear();
 
 						resource::purge();
 					}
@@ -248,17 +248,17 @@ namespace engine
 							const GroupData & data = utility::get<GroupData>(window_data);
 							lookup.emplace<View*>(Asset{ data.name }, &view);
 						}
-						catch (key_missing e)
+						catch (key_missing & e)
 						{
 							debug_printline(engine::gui_channel,
 								"Exception - Could not find data-mapping: ", e.message);
 						}
-						catch (bad_json e)
+						catch (bad_json & e)
 						{
 							debug_printline(engine::gui_channel,
 								"Exception - Something not right in JSON: ", e.message);
 						}
-						catch (exception e)
+						catch (exception & e)
 						{
 							debug_printline(engine::gui_channel,
 								"Exception creating window: ", e.message);
@@ -307,8 +307,6 @@ namespace engine
 			const auto res = queue_posts.try_emplace(utility::in_place_type<T>, std::move(data));
 			debug_assert(res);
 		}
-
-		template<typename T> void post(T && data) = delete;
 
 		template<> void post(MessageData && data) { put_on_queue(std::move(data)); }
 		template<> void post(MessageDataSetup && data) { put_on_queue(std::move(data)); }

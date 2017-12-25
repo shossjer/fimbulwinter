@@ -4,6 +4,8 @@
 #ifndef ENGINE_GUI_UPDATE_HPP
 #define ENGINE_GUI_UPDATE_HPP
 
+#include "utility/utility.hpp"
+
 #include "gui.hpp"
 
 #include "common.hpp"
@@ -29,13 +31,12 @@ namespace engine
 		private:
 
 			template<typename D, typename T>
-			static D wrap_content(const T & content)
+			static D wrap_content(utility::in_place_type_t<D>, const T & content)
 			{
 				debug_unreachable();
 			}
 
-			template<>
-			static height_t wrap_content<height_t>(const View::Group & content)
+			static height_t wrap_content(utility::in_place_type_t<height_t>, const View::Group & content)
 			{
 				height_t wrap{};
 
@@ -63,8 +64,7 @@ namespace engine
 				}
 				return wrap;
 			}
-			template<>
-			static width_t wrap_content<width_t>(const View::Group & content)
+			static width_t wrap_content(utility::in_place_type_t<width_t>, const View::Group & content)
 			{
 				width_t wrap{};
 
@@ -93,21 +93,19 @@ namespace engine
 				return wrap;
 			}
 
-			template<>
-			static height_t wrap_content<height_t>(const View::Text & content)
+			static height_t wrap_content(utility::in_place_type_t<height_t>, const View::Text & content)
 			{
 				return height_t{ 6 };	// totally the way it should be
 			}
-			template<>
-			static width_t wrap_content<width_t>(const View::Text & content)
+			static width_t wrap_content(utility::in_place_type_t<width_t>, const View::Text & content)
 			{
-				return width_t{ content.display.length() * 6 };
+				return width_t{ static_cast<uint32_t>( content.display.length() * 6 ) };
 			}
 
 			template<typename D, typename T>
 			static bool wrap(Size::extended_dimen_t<D> & dimen, const T & content)
 			{
-				return (dimen == Size::WRAP) && dimen.update(wrap_content<D, T>(content));
+				return (dimen == Size::WRAP) && dimen.update(wrap_content(utility::in_place_type<D>, content));
 			}
 
 			template<typename ...Args>
