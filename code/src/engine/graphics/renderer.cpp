@@ -617,10 +617,9 @@ namespace
 
 	struct add_selectable_color
 	{
-		engine::Entity entity;
 		engine::graphics::opengl::Color4ub color;
 
-		void operator () (comp_c & x)
+		void operator () (engine::Entity entity, comp_c & x)
 		{
 			std::vector<const mesh_t *> meshes;
 			meshes.reserve(x.assets.size());
@@ -630,25 +629,25 @@ namespace
 			}
 			selectable_components.emplace<selectable_comp_c>(entity, meshes, x.object, color);
 		}
-		void operator () (comp_t & x)
+		void operator () (engine::Entity entity, comp_t & x)
 		{
 			selectable_components.emplace<selectable_comp_t>(entity, x.mesh, x.object, color);
 		}
-		void operator () (Character & x)
+		void operator () (engine::Entity entity, Character & x)
 		{
 			selectable_components.emplace<selectable_character_t>(entity, x.mesh, x.object, color);
 		}
-		void operator () (ui::PanelC & x)
+		void operator () (engine::Entity entity, ui::PanelC & x)
 		{
 			selectable_components.emplace<selectable_panel>(entity, x.object, x.size, color);
 		}
-		void operator () (ui::PanelT & x)
+		void operator () (engine::Entity entity, ui::PanelT & x)
 		{
 			selectable_components.emplace<selectable_panel>(entity, x.object, x.size, color);
 		}
 
 		template <typename T>
-		void operator () (T & x)
+		void operator () (engine::Entity entity, T & x)
 		{
 			debug_unreachable();
 		}
@@ -989,7 +988,7 @@ namespace
 					}
 					else
 					{
-						components.call(x.entity, add_selectable_color{x.entity, color});
+						components.call(x.entity, add_selectable_color{color});
 					}
 				}
 				void operator () (MessageMakeSelectable && x)
@@ -1004,7 +1003,7 @@ namespace
 					}
 					else
 					{
-						components.call(x.entity, add_selectable_color{x.entity, color});
+						components.call(x.entity, add_selectable_color{color});
 					}
 				}
 				void operator () (MessageMakeTransparent && x)
@@ -1349,6 +1348,11 @@ namespace
 		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 
+	constexpr std::array<GLenum, 10> BufferFormats =
+	{{
+		GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, (GLenum)-1, GL_BYTE, GL_SHORT, GL_INT, (GLenum)-1, GL_FLOAT, GL_DOUBLE
+	}};
+
 	void render_update()
 	{
 		// poll events
@@ -1474,12 +1478,12 @@ namespace
 				for (const auto & mesh : component.meshes)
 				{
 					glVertexPointer(3, // TODO
-					                static_cast<GLenum>(mesh->vertices.format()), // TODO
+					                BufferFormats[static_cast<int>(mesh->vertices.format())], // TODO
 					                0,
 					                mesh->vertices.data());
 					glDrawElements(GL_TRIANGLES,
 					               mesh->triangles.count(),
-					               static_cast<GLenum>(mesh->triangles.format()),
+					               BufferFormats[static_cast<int>(mesh->triangles.format())],
 					               mesh->triangles.data());
 				}
 				glDisableClientState(GL_VERTEX_ARRAY);
@@ -1495,12 +1499,12 @@ namespace
 			glColor(component.selectable_color);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
-			                static_cast<GLenum>(component.mesh->vertices.format()), // TODO
+			                BufferFormats[static_cast<int>(component.mesh->vertices.format())], // TODO
 			                0,
 			                component.mesh->vertices.data());
 			glDrawElements(GL_TRIANGLES,
 			               component.mesh->triangles.count(),
-			               static_cast<GLenum>(component.mesh->triangles.format()),
+			               BufferFormats[static_cast<int>(component.mesh->triangles.format())],
 			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
 
@@ -1635,12 +1639,12 @@ namespace
 
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, // TODO
-			                static_cast<GLenum>(component.vertices.format()), // TODO
+			                BufferFormats[static_cast<int>(component.vertices.format())], // TODO
 			                0,
 			                component.vertices.data());
 			glDrawElements(GL_LINES,
 			               component.edges.count(),
-			               static_cast<GLenum>(component.edges.format()),
+			               BufferFormats[static_cast<int>(component.edges.format())],
 			               component.edges.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
 
@@ -1670,15 +1674,15 @@ namespace
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glEnableClientState(GL_NORMAL_ARRAY);
 				glVertexPointer(3, // TODO
-				                static_cast<GLenum>(mesh.vertices.format()), // TODO
+				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
 				                0,
 				                mesh.vertices.data());
-				glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
+				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
 				                0,
 				                mesh.normals.data());
 				glDrawElements(GL_TRIANGLES,
 				               mesh.triangles.count(),
-				               static_cast<GLenum>(mesh.triangles.format()),
+				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
 				glDisableClientState(GL_VERTEX_ARRAY);
@@ -1691,19 +1695,19 @@ namespace
 				glEnableClientState(GL_NORMAL_ARRAY);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				glVertexPointer(3, // TODO
-				                static_cast<GLenum>(mesh.vertices.format()), // TODO
+				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
 				                0,
 				                mesh.vertices.data());
-				glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
+				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
 				                0,
 				                mesh.normals.data());
 				glTexCoordPointer(2, // TODO
-				                  static_cast<GLenum>(mesh.vertices.format()), // TODO
+				                  BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
 				                  0,
 				                  mesh.coords.data());
 				glDrawElements(GL_TRIANGLES,
 				               mesh.triangles.count(),
-				               static_cast<GLenum>(mesh.triangles.format()),
+				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
 				glDisableClientState(GL_VERTEX_ARRAY);
@@ -1737,15 +1741,15 @@ namespace
 					glColor(a.color);
 
 				glVertexPointer(3, // TODO
-				                static_cast<GLenum>(mesh.vertices.format()), // TODO
+				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
 				                0,
 				                mesh.vertices.data());
-				glNormalPointer(static_cast<GLenum>(mesh.normals.format()), // TODO
+				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
 				                0,
 				                mesh.normals.data());
 				glDrawElements(GL_TRIANGLES,
 				               mesh.triangles.count(),
-				               static_cast<GLenum>(mesh.triangles.format()),
+				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 			}
 			glDisableClientState(GL_NORMAL_ARRAY);

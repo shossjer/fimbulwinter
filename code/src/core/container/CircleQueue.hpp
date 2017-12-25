@@ -2,6 +2,7 @@
 #ifndef CORE_CONTAINER_CIRCLEQUEUE_HPP
 #define CORE_CONTAINER_CIRCLEQUEUE_HPP
 
+#include <utility/array_alloc.hpp>
 #include <utility/spinlock.hpp>
 #include <utility/type_traits.hpp>
 
@@ -33,14 +34,13 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			mpl::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
+			utility::array_alloc<T, N> buffer;
 
 		public:
 			CircleQueue() :
 				begini{0},
 				endi{0}
-			{
-			}
+			{}
 
 		public:
 			/**
@@ -60,7 +60,7 @@ namespace core
 				if (begini == next_endi)
 					return false;
 
-				new (this->buffer + endi) T(std::forward<Ps>(ps)...);
+				buffer.construct_at(endi, std::forward<Ps>(ps)...);
 				this->endi.store(next_endi, std::memory_order_release);
 				return true;
 			}
@@ -77,8 +77,8 @@ namespace core
 				if (begini == endi)
 					return false;
 
-				item = *reinterpret_cast<T *>(this->buffer + begini);
-				reinterpret_cast<T *>(this->buffer + begini)->~T();
+				item = std::move(buffer[begini]);
+				buffer.destruct_at(begini);
 
 				int next_begini = begini + 1;
 				if (next_begini == this->capacity)
@@ -117,15 +117,14 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			mpl::aligned_storage_t<sizeof(T), alignof(T)> buffer[N];
+			utility::array_alloc<T, N> buffer;
 			utility::spinlock writelock;
 
 		public:
 			CircleQueue() :
 				begini{0},
 				endi{0}
-			{
-			}
+			{}
 
 		public:
 			/**
@@ -149,7 +148,7 @@ namespace core
 				if (begini == next_endi)
 					return false;
 
-				new (this->buffer + endi) T(std::forward<Ps>(ps)...);
+				buffer.construct_at(endi, std::forward<Ps>(ps)...);
 				this->endi.store(next_endi, std::memory_order_release);
 				return true;
 			}
@@ -166,8 +165,8 @@ namespace core
 				if (begini == endi)
 					return false;
 
-				item = std::move(*reinterpret_cast<T *>(this->buffer + begini));
-				reinterpret_cast<T *>(this->buffer + begini)->~T();
+				item = std::move(buffer[begini]);
+				buffer.destruct_at(begini);
 
 				int next_begini = begini + 1;
 				if (next_begini == this->capacity)

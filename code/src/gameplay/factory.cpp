@@ -454,10 +454,9 @@ namespace
 	{
 		struct CreateEntity
 		{
-			engine::Entity entity;
 			const ResourceCharacter::Loaded & resource;
 
-			void operator () (EntityWorker & x)
+			void operator () (engine::Entity entity, EntityWorker & x)
 			{
 				x.create(entity, resource);
 			}
@@ -465,16 +464,15 @@ namespace
 			void operator () (EntityBoard & x) { debug_unreachable(); }
 			void operator () (EntityOven & x) { debug_unreachable(); }
 		};
-		entities.call(entity, CreateEntity{entity, resource});
+		entities.call(entity, CreateEntity{resource});
 	}
 	void create_entity(engine::Entity entity, const ResourceDecoration::Loaded & resource)
 	{
 		struct CreateEntity
 		{
-			engine::Entity entity;
 			const ResourceDecoration::Loaded & resource;
 
-			void operator () (EntityBoard & x)
+			void operator () (engine::Entity entity, EntityBoard & x)
 			{
 				x.create(entity, resource);
 			}
@@ -482,27 +480,26 @@ namespace
 			void operator () (EntityOven & x) { debug_unreachable(); }
 			void operator () (EntityWorker & x) { debug_unreachable(); }
 		};
-		entities.call(entity, CreateEntity{entity, resource});
+		entities.call(entity, CreateEntity{resource});
 	}
 	void create_entity(engine::Entity entity, const ResourceTable::Loaded & resource)
 	{
 		struct CreateEntity
 		{
-			engine::Entity entity;
 			const ResourceTable::Loaded & resource;
 
-			void operator () (EntityBench & x)
+			void operator () (engine::Entity entity, EntityBench & x)
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityOven & x)
+			void operator () (engine::Entity entity, EntityOven & x)
 			{
 				x.create(entity, resource);
 			}
 			void operator () (EntityBoard & x) { debug_unreachable(); }
 			void operator () (EntityWorker & x) { debug_unreachable(); }
 		};
-		entities.call(entity, CreateEntity{entity, resource});
+		entities.call(entity, CreateEntity{resource});
 	}
 }
 

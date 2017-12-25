@@ -2,7 +2,7 @@
 #ifndef CORE_CONTAINER_EXCHANGEQUEUE_HPP
 #define CORE_CONTAINER_EXCHANGEQUEUE_HPP
 
-#include <utility/aligned_array.hpp>
+#include <utility/array_alloc.hpp>
 #include <utility/spinlock.hpp>
 
 #include <atomic>
@@ -35,15 +35,14 @@ namespace core
 			int readi;
 			int writei;
 			std::bitset<3> writebits;
-			utility::aligned_array<T, 3> buffer;
+			utility::array_alloc<T, 3> buffer;
 
 		public:
 			ExchangeQueue() :
 				lasti(0),
 				readi(1),
 				writei(2)
-			{
-			}
+			{}
 
 		public:
 			/**
@@ -57,7 +56,7 @@ namespace core
 				{
 					item = std::move(buffer[readi]);
 					writebits.reset(readi);
-					buffer.destruct(readi);
+					buffer.destruct_at(readi);
 					return true;
 				}
 				return false;
@@ -70,12 +69,12 @@ namespace core
 			bool try_push(Ps && ...ps)
 			{
 				writebits.set(writei);
-				buffer.construct(writei, std::forward<Ps>(ps)...);
+				buffer.construct_at(writei, std::forward<Ps>(ps)...);
 				writei = lasti.exchange(writei, std::memory_order_release);
 				// remove any unread item
 				if (writebits.test(writei))
 				{
-					buffer.destruct(writei);
+					buffer.destruct_at(writei);
 				}
 				return true;
 			}
@@ -89,7 +88,7 @@ namespace core
 			int readi;
 			int writei;
 			std::bitset<3> writebits;
-			utility::aligned_array<T, 3> buffer;
+			utility::array_alloc<T, 3> buffer;
 			utility::spinlock writelock;
 
 		public:
@@ -97,8 +96,7 @@ namespace core
 				lasti(0),
 				readi(1),
 				writei(2)
-			{
-			}
+			{}
 
 		public:
 			/**
@@ -112,7 +110,7 @@ namespace core
 				{
 					item = std::move(buffer[readi]);
 					writebits.reset(readi);
-					buffer.destruct(readi);
+					buffer.destruct_at(readi);
 					return true;
 				}
 				return false;
@@ -127,12 +125,12 @@ namespace core
 				std::lock_guard<utility::spinlock> lock{this->writelock};
 
 				writebits.set(writei);
-				buffer.construct(writei, std::forward<Ps>(ps)...);
+				buffer.construct_at(writei, std::forward<Ps>(ps)...);
 				writei = lasti.exchange(writei, std::memory_order_acq_rel); // release?
 				// remove any unread item
 				if (writebits.test(writei))
 				{
-					buffer.destruct(writei);
+					buffer.destruct_at(writei);
 				}
 				return true;
 			}

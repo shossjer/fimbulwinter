@@ -95,18 +95,18 @@ namespace
 			read_count(ifile, nvertices);
 
 			mesh.vertices.resize<float>(nvertices * 3);
-			ifile.read(reinterpret_cast<char *>(mesh.vertices.data()), mesh.vertices.size());
+			ifile.read(mesh.vertices.data(), mesh.vertices.size());
 
 			uint16_t nnormals;
 			read_count(ifile, nnormals);
 			debug_assert(nvertices == nnormals);
 			mesh.normals.resize<float>(nnormals * 3);
-			ifile.read(reinterpret_cast<char *>(mesh.normals.data()), mesh.normals.size());
+			ifile.read(mesh.normals.data(), mesh.normals.size());
 
 			uint16_t ntriangles;
 			read_count(ifile, ntriangles);
 			mesh.triangles.resize<uint16_t>(ntriangles * 3);
-			ifile.read(reinterpret_cast<char *>(mesh.triangles.data()), mesh.triangles.size());
+			ifile.read(mesh.triangles.data(), mesh.triangles.size());
 		}
 	}
 
@@ -139,7 +139,7 @@ namespace
 		read_count(stream, count);
 
 		buffer.resize<T>(N * count);
-		stream.read(reinterpret_cast<char *>(buffer.data()), buffer.size());
+		stream.read(buffer.data(), buffer.size());
 	}
 
 	void read_weights(std::ifstream & ifile, engine::model::mesh_t & mesh)
