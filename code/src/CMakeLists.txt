@@ -2,6 +2,7 @@
 # source listing
 set(SOURCE_FILES
 	src/core/async/Thread.cpp
+	src/core/container/Buffer.cpp
 	src/core/crypto/crc.cpp
 	src/core/graphics/Image.cpp
 	src/engine/animation/Armature.cpp
@@ -47,7 +48,6 @@ set(HEADER_FILES
 	src/core/container/Stack.hpp
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
-	src/core/format.hpp
 	src/core/graphics/Image.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
@@ -104,9 +104,9 @@ set(HEADER_FILES
 	src/gameplay/debug.hpp
 	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
-	src/utility/aligned_array.hpp
 	src/utility/any.hpp
 	src/utility/array.hpp
+	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
 	src/utility/inaccessible.hpp
@@ -115,6 +115,8 @@ set(HEADER_FILES
 	src/utility/optional.hpp
 	src/utility/preprocessor.hpp
 	src/utility/property.hpp
+	src/utility/scalar_alloc.hpp
+	src/utility/spinlock.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
 	src/utility/type_traits.hpp

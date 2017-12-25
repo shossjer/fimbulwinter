@@ -5,21 +5,6 @@ if(ENABLE_TEST)
 
 	message(STATUS "Catch tests are enabled")
 	cmake_minimum_required(VERSION 2.8)
-	include(ExternalProject)
-	find_package(Git REQUIRED)
-
-	ExternalProject_Add(
-		catch
-		PREFIX "${CMAKE_BINARY_DIR}/catch"
-		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
-		GIT_TAG "Catch1.x"
-		TIMEOUT 10
-		UPDATE_COMMAND ""
-		CONFIGURE_COMMAND ""
-		BUILD_COMMAND ""
-		INSTALL_COMMAND ""
-		LOG_DOWNLOAD ON
-	)
 
 	include (src/CMakeLists.txt)
 
@@ -45,7 +30,6 @@ if(ENABLE_TEST)
 	endforeach()
 
 	# include catch headers
-	include_directories("${CMAKE_BINARY_DIR}/catch/src/catch/include")
 	include_directories("${PROJECT_BINARY_DIR}")
 	include_directories("src")
 	include_directories("../code/src")
@@ -55,7 +39,6 @@ if(ENABLE_TEST)
 
 	add_executable(CodeTest ${CODE_TEST_FILES})
 
-	add_dependencies(CodeTest catch)
 	add_dependencies(CodeTest Code)
 
 	target_link_libraries(CodeTest Code)
