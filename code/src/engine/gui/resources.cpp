@@ -1,27 +1,28 @@
 
 #include "resources.hpp"
+#include "view.hpp"
 
-#include "views.hpp"
+#include <core/container/Collection.hpp>
 
 namespace
 {
 	using namespace engine::gui;
 
-	struct Simple : resource::ColorResource
+	struct Simple : resource::Color
 	{
-		Color color;
+		resource::ColorValue color;
 
-		Simple(Color color)
+		Simple(resource::ColorValue color)
 			: color(color)
 		{}
 
-		Color get(const View * view) const override
+		resource::ColorValue get(const View * view) const override
 		{
 			return this->color;
 		}
 	};
 
-	struct ColorSelector : resource::ColorResource
+	struct ColorSelector : resource::Color
 	{
 		engine::Asset state_default;
 		engine::Asset state_highlight;
@@ -33,26 +34,26 @@ namespace
 			, state_pressed(press)
 		{}
 
-		Color get(const View * view) const override;
+		resource::ColorValue get(const View * view) const override;
 	};
 
-	core::container::UnorderedCollection
+	using Resources = core::container::UnorderedCollection
 	<
 		engine::Asset, 201,
 		std::array<Simple, 100>,
 		std::array<ColorSelector, 20>
-	>
-	resources;
+	>;
+	Resources resources;
 
-	Color ColorSelector::get(const View * view) const
+	resource::ColorValue ColorSelector::get(const View * view) const
 	{
-		switch (view->state)
+		switch (view->status.state)
 		{
-		case View::State::HIGHLIGHT:
+		case Status::HIGHLIGHT:
 			return resources.get<Simple>(this->state_highlight).color;
-		case View::State::PRESSED:
+		case Status::PRESSED:
 			return resources.get<Simple>(this->state_pressed).color;
-		case View::State::DEFAULT:
+		case Status::DEFAULT:
 		default:
 			return resources.get<Simple>(this->state_default).color;
 		}
@@ -60,12 +61,12 @@ namespace
 
 	struct
 	{
-		const resource::ColorResource * operator() (const Simple & val)
+		const resource::Color * operator() (const Simple & val)
 		{
 			return &val;
 		}
 
-		const resource::ColorResource * operator() (const ColorSelector & val)
+		const resource::Color * operator() (const ColorSelector & val)
 		{
 			return &val;
 		}
@@ -79,12 +80,12 @@ namespace gui
 {
 	namespace resource
 	{
-		const ColorResource * color(const engine::Asset asset)
+		const Color * color(const engine::Asset asset)
 		{
 			return resources.call(asset, lookup_color);
 		}
 
-		void put(const engine::Asset asset, const Color val)
+		void put(const engine::Asset asset, const ColorValue val)
 		{
 			resources.emplace<Simple>(asset, val);
 		}
@@ -92,6 +93,11 @@ namespace gui
 		void put(const engine::Asset asset, const engine::Asset def, const engine::Asset high, const engine::Asset press)
 		{
 			resources.emplace<ColorSelector>(asset, def, high, press);
+		}
+
+		void purge()
+		{
+			::resources.clear();
 		}
 	}
 }

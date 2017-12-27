@@ -16,10 +16,11 @@ set(SOURCE_FILES
 	src/engine/graphics/renderer.cpp
 	src/engine/graphics/viewer.cpp
 	src/engine/gui/gui.cpp
+	src/engine/gui/function.cpp
 	src/engine/gui/json_parser.cpp
-	src/engine/gui/loading.cpp
+	src/engine/gui/react.cpp
+	src/engine/gui/render.cpp
 	src/engine/gui/resources.cpp
-	src/engine/gui/views.cpp
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
@@ -73,12 +74,19 @@ set(HEADER_FILES
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/viewer.hpp
 	src/engine/gui/actions.hpp
-	src/engine/gui/functions.hpp
+	src/engine/gui/common.hpp
+	src/engine/gui/creation.hpp
+	src/engine/gui/exception.hpp
+	src/engine/gui/function.hpp
 	src/engine/gui/gui.hpp
 	src/engine/gui/loading.hpp
-	src/engine/gui/placers.hpp
+	src/engine/gui/measure.hpp
+	src/engine/gui/noodle.hpp
+	src/engine/gui/react.hpp
+	src/engine/gui/render.hpp
 	src/engine/gui/resources.hpp
-	src/engine/gui/views.hpp
+	src/engine/gui/update.hpp
+	src/engine/gui/view.hpp
 	src/engine/hid/input.hpp
 	src/engine/model/data.hpp
 	src/engine/physics/actor_physx.hpp

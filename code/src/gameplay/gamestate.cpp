@@ -493,6 +493,50 @@ namespace
 		}
 	};
 
+	struct PlayerData
+	{
+		using Value = engine::gui::data::Value;
+		using Values = engine::gui::data::Values;
+		using KeyValue = engine::gui::data::KeyValue;
+		using KeyValues = engine::gui::data::KeyValues;
+
+		std::string name;
+
+		struct Skill
+		{
+			std::string name;
+		};
+
+		std::vector<Skill> skills;
+
+		KeyValue message() const
+		{
+			KeyValue main{ engine::Asset{ "player" }, utility::in_place_type<KeyValues> };
+			KeyValues & player = utility::get<KeyValues>(main.second);
+
+			player.data.push_back(
+				KeyValue{ engine::Asset{ "name" },{ utility::in_place_type<std::string>, this->name } });
+
+			player.data.push_back(
+				KeyValue{ engine::Asset{ "skills" }, utility::in_place_type<Values> });
+			Values & skills = utility::get<Values>(player.data.back().second);
+
+			skills.data.reserve(this->skills.size());
+
+			for (auto & skill : this->skills)
+			{
+				skills.data.emplace_back(utility::in_place_type<KeyValues>);
+
+				auto & skill_map = utility::get<KeyValues>(skills.data.back());
+
+				skill_map.data.push_back(
+					KeyValue{ engine::Asset{ "name" },{ utility::in_place_type<std::string>, skill.name } });
+			}
+
+			return main;
+		}
+	};
+
 	struct
 	{
 		// entity of currently "profiled" object
@@ -500,65 +544,11 @@ namespace
 
 		void operator() (Worker & worker)
 		{
-			// update "data" of the profile window
-			engine::gui::Datas datas;
-			datas.emplace_back("title", std::string("Worker Bob"));
-
-			if (worker.working)
-			{
-				datas.emplace_back("status", std::string("Working hard"));
-				datas.emplace_back("status", 0xff00ff00);
-			}
-			else
-			{
-				datas.emplace_back("status", std::string("Idle"));
-				datas.emplace_back("status", 0xff0000ff);
-			}
-			datas.emplace_back("photo", engine::Asset{ "photo" });
-			datas.emplace_back("profile_progress", worker.progress);
-
-			{
-				std::vector<engine::gui::Datas> list;
-				for (int i = 0; i < worker.finishedCarrots; i++)
-				{
-					list.emplace_back();
-					list.back().emplace_back(
-						engine::Asset{ "title" },
-						std::string("Finished cutting a carrot."));
-				}
-				datas.emplace_back("profile_accomp", std::move(list));
-			}
-			{
-				std::vector<engine::gui::Datas> list;
-
-				list.emplace_back();
-				list.back().emplace_back(
-					engine::Asset{ "title" },
-					std::string("Skill - Cutting: ") + std::to_string(worker.skillCutting));
-				list.back().emplace_back(
-					engine::Asset{ "progress" },
-					worker.skillCuttingProgress);
-
-				list.emplace_back();
-				list.back().emplace_back(
-					engine::Asset{ "title" },
-					std::string("Skill - Working: ") + std::to_string(worker.skillWorking));
-				list.back().emplace_back(
-					engine::Asset{ "progress" },
-					worker.skillWorkingProgress);
-
-				list.emplace_back();
-				list.back().emplace_back(
-					engine::Asset{ "title" },
-					std::string("Skill - Potato: ") + std::to_string(worker.skillPotato));
-				list.back().emplace_back(
-					engine::Asset{ "progress" },
-					worker.skillPotatoProgress);
-
-				datas.emplace_back("profile_skills", std::move(list));
-			}
-
-			engine::gui::post_update_data("profile", std::move(datas));
+			PlayerData data{ "Chef Elzar" };
+			data.skills.push_back(PlayerData::Skill{ "Cutting" });
+			data.skills.push_back(PlayerData::Skill{ "Washing hands" });
+			data.skills.push_back(PlayerData::Skill{ "Potato" });
+			engine::gui::post(engine::gui::MessageData{ data.message() });
 		}
 
 		template<typename T>
@@ -567,55 +557,9 @@ namespace
 	}
 	profile_updater;
 
-	struct WindowInventory
-	{
-		void translate(engine::Command command, utility::any && data)
-		{
-			switch (command)
-			{
-			case engine::Command::BUTTON_DOWN_ACTIVE:
-				debug_assert(!data.has_value());
-				engine::gui::post_state_show("inventory");
-				break;
-			case engine::Command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!data.has_value());
-				engine::gui::post_state_hide("inventory");
-				break;
-			case engine::Command::BUTTON_UP_ACTIVE:
-			case engine::Command::BUTTON_UP_INACTIVE:
-				debug_assert(!data.has_value());
-				break;
-			default:
-				debug_unreachable();
-			}
-		}
-	};
-	struct WindowProfile
-	{
-		void translate(engine::Command command, utility::any && data)
-		{
-			switch (command)
-			{
-			case engine::Command::BUTTON_DOWN_ACTIVE:
-			case engine::Command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!data.has_value());
-				engine::gui::post_state_toggle("profile");
-				break;
-			case engine::Command::BUTTON_UP_ACTIVE:
-			case engine::Command::BUTTON_UP_INACTIVE:
-				debug_assert(!data.has_value());
-				break;
-			default:
-				debug_unreachable();
-			}
-		}
-	};
-
 	struct GUIComponent
 	{
 		engine::Entity id;
-		engine::Asset window;
-		engine::Asset action;
 	};
 
 	struct GUIMover
@@ -630,8 +574,8 @@ namespace
 
 		void operator () (const GUIComponent & c)
 		{
-			if (c.action == engine::Asset{ "mover" })
-				engine::gui::post_update_translate(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
+		//	if (c.action == engine::Asset{ "mover" })
+		//		engine::gui::post_update_translate(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
 		}
 
 		template <typename W>
@@ -640,20 +584,42 @@ namespace
 		}
 	};
 
+	struct GUIWindow
+	{
+		engine::Asset window;
+
+		void operator = (std::pair<engine::Command, utility::any> && args)
+		{
+			switch (args.first)
+			{
+			case engine::Command::BUTTON_DOWN_ACTIVE:
+			case engine::Command::BUTTON_DOWN_INACTIVE:
+				debug_assert(!args.second.has_value());
+				engine::gui::post(engine::gui::MessageVisibility{ window, engine::gui::MessageVisibility::TOGGLE });
+				break;
+			case engine::Command::BUTTON_UP_ACTIVE:
+			case engine::Command::BUTTON_UP_INACTIVE:
+				debug_assert(!args.second.has_value());
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+	};
+
 	// when mouse button is released and the entity is "clicked".
 	struct
 	{
 		bool operator () (const GUIComponent & c)
 		{
-			engine::gui::post_interaction_click(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::CLICK });
 			return false;
 		}
 
 		bool operator () (const Worker & w)
 		{
 			// show the window
-			engine::gui::post_state_show("profile");
-
+			engine::gui::post(engine::gui::MessageVisibility{ "profile", engine::gui::MessageVisibility::SHOW });
 			profile_updater.entity = w.id;
 			profile_update(w.id);
 			return true;
@@ -672,7 +638,7 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Highlight entity: ", c.id);
-			engine::gui::post_interaction_highlight(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::HIGHLIGHT });
 		}
 
 		template <typename W>
@@ -687,7 +653,8 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Lowlight entity: ", c.id);
-			engine::gui::post_interaction_lowlight(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::LOWLIGHT });
+
 		}
 
 		template <typename W>
@@ -702,7 +669,7 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Pressing entity: ", c.id);
-			engine::gui::post_interaction_press(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::PRESS });
 		}
 
 		template <typename W>
@@ -717,7 +684,7 @@ namespace
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Releasing entity: ", c.id);
-			engine::gui::post_interaction_release(c.window, c.id);
+			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::RELEASE });
 		}
 
 		template <typename W>
@@ -743,10 +710,9 @@ namespace
 		std::array<CameraActivator, 2>,
 		std::array<FreeCamera, 1>,
 		std::array<GUIComponent, 100>,
+		std::array<GUIWindow, 10>,
 		std::array<OverviewCamera, 1>,
 		std::array<Selector, 1>,
-		std::array<WindowInventory, 1>,
-		std::array<WindowProfile, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>,
 		std::array<Loader, 1>
@@ -791,13 +757,7 @@ namespace
 			Matrix4x4f
 		>,
 		100> queue_workstations;
-	core::container::CircleQueueSRMW<std::tuple
-		<
-			engine::Entity,
-			engine::Asset,
-			engine::Asset
-		>,
-		100> queue_gui_components;
+	core::container::CircleQueueSRMW<engine::Entity, 100> queue_gui_components;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
 	template<typename T>
@@ -935,12 +895,12 @@ namespace gamestate
 		gameplay::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
 		gameplay::ui::post_bind("debug", inventorycontrol, 0);
 		gameplay::ui::post_bind("game", inventorycontrol, 0);
-		components.emplace<WindowInventory>(inventorycontrol);
+		components.emplace<GUIWindow>(inventorycontrol, "inventory");
 		auto profilecontrol = engine::Entity::create();
 		gameplay::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
 		gameplay::ui::post_bind("debug", profilecontrol, 0);
 		gameplay::ui::post_bind("game", profilecontrol, 0);
-		components.emplace<WindowProfile>(profilecontrol);
+		components.emplace<GUIWindow>(profilecontrol, "profile");
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
@@ -971,6 +931,14 @@ namespace gamestate
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");
+
+		// assign reaction structure to engine::gui
+		PlayerData data{};
+		data.skills.emplace_back(PlayerData::Skill{});
+		engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
+
+		// trigger first load of GUI
+		engine::gui::post(engine::gui::MessageReload{});
 	}
 
 	void destroy()
@@ -1001,15 +969,10 @@ namespace gamestate
 					std::get<3>(workstation_args));
 			}
 
-			std::tuple<engine::Entity, engine::Asset, engine::Asset> gui_component_args;
-			while (queue_gui_components.try_pop(gui_component_args))
+			engine::Entity gui_component;
+			while (queue_gui_components.try_pop(gui_component))
 			{
-				// components.emplace<GUIComponent>(
-				// 	std::get<0>(gui_component_args),
-				// 	GUIComponent{
-				// 		std::get<0>(gui_component_args),
-				// 		std::get<1>(gui_component_args),
-				// 		std::get<2>(gui_component_args) });
+				components.emplace<GUIComponent>(gui_component, gui_component);
 			}
 		}
 
@@ -1136,10 +1099,9 @@ namespace gamestate
 		debug_assert(res);
 	}
 
-	//void post_add(engine::Entity entity, engine::gui::Component component)
-	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name)
+	void post_gui(engine::Entity entity)
 	{
-		const auto res = queue_gui_components.try_emplace(entity, window, name);
+		const auto res = queue_gui_components.try_emplace(entity);
 		debug_assert(res);
 	}
 

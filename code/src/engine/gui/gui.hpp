@@ -4,93 +4,86 @@
 
 #include <engine/Asset.hpp>
 #include <engine/Entity.hpp>
-#include <engine/graphics/renderer.hpp>
+#include <core/maths/Vector.hpp>
+
+#include <utility/variant.hpp>
 
 #include <vector>
 
 namespace engine
 {
-namespace gui
-{
-	struct Data
+	namespace gui
 	{
-		enum Type
+		namespace data
 		{
-			COLOR,
-			DISPLAY,
-			LIST,
-			PROGRESS,
-			TEXTURE
-		} type;
+			// post KeyValue as "message"
 
-		engine::graphics::data::Color color;
-		std::string display;
-		std::vector<		// vector of list items
-			std::vector<	// vector of item key value
-				std::pair<engine::Asset, Data>>> list;
-		float progress;
-		engine::Asset texture;
-		// TODO: visibility
+			struct Values;
+			struct KeyValues;
 
-		Data(std::string display)
-			: type(DISPLAY)
-			, display(display)
-		{}
+			using Value = utility::variant
+			<
+				// collections
+				Values,
+				KeyValues,
+				// values
+				std::nullptr_t,
+				std::string
+			>;
+			using KeyValue = std::pair<Asset, Value>;
 
-		Data(engine::graphics::data::Color color)
-			: type(COLOR)
-			, color(color)
-		{}
+			struct Values
+			{
+				std::vector<Value> data;
+			};
+			struct KeyValues
+			{
+				std::vector<KeyValue> data;
+			};
+		}
 
-		Data(std::vector<std::vector<std::pair<engine::Asset, Data>>> && list)
-			: type(LIST)
-			, list(std::move(list))
-		{}
+		struct MessageData
+		{
+			data::KeyValue data;
+		};
+		struct MessageDataSetup
+		{
+			data::KeyValue data;
+		};
 
-		Data(float progress)
-			: type(PROGRESS)
-			, progress(progress)
-		{}
+		struct MessageInteraction
+		{
+			engine::Entity entity;
+			enum
+			{
+				CLICK,
+				HIGHLIGHT,
+				LOWLIGHT,
+				PRESS,
+				RELEASE
+			}
+			interaction;
+		};
 
-		explicit Data(engine::Asset texture)
-			: type(TEXTURE)
-			, texture(texture)
-		{}
-	};
+		struct MessageReload
+		{
+		};
 
-	using Datas = std::vector<std::pair<engine::Asset, Data>>;
+		struct MessageVisibility
+		{
+			engine::Asset window;
+			enum
+			{
+				SHOW,
+				HIDE,
+				TOGGLE
+			}
+			state;
+		};
 
-	// can be called after "press" has been called. but a press does not always generate a click.
-	void post_interaction_click(engine::Asset window, engine::Entity entity);
-
-	void post_interaction_highlight(engine::Asset window, engine::Entity entity);
-
-	// can only be called after highlight
-	void post_interaction_lowlight(engine::Asset window, engine::Entity entity);
-
-	// press will only be called on "highlighted" components
-	// triggers "select" on window
-	void post_interaction_press(engine::Asset window, engine::Entity entity);
-
-	// can only be called after press", "click" can be triggered before release.
-	void post_interaction_release(engine::Asset window, engine::Entity entity);
-
-	//void post_interaction_select(engine::Asset window);
-
-	void post_state_hide(engine::Asset window);
-
-	void post_state_show(engine::Asset window);
-
-	void post_state_toggle(engine::Asset window);
-
-	void post_update_data(
-		engine::Asset window,
-		Datas && datas);
-
-	void post_update_translate(
-		engine::Asset window,
-		core::maths::Vector3f delta);
-}
+		template<typename T>
+		void post(T && data);
+	}
 }
 
-#endif // ENGINE_GUI_VIEWS_HPP
+#endif

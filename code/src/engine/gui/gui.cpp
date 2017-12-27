@@ -1,920 +1,317 @@
 
-#include "actions.hpp"
-#include "functions.hpp"
+#include "creation.hpp"
 #include "gui.hpp"
+#include "function.hpp"
 #include "loading.hpp"
-#include "resources.hpp"
-#include "views.hpp"
+#include "measure.hpp"
+#include "noodle.hpp"
+#include "update.hpp"
+#include "react.hpp"
+#include "view.hpp"
 
 #include <core/container/CircleQueue.hpp>
-#include <core/container/Collection.hpp>
 
-#include <engine/debug.hpp>
+#include <vector>
 
-#include <utility/json.hpp>
+using namespace engine::gui;
 
-#include <fstream>
+constexpr engine::Asset ViewData::Action::CLOSE;
+constexpr engine::Asset ViewData::Action::INTERACTION;
+constexpr engine::Asset ViewData::Action::MOVER;
+constexpr engine::Asset ViewData::Action::SELECT;
+constexpr engine::Asset ViewData::Action::TRIGGER;
 
-// TODO: this should be solved better.
-namespace gameplay
-{
-namespace gamestate
-{
-	void post_add(engine::Entity entity, engine::Asset window, engine::Asset name);
-}
-}
+constexpr engine::Asset ViewData::Function::LIST;
+constexpr engine::Asset ViewData::Function::PROGRESS;
+constexpr engine::Asset ViewData::Function::TAB;
 
 namespace
 {
-	using namespace engine::gui;
+	const uint32_t WINDOW_HEIGHT = 677; // 720
+	const uint32_t WINDOW_WIDTH = 1004; // 1024
 
-	core::container::MultiCollection
-	<
-		engine::Entity, 101,
-		std::array<CloseAction, 10>,
-		std::array<InteractionAction, 10>,
-		std::array<MoveAction, 10>,
-		std::array<SelectAction, 10>,
-		std::array<TriggerAction, 10>
-	>
-	actions;
+	Actions actions;
 
-	core::container::Collection
-	<
-		engine::Entity, 301,
-		// Views
-		std::array<engine::gui::Group, 100>,
-		std::array<engine::gui::List, 20>,
-		std::array<engine::gui::PanelC, 50>,
-		std::array<engine::gui::PanelT, 50>,
-		std::array<engine::gui::Text, 50>,
-		// Functionality
-		std::array<engine::gui::ProgressBar, 20>,
-		std::array<engine::gui::TabBar, 5>
-	>
-	components;
+	Components components;
 
-	core::container::Collection
-	<
-		engine::Asset, 21,
-		std::array<engine::gui::Window, 10>,
-		std::array<int, 10>
-	>
-	windows;
+	data::Nodes nodes;
 
-	struct MessageInteractionClick
-	{
-		engine::Asset window;
-		engine::Entity entity;
-	};
-	struct MessageInteractionHighlight
-	{
-		engine::Asset window;
-		engine::Entity entity;
-	};
-	struct MessageInteractionLowlight
-	{
-		engine::Asset window;
-		engine::Entity entity;
-	};
-	struct MessageInteractionPress
-	{
-		engine::Asset window;
-		engine::Entity entity;
-	};
-	struct MessageInteractionRelease
-	{
-		engine::Asset window;
-		engine::Entity entity;
-	};
+	View * screen_view = nullptr;
+	View::Group * screen_group = nullptr;
 
-	struct MessageStateHide
-	{
-		engine::Asset window;
-	};
-	struct MessageStateShow
-	{
-		engine::Asset window;
-	};
-	struct MessageStateToggle
-	{
-		engine::Asset window;
-	};
-	struct MessageUpdateData
-	{
-		engine::Asset window;
-		Datas datas;
-	};
-	struct MessageUpdateTranslate
-	{
-		engine::Asset window;
-		core::maths::Vector3f delta;
-	};
+	// TODO: update lookup structure
+	// init from "gameplay" data structures
+	// assign views during creation
+	core::container::Collection<engine::Asset, 11, std::array<View*, 10>> lookup;
 
 	using UpdateMessage = utility::variant
 	<
-		MessageInteractionClick,
-		MessageInteractionHighlight,
-		MessageInteractionLowlight,
-		MessageInteractionPress,
-		MessageInteractionRelease,
-		MessageStateHide,
-		MessageStateShow,
-		MessageStateToggle,
-		MessageUpdateData,
-		MessageUpdateTranslate
+		MessageData,
+		MessageDataSetup,
+		MessageInteraction,
+		MessageReload,
+		MessageVisibility
 	>;
 
 	core::container::CircleQueueSRMW<UpdateMessage, 100> queue_posts;
-
-	// lookup table for "named" components (asset -> entity)
-	// used when gamestate requests updates of components.
-	Lookup lookup;
-
-	std::vector<Window *> window_stack;
-
-	engine::Entity find_entity(const engine::Asset name, const Lookup & lookup)
-	{
-		if (!lookup.contains(name))
-		{
-			debug_printline(engine::gui_channel, "GUI - could not find asset in lookup.");
-			debug_unreachable();
-		}
-
-		return lookup.get(name);
-	}
-	View * find_view(const engine::Asset name, const Lookup & lookup)
-	{
-		if (!lookup.contains(name))
-			return nullptr;
-
-		auto entity = lookup.get(name);
-
-		struct
-		{
-			View * operator() (Group & view) { return &view; }
-			View * operator() (List & view) { return &view; }
-			View * operator() (PanelC & view) { return &view; }
-			View * operator() (PanelT & view) { return &view; }
-			View * operator() (Text & view) { return &view; }
-
-			View * operator() (const ProgressBar &) { return nullptr; }
-			View * operator() (const TabBar &) { return nullptr; }
-		}
-		finder;
-
-		return components.call(entity, finder);
-	}
-
-	struct Creator
-	{
-		Lookup & lookup;
-		Window & window;
-
-		Creator(Lookup & lookup, Window & window)
-			: lookup(lookup)
-			, window(window)
-		{}
-
-	private:
-
-		void create_action_close(Drawable & drawable, const ViewData::Action & data)
-		{
-			View * view;
-
-			if (data.target == engine::Asset::null())
-				view = &drawable;
-			else
-			{
-				view = find_view(data.target, this->lookup);
-				debug_assert(view != nullptr);
-			}
-
-			actions.emplace<engine::gui::CloseAction>(drawable.entity, this->window.name(), view);
-		}
-		void create_action_interaction(Drawable & drawable, const ViewData::Action & data)
-		{
-			View * view;
-
-			if (data.target == engine::Asset::null())
-				view = &drawable;
-			else
-			{
-				view = find_view(data.target, this->lookup);
-				debug_assert(view != nullptr);
-			}
-
-			actions.emplace<engine::gui::InteractionAction>(drawable.entity, this->window.name(), view);
-		}
-		void create_action_mover(Drawable & drawable, const ViewData::Action & data)
-		{
-
-		}
-		void create_action_select(Drawable & drawable, const ViewData::Action & data)
-		{
-
-		}
-		void create_action_trigger(Drawable & drawable, const ViewData::Action & data)
-		{
-			engine::Entity entity;
-
-			if (data.target == engine::Asset::null())
-				entity = drawable.entity;
-			else
-				entity = find_entity(data.target, this->lookup);
-
-			actions.emplace<engine::gui::TriggerAction>(drawable.entity, this->window.name(), entity);
-		}
-
-		void create_action(Drawable & drawable, const ViewData & datas)
-		{
-			for (auto & data : datas.actions)
-			{
-				switch (data.type)
-				{
-				case ViewData::Action::CLOSE:
-					create_action_close(drawable, data);
-					break;
-
-				case ViewData::Action::INTERACTION:
-					create_action_interaction(drawable, data);
-					break;
-
-				case ViewData::Action::MOVER:
-
-					actions.emplace<engine::gui::MoveAction>(drawable.entity, engine::gui::MoveAction{ this->window.name() });
-					break;
-
-				case ViewData::Action::SELECT:
-
-					actions.emplace<engine::gui::SelectAction>(drawable.entity, engine::gui::SelectAction{ this->window.name() });
-					break;
-				case ViewData::Action::TRIGGER:
-
-					create_action_trigger(drawable, data);
-					break;
-				}
-
-				gameplay::gamestate::post_add(drawable.entity, this->window.name(), data.type);
-			}
-		}
-
-		void create_function(engine::Entity entity, View & view, const ViewData & data)
-		{
-			switch (data.function.type)
-			{
-			case ViewData::Function::PROGRESS:
-			{
-				components.emplace<ProgressBar>(
-					entity,
-					this->window.name(),
-					&view,
-					data.function.direction);
-
-				break;
-			}
-			case ViewData::Function::TAB:
-			{
-				Group * const base = dynamic_cast<Group*>(&view);
-				debug_assert(base != nullptr);
-
-				auto & tabBar = components.emplace<TabBar>(
-					entity,
-					this->window.name(),
-					base,
-					dynamic_cast<Group*>(base->find("tabs")),
-					dynamic_cast<Group*>(base->find("views")));
-
-				debug_assert(tabBar.tab_container != nullptr);
-				debug_assert(tabBar.views_container != nullptr);
-				debug_assert(tabBar.tab_container->children.size() == tabBar.views_container->children.size());
-
-				for (std::size_t i = 1; i < tabBar.views_container->children.size(); i++)
-				{
-					auto content = tabBar.views_container->children[i];
-					content->visibility_hide();
-				}
-				tabBar.tab_container->children[0]->update(View::State::PRESSED);
-				break;
-			}
-			default:
-
-				debug_printline(engine::gui_channel, "GUI - invalid function type.");
-				debug_unreachable();
-			}
-		}
-		void create_function(View & view, const ViewData & data)
-		{
-			if (data.function.type == engine::Asset::null())
-				return;
-
-			const auto entity = engine::Entity::create();
-
-			if (!data.function.name.empty())
-				lookup.put(data.function.name, entity);
-
-			create_function(entity, view, data);
-		}
-
-	public:
-
-		View & operator() (const GroupData & data)
-		{
-			const auto entity = engine::Entity::create();
-			auto & view = components.emplace<Group>(
-				entity,
-				entity,
-				data.name,
-				data.gravity,
-				data.margin,
-				data.size,
-				data.layout);
-
-			if (data.has_name()) lookup.put(data.name, entity);
-
-			if (data.function.type != engine::Asset::null())
-			{
-				const auto function_entity = engine::Entity::create();
-
-				if (!data.function.name.empty())
-					lookup.put(data.function.name, function_entity);
-
-				create_views(view, data);
-				create_function(function_entity, view, data);
-			}
-			else
-			{
-				create_views(view, data);
-			}
-
-			return view;
-		}
-
-		View & operator() (const ListData & data)
-		{
-			const auto entity = engine::Entity::create();
-			auto & view = components.emplace<List>(
-				entity,
-				entity,
-				data.name,
-				data.gravity,
-				data.margin,
-				data.size,
-				data.layout,
-				data);
-
-			if (data.has_name()) lookup.put(data.name, entity);
-
-			return view;
-		}
-
-		View & operator() (const PanelData & data)
-		{
-			const auto entity = engine::Entity::create();
-			auto & view = components.emplace<PanelC>(
-				entity,
-				entity,
-				data.name,
-				data.gravity,
-				data.margin,
-				data.size,
-				resource::color(data.color),
-				data.has_action());
-			create_action(view, data);
-			create_function(view, data);
-
-			if (data.has_name()) lookup.put(data.name, entity);
-
-			return view;
-		}
-
-		View & operator() (const TextData & data)
-		{
-			const auto entity = engine::Entity::create();
-			auto & view = components.emplace<Text>(
-				entity,
-				entity,
-				data.name,
-				data.gravity,
-				data.margin,
-				data.size,
-				resource::color(data.color),
-				data.display);
-			create_action(view, data);
-			create_function(view, data);
-
-			if (data.has_name()) lookup.put(data.name, entity);
-
-			return view;
-		}
-
-		View & operator() (const TextureData & data)
-		{
-			const auto entity = engine::Entity::create();
-			auto & view = components.emplace<PanelT>(
-				entity,
-				entity,
-				data.name,
-				data.gravity,
-				data.margin,
-				data.size,
-				data.texture,
-				data.has_action());
-			create_action(view, data);
-
-			if (data.has_name()) lookup.put(data.name, entity);
-
-			return view;
-		}
-
-		void create_views(Group & parent, const GroupData & dataGroup)
-		{
-			for (auto & data : dataGroup.children)
-			{
-				View & view = visit(*this, data);
-
-				parent.adopt(&view);
-			}
-		}
-	};
-
-	void select(const engine::Asset window)
-	{
-		for (std::size_t i = 0; i < window_stack.size(); i++)
-		{
-			if (window_stack[i]->name() == window)
-			{
-				window_stack.erase(window_stack.begin() + i);
-				window_stack.insert(window_stack.begin(), &windows.get<Window>(window));
-				break;
-			}
-		}
-
-		for (std::size_t i = 0; i < window_stack.size(); i++)
-		{
-			const int order = static_cast<int>(i);
-			window_stack[i]->reorder_window(-order * 10);
-		}
-	}
-
-	void hide(const engine::Asset window)
-	{
-		windows.get<Window>(window).hide_window();
-	}
-
-	void show(const engine::Asset window)
-	{
-		select(window);
-		windows.get<Window>(window).show_window();
-	}
 }
 
 namespace engine
 {
-namespace gui
-{
-	extern void load(std::vector<DataVariant> & windows);
-
-	void create()
+	namespace gui
 	{
-		std::vector<DataVariant> windowDatas;
+		extern std::vector<DataVariant> load();
 
-		// load windows and views data from somewhere.
-		load(windowDatas);
+		Creator Creator::instantiate(float depth) { return Creator{ ::actions, ::components, ::nodes, depth }; }
 
-		window_stack.reserve(windowDatas.size());
-
-		for (auto & windowData : windowDatas)
+		void create()
 		{
-			GroupData data = utility::get<GroupData>(windowData);
-
-			auto & window = windows.emplace<Window>(
-				data.name,
-				data.name,
-				data.size,
-				data.layout,
-				data.margin);
-
-			window_stack.push_back(&window);
-
-			Creator(lookup, window).create_views(window.group, data);
-
-			window.init_window();
+			// TODO: create something
 		}
-	}
 
-	void destroy()
-	{
-		// TODO: destroy something
-	}
-
-	struct Trigger
-	{
-		engine::Entity caller;
-
-		void operator() (TabBar & function)
+		void destroy()
 		{
-			std::size_t clicked_index = function.active_index;
-			for (std::size_t i = 0; i < function.tab_container->children.size(); i++)
+			// TODO: destroy something
+		}
+
+		void update()
+		{
+			struct
 			{
-				if (function.tab_container->children[i]->find(this->caller) != nullptr)
+				static data::Node & find(const Asset key, data::Nodes & nodes)
 				{
-					clicked_index = i;
-					break;
+					for (auto & node : nodes)
+						if (node.first == key)
+							return node.second;
+					debug_unreachable();
 				}
-			}
-
-			if (function.active_index == clicked_index)
-				return;
-
-			//// hide / unselect the prev. tab
-			function.tab_container->children[function.active_index]->update(View::State::DEFAULT);
-			function.views_container->children[function.active_index]->visibility_hide();
-
-			//// show / select the new tab.
-			function.tab_container->children[clicked_index]->update(View::State::PRESSED);
-			function.views_container->children[clicked_index]->visibility_show();
-			function.views_container->children[clicked_index]->renderer_show();
-
-			function.active_index = clicked_index;
-		}
-
-		template<typename T>
-		void operator() (const T&) {}
-	};
-
-	struct InteractionClick
-	{
-		engine::Entity caller;
-
-		void operator() (const CloseAction & action)
-		{
-			hide(action.window);
-		}
-
-		void operator() (const TriggerAction & action)
-		{
-			components.call(action.entity, Trigger{ caller });
-		}
-
-		template<typename T>
-		void operator() (const T &) {}
-	};
-
-	struct
-	{
-		void operator() (const InteractionAction & action)
-		{
-			action.target->update(View::State::DEFAULT);
-		}
-		template<typename T>
-		void operator() (const T &) {}
-	}
-	selectionStateDefault;
-
-	struct
-	{
-		void operator() (const InteractionAction & action)
-		{
-			action.target->update(View::State::HIGHLIGHT);
-		}
-		template<typename T>
-		void operator() (const T &) {}
-	}
-	selectionStateHighlight;
-
-	struct
-	{
-		void operator() (const InteractionAction & action)
-		{
-			action.target->update(View::State::PRESSED);
-		}
-		template<typename T>
-		void operator() (const T &) {}
-	}
-	selectionStatePressed;
-
-	struct Updater
-	{
-		Window & window;
-		Data & data;
-
-		void operator() (List & list)
-		{
-			switch (this->data.type)
-			{
-			case Data::LIST:
-			{
-				const std::size_t list_size = this->data.list.size();
-
-				// create item views if needed
-				if (list.lookups.capacity() < list_size)
+				void operator() (MessageData && x)
 				{
-					list.lookups.reserve(list_size);
-
-					// create item views to match the size
-					for (std::size_t i = list.lookups.size(); i < list_size; i++)
+					struct ParseUpdate
 					{
-						list.lookups.emplace_back();
-						Creator{list.lookups[i], window}.create_views(list, list.view_template);
-						list.children.back()->translate(list.order);
+						data::Node & node;
 
-						if (window.is_shown())
+						void operator() (const data::Values & values)
 						{
-							list.children[i]->renderer_show();
+							debug_assert(!node.nodes.empty());
+
+							// First; check if new Nodes needs to be added
+							for (std::size_t i = node.nodes.size(); i < values.data.size(); i++)
+							{
+								// Note: calls Setup
+								visit(data::ParseSetup{
+									Asset{ std::to_string(i) },
+									node.nodes },
+									values.data[i]);
+							}
+
+							// Second; update all Lists so they can adjust number of items
+							ListReaction reaction{ values };
+
+							for (auto target : node.targets)
+							{
+								::components.call(target, reaction);
+							}
+
+							// Third; update List-Items with new data
+							for (std::size_t i = 0; i < values.data.size(); i++)
+							{
+								auto & value = values.data[i];
+								auto & node = this->node.nodes[i];
+
+								visit(ParseUpdate{ node.second }, value);
+							}
+						}
+						void operator() (const data::KeyValues & map)
+						{
+							for (auto & data : map.data)
+							{
+								visit(ParseUpdate{ find(data.first, node.nodes) }, data.second);
+							}
+						}
+						void operator() (const std::nullptr_t)
+						{
+							for (auto target : node.targets)
+							{
+								// TODO: inform targets of update
+							}
+						}
+						void operator() (const std::string & data)
+						{
+							TextReaction reaction{ data };
+
+							for (auto target : node.targets)
+							{
+								::components.call(target, reaction);
+							}
+						}
+					};
+					visit(ParseUpdate{ find(x.data.first, ::nodes) }, x.data.second);
+				}
+				void operator () (MessageDataSetup && x)
+				{
+					visit(data::ParseSetup{ x.data.first, ::nodes }, x.data.second);
+				}
+
+				void operator () (MessageInteraction && x)
+				{
+					debug_printline(engine::gui_channel, "MessageInteraction");
+
+					struct Updater
+					{
+						MessageInteraction & message;
+
+						void operator() (const CloseAction & action)
+						{
+							if (message.interaction == MessageInteraction::CLICK)
+							{
+								ViewUpdater::hide(components.get<View>(action.target));
+							}
+						}
+						void operator() (const InteractionAction & action)
+						{
+							Status::State state;
+							switch (message.interaction)
+							{
+							case MessageInteraction::HIGHLIGHT:
+								state = Status::HIGHLIGHT;
+								break;
+							case MessageInteraction::LOWLIGHT:
+								state = Status::DEFAULT;
+								break;
+							case MessageInteraction::PRESS:
+								state = Status::PRESSED;
+								break;
+							case MessageInteraction::RELEASE:
+								state = Status::HIGHLIGHT;
+								break;
+							default:
+								return;
+							}
+
+							ViewUpdater::status(
+								components.get<View>(action.target),
+								state);
+						}
+						void operator() (const TriggerAction & action)
+						{
+							if (message.interaction == MessageInteraction::CLICK)
+							{
+								View & view = components.get<View>(action.target);
+
+								visit(fun::Trigger{ message.entity, view.function }, view.function->content);
+							}
+						}
+					};
+					actions.call_all(x.entity, Updater{ x });
+				}
+				void operator () (MessageReload && x)
+				{
+					// Clear all prev. data
+					{
+						::actions = Actions{};
+
+						for (View & view : ::components.get<View>())
+						{
+							ViewRenderer::remove(view);
+						}
+
+						::components.clear();
+
+						resource::purge();
+					}
+
+					// create the "screen" view of the screen
+					// TODO: use "window size" as size param
+					const auto entity = engine::Entity::create();
+					screen_view = &components.emplace<View>(
+						entity,
+						entity,
+						View::Group{ View::Group::Layout::RELATIVE },
+						Gravity{},
+						Margin{},
+						Size{ { Size::FIXED, height_t{ WINDOW_HEIGHT }, },{ Size::FIXED, width_t{ WINDOW_WIDTH } } },
+						nullptr);
+
+					screen_group = &utility::get<View::Group>(screen_view->content);
+
+					// (Re)load data windows and views data from somewhere.
+					std::vector<DataVariant> windows_data = load();
+
+					for (auto & window_data : windows_data)
+					{
+						try
+						{
+							auto & view = Creator::instantiate(0.f).create(screen_view, screen_group, window_data);
+
+							// temp
+							const GroupData & data = utility::get<GroupData>(window_data);
+							lookup.emplace<View*>(Asset{ data.name }, &view);
+						}
+						catch (key_missing & e)
+						{
+							debug_printline(engine::gui_channel,
+								"Exception - Could not find data-mapping: ", e.message);
+						}
+						catch (bad_json & e)
+						{
+							debug_printline(engine::gui_channel,
+								"Exception - Something not right in JSON: ", e.message);
+						}
+						catch (exception & e)
+						{
+							debug_printline(engine::gui_channel,
+								"Exception creating window: ", e.message);
 						}
 					}
 				}
-
-				// hide item views if needed (if the update contains less items than previously)
+				void operator () (MessageVisibility && x)
 				{
-					const std::size_t items_remove = list.shown_items - list_size;
+					debug_printline(engine::gui_channel, "MessageVisibility");
 
-					for (std::size_t i = list.lookups.size() - items_remove; i < list.lookups.size(); i++)
+					if (!lookup.contains(x.window))
+						return;
+
+					View & view = *lookup.get<View*>(x.window);
+
+					switch (x.state)
 					{
-						list.children[i]->renderer_hide();
+					case MessageVisibility::HIDE:
+						ViewUpdater::hide(view);
+						break;
+					case MessageVisibility::SHOW:
+						ViewUpdater::show(view);
+						break;
+					case MessageVisibility::TOGGLE:
+						if (view.status.should_render)
+							ViewUpdater::hide(view);
+						else
+							ViewUpdater::show(view);
+						break;
 					}
 				}
+			} processMessage;
 
-				// update the view data
-				for (std::size_t i = 0; i < list_size; i++)
-				{
-					auto & item = this->data.list[i];
-
-					for (auto & kv : item)
-					{
-						auto & lookup = list.lookups[i];
-
-						if (!lookup.contains(kv.first))
-						{
-							debug_printline(engine::gui_channel, "GUI - cannot find named component for list.");
-							continue;
-						}
-
-						components.call(lookup.get(kv.first), Updater{ window, kv.second });
-					}
-				}
-
-				list.set_update((list.shown_items != list_size) ? 2 : 1);
-				list.shown_items = list_size;
-				break;
-			}
-			default:
-
-				debug_printline(engine::gui_channel, "GUI - invalid update type for list (needs list).");
-				debug_unreachable();
-			}
-		}
-
-		void operator() (PanelC & panel)
-		{
-			switch (this->data.type)
+			UpdateMessage message;
+			while (::queue_posts.try_pop(message))
 			{
-			case Data::COLOR:
-
-				//panel.color = data.color;
-				break;
-
-			default:
-
-				debug_printline(engine::gui_channel, "GUI - invalid update type for color panel.");
-				debug_unreachable();
+				visit(processMessage, std::move(message));
 			}
-		}
 
-		void operator() (PanelT & panel)
-		{
-			switch (this->data.type)
-			{
-			case Data::TEXTURE:
-
-				panel.texture = data.texture;
-				panel.set_update(2);
-				break;
-
-			default:
-
-				debug_printline(engine::gui_channel, "GUI - invalid update type for texture panel.");
-				debug_unreachable();
-			}
-		}
-
-		void operator() (Text & text)
-		{
-			switch (this->data.type)
-			{
-			case Data::COLOR:
-
-				//text.color = data.color;
-				break;
-
-			case Data::DISPLAY:
-
-				text.display = data.display;
-				text.set_update((text.size.width == Size::TYPE::WRAP) ? 2 : 1);
-				break;
-
-			default:
-
-				debug_printline(engine::gui_channel, "GUI - invalid update type for text.");
-				debug_unreachable();
-			}
-		}
-
-		void operator() (ProgressBar & pb)
-		{
-			switch (this->data.type)
-			{
-			case Data::PROGRESS:
-
-				if (pb.direction == ProgressBar::HORIZONTAL)
-				{
-					debug_assert(pb.target->size.width.type == Size::TYPE::PERCENT);
-					pb.target->size.width.set_meta(this->data.progress);
-				}
-				else
-				{
-					debug_assert(pb.target->size.height.type == Size::TYPE::PERCENT);
-					pb.target->size.height.set_meta(this->data.progress);
-				}
-				pb.target->set_update(2);
-				break;
-
-			default:
-
-				debug_printline(engine::gui_channel, "GUI - invalid update type for progress bar.");
-				debug_unreachable();
-			}
+			ViewMeasure::refresh(*screen_view);
 		}
 
 		template<typename T>
-		void operator() (const T &)
+		void put_on_queue(T && data)
 		{
-			debug_printline(engine::gui_channel, "GUI - update of unknown component type.");
-		}
-	};
-
-	void update()
-	{
-		struct
-		{
-			void operator () (MessageInteractionClick && x)
-			{
-				debug_assert(actions.contains(x.entity));
-				actions.call_all(x.entity, InteractionClick{ x.entity });
-
-				windows.get<Window>(x.window).splash_mud();
-			}
-			void operator () (MessageInteractionHighlight && x)
-			{
-				if (actions.contains(x.entity))
-					actions.call_all(x.entity, selectionStateHighlight);
-
-				windows.get<Window>(x.window).splash_mud();
-			}
-			void operator () (MessageInteractionLowlight && x)
-			{
-				if (actions.contains(x.entity))
-					actions.call_all(x.entity, selectionStateDefault);
-
-				windows.get<Window>(x.window).splash_mud();
-			}
-			void operator () (MessageInteractionPress && x)
-			{
-				// check if window should be selected
-				if (window_stack.front()->name() != x.window)
-				{
-					select(x.window);
-				}
-
-				if (actions.contains(x.entity))
-					actions.call_all(x.entity, selectionStatePressed);
-
-				windows.get<Window>(x.window).splash_mud();
-			}
-			void operator () (MessageInteractionRelease && x)
-			{
-				if (actions.contains(x.entity))
-					actions.call_all(x.entity, selectionStateHighlight);
-
-				windows.get<Window>(x.window).splash_mud();
-			}
-			void operator () (MessageStateHide && x)
-			{
-				hide(x.window);
-			}
-			void operator () (MessageStateShow && x)
-			{
-				show(x.window);
-			}
-			void operator () (MessageStateToggle && x)
-			{
-				auto & w = windows.get<Window>(x.window);
-
-				if (w.is_shown()) w.hide_window();
-				else w.show_window();
-			}
-			void operator () (MessageUpdateData && x)
-			{
-				Window & w = windows.get<Window>(x.window);
-
-				for (auto & data : x.datas)
-				{
-					if (!lookup.contains(data.first))
-					{
-						debug_printline(engine::gui_channel, "GUI - cannot find named component for update.");
-						continue;
-					}
-
-					components.call(lookup.get(data.first), Updater{ w, data.second });
-				}
-
-				w.splash_mud();
-			}
-			void operator () (MessageUpdateTranslate && x)
-			{
-				windows.get<Window>(x.window).translate_window(x.delta);
-			}
-
-		} processMessage;
-
-		UpdateMessage message;
-		while (::queue_posts.try_pop(message))
-		{
-			visit(processMessage, std::move(message));
+			const auto res = queue_posts.try_emplace(utility::in_place_type<T>, std::move(data));
+			debug_assert(res);
 		}
 
-		for (auto & window : windows.get<Window>())
-		{
-			if (window.is_dirty())
-			{
-				window.refresh_window();
-			}
-		}
+		template<> void post(MessageData && data) { put_on_queue(std::move(data)); }
+		template<> void post(MessageDataSetup && data) { put_on_queue(std::move(data)); }
+		template<> void post(MessageInteraction && data) { put_on_queue(std::move(data)); }
+		template<> void post(MessageReload && data) { put_on_queue(std::move(data)); }
+		template<> void post(MessageVisibility && data) { put_on_queue(std::move(data)); }
 	}
-
-	void post_interaction_click(engine::Asset window, engine::Entity entity)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionClick>, window, entity);
-		debug_assert(res);
-	}
-
-	void post_interaction_highlight(engine::Asset window, engine::Entity entity)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionHighlight>, window, entity);
-		debug_assert(res);
-	}
-
-	void post_interaction_lowlight(engine::Asset window, engine::Entity entity)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionLowlight>, window, entity);
-		debug_assert(res);
-	}
-
-	void post_interaction_press(engine::Asset window, engine::Entity entity)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionPress>, window, entity);
-		debug_assert(res);
-	}
-
-	void post_interaction_release(engine::Asset window, engine::Entity entity)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageInteractionRelease>, window, entity);
-		debug_assert(res);
-	}
-
-	void post_state_hide(engine::Asset window)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageStateHide>, window);
-		debug_assert(res);
-	}
-
-	void post_state_show(engine::Asset window)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageStateShow>, window);
-		debug_assert(res);
-	}
-
-	void post_state_toggle(engine::Asset window)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageStateToggle>, window);
-		debug_assert(res);
-	}
-
-	void post_update_data(
-		engine::Asset window,
-		Datas && datas)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageUpdateData>, window, std::move(datas));
-		debug_assert(res);
-	}
-
-	void post_update_translate(
-		engine::Asset window,
-		core::maths::Vector3f delta)
-	{
-		const auto res = ::queue_posts.try_emplace(utility::in_place_type<MessageUpdateTranslate>, window, std::move(delta));
-		debug_assert(res);
-	}
-}
 }
