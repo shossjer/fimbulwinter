@@ -6,7 +6,7 @@
 
 #include <engine/Asset.hpp>
 
-#include <stdint.h>
+#include <cstdint>
 
 namespace engine
 {

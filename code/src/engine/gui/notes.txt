@@ -1,5 +1,0 @@
-
-
-	register "data_binder" for View and Function
-	register "trigger" for Action
-
