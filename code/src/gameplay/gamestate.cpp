@@ -11,6 +11,7 @@
 #include <engine/graphics/viewer.hpp>
 #include <engine/gui/gui.hpp>
 #include <engine/physics/physics.hpp>
+#include "engine/resource/reader.hpp"
 
 #include <gameplay/debug.hpp>
 #include <gameplay/factory.hpp>
@@ -847,6 +848,15 @@ namespace
 	}
 }
 
+namespace
+{
+	void data_callback(std::string name, engine::resource::reader::Data && data)
+	{
+		const auto & thdo = utility::get<0>(data.data);
+		debug_printline(thdo);
+	}
+}
+
 namespace gameplay
 {
 namespace gamestate
@@ -939,6 +949,8 @@ namespace gamestate
 
 		// trigger first load of GUI
 		engine::gui::post(engine::gui::MessageReload{});
+
+		engine::resource::reader::post_read_data("recipes", data_callback);
 	}
 
 	void destroy()
