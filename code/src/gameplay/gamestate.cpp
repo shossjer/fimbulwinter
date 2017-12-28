@@ -296,17 +296,11 @@ namespace
 
 	struct Selector
 	{
-		void translate(engine::Command command, utility::any && data)
-		{
-			switch (command)
-			{
-			case engine::Command::RENDER_SELECT:
-				entityClick(utility::any_cast<engine::Entity>(data));
-				break;
-			default:
-				debug_printline(gameplay::gameplay_channel, "Selector: Unknown command: ", static_cast<int>(command));
-			}
-		}
+		engine::Entity highlighted_entity = engine::Entity::null();
+		engine::Entity pressed_entity = engine::Entity::null();
+		engine::Entity selected_entity = engine::Entity::null();
+
+		void translate(engine::Command command, utility::any && data);
 	};
 
 	struct Storehouse
@@ -562,28 +556,6 @@ namespace
 		engine::Entity id;
 	};
 
-	struct GUIMover
-	{
-		const int16_t dx;
-		const int16_t dy;
-
-		GUIMover(const int16_t dx, const int16_t dy)
-			: dx(dx)
-			, dy(dy)
-		{}
-
-		void operator () (const GUIComponent & c)
-		{
-		//	if (c.action == engine::Asset{ "mover" })
-		//		engine::gui::post_update_translate(c.window, Vector3f{ static_cast<float>(dx), static_cast<float>(dy), 0.f });
-		}
-
-		template <typename W>
-		void operator () (const W & w)
-		{
-		}
-	};
-
 	struct GUIWindow
 	{
 		engine::Asset window;
@@ -743,9 +715,6 @@ namespace
 		}
 	};
 
-	std::pair<int16_t, int16_t> mouse_coords{ 0, 0 };
-	core::container::ExchangeQueueSRSW<std::pair<int16_t, int16_t>> queue_mouse_coords;
-
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, utility::any>, 100> queue_commands;
 
 	core::container::CircleQueueSRMW<
@@ -845,6 +814,70 @@ namespace
 			components.call(id, playerInteraction);
 		}
 	}
+
+	void Selector::translate(engine::Command command, utility::any && data)
+	{
+		switch (command)
+		{
+		case engine::Command::RENDER_HIGHLIGHT:
+			if (highlighted_entity != utility::any_cast<engine::Entity>(data))
+			{
+				// check if anything is "pressed" it will need to be "released" before "lowlighted"
+				if (pressed_entity != engine::Entity::null())
+				{
+					components.call(pressed_entity, ::playerEntityRelease);
+					pressed_entity = engine::Entity::null();
+				}
+
+				if (highlighted_entity != engine::Entity::null())
+				{
+					components.call(highlighted_entity, ::playerEntityLowlight);
+				}
+
+				highlighted_entity = utility::any_cast<engine::Entity>(data);
+
+				if (highlighted_entity != engine::Entity::null())
+				{
+					if (components.contains(highlighted_entity))
+						components.call(highlighted_entity, ::playerEntityHighlight);
+				}
+			}
+			break;
+		case engine::Command::RENDER_SELECT:
+			if (components.contains(highlighted_entity))
+			{
+				pressed_entity = highlighted_entity;
+				components.call(highlighted_entity, ::playerEntityPress);
+			}
+			entityClick(utility::any_cast<engine::Entity>(data));
+			break;
+		case engine::Command::RENDER_DESELECT:
+			if (pressed_entity != engine::Entity::null())
+			{
+				if (components.call(pressed_entity, ::playerEntityClick))
+				{
+					if (selected_entity == pressed_entity)
+					{
+						// do nothing
+					}
+					else
+					{
+						if (selected_entity != engine::Entity::null())
+						{
+							// TODO: clear prev. selection
+						}
+
+						selected_entity = pressed_entity;
+					}
+				}
+				components.call(pressed_entity, ::playerEntityRelease);
+				pressed_entity = engine::Entity::null();
+			}
+			break;
+		default:
+			debug_printline(gameplay::gameplay_channel, "Selector: Unknown command: ", static_cast<int>(command));
+		}
+	}
 }
 
 namespace gameplay
@@ -918,14 +951,16 @@ namespace gamestate
 		gameplay::ui::post_bind("debug", game_renderswitch, -5);
 		gameplay::ui::post_bind("game", game_renderswitch, -5);
 
+		auto selector = engine::Entity::create();
+		components.emplace<Selector>(selector);
+
 		auto game_renderhover = engine::Entity::create();
-		gameplay::ui::post_add_renderhover(game_renderhover);
+		gameplay::ui::post_add_renderhover(game_renderhover, selector);
 		gameplay::ui::post_bind("debug", game_renderhover, 5);
 		gameplay::ui::post_bind("game", game_renderhover, 5);
 
 		auto game_renderselect = engine::Entity::create();
-		components.emplace<Selector>(game_renderselect);
-		gameplay::ui::post_add_renderselect(game_renderselect);
+		gameplay::ui::post_add_renderselect(game_renderselect, selector);
 		gameplay::ui::post_bind("debug", game_renderselect, 5);
 		gameplay::ui::post_bind("game", game_renderselect, 5);
 
@@ -978,91 +1013,15 @@ namespace gamestate
 
 		// commands
 		{
-			static engine::Entity highlighted_entity = engine::Entity::null();
-			static engine::Entity pressed_entity = engine::Entity::null();
-			static engine::Entity selected_entity = engine::Entity::null();
-
 			std::tuple<engine::Entity, engine::Command, utility::any> command_args;
 			while (queue_commands.try_pop(command_args))
 			{
+				debug_assert(std::get<0>(command_args) != engine::Entity::null());
 				if (std::get<0>(command_args) != engine::Entity::null())
 				{
 					components.call(std::get<0>(command_args), translate_command{std::get<1>(command_args), std::move(std::get<2>(command_args))});
 					continue;
 				}
-				switch (std::get<1>(command_args))
-				{
-				case engine::Command::RENDER_HIGHLIGHT:
-
-					// check if anything is "pressed" it will need to be "released" before "lowlighted"
-					if (pressed_entity != engine::Entity::null())
-					{
-						components.call(pressed_entity, ::playerEntityRelease);
-						pressed_entity = engine::Entity::null();
-					}
-
-					if (highlighted_entity != engine::Entity::null())
-					{
-						components.call(highlighted_entity, ::playerEntityLowlight);
-					}
-
-					highlighted_entity = utility::any_cast<engine::Entity>(std::get<2>(command_args));
-
-					if (highlighted_entity != engine::Entity::null())
-					{
-						if (components.contains(highlighted_entity))
-							components.call(highlighted_entity, ::playerEntityHighlight);
-					}
-					break;
-				case engine::Command::MOUSE_LEFT_DOWN:
-
-					if (components.contains(highlighted_entity))
-					{
-						pressed_entity = highlighted_entity;
-						components.call(highlighted_entity, ::playerEntityPress);
-					}
-					break;
-				case engine::Command::MOUSE_LEFT_UP:
-
-
-					if (pressed_entity != engine::Entity::null())
-					{
-						if (components.call(pressed_entity, ::playerEntityClick))
-						{
-							if (selected_entity == pressed_entity)
-							{
-								// do nothing
-							}
-							else
-							{
-								if (selected_entity != engine::Entity::null())
-								{
-									// TODO: clear prev. selection
-								}
-
-								selected_entity = pressed_entity;
-							}
-						}
-						components.call(pressed_entity, ::playerEntityRelease);
-						pressed_entity = engine::Entity::null();
-					}
-					break;
-				default:
-					debug_unreachable();
-				}
-			}
-
-			std::pair<int16_t, int16_t> mouse_update;
-			if (queue_mouse_coords.try_pop(mouse_update))
-			{
-				if (pressed_entity != engine::Entity::null())
-				{
-					const int16_t dx = mouse_update.first - mouse_coords.first;
-					const int16_t dy = mouse_update.second - mouse_coords.second;
-					components.call(pressed_entity, GUIMover{ dx, dy });
-				}
-
-				mouse_coords = mouse_update;
 			}
 		}
 
@@ -1090,12 +1049,6 @@ namespace gamestate
 	void post_command(engine::Entity entity, engine::Command command, utility::any && data)
 	{
 		const auto res = queue_commands.try_emplace(entity, command, std::move(data));
-		debug_assert(res);
-	}
-
-	void notify(int16_t dx, int16_t dy)
-	{
-		const auto res = queue_mouse_coords.try_push(dx, dy);
 		debug_assert(res);
 	}
 

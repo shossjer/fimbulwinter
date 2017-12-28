@@ -2,6 +2,7 @@
 #ifndef ENGINE_GRAPHICS_RENDERER_HPP
 #define ENGINE_GRAPHICS_RENDERER_HPP
 
+#include "engine/Command.hpp"
 #include <engine/common.hpp>
 #include <engine/model/data.hpp>
 
@@ -172,7 +173,7 @@ namespace engine
 			void post_update_panel(engine::Entity entity, data::ui::PanelT && data);
 			void post_update_text(engine::Entity entity, data::ui::Text && data);
 
-			void post_select(int x, int y, engine::Entity entity);
+			void post_select(int x, int y, engine::Entity entity, engine::Command command);
 
 			void toggle_down();
 			void toggle_up();

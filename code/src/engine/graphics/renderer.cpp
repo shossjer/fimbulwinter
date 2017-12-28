@@ -880,12 +880,11 @@ namespace
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera2D> queue_notify_camera2d;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera3D> queue_notify_camera3d;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Viewport> queue_notify_viewport;
-	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Cursor> queue_notify_cursor;
 
 	core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
 	core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
 
-	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity>, 10> queue_select;
+	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity, engine::Command>, 10> queue_select;
 
 	void poll_queues()
 	{
@@ -1100,8 +1099,6 @@ namespace
 	int viewport_y = 0;
 	int viewport_width = 0;
 	int viewport_height = 0;
-	int cursor_x = -1;
-	int cursor_y = -1;
 
 	Stack modelview_matrix;
 
@@ -1413,12 +1410,6 @@ namespace
 				entitypixels.resize(notification_viewport.width * notification_viewport.height);
 			}
 		}
-		engine::graphics::renderer::Cursor notification_cursor;
-		if (queue_notify_cursor.try_pop(notification_cursor))
-		{
-			cursor_x = notification_cursor.x;
-			cursor_y = notification_cursor.y;
-		}
 
 		glStencilMask(0x000000ff);
 		// setup frame
@@ -1548,21 +1539,12 @@ namespace
 
 		glReadPixels(viewport_x, viewport_y, viewport_width, viewport_height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, entitypixels.data());
 
-		// hover
-		{
-			const engine::Entity entity = get_entity_at_screen(cursor_x, cursor_y);
-			if (highlighted_entity != entity)
-			{
-				highlighted_entity = entity;
-				gameplay::gamestate::post_command(engine::Entity::null(), engine::Command::RENDER_HIGHLIGHT, entity);
-			}
-		}
 		// select
 		{
-			std::tuple<int, int, engine::Entity> select_args;
+			std::tuple<int, int, engine::Entity, engine::Command> select_args;
 			while (queue_select.try_pop(select_args))
 			{
-				gameplay::gamestate::post_command(std::get<2>(select_args), engine::Command::RENDER_SELECT, get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
+				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
 			}
 		}
 
@@ -1979,10 +1961,6 @@ namespace engine
 			{
 				queue_notify_viewport.try_push(std::move(data));
 			}
-			void notify(Cursor && data)
-			{
-				queue_notify_cursor.try_push(std::move(data));
-			}
 
 			void post_register_character(engine::Asset asset, engine::model::mesh_t && data)
 			{
@@ -2105,9 +2083,9 @@ namespace engine
 				debug_assert(res);
 			}
 
-			void post_select(int x, int y, engine::Entity entity)
+			void post_select(int x, int y, engine::Entity entity, engine::Command command)
 			{
-				const auto res = queue_select.try_emplace(x, y, entity);
+				const auto res = queue_select.try_emplace(x, y, entity, command);
 				debug_assert(res);
 			}
 

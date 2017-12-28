@@ -15,23 +15,11 @@
 #include <tuple>
 #include <vector>
 
-namespace engine
-{
-namespace graphics
-{
-namespace renderer
-{
-	extern void notify(Cursor && data);
-}
-}
-}
-
 namespace gameplay
 {
 namespace gamestate
 {
 	extern void post_command(engine::Entity entity, engine::Command command);
-	extern void notify(int16_t dx, int16_t dy);
 }
 }
 
@@ -533,18 +521,29 @@ namespace
 
 	struct RenderHover
 	{
+		engine::Entity entity;
+
+		int x = -1;
+		int y = -1;
+
+		RenderHover(engine::Entity entity) : entity(entity) {}
+
 		bool translate(const engine::hid::Input & input)
 		{
 			switch (input.getState())
 			{
 			case engine::hid::Input::State::MOVE:
-				notify(engine::graphics::renderer::Cursor{input.getCursor().x, input.getCursor().y});
-				// send mouse movement delta to gamestate
-				gameplay::gamestate::notify(input.getCursor().x, input.getCursor().y);
+				x = input.getCursor().x;
+				y = input.getCursor().y;
 				return true;
 			default:
 				return false;
 			}
+		}
+
+		void update()
+		{
+			engine::graphics::renderer::post_select(x, y, entity, engine::Command::RENDER_HIGHLIGHT);
 		}
 	};
 
@@ -562,8 +561,7 @@ namespace
 				switch (input.getButton())
 				{
 				case engine::hid::Input::Button::MOUSE_LEFT:
-					engine::graphics::renderer::post_select(input.getCursor().x, input.getCursor().y, entity);
-					gameplay::gamestate::post_command(engine::Entity::null(), engine::Command::MOUSE_LEFT_DOWN);
+					engine::graphics::renderer::post_select(input.getCursor().x, input.getCursor().y, entity, engine::Command::RENDER_SELECT);
 					return true;
 				default:
 					return false;
@@ -572,7 +570,7 @@ namespace
 				switch (input.getButton())
 				{
 				case engine::hid::Input::Button::MOUSE_LEFT:
-					gameplay::gamestate::post_command(engine::Entity::null(), engine::Command::MOUSE_LEFT_UP);
+					engine::graphics::renderer::post_select(input.getCursor().x, input.getCursor().y, entity, engine::Command::RENDER_DESELECT);
 					return true;
 				default:
 					return false;
@@ -648,6 +646,18 @@ namespace
 		}
 	};
 
+	struct update_entity
+	{
+		void operator () (RenderHover & x)
+		{
+			x.update();
+		}
+
+		template <typename X>
+		void operator () (X & x)
+		{}
+	};
+
 	core::container::ExchangeQueueSRSW<dimension_t> queue_dimension;
 
 	core::container::CircleQueueSRMW<engine::hid::Input, 100> queue_input;
@@ -661,8 +671,8 @@ namespace
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_flycontrol;
 	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::hid::Input::Button>, 10> queue_add_buttoncontrol;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_pancontrol;
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderhover;
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_add_renderselect;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_renderhover;
+	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Entity>, 10> queue_add_renderselect;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::hid::Input::Button>, 10> queue_add_renderswitch;
 	core::container::CircleQueueSRMW<std::tuple<engine::Entity, int>, 10> queue_remove;
 
@@ -739,15 +749,15 @@ namespace ui
 			{
 				components.emplace<Pancontrol>(std::get<0>(control_args), std::get<1>(control_args));
 			}
-			std::tuple<engine::Entity, int> renderhover_args;
+			std::tuple<engine::Entity, engine::Entity> renderhover_args;
 			while (queue_add_renderhover.try_pop(renderhover_args))
 			{
-				components.emplace<RenderHover>(std::get<0>(renderhover_args));
+				components.emplace<RenderHover>(std::get<0>(renderhover_args), std::get<1>(renderhover_args));
 			}
-			std::tuple<engine::Entity, int> renderselect_args;
+			std::tuple<engine::Entity, engine::Entity> renderselect_args;
 			while (queue_add_renderselect.try_pop(renderselect_args))
 			{
-				components.emplace<RenderSelect>(std::get<0>(renderselect_args), std::get<0>(renderselect_args));
+				components.emplace<RenderSelect>(std::get<0>(renderselect_args), std::get<1>(renderselect_args));
 			}
 			std::tuple<engine::Entity, engine::hid::Input::Button> renderswitch_args;
 			while (queue_add_renderswitch.try_pop(renderswitch_args))
@@ -785,6 +795,14 @@ namespace ui
 					if (components.call(entity, translate_input{input}))
 						break;
 				}
+			}
+		}
+
+		// update
+		{
+			for (const auto entity : contexts[find_context(active_context)].entities)
+			{
+				components.call(entity, update_entity{});
 			}
 		}
 	}
@@ -856,15 +874,17 @@ namespace ui
 		debug_assert(res);
 	}
 	void post_add_renderhover(
-		engine::Entity entity)
+		engine::Entity entity,
+		engine::Entity callback)
 	{
-		const auto res = queue_add_renderhover.try_emplace(entity, 0);
+		const auto res = queue_add_renderhover.try_emplace(entity, callback);
 		debug_assert(res);
 	}
 	void post_add_renderselect(
-		engine::Entity entity)
+		engine::Entity entity,
+		engine::Entity callback)
 	{
-		const auto res = queue_add_renderselect.try_emplace(entity, 0);
+		const auto res = queue_add_renderselect.try_emplace(entity, callback);
 		debug_assert(res);
 	}
 	void post_add_renderswitch(
