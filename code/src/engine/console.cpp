@@ -17,7 +17,7 @@ namespace
 {
 	using namespace engine::console;
 
-	std::unordered_map<engine::Asset, std::vector<Callback>> observer_map;
+	std::vector < std::pair<engine::Asset, std::unique_ptr<CallbackBase>> > observers;
 
 	volatile bool active;
 	core::async::Thread thread;
@@ -31,24 +31,21 @@ namespace engine
 {
 	namespace console
 	{
-		void observe(const std::string & keyword, const Callback & callback)
+		void observe_impl(const std::string & keyword, std::unique_ptr<CallbackBase> && callback)
 		{
 			const auto key = engine::Asset{ keyword };
 
-			auto itr = observer_map.find(key);
+			observers.emplace_back(key, std::move(callback));
+		}
 
-			if (itr == observer_map.end())
-			{
-				auto r = observer_map.insert({ key, {} });
+		auto parse_params(const std::string & line)
+		{
+			std::vector<Param> params;
 
-				debug_assert(r.second);
+			// TODO: actually parse the string...
+			params.emplace_back(utility::in_place_type<std::string>, line);
 
-				r.first->second.push_back(callback);
-			}
-			else
-			{
-				(*itr).second.emplace_back(callback);
-			}
+			return params;
 		}
 
 		void read_input()
@@ -61,22 +58,18 @@ namespace engine
 				if (line.empty()) continue;
 
 				std::stringstream stream{ line };
-				std::string keyword;
-				std::getline(stream, keyword, ' ');
+				std::string data;
 
-				const engine::Asset key{ keyword };
+				std::getline(stream, data, ' ');
+				const engine::Asset key{ data };
 
-				auto observers = observer_map.find(engine::Asset{ keyword });
+				std::getline(stream, data);
+				std::vector<Param> params = parse_params(data);
 
-				if (observers != observer_map.end())
+				for (auto & observer : observers)
 				{
-					std::string data;
-					std::getline(stream, data);
-
-					for (auto & callback : (*observers).second)
-					{
-						callback(data);
-					}
+					if (observer.first == key)
+						observer.second->call(params);
 				}
 			}
 		}
