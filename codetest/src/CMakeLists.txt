@@ -10,6 +10,7 @@ set(CODE_TEST_SOURCE
 	src/core/maths/Quaternion.cpp
 	src/core/maths/Vector.cpp
 	src/core/maths/util.cpp
+    src/engine/console.cpp
 	src/engine/gui/composite.cpp
 	src/engine/gui/measure.cpp
 	src/engine/gui/noodle.cpp

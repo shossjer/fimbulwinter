@@ -13,13 +13,15 @@ namespace engine
 		using Param = utility::variant
 		<
 			bool,
+			float,
 			int,
 			std::string
 		>;
 
 		struct CallbackBase
 		{
-			virtual void call(const std::vector<Param> &) const;
+			virtual ~CallbackBase() = default;
+			virtual bool call(const std::vector<Param> &) const = 0;
 		};
 
 		void observe_impl(const std::string & keyword, std::unique_ptr<CallbackBase> && callback);
@@ -40,31 +42,38 @@ namespace engine
 				: f(f)
 			{}
 
-			void call(const std::vector<Param> & params) const override
+			bool call(const std::vector<Param> & params) const override
 			{
-				call_impl(mpl::index_constant<0>{}, params);
+				if (params.size() != sizeof...(Args))
+				{
+					return false;
+				}
+
+				return call_impl(mpl::index_constant<0>{}, params);
 			}
 
 		private:
 
 			template<std::size_t ...Indexar>
-			void call_f(mpl::index_sequence<Indexar...>, const std::vector<Param> & params)
+			void call_f(mpl::index_sequence<Indexar...>, const std::vector<Param> & params) const
 			{
 				f(utility::get<Args>(params[Indexar])...);
 			}
 
-			void call_impl(mpl::index_constant<sizeof...(Args)>, const std::vector<Param> & params)
+			bool call_impl(mpl::index_constant<sizeof...(Args)>, const std::vector<Param> & params) const
 			{
 				call_f(mpl::make_index_sequence<sizeof...(Args)>{}, params);
+				return true;
 			}
 
 			template<int I>
-			void call_impl(mpl::index_constant<I>, const std::vector<Param> & params)
+			bool call_impl(mpl::index_constant<I>, const std::vector<Param> & params) const
 			{
 				if (utility::holds_alternative<mpl::type_at<I, Args...>>(params[I]))
 				{
-					call_impl(mpl::index_constant<I + 1>{}, params);
+					return call_impl(mpl::index_constant<I + 1>{}, params);
 				}
+				return false;
 			}
 		};
 	}
