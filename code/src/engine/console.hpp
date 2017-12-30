@@ -26,19 +26,12 @@ namespace engine
 
 		void observe_impl(const std::string & keyword, std::unique_ptr<CallbackBase> && callback);
 
-		// Register function to be triggered by CLI.
-		template<typename ...Args>
-		void observe(const std::string & keyword, void(* f)(Args...))
-		{
-			observe_impl(keyword, std::make_unique<Callback<Args...>>(f));
-		}
-
-		template<typename ...Args>
+		template <typename ...Args>
 		struct Callback : CallbackBase
 		{
-			void(*f)(Args...);
+			void (* f)(Args...);
 
-			Callback(void(*f)(Args...))
+			Callback(void (* f)(Args...))
 				: f(f)
 			{}
 
@@ -54,10 +47,10 @@ namespace engine
 
 		private:
 
-			template<std::size_t ...Indexar>
-			void call_f(mpl::index_sequence<Indexar...>, const std::vector<Param> & params) const
+			template <std::size_t ...Is>
+			void call_f(mpl::index_sequence<Is...>, const std::vector<Param> & params) const
 			{
-				f(utility::get<Args>(params[Indexar])...);
+				f(utility::get<Args>(params[Is])...);
 			}
 
 			bool call_impl(mpl::index_constant<sizeof...(Args)>, const std::vector<Param> & params) const
@@ -66,7 +59,7 @@ namespace engine
 				return true;
 			}
 
-			template<int I>
+			template <std::size_t I>
 			bool call_impl(mpl::index_constant<I>, const std::vector<Param> & params) const
 			{
 				if (utility::holds_alternative<mpl::type_at<I, Args...>>(params[I]))
@@ -76,5 +69,12 @@ namespace engine
 				return false;
 			}
 		};
+
+		// Register function to be triggered by CLI.
+		template <typename ...Args>
+		void observe(const std::string & keyword, void (* f)(Args...))
+		{
+			observe_impl(keyword, std::make_unique<Callback<Args...>>(f));
+		}
 	}
 }
