@@ -4,6 +4,7 @@
 #include <core/async/delay.hpp>
 #include <core/async/Thread.hpp>
 
+#include "engine/application/window.hpp"
 #include <engine/Asset.hpp>
 #include <engine/debug.hpp>
 
@@ -16,17 +17,24 @@
 #include <cctype>
 #include <stdio.h>
 
+#ifndef _WIN32
+# include <poll.h>
+# include <unistd.h>
+#endif
+
 namespace
 {
 	using namespace engine::console;
 
 	std::vector < std::pair<engine::Asset, std::unique_ptr<CallbackBase>> > observers;
 
-	volatile bool active;
 	core::async::Thread thread;
 
 #ifdef _WIN32
+	volatile bool active;
 	HANDLE handle = nullptr;
+#else
+	int interrupt_pipes[2];
 #endif
 }
 
@@ -112,12 +120,18 @@ namespace engine
 
 		void read_input()
 		{
+#ifdef _WIN32
 			while (active)
 			{
 				std::string line;
-				std::getline(std::cin, line);
+				if (!std::getline(std::cin, line))
+				{
+					application::window::close();
+					break;
+				}
 
-				if (line.empty()) continue;
+				if (line.empty())
+					continue;
 
 				std::stringstream stream{ line };
 				std::string data;
@@ -134,26 +148,70 @@ namespace engine
 						observer.second->call(params);
 				}
 			}
+#else
+			struct pollfd fds[2] = {
+				{interrupt_pipes[0], 0, 0},
+				{STDIN_FILENO, POLLIN, 0}
+			};
+
+			while (true)
+			{
+				const auto n = poll(fds, 2, -1);
+
+				if (fds[0].revents & POLLHUP)
+					break;
+
+				if (fds[1].revents & POLLIN)
+				{
+					std::string line;
+					if (!std::getline(std::cin, line))
+					{
+						application::window::close();
+						break;
+					}
+
+					if (line.empty())
+						continue;
+
+					std::stringstream stream{ line };
+					std::string data;
+
+					std::getline(stream, data, ' ');
+					const engine::Asset key{ data };
+
+					std::getline(stream, data);
+					std::vector<Param> params = parse_params(data);
+
+					for (auto & observer : observers)
+					{
+						if (observer.first == key)
+							observer.second->call(params);
+					}
+				}
+			}
+			close(interrupt_pipes[0]);
+#endif
+			debug_printline("console thread stopping");
 		}
 
 		void create()
 		{
-			active = true;
 #ifdef _WIN32
+			active = true;
 			handle = GetStdHandle(STD_INPUT_HANDLE);
 #else
-			// TODO: create linux stuff
+			pipe(interrupt_pipes);
 #endif
 			thread = core::async::Thread{ read_input };
 		}
 
 		void destroy()
 		{
-			active = false;
 #ifdef _WIN32
+			active = false;
 			CancelIoEx(handle, NULL);
 #else
-			// TODO: close linux stuff
+			close(interrupt_pipes[1]);
 #endif
 			thread.join();
 		}
