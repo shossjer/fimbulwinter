@@ -93,18 +93,20 @@ namespace engine
 				return nullptr;
 			}
 
-			data::Node & find_node(const std::string observe)
+			data::Node & find_node(const std::vector<ViewData::React> & reaction)
 			{
 				data::Node * node = nullptr;
 				data::Nodes * nodes_next = &this->nodes;
-				std::stringstream ss{ observe };
-				std::string node_name;
-				while (std::getline(ss, node_name, '.'))
-				{
-					node = find_node(Asset{ node_name }, *nodes_next);
 
-					if (node == nullptr)
-						throw key_missing{ observe };
+				for(auto & rnode : reaction)
+				{
+					node = find_node(rnode.key, *nodes_next);
+
+					if (node == nullptr)	// TODO: better debug please
+					{
+						debug_printline("WARNING - cannot find key: ", rnode.key);
+						throw key_missing{ "" };
+					}
 
 					nodes_next = &node->nodes;
 				}
@@ -214,12 +216,10 @@ namespace engine
 					auto & fun = create(
 						Function::Content{
 							utility::in_place_type<Function::List>,
-							std::move(viewData.function.templates[0])},
+							viewData.function.templates[0]},
 						view);
 
-					ViewData::Reaction reactionData{ ViewData::Reaction::LIST, viewData.function.observe };
-
-					create_reaction(fun.entity, reactionData);
+					create_reaction(fun.entity, viewData.function.reaction);
 					break;
 				}
 				case ViewData::Function::PROGRESS:
@@ -262,28 +262,12 @@ namespace engine
 				}
 			}
 
-			void create_reaction(Entity entity, const ViewData::Reaction & reactionData)
+			void create_reaction(Entity entity, const std::vector<ViewData::React> & node_list)
 			{
 				// find the node..
-				data::Node & node = find_node(reactionData.observe);
+				data::Node & node = find_node(node_list);
 
-				// create reaction
-				switch (reactionData.type)
-				{
-				case ViewData::Reaction::LIST:
-
-					// TODO: create actual reaction object
-					break;
-
-				case ViewData::Reaction::TEXT:
-
-					// TODO: create actual reaction object
-					break;
-
-				default:
-					debug_printline(engine::gui_channel, "Reaction type not implemented!");
-					debug_unreachable();
-				}
+				// TODO: create actual reaction object
 
 				// add reaction (entity) to node
 				node.targets.emplace_back(entity);

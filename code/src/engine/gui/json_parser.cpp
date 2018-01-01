@@ -688,8 +688,8 @@ namespace
 
 			auto & function = data.function;
 
-			function.observe = this->load.observe_or_empty(jfunction);
 			function.type = this->load.type(jfunction);
+			load_reaction(function.reaction, jfunction);
 
 			switch (function.type)
 			{
@@ -765,7 +765,7 @@ namespace
 
 		bool has_reaction(const json & jcomponent) { return contains(jcomponent, "reaction"); }
 
-		void load_reaction(ViewData & view, const json & jcomponent)
+		void load_reaction(std::vector<ViewData::React> & reaction, const json & jcomponent)
 		{
 			if (!has_reaction(jcomponent))
 				return;
@@ -778,9 +778,19 @@ namespace
 				throw key_missing("observe");
 			}
 
-			view.reaction.observe = jreaction["observe"].get<std::string>();
-			// TEMP
-			view.reaction.type = ViewData::Reaction::TEXT;
+			std::stringstream stream{ jreaction["observe"].get<std::string>() };
+			std::string node;
+
+			while (std::getline(stream, node, '.'))
+			{
+				if (node.empty())
+				{
+					debug_printline(engine::gui_channel, "WARNING - key: 'observe' contains empty node: ", jreaction);
+					throw bad_json();
+				}
+
+				reaction.push_back(ViewData::React{ engine::Asset{ node } });
+			}
 		}
 
 		GroupData & load_group(GroupData & parent, const json & jcomponent)
@@ -863,7 +873,7 @@ namespace
 				load_components(group, this->load.components(jcomponent));
 
 				load_function(group, jcomponent);
-				load_reaction(group, jcomponent);
+				load_reaction(group.reaction, jcomponent);
 			}
 			else
 			if (type == "panel")
@@ -872,7 +882,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
-				load_reaction(view, jcomponent);
+				load_reaction(view.reaction, jcomponent);
 			}
 			else
 			if (type == "text")
@@ -881,7 +891,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
-				load_reaction(view, jcomponent);
+				load_reaction(view.reaction, jcomponent);
 			}
 			else
 			if (type == "texture")
@@ -890,7 +900,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
-				load_reaction(view, jcomponent);
+				load_reaction(view.reaction, jcomponent);
 			}
 			else
 			{

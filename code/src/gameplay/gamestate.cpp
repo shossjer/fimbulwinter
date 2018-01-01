@@ -558,6 +558,45 @@ namespace
 	}
 	profile_updater;
 
+	struct RecipeData
+	{
+		using Value = engine::gui::data::Value;
+		using Values = engine::gui::data::Values;
+		using KeyValue = engine::gui::data::KeyValue;
+		using KeyValues = engine::gui::data::KeyValues;
+
+		struct Recipe
+		{
+			std::string name;
+		};
+
+		std::vector<Recipe> recipes;
+
+		KeyValue message() const
+		{
+			KeyValue main{ engine::Asset{ "game" }, utility::in_place_type<KeyValues> };
+			KeyValues & game = utility::get<KeyValues>(main.second);
+
+			game.data.push_back(
+				KeyValue{ engine::Asset{ "recipes" }, utility::in_place_type<Values> });
+			Values & recipes = utility::get<Values>(game.data.back().second);
+
+			recipes.data.reserve(this->recipes.size());
+
+			for (auto & recipe : this->recipes)
+			{
+				recipes.data.emplace_back(utility::in_place_type<KeyValues>);
+
+				auto & recipe_map = utility::get<KeyValues>(recipes.data.back());
+
+				recipe_map.data.push_back(
+					KeyValue{ engine::Asset{ "name" },{ utility::in_place_type<std::string>, recipe.name } });
+			}
+
+			return main;
+		}
+	};
+
 	struct GUIComponent
 	{
 		engine::Entity id;
@@ -854,6 +893,16 @@ namespace
 	{
 		const auto & thdo = utility::get<0>(data.data);
 		debug_printline(thdo);
+
+		RecipeData gui_data{};
+
+		auto jrecipes = utility::get<0>(data.data);
+		for (auto & jdata : jrecipes)
+		{
+			gui_data.recipes.push_back(RecipeData::Recipe{ jdata["name"].get<std::string>() });
+		}
+
+		engine::gui::post(engine::gui::MessageData{ gui_data.message() });
 	}
 }
 
@@ -943,9 +992,16 @@ namespace gamestate
 		gameplay::create_level(engine::Entity::create(), "level");
 
 		// assign reaction structure to engine::gui
-		PlayerData data{};
-		data.skills.emplace_back(PlayerData::Skill{});
-		engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
+		{
+			PlayerData data{};
+			data.skills.emplace_back(PlayerData::Skill{});
+			engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
+		}
+		{
+			RecipeData data{};
+			data.recipes.emplace_back(RecipeData::Recipe{});
+			engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
+		}
 
 		// trigger first load of GUI
 		engine::gui::post(engine::gui::MessageReload{});

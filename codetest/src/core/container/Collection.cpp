@@ -31,7 +31,6 @@ TEST_CASE( "multicollection", "[core][container]" )
 		100,
 		std::array<float, 10>,
 		std::array<int, 10>,
-		std::array<std::nullptr_t, 10>,
 		std::array<long long, 10>,
 		std::array<char, 10>
 	> collection;
@@ -39,7 +38,6 @@ TEST_CASE( "multicollection", "[core][container]" )
 	CHECK(!collection.contains(7u));
 	CHECK(!collection.contains<float>(7u));
 	CHECK(!collection.contains<int>(7u));
-	CHECK(!collection.contains<std::nullptr_t>(7u));
 	CHECK(!collection.contains<long long>(7u));
 	CHECK(!collection.contains<char>(7u));
 
@@ -47,7 +45,6 @@ TEST_CASE( "multicollection", "[core][container]" )
 	collection.emplace<long long>(7u, 3ll);
 	REQUIRE(collection.contains(7u));
 	CHECK(!collection.contains<float>(7u));
-	CHECK(!collection.contains<std::nullptr_t>(7u));
 	CHECK(!collection.contains<char>(7u));
 	REQUIRE(collection.contains<int>(7u));
 	REQUIRE(collection.contains<long long>(7u));
@@ -59,7 +56,6 @@ TEST_CASE( "multicollection", "[core][container]" )
 	CHECK(collection.contains(7u));
 	REQUIRE(collection.contains(5u));
 	CHECK(!collection.contains<float>(5u));
-	CHECK(!collection.contains<std::nullptr_t>(5u));
 	CHECK(!collection.contains<long long>(5u));
 	REQUIRE(collection.contains<int>(5u));
 	REQUIRE(collection.contains<char>(5u));
@@ -112,7 +108,6 @@ TEST_CASE( "multicollection", "[core][container]" )
 	CHECK(collection.contains(7u));
 	CHECK(!collection.contains<int>(7u));
 	CHECK(!collection.contains<float>(7u));
-	CHECK(!collection.contains<std::nullptr_t>(7u));
 	CHECK(!collection.contains<char>(7u));
 	CHECK(collection.contains<long long>(7u));
 
@@ -121,7 +116,6 @@ TEST_CASE( "multicollection", "[core][container]" )
 	CHECK(!collection.contains(5u));
 	CHECK(!collection.contains<float>(5u));
 	CHECK(!collection.contains<int>(5u));
-	CHECK(!collection.contains<std::nullptr_t>(5u));
 	CHECK(!collection.contains<long long>(5u));
 	CHECK(!collection.contains<char>(5u));
 }

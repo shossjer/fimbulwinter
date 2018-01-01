@@ -11,6 +11,41 @@ namespace engine
 	{
 		namespace react
 		{
+			void update(ViewData & data, const std::size_t index)
+			{
+				if (!data.has_reaction())
+					return;
+
+				for (unsigned i = 0; i < data.reaction.size(); i++)
+				{
+					if (data.reaction[i].key == engine::Asset{ "*" })
+					{
+						data.reaction[i].key = engine::Asset{ std::to_string(index) };
+						break;
+					}
+				}
+			}
+			void update_observer_number(DataVariant & data, const std::size_t index)
+			{
+				struct BaseData
+				{
+					std::size_t index;
+
+					ViewData & operator() (GroupData & data)
+					{
+						for (auto & child : data.children)
+						{
+							update(visit(BaseData{index}, child), index);
+						}
+						return data;
+					}
+					ViewData & operator() (PanelData & data) { return data; }
+					ViewData & operator() (TextData & data) { return data; }
+					ViewData & operator() (TextureData & data) { return data; }
+				};
+
+				update(visit(BaseData{index}, data), index);
+			}
 			void update_size(View & parent, Function::List & list, const std::vector<data::Value> & data)
 			{
 				auto & parent_group = ViewUpdater::content<View::Group>(parent);
@@ -26,7 +61,9 @@ namespace engine
 					// create item views to match the size
 					for (std::size_t i = list.items.size(); i < data.size(); i++)
 					{
-						auto & item = creator.create(&parent, &parent_group, list.item_template);
+						auto copy = list.item_template;
+						update_observer_number(copy, i);
+						auto & item = creator.create(&parent, &parent_group, copy);
 						list.items.emplace_back(&item);
 					}
 					ViewUpdater::creation(parent);

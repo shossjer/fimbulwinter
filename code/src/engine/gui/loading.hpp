@@ -38,6 +38,11 @@ namespace gui
 		Margin margin;
 		Gravity gravity;
 
+		struct React
+		{
+			Asset key;
+		};
+
 		struct Action
 		{
 			static constexpr Asset CLOSE{ "close" };
@@ -59,23 +64,13 @@ namespace gui
 			static constexpr Asset TAB{ "tabBar" };
 
 			Asset type;
-			std::string observe;
+
+			std::vector<React> reaction;
 			std::vector<DataVariant> templates;
 		}
 		function;
 
-		struct Reaction
-		{
-			enum
-			{
-				NONE,
-				LIST,
-				TEXT
-			} type;
-			// TODO: update type etc, is target needed?
-			std::string observe;
-		}
-		reaction;
+		std::vector<React> reaction;
 
 		ViewData(std::string name, Size size, Margin margin, Gravity gravity)
 			: name(name)
@@ -84,7 +79,6 @@ namespace gui
 			, gravity(gravity)
 		{
 			function.type = Asset::null();
-			reaction.type = Reaction::NONE;
 		}
 
 		bool has_action() const
@@ -99,7 +93,7 @@ namespace gui
 
 		bool has_reaction() const
 		{
-			return this->reaction.type != Reaction::NONE;
+			return !this->reaction.empty();
 		}
 
 		// in one place a dynamic cast is performed...
