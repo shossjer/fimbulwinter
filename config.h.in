@@ -14,6 +14,13 @@
 
 /**
  */
+#cmakedefine CONSOLE_USE_KERNEL32 1
+/**
+ */
+#cmakedefine CONSOLE_USE_POSIX 1
+
+/**
+ */
 #cmakedefine SOUND_USE_OPENAL 1
 
 /**

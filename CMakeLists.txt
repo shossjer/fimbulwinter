@@ -186,12 +186,16 @@ if (PHYSICS_USE_PHYSX)
 	message(STATUS "Looking for Physx character debug - ${LIBRARY_PHYSX_CHARACTER_D}")
 	message(STATUS "Looking for Physx cooking debug - ${LIBRARY_PHYSX_COOKING_D}")
 endif()
-# Pthread
-message(STATUS "Looking for Pthread")
+# POSIX
+message(STATUS "Looking for POSIX")
+find_file(FILE_POLL_H poll.h)
+message(STATUS "Looking for POSIX poll - ${FILE_POLL_H}")
 find_file(FILE_PTHREAD_H pthread.h)
-message(STATUS "Looking for Pthread - ${FILE_PTHREAD_H}")
+message(STATUS "Looking for POSIX pthread - ${FILE_PTHREAD_H}")
 find_library(LIBRARY_PTHREAD pthread)
-message(STATUS "Looking for Pthread - ${LIBRARY_PTHREAD}")
+message(STATUS "Looking for POSIX pthread - ${LIBRARY_PTHREAD}")
+find_file(FILE_UNISTD_H unistd.h)
+message(STATUS "Looking for POSIX unistd - ${FILE_UNISTD_H}")
 # User32
 message(STATUS "Looking for User32")
 find_library(LIBRARY_USER32 user32)
@@ -289,6 +293,18 @@ if (PHYSICS_USE_BOX2D)
 endif()
 
 # select libraries
+# console
+if (FILE_POLL_H AND
+	 FILE_UNISTD_H)
+  message(STATUS "Console - POSIX")
+  set(CONSOLE_USE_POSIX 1)
+elseif (LIBRARY_KERNEL32)
+  message(STATUS "Console - Kernel32")
+  set(CONSOLE_USE_KERNEL32 1)
+else ()
+  message(WARNING "Console - Disabled")
+endif ()
+
 # graphics
 if (FILE_GL_GL_H AND
 	 FILE_GL_GLEXT_H AND

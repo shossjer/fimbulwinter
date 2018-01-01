@@ -10,6 +10,8 @@ set(SOURCE_FILES
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
 	src/engine/console.cpp
+	src/engine/console_kernel32.cpp
+	src/engine/console_posix.cpp
 	src/engine/graphics/opengl.cpp
 	src/engine/graphics/opengl/Font_freetype.cpp
 	src/engine/graphics/opengl/Font_user32.cpp
