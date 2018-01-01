@@ -14,6 +14,7 @@
 
 #include <unistd.h>
 
+#include <atomic>
 #include <stdexcept>
 
 namespace gameplay
@@ -214,6 +215,9 @@ namespace
 	/**
 	 */
 	Atom wm_delete_window;
+	/**
+	 */
+	std::atomic_int should_close_window(0);
 
 	/**
 	 */
@@ -544,6 +548,12 @@ namespace engine
 						}
 					}
 				}
+				{
+					if (should_close_window.load(std::memory_order_relaxed))
+					{
+						XUnmapWindow(render_display, render_window);
+					}
+				}
 				// swap buffers
 #ifdef GLX_VERSION_1_3
 				glXSwapBuffers(render_display, glx_window);
@@ -595,7 +605,7 @@ namespace engine
 
 			void close()
 			{
-				debug_printline(engine::application_channel, "WARNING: 'cronus::application::close' is not implemented");
+				should_close_window.store(1, std::memory_order_relaxed);
 			}
 		}
 	}
