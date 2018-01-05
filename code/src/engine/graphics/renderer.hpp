@@ -162,7 +162,9 @@ namespace engine
 			void post_make_transparent(engine::Entity entity);
 
 			void post_make_clear_selection();
+			void post_make_dehighlight(engine::Entity entity);
 			void post_make_deselect(engine::Entity entity);
+			void post_make_highlight(engine::Entity entity);
 			void post_make_select(engine::Entity entity);
 
 			void post_remove(engine::Entity entity);

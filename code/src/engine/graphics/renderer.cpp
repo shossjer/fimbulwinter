@@ -723,16 +723,20 @@ namespace
 	};
 
 
+	struct highlighted_t
+	{
+	};
+
 	struct selected_t
 	{
 	};
 
-	core::container::UnorderedCollection
+	core::container::MultiCollection
 	<
 		engine::Entity,
 		201,
-		std::array<selected_t, 100>,
-		std::array<selected_t, 1>
+		std::array<highlighted_t, 100>,
+		std::array<selected_t, 100>
 	>
 	selected_components;
 }
@@ -816,7 +820,15 @@ namespace
 	struct MessageMakeClearSelection
 	{
 	};
+	struct MessageMakeDehighlighted
+	{
+		engine::Entity entity;
+	};
 	struct MessageMakeDeselect
+	{
+		engine::Entity entity;
+	};
+	struct MessageMakeHighlighted
 	{
 		engine::Entity entity;
 	};
@@ -867,7 +879,9 @@ namespace
 		MessageMakeSelectable,
 		MessageMakeTransparent,
 		MessageMakeClearSelection,
+		MessageMakeDehighlighted,
 		MessageMakeDeselect,
+		MessageMakeHighlighted,
 		MessageMakeSelect,
 		MessageRemove,
 		MessageUpdateCharacterSkinning,
@@ -1016,19 +1030,21 @@ namespace
 				{
 					debug_fail(); // not implemented yet
 				}
+				void operator () (MessageMakeDehighlighted && x)
+				{
+					selected_components.try_remove<highlighted_t>(x.entity);
+				}
 				void operator () (MessageMakeDeselect && x)
 				{
-					if (selected_components.contains(x.entity))
-					{
-						selected_components.remove(x.entity);
-					}
+					selected_components.try_remove<selected_t>(x.entity);
+				}
+				void operator () (MessageMakeHighlighted && x)
+				{
+					selected_components.emplace<highlighted_t>(x.entity);
 				}
 				void operator () (MessageMakeSelect && x)
 				{
-					if (!selected_components.contains(x.entity))
-					{
-						selected_components.emplace<selected_t>(x.entity);
-					}
+					selected_components.emplace<selected_t>(x.entity);
 				}
 				void operator () (MessageRemove && x)
 				{
@@ -1108,7 +1124,6 @@ namespace
 	GLuint entitybuffers[2]; // color, depth
 	std::vector<uint32_t> entitypixels;
 	std::atomic<int> entitytoggle;
-	engine::Entity highlighted_entity = engine::Entity::null();
 	engine::graphics::opengl::Color4ub highlighted_color{255, 191, 64, 255};
 	engine::graphics::opengl::Color4ub selected_color{64, 191, 255, 255};
 
@@ -1589,8 +1604,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = entity == highlighted_entity;
-			const bool is_selected = selected_components.contains(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
 
 			if (is_highlighted)
 				glColor(highlighted_color);
@@ -1608,8 +1623,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = entity == highlighted_entity;
-			const bool is_selected = selected_components.contains(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
 
 			glLineWidth(2.f);
 			if (is_highlighted)
@@ -1641,8 +1656,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = entity == highlighted_entity;
-			const bool is_selected = selected_components.contains(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
 
 			const mesh_t & mesh = *component.mesh;
 
@@ -1706,8 +1721,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = entity == highlighted_entity;
-			const bool is_selected = selected_components.contains(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
 
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
@@ -2040,9 +2055,19 @@ namespace engine
 				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeClearSelection>);
 				debug_assert(res);
 			}
+			void post_make_dehighlight(engine::Entity entity)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeDehighlighted>, entity);
+				debug_assert(res);
+			}
 			void post_make_deselect(engine::Entity entity)
 			{
 				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeDeselect>, entity);
+				debug_assert(res);
+			}
+			void post_make_highlight(engine::Entity entity)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeHighlighted>, entity);
 				debug_assert(res);
 			}
 			void post_make_select(engine::Entity entity)

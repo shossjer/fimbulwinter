@@ -607,13 +607,24 @@ namespace
 
 	struct
 	{
+		void operator () (engine::Entity entity, const Worker & x)
+		{
+			engine::graphics::renderer::post_make_highlight(entity);
+		}
+		void operator () (engine::Entity entity, const Workstation & x)
+		{
+			engine::graphics::renderer::post_make_highlight(entity);
+		}
+
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Highlight entity: ", c.id);
 			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::HIGHLIGHT });
 		}
 
-		template <typename W>
+		template <typename W,
+		          REQUIRES((!mpl::is_same<Worker, W>::value)),
+		          REQUIRES((!mpl::is_same<Workstation, W>::value))>
 		void operator () (const W & w)
 		{
 		}
@@ -622,6 +633,15 @@ namespace
 
 	struct
 	{
+		void operator () (engine::Entity entity, const Worker & x)
+		{
+			engine::graphics::renderer::post_make_dehighlight(entity);
+		}
+		void operator () (engine::Entity entity, const Workstation & x)
+		{
+			engine::graphics::renderer::post_make_dehighlight(entity);
+		}
+
 		void operator () (const GUIComponent & c)
 		{
 			debug_printline(gameplay::gameplay_channel, "Gamestate - Lowlight entity: ", c.id);
@@ -629,7 +649,9 @@ namespace
 
 		}
 
-		template <typename W>
+		template <typename W,
+		          REQUIRES((!mpl::is_same<Worker, W>::value)),
+		          REQUIRES((!mpl::is_same<Workstation, W>::value))>
 		void operator () (const W & w)
 		{
 		}

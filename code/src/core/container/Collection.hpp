@@ -581,6 +581,20 @@ namespace core
 			{
 				remove_impl(find(key), mpl::make_index_sequence<sizeof...(Cs)>{});
 			}
+			template <typename C>
+			void try_remove(K key)
+			{
+				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
+
+				const auto bucket = try_find(key);
+				if (bucket == bucket_t(-1))
+					return;
+
+				const auto index = slots[bucket].template get_index<type>();
+				debug_assert(index >= 0);
+
+				remove_at_impl<type>(bucket, index);
+			}
 
 			template <typename F>
 			auto call(K key, F && func) ->
@@ -965,19 +979,39 @@ namespace core
 			void remove(K key)
 			{
 				const auto bucket = find(key);
-				const auto index = slots[bucket].get_index();
 
-				switch (slots[bucket].get_type())
-				{
-#define CASE(n) case (n):	  \
-					remove_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, bucket, index); \
-					break
+				remove_component(bucket);
+				slots[bucket].clear();
+			}
+			template <typename Component, typename ...Ps>
+			Component & replace(K key, Ps && ... ps)
+			{
+				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
 
-					PP_EXPAND_128(CASE, 0);
-#undef CASE
-				default:
-					intrinsic_unreachable();
-				}
+				const auto bucket = try_find(key);
+				if (bucket == bucket_t(-1))
+					return emplace<Component>(key, std::forward<Ps>(ps)...);
+
+				remove_component(bucket);
+
+				auto & array = std::get<type>(arrays);
+				debug_assert(array.size < array.capacity);
+				const auto index = array.free_indices[array.size];
+
+				slots[bucket].set(type, index);
+				array.construct(index, std::forward<Ps>(ps)...);
+				array.size++;
+
+				return array.get(index);
+			}
+			void try_remove(K key)
+			{
+				const auto bucket = try_find(key);
+				if (bucket == bucket_t(-1))
+					return;
+
+				remove_component(bucket);
+				slots[bucket].clear();
 			}
 
 			template <typename F>
@@ -1077,28 +1111,42 @@ namespace core
 						if (busy_index == -1)
 							continue;
 
-						array.components.destruct_at(busy_index);
+						array.destruct(busy_index);
 					}
 				}
 				array.size = 0;
 
 				clear_all_impl(mpl::index_sequence<types...>{});
 			}
-			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t bucket, uint24_t index)
+			void remove_component_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index)
 			{
 				intrinsic_unreachable();
 			}
 			template <std::size_t type>
-			void remove_impl(mpl::index_constant<type>, bucket_t bucket, uint24_t index)
+			void remove_component_impl(mpl::index_constant<type>, uint24_t index)
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.capacity);
 
-				slots[bucket].clear();
-				// keys[bucket] = ??? // not needed
 				array.destruct(index);
 				array.free_indices[array.size - 1] = index;
 				array.size--;
+			}
+			void remove_component(bucket_t bucket)
+			{
+				const auto index = slots[bucket].get_index();
+
+				switch (slots[bucket].get_type())
+				{
+#define CASE(n) case (n):	  \
+					remove_component_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, index); \
+					break
+
+					PP_EXPAND_128(CASE, 0);
+#undef CASE
+				default:
+					intrinsic_unreachable();
+				}
 			}
 
 			template <typename F>
