@@ -21,6 +21,16 @@ namespace engine
 	{
 		namespace reader
 		{
+			struct Data
+			{
+				utility::variant<json, int> data;
+
+				Data() = default;
+				Data(json && data)
+					: data(std::move(data))
+				{}
+			};
+
 			struct Level
 			{
 				struct Mesh
@@ -57,6 +67,7 @@ namespace engine
 				{}
 			};
 
+			void post_read_data(std::string name, void (* callback)(std::string name, Data && data));
 			void post_read_level(std::string name, void (* callback)(std::string name, Level && data));
 			void post_read_placeholder(std::string name, void (* callback)(std::string name, Placeholder && data));
 		}

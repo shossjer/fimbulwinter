@@ -203,6 +203,11 @@ namespace
 
 namespace
 {
+	struct MessageReadData
+	{
+		std::string name;
+		void (* callback)(std::string name, engine::resource::reader::Data && data);
+	};
 	struct MessageReadLevel
 	{
 		std::string name;
@@ -215,6 +220,7 @@ namespace
 	};
 	using Message = utility::variant
 	<
+		MessageReadData,
 		MessageReadLevel,
 		MessageReadPlaceholder
 	>;
@@ -231,6 +237,22 @@ namespace
 		{
 			struct ProcessMessage
 			{
+				void operator () (MessageReadData && x)
+				{
+					if (check_if_json(x.name))
+					{
+						std::ifstream ifile("res/" + x.name + ".json");
+						debug_assert(ifile);
+
+						json j;
+						read_json(ifile, j);
+						x.callback(std::move(x.name), engine::resource::reader::Data(std::move(j)));
+					}
+					else
+					{
+						debug_fail();
+					}
+				}
 				void operator () (MessageReadLevel && x)
 				{
 					engine::resource::reader::Level level;
@@ -326,6 +348,10 @@ namespace engine
 				renderThread.join();
 			}
 
+			void post_read_data(std::string name, void (* callback)(std::string name, Data && data))
+			{
+				post_message<MessageReadData>(std::move(name), callback);
+			}
 			void post_read_level(std::string name, void (* callback)(std::string name, Level && data))
 			{
 				post_message<MessageReadLevel>(std::move(name), callback);
