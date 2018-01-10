@@ -39,7 +39,7 @@ namespace engine
 
 		using Components = core::container::Collection
 		<
-			engine::Entity, 202,
+			engine::Entity, 401,
 			std::array<Function, 101>,
 			std::array<View, 101>
 		>;
