@@ -628,18 +628,18 @@ namespace
 	{
 		engine::Asset window;
 
-		void operator = (std::pair<engine::Command, utility::any> && args)
+		void translate(engine::Command command, utility::any && data)
 		{
-			switch (args.first)
+			switch (command)
 			{
 			case engine::Command::BUTTON_DOWN_ACTIVE:
 			case engine::Command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				engine::gui::post(engine::gui::MessageVisibility{ window, engine::gui::MessageVisibility::TOGGLE });
 				break;
 			case engine::Command::BUTTON_UP_ACTIVE:
 			case engine::Command::BUTTON_UP_INACTIVE:
-				debug_assert(!args.second.has_value());
+				debug_assert(!data.has_value());
 				break;
 			default:
 				debug_unreachable();
