@@ -11,18 +11,7 @@
 #include <engine/Asset.hpp>
 #include <engine/graphics/renderer.hpp>
 
-namespace engine
-{
-	namespace graphics
-	{
-		namespace renderer
-		{
-			extern void notify(Camera2D && data);
-			extern void notify(Camera3D && data);
-			extern void notify(Viewport && data);
-		}
-	}
-}
+#include "utility/variant.hpp"
 
 namespace
 {
@@ -33,45 +22,198 @@ namespace
 
 	dimension_t dimension = {0, 0};
 
-	engine::Entity active_2d = engine::Entity::null();
-	engine::Entity active_3d = engine::Entity::null();
-
 	// screen_coords = screen * projection * view * world_coords
-	core::maths::Matrix4x4f screen = core::maths::Matrix4x4f::identity();
-	core::maths::Matrix4x4f projection = core::maths::Matrix4x4f::identity();
-	core::maths::Matrix4x4f view = core::maths::Matrix4x4f::identity();
 	// world_coords = inv_view * inv_projection * inv_screen * screen_coords
-	core::maths::Matrix4x4f inv_screen = core::maths::Matrix4x4f::identity();
-	core::maths::Matrix4x4f inv_projection = core::maths::Matrix4x4f::identity();
-	core::maths::Matrix4x4f inv_view = core::maths::Matrix4x4f::identity();
+
+	struct Viewport
+	{
+		engine::Asset asset;
+
+		int x;
+		int y;
+		int width;
+		int height;
+
+		engine::Entity camera;
+
+		Viewport(engine::Asset asset, int x, int y, int width, int height, engine::Entity camera)
+			: asset(asset)
+			, x(x)
+			, y(y)
+			, width(width)
+			, height(height)
+			, camera(camera)
+		{}
+	};
+
+	std::vector<Viewport> viewports;
+
+
+	struct DynamicFrame
+	{
+		engine::Entity camera;
+
+		DynamicFrame(engine::graphics::viewer::dynamic && data)
+		{}
+	};
+	struct FixedFrame
+	{
+		int width;
+		int height;
+
+		engine::Entity camera;
+
+		FixedFrame(engine::graphics::viewer::fixed && data)
+			: width(data.width)
+			, height(data.height)
+		{}
+	};
+
+	struct Root
+	{
+		engine::Asset node;
+	};
+	struct HorizontalSplit
+	{
+		engine::Asset bottom;
+		engine::Asset top;
+
+		HorizontalSplit(engine::graphics::viewer::horizontal && data)
+		{}
+	};
+	struct VerticalSplit
+	{
+		engine::Asset left;
+		engine::Asset right;
+
+		VerticalSplit(engine::graphics::viewer::vertical && data)
+		{}
+	};
+
+	core::container::UnorderedCollection
+	<
+		engine::Asset,
+		83,
+		std::array<DynamicFrame, 10>,
+		std::array<FixedFrame, 10>,
+		std::array<Root, 1>,
+		std::array<HorizontalSplit, 10>,
+		std::array<VerticalSplit, 10>
+	>
+	nodes;
+
+	struct add_child
+	{
+		engine::Asset child;
+		int slot;
+
+		void operator () (DynamicFrame & x)
+		{
+			debug_unreachable();
+		}
+		void operator () (FixedFrame & x)
+		{
+			debug_unreachable();
+		}
+		void operator () (Root & x)
+		{
+			debug_assert(x.node == engine::Asset::null());
+			x.node = child;
+		}
+		void operator () (HorizontalSplit & x)
+		{
+			switch (slot)
+			{
+			case 0:
+				debug_assert(x.bottom == engine::Asset::null());
+				x.bottom = child;
+				break;
+			case 1:
+				debug_assert(x.top == engine::Asset::null());
+				x.top = child;
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+		void operator () (VerticalSplit & x)
+		{
+			switch (slot)
+			{
+			case 0:
+				debug_assert(x.left == engine::Asset::null());
+				x.left = child;
+				break;
+			case 1:
+				debug_assert(x.right == engine::Asset::null());
+				x.right = child;
+				break;
+			default:
+				debug_unreachable();
+			}
+		}
+	};
+
+	struct bind_camera_to_frame
+	{
+		engine::Entity camera;
+
+		void operator () (DynamicFrame & x)
+		{
+			x.camera = camera;
+		}
+		void operator () (FixedFrame & x)
+		{
+			x.camera = camera;
+		}
+		void operator () (Root & x)
+		{
+			debug_unreachable();
+		}
+		void operator () (HorizontalSplit & x)
+		{
+			debug_unreachable();
+		}
+		void operator () (VerticalSplit & x)
+		{
+			debug_unreachable();
+		}
+	};
+
+	struct unbind_camera_from_frame
+	{
+		void operator () (DynamicFrame & x)
+		{
+			x.camera = engine::Entity::null();
+		}
+		void operator () (FixedFrame & x)
+		{
+			x.camera = engine::Entity::null();
+		}
+		void operator () (Root & x)
+		{
+			debug_unreachable();
+		}
+		void operator () (HorizontalSplit & x)
+		{
+			debug_unreachable();
+		}
+		void operator () (VerticalSplit & x)
+		{
+			debug_unreachable();
+		}
+	};
+
 
 	struct Orthographic
 	{
 		float zNear;
 		float zFar;
 
-		core::maths::Matrix4x4f projection;
-
-		Orthographic(engine::graphics::viewer::orthographic && data) :
-			zNear(static_cast<float>(data.zNear)),
-			zFar(static_cast<float>(data.zFar))
-		{
-		}
-
-		Orthographic & operator = (engine::graphics::renderer::Camera2D & data)
-		{
-			data.projection = core::maths::Matrix4x4f::ortho(0.f, float(dimension.width),
-			                                                 float(dimension.height), 0.f,
-			                                                 zNear, zFar);
-			return *this;
-		}
-		Orthographic & operator = (engine::graphics::renderer::Camera3D & data)
-		{
-			data.projection = core::maths::Matrix4x4f::ortho(0.f, float(dimension.width),
-			                                                 float(dimension.height), 0.f,
-			                                                 zNear, zFar);
-			return *this;
-		}
+		Orthographic(engine::graphics::viewer::orthographic && data)
+			: zNear(static_cast<float>(data.zNear))
+			, zFar(static_cast<float>(data.zFar))
+		{}
 	};
 	struct Perspective
 	{
@@ -79,42 +221,53 @@ namespace
 		float zNear;
 		float zFar;
 
-		Perspective(engine::graphics::viewer::perspective && data) :
-			fovy(static_cast<float>(data.fovy.get())),
-			zNear(static_cast<float>(data.zNear)),
-			zFar(static_cast<float>(data.zFar))
-		{
-		}
+		Perspective(engine::graphics::viewer::perspective && data)
+			: fovy(static_cast<float>(data.fovy.get()))
+			, zNear(static_cast<float>(data.zNear))
+			, zFar(static_cast<float>(data.zFar))
+		{}
+	};
 
-		Perspective & operator = (engine::graphics::renderer::Camera3D & data)
+	core::container::UnorderedCollection
+	<
+		engine::Asset,
+		41,
+		std::array<Orthographic, 10>,
+		std::array<Perspective, 10>
+	>
+	projections;
+
+	struct extract_projection_matrices_3d
+	{
+		const Viewport & viewport;
+		engine::graphics::renderer::camera_3d & data;
+
+		void operator () (Orthographic & x)
 		{
-			data.projection = core::maths::Matrix4x4f::perspective(fovy,
-			                                                       float(double(dimension.width) / double(dimension.height)),
-			                                                       zNear, zFar,
+			data.projection = core::maths::Matrix4x4f::ortho(0.f, static_cast<float>(viewport.width),
+			                                                 static_cast<float>(viewport.height), 0.f,
+			                                                 x.zNear, x.zFar);
+		}
+		void operator () (Perspective & x)
+		{
+			data.projection = core::maths::Matrix4x4f::perspective(x.fovy,
+			                                                       static_cast<float>(static_cast<double>(viewport.width) / static_cast<double>(viewport.height)),
+			                                                       x.zNear, x.zFar,
 			                                                       data.inv_projection);
-			return *this;
 		}
 	};
 
-	// core::container::UnorderedCollection
-	// <
-	// 	engine::extras::Asset,
-	// 	41,
-	// 	std::array<Orthographic, 10>,
-	// 	std::array<Perspective, 10>
-	// >
-	// projections;
-	Orthographic projection2D{engine::graphics::viewer::orthographic{-100., +100.}};
-	Perspective projection3D{engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.}};
 
 	struct Camera
 	{
+		engine::Asset projection;
 		core::maths::Quaternionf rotation;
 		core::maths::Vector3f translation;
 
-		Camera(engine::graphics::viewer::camera && data) :
-			rotation(std::move(data.rotation)),
-			translation(std::move(data.translation))
+		Camera(engine::graphics::viewer::camera && data)
+			: projection(data.projection)
+			, rotation(std::move(data.rotation))
+			, translation(std::move(data.translation))
 		{}
 	};
 
@@ -127,7 +280,17 @@ namespace
 	>
 	cameras;
 
-	struct camera_rotate
+	struct update_camera_projection
+	{
+		engine::graphics::viewer::projection && data;
+
+		void operator () (Camera & x)
+		{
+			x.projection = data.projection;
+		}
+	};
+
+	struct update_camera_rotate
 	{
 		engine::graphics::viewer::rotate && data;
 
@@ -137,7 +300,7 @@ namespace
 		}
 	};
 
-	struct camera_translate
+	struct update_camera_translate
 	{
 		engine::graphics::viewer::translate && data;
 
@@ -147,7 +310,7 @@ namespace
 		}
 	};
 
-	struct camera_set_rotation
+	struct update_camera_rotation
 	{
 		engine::graphics::viewer::rotation && data;
 
@@ -157,73 +320,212 @@ namespace
 		}
 	};
 
-	struct camera_set_translation
+	struct update_camera_translation
 	{
 		engine::graphics::viewer::translation && data;
 
+		void operator () ()
+		{}
 		void operator () (Camera & x)
 		{
 			x.translation = data.v;
 		}
 	};
 
-	struct camera_extract_2d
+	struct extract_camera_matrices_3d
 	{
-		engine::graphics::renderer::Camera2D & data;
+		const Viewport & viewport;
 
-		void operator () (const Camera & x)
+		engine::graphics::renderer::camera_3d operator () (const Camera & x)
 		{
-			auto & matrix = data.view;
-			matrix = make_matrix(x.rotation); // conjugate?
-			matrix.set_column(3, matrix * to_xyz1(-x.translation));
+			engine::graphics::renderer::camera_3d data;
+			projections.call(x.projection, extract_projection_matrices_3d{viewport, data});
+			data.view = make_matrix(conjugate(x.rotation));
+			data.view.set_column(3, data.view * to_xyz1(-x.translation));
+			data.inv_view = make_matrix(x.rotation);
+			data.inv_view.set_column(3, data.view * to_xyz1(x.translation));
+			return data;
 		}
 	};
 
-	struct camera_extract_3d
-	{
-		engine::graphics::renderer::Camera3D & data;
 
-		void operator () (const Camera & x)
+	void build_viewports()
+	{
+		viewports.clear();
+
+		struct BuildViewports
 		{
-			auto & matrix = data.view;
-			matrix = make_matrix(conjugate(x.rotation));
-			matrix.set_column(3, matrix * to_xyz1(-x.translation));
-			auto & inv_matrix = data.inv_view;
-			inv_matrix = make_matrix(x.rotation);
-			inv_matrix.set_column(3, to_xyz1(x.translation));
-		}
-	};
+			int x;
+			int y;
+			int width;
+			int height;
+
+			void operator () (engine::Asset asset, const DynamicFrame & node)
+			{
+				viewports.emplace_back(asset, x, y, width, height, node.camera);
+			}
+			void operator () (engine::Asset asset, const FixedFrame & node)
+			{
+				viewports.emplace_back(asset, x, y, width, height, node.camera);
+			}
+			void operator () (const Root & node)
+			{
+				if (node.node != engine::Asset::null())
+				{
+					nodes.call(node.node, *this);
+				}
+			}
+			void operator () (const HorizontalSplit & node)
+			{
+				const int half_height = height / 2;
+
+				if (node.bottom != engine::Asset::null())
+				{
+					nodes.call(node.bottom, BuildViewports{x, y + half_height, width, height - half_height});
+				}
+
+				if (node.top != engine::Asset::null())
+				{
+					nodes.call(node.top, BuildViewports{x, y, width, half_height});
+				}
+			}
+			void operator () (const VerticalSplit & node)
+			{
+				const int half_width = width / 2;
+
+				if (node.left != engine::Asset::null())
+				{
+					nodes.call(node.left, BuildViewports{x, y, half_width, height});
+				}
+
+				if (node.right != engine::Asset::null())
+				{
+					nodes.call(node.right, BuildViewports{x + half_width, y, width - half_width, height});
+				}
+			}
+		};
+
+		nodes.call("root", BuildViewports{0, 0, dimension.width, dimension.height});
+	}
 }
 
 namespace
 {
-	core::container::ExchangeQueueSRSW<dimension_t> queue_dimension;
+	struct MessageAddFrameDynamic
+	{
+		engine::Asset asset;
+		engine::graphics::viewer::dynamic data;
+	};
+	struct MessageAddFrameFixed
+	{
+		engine::Asset asset;
+		engine::graphics::viewer::fixed data;
+	};
+	struct MessageRemoveFrame
+	{
+		engine::Asset asset;
+	};
 
-	// core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	//                                            engine::graphics::viewer::orthographic>,
-	//                                  10> queue_add_orthographic;
-	// core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	//                                            engine::graphics::viewer::perspective>,
-	//                                  10> queue_add_perspective;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::viewer::camera>,
-	                                 10> queue_add_camera;
-	core::container::CircleQueueSRMW<engine::Entity,
-	                                 10> queue_remove;
-	core::container::ExchangeQueueSRMW<engine::Entity> queue_set_active_2d;
-	core::container::ExchangeQueueSRMW<engine::Entity> queue_set_active_3d;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::viewer::rotate>,
-	                                 10> queue_update_rotate;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::viewer::rotation>,
-	                                 10> queue_update_rotation;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::viewer::translate>,
-	                                 10> queue_update_translate;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity,
-	                                           engine::graphics::viewer::translation>,
-	                                 10> queue_update_translation;
+	struct MessageAddSplitHorizontal
+	{
+		engine::Asset asset;
+		engine::graphics::viewer::horizontal data;
+	};
+	struct MessageAddSplitVertical
+	{
+		engine::Asset asset;
+		engine::graphics::viewer::vertical data;
+	};
+	struct MessageRemoveSplit
+	{
+		engine::Asset asset;
+	};
+
+	struct MessageAddProjectionOrthographic
+	{
+		engine::Asset asset;
+		engine::graphics::viewer::orthographic data;
+	};
+	struct MessageAddProjectionPerspective
+	{
+		engine::Asset asset;
+		engine::graphics::viewer::perspective data;
+	};
+	struct MessageRemoveProjection
+	{
+		engine::Asset asset;
+	};
+
+	struct MessageAddCamera
+	{
+		engine::Entity entity;
+		engine::graphics::viewer::camera data;
+	};
+	struct MessageRemoveCamera
+	{
+		engine::Entity entity;
+	};
+	struct MessageUpdateCameraProjection
+	{
+		engine::Entity entity;
+		engine::graphics::viewer::projection data;
+	};
+	struct MessageUpdateCameraRotate
+	{
+		engine::Entity entity;
+		engine::graphics::viewer::rotate data;
+	};
+	struct MessageUpdateCameraRotation
+	{
+		engine::Entity entity;
+		engine::graphics::viewer::rotation data;
+	};
+	struct MessageUpdateCameraTranslate
+	{
+		engine::Entity entity;
+		engine::graphics::viewer::translate data;
+	};
+	struct MessageUpdateCameraTranslation
+	{
+		engine::Entity entity;
+		engine::graphics::viewer::translation data;
+	};
+
+	struct MessageBind
+	{
+		engine::Asset frame;
+		engine::Entity camera;
+	};
+	struct MessageUnbind
+	{
+		engine::Asset frame;
+	};
+
+	using Message = utility::variant
+	<
+		MessageAddCamera,
+		MessageAddFrameDynamic,
+		MessageAddFrameFixed,
+		MessageAddProjectionOrthographic,
+		MessageAddProjectionPerspective,
+		MessageAddSplitHorizontal,
+		MessageAddSplitVertical,
+		MessageBind,
+		MessageRemoveCamera,
+		MessageRemoveFrame,
+		MessageRemoveProjection,
+		MessageRemoveSplit,
+		MessageUnbind,
+		MessageUpdateCameraProjection,
+		MessageUpdateCameraRotate,
+		MessageUpdateCameraRotation,
+		MessageUpdateCameraTranslate,
+		MessageUpdateCameraTranslation
+	>;
+
+	core::container::ExchangeQueueSRSW<std::pair<int, int>> queue_resize;
+
+	core::container::CircleQueueSRMW<Message, 50> queue_messages;
 }
 
 namespace engine
@@ -232,233 +534,257 @@ namespace engine
 	{
 		namespace viewer
 		{
+			void create()
+			{
+				nodes.emplace<Root>("root", engine::Asset::null());
+			}
+
+			void destroy()
+			{}
+
 			void update()
 			{
-				bool camera2d_has_changed = false;
-				bool camera3d_has_changed = false;
-				bool viewport_has_changed = false;
+				bool rebuild_viewports = false;
+				bool rebuild_matrices = false;
+
 				//
 				// read messages
 				//
-				// std::pair<engine::Entity,
-				//           engine::graphics::viewer::orthographic> message_add_orthographic;
-				// while (queue_add_orthographic.try_pop(message_add_orthographic))
-				// {
-				// 	components.add(message_add_orthographic.first,
-				// 	               std::move(message_add_orthographic.second));
-				// }
-				// std::pair<engine::Entity,
-				//           engine::graphics::viewer::perspective> message_add_perspective;
-				// while (queue_add_perspective.try_pop(message_add_perspective))
-				// {
-				// 	components.add(message_add_perspective.first,
-				// 	               std::move(message_add_perspective.second));
-				// }
-				std::pair<engine::Entity,
-				          engine::graphics::viewer::camera> message_add_camera;
-				while (queue_add_camera.try_pop(message_add_camera))
+				Message message;
+				while (queue_messages.try_pop(message))
 				{
-					cameras.emplace<Camera>(message_add_camera.first,
-					                        std::move(message_add_camera.second));
-				}
-				engine::Entity message_remove;
-				while (queue_remove.try_pop(message_remove))
-				{
-					cameras.remove(message_remove);
-				}
-				engine::Entity message_set_active_2d;
-				if (queue_set_active_2d.try_pop(message_set_active_2d))
-				{
-					if (active_2d != message_set_active_2d)
+					struct ProcessMessage
 					{
-						active_2d = message_set_active_2d;
-						camera2d_has_changed = true;
-					}
+						bool & rebuild_viewports;
+						bool & rebuild_matrices;
+
+						void operator () (MessageAddCamera && data)
+						{
+							cameras.emplace<Camera>(data.entity, std::move(data.data));
+						}
+						void operator () (MessageAddFrameDynamic && data)
+						{
+							debug_assert(nodes.contains(data.data.parent));
+							nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
+							nodes.emplace<DynamicFrame>(data.asset, std::move(data.data));
+						}
+						void operator () (MessageAddFrameFixed && data)
+						{
+							debug_assert(nodes.contains(data.data.parent));
+							nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
+							nodes.emplace<FixedFrame>(data.asset, std::move(data.data));
+						}
+						void operator () (MessageAddProjectionOrthographic && data)
+						{
+							projections.emplace<Orthographic>(data.asset, std::move(data.data));
+						}
+						void operator () (MessageAddProjectionPerspective && data)
+						{
+							projections.emplace<Perspective>(data.asset, std::move(data.data));
+						}
+						void operator () (MessageAddSplitHorizontal && data)
+						{
+							debug_assert(nodes.contains(data.data.parent));
+							nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
+							nodes.emplace<HorizontalSplit>(data.asset, std::move(data.data));
+						}
+						void operator () (MessageAddSplitVertical && data)
+						{
+							debug_assert(nodes.contains(data.data.parent));
+							nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
+							nodes.emplace<VerticalSplit>(data.asset, std::move(data.data));
+						}
+						void operator () (MessageBind && data)
+						{
+							nodes.call(data.frame, bind_camera_to_frame{data.camera});
+							rebuild_viewports = true;
+						}
+						void operator () (MessageRemoveCamera && data)
+						{
+							cameras.remove(data.entity);
+						}
+						void operator () (MessageRemoveFrame && data)
+						{
+							nodes.remove(data.asset);
+						}
+						void operator () (MessageRemoveProjection && data)
+						{
+							projections.remove(data.asset);
+						}
+						void operator () (MessageRemoveSplit && data)
+						{
+							nodes.remove(data.asset);
+						}
+						void operator () (MessageUnbind && data)
+						{
+							nodes.call(data.frame, unbind_camera_from_frame{});
+							rebuild_viewports = true;
+						}
+						void operator () (MessageUpdateCameraProjection && data)
+						{
+							cameras.call(data.entity, update_camera_projection{std::move(data.data)});
+							rebuild_matrices = true;
+						}
+						void operator () (MessageUpdateCameraRotate && data)
+						{
+							cameras.call(data.entity, update_camera_rotate{std::move(data.data)});
+							rebuild_matrices = true;
+						}
+						void operator () (MessageUpdateCameraRotation && data)
+						{
+							cameras.call(data.entity, update_camera_rotation{std::move(data.data)});
+							rebuild_matrices = true;
+						}
+						void operator () (MessageUpdateCameraTranslate && data)
+						{
+							cameras.call(data.entity, update_camera_translate{std::move(data.data)});
+							rebuild_matrices = true;
+						}
+						void operator () (MessageUpdateCameraTranslation && data)
+						{
+							cameras.try_call(data.entity, update_camera_translation{std::move(data.data)});
+							rebuild_matrices = true;
+						}
+					};
+
+					visit(ProcessMessage{rebuild_viewports, rebuild_matrices}, std::move(message));
 				}
-				engine::Entity message_set_active_3d;
-				if (queue_set_active_3d.try_pop(message_set_active_3d))
-				{
-					if (active_3d != message_set_active_3d)
-					{
-						active_3d = message_set_active_3d;
-						camera3d_has_changed = true;
-					}
-				}
-				std::pair<engine::Entity,
-				          engine::graphics::viewer::rotate> message_update_rotate;
-				while (queue_update_rotate.try_pop(message_update_rotate))
-				{
-					cameras.call(message_update_rotate.first,
-					             camera_rotate{std::move(message_update_rotate.second)});
-					if (message_update_rotate.first == active_2d) camera2d_has_changed = true;
-					if (message_update_rotate.first == active_3d) camera3d_has_changed = true;
-				}
-				std::pair<engine::Entity,
-				          engine::graphics::viewer::rotation> message_update_rotation;
-				while (queue_update_rotation.try_pop(message_update_rotation))
-				{
-					cameras.call(message_update_rotation.first,
-					             camera_set_rotation{std::move(message_update_rotation.second)});
-					if (message_update_rotation.first == active_2d) camera2d_has_changed = true;
-					if (message_update_rotation.first == active_3d) camera3d_has_changed = true;
-				}
-				std::pair<engine::Entity,
-				          engine::graphics::viewer::translate> message_update_translate;
-				while (queue_update_translate.try_pop(message_update_translate))
-				{
-					cameras.call(message_update_translate.first,
-					             camera_translate{std::move(message_update_translate.second)});
-					if (message_update_translate.first == active_2d) camera2d_has_changed = true;
-					if (message_update_translate.first == active_3d) camera3d_has_changed = true;
-				}
-				std::pair<engine::Entity,
-				          engine::graphics::viewer::translation> message_update_translation;
-				while (queue_update_translation.try_pop(message_update_translation))
-				{
-					cameras.call(message_update_translation.first,
-					             camera_set_translation{std::move(message_update_translation.second)});
-					if (message_update_translation.first == active_2d) camera2d_has_changed = true;
-					if (message_update_translation.first == active_3d) camera3d_has_changed = true;
-				}
+
 				//
 				// read notifications
 				//
-				dimension_t notification_dimension;
-				if (queue_dimension.try_pop(notification_dimension))
+				std::pair<int, int> notification_resize;
+				if (queue_resize.try_pop(notification_resize))
 				{
-					dimension = notification_dimension;
-					camera2d_has_changed = true;
-					camera3d_has_changed = true;
-					viewport_has_changed = true;
+					dimension.width = notification_resize.first;
+					dimension.height = notification_resize.second;
+					rebuild_viewports = true;
 				}
+
 				//
 				// write notifications
 				//
-				if (camera2d_has_changed)
+				if (rebuild_viewports)
 				{
-					engine::graphics::renderer::Camera2D data;
-					projection2D = data; // ???
-					if (active_2d == engine::Entity::null())
-						data.view = core::maths::Matrix4x4f::identity();
-					else
-						cameras.call(active_2d, camera_extract_2d{data});
-					notify(std::move(data));
-				}
-				if (camera3d_has_changed)
-				{
-					engine::graphics::renderer::Camera3D data;
-					projection3D = data; // ???
-					if (active_3d == engine::Entity::null())
+					for (const Viewport & viewport : viewports)
 					{
-						data.view = core::maths::Matrix4x4f::identity();
-						data.inv_view = core::maths::Matrix4x4f::identity();
+						engine::graphics::renderer::post_remove_display(viewport.asset);
 					}
-					else
-						cameras.call(active_3d, camera_extract_3d{data});
-					projection = data.projection;
-					view = data.view;
-					inv_projection = data.inv_projection;
-					inv_view = data.inv_view;
-					notify(std::move(data));
+
+					build_viewports();
+
+					for (const Viewport & viewport : viewports)
+					{
+						engine::graphics::renderer::post_add_display(viewport.asset, engine::graphics::renderer::display{engine::graphics::renderer::viewport{viewport.x, viewport.y, viewport.width, viewport.height}, cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}), engine::graphics::renderer::camera_2d{core::maths::Matrix4x4f::identity(), core::maths::Matrix4x4f::identity()}});
+					}
 				}
-				if (viewport_has_changed)
+				else if (rebuild_matrices)
 				{
-					engine::graphics::renderer::Viewport data = {
-						0,
-						0,
-						dimension.width,
-						dimension.height
-					};
-					screen = core::maths::Matrix4x4f{
-						data.width / 2.f, 0.f, 0.f, data.x + data.width / 2.f,
-						0.f, data.height / -2.f, 0.f, data.y + data.height / 2.f,
-						0.f, 0.f, 0.f, 0.f,
-						0.f, 0.f, 0.f, 1.f
-					};
-					inv_screen = core::maths::Matrix4x4f{
-						2.f / data.width, 0.f, 0.f, -(data.x * 2.f / data.width + 1.f),
-						0.f, -2.f / data.height, 0.f, 1.f - data.y * 2.f / data.height,
-						0.f, 0.f, 0.f, 0.f,
-						0.f, 0.f, 0.f, 1.f
-					};
-					notify(std::move(data));
+					for (const Viewport & viewport : viewports)
+					{
+						engine::graphics::renderer::post_update_display(viewport.asset, cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}));
+					}
 				}
 			}
 
-			void notify_resize(const int width, const int height)
+			void post_add_frame(engine::Asset asset, dynamic && data)
 			{
-				queue_dimension.try_push(width, height);
-			}
-
-			// void add(engine::Entity entity, orthographic && data)
-			// {
-			// 	const auto res = queue_add_orthographic.try_push(std::make_pair(entity, std::move(data)));
-			// 	debug_assert(res);
-			// }
-			// void add(engine::Entity entity, perspective && data)
-			// {
-			// 	const auto res = queue_add_perspective.try_push(std::make_pair(entity, std::move(data)));
-			// 	debug_assert(res);
-			// }
-			void add(engine::Entity entity, camera && data)
-			{
-				const auto res = queue_add_camera.try_push(std::make_pair(entity, std::move(data)));
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddFrameDynamic>, asset, std::move(data));
 				debug_assert(res);
 			}
-			void remove(engine::Entity entity)
+			void post_add_frame(engine::Asset asset, fixed && data)
 			{
-				const auto res = queue_remove.try_push(entity);
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddFrameFixed>, asset, std::move(data));
 				debug_assert(res);
 			}
-			void set_active_2d(engine::Entity entity)
+			void post_remove_frame(engine::Asset asset)
 			{
-				queue_set_active_2d.try_push(entity);
-			}
-			void set_active_3d(engine::Entity entity)
-			{
-				queue_set_active_3d.try_push(entity);
-			}
-			void update(engine::Entity entity, rotate && data)
-			{
-				const auto res = queue_update_rotate.try_push(std::make_pair(entity, std::move(data)));
-				debug_assert(res);
-			}
-			void update(engine::Entity entity, rotation && data)
-			{
-				const auto res = queue_update_rotation.try_push(std::make_pair(entity, std::move(data)));
-				debug_assert(res);
-			}
-			void update(engine::Entity entity, translate && data)
-			{
-				const auto res = queue_update_translate.try_push(std::make_pair(entity, std::move(data)));
-				debug_assert(res);
-			}
-			void update(engine::Entity entity, translation && data)
-			{
-				const auto res = queue_update_translation.try_push(std::make_pair(entity, std::move(data)));
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRemoveFrame>, asset);
 				debug_assert(res);
 			}
 
-			void from_screen_to_world(core::maths::Vector2f spos, core::maths::Vector3f & wpos)
+			void post_add_split(engine::Asset asset, horizontal && data)
 			{
-				wpos = to_xyz(inv_view * inv_projection * inv_screen * to_xy01(spos));
-				// here we have a world position that sits on the near
-				// plane of the  camera, so what we need to  do now is
-				// to adjust the position so that it has z = 0
-				const auto camerapos = to_xyz(inv_view.get_column<3>());
-				const auto dir = wpos - camerapos;
-				// camerapos_z + dir_z * t = 0  =>  t = -camerapos_z / dir_z
-				core::maths::Vector3f::array_type cameraposbuffer;
-				camerapos.get_aligned(cameraposbuffer);
-				core::maths::Vector3f::array_type dirbuffer;
-				dir.get_aligned(dirbuffer);
-				const auto t = -cameraposbuffer[2] / dirbuffer[2];
-				// wpos = camerapos + dir * t
-				wpos = camerapos + dir * t;
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddSplitHorizontal>, asset, std::move(data));
+				debug_assert(res);
 			}
-			void from_world_to_screen(core::maths::Vector3f wpos, core::maths::Vector2f & spos)
+			void post_add_split(engine::Asset asset, vertical && data)
 			{
-				spos = to_xy(screen * projection * view * to_xyz1(wpos));
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddSplitVertical>, asset, std::move(data));
+				debug_assert(res);
+			}
+			void post_remove_split(engine::Asset asset)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRemoveSplit>, asset);
+				debug_assert(res);
+			}
+
+			void notify_resize(int width, int height)
+			{
+				queue_resize.try_push(width, height);
+			}
+
+			void post_add_projection(engine::Asset asset, orthographic && data)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddProjectionOrthographic>, asset, std::move(data));
+				debug_assert(res);
+			}
+			void post_add_projection(engine::Asset asset, perspective && data)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddProjectionPerspective>, asset, std::move(data));
+				debug_assert(res);
+			}
+			void post_remove_projection(engine::Asset asset)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRemoveProjection>, asset);
+				debug_assert(res);
+			}
+
+			void post_add_camera(engine::Entity entity, camera && data)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddCamera>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_remove_camera(engine::Entity entity)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRemoveCamera>, entity);
+				debug_assert(res);
+			}
+			void post_update_camera(engine::Entity entity, projection && data)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraProjection>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_camera(engine::Entity entity, rotate && data)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraRotate>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_camera(engine::Entity entity, rotation && data)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraRotation>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_camera(engine::Entity entity, translate && data)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraTranslate>, entity, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_camera(engine::Entity entity, translation && data)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraTranslation>, entity, std::move(data));
+				debug_assert(res);
+			}
+
+			void post_bind(engine::Asset frame, engine::Entity camera)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageBind>, frame, camera);
+				debug_assert(res);
+			}
+			void post_unbind(engine::Asset frame)
+			{
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUnbind>, frame);
+				debug_assert(res);
 			}
 		}
 	}

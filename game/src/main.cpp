@@ -27,6 +27,12 @@ namespace engine
 			extern void create();
 			extern void destroy();
 		}
+
+		namespace viewer
+		{
+			extern void create();
+			extern void destroy();
+		}
 	}
 
 	namespace gui
@@ -87,6 +93,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::resource::loader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
+	::engine::graphics::viewer::create();
 	::engine::gui::create();
 	::gameplay::ui::create();
 	::gameplay::gamestate::create();
@@ -100,6 +107,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::gameplay::gamestate::destroy();
 	::gameplay::ui::destroy();
 	::engine::gui::destroy();
+	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
 	::engine::resource::loader::destroy();
@@ -120,6 +128,7 @@ int main(const int argc, const char *const argv[])
 	::engine::resource::loader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
+	::engine::graphics::viewer::create();
 	::engine::gui::create();
 	::gameplay::ui::create();
 	::gameplay::gamestate::create();
@@ -133,6 +142,7 @@ int main(const int argc, const char *const argv[])
 	::gameplay::gamestate::destroy();
 	::gameplay::ui::destroy();
 	::engine::gui::destroy();
+	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
 	::engine::resource::loader::destroy();

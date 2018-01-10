@@ -31,9 +31,10 @@ namespace
 
 	struct CameraActivator
 	{
+		engine::Asset frame;
 		engine::Entity camera;
 
-		CameraActivator(engine::Entity camera) : camera(camera) {}
+		CameraActivator(engine::Asset frame, engine::Entity camera) : frame(frame), camera(camera) {}
 
 		void translate(engine::Command command, utility::any && data)
 		{
@@ -42,7 +43,7 @@ namespace
 			case engine::Command::CONTEXT_CHANGED:
 				debug_assert(!data.has_value());
 				debug_printline(gameplay::gameplay_channel, "Switching to camera: ", camera);
-				engine::graphics::viewer::set_active_3d(camera);
+				engine::graphics::viewer::post_bind(frame, camera);
 				break;
 			default:
 				debug_printline(gameplay::gameplay_channel, "CameraActivator: Unknown command: ", static_cast<int>(command));
@@ -218,7 +219,7 @@ namespace
 					camera,
 					rotation.axis_y() * movement_speed);
 
-			engine::graphics::viewer::update(camera, engine::graphics::viewer::rotation{rotation});
+			engine::graphics::viewer::post_update_camera(camera, engine::graphics::viewer::rotation{rotation});
 		}
 	};
 
@@ -927,17 +928,29 @@ namespace gamestate
 		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
 		engine::physics::camera::add(game_camera, game_camera_pos, true);
 
-		engine::graphics::viewer::add(
+		engine::graphics::viewer::post_add_split("banana-split", engine::graphics::viewer::vertical{"root"});
+		engine::graphics::viewer::post_add_frame("game", engine::graphics::viewer::dynamic{"banana-split", 0});
+		engine::graphics::viewer::post_add_split("right-handed-side", engine::graphics::viewer::horizontal{"banana-split", 1});
+		engine::graphics::viewer::post_add_frame("frame1", engine::graphics::viewer::dynamic{"right-handed-side", 0});
+		engine::graphics::viewer::post_add_frame("frame2", engine::graphics::viewer::dynamic{"right-handed-side", 1});
+
+		engine::graphics::viewer::post_add_projection("my-perspective", engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
+
+		engine::graphics::viewer::post_add_camera(
 				debug_camera,
 				engine::graphics::viewer::camera{
+					"my-perspective",
 					core::maths::Quaternionf{ 1.f, 0.f, 0.f, 0.f },
 					debug_camera_pos});
-		engine::graphics::viewer::add(
+		engine::graphics::viewer::post_add_camera(
 				game_camera,
 				engine::graphics::viewer::camera{
+					"my-perspective",
 					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{-40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{-40.f/2.f}).get()), 0.f, 0.f },
 					game_camera_pos});
-		engine::graphics::viewer::set_active_3d(game_camera);
+		engine::graphics::viewer::post_bind("game", game_camera);
+		engine::graphics::viewer::post_bind("frame1", game_camera);
+		engine::graphics::viewer::post_bind("frame2", game_camera);
 
 		auto bordercontrol = engine::Entity::create();
 		gameplay::ui::post_add_bordercontrol(bordercontrol, game_camera);
@@ -964,8 +977,8 @@ namespace gamestate
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
-		components.emplace<CameraActivator>(debug_switch, debug_camera);
-		components.emplace<CameraActivator>(game_switch, game_camera);
+		components.emplace<CameraActivator>(debug_switch, "game", debug_camera);
+		components.emplace<CameraActivator>(game_switch, "game", game_camera);
 
 		gameplay::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, "debug");
 		gameplay::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, "game");
