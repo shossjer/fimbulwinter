@@ -723,16 +723,20 @@ namespace
 	};
 
 
+	struct highlighted_t
+	{
+	};
+
 	struct selected_t
 	{
 	};
 
-	core::container::UnorderedCollection
+	core::container::MultiCollection
 	<
 		engine::Entity,
 		201,
-		std::array<selected_t, 100>,
-		std::array<selected_t, 1>
+		std::array<highlighted_t, 100>,
+		std::array<selected_t, 100>
 	>
 	selected_components;
 }
@@ -816,7 +820,15 @@ namespace
 	struct MessageMakeClearSelection
 	{
 	};
+	struct MessageMakeDehighlighted
+	{
+		engine::Entity entity;
+	};
 	struct MessageMakeDeselect
+	{
+		engine::Entity entity;
+	};
+	struct MessageMakeHighlighted
 	{
 		engine::Entity entity;
 	};
@@ -867,7 +879,9 @@ namespace
 		MessageMakeSelectable,
 		MessageMakeTransparent,
 		MessageMakeClearSelection,
+		MessageMakeDehighlighted,
 		MessageMakeDeselect,
+		MessageMakeHighlighted,
 		MessageMakeSelect,
 		MessageRemove,
 		MessageUpdateCharacterSkinning,
@@ -880,12 +894,11 @@ namespace
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera2D> queue_notify_camera2d;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera3D> queue_notify_camera3d;
 	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Viewport> queue_notify_viewport;
-	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Cursor> queue_notify_cursor;
 
 	core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
 	core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
 
-	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity>, 10> queue_select;
+	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity, engine::Command>, 10> queue_select;
 
 	void poll_queues()
 	{
@@ -1017,19 +1030,21 @@ namespace
 				{
 					debug_fail(); // not implemented yet
 				}
+				void operator () (MessageMakeDehighlighted && x)
+				{
+					selected_components.try_remove<highlighted_t>(x.entity);
+				}
 				void operator () (MessageMakeDeselect && x)
 				{
-					if (selected_components.contains(x.entity))
-					{
-						selected_components.remove(x.entity);
-					}
+					selected_components.try_remove<selected_t>(x.entity);
+				}
+				void operator () (MessageMakeHighlighted && x)
+				{
+					selected_components.emplace<highlighted_t>(x.entity);
 				}
 				void operator () (MessageMakeSelect && x)
 				{
-					if (!selected_components.contains(x.entity))
-					{
-						selected_components.emplace<selected_t>(x.entity);
-					}
+					selected_components.emplace<selected_t>(x.entity);
 				}
 				void operator () (MessageRemove && x)
 				{
@@ -1100,8 +1115,6 @@ namespace
 	int viewport_y = 0;
 	int viewport_width = 0;
 	int viewport_height = 0;
-	int cursor_x = -1;
-	int cursor_y = -1;
 
 	Stack modelview_matrix;
 
@@ -1111,7 +1124,6 @@ namespace
 	GLuint entitybuffers[2]; // color, depth
 	std::vector<uint32_t> entitypixels;
 	std::atomic<int> entitytoggle;
-	engine::Entity highlighted_entity = engine::Entity::null();
 	engine::graphics::opengl::Color4ub highlighted_color{255, 191, 64, 255};
 	engine::graphics::opengl::Color4ub selected_color{64, 191, 255, 255};
 
@@ -1413,12 +1425,6 @@ namespace
 				entitypixels.resize(notification_viewport.width * notification_viewport.height);
 			}
 		}
-		engine::graphics::renderer::Cursor notification_cursor;
-		if (queue_notify_cursor.try_pop(notification_cursor))
-		{
-			cursor_x = notification_cursor.x;
-			cursor_y = notification_cursor.y;
-		}
 
 		glStencilMask(0x000000ff);
 		// setup frame
@@ -1548,21 +1554,12 @@ namespace
 
 		glReadPixels(viewport_x, viewport_y, viewport_width, viewport_height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, entitypixels.data());
 
-		// hover
-		{
-			const engine::Entity entity = get_entity_at_screen(cursor_x, cursor_y);
-			if (highlighted_entity != entity)
-			{
-				highlighted_entity = entity;
-				gameplay::gamestate::post_command(engine::Entity::null(), engine::Command::RENDER_HIGHLIGHT, entity);
-			}
-		}
 		// select
 		{
-			std::tuple<int, int, engine::Entity> select_args;
+			std::tuple<int, int, engine::Entity, engine::Command> select_args;
 			while (queue_select.try_pop(select_args))
 			{
-				gameplay::gamestate::post_command(std::get<2>(select_args), engine::Command::RENDER_SELECT, get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
+				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
 			}
 		}
 
@@ -1607,8 +1604,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = entity == highlighted_entity;
-			const bool is_selected = selected_components.contains(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
 
 			if (is_highlighted)
 				glColor(highlighted_color);
@@ -1626,8 +1623,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = entity == highlighted_entity;
-			const bool is_selected = selected_components.contains(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
 
 			glLineWidth(2.f);
 			if (is_highlighted)
@@ -1659,8 +1656,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = entity == highlighted_entity;
-			const bool is_selected = selected_components.contains(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
 
 			const mesh_t & mesh = *component.mesh;
 
@@ -1724,8 +1721,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = entity == highlighted_entity;
-			const bool is_selected = selected_components.contains(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
 
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
@@ -1979,10 +1976,6 @@ namespace engine
 			{
 				queue_notify_viewport.try_push(std::move(data));
 			}
-			void notify(Cursor && data)
-			{
-				queue_notify_cursor.try_push(std::move(data));
-			}
 
 			void post_register_character(engine::Asset asset, engine::model::mesh_t && data)
 			{
@@ -2062,9 +2055,19 @@ namespace engine
 				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeClearSelection>);
 				debug_assert(res);
 			}
+			void post_make_dehighlight(engine::Entity entity)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeDehighlighted>, entity);
+				debug_assert(res);
+			}
 			void post_make_deselect(engine::Entity entity)
 			{
 				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeDeselect>, entity);
+				debug_assert(res);
+			}
+			void post_make_highlight(engine::Entity entity)
+			{
+				const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeHighlighted>, entity);
 				debug_assert(res);
 			}
 			void post_make_select(engine::Entity entity)
@@ -2105,9 +2108,9 @@ namespace engine
 				debug_assert(res);
 			}
 
-			void post_select(int x, int y, engine::Entity entity)
+			void post_select(int x, int y, engine::Entity entity, engine::Command command)
 			{
-				const auto res = queue_select.try_emplace(x, y, entity);
+				const auto res = queue_select.try_emplace(x, y, entity, command);
 				debug_assert(res);
 			}
 
