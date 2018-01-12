@@ -29,10 +29,10 @@ namespace engine
 		template <typename ...Args>
 		struct Callback : CallbackBase
 		{
-			void (* f)(Args...);
+			std::function<void(Args...)> fun;
 
-			Callback(void (* f)(Args...))
-				: f(f)
+			Callback(const std::function<void(Args...)> & fun)
+				: fun(fun)
 			{}
 
 			bool call(const std::vector<Param> & params) const override
@@ -50,7 +50,7 @@ namespace engine
 			template <std::size_t ...Is>
 			void call_f(mpl::index_sequence<Is...>, const std::vector<Param> & params) const
 			{
-				f(utility::get<Args>(params[Is])...);
+				fun(utility::get<Args>(params[Is])...);
 			}
 
 			bool call_impl(mpl::index_constant<sizeof...(Args)>, const std::vector<Param> & params) const
@@ -72,9 +72,9 @@ namespace engine
 
 		// Register function to be triggered by CLI.
 		template <typename ...Args>
-		void observe(const std::string & keyword, void (* f)(Args...))
+		void observe(const std::string & keyword, const std::function<void(Args...)> & fun)
 		{
-			observe_impl(keyword, std::make_unique<Callback<Args...>>(f));
+			observe_impl(keyword, std::make_unique<Callback<Args...>>(fun));
 		}
 	}
 }

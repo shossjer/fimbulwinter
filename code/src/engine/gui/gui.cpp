@@ -9,6 +9,8 @@
 #include "react.hpp"
 #include "view.hpp"
 
+#include <engine/console.hpp>
+
 #include <core/container/CircleQueue.hpp>
 
 #include <vector>
@@ -66,7 +68,14 @@ namespace engine
 
 		void create()
 		{
-			// TODO: create something
+			engine::console::observe("gui-reload", std::function<void()>
+			{
+				[&]()
+				{
+					const auto res = queue_posts.try_emplace(utility::in_place_type<MessageReload>, MessageReload{});
+					debug_assert(res);
+				}
+			});
 		}
 
 		void destroy()
@@ -207,6 +216,7 @@ namespace engine
 				}
 				void operator () (MessageReload && x)
 				{
+					debug_printline(engine::gui_channel, "Reloading GUI");
 					// Clear all prev. data
 					{
 						::actions = Actions{};
@@ -217,6 +227,8 @@ namespace engine
 						}
 
 						::components.clear();
+
+						::lookup.clear();
 
 						resource::purge();
 					}

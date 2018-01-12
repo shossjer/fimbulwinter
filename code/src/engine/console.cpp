@@ -30,6 +30,11 @@ namespace engine
 
 		auto parse_params(const std::string & raw_line)
 		{
+			if (raw_line.empty())
+			{
+				return std::vector<Param>{};
+			}
+
 			std::vector<Param> params;
 
 			std::stringstream stream{ raw_line };
@@ -110,8 +115,9 @@ namespace engine
 			std::getline(stream, data, ' ');
 			const engine::Asset key{ data };
 
-			std::getline(stream, data);
-			std::vector<Param> params = parse_params(data);
+			std::string str_params;
+			std::getline(stream, str_params);
+			std::vector<Param> params = parse_params(str_params);
 
 			for (auto & observer : observers)
 			{
