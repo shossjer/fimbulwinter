@@ -63,7 +63,7 @@ namespace engine
 			};
 			struct projection
 			{
-				engine::Asset projection;
+				engine::Asset value;
 			};
 			struct rotate
 			{

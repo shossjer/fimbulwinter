@@ -286,7 +286,7 @@ namespace
 
 		void operator () (Camera & x)
 		{
-			x.projection = data.projection;
+			x.projection = data.value;
 		}
 	};
 
