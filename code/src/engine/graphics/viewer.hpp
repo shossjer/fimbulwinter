@@ -56,14 +56,16 @@ namespace engine
 
 			struct camera
 			{
-				engine::Asset projection;
+				engine::Asset projection_3d;
+				engine::Asset projection_2d;
 
 				core::maths::Quaternionf rotation;
 				core::maths::Vector3f translation;
 			};
 			struct projection
 			{
-				engine::Asset value;
+				engine::Asset projection_3d;
+				engine::Asset projection_2d;
 			};
 			struct rotate
 			{

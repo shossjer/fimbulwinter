@@ -237,6 +237,23 @@ namespace
 	>
 	projections;
 
+	struct extract_projection_matrices_2d
+	{
+		const Viewport & viewport;
+		engine::graphics::renderer::camera_2d & data;
+
+		void operator () (Orthographic & x)
+		{
+			data.projection = core::maths::Matrix4x4f::ortho(0.f, static_cast<float>(viewport.width),
+			                                                 static_cast<float>(viewport.height), 0.f,
+			                                                 x.zNear, x.zFar);
+		}
+		void operator () (Perspective & x)
+		{
+			debug_fail();
+		}
+	};
+
 	struct extract_projection_matrices_3d
 	{
 		const Viewport & viewport;
@@ -260,12 +277,14 @@ namespace
 
 	struct Camera
 	{
-		engine::Asset projection;
+		engine::Asset projection_3d;
+		engine::Asset projection_2d;
 		core::maths::Quaternionf rotation;
 		core::maths::Vector3f translation;
 
 		Camera(engine::graphics::viewer::camera && data)
-			: projection(data.projection)
+			: projection_3d(data.projection_3d)
+			, projection_2d(data.projection_2d)
 			, rotation(std::move(data.rotation))
 			, translation(std::move(data.translation))
 		{}
@@ -286,7 +305,8 @@ namespace
 
 		void operator () (Camera & x)
 		{
-			x.projection = data.value;
+			x.projection_3d = data.projection_3d;
+			x.projection_2d = data.projection_2d;
 		}
 	};
 
@@ -332,6 +352,19 @@ namespace
 		}
 	};
 
+	struct extract_camera_matrices_2d
+	{
+		const Viewport & viewport;
+
+		engine::graphics::renderer::camera_2d operator () (const Camera & x)
+		{
+			engine::graphics::renderer::camera_2d data;
+			projections.call(x.projection_2d, extract_projection_matrices_2d{viewport, data});
+			data.view = core::maths::Matrix4x4f::identity();
+			return data;
+		}
+	};
+
 	struct extract_camera_matrices_3d
 	{
 		const Viewport & viewport;
@@ -339,11 +372,23 @@ namespace
 		engine::graphics::renderer::camera_3d operator () (const Camera & x)
 		{
 			engine::graphics::renderer::camera_3d data;
-			projections.call(x.projection, extract_projection_matrices_3d{viewport, data});
+			projections.call(x.projection_3d, extract_projection_matrices_3d{viewport, data});
+			data.screen = core::maths::Matrix4x4f{
+				viewport.width / 2.f, 0.f, 0.f, /*viewport.x +*/ viewport.width / 2.f,
+				0.f, viewport.height / -2.f, 0.f, /*viewport.y +*/ viewport.height / 2.f,
+				0.f, 0.f, 0.f, 0.f,
+				0.f, 0.f, 0.f, 1.f
+			};
+			data.inv_screen = core::maths::Matrix4x4f{
+				2.f / viewport.width, 0.f, 0.f, -(/*viewport.x * 2.f / viewport.width +*/ 1.f),
+				0.f, -2.f / viewport.height, 0.f, 1.f/* - viewport.y * 2.f / viewport.height*/,
+				0.f, 0.f, 0.f, 0.f,
+				0.f, 0.f, 0.f, 1.f
+			};
 			data.view = make_matrix(conjugate(x.rotation));
 			data.view.set_column(3, data.view * to_xyz1(-x.translation));
 			data.inv_view = make_matrix(x.rotation);
-			data.inv_view.set_column(3, data.view * to_xyz1(x.translation));
+			data.inv_view.set_column(3, data.inv_view * to_xyz1(x.translation));
 			return data;
 		}
 	};
@@ -675,7 +720,7 @@ namespace engine
 
 					for (const Viewport & viewport : viewports)
 					{
-						engine::graphics::renderer::post_add_display(viewport.asset, engine::graphics::renderer::display{engine::graphics::renderer::viewport{viewport.x, viewport.y, viewport.width, viewport.height}, cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}), engine::graphics::renderer::camera_2d{core::maths::Matrix4x4f::identity(), core::maths::Matrix4x4f::identity()}});
+						engine::graphics::renderer::post_add_display(viewport.asset, engine::graphics::renderer::display{engine::graphics::renderer::viewport{viewport.x, viewport.y, viewport.width, viewport.height}, cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}), cameras.call(viewport.camera, extract_camera_matrices_2d{viewport})});
 					}
 				}
 				else if (rebuild_matrices)
@@ -683,6 +728,7 @@ namespace engine
 					for (const Viewport & viewport : viewports)
 					{
 						engine::graphics::renderer::post_update_display(viewport.asset, cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}));
+						engine::graphics::renderer::post_update_display(viewport.asset, cameras.call(viewport.camera, extract_camera_matrices_2d{viewport}));
 					}
 				}
 			}

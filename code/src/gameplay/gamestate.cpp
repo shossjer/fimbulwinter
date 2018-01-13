@@ -934,18 +934,21 @@ namespace gamestate
 		engine::graphics::viewer::post_add_frame("frame1", engine::graphics::viewer::dynamic{"right-handed-side", 0});
 		engine::graphics::viewer::post_add_frame("frame2", engine::graphics::viewer::dynamic{"right-handed-side", 1});
 
-		engine::graphics::viewer::post_add_projection("my-perspective", engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
+		engine::graphics::viewer::post_add_projection("my-perspective-3d", engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
+		engine::graphics::viewer::post_add_projection("my-perspective-2d", engine::graphics::viewer::orthographic{-100., 100});
 
 		engine::graphics::viewer::post_add_camera(
 				debug_camera,
 				engine::graphics::viewer::camera{
-					"my-perspective",
+					"my-perspective-3d",
+					"my-perspective-2d",
 					core::maths::Quaternionf{ 1.f, 0.f, 0.f, 0.f },
 					debug_camera_pos});
 		engine::graphics::viewer::post_add_camera(
 				game_camera,
 				engine::graphics::viewer::camera{
-					"my-perspective",
+					"my-perspective-3d",
+					"my-perspective-2d",
 					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{-40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{-40.f/2.f}).get()), 0.f, 0.f },
 					game_camera_pos});
 		engine::graphics::viewer::post_bind("game", game_camera);
