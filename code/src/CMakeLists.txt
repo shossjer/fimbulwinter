@@ -115,9 +115,10 @@ set(HEADER_FILES
 	src/gameplay/component/CameraActivator.hpp
 	src/gameplay/component/FreeCamera.hpp
 	src/gameplay/component/OverviewCamera.hpp
+	src/gameplay/debug.hpp
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
-	src/gameplay/debug.hpp
+	src/gameplay/gamestate_data.hpp
 	src/gameplay/recipes.hpp
 	src/gameplay/skills.hpp
 	src/utility/algorithm.hpp
