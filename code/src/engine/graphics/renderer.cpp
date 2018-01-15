@@ -140,18 +140,18 @@ namespace
 		int height;
 
 		core::maths::Matrix4x4f projection_3d;
-		core::maths::Matrix4x4f screen_3d;
+		core::maths::Matrix4x4f frame_3d;
 		core::maths::Matrix4x4f view_3d;
 		core::maths::Matrix4x4f inv_projection_3d;
-		core::maths::Matrix4x4f inv_screen_3d;
+		core::maths::Matrix4x4f inv_frame_3d;
 		core::maths::Matrix4x4f inv_view_3d;
 
 		core::maths::Matrix4x4f projection_2d;
 		core::maths::Matrix4x4f view_2d;
 
-		core::maths::Vector2f from_world_to_screen(core::maths::Vector3f wpos) const
+		core::maths::Vector2f from_world_to_frame(core::maths::Vector3f wpos) const
 		{
-			return to_xy(screen_3d * projection_3d * view_3d * to_xyz1(wpos));
+			return to_xy(frame_3d * projection_3d * view_3d * to_xyz1(wpos));
 		}
 	};
 
@@ -182,10 +182,10 @@ namespace
 		void operator () (display_t & x)
 		{
 			x.projection_3d = data.projection;
-			x.screen_3d = data.screen;
+			x.frame_3d = data.frame;
 			x.view_3d = data.view;
 			x.inv_projection_3d = data.inv_projection;
-			x.inv_screen_3d = data.inv_screen;
+			x.inv_frame_3d = data.inv_frame;
 			x.inv_view_3d = data.inv_view;
 		}
 	};
@@ -1005,7 +1005,7 @@ namespace
 				{
 					displays.emplace<display_t>(x.asset,
 					                            x.display.viewport.x, x.display.viewport.y, x.display.viewport.width, x.display.viewport.height,
-					                            x.display.camera_3d.projection, x.display.camera_3d.screen, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_screen, x.display.camera_3d.inv_view,
+					                            x.display.camera_3d.projection, x.display.camera_3d.frame, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_frame, x.display.camera_3d.inv_view,
 					                            x.display.camera_2d.projection, x.display.camera_2d.view);
 					should_maybe_resize_framebuffer = true;
 				}
@@ -1925,9 +1925,9 @@ namespace
 			modelview_matrix.push();
 
 			// calculate modelview of bar position in world space
-			core::maths::Vector2f screenCoord = display.from_world_to_screen(component.worldPosition);
+			core::maths::Vector2f frameCoord = display.from_world_to_frame(component.worldPosition);
 			core::maths::Vector2f::array_type b;
-			screenCoord.get_aligned(b);
+			frameCoord.get_aligned(b);
 
 			Matrix4x4f modelview = make_translation_matrix(Vector3f{ b[0], b[1], 0.f });
 

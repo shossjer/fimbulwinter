@@ -373,13 +373,13 @@ namespace
 		{
 			engine::graphics::renderer::camera_3d data;
 			projections.call(x.projection_3d, extract_projection_matrices_3d{viewport, data});
-			data.screen = core::maths::Matrix4x4f{
+			data.frame = core::maths::Matrix4x4f{
 				viewport.width / 2.f, 0.f, 0.f, /*viewport.x +*/ viewport.width / 2.f,
 				0.f, viewport.height / -2.f, 0.f, /*viewport.y +*/ viewport.height / 2.f,
 				0.f, 0.f, 0.f, 0.f,
 				0.f, 0.f, 0.f, 1.f
 			};
-			data.inv_screen = core::maths::Matrix4x4f{
+			data.inv_frame = core::maths::Matrix4x4f{
 				2.f / viewport.width, 0.f, 0.f, -(/*viewport.x * 2.f / viewport.width +*/ 1.f),
 				0.f, -2.f / viewport.height, 0.f, 1.f/* - viewport.y * 2.f / viewport.height*/,
 				0.f, 0.f, 0.f, 0.f,

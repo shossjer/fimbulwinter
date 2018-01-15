@@ -114,10 +114,10 @@ namespace engine
 			struct camera_3d
 			{
 				core::maths::Matrix4x4f projection;
-				core::maths::Matrix4x4f screen;
+				core::maths::Matrix4x4f frame;
 				core::maths::Matrix4x4f view;
 				core::maths::Matrix4x4f inv_projection;
-				core::maths::Matrix4x4f inv_screen;
+				core::maths::Matrix4x4f inv_frame;
 				core::maths::Matrix4x4f inv_view;
 			};
 			struct viewport
