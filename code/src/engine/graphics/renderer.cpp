@@ -1656,7 +1656,7 @@ namespace
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(display.projection_2d);
 		glMatrixMode(GL_MODELVIEW);
-		modelview_matrix.load(core::maths::Matrix4x4f::identity());
+		modelview_matrix.load(display.view_2d);
 
 		for (const auto & component : selectable_components.get<selectable_panel>())
 		{
@@ -1913,7 +1913,7 @@ namespace
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(display.projection_2d);
 		glMatrixMode(GL_MODELVIEW);
-		modelview_matrix.load(core::maths::Matrix4x4f::identity());
+		modelview_matrix.load(display.view_2d);
 
 		// disable depth test to make the bar drawings show above the 3d content
 		glDisable(GL_DEPTH_TEST);
