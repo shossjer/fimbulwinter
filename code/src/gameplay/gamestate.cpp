@@ -1,6 +1,7 @@
 
 #include "gamestate.hpp"
-#include "gamestate_data.hpp"
+#include "gamestate_gui.hpp"
+#include "gamestate_models.hpp"
 
 #include "core/JsonStructurer.hpp"
 #include <core/container/CircleQueue.hpp>
@@ -11,8 +12,8 @@
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
-#include <engine/gui/gui.hpp>
 #include "engine/hid/ui.hpp"
+#include "engine/gui/gui.hpp"
 #include <engine/physics/physics.hpp>
 #include "engine/replay/writer.hpp"
 #include "engine/resource/reader.hpp"
@@ -45,6 +46,8 @@ namespace
 
 	// update "profile" of entity if it is currently shown (will not set entity as selected).
 	void profile_update(const engine::Entity entity);
+
+	std::unordered_map<engine::Asset, RecipeIngredient> ingredient_graph;
 
 	struct Selector
 	{
@@ -285,11 +288,11 @@ namespace
 
 		void operator() (Worker & worker)
 		{
-			PlayerData data{ "Chef Elzar" };
-			data.skills.push_back(PlayerData::Skill{ "Cutting" });
-			data.skills.push_back(PlayerData::Skill{ "Washing hands" });
-			data.skills.push_back(PlayerData::Skill{ "Potato" });
-			engine::gui::post(engine::gui::MessageData{ data.message() });
+			Player data{ "Chef Elzar" };
+			data.skills.push_back(Player::Skill{ "Cutting" });
+			data.skills.push_back(Player::Skill{ "Washing hands" });
+			data.skills.push_back(Player::Skill{ "Potato" });
+			engine::gui::post(engine::gui::MessageData{ encode_gui(data) });
 		}
 
 		template<typename T>
@@ -911,15 +914,10 @@ namespace gamestate
 		gameplay::create_level(engine::Entity::create(), "level");
 
 		// assign reaction structure to engine::gui
+		engine::gui::post(engine::gui::MessageDataSetup{ encode_gui(Player{ "name",{ Player::Skill{ "name" } } }) });
 		{
-			PlayerData data{};
-			data.skills.emplace_back(PlayerData::Skill{});
-			engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
-		}
-		{
-			RecipeData data{};
-			data.recipes.emplace_back(RecipeData::Recipe{});
-			engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
+			Dish dish{ std::string{ "name" }, std::string{ "desc" } };
+			engine::gui::post(engine::gui::MessageDataSetup{ encode_gui({ &dish, &dish, &dish, &dish }) });
 		}
 
 		// trigger first load of GUI

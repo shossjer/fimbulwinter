@@ -38,6 +38,7 @@ set(SOURCE_FILES
 	src/engine/resource/reader.cpp
 	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
+	src/gameplay/gamestate_gui.cpp
 	src/gameplay/looper.cpp
 	)
 
@@ -119,6 +120,8 @@ set(HEADER_FILES
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/gamestate_data.hpp
+	src/gameplay/gamestate_gui.hpp
+	src/gameplay/gamestate_models.hpp
 	src/gameplay/recipes.hpp
 	src/gameplay/skills.hpp
 	src/utility/algorithm.hpp

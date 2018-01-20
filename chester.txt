@@ -21,11 +21,11 @@ res/dude2.arm           e7c6fe6ba8c93fbffa33fd09a0382d9987ffbc91dd421fb82cbbf445
 res/dude2.json          1a2b5059688c7e3c7b52688a653c286fba94c991f4d952bb46d4842d4469fd5b
 res/dude2.msh           21265087d2e02457abf8df3df82ea753ced1ec61588157912c8c8e690c8723e8
 res/font/consolas.ttf   4d628909d0f370ce948f60bdd2e6e0f6d74c7715050c9ccfbf6bdc03084e3d50
-res/gui.json            c654c6d6c09a300ba3e9ea9bca337a67ebc68f9c3af4eabb05461aeb212d9f8f
+res/gui.json            6897134d2b6d5a823b0d422910e81c16a61022d220f88c784c46f1facae41c9c
 res/level.lvl           0cb2fe8a343f61e723c64a2323e93ff24e4859d87ae2301a0fe1fc54e4c3d175
 res/oven.json           527251e72141613a99a57e456173031096444db27ac4f16aa48795b5f821a5b8
 res/photo.png           51bfe71f704cad035b9ea120e9f14d9d92797a91a5c375c351b7f80639426831
-res/recipes.json        9ec1a401744a943fb5b5511d3952fd076c727a9ddcfebfca846ca80b0cd8b8d9
+res/recipes.json        5f8ca22ac471ed5e23c81d3e86d5dde1c55f9f1d128c2de6b7c0eb61bfbe6f28
 res/shredded-carrot.png 7ce99b9e37f2fe5e96b882332fc9483cb7aa1ff3b3a84eafd37233405d5df254
 res/skills.json         6b845ce65b8919ca499d4ab400abf353a70a2c2a8b8776e9fc11388be732922c
 res/sponge-cake.png     3b0c24d969b3331cfcf6e85f28ef0702da20b6fc59b0bba39ac74b69fbfbe86d

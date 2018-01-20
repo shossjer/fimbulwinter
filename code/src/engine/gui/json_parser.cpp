@@ -332,7 +332,7 @@ namespace
 		{
 			return contains(jdata, "display");
 		}
-		std::string display(const json & jdata) const
+		auto display(const json & jdata) const
 		{
 			return extract_string("display", jdata);
 		}
@@ -591,23 +591,13 @@ namespace
 			return jdata["texture"];
 		}
 
-		bool has_observe(const json & jdata) const
-		{
-			return contains(jdata, "observe");
-		}
 		auto observe(const json & jdata) const
 		{
-			if (!has_observe(jdata))
-			{
-				debug_printline(engine::gui_channel, "WARNING - 'observe' missing: ", jdata);
-				throw bad_json();
-			}
-			return extract_string("observe", jdata);
-		}
-		auto observe_or_empty(const json & jdata) const
-		{
 			if (!contains(jdata, "observe"))
-				return std::string{};
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: 'observe' missing in data: ", jdata);
+				throw key_missing("observe");
+			}
 
 			return extract_string("observe", jdata);
 		}
@@ -772,13 +762,7 @@ namespace
 
 			const json & jreaction = jcomponent["reaction"];
 
-			if (!contains(jreaction, "observe"))
-			{
-				debug_printline(engine::gui_channel, "WARNING - key: 'observe' missing in data: ", jreaction);
-				throw key_missing("observe");
-			}
-
-			std::stringstream stream{ jreaction["observe"].get<std::string>() };
+			std::stringstream stream{ this->load.observe(jreaction) };
 			std::string node;
 
 			while (std::getline(stream, node, '.'))
