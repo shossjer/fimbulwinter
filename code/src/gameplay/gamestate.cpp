@@ -983,11 +983,7 @@ namespace gamestate
 		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
 		engine::physics::camera::add(game_camera, game_camera_pos, true);
 
-		engine::graphics::viewer::post_add_split("banana-split", engine::graphics::viewer::vertical{"root"});
-		engine::graphics::viewer::post_add_frame("game", engine::graphics::viewer::dynamic{"banana-split", 0});
-		engine::graphics::viewer::post_add_split("right-handed-side", engine::graphics::viewer::horizontal{"banana-split", 1});
-		engine::graphics::viewer::post_add_frame("frame1", engine::graphics::viewer::dynamic{"right-handed-side", 0});
-		engine::graphics::viewer::post_add_frame("frame2", engine::graphics::viewer::dynamic{"right-handed-side", 1});
+		engine::graphics::viewer::post_add_frame("game", engine::graphics::viewer::dynamic{"root"});
 
 		engine::graphics::viewer::post_add_projection("my-perspective-3d", engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
 		engine::graphics::viewer::post_add_projection("my-perspective-2d", engine::graphics::viewer::orthographic{-100., 100});
@@ -1007,8 +1003,6 @@ namespace gamestate
 					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{-40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{-40.f/2.f}).get()), 0.f, 0.f },
 					game_camera_pos});
 		engine::graphics::viewer::post_bind("game", game_camera);
-		engine::graphics::viewer::post_bind("frame1", game_camera);
-		engine::graphics::viewer::post_bind("frame2", game_camera);
 
 		auto bordercontrol = engine::Entity::create();
 		gameplay::ui::post_add_bordercontrol(bordercontrol, game_camera);
