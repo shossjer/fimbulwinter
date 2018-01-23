@@ -38,9 +38,11 @@ namespace ui
 		engine::Entity entity,
 		engine::Entity callback);
 	void post_add_renderhover(
-		engine::Entity entity);
+		engine::Entity entity,
+		engine::Entity callback);
 	void post_add_renderselect(
-		engine::Entity entity);
+		engine::Entity entity,
+		engine::Entity callback);
 	void post_add_renderswitch(
 		engine::Entity entity,
 		engine::hid::Input::Button button);
