@@ -10,12 +10,12 @@
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 #include <engine/gui/gui.hpp>
+#include "engine/hid/ui.hpp"
 #include <engine/physics/physics.hpp>
 #include "engine/resource/reader.hpp"
 
 #include <gameplay/debug.hpp>
 #include <gameplay/factory.hpp>
-#include <gameplay/ui.hpp>
 
 #include <utility>
 

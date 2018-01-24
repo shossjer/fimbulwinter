@@ -2,9 +2,9 @@
 #include <core/debug.hpp>
 
 #include <engine/application/window.hpp>
+#include "engine/hid/ui.hpp"
 
 #include <gameplay/gamestate.hpp>
-#include <gameplay/ui.hpp>
 
 #include <config.h>
 

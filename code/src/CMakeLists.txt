@@ -27,6 +27,7 @@ set(SOURCE_FILES
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
+	src/engine/hid/ui.cpp
 	src/engine/physics/physics.cpp
 	src/engine/physics/creation_physx.cpp
 	src/engine/physics/joint_physx.cpp
@@ -36,7 +37,6 @@ set(SOURCE_FILES
 	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
 	src/gameplay/looper.cpp
-	src/gameplay/ui.cpp
 	)
 
 # source listing
@@ -92,6 +92,7 @@ set(HEADER_FILES
 	src/engine/gui/update.hpp
 	src/engine/gui/view.hpp
 	src/engine/hid/input.hpp
+	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
@@ -106,7 +107,6 @@ set(HEADER_FILES
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp
-	src/gameplay/ui.hpp
 	src/utility/algorithm.hpp
 	src/utility/any.hpp
 	src/utility/array.hpp
