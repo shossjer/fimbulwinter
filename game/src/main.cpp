@@ -88,7 +88,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
 	::engine::gui::create();
-	::gameplay::ui::create();
+	::engine::hid::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::looper::create();
 
@@ -98,7 +98,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	::gameplay::looper::destroy();
 	::gameplay::gamestate::destroy();
-	::gameplay::ui::destroy();
+	::engine::hid::ui::destroy();
 	::engine::gui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
@@ -121,7 +121,7 @@ int main(const int argc, const char *const argv[])
 	::engine::physics::create();
 	::engine::graphics::renderer::create();
 	::engine::gui::create();
-	::gameplay::ui::create();
+	::engine::hid::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::looper::create();
 
@@ -131,7 +131,7 @@ int main(const int argc, const char *const argv[])
 
 	::gameplay::looper::destroy();
 	::gameplay::gamestate::destroy();
-	::gameplay::ui::destroy();
+	::engine::hid::ui::destroy();
 	::engine::gui::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();

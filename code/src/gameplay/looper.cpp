@@ -9,32 +9,32 @@
 
 namespace engine
 {
-namespace animation
-{
-	extern void update();
-}
-namespace graphics
-{
-namespace renderer
-{
-	extern void update();
-}
-namespace viewer
-{
-	extern void update();
-}
-}
-namespace gui
-{
-	extern void update();
-}
-}
-namespace gameplay
-{
-namespace ui
-{
-	extern void update();
-}
+	namespace animation
+	{
+		extern void update();
+	}
+	namespace graphics
+	{
+		namespace renderer
+		{
+			extern void update();
+		}
+		namespace viewer
+		{
+			extern void update();
+		}
+	}
+	namespace gui
+	{
+		extern void update();
+	}
+	namespace hid
+	{
+		namespace ui
+		{
+			extern void update();
+		}
+	}
 }
 
 namespace
@@ -79,7 +79,7 @@ namespace looper
 			::engine::physics::update_finish();
 
 			// 
-			::gameplay::ui::update();
+			::engine::hid::ui::update();
 		
 			// update characters
 			::gameplay::gamestate::update();

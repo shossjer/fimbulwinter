@@ -967,9 +967,9 @@ namespace gamestate
 {
 	void create()
 	{
-		gameplay::ui::post_add_context("debug");
-		gameplay::ui::post_add_context("game");
-		gameplay::ui::post_activate_context("game");
+		engine::hid::ui::post_add_context("debug");
+		engine::hid::ui::post_add_context("game");
+		engine::hid::ui::post_activate_context("game");
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
@@ -995,25 +995,25 @@ namespace gamestate
 		engine::graphics::viewer::set_active_3d(game_camera);
 
 		auto bordercontrol = engine::Entity::create();
-		gameplay::ui::post_add_bordercontrol(bordercontrol, game_camera);
+		engine::hid::ui::post_add_bordercontrol(bordercontrol, game_camera);
 		auto flycontrol = engine::Entity::create();
-		gameplay::ui::post_add_flycontrol(flycontrol, debug_camera);
+		engine::hid::ui::post_add_flycontrol(flycontrol, debug_camera);
 		auto pancontrol = engine::Entity::create();
-		gameplay::ui::post_add_pancontrol(pancontrol, game_camera);
-		gameplay::ui::post_bind("debug", flycontrol, 0);
-		gameplay::ui::post_bind("game", pancontrol, 0);
-		gameplay::ui::post_bind("game", bordercontrol, 0);
+		engine::hid::ui::post_add_pancontrol(pancontrol, game_camera);
+		engine::hid::ui::post_bind("debug", flycontrol, 0);
+		engine::hid::ui::post_bind("game", pancontrol, 0);
+		engine::hid::ui::post_bind("game", bordercontrol, 0);
 
 		profile_updater.entity = engine::Entity::null();
 		auto inventorycontrol = engine::Entity::create();
-		gameplay::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
-		gameplay::ui::post_bind("debug", inventorycontrol, 0);
-		gameplay::ui::post_bind("game", inventorycontrol, 0);
+		engine::hid::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
+		engine::hid::ui::post_bind("debug", inventorycontrol, 0);
+		engine::hid::ui::post_bind("game", inventorycontrol, 0);
 		components.emplace<GUIWindow>(inventorycontrol, "inventory");
 		auto profilecontrol = engine::Entity::create();
-		gameplay::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
-		gameplay::ui::post_bind("debug", profilecontrol, 0);
-		gameplay::ui::post_bind("game", profilecontrol, 0);
+		engine::hid::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
+		engine::hid::ui::post_bind("debug", profilecontrol, 0);
+		engine::hid::ui::post_bind("game", profilecontrol, 0);
 		components.emplace<GUIWindow>(profilecontrol, "profile");
 
 		auto debug_switch = engine::Entity::create();
@@ -1022,28 +1022,28 @@ namespace gamestate
 		components.emplace<CameraActivator>(debug_switch, debug_camera);
 		components.emplace<CameraActivator>(game_switch, game_camera);
 
-		gameplay::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, "debug");
-		gameplay::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, "game");
-		gameplay::ui::post_bind("debug", game_switch, -10);
-		gameplay::ui::post_bind("game", debug_switch, -10);
+		engine::hid::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, "debug");
+		engine::hid::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, "game");
+		engine::hid::ui::post_bind("debug", game_switch, -10);
+		engine::hid::ui::post_bind("game", debug_switch, -10);
 
 		auto game_renderswitch = engine::Entity::create();
-		gameplay::ui::post_add_renderswitch(game_renderswitch, engine::hid::Input::Button::KEY_F5);
-		gameplay::ui::post_bind("debug", game_renderswitch, -5);
-		gameplay::ui::post_bind("game", game_renderswitch, -5);
+		engine::hid::ui::post_add_renderswitch(game_renderswitch, engine::hid::Input::Button::KEY_F5);
+		engine::hid::ui::post_bind("debug", game_renderswitch, -5);
+		engine::hid::ui::post_bind("game", game_renderswitch, -5);
 
 		auto selector = engine::Entity::create();
 		components.emplace<Selector>(selector);
 
 		auto game_renderhover = engine::Entity::create();
-		gameplay::ui::post_add_renderhover(game_renderhover, selector);
-		gameplay::ui::post_bind("debug", game_renderhover, 5);
-		gameplay::ui::post_bind("game", game_renderhover, 5);
+		engine::hid::ui::post_add_renderhover(game_renderhover, selector);
+		engine::hid::ui::post_bind("debug", game_renderhover, 5);
+		engine::hid::ui::post_bind("game", game_renderhover, 5);
 
 		auto game_renderselect = engine::Entity::create();
-		gameplay::ui::post_add_renderselect(game_renderselect, selector);
-		gameplay::ui::post_bind("debug", game_renderselect, 5);
-		gameplay::ui::post_bind("game", game_renderselect, 5);
+		engine::hid::ui::post_add_renderselect(game_renderselect, selector);
+		engine::hid::ui::post_bind("debug", game_renderselect, 5);
+		engine::hid::ui::post_bind("game", game_renderselect, 5);
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");

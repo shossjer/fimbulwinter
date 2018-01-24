@@ -1,12 +1,14 @@
 
-#ifndef GAMEPLAY_UI_HPP
-#define GAMEPLAY_UI_HPP
+#ifndef ENGINE_HID_UI_HPP
+#define ENGINE_HID_UI_HPP
 
 #include <engine/Asset.hpp>
 #include <engine/Entity.hpp>
 #include <engine/hid/input.hpp>
 
-namespace gameplay
+namespace engine
+{
+namespace hid
 {
 namespace ui
 {
@@ -58,5 +60,6 @@ namespace ui
 		engine::Entity entity);
 }
 }
+}
 
-#endif /* GAMEPLAY_UI_HPP */
+#endif /* ENGINE_HID_UI_HPP */

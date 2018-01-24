@@ -11,13 +11,6 @@
 # include <versionhelpers.h>
 #endif
 
-namespace gameplay
-{
-	namespace ui
-	{
-		extern void notify_resize(const int width, const int height);
-	}
-}
 namespace engine
 {
 	namespace graphics
@@ -53,6 +46,11 @@ namespace engine
 		extern void syskey_up(BYTE virtual_key,
 		                      BYTE scan_code,
 		                      LONG time);
+
+		namespace ui
+		{
+			extern void notify_resize(const int width, const int height);
+		}
 	}
 }
 
@@ -127,8 +125,8 @@ namespace
 		case WM_SIZE:
 			engine::graphics::viewer::notify_resize((int_fast16_t)LOWORD(lParam),
 			                                        (int_fast16_t)HIWORD(lParam));
-			gameplay::ui::notify_resize((int_fast16_t)LOWORD(lParam),
-			                            (int_fast16_t)HIWORD(lParam));
+			engine::hid::ui::notify_resize((int_fast16_t)LOWORD(lParam),
+			                               (int_fast16_t)HIWORD(lParam));
 			break;
 
 		default:

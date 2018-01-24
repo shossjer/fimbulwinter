@@ -6,10 +6,9 @@
 #include <core/container/ExchangeQueue.hpp>
 
 #include <engine/Command.hpp>
+#include <engine/debug.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/hid/input.hpp>
-
-#include <gameplay/debug.hpp>
 
 #include <algorithm>
 #include <tuple>
@@ -96,7 +95,7 @@ namespace
 
 	void set_active_context(engine::Asset context)
 	{
-		debug_printline(gameplay::gameplay_channel, "Switching context: ", static_cast<int>(active_context), " -> ", static_cast<int>(context));
+		debug_printline(engine::hid_channel, "Switching context: ", static_cast<int>(active_context), " -> ", static_cast<int>(context));
 		active_context = context;
 	}
 	ContextEntities & get_active_context()
@@ -680,7 +679,9 @@ namespace
 	core::container::CircleQueueSRMW<std::tuple<engine::Asset, engine::Entity>, 50> queue_unbind;
 }
 
-namespace gameplay
+namespace engine
+{
+namespace hid
 {
 namespace ui
 {
@@ -916,5 +917,6 @@ namespace ui
 		const auto res = queue_unbind.try_emplace(context, entity);
 		debug_assert(res);
 	}
+}
 }
 }

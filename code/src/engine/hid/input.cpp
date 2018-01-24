@@ -1,11 +1,14 @@
 
 #include "input.hpp"
 
-namespace gameplay
+namespace engine
 {
-	namespace ui
+	namespace hid
 	{
-		extern void notify_input(const engine::hid::Input & input);
+		namespace ui
+		{
+			extern void notify_input(const engine::hid::Input & input);
+		}
 	}
 }
 
@@ -15,7 +18,7 @@ namespace engine
 	{
 		void dispatch(const Input & input)
 		{
-			gameplay::ui::notify_input(input);
+			ui::notify_input(input);
 		}
 	}
 }

@@ -12,8 +12,9 @@ namespace engine
 	constexpr auto audio_channel = core::channel_t<0x0000000000000900ull>{};
 	constexpr auto graphics_channel = core::channel_t<0x0000000000001100ull>{};
 	constexpr auto gui_channel = core::channel_t<0x0000000000002100ull>{};
-	constexpr auto physics_channel = core::channel_t<0x0000000000004100ull>{};
-	constexpr auto resource_channel = core::channel_t<0x0000000000008100ull>{};
+	constexpr auto hid_channel = core::channel_t<0x0000000000004100ull>{};
+	constexpr auto physics_channel = core::channel_t<0x0000000000008100ull>{};
+	constexpr auto resource_channel = core::channel_t<0x0000000000010100ull>{};
 }
 
 #endif /* ENGINE_DEBUG_HPP */
