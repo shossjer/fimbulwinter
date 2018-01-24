@@ -796,13 +796,6 @@ namespace
 		kitchen.init_recipes(std::move(data.structurer));
 
 		recipes_ring.init(kitchen.recipes);
-
-		RecipeData gui_data;
-		for (int i = 0; i < kitchen.recipes.size(); i++)
-		{
-			gui_data.recipes.push_back(RecipeData::Recipe{ kitchen.recipes.get(i).name });
-		}
-		engine::gui::post(engine::gui::MessageData{ gui_data.message() });
 	}
 	void data_callback_skills(std::string name, engine::resource::reader::Data && data)
 	{
