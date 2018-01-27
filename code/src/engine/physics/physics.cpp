@@ -110,7 +110,7 @@ namespace camera
 
 		camera.update(movement);
 
-		engine::graphics::viewer::update(
+		engine::graphics::viewer::post_update_camera(
 			id,
 			engine::graphics::viewer::translation{ camera.position });
 	}

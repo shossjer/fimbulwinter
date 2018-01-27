@@ -132,6 +132,78 @@ namespace
 
 namespace
 {
+	struct display_t
+	{
+		int x;
+		int y;
+		int width;
+		int height;
+
+		core::maths::Matrix4x4f projection_3d;
+		core::maths::Matrix4x4f frame_3d;
+		core::maths::Matrix4x4f view_3d;
+		core::maths::Matrix4x4f inv_projection_3d;
+		core::maths::Matrix4x4f inv_frame_3d;
+		core::maths::Matrix4x4f inv_view_3d;
+
+		core::maths::Matrix4x4f projection_2d;
+		core::maths::Matrix4x4f view_2d;
+
+		core::maths::Vector2f from_world_to_frame(core::maths::Vector3f wpos) const
+		{
+			return to_xy(frame_3d * projection_3d * view_3d * to_xyz1(wpos));
+		}
+	};
+
+	core::container::Collection
+	<
+		engine::Asset,
+		21,
+		std::array<display_t, 10>,
+		std::array<display_t, 1>
+	>
+	displays;
+
+	struct update_display_camera_2d
+	{
+		engine::graphics::renderer::camera_2d && data;
+
+		void operator () (display_t & x)
+		{
+			x.projection_2d = data.projection;
+			x.view_2d = data.view;
+		}
+	};
+
+	struct update_display_camera_3d
+	{
+		engine::graphics::renderer::camera_3d && data;
+
+		void operator () (display_t & x)
+		{
+			x.projection_3d = data.projection;
+			x.frame_3d = data.frame;
+			x.view_3d = data.view;
+			x.inv_projection_3d = data.inv_projection;
+			x.inv_frame_3d = data.inv_frame;
+			x.inv_view_3d = data.inv_view;
+		}
+	};
+
+	struct update_display_viewport
+	{
+		engine::graphics::renderer::viewport && data;
+
+		void operator () (display_t & x)
+		{
+			x.x = data.x;
+			x.y = data.y;
+			x.width = data.width;
+			x.height = data.height;
+		}
+	};
+
+
 	struct color_t
 	{
 		engine::graphics::opengl::Color4ub color;
@@ -743,6 +815,39 @@ namespace
 
 namespace
 {
+	struct MessageAddDisplay
+	{
+		engine::Asset asset;
+		engine::graphics::renderer::display display;
+	};
+	struct MessageRemoveDisplay
+	{
+		engine::Asset asset;
+	};
+	struct MessageUpdateDisplayCamera2D
+	{
+		engine::Asset asset;
+		engine::graphics::renderer::camera_2d camera_2d;
+	};
+	struct MessageUpdateDisplayCamera3D
+	{
+		engine::Asset asset;
+		engine::graphics::renderer::camera_3d camera_3d;
+	};
+	struct MessageUpdateDisplayViewport
+	{
+		engine::Asset asset;
+		engine::graphics::renderer::viewport viewport;
+	};
+	using DisplayMessage = utility::variant
+	<
+		MessageAddDisplay,
+		MessageRemoveDisplay,
+		MessageUpdateDisplayCamera2D,
+		MessageUpdateDisplayCamera3D,
+		MessageUpdateDisplayViewport
+	>;
+
 	struct MessageRegisterCharacter
 	{
 		engine::Asset asset;
@@ -891,17 +996,57 @@ namespace
 		MessageUpdateText
 	>;
 
-	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera2D> queue_notify_camera2d;
-	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Camera3D> queue_notify_camera3d;
-	core::container::ExchangeQueueSRSW<engine::graphics::renderer::Viewport> queue_notify_viewport;
-
+	core::container::CircleQueueSRMW<DisplayMessage, 100> queue_displays;
 	core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
 	core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
 
 	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity, engine::Command>, 10> queue_select;
 
+	void maybe_resize_framebuffer();
 	void poll_queues()
 	{
+		bool should_maybe_resize_framebuffer = false;
+		DisplayMessage display_message;
+		while (queue_displays.try_pop(display_message))
+		{
+			struct ProcessMessage
+			{
+				bool & should_maybe_resize_framebuffer;
+
+				void operator () (MessageAddDisplay && x)
+				{
+					displays.emplace<display_t>(x.asset,
+					                            x.display.viewport.x, x.display.viewport.y, x.display.viewport.width, x.display.viewport.height,
+					                            x.display.camera_3d.projection, x.display.camera_3d.frame, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_frame, x.display.camera_3d.inv_view,
+					                            x.display.camera_2d.projection, x.display.camera_2d.view);
+					should_maybe_resize_framebuffer = true;
+				}
+				void operator () (MessageRemoveDisplay && x)
+				{
+					displays.remove(x.asset);
+					should_maybe_resize_framebuffer = true;
+				}
+				void operator () (MessageUpdateDisplayCamera2D && x)
+				{
+					displays.call(x.asset, update_display_camera_2d{std::move(x.camera_2d)});
+				}
+				void operator () (MessageUpdateDisplayCamera3D && x)
+				{
+					displays.call(x.asset, update_display_camera_3d{std::move(x.camera_3d)});
+				}
+				void operator () (MessageUpdateDisplayViewport && x)
+				{
+					displays.call(x.asset, update_display_viewport{std::move(x.viewport)});
+					should_maybe_resize_framebuffer = true;
+				}
+			};
+			visit(ProcessMessage{should_maybe_resize_framebuffer}, std::move(display_message));
+		}
+		if (should_maybe_resize_framebuffer)
+		{
+			maybe_resize_framebuffer();
+		}
+
 		AssetMessage asset_message;
 		while (queue_assets.try_pop(asset_message))
 		{
@@ -1106,20 +1251,12 @@ namespace
 
 namespace
 {
-	core::maths::Matrix4x4f projection2D = core::maths::Matrix4x4f::identity();
-	core::maths::Matrix4x4f projection3D = core::maths::Matrix4x4f::identity();
-	core::maths::Matrix4x4f view2D = core::maths::Matrix4x4f::identity();
-	core::maths::Matrix4x4f view3D = core::maths::Matrix4x4f::identity();
-
-	int viewport_x = 0;
-	int viewport_y = 0;
-	int viewport_width = 0;
-	int viewport_height = 0;
-
 	Stack modelview_matrix;
 
 	engine::graphics::opengl::Font normal_font;
 
+	int framebuffer_width = 0;
+	int framebuffer_height = 0;
 	GLuint framebuffer;
 	GLuint entitybuffers[2]; // color, depth
 	std::vector<uint32_t> entitypixels;
@@ -1127,17 +1264,63 @@ namespace
 	engine::graphics::opengl::Color4ub highlighted_color{255, 191, 64, 255};
 	engine::graphics::opengl::Color4ub selected_color{64, 191, 255, 255};
 
+	void resize_framebuffer(int width, int height)
+	{
+		framebuffer_width = width;
+		framebuffer_height = height;
+
+		// free old render buffers
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
+		glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, 0); // color
+		glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0); // depth
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+		glDeleteRenderbuffers(2, entitybuffers);
+		// allocate new render buffers
+		glGenRenderbuffers(2, entitybuffers);
+		glBindRenderbuffer(GL_RENDERBUFFER, entitybuffers[0]); // color
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, framebuffer_width, framebuffer_height);
+		glBindRenderbuffer(GL_RENDERBUFFER, entitybuffers[1]); // depth
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, framebuffer_width, framebuffer_height);
+
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
+		glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, entitybuffers[0]); // color
+		glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, entitybuffers[1]); // depth
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+		entitypixels.resize(framebuffer_width * framebuffer_height);
+	}
+	void maybe_resize_framebuffer()
+	{
+		int width = 0;
+		int height = 0;
+
+		for (const auto & display : displays.get<display_t>())
+		{
+			const int maybe_width = display.x + display.width;
+			if (maybe_width > width) width = maybe_width;
+			const int maybe_height = display.y + display.height;
+			if (maybe_height > height) height = maybe_height;
+		}
+
+		if (width != framebuffer_width ||
+		    height != framebuffer_height)
+		{
+			resize_framebuffer(width, height);
+		}
+	}
+
 	engine::Entity get_entity_at_screen(int sx, int sy)
 	{
 		const int x = sx;
-		const int y = viewport_height - 1 - sy;
+		const int y = framebuffer_height - 1 - sy;
 
-		if (x >= viewport_x &&
-		    y >= viewport_y &&
-		    x < viewport_x + viewport_width &&
-		    y < viewport_y + viewport_height)
+		if (x >= 0 &&
+		    y >= 0 &&
+		    x < 0 + framebuffer_width &&
+		    y < 0 + framebuffer_height)
 		{
-			const unsigned int color = entitypixels[x + y * viewport_width];
+			const unsigned int color = entitypixels[x + y * framebuffer_width];
 			return engine::Entity{
 				(color & 0xff000000) >> 24 |
 				(color & 0x00ff0000) >> 8 |
@@ -1374,57 +1557,7 @@ namespace
 		{
 			component.update();
 		}
-		//
-		// read notifications
-		//
-		engine::graphics::renderer::Camera2D notification_camera2d;
-		if (queue_notify_camera2d.try_pop(notification_camera2d))
-		{
-			projection2D = notification_camera2d.projection;
-			view2D = notification_camera2d.view;
-		}
-		engine::graphics::renderer::Camera3D notification_camera3d;
-		if (queue_notify_camera3d.try_pop(notification_camera3d))
-		{
-			projection3D = notification_camera3d.projection;
-			view3D = notification_camera3d.view;
-		}
-		engine::graphics::renderer::Viewport notification_viewport;
-		if (queue_notify_viewport.try_pop(notification_viewport))
-		{
-			viewport_x = notification_viewport.x;
-			viewport_y = notification_viewport.y;
 
-			glViewport(notification_viewport.x, notification_viewport.y, notification_viewport.width, notification_viewport.height);
-
-			if (viewport_width != notification_viewport.width ||
-			    viewport_height != notification_viewport.height)
-			{
-				viewport_width = notification_viewport.width;
-				viewport_height = notification_viewport.height;
-
-				// free old render buffers
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
-				glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, 0); // color
-				glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0); // depth
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-				glDeleteRenderbuffers(2, entitybuffers);
-				// allocate new render buffers
-				glGenRenderbuffers(2, entitybuffers);
-				glBindRenderbuffer(GL_RENDERBUFFER, entitybuffers[0]); // color
-				glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, notification_viewport.width, notification_viewport.height);
-				glBindRenderbuffer(GL_RENDERBUFFER, entitybuffers[1]); // depth
-				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, notification_viewport.width, notification_viewport.height);
-
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
-				glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, entitybuffers[0]); // color
-				glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, entitybuffers[1]); // depth
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-				entitypixels.resize(notification_viewport.width * notification_viewport.height);
-			}
-		}
 
 		glStencilMask(0x000000ff);
 		// setup frame
@@ -1433,24 +1566,28 @@ namespace
 		//glClearStencil(0x00000000);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-		// setup 3D
-		glMatrixMode(GL_PROJECTION);
-		glLoadMatrix(projection3D);
-		glMatrixMode(GL_MODELVIEW);
-		modelview_matrix.load(view3D);
-
 		////////////////////////////////////////////////////////
 		//
 		//  entity buffer
 		//
 		////////////////////////////////////////
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
-		// glViewport(...);
+		glViewport(0, 0, framebuffer_width, framebuffer_height);
 		glClearColor(0.f, 0.f, 0.f, 0.f); // null entity
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glDisable(GL_LIGHTING);
 		glEnable(GL_DEPTH_TEST);
+
+		for (const auto & display : displays.get<display_t>())
+		{
+			glViewport(display.x, display.y, display.width, display.height);
+
+		// setup 3D
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrix(display.projection_3d);
+		glMatrixMode(GL_MODELVIEW);
+		modelview_matrix.load(display.view_3d);
 
 		for (const auto & component : selectable_components.get<selectable_character_t>())
 		{
@@ -1519,9 +1656,9 @@ namespace
 
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);
-		glLoadMatrix(projection2D);
+		glLoadMatrix(display.projection_2d);
 		glMatrixMode(GL_MODELVIEW);
-		modelview_matrix.load(core::maths::Matrix4x4f::identity());
+		modelview_matrix.load(display.view_2d);
 
 		for (const auto & component : selectable_components.get<selectable_panel>())
 		{
@@ -1546,13 +1683,15 @@ namespace
 			modelview_matrix.pop();
 		}
 
+		}
+
 		glDisable(GL_DEPTH_TEST);
 		glEnable(GL_LIGHTING);
 
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
 
-		glReadPixels(viewport_x, viewport_y, viewport_width, viewport_height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, entitypixels.data());
+		glReadPixels(0, 0, framebuffer_width, framebuffer_height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, entitypixels.data());
 
 		// select
 		{
@@ -1568,11 +1707,15 @@ namespace
 
 		////////////////////////////////////////////////////////////////
 
+		for (const auto & display : displays.get<display_t>())
+		{
+			glViewport(display.x, display.y, display.width, display.height);
+
 		// setup 3D
 		glMatrixMode(GL_PROJECTION);
-		glLoadMatrix(projection3D);
+		glLoadMatrix(display.projection_3d);
 		glMatrixMode(GL_MODELVIEW);
-		modelview_matrix.load(view3D);
+		modelview_matrix.load(display.view_3d);
 
 		// wireframes
 		glEnable(GL_DEPTH_TEST);
@@ -1761,9 +1904,9 @@ namespace
 
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);
-		glLoadMatrix(projection2D);
+		glLoadMatrix(display.projection_2d);
 		glMatrixMode(GL_MODELVIEW);
-		modelview_matrix.load(core::maths::Matrix4x4f::identity());
+		modelview_matrix.load(display.view_2d);
 
 		// disable depth test to make the bar drawings show above the 3d content
 		glDisable(GL_DEPTH_TEST);
@@ -1775,10 +1918,9 @@ namespace
 			modelview_matrix.push();
 
 			// calculate modelview of bar position in world space
-			core::maths::Vector2f screenCoord;
-			engine::graphics::viewer::from_world_to_screen(component.worldPosition, screenCoord);
+			core::maths::Vector2f frameCoord = display.from_world_to_frame(component.worldPosition);
 			core::maths::Vector2f::array_type b;
-			screenCoord.get_aligned(b);
+			frameCoord.get_aligned(b);
 
 			Matrix4x4f modelview = make_translation_matrix(Vector3f{ b[0], b[1], 0.f });
 
@@ -1891,12 +2033,14 @@ namespace
 			modelview_matrix.pop();
 		}
 
+		}
+
 		// entity buffers
 		if (entitytoggle.load(std::memory_order_relaxed))
 		{
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
 
-			glBlitFramebuffer(viewport_x, viewport_y, viewport_width, viewport_height, viewport_x, viewport_y, viewport_width, viewport_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			glBlitFramebuffer(0, 0, framebuffer_width, framebuffer_height, 0, 0, framebuffer_width, framebuffer_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		}
@@ -1964,17 +2108,30 @@ namespace engine
 				renderThread.join();
 			}
 
-			void notify(Camera2D && data)
+			void post_add_display(engine::Asset asset, display && data)
 			{
-				queue_notify_camera2d.try_push(std::move(data));
+				const auto res = queue_displays.try_emplace(utility::in_place_type<MessageAddDisplay>, asset, std::move(data));
+				debug_assert(res);
 			}
-			void notify(Camera3D && data)
+			void post_remove_display(engine::Asset asset)
 			{
-				queue_notify_camera3d.try_push(std::move(data));
+				const auto res = queue_displays.try_emplace(utility::in_place_type<MessageRemoveDisplay>, asset);
+				debug_assert(res);
 			}
-			void notify(Viewport && data)
+			void post_update_display(engine::Asset asset, camera_2d && data)
 			{
-				queue_notify_viewport.try_push(std::move(data));
+				const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera2D>, asset, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_display(engine::Asset asset, camera_3d && data)
+			{
+				const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera3D>, asset, std::move(data));
+				debug_assert(res);
+			}
+			void post_update_display(engine::Asset asset, viewport && data)
+			{
+				const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayViewport>, asset, std::move(data));
+				debug_assert(res);
 			}
 
 			void post_register_character(engine::Asset asset, engine::model::mesh_t && data)

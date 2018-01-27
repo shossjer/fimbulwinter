@@ -107,25 +107,34 @@ namespace engine
 
 		namespace renderer
 		{
-			struct Camera2D
+			struct camera_2d
 			{
 				core::maths::Matrix4x4f projection;
 				core::maths::Matrix4x4f view;
 			};
-			struct Camera3D
+			struct camera_3d
 			{
 				core::maths::Matrix4x4f projection;
+				core::maths::Matrix4x4f frame;
 				core::maths::Matrix4x4f view;
 				core::maths::Matrix4x4f inv_projection;
+				core::maths::Matrix4x4f inv_frame;
 				core::maths::Matrix4x4f inv_view;
 			};
-			struct Viewport
+			struct viewport
 			{
 				int32_t x;
 				int32_t y;
 				int32_t width;
 				int32_t height;
 			};
+			struct display
+			{
+				viewport viewport;
+				camera_3d camera_3d;
+				camera_2d camera_2d;
+			};
+
 			struct Cursor
 			{
 				int32_t x;
@@ -143,6 +152,11 @@ namespace engine
 			// void notify(Camera2D && data);
 			// void notify(Camera3D && data);
 			// void notify(Viewport && data);
+			void post_add_display(engine::Asset asset, display && data);
+			void post_remove_display(engine::Asset asset);
+			void post_update_display(engine::Asset asset, camera_2d && data);
+			void post_update_display(engine::Asset asset, camera_3d && data);
+			void post_update_display(engine::Asset asset, viewport && data);
 
 			void post_register_character(engine::Asset asset, engine::model::mesh_t && data);
 			void post_register_mesh(engine::Asset asset, data::Mesh && data);
