@@ -14,6 +14,7 @@
 #include <engine/physics/physics.hpp>
 #include "engine/resource/reader.hpp"
 
+#include "gameplay/commands.hpp"
 #include <gameplay/debug.hpp>
 #include <gameplay/factory.hpp>
 
@@ -40,7 +41,7 @@ namespace
 		{
 			switch (command)
 			{
-			case engine::Command::CONTEXT_CHANGED:
+			case engine::command::CONTEXT_CHANGED:
 				debug_assert(!data.has_value());
 				debug_printline(gameplay::gameplay_channel, "Switching to camera: ", camera);
 				engine::graphics::viewer::post_bind(frame, camera);
@@ -76,99 +77,99 @@ namespace
 		{
 			switch (command)
 			{
-			case engine::Command::MOVE_LEFT_DOWN:
+			case engine::command::MOVE_LEFT_DOWN:
 				debug_assert(!data.has_value());
 				move_left = true;
 				break;
-			case engine::Command::MOVE_LEFT_UP:
+			case engine::command::MOVE_LEFT_UP:
 				debug_assert(!data.has_value());
 				move_left = false;
 				break;
-			case engine::Command::MOVE_RIGHT_DOWN:
+			case engine::command::MOVE_RIGHT_DOWN:
 				debug_assert(!data.has_value());
 				move_right = true;
 				break;
-			case engine::Command::MOVE_RIGHT_UP:
+			case engine::command::MOVE_RIGHT_UP:
 				debug_assert(!data.has_value());
 				move_right = false;
 				break;
-			case engine::Command::MOVE_DOWN_DOWN:
+			case engine::command::MOVE_DOWN_DOWN:
 				debug_assert(!data.has_value());
 				move_down = true;
 				break;
-			case engine::Command::MOVE_DOWN_UP:
+			case engine::command::MOVE_DOWN_UP:
 				debug_assert(!data.has_value());
 				move_down = false;
 				break;
-			case engine::Command::MOVE_UP_DOWN:
+			case engine::command::MOVE_UP_DOWN:
 				debug_assert(!data.has_value());
 				move_up = true;
 				break;
-			case engine::Command::MOVE_UP_UP:
+			case engine::command::MOVE_UP_UP:
 				debug_assert(!data.has_value());
 				move_up = false;
 				break;
-			case engine::Command::TURN_LEFT_DOWN:
+			case engine::command::TURN_LEFT_DOWN:
 				debug_assert(!data.has_value());
 				turn_left = true;
 				break;
-			case engine::Command::TURN_LEFT_UP:
+			case engine::command::TURN_LEFT_UP:
 				debug_assert(!data.has_value());
 				turn_left = false;
 				break;
-			case engine::Command::TURN_RIGHT_DOWN:
+			case engine::command::TURN_RIGHT_DOWN:
 				debug_assert(!data.has_value());
 				turn_right = true;
 				break;
-			case engine::Command::TURN_RIGHT_UP:
+			case engine::command::TURN_RIGHT_UP:
 				debug_assert(!data.has_value());
 				turn_right = false;
 				break;
-			case engine::Command::TURN_DOWN_DOWN:
+			case engine::command::TURN_DOWN_DOWN:
 				debug_assert(!data.has_value());
 				turn_down = true;
 				break;
-			case engine::Command::TURN_DOWN_UP:
+			case engine::command::TURN_DOWN_UP:
 				debug_assert(!data.has_value());
 				turn_down = false;
 				break;
-			case engine::Command::TURN_UP_DOWN:
+			case engine::command::TURN_UP_DOWN:
 				debug_assert(!data.has_value());
 				turn_up = true;
 				break;
-			case engine::Command::TURN_UP_UP:
+			case engine::command::TURN_UP_UP:
 				debug_assert(!data.has_value());
 				turn_up = false;
 				break;
-			case engine::Command::ROLL_LEFT_DOWN:
+			case engine::command::ROLL_LEFT_DOWN:
 				debug_assert(!data.has_value());
 				roll_left = true;
 				break;
-			case engine::Command::ROLL_LEFT_UP:
+			case engine::command::ROLL_LEFT_UP:
 				debug_assert(!data.has_value());
 				roll_left = false;
 				break;
-			case engine::Command::ROLL_RIGHT_DOWN:
+			case engine::command::ROLL_RIGHT_DOWN:
 				debug_assert(!data.has_value());
 				roll_right = true;
 				break;
-			case engine::Command::ROLL_RIGHT_UP:
+			case engine::command::ROLL_RIGHT_UP:
 				debug_assert(!data.has_value());
 				roll_right = false;
 				break;
-			case engine::Command::ELEVATE_DOWN_DOWN:
+			case engine::command::ELEVATE_DOWN_DOWN:
 				debug_assert(!data.has_value());
 				elevate_down = true;
 				break;
-			case engine::Command::ELEVATE_DOWN_UP:
+			case engine::command::ELEVATE_DOWN_UP:
 				debug_assert(!data.has_value());
 				elevate_down = false;
 				break;
-			case engine::Command::ELEVATE_UP_DOWN:
+			case engine::command::ELEVATE_UP_DOWN:
 				debug_assert(!data.has_value());
 				elevate_up = true;
 				break;
-			case engine::Command::ELEVATE_UP_UP:
+			case engine::command::ELEVATE_UP_UP:
 				debug_assert(!data.has_value());
 				elevate_up = false;
 				break;
@@ -238,35 +239,35 @@ namespace
 		{
 			switch (command)
 			{
-			case engine::Command::MOVE_LEFT_DOWN:
+			case engine::command::MOVE_LEFT_DOWN:
 				debug_assert(!data.has_value());
 				move_left++;
 				break;
-			case engine::Command::MOVE_LEFT_UP:
+			case engine::command::MOVE_LEFT_UP:
 				debug_assert(!data.has_value());
 				move_left--;
 				break;
-			case engine::Command::MOVE_RIGHT_DOWN:
+			case engine::command::MOVE_RIGHT_DOWN:
 				debug_assert(!data.has_value());
 				move_right++;
 				break;
-			case engine::Command::MOVE_RIGHT_UP:
+			case engine::command::MOVE_RIGHT_UP:
 				debug_assert(!data.has_value());
 				move_right--;
 				break;
-			case engine::Command::MOVE_DOWN_DOWN:
+			case engine::command::MOVE_DOWN_DOWN:
 				debug_assert(!data.has_value());
 				move_down++;
 				break;
-			case engine::Command::MOVE_DOWN_UP:
+			case engine::command::MOVE_DOWN_UP:
 				debug_assert(!data.has_value());
 				move_down--;
 				break;
-			case engine::Command::MOVE_UP_DOWN:
+			case engine::command::MOVE_UP_DOWN:
 				debug_assert(!data.has_value());
 				move_up++;
 				break;
-			case engine::Command::MOVE_UP_UP:
+			case engine::command::MOVE_UP_UP:
 				debug_assert(!data.has_value());
 				move_up--;
 				break;
@@ -605,13 +606,13 @@ namespace
 		{
 			switch (command)
 			{
-			case engine::Command::BUTTON_DOWN_ACTIVE:
-			case engine::Command::BUTTON_DOWN_INACTIVE:
+			case engine::command::BUTTON_DOWN_ACTIVE:
+			case engine::command::BUTTON_DOWN_INACTIVE:
 				debug_assert(!data.has_value());
 				engine::gui::post(engine::gui::MessageVisibility{ window, engine::gui::MessageVisibility::TOGGLE });
 				break;
-			case engine::Command::BUTTON_UP_ACTIVE:
-			case engine::Command::BUTTON_UP_INACTIVE:
+			case engine::command::BUTTON_UP_ACTIVE:
+			case engine::command::BUTTON_UP_INACTIVE:
 				debug_assert(!data.has_value());
 				break;
 			default:
@@ -733,7 +734,7 @@ namespace
 	{
 		void translate(engine::Command command, utility::any && data)
 		{
-			debug_assert(command == engine::Command::LOADER_FINISHED);
+			debug_assert(command == engine::command::LOADER_FINISHED);
 			debug_printline(gameplay::gameplay_channel, "WOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOW");
 		}
 	};
@@ -882,7 +883,7 @@ namespace
 	{
 		switch (command)
 		{
-		case engine::Command::RENDER_HIGHLIGHT:
+		case engine::command::RENDER_HIGHLIGHT:
 			if (highlighted_entity != utility::any_cast<engine::Entity>(data))
 			{
 				// check if anything is "pressed" it will need to be "released" before "lowlighted"
@@ -906,7 +907,7 @@ namespace
 				}
 			}
 			break;
-		case engine::Command::RENDER_SELECT:
+		case engine::command::RENDER_SELECT:
 			if (components.contains(highlighted_entity))
 			{
 				pressed_entity = highlighted_entity;
@@ -914,7 +915,7 @@ namespace
 			}
 			entityClick(utility::any_cast<engine::Entity>(data));
 			break;
-		case engine::Command::RENDER_DESELECT:
+		case engine::command::RENDER_DESELECT:
 			if (pressed_entity != engine::Entity::null())
 			{
 				if (components.call(pressed_entity, ::playerEntityClick))

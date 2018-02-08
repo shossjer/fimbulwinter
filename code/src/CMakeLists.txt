@@ -64,6 +64,7 @@ set(HEADER_FILES
 	src/core/sync/Mutex.hpp
 	src/engine/Asset.hpp
 	src/engine/Command.hpp
+	src/engine/commands.hpp
 	src/engine/console.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
@@ -104,6 +105,7 @@ set(HEADER_FILES
 	src/engine/physics/physics_physx.hpp
 	src/engine/resource/loader.hpp
 	src/engine/resource/reader.hpp
+	src/gameplay/commands.hpp
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp

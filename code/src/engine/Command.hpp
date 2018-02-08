@@ -2,46 +2,39 @@
 #ifndef ENGINE_COMMAND_HPP
 #define ENGINE_COMMAND_HPP
 
+#include "engine/Asset.hpp"
+
 namespace engine
 {
-	enum class Command : int
+	class Command
 	{
-		BUTTON_DOWN_ACTIVE,
-		BUTTON_UP_ACTIVE,
-		BUTTON_DOWN_INACTIVE,
-		BUTTON_UP_INACTIVE,
-		CONTEXT_CHANGED,
-		ELEVATE_DOWN_DOWN,
-		ELEVATE_DOWN_UP,
-		ELEVATE_UP_DOWN,
-		ELEVATE_UP_UP,
-		LOADER_ASSET_COUNT,
-		LOADER_FINISHED,
-		LOADER_READ_BEGIN,
-		LOADER_READ_END,
-		MOVE_DOWN_DOWN,
-		MOVE_DOWN_UP,
-		MOVE_LEFT_DOWN,
-		MOVE_LEFT_UP,
-		MOVE_RIGHT_DOWN,
-		MOVE_RIGHT_UP,
-		MOVE_UP_DOWN,
-		MOVE_UP_UP,
-		RENDER_DESELECT,
-		RENDER_SELECT,
-		RENDER_HIGHLIGHT,
-		ROLL_LEFT_DOWN,
-		ROLL_LEFT_UP,
-		ROLL_RIGHT_DOWN,
-		ROLL_RIGHT_UP,
-		TURN_DOWN_DOWN,
-		TURN_DOWN_UP,
-		TURN_LEFT_DOWN,
-		TURN_LEFT_UP,
-		TURN_RIGHT_DOWN,
-		TURN_RIGHT_UP,
-		TURN_UP_DOWN,
-		TURN_UP_UP
+	private:
+		using this_type = Command;
+
+	private:
+		engine::Asset asset;
+
+	public:
+		Command() = default;
+		template <std::size_t N>
+		constexpr Command(const char (& str)[N])
+			: asset(str)
+		{}
+		constexpr Command(const char *const str, const std::size_t n)
+			: asset(str, n)
+		{}
+
+	public:
+		constexpr operator engine::Asset::value_type () const
+		{
+			return asset;
+		}
+
+	public:
+		friend std::ostream & operator << (std::ostream & stream, const this_type & command)
+		{
+			return stream << command.asset;
+		}
 	};
 }
 
