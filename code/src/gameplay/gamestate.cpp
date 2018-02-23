@@ -12,6 +12,7 @@
 #include <engine/gui/gui.hpp>
 #include "engine/hid/ui.hpp"
 #include <engine/physics/physics.hpp>
+#include "engine/replay/writer.hpp"
 #include "engine/resource/reader.hpp"
 
 #include "gameplay/commands.hpp"
@@ -1082,7 +1083,7 @@ namespace gamestate
 
 	}
 
-	void update()
+	void update(int frame_count)
 	{
 		// adding workstuff
 		{
@@ -1117,11 +1118,12 @@ namespace gamestate
 			std::tuple<engine::Entity, engine::Command, utility::any> command_args;
 			while (queue_commands.try_pop(command_args))
 			{
+				engine::replay::post_add_command(frame_count, std::get<0>(command_args), std::get<1>(command_args), utility::any(std::get<2>(command_args)));
+
 				debug_assert(std::get<0>(command_args) != engine::Entity::null());
 				if (std::get<0>(command_args) != engine::Entity::null())
 				{
 					components.call(std::get<0>(command_args), translate_command{std::get<1>(command_args), std::move(std::get<2>(command_args))});
-					continue;
 				}
 			}
 		}

@@ -39,7 +39,9 @@ namespace engine
 
 namespace
 {
-	bool active = true;
+	bool active = false;
+
+	long long frame_count;
 
 	core::async::Thread looperThread;
 }
@@ -52,6 +54,10 @@ namespace looper
 
 	void create()
 	{
+		active = true;
+
+		frame_count = 0;
+
 		looperThread = core::async::Thread{ gameplay::looper::run };
 	}
 		
@@ -64,7 +70,8 @@ namespace looper
 
 	void run()
 	{
-		// 
+		int frame_count = 0;
+
 		while (active)
 		{
 			::engine::animation::update();
@@ -82,13 +89,15 @@ namespace looper
 			::engine::hid::ui::update();
 		
 			// update characters
-			::gameplay::gamestate::update();
+			::gameplay::gamestate::update(frame_count);
 
 			::engine::gui::update();
 
 			//
 			::engine::graphics::viewer::update();
 			::engine::graphics::renderer::update();
+
+			frame_count++;
 
 			// something temporary that delays
 			core::async::delay(15); // ~60 fps

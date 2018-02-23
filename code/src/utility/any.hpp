@@ -3,9 +3,11 @@
 #define UTILITY_ANY_HPP
 
 #include "concepts.hpp"
+#include "stream.hpp"
 #include "utility.hpp"
 
 #include <exception>
+#include <iostream>
 #include <memory>
 
 namespace utility
@@ -25,6 +27,7 @@ namespace utility
 
 				virtual base_t * clone() const = 0;
 				virtual const void * data() const = 0;
+				virtual std::ostream & print(std::ostream & stream) const = 0;
 			};
 			template <typename T>
 			struct dynamic_t : base_t
@@ -46,6 +49,10 @@ namespace utility
 				const void * data() const override
 				{
 					return static_cast<const void *>(std::addressof(data_));
+				}
+				std::ostream & print(std::ostream & stream) const override
+				{
+					return stream << utility::try_stream(data_);
 				}
 			};
 
@@ -97,6 +104,11 @@ namespace utility
 			const T & get() const
 			{
 				return *static_cast<const T *>(ptr->data());
+			}
+
+			std::ostream & print(std::ostream & stream) const
+			{
+				return empty() ? stream << "(empty)" : ptr->print(stream);
 			}
 		};
 
@@ -200,6 +212,11 @@ namespace utility
 		friend void swap(this_type & x, this_type & y)
 		{
 			x.swap(y);
+		}
+
+		friend std::ostream & operator << (std::ostream & stream, const this_type & x)
+		{
+			return x.storage.print(stream);
 		}
 	private:
 		friend detail::any_storage & get_storage(this_type & x)

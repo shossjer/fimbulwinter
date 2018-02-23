@@ -16,7 +16,7 @@ namespace gamestate
 
 	void destroy();
 
-	void update();
+	void update(int frame_count);
 
 	void post_command(engine::Entity entity, engine::Command command);
 	void post_command(engine::Entity entity, engine::Command command, utility::any && data);
