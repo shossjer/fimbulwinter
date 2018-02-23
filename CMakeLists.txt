@@ -1,6 +1,6 @@
 #
 cmake_minimum_required(VERSION 3.5.1)
-project(hellskitchen CXX)
+project(hellskitchen C CXX)
 
 include_directories("${PROJECT_SOURCE_DIR}/dep/include")
 set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/include")
@@ -55,6 +55,13 @@ message(STATUS "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
 message(STATUS "CMAKE_SYSTEM_PREFIX_PATH=${CMAKE_SYSTEM_PREFIX_PATH}")
 message(STATUS "CMAKE_INCLUDE_PATH=${CMAKE_INCLUDE_PATH}")
 message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
+
+# hardware settings
+include(TestBigEndian)
+test_big_endian(ENDIANESS)
+if (ENDIANESS)
+  set(BIG_WORDS 1)
+endif ()
 
 # flags to control physics library linking
 set(PHYSICS_USE_BOX2D 0)

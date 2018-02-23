@@ -14,6 +14,10 @@
 
 /**
  */
+#cmakedefine BIG_WORDS 1
+
+/**
+ */
 #cmakedefine CONSOLE_USE_KERNEL32 1
 /**
  */
