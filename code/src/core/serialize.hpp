@@ -10,15 +10,26 @@
 
 namespace core
 {
-	struct list_begin_t { explicit constexpr list_begin_t(int) {} } constexpr list_begin(0);
-	struct list_end_t { explicit constexpr list_end_t(int) {} } constexpr list_end(0);
-	struct list_space_t { explicit constexpr list_space_t(int) {} } constexpr list_space(0);
+	struct list_begin_t { explicit constexpr list_begin_t(int) {} };
+	struct list_end_t { explicit constexpr list_end_t(int) {} };
+	struct list_space_t { explicit constexpr list_space_t(int) {} };
 
-	struct tuple_begin_t { explicit constexpr tuple_begin_t(int) {} } constexpr tuple_begin(0);
-	struct tuple_end_t { explicit constexpr tuple_end_t(int) {} } constexpr tuple_end(0);
-	struct tuple_space_t { explicit constexpr tuple_space_t(int) {} } constexpr tuple_space(0);
+	struct tuple_begin_t { explicit constexpr tuple_begin_t(int) {} };
+	struct tuple_end_t { explicit constexpr tuple_end_t(int) {} };
+	struct tuple_space_t { explicit constexpr tuple_space_t(int) {} };
 
-	struct newline_t { explicit constexpr newline_t(int) {} } constexpr newline(0);
+	struct newline_t { explicit constexpr newline_t(int) {} };
+
+	constexpr list_begin_t list_begin{ 0 };
+	constexpr list_end_t list_end{ 0 };
+	constexpr list_space_t list_space{ 0 };
+
+	constexpr tuple_begin_t tuple_begin{ 0 };
+	constexpr tuple_end_t tuple_end{ 0 };
+	constexpr tuple_space_t tuple_space{ 0 };
+
+	constexpr newline_t newline{ 0 };
+
 
 	template <typename S>
 	void serialize(S & s, std::nullptr_t x)
