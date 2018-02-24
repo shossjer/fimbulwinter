@@ -31,6 +31,12 @@ namespace engine
 		}
 
 	public:
+		template <typename S>
+		friend void serialize(S & s, this_type x)
+		{
+			serialize(s, x.asset);
+		}
+
 		friend std::ostream & operator << (std::ostream & stream, const this_type & command)
 		{
 			return stream << command.asset;

@@ -3,6 +3,7 @@
 #define ENGINE_ENTITY_HPP
 
 #include <core/debug.hpp>
+#include "core/serialize.hpp"
 
 #include <atomic>
 #include <cstdint>
@@ -41,9 +42,17 @@ namespace engine
 		}
 
 	public:
-		friend std::ostream & operator << (std::ostream & stream, const this_type & entity)
+		template <typename S>
+		friend void serialize(S & s, this_type x)
 		{
-			stream << entity.id;
+			using core::serialize;
+
+			serialize(s, x.id);
+		}
+
+		friend std::ostream & operator << (std::ostream & stream, this_type x)
+		{
+			stream << x.id;
 			return stream;
 		}
 
