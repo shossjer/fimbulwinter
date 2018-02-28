@@ -5,6 +5,9 @@
 #include <config.h>
 
 #include <core/crypto/crc.hpp>
+#include "core/serialize.hpp"
+
+#include "utility/concepts.hpp"
 
 #include <ostream>
 #include <string>
@@ -78,6 +81,15 @@ namespace engine
 #endif
 
 	public:
+		template <typename S, typename X,
+		          REQUIRES((mpl::is_same<mpl::decay_t<X>, this_type>::value))>
+		friend void serialize_class(S & s, X & x)
+		{
+			using core::serialize;
+
+			serialize(s, x.id);
+		}
+
 		friend std::ostream & operator << (std::ostream & stream, const this_type & asset)
 		{
 			stream << asset.id;

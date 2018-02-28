@@ -32,125 +32,83 @@ namespace core
 
 
 	template <typename S>
-	void serialize(S & s, std::nullptr_t x)
-	{
-		s(x);
-	}
+	void serialize(S & s, std::nullptr_t x) { s(x); }
 
 	template <typename S>
-	void serialize(S & s, bool x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const bool & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, bool & x) { s(x); }
 
 	template <typename S>
-	void serialize(S & s, char x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const char & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, char16_t x)
-	{
-		s(x);
-	}
+	void serialize(S & s, char & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, char32_t x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const char16_t & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, wchar_t x)
-	{
-		s(x);
-	}
+	void serialize(S & s, char16_t & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, const char32_t & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, char32_t & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, const wchar_t & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, wchar_t & x) { s(x); }
 
 	template <typename S>
-	void serialize(S & s, signed char x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const signed char & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, unsigned char x)
-	{
-		s(x);
-	}
+	void serialize(S & s, signed char & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, short int x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const unsigned char & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, unsigned short int x)
-	{
-		s(x);
-	}
+	void serialize(S & s, unsigned char & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, int x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const short int & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, unsigned int x)
-	{
-		s(x);
-	}
+	void serialize(S & s, short int & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, long int x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const unsigned short int & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, unsigned long int x)
-	{
-		s(x);
-	}
+	void serialize(S & s, unsigned short int & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, long long int x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const int & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, unsigned long long int x)
-	{
-		s(x);
-	}
+	void serialize(S & s, int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, const unsigned int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, unsigned int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, const long int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, long int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, const unsigned long int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, unsigned long int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, const long long int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, long long int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, const unsigned long long int & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, unsigned long long int & x) { s(x); }
 
 	template <typename S>
-	void serialize(S & s, float x)
-	{
-		s(x);
-	}
+	void serialize(S & s, const float & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, double x)
-	{
-		s(x);
-	}
+	void serialize(S & s, float & x) { s(x); }
 	template <typename S>
-	void serialize(S & s, long double x)
-	{
-		s(x);
-	}
-
-	template <typename S, typename T>
-	auto serialize(S & s, const T & xs) ->
-		decltype(std::begin(xs), std::end(xs), void())
-	{
-		s(list_begin);
-
-		bool not_first = false;
-		for (auto && x : xs)
-		{
-			if (not_first)
-			{
-				s(list_space);
-			}
-			not_first = true;
-
-			serialize(s, x);
-		}
-
-		s(list_end);
-	}
+	void serialize(S & s, const double & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, double & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, const long double & x) { s(x); }
+	template <typename S>
+	void serialize(S & s, long double & x) { s(x); }
 
 	namespace detail
 	{
@@ -177,6 +135,11 @@ namespace core
 		{
 			serialize_tuple_impl(s, std::get<Is>(x)...);
 		}
+		template <typename S, typename ...Ts, size_t ...Is>
+		void serialize_tuple(S & s, std::tuple<Ts...> & x, mpl::index_sequence<Is...>)
+		{
+			serialize_tuple_impl(s, std::get<Is>(x)...);
+		}
 	}
 
 	template <typename S, typename ...Ts>
@@ -187,6 +150,50 @@ namespace core
 		detail::serialize_tuple(s, x, mpl::make_index_sequence_for<Ts...>{});
 
 		s(tuple_end);
+	}
+	template <typename S, typename ...Ts>
+	void serialize(S & s, std::tuple<Ts...> & x)
+	{
+		s(tuple_begin);
+
+		detail::serialize_tuple(s, x, mpl::make_index_sequence_for<Ts...>{});
+
+		s(tuple_end);
+	}
+
+	template <typename S, typename T>
+	void serialize_impl(S & s, T & t, ...)
+	{
+		s(list_begin);
+		serialize_class(s, t);
+		s(list_end);
+	}
+
+	template <typename S, typename T>
+	auto serialize_impl(S & s, T & xs, int) ->
+		decltype(std::begin(xs), std::end(xs), void())
+	{
+		s(list_begin);
+
+		bool not_first = false;
+		for (auto && x : xs)
+		{
+			if (not_first)
+			{
+				s(list_space);
+			}
+			not_first = true;
+
+			serialize(s, x);
+		}
+
+		s(list_end);
+	}
+
+	template <typename S, typename T>
+	void serialize(S & s, T & t)
+	{
+		serialize_impl(s, t, 0);
 	}
 }
 

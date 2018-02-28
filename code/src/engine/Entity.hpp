@@ -5,6 +5,8 @@
 #include <core/debug.hpp>
 #include "core/serialize.hpp"
 
+#include "utility/concepts.hpp"
+
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -42,8 +44,9 @@ namespace engine
 		}
 
 	public:
-		template <typename S>
-		friend void serialize(S & s, this_type x)
+		template <typename S, typename X,
+		          REQUIRES((mpl::is_same<mpl::decay_t<X>, this_type>::value))>
+		friend void serialize_class(S & s, X & x)
 		{
 			using core::serialize;
 
