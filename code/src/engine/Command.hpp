@@ -32,7 +32,12 @@ namespace engine
 
 	public:
 		template <typename S>
-		friend void serialize(S & s, this_type x)
+		friend void serialize(S & s, const this_type & x)
+		{
+			serialize(s, x.asset);
+		}
+		template <typename S>
+		friend void serialize(S & s, this_type & x)
 		{
 			serialize(s, x.asset);
 		}

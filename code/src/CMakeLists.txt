@@ -32,6 +32,7 @@ set(SOURCE_FILES
 	src/engine/physics/creation_physx.cpp
 	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
+	src/engine/replay/reader.cpp
 	src/engine/replay/writer.cpp
 	src/engine/resource/loader.cpp
 	src/engine/resource/reader.cpp
@@ -105,6 +106,7 @@ set(HEADER_FILES
 	src/engine/physics/material_physx.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/physics_physx.hpp
+	src/engine/replay/reader.hpp
 	src/engine/replay/writer.hpp
 	src/engine/resource/loader.hpp
 	src/engine/resource/reader.hpp

@@ -4,6 +4,7 @@
 
 #include <engine/physics/Callback.hpp>
 #include <engine/physics/physics.hpp>
+#include "engine/replay/reader.hpp"
 
 #include <gameplay/gamestate.hpp>
 
@@ -72,6 +73,8 @@ namespace looper
 	{
 		int frame_count = 0;
 
+		engine::replay::start();
+
 		while (active)
 		{
 			::engine::animation::update();
@@ -89,6 +92,7 @@ namespace looper
 			::engine::hid::ui::update();
 		
 			// update characters
+			::engine::replay::update(frame_count);
 			::gameplay::gamestate::update(frame_count);
 
 			::engine::gui::update();
