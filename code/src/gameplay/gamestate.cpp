@@ -1,6 +1,7 @@
 
 #include "gamestate.hpp"
 
+#include "core/JsonStructurer.hpp"
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 #include <core/container/ExchangeQueue.hpp>
@@ -18,7 +19,9 @@
 #include "gameplay/commands.hpp"
 #include <gameplay/debug.hpp>
 #include <gameplay/factory.hpp>
+#include "gameplay/skills.hpp"
 
+#include <fstream>
 #include <utility>
 
 namespace
@@ -1076,6 +1079,32 @@ namespace gamestate
 		engine::gui::post(engine::gui::MessageReload{});
 
 		engine::resource::reader::post_read_data("recipes", data_callback);
+
+
+		////////////////////////////////////////////////////////
+		std::ifstream file("res/skills.json", std::ofstream::binary);
+		debug_assert(file);
+
+		file.seekg(0, std::ifstream::end);
+		const auto file_size = file.tellg();
+		file.seekg(0, std::ifstream::beg);
+
+		std::vector<char> bytes;
+		bytes.resize(file_size);
+
+		file.read(bytes.data(), bytes.size());
+
+		core::JsonStructurer structurer;
+		structurer.set(bytes.data(), bytes.size());
+
+		gameplay::Skills skills;
+		serialize(structurer, skills);
+
+		debug_printline("skills:");
+		for (int i = 0; i < skills.size(); i++)
+		{
+			debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
+		}
 	}
 
 	void destroy()

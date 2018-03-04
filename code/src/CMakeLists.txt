@@ -43,6 +43,7 @@ set(SOURCE_FILES
 
 # source listing
 set(HEADER_FILES
+	src/core/JsonStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
 	src/core/color.hpp
@@ -114,6 +115,7 @@ set(HEADER_FILES
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp
+	src/gameplay/skills.hpp
 	src/utility/algorithm.hpp
 	src/utility/any.hpp
 	src/utility/array.hpp
