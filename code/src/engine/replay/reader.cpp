@@ -44,29 +44,17 @@ namespace
 	std::tuple<int, engine::Entity, engine::Command, utility::any>
 	parse_next_command(Structurer & s)
 	{
-		using core::tuple_begin;
-		using core::tuple_end;
-		using core::tuple_space;
-		using core::newline;
 		using core::serialize;
 		using ::serialize;
 
 		std::tuple<int, engine::Entity, engine::Command, utility::any> command_args;
 		std::get<0>(command_args) = INT32_MAX;
-		s(tuple_begin);
+		s.push(core::type_tuple, command_args);
 		serialize(s, std::get<0>(command_args));
-		debug_printline("std::get<0>(command_args) = ", std::get<0>(command_args));
-		s(tuple_space);
 		serialize(s, std::get<1>(command_args));
-		debug_printline("std::get<1>(command_args) = ", std::get<1>(command_args));
-		s(tuple_space);
 		serialize(s, std::get<2>(command_args));
-		debug_printline("std::get<2>(command_args) = ", std::get<2>(command_args));
-		s(tuple_space);
 		serialize(s, std::get<3>(command_args), std::get<2>(command_args));
-		debug_printline("std::get<3>(command_args) = ", std::get<3>(command_args));
-		s(tuple_end);
-		s(newline);
+		s.pop();
 		return command_args;
 	}
 

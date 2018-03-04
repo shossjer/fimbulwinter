@@ -7,15 +7,28 @@
 
 #include <cstdint>
 #include <sstream>
+#include <vector>
 
 namespace core
 {
 	class StringSerializer
 	{
 	private:
+		struct Data
+		{
+			enum Type
+			{
+				CLASS,
+				TUPLE
+			};
+
+			Type type;
+			int next_child;
+		};
 	private:
 		std::ostringstream ss;
-		bool add_whitespace = false;
+
+		std::vector<Data> stack;
 
 		std::string string;
 
@@ -23,62 +36,67 @@ namespace core
 		template <typename T>
 		void operator () (const T & x)
 		{
-			if (add_whitespace)
+			if (!stack.empty())
 			{
-				ss.put(' ');
+				auto & top = stack.back();
+				if (top.next_child++ > 0)
+				{
+					ss.put(',');
+					ss.put(' ');
+				}
 			}
 
 			ss << x;
-
-			add_whitespace = true;
 		}
 
-		void operator () (list_begin_t)
+		template <typename T>
+		void push(type_class_t, const T & x)
 		{
-			if (add_whitespace)
+			if (!stack.empty())
 			{
-				ss.put(' ');
+				auto & top = stack.back();
+				if (top.next_child++ > 0)
+				{
+					ss.put(',');
+					ss.put(' ');
+				}
 			}
-
 			ss.put('{');
-			add_whitespace = false;
-		}
-		void operator () (list_end_t)
-		{
-			ss.put('}');
-			add_whitespace = true;
-		}
-		void operator () (list_space_t)
-		{
-			ss.put(',');
-			add_whitespace = true;
+
+			stack.push_back(Data{Data::CLASS, 0});
 		}
 
-		void operator () (tuple_begin_t)
+		template <typename T>
+		void push(type_tuple_t, const T & x)
 		{
-			if (add_whitespace)
+			if (!stack.empty())
 			{
-				ss.put(' ');
+				auto & top = stack.back();
+				if (top.next_child++ > 0)
+				{
+					ss.put(',');
+					ss.put(' ');
+				}
+			}
+			ss.put('(');
+
+			stack.push_back(Data{Data::TUPLE, 0});
+		}
+
+		void pop()
+		{
+			const auto & top = stack.back();
+			if (top.type == Data::CLASS)
+			{
+				ss.put('}');
+			}
+			if (top.type == Data::TUPLE)
+			{
+				ss.put(')');
+				ss.put('\n');
 			}
 
-			ss.put('(');
-			add_whitespace = false;
-		}
-		void operator () (tuple_end_t)
-		{
-			ss.put(')');
-			add_whitespace = true;
-		}
-		void operator () (tuple_space_t)
-		{
-			ss.put(',');
-			add_whitespace = true;
-		}
-
-		void operator () (newline_t)
-		{
-			ss.put('\n');
-			add_whitespace = false;
+			stack.pop_back();
 		}
 
 	public:
