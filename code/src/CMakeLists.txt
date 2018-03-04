@@ -32,6 +32,8 @@ set(SOURCE_FILES
 	src/engine/physics/creation_physx.cpp
 	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
+	src/engine/replay/reader.cpp
+	src/engine/replay/writer.cpp
 	src/engine/resource/loader.cpp
 	src/engine/resource/reader.cpp
 	src/gameplay/factory.cpp
@@ -59,11 +61,13 @@ set(HEADER_FILES
 	src/core/maths/Vector.hpp
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
+	src/core/StringSerializer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
 	src/engine/Asset.hpp
 	src/engine/Command.hpp
+	src/engine/commands.hpp
 	src/engine/console.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
@@ -102,8 +106,11 @@ set(HEADER_FILES
 	src/engine/physics/material_physx.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/physics_physx.hpp
+	src/engine/replay/reader.hpp
+	src/engine/replay/writer.hpp
 	src/engine/resource/loader.hpp
 	src/engine/resource/reader.hpp
+	src/gameplay/commands.hpp
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp

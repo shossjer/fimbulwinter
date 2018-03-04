@@ -3,6 +3,9 @@
 #define ENGINE_ENTITY_HPP
 
 #include <core/debug.hpp>
+#include "core/serialize.hpp"
+
+#include "utility/concepts.hpp"
 
 #include <atomic>
 #include <cstdint>
@@ -41,9 +44,18 @@ namespace engine
 		}
 
 	public:
-		friend std::ostream & operator << (std::ostream & stream, const this_type & entity)
+		template <typename S, typename X,
+		          REQUIRES((mpl::is_same<mpl::decay_t<X>, this_type>::value))>
+		friend void serialize_class(S & s, X & x)
 		{
-			stream << entity.id;
+			using core::serialize;
+
+			serialize(s, x.id);
+		}
+
+		friend std::ostream & operator << (std::ostream & stream, this_type x)
+		{
+			stream << x.id;
 			return stream;
 		}
 

@@ -47,6 +47,12 @@ namespace engine
 		extern void destroy();
 	}
 
+	namespace replay
+	{
+		extern void create();
+		extern void destroy();
+	}
+
 	namespace resource
 	{
 		namespace loader
@@ -89,6 +95,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	engine::application::window::create(hInstance, nCmdShow);
 
 	::engine::console::create();
+	;;engine::replay::create();
 	::engine::resource::reader::create();
 	::engine::resource::loader::create();
 	::engine::physics::create();
@@ -112,6 +119,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::physics::destroy();
 	::engine::resource::loader::destroy();
 	::engine::resource::reader::destroy();
+	::engine::replay::destroy();
 	::engine::console::destroy();
 
 	engine::application::window::destroy(hInstance);
@@ -124,6 +132,7 @@ int main(const int argc, const char *const argv[])
 	engine::application::window::create();
 
 	::engine::console::create();
+	;;engine::replay::create();
 	::engine::resource::reader::create();
 	::engine::resource::loader::create();
 	::engine::physics::create();
@@ -147,6 +156,7 @@ int main(const int argc, const char *const argv[])
 	::engine::physics::destroy();
 	::engine::resource::loader::destroy();
 	::engine::resource::reader::destroy();
+	::engine::replay::destroy();
 	::engine::console::destroy();
 
 	engine::application::window::destroy();

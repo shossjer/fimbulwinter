@@ -286,6 +286,9 @@ namespace mpl
 	template <std::size_t N>
 	using make_index_sequence = typename make_index_sequence_impl<N>::type;
 
+	template <typename ...Ts>
+	using make_index_sequence_for = make_index_sequence<sizeof...(Ts)>;
+
 	template <typename T, T N>
 	using make_integral_sequence = integral_convert<make_index_sequence<N>, T>;
 
