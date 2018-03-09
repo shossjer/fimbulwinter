@@ -2,6 +2,7 @@
 #ifndef CORE_SERIALIZE_HPP
 #define CORE_SERIALIZE_HPP
 
+#include "utility/optional.hpp"
 #include "utility/type_traits.hpp"
 
 #include <cstddef>
@@ -254,6 +255,31 @@ namespace core
 	void serialize(S & s, const char * key, const long double & x) { s(key, x); }
 	template <typename S>
 	void serialize(S & s, const char * key, long double & x) { s(key, x); }
+
+	template <typename S, typename T>
+	void serialize(S & s, const char * key, const utility::optional<T> & x)
+	{
+		if (x.has_value())
+		{
+			serialize(s, key, *x);
+		}
+	}
+	template <typename S, typename T>
+	void serialize(S & s, const char * key, utility::optional<T> & x)
+	{
+		if (s.find(key))
+		{
+			if (!x.has_value())
+			{
+				x.emplace();
+			}
+			serialize(s, key, *x);
+		}
+		else
+		{
+			x.reset();
+		}
+	}
 
 	template <typename S>
 	void serialize(S & s, const char * key, const std::string & x) { s(key, x); }

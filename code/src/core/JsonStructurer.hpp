@@ -32,6 +32,7 @@ namespace core
 			debug_assert(!stack.empty());
 
 			auto & top = stack.back();
+			debug_assert(top.current);
 			debug_assert(top.current->is_object());
 			auto maybe = top.current->find(key);
 			debug_assert(maybe != top.current->end());
@@ -49,6 +50,7 @@ namespace core
 			else
 			{
 				auto & top = stack.back();
+				debug_assert(top.current);
 				debug_assert(top.current->is_array());
 				stack.push_back(Data{&(*top.current)[top.next_child++], -1});
 			}
@@ -60,6 +62,7 @@ namespace core
 			debug_assert(!stack.empty());
 
 			const auto & top = stack.back();
+			debug_assert(top.current);
 			auto maybe = top.current->find(key);
 			debug_assert(maybe != top.current->end());
 			debug_assert(maybe->is_array());
@@ -72,6 +75,18 @@ namespace core
 		void pop()
 		{
 			stack.pop_back();
+		}
+
+		bool find(const char * key) const
+		{
+			debug_assert(!stack.empty());
+
+			auto & top = stack.back();
+			debug_assert(top.current);
+			debug_assert(top.current->is_object());
+			auto maybe = top.current->find(key);
+
+			return maybe != top.current->end();
 		}
 
 	public:

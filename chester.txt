@@ -22,5 +22,5 @@ res/gui.json           c654c6d6c09a300ba3e9ea9bca337a67ebc68f9c3af4eabb05461aeb2
 res/level.lvl          0cb2fe8a343f61e723c64a2323e93ff24e4859d87ae2301a0fe1fc54e4c3d175
 res/oven.json          527251e72141613a99a57e456173031096444db27ac4f16aa48795b5f821a5b8
 res/photo.png          51bfe71f704cad035b9ea120e9f14d9d92797a91a5c375c351b7f80639426831
-res/recipes.json       bfd592e7558cab01dc4fae1caa746ebd96d78c9b4e7901dbc15e264dce79e451
+res/recipes.json       0cefb01dbe5f192e5bae621113d6bc1aa242ef81aff14ec7874250f81834c16b
 res/skills.json        6b845ce65b8919ca499d4ab400abf353a70a2c2a8b8776e9fc11388be732922c
