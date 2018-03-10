@@ -2,6 +2,7 @@
 #ifndef ENGINE_RESOURCE_READER_HPP
 #define ENGINE_RESOURCE_READER_HPP
 
+#include "core/JsonStructurer.hpp"
 #include <core/container/Buffer.hpp>
 #include <core/maths/Matrix.hpp>
 #include <core/maths/Quaternion.hpp>
@@ -23,12 +24,7 @@ namespace engine
 		{
 			struct Data
 			{
-				utility::variant<json, int> data;
-
-				Data() = default;
-				Data(json && data)
-					: data(std::move(data))
-				{}
+				core::JsonStructurer structurer;
 			};
 
 			struct Level

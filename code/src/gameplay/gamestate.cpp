@@ -949,6 +949,50 @@ namespace
 	}
 }
 
+namespace
+{
+	void data_callback_recipes(std::string name, engine::resource::reader::Data && data)
+	{
+		gameplay::Recipes recipes;
+		serialize(data.structurer, recipes);
+
+		debug_printline("recipes:");
+		for (int i = 0; i < recipes.size(); i++)
+		{
+			debug_printline("name = \"", recipes.get(i).name, "\"");
+			if (recipes.get(i).ingredients)
+			{
+				for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+				{
+					debug_printline((*recipes.get(i).ingredients)[j].quantity, "x ", (*recipes.get(i).ingredients)[j].name);
+				}
+			}
+			else
+			{
+				debug_printline("\"", recipes.get(i).name, "\" has no ingredients");
+			}
+		}
+
+		RecipeData gui_data;
+		for (int i = 0; i < recipes.size(); i++)
+		{
+			gui_data.recipes.push_back(RecipeData::Recipe{ recipes.get(i).name });
+		}
+		engine::gui::post(engine::gui::MessageData{ gui_data.message() });
+	}
+	void data_callback_skills(std::string name, engine::resource::reader::Data && data)
+	{
+		gameplay::Skills skills;
+		serialize(data.structurer, skills);
+
+		debug_printline("skills:");
+		for (int i = 0; i < skills.size(); i++)
+		{
+			debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
+		}
+	}
+}
+
 namespace gameplay
 {
 namespace gamestate
@@ -1060,78 +1104,8 @@ namespace gamestate
 		// trigger first load of GUI
 		engine::gui::post(engine::gui::MessageReload{});
 
-		////////////////////////////////////////////////////////
-		{
-		std::ifstream file("res/recipes.json", std::ofstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		std::vector<char> bytes;
-		bytes.resize(file_size);
-
-		file.read(bytes.data(), bytes.size());
-
-		core::JsonStructurer structurer;
-		structurer.set(bytes.data(), bytes.size());
-
-		gameplay::Recipes recipes;
-		serialize(structurer, recipes);
-
-		debug_printline("recipes:");
-		for (int i = 0; i < recipes.size(); i++)
-		{
-			debug_printline("name = \"", recipes.get(i).name, "\"");
-			if (recipes.get(i).ingredients)
-			{
-				for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
-				{
-					debug_printline((*recipes.get(i).ingredients)[j].quantity, "x ", (*recipes.get(i).ingredients)[j].name);
-				}
-			}
-			else
-			{
-				debug_printline("\"", recipes.get(i).name, "\" has no ingredients");
-			}
-		}
-
-		RecipeData gui_data;
-		for (int i = 0; i < recipes.size(); i++)
-		{
-			gui_data.recipes.push_back(RecipeData::Recipe{ recipes.get(i).name });
-		}
-		engine::gui::post(engine::gui::MessageData{ gui_data.message() });
-		}
-
-
-		////////////////////////////////////////////////////////
-		{
-		std::ifstream file("res/skills.json", std::ofstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		std::vector<char> bytes;
-		bytes.resize(file_size);
-
-		file.read(bytes.data(), bytes.size());
-
-		core::JsonStructurer structurer;
-		structurer.set(bytes.data(), bytes.size());
-
-		gameplay::Skills skills;
-		serialize(structurer, skills);
-
-		debug_printline("skills:");
-		for (int i = 0; i < skills.size(); i++)
-		{
-			debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
-		}
-		}
+		engine::resource::reader::post_read_data("recipes", data_callback_recipes);
+		engine::resource::reader::post_read_data("skills", data_callback_skills);
 	}
 
 	void destroy()
