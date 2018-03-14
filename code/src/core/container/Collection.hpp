@@ -21,6 +21,19 @@ namespace core
 	{
 		namespace detail
 		{
+			template <typename F, typename K>
+			auto call_impl_func(F && func, K key) ->
+				decltype(func(key, utility::monostate{}))
+			{
+				return func(key, utility::monostate{});
+			}
+			template <typename F, typename K>
+			auto call_impl_func(F && func, K key) ->
+				decltype(func(utility::monostate{}))
+			{
+				return func(utility::monostate{});
+			}
+
 			template <typename F, typename K, typename P>
 			auto call_impl_func(F && func, K key, P && p) ->
 				decltype(func(key, std::forward<P>(p)))
@@ -255,7 +268,7 @@ namespace core
 			{
 				const auto bucket = try_find(key);
 
-				if (bucket == bucket_t(-1)) return func();
+				if (bucket == bucket_t(-1)) return detail::call_impl_func(std::forward<F>(func), key);
 
 				const auto index = slots[bucket].get_index();
 
@@ -636,7 +649,7 @@ namespace core
 			{
 				const auto bucket = try_find(key);
 				if (bucket == bucket_t(-1))
-					return func();
+					return detail::call_impl_func(std::forward<F>(func), key);
 
 				switch (slots[bucket].get_first_type())
 				{
@@ -659,10 +672,10 @@ namespace core
 
 				const auto bucket = try_find(key);
 				if (bucket == bucket_t(-1))
-					return func();
+					return detail::call_impl_func(std::forward<F>(func), key);
 
 				if (slots[bucket].template empty<type>())
-					return func();
+					return detail::call_impl_func(std::forward<F>(func), key);
 
 				return call_impl(mpl::index_constant<type>{},
 				                 key, bucket, std::forward<F>(func));
@@ -672,7 +685,7 @@ namespace core
 			{
 				const auto bucket = try_find(key);
 				if (bucket == bucket_t(-1))
-					return func();
+					return detail::call_impl_func(std::forward<F>(func), key);
 
 				call_all_impl(key, bucket, std::forward<F>(func), mpl::make_index_sequence<sizeof...(Cs)>{});
 			}
