@@ -316,6 +316,87 @@ namespace
 		void translate(engine::Command command, utility::any && data);
 	};
 
+	struct Preparation
+	{
+		const gameplay::Recipe * recipe;
+
+		int time_remaining;
+	};
+
+	struct Kitchen
+	{
+		gameplay::Recipes recipes;
+
+		core::container::Collection
+		<
+			engine::Entity,
+			200,
+			std::array<Preparation, 100>,
+			std::array<Preparation, 1>
+		> tables;
+
+		void init_recipes(core::JsonStructurer && s)
+		{
+			serialize(s, recipes);
+
+			debug_printline("recipes:");
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				debug_printline("name = \"", recipes.get(i).name, "\"");
+				if (recipes.get(i).ingredients)
+				{
+					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+					{
+						debug_printline((*recipes.get(i).ingredients)[j].quantity, "x ", (*recipes.get(i).ingredients)[j].name);
+					}
+				}
+				else
+				{
+					debug_printline("\"", recipes.get(i).name, "\" has no ingredients");
+				}
+			}
+		}
+
+		std::vector<const gameplay::Recipe *> get_available_recipes() const
+		{
+			std::vector<const gameplay::Recipe *> available_recipes;
+
+			std::vector<int> ingredient_counts(recipes.size(), 0);
+			for (const auto & preparation : tables.get<Preparation>())
+			{
+				if (preparation.time_remaining > 0)
+					continue;
+
+				const int i = recipes.index(*preparation.recipe);
+				ingredient_counts[i]++;
+			}
+
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				bool is_available = true;
+				if (recipes.get(i).ingredients)
+				{
+					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+					{
+						const int need = (*recipes.get(i).ingredients)[j].quantity;
+						const int have = ingredient_counts[j];
+						if (have < need)
+						{
+							is_available = false;
+							break;
+						}
+					}
+				}
+				if (is_available)
+				{
+					available_recipes.push_back(&recipes.get(i));
+				}
+			}
+
+			return available_recipes;
+		}
+	} kitchen;
+
 	struct Storehouse
 	{
 	private:
@@ -739,7 +820,16 @@ namespace
 
 		bool operator () (const Workstation &)
 		{
-			return components.contains<Worker>(selector.selected_entity);
+			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
+			if (!has_selected_worker)
+				return false;
+
+			const auto & available_recipes = kitchen.get_available_recipes();
+			const bool has_available_recipes = !available_recipes.empty();
+			if (!has_available_recipes)
+				return false;
+
+			return true;
 		}
 
 		template <typename T>
@@ -775,22 +865,32 @@ namespace
 
 		void operator () (Workstation & x)
 		{
-			if (components.contains<Worker>(selector.selected_entity))
+			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
+			debug_assert(has_selected_worker);
+
+			const auto & available_recipes = kitchen.get_available_recipes();
+			const bool has_available_recipes = !available_recipes.empty();
+			debug_assert(has_available_recipes);
+
+			if (x.isBusy())
 			{
-				if (x.isBusy())
+				if (x.worker == selector.selected_entity)
 				{
-					if (x.worker == selector.selected_entity)
-					{
-						debug_printline(gameplay::gameplay_channel, "I'm already working as fast as I can!");
-						return;
-					}
-					debug_printline(gameplay::gameplay_channel, "The station is busy!");
+					debug_printline(gameplay::gameplay_channel, "I'm already working as fast as I can!");
 					return;
 				}
-
-				// assign worker to station, clears prev. if any.
-				move_to_workstation(components.get<Worker>(selector.selected_entity), x);
+				debug_printline(gameplay::gameplay_channel, "The station is busy!");
+				return;
 			}
+
+			debug_printline("What would you want me to do? I can...");
+			for (const auto& recipe : available_recipes)
+			{
+				debug_printline("make some ", recipe->name);
+			}
+
+			// assign worker to station, clears prev. if any.
+			move_to_workstation(components.get<Worker>(selector.selected_entity), x);
 		}
 
 		template <typename T>
@@ -935,30 +1035,12 @@ namespace
 {
 	void data_callback_recipes(std::string name, engine::resource::reader::Data && data)
 	{
-		gameplay::Recipes recipes;
-		serialize(data.structurer, recipes);
-
-		debug_printline("recipes:");
-		for (int i = 0; i < recipes.size(); i++)
-		{
-			debug_printline("name = \"", recipes.get(i).name, "\"");
-			if (recipes.get(i).ingredients)
-			{
-				for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
-				{
-					debug_printline((*recipes.get(i).ingredients)[j].quantity, "x ", (*recipes.get(i).ingredients)[j].name);
-				}
-			}
-			else
-			{
-				debug_printline("\"", recipes.get(i).name, "\" has no ingredients");
-			}
-		}
+		kitchen.init_recipes(std::move(data.structurer));
 
 		RecipeData gui_data;
-		for (int i = 0; i < recipes.size(); i++)
+		for (int i = 0; i < kitchen.recipes.size(); i++)
 		{
-			gui_data.recipes.push_back(RecipeData::Recipe{ recipes.get(i).name });
+			gui_data.recipes.push_back(RecipeData::Recipe{ kitchen.recipes.get(i).name });
 		}
 		engine::gui::post(engine::gui::MessageData{ gui_data.message() });
 	}

@@ -63,6 +63,7 @@ namespace gameplay
 
 	public:
 		const Recipe & get(int i) const { return recipes[i]; }
+		int index(const Recipe & recipe) const { return static_cast<int>(&recipe - recipes.data()); }
 		int size() const { return recipes.size(); }
 
 	public:
