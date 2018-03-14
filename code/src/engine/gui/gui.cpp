@@ -248,7 +248,7 @@ namespace engine
 					screen_group = &utility::get<View::Group>(screen_view->content);
 
 					// (Re)load data windows and views data from somewhere.
-					std::vector<DataVariant> windows_data = load();
+					std::vector<DataVariant> windows_data;// = load();
 
 					for (auto & window_data : windows_data)
 					{
