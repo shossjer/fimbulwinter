@@ -308,6 +308,11 @@ namespace
 		engine::Entity pressed_entity = engine::Entity::null();
 		engine::Entity selected_entity = engine::Entity::null();
 
+		void highlight(engine::Entity entity);
+		void lowlight(engine::Entity entity);
+		void select(engine::Entity entity);
+		void deselect(engine::Entity entity);
+
 		void translate(engine::Command command, utility::any && data);
 	};
 
@@ -626,115 +631,6 @@ namespace
 		}
 	};
 
-	// when mouse button is released and the entity is "clicked".
-	struct
-	{
-		bool operator () (const GUIComponent & c)
-		{
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::CLICK });
-			return false;
-		}
-
-		bool operator () (const Worker & w)
-		{
-			// show the window
-			engine::gui::post(engine::gui::MessageVisibility{ "profile", engine::gui::MessageVisibility::SHOW });
-			profile_updater.entity = w.id;
-			profile_update(w.id);
-			return true;
-		}
-
-		template <typename W>
-		bool operator () (const W & w)
-		{
-			return false;
-		}
-	}
-	playerEntityClick;
-
-	struct
-	{
-		void operator () (engine::Entity entity, const Worker & x)
-		{
-			engine::graphics::renderer::post_make_highlight(entity);
-		}
-		void operator () (engine::Entity entity, const Workstation & x)
-		{
-			engine::graphics::renderer::post_make_highlight(entity);
-		}
-
-		void operator () (const GUIComponent & c)
-		{
-			debug_printline(gameplay::gameplay_channel, "Gamestate - Highlight entity: ", c.id);
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::HIGHLIGHT });
-		}
-
-		template <typename W,
-		          REQUIRES((!mpl::is_same<Worker, W>::value)),
-		          REQUIRES((!mpl::is_same<Workstation, W>::value))>
-		void operator () (const W & w)
-		{
-		}
-	}
-	playerEntityHighlight;
-
-	struct
-	{
-		void operator () (engine::Entity entity, const Worker & x)
-		{
-			engine::graphics::renderer::post_make_dehighlight(entity);
-		}
-		void operator () (engine::Entity entity, const Workstation & x)
-		{
-			engine::graphics::renderer::post_make_dehighlight(entity);
-		}
-
-		void operator () (const GUIComponent & c)
-		{
-			debug_printline(gameplay::gameplay_channel, "Gamestate - Lowlight entity: ", c.id);
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::LOWLIGHT });
-
-		}
-
-		template <typename W,
-		          REQUIRES((!mpl::is_same<Worker, W>::value)),
-		          REQUIRES((!mpl::is_same<Workstation, W>::value))>
-		void operator () (const W & w)
-		{
-		}
-	}
-	playerEntityLowlight;
-
-	struct
-	{
-		void operator () (const GUIComponent & c)
-		{
-			debug_printline(gameplay::gameplay_channel, "Gamestate - Pressing entity: ", c.id);
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::PRESS });
-		}
-
-		template <typename W>
-		void operator () (const W & w)
-		{
-		}
-	}
-	playerEntityPress;
-
-	struct
-	{
-		void operator () (const GUIComponent & c)
-		{
-			debug_printline(gameplay::gameplay_channel, "Gamestate - Releasing entity: ", c.id);
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::RELEASE });
-		}
-
-		template <typename W>
-		void operator () (const W & w)
-		{
-		}
-	}
-	playerEntityRelease;
-
 	struct Loader
 	{
 		void translate(engine::Command command, utility::any && data)
@@ -832,56 +728,95 @@ namespace
 		engine::physics::post_update_transform(w.id, engine::transform_t{translation, rotation});
 	}
 
-	// manages player interaction (clicking) with entities.
-	// whatever happends when something gets clicked, this one knows it..
-	struct PlayerInteraction
+	struct can_be_interacted_with
 	{
-	private:
-		engine::Entity selectedWorker = engine::Entity::null();
+		const Selector & selector;
 
-	public:
-		// performs whatever should be done when a Worker is clicked
-		void operator() (Worker & w)
+		bool operator () (const Worker &)
 		{
-			debug_printline(gameplay::gameplay_channel, "You have clicked worker!");
-			engine::graphics::renderer::post_make_deselect(this->selectedWorker);
-			this->selectedWorker = w.id;
-			engine::graphics::renderer::post_make_select(this->selectedWorker);
+			return true;
 		}
 
-		// performs whatever should be done when a Station is clicked
-		void operator() (Workstation & s)
+		bool operator () (const Workstation &)
 		{
-			if (this->selectedWorker == engine::Entity::null())
-				return;
+			return components.contains<Worker>(selector.selected_entity);
+		}
 
-			if (s.isBusy())
+		template <typename T>
+		bool operator () (const T &)
+		{
+			return false;
+		}
+	};
+
+	struct can_be_selected
+	{
+		const Selector & selector;
+
+		bool operator () (const Worker &)
+		{
+			return true;
+		}
+
+		template <typename T>
+		bool operator () (const T &)
+		{
+			return false;
+		}
+	};
+
+	struct interact_with
+	{
+		const Selector & selector;
+
+		void operator () (const Worker &)
+		{
+		}
+
+		void operator () (Workstation & x)
+		{
+			if (components.contains<Worker>(selector.selected_entity))
 			{
-				if (s.worker == selectedWorker)
+				if (x.isBusy())
 				{
-					debug_printline(gameplay::gameplay_channel, "I'm already working as fast as I can!");
+					if (x.worker == selector.selected_entity)
+					{
+						debug_printline(gameplay::gameplay_channel, "I'm already working as fast as I can!");
+						return;
+					}
+					debug_printline(gameplay::gameplay_channel, "The station is busy!");
 					return;
 				}
-				debug_printline(gameplay::gameplay_channel, "The station is busy!");
-				return;
+
+				// assign worker to station, clears prev. if any.
+				move_to_workstation(components.get<Worker>(selector.selected_entity), x);
 			}
-
-			// assign worker to station, clears prev. if any.
-			move_to_workstation(components.get<Worker>(this->selectedWorker), s);
 		}
 
-		template <typename W>
-		void operator() (const W & w)
-		{}
-
-	} playerInteraction;
-
-	void entityClick(engine::Entity id)
-	{
-		if (components.contains(id))
+		template <typename T>
+		void operator () (const T &)
 		{
-			components.call(id, playerInteraction);
 		}
+	};
+
+	void Selector::highlight(engine::Entity entity)
+	{
+		engine::graphics::renderer::post_make_highlight(entity);
+	}
+
+	void Selector::lowlight(engine::Entity entity)
+	{
+		engine::graphics::renderer::post_make_dehighlight(entity);
+	}
+
+	void Selector::select(engine::Entity entity)
+	{
+		engine::graphics::renderer::post_make_select(entity);
+	}
+
+	void Selector::deselect(engine::Entity entity)
+	{
+		engine::graphics::renderer::post_make_deselect(entity);
 	}
 
 	void Selector::translate(engine::Command command, utility::any && data)
@@ -889,60 +824,107 @@ namespace
 		switch (command)
 		{
 		case engine::command::RENDER_HIGHLIGHT:
-			if (highlighted_entity != utility::any_cast<engine::Entity>(data))
-			{
-				// check if anything is "pressed" it will need to be "released" before "lowlighted"
-				if (pressed_entity != engine::Entity::null())
-				{
-					components.call(pressed_entity, ::playerEntityRelease);
-					pressed_entity = engine::Entity::null();
-				}
+		{
+			engine::Entity entity = utility::any_cast<engine::Entity>(data);
 
-				if (highlighted_entity != engine::Entity::null())
-				{
-					components.call(highlighted_entity, ::playerEntityLowlight);
-				}
-
-				highlighted_entity = utility::any_cast<engine::Entity>(data);
-
-				if (highlighted_entity != engine::Entity::null())
-				{
-					if (components.contains(highlighted_entity))
-						components.call(highlighted_entity, ::playerEntityHighlight);
-				}
-			}
-			break;
-		case engine::command::RENDER_SELECT:
-			if (components.contains(highlighted_entity))
+			if (highlighted_entity == entity)
 			{
-				pressed_entity = highlighted_entity;
-				components.call(highlighted_entity, ::playerEntityPress);
-			}
-			entityClick(utility::any_cast<engine::Entity>(data));
-			break;
-		case engine::command::RENDER_DESELECT:
-			if (pressed_entity != engine::Entity::null())
-			{
-				if (components.call(pressed_entity, ::playerEntityClick))
+				if (entity != engine::Entity::null())
 				{
-					if (selected_entity == pressed_entity)
+					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					if (!is_interactible)
 					{
-						// do nothing
+						lowlight(entity);
+						highlighted_entity = engine::Entity::null();
+					}
+				}
+			}
+			else
+			{
+				if (highlighted_entity != engine::Entity::null())
+				{
+					lowlight(highlighted_entity);
+					highlighted_entity = engine::Entity::null();
+				}
+				if (entity != engine::Entity::null())
+				{
+					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					if (is_interactible)
+					{
+						highlight(entity);
+						highlighted_entity = entity;
+					}
+				}
+			}
+			break;
+		}
+		case engine::command::RENDER_SELECT:
+		{
+			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+
+			pressed_entity = entity;
+			break;
+		}
+		case engine::command::RENDER_DESELECT:
+		{
+			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+
+			if (pressed_entity == entity)
+			{
+				if (entity != engine::Entity::null())
+				{
+					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					if (is_interactible)
+					{
+						const bool is_selectable = components.call(entity, can_be_selected{*this});
+						if (is_selectable)
+						{
+							if (selected_entity == entity)
+							{
+								deselect(entity);
+								selected_entity = engine::Entity::null();
+							}
+							else
+							{
+								if (selected_entity != engine::Entity::null())
+								{
+									deselect(selected_entity);
+									selected_entity = engine::Entity::null();
+								}
+								select(entity);
+								selected_entity = entity;
+							}
+						}
+						components.call(entity, interact_with{*this});
 					}
 					else
 					{
 						if (selected_entity != engine::Entity::null())
 						{
-							// TODO: clear prev. selection
+							deselect(selected_entity);
+							selected_entity = engine::Entity::null();
 						}
-
-						selected_entity = pressed_entity;
 					}
 				}
-				components.call(pressed_entity, ::playerEntityRelease);
-				pressed_entity = engine::Entity::null();
+				else
+				{
+					if (selected_entity != engine::Entity::null())
+					{
+						deselect(selected_entity);
+						selected_entity = engine::Entity::null();
+					}
+				}
+			}
+			else
+			{
+				if (selected_entity != engine::Entity::null())
+				{
+					deselect(selected_entity);
+					selected_entity = engine::Entity::null();
+				}
 			}
 			break;
+		}
 		default:
 			debug_printline(gameplay::gameplay_channel, "Selector: Unknown command: ", static_cast<int>(command));
 		}
