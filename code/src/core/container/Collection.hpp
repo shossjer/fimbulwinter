@@ -127,12 +127,12 @@ namespace core
 			K keys[M];
 
 		public:
-			bool contains(K key)
+			bool contains(K key) const
 			{
 				return try_find(key) != bucket_t(-1);
 			}
 			template <typename C>
-			bool contains(K key)
+			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
 
@@ -310,7 +310,7 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
-			bucket_t find(K key)
+			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
 				std::size_t count = 0; // debug count that asserts if taken too many steps
@@ -327,7 +327,7 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
-			bucket_t try_find(K key)
+			bucket_t try_find(K key) const
 			{
 				auto bucket = hash(key);
 				std::size_t count = 0;
@@ -497,12 +497,12 @@ namespace core
 			K keys[M];
 
 		public:
-			bool contains(K key)
+			bool contains(K key) const
 			{
 				return try_find(key) != bucket_t(-1);
 			}
 			template <typename C>
-			bool contains(K key)
+			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
 
@@ -718,7 +718,7 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
-			bucket_t find(K key)
+			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
 				int count = 0; // debug count that asserts if taken too many steps
@@ -735,7 +735,7 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
-			bucket_t try_find(K key)
+			bucket_t try_find(K key) const
 			{
 				auto bucket = hash(key);
 				int count = 0;
@@ -913,12 +913,12 @@ namespace core
 			K keys[M];
 
 		public:
-			bool contains(K key)
+			bool contains(K key) const
 			{
 				return try_find(key) != bucket_t(-1);
 			}
 			template <typename C>
-			bool contains(K key)
+			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
 
@@ -1072,7 +1072,7 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
-			bucket_t find(K key)
+			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
 				std::size_t count = 0; // debug count that asserts if taken too many steps
@@ -1089,7 +1089,7 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
-			bucket_t try_find(K key)
+			bucket_t try_find(K key) const
 			{
 				auto bucket = hash(key);
 				std::size_t count = 0;
