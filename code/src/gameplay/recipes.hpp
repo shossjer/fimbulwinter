@@ -62,6 +62,15 @@ namespace gameplay
 		Recipes & operator = (const Recipes &) = delete;
 
 	public:
+		int find(const std::string & name) const
+		{
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				if (recipes[i].name == name)
+					return i;
+			}
+			return -1;
+		}
 		const Recipe & get(int i) const { return recipes[i]; }
 		int index(const Recipe & recipe) const { return static_cast<int>(&recipe - recipes.data()); }
 		int size() const { return recipes.size(); }

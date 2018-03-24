@@ -22,6 +22,8 @@
 #include "gameplay/recipes.hpp"
 #include "gameplay/skills.hpp"
 
+#include "utility/string.hpp"
+
 #include <fstream>
 #include <utility>
 
@@ -307,6 +309,7 @@ namespace
 		engine::Entity highlighted_entity = engine::Entity::null();
 		engine::Entity pressed_entity = engine::Entity::null();
 		engine::Entity selected_entity = engine::Entity::null();
+		engine::Entity targeted_entity = engine::Entity::null();
 
 		void highlight(engine::Entity entity);
 		void lowlight(engine::Entity entity);
@@ -378,8 +381,11 @@ namespace
 				{
 					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
 					{
+						const int index = recipes.find((*recipes.get(i).ingredients)[j].name);
+						debug_assert(index >= 0);
+
 						const int need = (*recipes.get(i).ingredients)[j].quantity;
-						const int have = ingredient_counts[j];
+						const int have = ingredient_counts[index];
 						if (have < need)
 						{
 							is_available = false;
@@ -395,40 +401,41 @@ namespace
 
 			return available_recipes;
 		}
+
+		bool is_empty(engine::Entity table) const
+		{
+			return !tables.contains(table);
+		}
+
+		void prepare(engine::Entity table, const gameplay::Recipe & recipe)
+		{
+			debug_assert(is_empty(table));
+
+			if (recipe.ingredients)
+			{
+				for (int j = 0; j < recipe.ingredients->size(); j++)
+				{
+					for (int k = 0; k < (*recipe.ingredients)[j].quantity; k++)
+					{
+						auto table_to_be_cleared = engine::Entity::null();
+						for (const auto & preparation : tables.get<Preparation>())
+						{
+							if (preparation.recipe->name == (*recipe.ingredients)[j].name)
+							{
+								table_to_be_cleared = tables.get_key(preparation);
+								break;
+							}
+						}
+						debug_assert(table_to_be_cleared != engine::Entity::null());
+
+						tables.remove(table_to_be_cleared);
+					}
+				}
+			}
+
+			tables.emplace<Preparation>(table, &recipe, 0);
+		}
 	} kitchen;
-
-	struct Storehouse
-	{
-	private:
-		unsigned int carrotsRaw;
-		unsigned int carrotsChopped;
-
-	public:
-
-		Storehouse()
-			: carrotsRaw(10)
-			, carrotsChopped(0)
-		{
-		}
-
-	public:
-		// return a carrot if available
-		bool checkoutRawCarrot()
-		{
-			if (this->carrotsRaw <= 0)
-				return false;
-
-			this->carrotsRaw--;
-			return true;
-		}
-
-		void checkinChoppedCarrot() { this->carrotsChopped++; }
-
-		void print()
-		{
-			debug_printline(gameplay::gameplay_channel, "Carrot status - raw: ", this->carrotsRaw, " chopped: ", this->carrotsChopped);
-		}
-	} storage;
 
 	struct Worker
 	{
@@ -514,14 +521,6 @@ namespace
 
 			if (this->bar != engine::Entity::null()) return;
 
-			if (!storage.checkoutRawCarrot())
-			{
-				debug_printline(gameplay::gameplay_channel, "No more raw carrots to chopp!");
-				return;
-			}
-
-			storage.print();
-
 			gameplay::create_board(this->boardModel, this->top);
 
 			this->bar = engine::Entity::create();
@@ -573,9 +572,6 @@ namespace
 			profile_update(this->worker);
 
 			this->progress = 0.;
-
-			storage.checkinChoppedCarrot();
-			storage.print();
 
 			cleanup();
 		}
@@ -712,6 +708,10 @@ namespace
 		}
 	};
 
+	struct Option
+	{
+	};
+
 	struct Loader
 	{
 		void translate(engine::Command command, utility::any && data)
@@ -733,9 +733,85 @@ namespace
 		std::array<Selector, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>,
+		std::array<Option, 20>,
 		std::array<Loader, 1>
 	>
 	components;
+
+	struct
+	{
+		std::vector<engine::Entity> entities;
+		std::vector<engine::Entity> shown_entities;
+
+		void init(const gameplay::Recipes & recipes)
+		{
+			entities.reserve(recipes.size());
+			shown_entities.reserve(recipes.size());
+
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				core::graphics::Image image( utility::to_string("res/", recipes.get(i).name, ".png"));
+				engine::graphics::renderer::post_register_texture(engine::Asset(recipes.get(i).name), std::move(image));
+
+				const engine::Entity entity = engine::Entity::create();
+				entities.push_back(entity);
+				components.emplace<Option>(entity);
+			}
+		}
+
+		const gameplay::Recipe & get(const gameplay::Recipes & recipes, engine::Entity entity) const
+		{
+			debug_assert(recipes.size() == entities.size());
+
+			auto maybe = std::find(entities.begin(), entities.end(), entity);
+			debug_assert(maybe != entities.end());
+			const int index = std::distance(entities.begin(), maybe);
+
+			return recipes.get(index);
+		}
+
+		void hide()
+		{
+			for (auto entity : shown_entities)
+			{
+				engine::graphics::renderer::post_remove(entity);
+			}
+			shown_entities.clear();
+		}
+
+		void show(const gameplay::Recipes & recipes, const std::vector<const gameplay::Recipe *> & shown_recipes, const core::maths::Vector3f & center)
+		{
+			debug_assert(recipes.size() == entities.size());
+
+			hide();
+
+			for (int i = 0; i < shown_recipes.size(); i++)
+			{
+				const int recipe_index = recipes.index(*shown_recipes[i]);
+				const auto entity = entities[recipe_index];
+				debug_assert(std::find(shown_entities.begin(), shown_entities.end(), entity) == shown_entities.end());
+
+				const float radius = 96.f;
+				const float angle = static_cast<float>(i) / static_cast<float>(shown_recipes.size()) * 2.f * 3.14159265f - 3.14159265f / 2.f;
+
+				core::maths::Matrix4x4f matrix = make_translation_matrix(
+					center + Vector3f(
+						radius * std::cos(angle) - 32.f,
+						radius * std::sin(angle) - 32.f,
+						0.f));
+				core::maths::Vector2f size(64.f, 64.f);
+
+				engine::graphics::renderer::post_add_panel(
+					entity,
+					engine::graphics::data::ui::PanelT{
+						matrix,
+						size,
+						engine::Asset(shown_recipes[i]->name)});
+				engine::graphics::renderer::post_make_selectable(entity);
+				shown_entities.push_back(entity);
+			}
+		}
+	} recipes_ring;
 
 	struct translate_command
 	{
@@ -813,12 +889,12 @@ namespace
 	{
 		const Selector & selector;
 
-		bool operator () (const Worker &)
+		bool operator () (engine::Entity, const Worker &)
 		{
 			return true;
 		}
 
-		bool operator () (const Workstation &)
+		bool operator () (engine::Entity entity, const Workstation &)
 		{
 			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
 			if (!has_selected_worker)
@@ -829,11 +905,20 @@ namespace
 			if (!has_available_recipes)
 				return false;
 
+			const bool is_empty = kitchen.is_empty(entity);
+			if (!is_empty)
+				return false;
+
+			return true;
+		}
+
+		bool operator () (engine::Entity, const Option &)
+		{
 			return true;
 		}
 
 		template <typename T>
-		bool operator () (const T &)
+		bool operator () (engine::Entity, const T &)
 		{
 			return false;
 		}
@@ -857,13 +942,9 @@ namespace
 
 	struct interact_with
 	{
-		const Selector & selector;
+		Selector & selector;
 
-		void operator () (const Worker &)
-		{
-		}
-
-		void operator () (Workstation & x)
+		void operator () (engine::Entity entity, Workstation & x)
 		{
 			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
 			debug_assert(has_selected_worker);
@@ -871,6 +952,9 @@ namespace
 			const auto & available_recipes = kitchen.get_available_recipes();
 			const bool has_available_recipes = !available_recipes.empty();
 			debug_assert(has_available_recipes);
+
+			const bool is_empty = kitchen.is_empty(entity);
+			debug_assert(is_empty);
 
 			if (x.isBusy())
 			{
@@ -889,13 +973,33 @@ namespace
 				debug_printline("make some ", recipe->name);
 			}
 
+			selector.targeted_entity = entity;
+			recipes_ring.show(kitchen.recipes, available_recipes, {200.f, 200.f, 0.f});
+		}
+
+		void operator () (engine::Entity entity, const Option &)
+		{
+			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
+			debug_assert(has_selected_worker);
+
+			const bool has_targeted_workstation = components.contains<Workstation>(selector.targeted_entity);
+			debug_assert(has_targeted_workstation);
+
+			recipes_ring.hide();
+
+			const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
+			kitchen.prepare(selector.targeted_entity, recipe);
+
+			Worker & worker = components.get<Worker>(selector.selected_entity);
+			Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
 			// assign worker to station, clears prev. if any.
-			move_to_workstation(components.get<Worker>(selector.selected_entity), x);
+			move_to_workstation(worker, workstation);
 		}
 
 		template <typename T>
-		void operator () (const T &)
+		void operator () (engine::Entity, const T &)
 		{
+			recipes_ring.hide();
 		}
 	};
 
@@ -1004,6 +1108,7 @@ namespace
 							deselect(selected_entity);
 							selected_entity = engine::Entity::null();
 						}
+						recipes_ring.hide();
 					}
 				}
 				else
@@ -1013,6 +1118,7 @@ namespace
 						deselect(selected_entity);
 						selected_entity = engine::Entity::null();
 					}
+					recipes_ring.hide();
 				}
 			}
 			else
@@ -1022,6 +1128,7 @@ namespace
 					deselect(selected_entity);
 					selected_entity = engine::Entity::null();
 				}
+				recipes_ring.hide();
 			}
 			break;
 		}
@@ -1036,6 +1143,8 @@ namespace
 	void data_callback_recipes(std::string name, engine::resource::reader::Data && data)
 	{
 		kitchen.init_recipes(std::move(data.structurer));
+
+		recipes_ring.init(kitchen.recipes);
 
 		RecipeData gui_data;
 		for (int i = 0; i < kitchen.recipes.size(); i++)
