@@ -112,6 +112,9 @@ set(HEADER_FILES
 	src/engine/resource/loader.hpp
 	src/engine/resource/reader.hpp
 	src/gameplay/commands.hpp
+	src/gameplay/component/CameraActivator.hpp
+	src/gameplay/component/FreeCamera.hpp
+	src/gameplay/component/OverviewCamera.hpp
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp
