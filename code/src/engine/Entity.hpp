@@ -32,15 +32,14 @@ namespace engine
 		// creating any  numbered entity, but  there is a lot  of code
 		// now that depends on the fact  that entities are the same as
 		// regular integers so that needs to be fixed first.
-		Entity(const value_type id) :
+		constexpr Entity(const value_type id) :
 			id{id}
-		{
-		}
+		{}
 
 	public:
-		operator value_type () const
+		constexpr operator value_type () const
 		{
-			return this->id;
+			return id;
 		}
 
 	public:
@@ -69,7 +68,7 @@ namespace engine
 
 			return Entity{id};
 		}
-		static Entity null()
+		static constexpr Entity null()
 		{
 			return Entity{0};
 		}
