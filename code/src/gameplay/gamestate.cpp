@@ -177,7 +177,6 @@ namespace
 
 	struct Worker
 	{
-		engine::Entity id;
 		engine::Entity workstation;
 
 		unsigned int finishedCarrots;
@@ -191,9 +190,8 @@ namespace
 		unsigned int skillWorking;
 		float skillWorkingProgress;
 
-		Worker(engine::Entity id)
-			: id(id)
-			, workstation(engine::Entity::null())
+		Worker()
+			: workstation(engine::Entity::null())
 			, finishedCarrots(0)
 			, progress(0.f)
 			, working(false)
@@ -209,7 +207,6 @@ namespace
 
 	struct Workstation
 	{
-		engine::Entity id;
 		gameplay::gamestate::WorkstationType type;
 		Matrix4x4f front;
 		Matrix4x4f top;
@@ -222,12 +219,10 @@ namespace
 
 	public:
 		Workstation(
-			engine::Entity id,
 			gameplay::gamestate::WorkstationType type,
 			Matrix4x4f front,
 			Matrix4x4f top)
-			: id(id)
-			, type(type)
+			: type(type)
 			, front(front)
 			, top(top)
 			, worker(engine::Entity::null())
@@ -603,15 +598,15 @@ namespace
 		}
 	}
 
-	void move_to_workstation(Worker & w, Workstation & s)
+	void move_to_workstation(Worker & w, engine::Entity we, Workstation & s, engine::Entity se)
 	{
 		// clear prev. station if any
 		if (w.workstation != engine::Entity::null())
 		{
 			components.get<Workstation>(w.workstation).worker = engine::Entity::null();
 		}
-		w.workstation = s.id;
-		s.worker = w.id;
+		w.workstation = se;
+		s.worker = we;
 
 		s.start();
 
@@ -620,7 +615,7 @@ namespace
 		core::maths::Quaternionf rotation;
 		core::maths::Vector3f scale;
 		decompose(s.front, translation, rotation, scale);
-		engine::physics::post_update_transform(w.id, engine::transform_t{translation, rotation});
+		engine::physics::post_update_transform(we, engine::transform_t{translation, rotation});
 	}
 
 	struct can_be_interacted_with
@@ -731,7 +726,7 @@ namespace
 			Worker & worker = components.get<Worker>(selector.selected_entity);
 			Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
 			// assign worker to station, clears prev. if any.
-			move_to_workstation(worker, workstation);
+			move_to_workstation(worker, selector.selected_entity, workstation, selector.targeted_entity);
 		}
 
 		template <typename T>
@@ -1031,16 +1026,13 @@ namespace gamestate
 			engine::Entity worker_args;
 			while (queue_workers.try_pop(worker_args))
 			{
-				components.emplace<Worker>(
-					worker_args,
-					worker_args);
+				components.emplace<Worker>(worker_args);
 			}
 
 			std::tuple<engine::Entity, WorkstationType, Matrix4x4f, Matrix4x4f> workstation_args;
 			while (queue_workstations.try_pop(workstation_args))
 			{
 				components.emplace<Workstation>(
-					std::get<0>(workstation_args),
 					std::get<0>(workstation_args),
 					std::get<1>(workstation_args),
 					std::get<2>(workstation_args),
