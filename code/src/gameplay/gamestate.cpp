@@ -145,7 +145,16 @@ namespace
 			return !tables.contains(table);
 		}
 
-		void prepare(engine::Entity table, const gameplay::Recipe & recipe)
+		bool has_preparation_in_progress(engine::Entity table) const
+		{
+			if (!tables.contains<Preparation>(table))
+				return false;
+
+			const auto & preparation = tables.get<Preparation>(table);
+			return preparation.time_remaining > 0;
+		}
+
+		Preparation& prepare(engine::Entity table, const gameplay::Recipe & recipe)
 		{
 			debug_assert(is_empty(table));
 
@@ -158,6 +167,9 @@ namespace
 						auto table_to_be_cleared = engine::Entity::null();
 						for (const auto & preparation : tables.get<Preparation>())
 						{
+							if (preparation.time_remaining > 0)
+								continue;
+
 							if (preparation.recipe->name == (*recipe.ingredients)[j].name)
 							{
 								table_to_be_cleared = tables.get_key(preparation);
@@ -170,39 +182,13 @@ namespace
 					}
 				}
 			}
-
-			tables.emplace<Preparation>(table, &recipe, 0);
+			return tables.emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50);
 		}
 	} kitchen;
 
 	struct Worker
 	{
-		engine::Entity workstation;
-
-		unsigned int finishedCarrots;
-		float progress;
-		bool working;
-
-		unsigned int skillCutting;
-		float skillCuttingProgress;
-		unsigned int skillPotato;
-		float skillPotatoProgress;
-		unsigned int skillWorking;
-		float skillWorkingProgress;
-
-		Worker()
-			: workstation(engine::Entity::null())
-			, finishedCarrots(0)
-			, progress(0.f)
-			, working(false)
-			, skillCutting(0)
-			, skillCuttingProgress(0.f)
-			, skillPotato(2)
-			, skillPotatoProgress(0.3f)
-			, skillWorking(7)
-			, skillWorkingProgress(0.7f)
-		{
-		}
+		engine::Entity workstation = engine::Entity::null();
 	};
 
 	struct Workstation
@@ -210,11 +196,10 @@ namespace
 		gameplay::gamestate::WorkstationType type;
 		Matrix4x4f front;
 		Matrix4x4f top;
-		engine::Entity worker;
+		engine::Entity worker = engine::Entity::null();
 
 	private:
 		engine::Entity boardModel;
-		double progress;
 		engine::Entity bar;
 
 	public:
@@ -225,88 +210,67 @@ namespace
 			: type(type)
 			, front(front)
 			, top(top)
-			, worker(engine::Entity::null())
 			, boardModel(engine::Entity::create())
-			, bar(engine::Entity::null())
+			, bar(engine::Entity::create())
+		{}
+
+	public:
+		bool isBusy() const
 		{
+			return worker != engine::Entity::null();
+		}
+
+		void start(const Preparation & preparation)
+		{
+			debug_assert(preparation.time_remaining > 0);
+
+			engine::animation::update(worker, engine::animation::action{"work", true});
+
+			const int remaining_time = preparation.time_remaining;
+			const int total_time = preparation.recipe->time.value_or(0) * 50;
+			if (remaining_time == total_time)
+			{
+				gameplay::create_board(boardModel, top);
+				barUpdate(0.f);
+			}
+		}
+
+		void update(Preparation & preparation)
+		{
+			if (worker == engine::Entity::null())
+				return;
+
+			if (preparation.time_remaining <= 0)
+				return;
+
+			preparation.time_remaining--;
+
+			const auto progress_percentage = static_cast<float>(preparation.time_remaining) / static_cast<float>(preparation.recipe->time.value() * 50);
+			barUpdate(progress_percentage);
+
+			const Worker & w = access_component<Worker>(worker);
+			profile_update(worker);
+
+			if (preparation.time_remaining <= 0)
+			{
+				cleanup();
+			}
 		}
 
 	private:
-
-		void barUpdate(const float progress)
-		{
-			debug_assert(this->bar != engine::Entity::null());
-			engine::graphics::renderer::post_add_bar(this->bar, engine::graphics::data::Bar{
-				to_xyz(this->top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, progress});
-		}
-
-	public:
-
-		bool isBusy() const
-		{
-			return this->worker != engine::Entity::null();
-		}
-
-		void start()
-		{
-			access_component<Worker>(this->worker).working = true;
-			engine::animation::update(this->worker, engine::animation::action{"work", true});
-
-			if (this->bar != engine::Entity::null()) return;
-
-			gameplay::create_board(this->boardModel, this->top);
-
-			this->bar = engine::Entity::create();
-			barUpdate(0.f);
-		}
-
 		void cleanup()
 		{
-			access_component<Worker>(this->worker).working = false;
-			engine::animation::update(this->worker, engine::animation::action{"idle", true});
+			engine::animation::update(worker, engine::animation::action{"idle", true});
 
-			gameplay::destroy(this->boardModel);
+			gameplay::destroy(boardModel);
 
-			engine::graphics::renderer::post_remove(this->bar);
-			this->bar = engine::Entity::null();
+			engine::graphics::renderer::post_remove(bar);
 		}
 
-		void update()
+		void barUpdate(float normalized_progress)
 		{
-			if (this->worker == engine::Entity::null())
-				return;
-
-			if (this->bar == engine::Entity::null())
-				return;
-
-			Worker & w = access_component<Worker>(this->worker);
-
-			this->progress += (1000./50.);
-
-			const auto progress_percentage = static_cast<float>(this->progress / (4. * 1000.));
-			w.progress = progress_percentage;
-			barUpdate(progress_percentage);
-
-			if (this->progress < (4. * 1000.))
-			{
-				profile_update(this->worker);
-				return;
-			}
-
-			// carrot is finished! either stop working or auto checkout a new carrot...
-			w.finishedCarrots++;
-			w.working = false;
-			w.skillCuttingProgress += 0.35f;
-			if (w.skillCuttingProgress >= 1.f)
-			{
-				w.skillCuttingProgress -= 1.f;
-				w.skillCutting++;
-			}
-			profile_update(this->worker);
-
-			this->progress = 0.;
-
-			cleanup();
+			engine::graphics::renderer::post_add_bar(bar, engine::graphics::data::Bar{
+					to_xyz(top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, normalized_progress});
 		}
 	};
 
@@ -603,12 +567,12 @@ namespace
 		// clear prev. station if any
 		if (w.workstation != engine::Entity::null())
 		{
-			components.get<Workstation>(w.workstation).worker = engine::Entity::null();
+			Workstation & prev_workstation = components.get<Workstation>(w.workstation);
+			debug_assert(prev_workstation.worker == we);
+			prev_workstation.worker = engine::Entity::null();
 		}
 		w.workstation = se;
 		s.worker = we;
-
-		s.start();
 
 		// move the worker
 		core::maths::Vector3f translation;
@@ -639,10 +603,14 @@ namespace
 				return false;
 
 			const bool is_empty = kitchen.is_empty(entity);
-			if (!is_empty)
-				return false;
+			if (is_empty)
+				return true;
 
-			return true;
+			const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(entity);
+			if (has_preparation_in_progress)
+				return true;
+
+			return false;
 		}
 
 		bool operator () (engine::Entity, const Option &)
@@ -687,7 +655,8 @@ namespace
 			debug_assert(has_available_recipes);
 
 			const bool is_empty = kitchen.is_empty(entity);
-			debug_assert(is_empty);
+			const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(entity);
+			debug_assert((is_empty || has_preparation_in_progress));
 
 			if (x.isBusy())
 			{
@@ -700,14 +669,31 @@ namespace
 				return;
 			}
 
-			debug_printline("What would you want me to do? I can...");
-			for (const auto& recipe : available_recipes)
+			if (has_preparation_in_progress)
 			{
-				debug_printline("make some ", recipe->name);
-			}
+				Worker & worker = components.get<Worker>(selector.selected_entity);
+				move_to_workstation(worker, selector.selected_entity, x, entity);
 
-			selector.targeted_entity = entity;
-			recipes_ring.show(kitchen.recipes, available_recipes, {200.f, 200.f, 0.f});
+				auto & preparation = kitchen.tables.get<Preparation>(entity);
+				if (preparation.time_remaining <= 0)
+				{
+				}
+				else
+				{
+					x.start(preparation);
+				}
+			}
+			else
+			{
+				debug_printline("What would you want me to do? I can...");
+				for (const auto& recipe : available_recipes)
+				{
+					debug_printline("make some ", recipe->name);
+				}
+
+				selector.targeted_entity = entity;
+				recipes_ring.show(kitchen.recipes, available_recipes, {200.f, 200.f, 0.f});
+			}
 		}
 
 		void operator () (engine::Entity entity, const Option &)
@@ -721,12 +707,20 @@ namespace
 			recipes_ring.hide();
 
 			const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
-			kitchen.prepare(selector.targeted_entity, recipe);
+			auto & preparation = kitchen.prepare(selector.targeted_entity, recipe);
 
 			Worker & worker = components.get<Worker>(selector.selected_entity);
 			Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
 			// assign worker to station, clears prev. if any.
 			move_to_workstation(worker, selector.selected_entity, workstation, selector.targeted_entity);
+
+			if (preparation.time_remaining <= 0)
+			{
+			}
+			else
+			{
+				workstation.start(preparation);
+			}
 		}
 
 		template <typename T>
@@ -1073,7 +1067,12 @@ namespace gamestate
 
 		for (auto & station : components.get<Workstation>())
 		{
-			station.update();
+			const auto entity = components.get_key(station);
+			if (kitchen.tables.contains<Preparation>(entity))
+			{
+				auto & preparation = kitchen.tables.get<Preparation>(entity);
+				station.update(preparation);
+			}
 		}
 	}
 
