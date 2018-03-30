@@ -1000,7 +1000,7 @@ namespace
 	core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
 	core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
 
-	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity, engine::Command>, 10> queue_select;
+	core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity, engine::Command>, 50> queue_select;
 
 	void maybe_resize_framebuffer();
 	void poll_queues()

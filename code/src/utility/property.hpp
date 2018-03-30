@@ -30,7 +30,7 @@ namespace utility
 		enable_copy_constructor(const enable_copy_constructor &) = delete;
 		enable_copy_constructor(enable_copy_constructor &&) = default;
 		enable_copy_constructor & operator = (const enable_copy_constructor &) = default;
-		enable_copy_constructor & operator = (enable_copy_constructor &) = default;
+		enable_copy_constructor & operator = (enable_copy_constructor &&) = default;
 	};
 
 	template <bool Cond>
