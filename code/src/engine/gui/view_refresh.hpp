@@ -1,8 +1,8 @@
 
 // should not be included outside gui namespace.
 
-#ifndef ENGINE_GUI_MEASURE_HPP
-#define ENGINE_GUI_MEASURE_HPP
+#ifndef ENGINE_GUI_VIEW_REFRESH_HPP
+#define ENGINE_GUI_VIEW_REFRESH_HPP
 
 #include "render.hpp"
 #include "view.hpp"
@@ -21,7 +21,7 @@ namespace engine
 		//	SIZE_H,
 		//	SIZE_V
 
-		struct ViewMeasure
+		struct ViewRefresh
 		{
 			// View to be updated if changed.
 			static void refresh(View & view)
@@ -201,7 +201,7 @@ namespace engine
 
 					switch (content.layout)
 					{
-					case View::Group::Layout::HORIZONTAL:
+					case Layout::HORIZONTAL:
 
 						mask = Gravity{ Gravity::VERTICAL_BOTTOM | Gravity::VERTICAL_CENTRE | Gravity::VERTICAL_TOP };
 
@@ -217,7 +217,7 @@ namespace engine
 
 						break;
 
-					case View::Group::Layout::VERTICAL:
+					case Layout::VERTICAL:
 
 						mask = Gravity{ Gravity::HORIZONTAL_LEFT | Gravity::HORIZONTAL_CENTRE | Gravity::HORIZONTAL_RIGHT };
 
@@ -233,7 +233,7 @@ namespace engine
 
 						break;
 
-					case View::Group::Layout::RELATIVE:
+					case Layout::RELATIVE:
 					default:
 
 						mask = Gravity::unmasked();
@@ -254,4 +254,4 @@ namespace engine
 	}
 }
 
-#endif
+#endif // ENGINE_GUI_VIEW_REFRESH_HPP

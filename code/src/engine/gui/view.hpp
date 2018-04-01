@@ -4,12 +4,14 @@
 #ifndef ENGINE_GUI_VIEW_HPP
 #define ENGINE_GUI_VIEW_HPP
 
-#include "common.hpp"
+#include "view_data.hpp"
 #include "resources.hpp"
 
-#include <engine/debug.hpp>
+#include "engine/debug.hpp"
 
-#include <utility/variant.hpp>
+#include "core/container/Collection.hpp"
+
+#include "utility/variant.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -18,26 +20,13 @@ namespace engine
 {
 	namespace gui
 	{
-		class Function;
-
 		class View
 		{
-			friend struct ViewAccess;
-			friend struct ViewMeasure;
-			friend struct ViewUpdater;
-
 		public:
 
 			struct Group
 			{
-				enum Layout
-				{
-					HORIZONTAL,
-					VERTICAL,
-					RELATIVE
-				};
-
-				Layout layout;
+                Layout layout;
 				std::vector<View *> children;
 
 				void adopt(View * child) { this->children.push_back(child); }
@@ -101,12 +90,6 @@ namespace engine
 			// remove this somehow
 			float depth;
 
-			// remove this somehow
-			bool selectable;
-
-			// would be nice if it could be removed...
-			Function * function;
-
 		public:
 
 			View(
@@ -124,8 +107,6 @@ namespace engine
 				, parent(parent)
 				, change()
 				, status()
-				, selectable(false)
-				, function(nullptr)
 			{}
 		};
 	}

@@ -25,7 +25,8 @@ namespace engine
 
 		bool is_selectable(View & view)
 		{
-			return view.selectable;
+			// TODO: fix
+			return false;// view.selectable;
 		}
 
 		void ViewRenderer::add(View & view, View::Color & content)

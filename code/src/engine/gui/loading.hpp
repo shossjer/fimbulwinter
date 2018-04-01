@@ -1,12 +1,11 @@
 
 // should not be included outside gui namespace.
 
-#ifndef ENGINE_GUI_LOADING_HPP
-#define ENGINE_GUI_LOADING_HPP
+#ifndef ENGINE_GUI_VIEW_CREATION_HPP
+#define ENGINE_GUI_VIEW_CREATION_HPP
 
-#include "common.hpp"
-#include "function.hpp"
-#include "view.hpp"
+// this dependency could be removed if margin, gravity etc is replaced by some "load" version
+#include "view_data.hpp"
 
 #include <engine/Asset.hpp>
 
@@ -38,39 +37,8 @@ namespace gui
 		Margin margin;
 		Gravity gravity;
 
-		struct React
-		{
-			Asset key;
-		};
-
-		struct Action
-		{
-			static constexpr Asset CLOSE{ "close" };
-			static constexpr Asset INTERACTION{ "interaction" };
-			static constexpr Asset MOVER{ "mover" };
-			static constexpr Asset SELECT{ "selectable" };
-			static constexpr Asset TRIGGER{ "trigger" };
-
-			Asset type;
-			Asset target;
-		};
-
-		std::vector<Action> actions;
-
-		struct Function
-		{
-			static constexpr Asset LIST{ "list" };
-			static constexpr Asset PROGRESS{ "progressBar" };
-			static constexpr Asset TAB{ "tabBar" };
-
-			Asset type;
-
-			std::vector<React> reaction;
-			std::vector<DataVariant> templates;
-		}
-		function;
-
-		std::vector<React> reaction;
+	//	std::vector<InteractionData> interactions;
+	//	std::vector<ReactionData> reactions;
 
 		ViewData(std::string name, Size size, Margin margin, Gravity gravity)
 			: name(name)
@@ -78,34 +46,20 @@ namespace gui
 			, margin(margin)
 			, gravity(gravity)
 		{
-			function.type = Asset::null();
-		}
-
-		bool has_action() const
-		{
-			return !this->actions.empty();
 		}
 
 		bool has_name() const
 		{
 			return !this->name.empty();
 		}
-
-		bool has_reaction() const
-		{
-			return !this->reaction.empty();
-		}
-
-		// in one place a dynamic cast is performed...
-		virtual void dummy() {};
 	};
 
 	struct GroupData : ViewData
 	{
-		View::Group::Layout layout;
+        Layout layout;
 		std::vector<DataVariant> children;
 
-		GroupData(std::string name, Size size, Margin margin, Gravity gravity, View::Group::Layout layout)
+		GroupData(std::string name, Size size, Margin margin, Gravity gravity, Layout layout)
 			: ViewData(name, size, margin, gravity)
 			, layout(layout)
 		{}
@@ -142,7 +96,9 @@ namespace gui
 			, texture(texture)
 		{}
 	};
+
+	std::vector<DataVariant> load();
 }
 }
 
-#endif // ENGINE_GUI_LOADING_HPP
+#endif // ENGINE_GUI_VIEW_CREATION_HPP

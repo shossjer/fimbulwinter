@@ -18,10 +18,10 @@ set(SOURCE_FILES
 	src/engine/graphics/opengl/Font_x11.cpp
 	src/engine/graphics/renderer.cpp
 	src/engine/graphics/viewer.cpp
+	src/engine/gui/creation.cpp
 	src/engine/gui/gui.cpp
-	src/engine/gui/function.cpp
-	src/engine/gui/json_parser.cpp
-	src/engine/gui/react.cpp
+	src/engine/gui/loading.cpp
+	src/engine/gui/reaction.cpp
 	src/engine/gui/render.cpp
 	src/engine/gui/resources.cpp
 	src/engine/hid/input.cpp
@@ -83,20 +83,20 @@ set(HEADER_FILES
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/viewer.hpp
-	src/engine/gui/actions.hpp
 	src/engine/gui/common.hpp
-	src/engine/gui/creation.hpp
 	src/engine/gui/exception.hpp
-	src/engine/gui/function.hpp
 	src/engine/gui/gui.hpp
+	src/engine/gui/interaction.hpp
 	src/engine/gui/loading.hpp
-	src/engine/gui/measure.hpp
+	src/engine/gui/loading_utils.hpp
 	src/engine/gui/noodle.hpp
-	src/engine/gui/react.hpp
+	src/engine/gui/update.hpp
+	src/engine/gui/reaction.hpp
 	src/engine/gui/render.hpp
 	src/engine/gui/resources.hpp
-	src/engine/gui/update.hpp
 	src/engine/gui/view.hpp
+	src/engine/gui/view_data.hpp
+	src/engine/gui/view_refresh.hpp
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp

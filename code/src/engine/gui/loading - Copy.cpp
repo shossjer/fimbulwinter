@@ -1,7 +1,5 @@
 
-#include "actions.hpp"
 #include "exception.hpp"
-#include "function.hpp"
 #include "loading.hpp"
 #include "resources.hpp"
 
@@ -337,7 +335,7 @@ namespace
 			return extract_string("display", jdata);
 		}
 
-		View::Group::Layout layout(const json & jgroup) const
+		Layout layout(const json & jgroup) const
 		{
 			if (!contains(jgroup, "layout"))
 			{
@@ -347,9 +345,9 @@ namespace
 
 			const std::string str = jgroup["layout"];
 
-			if (str == "horizontal")return View::Group::HORIZONTAL;
-			if (str == "vertical") return View::Group::VERTICAL;
-			if (str == "relative") return View::Group::RELATIVE;
+			if (str == "horizontal")return Layout::HORIZONTAL;
+			if (str == "vertical") return Layout::VERTICAL;
+			if (str == "relative") return Layout::RELATIVE;
 
 			debug_printline(engine::gui_channel, "GUI - invalid layout: ", str);
 			throw bad_json();
@@ -953,6 +951,12 @@ namespace gui
 {
 	std::vector<DataVariant> load()
 	{
+		// TODO: Load resources from file and add to GUI
+
+
+		// TODO: Load all view templates for access during window loading
+
+
 		std::vector<DataVariant> windows;
 
 		std::ifstream file("res/gui.json");
@@ -986,9 +990,9 @@ namespace gui
 			{
 				WindowLoader(resourceLoader).create(windows, jwindow);
 			}
-			catch (const bad_json &)
+			catch (const bad_json & e)
 			{
-				debug_printline(engine::gui_channel, "WARNING - window creation was aborted.");
+				debug_printline(engine::gui_channel, "WARNING - window creation was aborted.", e.message);
 			}
 		}
 
