@@ -19,7 +19,7 @@ namespace engine
 
 		Reactions reactions;
 
-		// TODO: Resources resources
+		Resources resources;
 
 		Views views;
 	}
@@ -85,7 +85,7 @@ namespace engine
 {
 	namespace gui
 	{
-		extern void create(View & screen_view, View::Group & screen_group, std::vector<DataVariant> && windows_data);
+		extern void create(const Resources & resources, View & screen_view, View::Group & screen_group, std::vector<DataVariant> && windows_data);
 		
 		void create()
 		{
@@ -130,7 +130,7 @@ namespace engine
 
 						View::Group & screen_group = reset();
 
-						create(*screen_view, screen_group, load());
+						create(resources, *screen_view, screen_group, load());
 					}
 					void operator() (MessageVisibility && m)
 					{

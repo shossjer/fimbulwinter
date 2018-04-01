@@ -45,23 +45,14 @@ namespace
 	{
 		const auto entity = engine::Entity::create();
 
-		View view{
+		auto & view = views.emplace<View>(
+			entity,
 			entity,
 			std::move(content),
 			data.gravity,
 			data.margin,
 			data.size,
-			nullptr };
-		views.add(entity, std::move(view));
-
-		//auto & view = views.emplace<View>(
-		//	entity,
-		//	entity,
-		//	std::move(content),
-		//	data.gravity,
-		//	data.margin,
-		//	data.size,
-		//	nullptr);
+			nullptr);
 
 		//if (!data.name.empty())
 		//{

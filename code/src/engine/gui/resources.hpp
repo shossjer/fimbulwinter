@@ -38,6 +38,8 @@ namespace engine
 		{
 		public:
 
+			Resources() {}
+
 			Resources(const json & jdata) {}
 
 		public:
