@@ -114,11 +114,11 @@ namespace utility
 		template <typename ...Ts>
 		using variant_is_move_assignable =
 			mpl::conjunction<std::is_move_constructible<Ts>...,
-			                 std::is_copy_assignable<Ts>...>;
+			                 std::is_move_assignable<Ts>...>;
 		template <typename ...Ts>
 		using variant_is_nothrow_move_assignable =
 			mpl::conjunction<std::is_nothrow_move_constructible<Ts>...,
-			                 std::is_nothrow_copy_assignable<Ts>...>;
+			                 std::is_nothrow_move_assignable<Ts>...>;
 
 		template <size_t I, typename T>
 		struct variant_alternative

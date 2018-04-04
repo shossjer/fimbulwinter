@@ -228,8 +228,11 @@ namespace
 
 			~Created()
 			{
-				// gameplay::gamestate::post_remove(entity);
-				engine::graphics::renderer::post_remove(entity);
+				if (entity != engine::Entity::null())
+				{
+					// gameplay::gamestate::post_remove(entity);
+					engine::graphics::renderer::post_remove(entity);
+				}
 			}
 			Created(
 				engine::Entity entity,
@@ -250,6 +253,17 @@ namespace
 					gameplay::gamestate::WorkstationType::BENCH,
 					modelview * resource.front,
 					modelview * resource.top);
+			}
+			Created(Created && x)
+				: entity(x.entity)
+			{
+				x.entity = engine::Entity::null();
+			}
+			Created & operator = (Created && x)
+			{
+				using std::swap;
+				swap(entity, x.entity);
+				return *this;
 			}
 		};
 		struct Creating
@@ -283,7 +297,10 @@ namespace
 
 			~Created()
 			{
-				engine::graphics::renderer::post_remove(entity);
+				if (entity != engine::Entity::null())
+				{
+					engine::graphics::renderer::post_remove(entity);
+				}
 			}
 			Created(
 				engine::Entity entity,
@@ -297,6 +314,17 @@ namespace
 						modelview,
 							Vector3f{ 1.f, 1.f, 1.f },
 							resource.assets });
+			}
+			Created(Created && x)
+				: entity(x.entity)
+			{
+				x.entity = engine::Entity::null();
+			}
+			Created & operator = (Created && x)
+			{
+				using std::swap;
+				swap(entity, x.entity);
+				return *this;
 			}
 		};
 		struct Creating
@@ -330,8 +358,11 @@ namespace
 
 			~Created()
 			{
-				// gameplay::gamestate::post_remove(entity);
-				engine::graphics::renderer::post_remove(entity);
+				if (entity != engine::Entity::null())
+				{
+					// gameplay::gamestate::post_remove(entity);
+					engine::graphics::renderer::post_remove(entity);
+				}
 			}
 			Created(
 				engine::Entity entity,
@@ -352,6 +383,17 @@ namespace
 					gameplay::gamestate::WorkstationType::OVEN,
 					modelview * resource.front,
 					modelview * resource.top);
+			}
+			Created(Created && x)
+				: entity(x.entity)
+			{
+				x.entity = engine::Entity::null();
+			}
+			Created & operator = (Created && x)
+			{
+				using std::swap;
+				swap(entity, x.entity);
+				return *this;
 			}
 		};
 		struct Creating
@@ -385,10 +427,13 @@ namespace
 
 			~Created()
 			{
-				// gameplay::gamestate::post_remove(entity);
-				// engine::animation::post_remove(entity);
-				engine::physics::post_remove(entity);
-				engine::graphics::renderer::post_remove(entity);
+				if (entity != engine::Entity::null())
+				{
+					// gameplay::gamestate::post_remove(entity);
+					// engine::animation::post_remove(entity);
+					engine::physics::post_remove(entity);
+					engine::graphics::renderer::post_remove(entity);
+				}
 			}
 			Created(
 				engine::Entity entity,
@@ -414,6 +459,17 @@ namespace
 				engine::animation::update(entity, engine::animation::action{"turn-left", true});
 
 				gameplay::gamestate::post_add_worker(entity);
+			}
+			Created(Created && x)
+				: entity(x.entity)
+			{
+				x.entity = engine::Entity::null();
+			}
+			Created & operator = (Created && x)
+			{
+				using std::swap;
+				swap(entity, x.entity);
+				return *this;
 			}
 		};
 		struct Creating
