@@ -220,12 +220,20 @@ namespace
 		return rl.string_or_empty("name", jd);
 	}
 
+	auto parse_size(const ResourceLoader & rl, const json & jdata, Size && size_def)
+	{
+		if (!contains(jdata, "size"))
+		{
+			return size_def;
+		}
+
+		return extract_size(rl, jdata);
+	}
 	auto parse_size(const ResourceLoader & rl, const json & jdata)
 	{
 		if (!contains(jdata, "size"))
 		{
-			debug_printline(engine::gui_channel, "WARNING - key: 'size' missing in data: ", jdata);
-			throw key_missing("size");
+			return Size{};
 		}
 
 		return extract_size(rl, jdata);
@@ -233,7 +241,7 @@ namespace
 
 	auto parse_texture(const ResourceLoader & rl, const json & jd)
 	{
-		return engine::Asset{ rl.string("texture", jd) };
+		return engine::Asset{ rl.string("res", jd) };
 	}
 
 	std::string parse_type(const json & jd)
@@ -451,7 +459,7 @@ namespace
 			parent.children.emplace_back(
 				utility::in_place_type<PanelData>,
 				parse_name(rl, jcomponent),
-				parse_size(rl, jcomponent), // parent
+				parse_size(rl, jcomponent, Size{ Size::PARENT, Size::PARENT }),
 				parse_margin(rl, jcomponent),
 				parse_gravity(rl, jcomponent),
 				parse_color(rl, jpanel));
@@ -466,7 +474,7 @@ namespace
 			parent.children.emplace_back(
 				utility::in_place_type<TextData>,
 				parse_name(rl, jcomponent),
-				parse_size(rl, jcomponent), // wrap
+				parse_size(rl, jcomponent, Size{ Size::WRAP, Size::WRAP }),
 				parse_margin(rl, jcomponent),
 				parse_gravity(rl, jcomponent),
 				parse_color(rl, jtext),
@@ -529,7 +537,7 @@ namespace
 				load_function(view, jcomponent);
 				load_reaction(jcomponent);
 			}
-			else if (type == "template")
+			else if (!type.empty() && type[0] == '#')
 			{
 				if (!contains(this->jtemplates, type))
 				{
@@ -537,7 +545,7 @@ namespace
 					throw key_missing{ type };
 				}
 
-				load_views(parent, this->jtemplates["type"]);
+				load_views(parent, this->jtemplates[type]);
 
 				// TODO: update overriding names
 			}

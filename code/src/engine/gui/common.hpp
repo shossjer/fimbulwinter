@@ -31,8 +31,8 @@ namespace engine
 
 		using Views = core::container::Collection
 		<
-			engine::Entity, 101,
-			std::array<View, 101>
+			engine::Entity, 201,
+			std::array<View, 201>
 		>;
 	}
 }

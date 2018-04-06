@@ -3,6 +3,7 @@
 #include "exception.hpp"
 #include "loading.hpp"
 #include "resources.hpp"
+#include "update.hpp"
 #include "view.hpp"
 
 #include <core/container/Collection.hpp>
@@ -97,7 +98,7 @@ namespace
 			//	create_function(view, data);
 			//	create_reaction(view, data);
 
-			//	ViewUpdater::update(view, content);
+			//ViewUpdater::update(view, content);
 
 			return view;
 		}
@@ -123,7 +124,8 @@ namespace
 				View::Content{ utility::in_place_type<View::Text>, data.display, resource::color(data.color) },
 				data);
 
-			//	ViewUpdater::update(view, get_content<View::Text>(view));
+			// update size base on initial string (if any)
+			ViewUpdater::update(view, get_content<View::Text>(view));
 
 			//	create_actions(view, data);
 			//	create_function(view, data);
