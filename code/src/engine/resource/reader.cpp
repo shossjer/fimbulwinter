@@ -241,12 +241,21 @@ namespace
 				{
 					if (check_if_json(x.name))
 					{
-						std::ifstream ifile("res/" + x.name + ".json");
-						debug_assert(ifile);
+						std::ifstream file("res/" + x.name + ".json", std::ifstream::binary);
+						debug_assert(file);
 
-						json j;
-						read_json(ifile, j);
-						x.callback(std::move(x.name), engine::resource::reader::Data(std::move(j)));
+						file.seekg(0, std::ifstream::end);
+						const auto file_size = file.tellg();
+						file.seekg(0, std::ifstream::beg);
+
+						std::vector<char> bytes;
+						bytes.resize(file_size);
+
+						file.read(bytes.data(), bytes.size());
+
+						engine::resource::reader::Data data;
+						data.structurer.set(bytes.data(), bytes.size());
+						x.callback(std::move(x.name), std::move(data));
 					}
 					else
 					{

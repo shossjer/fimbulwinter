@@ -1,6 +1,7 @@
 
 #include "gamestate.hpp"
 
+#include "core/JsonStructurer.hpp"
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
 #include <core/container/ExchangeQueue.hpp>
@@ -16,14 +17,24 @@
 #include "engine/resource/reader.hpp"
 
 #include "gameplay/commands.hpp"
+#include "gameplay/component/CameraActivator.hpp"
+#include "gameplay/component/FreeCamera.hpp"
+#include "gameplay/component/OverviewCamera.hpp"
 #include <gameplay/debug.hpp>
 #include <gameplay/factory.hpp>
+#include "gameplay/recipes.hpp"
+#include "gameplay/skills.hpp"
 
+#include "utility/string.hpp"
+
+#include <fstream>
 #include <utility>
 
 namespace
 {
-	void entityClick(engine::Entity id);
+	using CameraActivator = gameplay::component::CameraActivator;
+	using FreeCamera = gameplay::component::FreeCamera;
+	using OverviewCamera = gameplay::component::OverviewCamera;
 
 	template<typename T>
 	T & access_component(const engine::Entity entity);
@@ -31,463 +42,235 @@ namespace
 	// update "profile" of entity if it is currently shown (will not set entity as selected).
 	void profile_update(const engine::Entity entity);
 
-	struct CameraActivator
-	{
-		engine::Asset frame;
-		engine::Entity camera;
-
-		CameraActivator(engine::Asset frame, engine::Entity camera) : frame(frame), camera(camera) {}
-
-		void translate(engine::Command command, utility::any && data)
-		{
-			switch (command)
-			{
-			case engine::command::CONTEXT_CHANGED:
-				debug_assert(!data.has_value());
-				debug_printline(gameplay::gameplay_channel, "Switching to camera: ", camera);
-				engine::graphics::viewer::post_bind(frame, camera);
-				break;
-			default:
-				debug_printline(gameplay::gameplay_channel, "CameraActivator: Unknown command: ", static_cast<int>(command));
-			}
-		}
-	};
-
-	struct FreeCamera
-	{
-		engine::Entity camera;
-
-		bool move_left = false;
-		bool move_right = false;
-		bool move_down = false;
-		bool move_up = false;
-		bool turn_left = false;
-		bool turn_right = false;
-		bool turn_down = false;
-		bool turn_up = false;
-		bool roll_left = false;
-		bool roll_right = false;
-		bool elevate_down = false;
-		bool elevate_up = false;
-
-		core::maths::Quaternionf rotation = {1.f, 0.f, 0.f, 0.f};
-
-		FreeCamera(engine::Entity camera) : camera(camera) {}
-
-		void translate(engine::Command command, utility::any && data)
-		{
-			switch (command)
-			{
-			case engine::command::MOVE_LEFT_DOWN:
-				debug_assert(!data.has_value());
-				move_left = true;
-				break;
-			case engine::command::MOVE_LEFT_UP:
-				debug_assert(!data.has_value());
-				move_left = false;
-				break;
-			case engine::command::MOVE_RIGHT_DOWN:
-				debug_assert(!data.has_value());
-				move_right = true;
-				break;
-			case engine::command::MOVE_RIGHT_UP:
-				debug_assert(!data.has_value());
-				move_right = false;
-				break;
-			case engine::command::MOVE_DOWN_DOWN:
-				debug_assert(!data.has_value());
-				move_down = true;
-				break;
-			case engine::command::MOVE_DOWN_UP:
-				debug_assert(!data.has_value());
-				move_down = false;
-				break;
-			case engine::command::MOVE_UP_DOWN:
-				debug_assert(!data.has_value());
-				move_up = true;
-				break;
-			case engine::command::MOVE_UP_UP:
-				debug_assert(!data.has_value());
-				move_up = false;
-				break;
-			case engine::command::TURN_LEFT_DOWN:
-				debug_assert(!data.has_value());
-				turn_left = true;
-				break;
-			case engine::command::TURN_LEFT_UP:
-				debug_assert(!data.has_value());
-				turn_left = false;
-				break;
-			case engine::command::TURN_RIGHT_DOWN:
-				debug_assert(!data.has_value());
-				turn_right = true;
-				break;
-			case engine::command::TURN_RIGHT_UP:
-				debug_assert(!data.has_value());
-				turn_right = false;
-				break;
-			case engine::command::TURN_DOWN_DOWN:
-				debug_assert(!data.has_value());
-				turn_down = true;
-				break;
-			case engine::command::TURN_DOWN_UP:
-				debug_assert(!data.has_value());
-				turn_down = false;
-				break;
-			case engine::command::TURN_UP_DOWN:
-				debug_assert(!data.has_value());
-				turn_up = true;
-				break;
-			case engine::command::TURN_UP_UP:
-				debug_assert(!data.has_value());
-				turn_up = false;
-				break;
-			case engine::command::ROLL_LEFT_DOWN:
-				debug_assert(!data.has_value());
-				roll_left = true;
-				break;
-			case engine::command::ROLL_LEFT_UP:
-				debug_assert(!data.has_value());
-				roll_left = false;
-				break;
-			case engine::command::ROLL_RIGHT_DOWN:
-				debug_assert(!data.has_value());
-				roll_right = true;
-				break;
-			case engine::command::ROLL_RIGHT_UP:
-				debug_assert(!data.has_value());
-				roll_right = false;
-				break;
-			case engine::command::ELEVATE_DOWN_DOWN:
-				debug_assert(!data.has_value());
-				elevate_down = true;
-				break;
-			case engine::command::ELEVATE_DOWN_UP:
-				debug_assert(!data.has_value());
-				elevate_down = false;
-				break;
-			case engine::command::ELEVATE_UP_DOWN:
-				debug_assert(!data.has_value());
-				elevate_up = true;
-				break;
-			case engine::command::ELEVATE_UP_UP:
-				debug_assert(!data.has_value());
-				elevate_up = false;
-				break;
-			default:
-				debug_printline(gameplay::gameplay_channel, "FreeCamera: Unknown command: ", static_cast<int>(command));
-			}
-		}
-
-		void update()
-		{
-			const float rotation_speed = make_radian(core::maths::degreef{1.f/2.f}).get();
-			if (turn_left)
-				rotation *= core::maths::Quaternionf{std::cos(rotation_speed), 0.f, std::sin(rotation_speed), 0.f};
-			if (turn_right)
-				rotation *= core::maths::Quaternionf{std::cos(-rotation_speed), 0.f, std::sin(-rotation_speed), 0.f};
-			if (turn_up)
-				rotation *= core::maths::Quaternionf{std::cos(-rotation_speed), std::sin(-rotation_speed), 0.f, 0.f};
-			if (turn_down)
-				rotation *= core::maths::Quaternionf{std::cos(rotation_speed), std::sin(rotation_speed), 0.f, 0.f};
-			if (roll_left)
-				rotation *= core::maths::Quaternionf{std::cos(rotation_speed), 0.f, 0.f, std::sin(rotation_speed)};
-			if (roll_right)
-				rotation *= core::maths::Quaternionf{std::cos(-rotation_speed), 0.f, 0.f, std::sin(-rotation_speed)};
-
-			const float movement_speed = .5f;
-			if (move_left)
-				engine::physics::camera::update(
-					camera,
-					-rotation.axis_x() * movement_speed);
-			if (move_right)
-				engine::physics::camera::update(
-					camera,
-					rotation.axis_x() * movement_speed);
-			if (move_up)
-				engine::physics::camera::update(
-					camera,
-					-rotation.axis_z() * movement_speed);
-			if (move_down)
-				engine::physics::camera::update(
-					camera,
-					rotation.axis_z() * movement_speed);
-			if (elevate_down)
-				engine::physics::camera::update(
-					camera,
-					-rotation.axis_y() * movement_speed);
-			if (elevate_up)
-				engine::physics::camera::update(
-					camera,
-					rotation.axis_y() * movement_speed);
-
-			engine::graphics::viewer::post_update_camera(camera, engine::graphics::viewer::rotation{rotation});
-		}
-	};
-
-	struct OverviewCamera
-	{
-		engine::Entity camera;
-
-		int move_left = 0;
-		int move_right = 0;
-		int move_down = 0;
-		int move_up = 0;
-
-		OverviewCamera(engine::Entity camera) : camera(camera) {}
-
-		void translate(engine::Command command, utility::any && data)
-		{
-			switch (command)
-			{
-			case engine::command::MOVE_LEFT_DOWN:
-				debug_assert(!data.has_value());
-				move_left++;
-				break;
-			case engine::command::MOVE_LEFT_UP:
-				debug_assert(!data.has_value());
-				move_left--;
-				break;
-			case engine::command::MOVE_RIGHT_DOWN:
-				debug_assert(!data.has_value());
-				move_right++;
-				break;
-			case engine::command::MOVE_RIGHT_UP:
-				debug_assert(!data.has_value());
-				move_right--;
-				break;
-			case engine::command::MOVE_DOWN_DOWN:
-				debug_assert(!data.has_value());
-				move_down++;
-				break;
-			case engine::command::MOVE_DOWN_UP:
-				debug_assert(!data.has_value());
-				move_down--;
-				break;
-			case engine::command::MOVE_UP_DOWN:
-				debug_assert(!data.has_value());
-				move_up++;
-				break;
-			case engine::command::MOVE_UP_UP:
-				debug_assert(!data.has_value());
-				move_up--;
-				break;
-			default:
-				debug_printline(gameplay::gameplay_channel, "OverviewCamera: Unknown command: ", static_cast<int>(command));
-			}
-		}
-
-		void update()
-		{
-			if (move_left > 0)
-				engine::physics::camera::update(
-					camera,
-					Vector3f{-1.f, 0.f, 0.f});
-			if (move_right > 0)
-				engine::physics::camera::update(
-					camera,
-					Vector3f{1.f, 0.f, 0.f});
-			if (move_up > 0)
-				engine::physics::camera::update(
-					camera,
-					Vector3f{0.f, 0.f, -1.f});
-			if (move_down > 0)
-				engine::physics::camera::update(
-					camera,
-					Vector3f{0.f, 0.f, 1.f});
-		}
-	};
-
 	struct Selector
 	{
 		engine::Entity highlighted_entity = engine::Entity::null();
 		engine::Entity pressed_entity = engine::Entity::null();
 		engine::Entity selected_entity = engine::Entity::null();
+		engine::Entity targeted_entity = engine::Entity::null();
+
+		void highlight(engine::Entity entity);
+		void lowlight(engine::Entity entity);
+		void select(engine::Entity entity);
+		void deselect(engine::Entity entity);
 
 		void translate(engine::Command command, utility::any && data);
 	};
 
-	struct Storehouse
+	struct Preparation
 	{
-	private:
-		unsigned int carrotsRaw;
-		unsigned int carrotsChopped;
+		const gameplay::Recipe * recipe;
 
-	public:
+		int time_remaining;
+	};
 
-		Storehouse()
-			: carrotsRaw(10)
-			, carrotsChopped(0)
+	struct Kitchen
+	{
+		gameplay::Recipes recipes;
+
+		core::container::Collection
+		<
+			engine::Entity,
+			200,
+			std::array<Preparation, 100>,
+			std::array<Preparation, 1>
+		> tables;
+
+		void init_recipes(core::JsonStructurer && s)
 		{
+			serialize(s, recipes);
+
+			debug_printline("recipes:");
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				debug_printline("name = \"", recipes.get(i).name, "\"");
+				if (recipes.get(i).ingredients)
+				{
+					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+					{
+						debug_printline((*recipes.get(i).ingredients)[j].quantity, "x ", (*recipes.get(i).ingredients)[j].name);
+					}
+				}
+				else
+				{
+					debug_printline("\"", recipes.get(i).name, "\" has no ingredients");
+				}
+			}
 		}
 
-	public:
-		// return a carrot if available
-		bool checkoutRawCarrot()
+		std::vector<const gameplay::Recipe *> get_available_recipes() const
 		{
-			if (this->carrotsRaw <= 0)
+			std::vector<const gameplay::Recipe *> available_recipes;
+
+			std::vector<int> ingredient_counts(recipes.size(), 0);
+			for (const auto & preparation : tables.get<Preparation>())
+			{
+				if (preparation.time_remaining > 0)
+					continue;
+
+				const int i = recipes.index(*preparation.recipe);
+				ingredient_counts[i]++;
+			}
+
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				bool is_available = true;
+				if (recipes.get(i).ingredients)
+				{
+					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+					{
+						const int index = recipes.find((*recipes.get(i).ingredients)[j].name);
+						debug_assert(index >= 0);
+
+						const int need = (*recipes.get(i).ingredients)[j].quantity;
+						const int have = ingredient_counts[index];
+						if (have < need)
+						{
+							is_available = false;
+							break;
+						}
+					}
+				}
+				if (is_available)
+				{
+					available_recipes.push_back(&recipes.get(i));
+				}
+			}
+
+			return available_recipes;
+		}
+
+		bool is_empty(engine::Entity table) const
+		{
+			return !tables.contains(table);
+		}
+
+		bool has_preparation_in_progress(engine::Entity table) const
+		{
+			if (!tables.contains<Preparation>(table))
 				return false;
 
-			this->carrotsRaw--;
-			return true;
+			const auto & preparation = tables.get<Preparation>(table);
+			return preparation.time_remaining > 0;
 		}
 
-		void checkinChoppedCarrot() { this->carrotsChopped++; }
-
-		void print()
+		Preparation& prepare(engine::Entity table, const gameplay::Recipe & recipe)
 		{
-			debug_printline(gameplay::gameplay_channel, "Carrot status - raw: ", this->carrotsRaw, " chopped: ", this->carrotsChopped);
+			debug_assert(is_empty(table));
+
+			if (recipe.ingredients)
+			{
+				for (int j = 0; j < recipe.ingredients->size(); j++)
+				{
+					for (int k = 0; k < (*recipe.ingredients)[j].quantity; k++)
+					{
+						auto table_to_be_cleared = engine::Entity::null();
+						for (const auto & preparation : tables.get<Preparation>())
+						{
+							if (preparation.time_remaining > 0)
+								continue;
+
+							if (preparation.recipe->name == (*recipe.ingredients)[j].name)
+							{
+								table_to_be_cleared = tables.get_key(preparation);
+								break;
+							}
+						}
+						debug_assert(table_to_be_cleared != engine::Entity::null());
+
+						tables.remove(table_to_be_cleared);
+					}
+				}
+			}
+			return tables.emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50);
 		}
-	} storage;
+	} kitchen;
 
 	struct Worker
 	{
-		engine::Entity id;
-		engine::Entity workstation;
-
-		unsigned int finishedCarrots;
-		float progress;
-		bool working;
-
-		unsigned int skillCutting;
-		float skillCuttingProgress;
-		unsigned int skillPotato;
-		float skillPotatoProgress;
-		unsigned int skillWorking;
-		float skillWorkingProgress;
-
-		Worker(engine::Entity id)
-			: id(id)
-			, workstation(engine::Entity::null())
-			, finishedCarrots(0)
-			, progress(0.f)
-			, working(false)
-			, skillCutting(0)
-			, skillCuttingProgress(0.f)
-			, skillPotato(2)
-			, skillPotatoProgress(0.3f)
-			, skillWorking(7)
-			, skillWorkingProgress(0.7f)
-		{
-		}
+		engine::Entity workstation = engine::Entity::null();
 	};
 
 	struct Workstation
 	{
-		engine::Entity id;
 		gameplay::gamestate::WorkstationType type;
 		Matrix4x4f front;
 		Matrix4x4f top;
-		engine::Entity worker;
+		engine::Entity worker = engine::Entity::null();
 
 	private:
 		engine::Entity boardModel;
-		double progress;
 		engine::Entity bar;
 
 	public:
 		Workstation(
-			engine::Entity id,
 			gameplay::gamestate::WorkstationType type,
 			Matrix4x4f front,
 			Matrix4x4f top)
-			: id(id)
-			, type(type)
+			: type(type)
 			, front(front)
 			, top(top)
-			, worker(engine::Entity::null())
 			, boardModel(engine::Entity::create())
-			, bar(engine::Entity::null())
+			, bar(engine::Entity::create())
+		{}
+
+	public:
+		bool isBusy() const
 		{
+			return worker != engine::Entity::null();
+		}
+
+		void start(const Preparation & preparation)
+		{
+			debug_assert(preparation.time_remaining > 0);
+
+			engine::animation::update(worker, engine::animation::action{"work", true});
+
+			const int remaining_time = preparation.time_remaining;
+			const int total_time = preparation.recipe->time.value_or(0) * 50;
+			if (remaining_time == total_time)
+			{
+				gameplay::create_board(boardModel, top);
+				barUpdate(0.f);
+			}
+		}
+
+		void update(Preparation & preparation)
+		{
+			if (worker == engine::Entity::null())
+				return;
+
+			if (preparation.time_remaining <= 0)
+				return;
+
+			preparation.time_remaining--;
+
+			const auto progress_percentage = static_cast<float>(preparation.time_remaining) / static_cast<float>(preparation.recipe->time.value() * 50);
+			barUpdate(progress_percentage);
+
+			const Worker & w = access_component<Worker>(worker);
+			profile_update(worker);
+
+			if (preparation.time_remaining <= 0)
+			{
+				cleanup();
+			}
 		}
 
 	private:
-
-		void barUpdate(const float progress)
-		{
-			debug_assert(this->bar != engine::Entity::null());
-			engine::graphics::renderer::post_add_bar(this->bar, engine::graphics::data::Bar{
-				to_xyz(this->top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, progress});
-		}
-
-	public:
-
-		bool isBusy() const
-		{
-			return this->worker != engine::Entity::null();
-		}
-
-		void start()
-		{
-			access_component<Worker>(this->worker).working = true;
-			engine::animation::update(this->worker, engine::animation::action{"work", true});
-
-			if (this->bar != engine::Entity::null()) return;
-
-			if (!storage.checkoutRawCarrot())
-			{
-				debug_printline(gameplay::gameplay_channel, "No more raw carrots to chopp!");
-				return;
-			}
-
-			storage.print();
-
-			gameplay::create_board(this->boardModel, this->top);
-
-			this->bar = engine::Entity::create();
-			barUpdate(0.f);
-		}
-
 		void cleanup()
 		{
-			access_component<Worker>(this->worker).working = false;
-			engine::animation::update(this->worker, engine::animation::action{"idle", true});
+			engine::animation::update(worker, engine::animation::action{"idle", true});
 
-			gameplay::destroy(this->boardModel);
+			gameplay::destroy(boardModel);
 
-			engine::graphics::renderer::post_remove(this->bar);
-			this->bar = engine::Entity::null();
+			engine::graphics::renderer::post_remove(bar);
 		}
 
-		void update()
+		void barUpdate(float normalized_progress)
 		{
-			if (this->worker == engine::Entity::null())
-				return;
-
-			if (this->bar == engine::Entity::null())
-				return;
-
-			Worker & w = access_component<Worker>(this->worker);
-
-			this->progress += (1000./50.);
-
-			const auto progress_percentage = static_cast<float>(this->progress / (4. * 1000.));
-			w.progress = progress_percentage;
-			barUpdate(progress_percentage);
-
-			if (this->progress < (4. * 1000.))
-			{
-				profile_update(this->worker);
-				return;
-			}
-
-			// carrot is finished! either stop working or auto checkout a new carrot...
-			w.finishedCarrots++;
-			w.working = false;
-			w.skillCuttingProgress += 0.35f;
-			if (w.skillCuttingProgress >= 1.f)
-			{
-				w.skillCuttingProgress -= 1.f;
-				w.skillCutting++;
-			}
-			profile_update(this->worker);
-
-			this->progress = 0.;
-
-			storage.checkinChoppedCarrot();
-			storage.print();
-
-			cleanup();
+			engine::graphics::renderer::post_add_bar(bar, engine::graphics::data::Bar{
+					to_xyz(top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, normalized_progress});
 		}
 	};
 
@@ -622,114 +405,9 @@ namespace
 		}
 	};
 
-	// when mouse button is released and the entity is "clicked".
-	struct
+	struct Option
 	{
-		bool operator () (const GUIComponent & c)
-		{
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::CLICK });
-			return false;
-		}
-
-		bool operator () (const Worker & w)
-		{
-			// show the window
-			engine::gui::post(engine::gui::MessageVisibility{ "profile", engine::gui::MessageVisibility::SHOW });
-			profile_updater.entity = w.id;
-			profile_update(w.id);
-			return true;
-		}
-
-		template <typename W>
-		bool operator () (const W & w)
-		{
-			return false;
-		}
-	}
-	playerEntityClick;
-
-	struct
-	{
-		void operator () (engine::Entity entity, const Worker & x)
-		{
-			engine::graphics::renderer::post_make_highlight(entity);
-		}
-		void operator () (engine::Entity entity, const Workstation & x)
-		{
-			engine::graphics::renderer::post_make_highlight(entity);
-		}
-
-		void operator () (const GUIComponent & c)
-		{
-			debug_printline(gameplay::gameplay_channel, "Gamestate - Highlight entity: ", c.id);
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::HIGHLIGHT });
-		}
-
-		template <typename W,
-		          REQUIRES((!mpl::is_same<Worker, W>::value)),
-		          REQUIRES((!mpl::is_same<Workstation, W>::value))>
-		void operator () (const W & w)
-		{
-		}
-	}
-	playerEntityHighlight;
-
-	struct
-	{
-		void operator () (engine::Entity entity, const Worker & x)
-		{
-			engine::graphics::renderer::post_make_dehighlight(entity);
-		}
-		void operator () (engine::Entity entity, const Workstation & x)
-		{
-			engine::graphics::renderer::post_make_dehighlight(entity);
-		}
-
-		void operator () (const GUIComponent & c)
-		{
-			debug_printline(gameplay::gameplay_channel, "Gamestate - Lowlight entity: ", c.id);
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::LOWLIGHT });
-
-		}
-
-		template <typename W,
-		          REQUIRES((!mpl::is_same<Worker, W>::value)),
-		          REQUIRES((!mpl::is_same<Workstation, W>::value))>
-		void operator () (const W & w)
-		{
-		}
-	}
-	playerEntityLowlight;
-
-	struct
-	{
-		void operator () (const GUIComponent & c)
-		{
-			debug_printline(gameplay::gameplay_channel, "Gamestate - Pressing entity: ", c.id);
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::PRESS });
-		}
-
-		template <typename W>
-		void operator () (const W & w)
-		{
-		}
-	}
-	playerEntityPress;
-
-	struct
-	{
-		void operator () (const GUIComponent & c)
-		{
-			debug_printline(gameplay::gameplay_channel, "Gamestate - Releasing entity: ", c.id);
-			engine::gui::post(engine::gui::MessageInteraction{ c.id, engine::gui::MessageInteraction::RELEASE });
-		}
-
-		template <typename W>
-		void operator () (const W & w)
-		{
-		}
-	}
-	playerEntityRelease;
+	};
 
 	struct Loader
 	{
@@ -752,9 +430,85 @@ namespace
 		std::array<Selector, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>,
+		std::array<Option, 20>,
 		std::array<Loader, 1>
 	>
 	components;
+
+	struct
+	{
+		std::vector<engine::Entity> entities;
+		std::vector<engine::Entity> shown_entities;
+
+		void init(const gameplay::Recipes & recipes)
+		{
+			entities.reserve(recipes.size());
+			shown_entities.reserve(recipes.size());
+
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				core::graphics::Image image( utility::to_string("res/", recipes.get(i).name, ".png"));
+				engine::graphics::renderer::post_register_texture(engine::Asset(recipes.get(i).name), std::move(image));
+
+				const engine::Entity entity = engine::Entity::create();
+				entities.push_back(entity);
+				components.emplace<Option>(entity);
+			}
+		}
+
+		const gameplay::Recipe & get(const gameplay::Recipes & recipes, engine::Entity entity) const
+		{
+			debug_assert(recipes.size() == entities.size());
+
+			auto maybe = std::find(entities.begin(), entities.end(), entity);
+			debug_assert(maybe != entities.end());
+			const int index = std::distance(entities.begin(), maybe);
+
+			return recipes.get(index);
+		}
+
+		void hide()
+		{
+			for (auto entity : shown_entities)
+			{
+				engine::graphics::renderer::post_remove(entity);
+			}
+			shown_entities.clear();
+		}
+
+		void show(const gameplay::Recipes & recipes, const std::vector<const gameplay::Recipe *> & shown_recipes, const core::maths::Vector3f & center)
+		{
+			debug_assert(recipes.size() == entities.size());
+
+			hide();
+
+			for (int i = 0; i < shown_recipes.size(); i++)
+			{
+				const int recipe_index = recipes.index(*shown_recipes[i]);
+				const auto entity = entities[recipe_index];
+				debug_assert(std::find(shown_entities.begin(), shown_entities.end(), entity) == shown_entities.end());
+
+				const float radius = 96.f;
+				const float angle = static_cast<float>(i) / static_cast<float>(shown_recipes.size()) * 2.f * 3.14159265f - 3.14159265f / 2.f;
+
+				core::maths::Matrix4x4f matrix = make_translation_matrix(
+					center + Vector3f(
+						radius * std::cos(angle) - 32.f,
+						radius * std::sin(angle) - 32.f,
+						0.f));
+				core::maths::Vector2f size(64.f, 64.f);
+
+				engine::graphics::renderer::post_add_panel(
+					entity,
+					engine::graphics::data::ui::PanelT{
+						matrix,
+						size,
+						engine::Asset(shown_recipes[i]->name)});
+				engine::graphics::renderer::post_make_selectable(entity);
+				shown_entities.push_back(entity);
+			}
+		}
+	} recipes_ring;
 
 	struct translate_command
 	{
@@ -808,52 +562,105 @@ namespace
 		}
 	}
 
-	void move_to_workstation(Worker & w, Workstation & s)
+	void move_to_workstation(Worker & w, engine::Entity we, Workstation & s, engine::Entity se)
 	{
 		// clear prev. station if any
 		if (w.workstation != engine::Entity::null())
 		{
-			components.get<Workstation>(w.workstation).worker = engine::Entity::null();
+			Workstation & prev_workstation = components.get<Workstation>(w.workstation);
+			debug_assert(prev_workstation.worker == we);
+			prev_workstation.worker = engine::Entity::null();
 		}
-		w.workstation = s.id;
-		s.worker = w.id;
-
-		s.start();
+		w.workstation = se;
+		s.worker = we;
 
 		// move the worker
 		core::maths::Vector3f translation;
 		core::maths::Quaternionf rotation;
 		core::maths::Vector3f scale;
 		decompose(s.front, translation, rotation, scale);
-		engine::physics::post_update_transform(w.id, engine::transform_t{translation, rotation});
+		engine::physics::post_update_transform(we, engine::transform_t{translation, rotation});
 	}
 
-	// manages player interaction (clicking) with entities.
-	// whatever happends when something gets clicked, this one knows it..
-	struct PlayerInteraction
+	struct can_be_interacted_with
 	{
-	private:
-		engine::Entity selectedWorker = engine::Entity::null();
+		const Selector & selector;
 
-	public:
-		// performs whatever should be done when a Worker is clicked
-		void operator() (Worker & w)
+		bool operator () (engine::Entity, const Worker &)
 		{
-			debug_printline(gameplay::gameplay_channel, "You have clicked worker!");
-			engine::graphics::renderer::post_make_deselect(this->selectedWorker);
-			this->selectedWorker = w.id;
-			engine::graphics::renderer::post_make_select(this->selectedWorker);
+			return true;
 		}
 
-		// performs whatever should be done when a Station is clicked
-		void operator() (Workstation & s)
+		bool operator () (engine::Entity entity, const Workstation &)
 		{
-			if (this->selectedWorker == engine::Entity::null())
-				return;
+			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
+			if (!has_selected_worker)
+				return false;
 
-			if (s.isBusy())
+			const auto & available_recipes = kitchen.get_available_recipes();
+			const bool has_available_recipes = !available_recipes.empty();
+			if (!has_available_recipes)
+				return false;
+
+			const bool is_empty = kitchen.is_empty(entity);
+			if (is_empty)
+				return true;
+
+			const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(entity);
+			if (has_preparation_in_progress)
+				return true;
+
+			return false;
+		}
+
+		bool operator () (engine::Entity, const Option &)
+		{
+			return true;
+		}
+
+		template <typename T>
+		bool operator () (engine::Entity, const T &)
+		{
+			return false;
+		}
+	};
+
+	struct can_be_selected
+	{
+		const Selector & selector;
+
+		bool operator () (const Worker &)
+		{
+			return true;
+		}
+
+		template <typename T>
+		bool operator () (const T &)
+		{
+			return false;
+		}
+	};
+
+	struct interact_with
+	{
+		Selector & selector;
+
+		void operator () (engine::Entity entity, Workstation & x)
+		{
+			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
+			debug_assert(has_selected_worker);
+
+			const auto & available_recipes = kitchen.get_available_recipes();
+			const bool has_available_recipes = !available_recipes.empty();
+			debug_assert(has_available_recipes);
+
+			const bool is_empty = kitchen.is_empty(entity);
+			const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(entity);
+			debug_assert((is_empty || has_preparation_in_progress));
+
+			if (x.isBusy())
 			{
-				if (s.worker == selectedWorker)
+				if (x.worker == selector.selected_entity)
 				{
 					debug_printline(gameplay::gameplay_channel, "I'm already working as fast as I can!");
 					return;
@@ -862,22 +669,85 @@ namespace
 				return;
 			}
 
-			// assign worker to station, clears prev. if any.
-			move_to_workstation(components.get<Worker>(this->selectedWorker), s);
+			if (has_preparation_in_progress)
+			{
+				Worker & worker = components.get<Worker>(selector.selected_entity);
+				move_to_workstation(worker, selector.selected_entity, x, entity);
+
+				auto & preparation = kitchen.tables.get<Preparation>(entity);
+				if (preparation.time_remaining <= 0)
+				{
+				}
+				else
+				{
+					x.start(preparation);
+				}
+			}
+			else
+			{
+				debug_printline("What would you want me to do? I can...");
+				for (const auto& recipe : available_recipes)
+				{
+					debug_printline("make some ", recipe->name);
+				}
+
+				selector.targeted_entity = entity;
+				recipes_ring.show(kitchen.recipes, available_recipes, {200.f, 200.f, 0.f});
+			}
 		}
 
-		template <typename W>
-		void operator() (const W & w)
-		{}
-
-	} playerInteraction;
-
-	void entityClick(engine::Entity id)
-	{
-		if (components.contains(id))
+		void operator () (engine::Entity entity, const Option &)
 		{
-			components.call(id, playerInteraction);
+			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
+			debug_assert(has_selected_worker);
+
+			const bool has_targeted_workstation = components.contains<Workstation>(selector.targeted_entity);
+			debug_assert(has_targeted_workstation);
+
+			recipes_ring.hide();
+
+			const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
+			auto & preparation = kitchen.prepare(selector.targeted_entity, recipe);
+
+			Worker & worker = components.get<Worker>(selector.selected_entity);
+			Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
+			// assign worker to station, clears prev. if any.
+			move_to_workstation(worker, selector.selected_entity, workstation, selector.targeted_entity);
+
+			if (preparation.time_remaining <= 0)
+			{
+			}
+			else
+			{
+				workstation.start(preparation);
+			}
 		}
+
+		template <typename T>
+		void operator () (engine::Entity, const T &)
+		{
+			recipes_ring.hide();
+		}
+	};
+
+	void Selector::highlight(engine::Entity entity)
+	{
+		engine::graphics::renderer::post_make_highlight(entity);
+	}
+
+	void Selector::lowlight(engine::Entity entity)
+	{
+		engine::graphics::renderer::post_make_dehighlight(entity);
+	}
+
+	void Selector::select(engine::Entity entity)
+	{
+		engine::graphics::renderer::post_make_select(entity);
+	}
+
+	void Selector::deselect(engine::Entity entity)
+	{
+		engine::graphics::renderer::post_make_deselect(entity);
 	}
 
 	void Selector::translate(engine::Command command, utility::any && data)
@@ -885,60 +755,110 @@ namespace
 		switch (command)
 		{
 		case engine::command::RENDER_HIGHLIGHT:
-			if (highlighted_entity != utility::any_cast<engine::Entity>(data))
-			{
-				// check if anything is "pressed" it will need to be "released" before "lowlighted"
-				if (pressed_entity != engine::Entity::null())
-				{
-					components.call(pressed_entity, ::playerEntityRelease);
-					pressed_entity = engine::Entity::null();
-				}
+		{
+			engine::Entity entity = utility::any_cast<engine::Entity>(data);
 
-				if (highlighted_entity != engine::Entity::null())
-				{
-					components.call(highlighted_entity, ::playerEntityLowlight);
-				}
-
-				highlighted_entity = utility::any_cast<engine::Entity>(data);
-
-				if (highlighted_entity != engine::Entity::null())
-				{
-					if (components.contains(highlighted_entity))
-						components.call(highlighted_entity, ::playerEntityHighlight);
-				}
-			}
-			break;
-		case engine::command::RENDER_SELECT:
-			if (components.contains(highlighted_entity))
+			if (highlighted_entity == entity)
 			{
-				pressed_entity = highlighted_entity;
-				components.call(highlighted_entity, ::playerEntityPress);
-			}
-			entityClick(utility::any_cast<engine::Entity>(data));
-			break;
-		case engine::command::RENDER_DESELECT:
-			if (pressed_entity != engine::Entity::null())
-			{
-				if (components.call(pressed_entity, ::playerEntityClick))
+				if (entity != engine::Entity::null())
 				{
-					if (selected_entity == pressed_entity)
+					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					if (!is_interactible)
 					{
-						// do nothing
+						lowlight(entity);
+						highlighted_entity = engine::Entity::null();
+					}
+				}
+			}
+			else
+			{
+				if (highlighted_entity != engine::Entity::null())
+				{
+					lowlight(highlighted_entity);
+					highlighted_entity = engine::Entity::null();
+				}
+				if (entity != engine::Entity::null())
+				{
+					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					if (is_interactible)
+					{
+						highlight(entity);
+						highlighted_entity = entity;
+					}
+				}
+			}
+			break;
+		}
+		case engine::command::RENDER_SELECT:
+		{
+			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+
+			pressed_entity = entity;
+			break;
+		}
+		case engine::command::RENDER_DESELECT:
+		{
+			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+
+			if (pressed_entity == entity)
+			{
+				if (entity != engine::Entity::null())
+				{
+					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					if (is_interactible)
+					{
+						const bool is_selectable = components.call(entity, can_be_selected{*this});
+						if (is_selectable)
+						{
+							if (selected_entity == entity)
+							{
+								deselect(entity);
+								selected_entity = engine::Entity::null();
+							}
+							else
+							{
+								if (selected_entity != engine::Entity::null())
+								{
+									deselect(selected_entity);
+									selected_entity = engine::Entity::null();
+								}
+								select(entity);
+								selected_entity = entity;
+							}
+						}
+						components.call(entity, interact_with{*this});
 					}
 					else
 					{
 						if (selected_entity != engine::Entity::null())
 						{
-							// TODO: clear prev. selection
+							deselect(selected_entity);
+							selected_entity = engine::Entity::null();
 						}
-
-						selected_entity = pressed_entity;
+						recipes_ring.hide();
 					}
 				}
-				components.call(pressed_entity, ::playerEntityRelease);
-				pressed_entity = engine::Entity::null();
+				else
+				{
+					if (selected_entity != engine::Entity::null())
+					{
+						deselect(selected_entity);
+						selected_entity = engine::Entity::null();
+					}
+					recipes_ring.hide();
+				}
+			}
+			else
+			{
+				if (selected_entity != engine::Entity::null())
+				{
+					deselect(selected_entity);
+					selected_entity = engine::Entity::null();
+				}
+				recipes_ring.hide();
 			}
 			break;
+		}
 		default:
 			debug_printline(gameplay::gameplay_channel, "Selector: Unknown command: ", static_cast<int>(command));
 		}
@@ -947,20 +867,29 @@ namespace
 
 namespace
 {
-	void data_callback(std::string name, engine::resource::reader::Data && data)
+	void data_callback_recipes(std::string name, engine::resource::reader::Data && data)
 	{
-		const auto & thdo = utility::get<0>(data.data);
-		debug_printline(thdo);
+		kitchen.init_recipes(std::move(data.structurer));
 
-		RecipeData gui_data{};
+		recipes_ring.init(kitchen.recipes);
 
-		auto jrecipes = utility::get<0>(data.data);
-		for (auto & jdata : jrecipes)
+		RecipeData gui_data;
+		for (int i = 0; i < kitchen.recipes.size(); i++)
 		{
-			gui_data.recipes.push_back(RecipeData::Recipe{ jdata["name"].get<std::string>() });
+			gui_data.recipes.push_back(RecipeData::Recipe{ kitchen.recipes.get(i).name });
 		}
-
 		engine::gui::post(engine::gui::MessageData{ gui_data.message() });
+	}
+	void data_callback_skills(std::string name, engine::resource::reader::Data && data)
+	{
+		gameplay::Skills skills;
+		serialize(data.structurer, skills);
+
+		debug_printline("skills:");
+		for (int i = 0; i < skills.size(); i++)
+		{
+			debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
+		}
 	}
 }
 
@@ -1075,7 +1004,8 @@ namespace gamestate
 		// trigger first load of GUI
 		engine::gui::post(engine::gui::MessageReload{});
 
-		engine::resource::reader::post_read_data("recipes", data_callback);
+		engine::resource::reader::post_read_data("recipes", data_callback_recipes);
+		engine::resource::reader::post_read_data("skills", data_callback_skills);
 	}
 
 	void destroy()
@@ -1090,16 +1020,13 @@ namespace gamestate
 			engine::Entity worker_args;
 			while (queue_workers.try_pop(worker_args))
 			{
-				components.emplace<Worker>(
-					worker_args,
-					worker_args);
+				components.emplace<Worker>(worker_args);
 			}
 
 			std::tuple<engine::Entity, WorkstationType, Matrix4x4f, Matrix4x4f> workstation_args;
 			while (queue_workstations.try_pop(workstation_args))
 			{
 				components.emplace<Workstation>(
-					std::get<0>(workstation_args),
 					std::get<0>(workstation_args),
 					std::get<1>(workstation_args),
 					std::get<2>(workstation_args),
@@ -1140,7 +1067,12 @@ namespace gamestate
 
 		for (auto & station : components.get<Workstation>())
 		{
-			station.update();
+			const auto entity = components.get_key(station);
+			if (kitchen.tables.contains<Preparation>(entity))
+			{
+				auto & preparation = kitchen.tables.get<Preparation>(entity);
+				station.update(preparation);
+			}
 		}
 	}
 

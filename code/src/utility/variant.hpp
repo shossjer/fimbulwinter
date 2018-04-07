@@ -22,6 +22,20 @@ namespace utility
 	template <typename ...Ts>
 	class variant;
 
+	template <typename T>
+	struct is_variant : mpl::false_type {};
+	template <typename ...Ts>
+	struct is_variant<variant<Ts...>> : mpl::true_type {};
+	template <typename Variant>
+	struct is_variant<const Variant>
+		: is_variant<Variant> {};
+	template <typename Variant>
+	struct is_variant<volatile Variant>
+		: is_variant<Variant> {};
+	template <typename Variant>
+	struct is_variant<const volatile Variant>
+		: is_variant<Variant> {};
+
 	template <size_t I, typename Variant>
 	struct variant_alternative;
 	template <size_t I, typename ...Ts>
@@ -100,11 +114,11 @@ namespace utility
 		template <typename ...Ts>
 		using variant_is_move_assignable =
 			mpl::conjunction<std::is_move_constructible<Ts>...,
-			                 std::is_copy_assignable<Ts>...>;
+			                 std::is_move_assignable<Ts>...>;
 		template <typename ...Ts>
 		using variant_is_nothrow_move_assignable =
 			mpl::conjunction<std::is_nothrow_move_constructible<Ts>...,
-			                 std::is_nothrow_copy_assignable<Ts>...>;
+			                 std::is_nothrow_move_assignable<Ts>...>;
 
 		template <size_t I, typename T>
 		struct variant_alternative
@@ -899,7 +913,8 @@ namespace utility
 		return false;
 	}
 
-	template <typename F, typename ...Vs>
+	template <typename F, typename ...Vs,
+	          REQUIRES((mpl::conjunction<is_variant<mpl::decay_t<Vs>>...>::value))>
 	decltype(auto) visit(F && visitor, Vs && ...variants)
 	{
 		return detail::visitation<F &&>{std::forward<F>(visitor)}.call(std::forward<Vs>(variants)...);

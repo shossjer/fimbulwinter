@@ -7,7 +7,7 @@ namespace
 {
 	struct get_value
 	{
-		int operator () () { return -1; }
+		int operator () (utility::monostate) { return -1; }
 		int operator () (int x) { return x; }
 		int operator () (long long x) { return (int)x; }
 		template <typename X>
@@ -15,7 +15,7 @@ namespace
 	};
 	struct set_value
 	{
-		void operator () () {}
+		void operator () (utility::monostate) {}
 		void operator () (int & x) { x = 5; }
 		void operator () (long long & x) { x = 5ll; }
 		template <typename X>

@@ -13,7 +13,12 @@ namespace utility
 	template <>
 	struct enable_default_constructor<false>
 	{
+		// enable_default_constructor() = default;
 		enable_default_constructor(int) {}
+		enable_default_constructor(const enable_default_constructor &) = default;
+		enable_default_constructor(enable_default_constructor &&) = default;
+		enable_default_constructor & operator = (const enable_default_constructor &) = default;
+		enable_default_constructor & operator = (enable_default_constructor &&) = default;
 	};
 
 	template <bool Cond>
@@ -25,6 +30,7 @@ namespace utility
 		enable_copy_constructor(const enable_copy_constructor &) = delete;
 		enable_copy_constructor(enable_copy_constructor &&) = default;
 		enable_copy_constructor & operator = (const enable_copy_constructor &) = default;
+		enable_copy_constructor & operator = (enable_copy_constructor &&) = default;
 	};
 
 	template <bool Cond>

@@ -43,6 +43,7 @@ set(SOURCE_FILES
 
 # source listing
 set(HEADER_FILES
+	src/core/JsonStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
 	src/core/color.hpp
@@ -111,9 +112,14 @@ set(HEADER_FILES
 	src/engine/resource/loader.hpp
 	src/engine/resource/reader.hpp
 	src/gameplay/commands.hpp
+	src/gameplay/component/CameraActivator.hpp
+	src/gameplay/component/FreeCamera.hpp
+	src/gameplay/component/OverviewCamera.hpp
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/debug.hpp
+	src/gameplay/recipes.hpp
+	src/gameplay/skills.hpp
 	src/utility/algorithm.hpp
 	src/utility/any.hpp
 	src/utility/array.hpp

@@ -344,7 +344,7 @@ namespace
 	{
 		engine::graphics::viewer::translation && data;
 
-		void operator () ()
+		void operator () (utility::monostate)
 		{}
 		void operator () (Camera & x)
 		{
