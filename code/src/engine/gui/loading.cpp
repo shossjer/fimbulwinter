@@ -15,16 +15,38 @@ namespace
 {
 	using namespace engine::gui;
 
+	inline bool is_resource(const std::string & value)
+	{
+		return !value.empty() && value[0] == '#';
+	}
+
+	inline void assert_exist(const json & jd, const std::string & key)
+	{
+		if (!contains(jd, key))
+		{
+			debug_printline(engine::gui_channel, "WARNING - key: ", key, " is missing from json: ", jd);
+			throw key_missing{ key };
+		}
+	}
+
+	inline std::string extract_string(const json & jd, const std::string & key)
+	{
+		return jd[key].get<std::string>();
+	}
+
+	inline std::string extract_string_or_res(const json & jd, const std::string & key, const ResourceLoader & rl)
+	{
+		auto str = jd[key].get<std::string>();
+
+		return is_resource(str) ? rl.string(key) : str;
+	}
+
 	template<typename S>
 	auto extract_dimen(const ResourceLoader & rl, const json & jd)
 	{
 		if (jd.is_object())
 		{
-			if (!contains(jd, "t"))
-			{
-				debug_printline(engine::gui_channel, "WARNING - dimention json invalid: ", jd);
-				throw bad_json();
-			}
+			assert_exist(jd, "t");
 
 			const std::string type = jd["t"];
 
@@ -83,11 +105,8 @@ namespace
 	{
 		const json & jsize = jdata["size"];
 
-		if (!contains(jsize, "h") && !contains(jsize, "w"))
-		{
-			debug_printline(engine::gui_channel, "WARNING - invalid size data: ", jdata);
-			throw bad_json();
-		}
+		assert_exist(jsize, "h");
+		assert_exist(jsize, "w");
 
 		return Size{
 			extract_dimen<height_t>(rl, jsize["h"]),
@@ -96,11 +115,7 @@ namespace
 
 	auto parse_color(const ResourceLoader & rl, const json & jdata)
 	{
-		if (!contains(jdata, "color"))
-		{
-			debug_printline(engine::gui_channel, "WARNING - key: 'color' missing in data: ", jdata);
-			throw key_missing("color");
-		}
+		assert_exist(jdata, "color");
 
 		const std::string str = jdata["color"];
 
@@ -123,20 +138,11 @@ namespace
 
 	const json & parse_content(const json & jd, const std::string & key)
 	{
-		if (!contains(jd, key))
-		{
-			debug_printline(engine::gui_channel, "component is missing type content.", jd);
-			throw key_missing(key);
-		}
+		assert_exist(jd, key);
 
 		auto & content = jd[key];
 		debug_assert(content.is_object());
 		return content;
-	}
-
-	auto parse_display(const ResourceLoader & rl, const json & jd)
-	{
-		return rl.string_or_empty("display", jd);
 	}
 
 	auto parse_gravity(const ResourceLoader & rl, const json & jdata)
@@ -215,20 +221,6 @@ namespace
 		return margin;
 	}
 
-	auto parse_name(const ResourceLoader & rl, const json & jd)
-	{
-		return rl.string_or_empty("name", jd);
-	}
-
-	auto parse_size(const ResourceLoader & rl, const json & jdata, Size && size_def)
-	{
-		if (!contains(jdata, "size"))
-		{
-			return size_def;
-		}
-
-		return extract_size(rl, jdata);
-	}
 	auto parse_size(const ResourceLoader & rl, const json & jdata)
 	{
 		if (!contains(jdata, "size"))
@@ -237,11 +229,6 @@ namespace
 		}
 
 		return extract_size(rl, jdata);
-	}
-
-	auto parse_texture(const ResourceLoader & rl, const json & jd)
-	{
-		return engine::Asset{ rl.string("res", jd) };
 	}
 
 	std::string parse_type(const json & jd)
@@ -264,19 +251,71 @@ namespace
 
 	public:
 
+		void inflate_base(ViewData & d, const json & jd) const
+		{
+			if (contains(jd, "name"))
+			{
+				d.name = extract_string_or_res(jd, "name", rl);
+			}
+			if (contains(jd, "gravity"))
+			{
+				d.gravity = parse_gravity(rl, jd);
+			}
+			if (contains(jd, "margin"))
+			{
+				d.margin = parse_margin(rl, jd);
+			}
+			if (contains(jd, "size"))
+			{
+				d.size = parse_size(rl, jd);
+			}
+		}
+		void inflate(GroupData & d, const json & jvd, const json & jtd) const
+		{
+			if (contains(jtd, "layout"))
+			{
+				d.layout = parse_layout(rl, jtd);
+			}
+			inflate_base(d, jvd);
+		}
+		void inflate(PanelData & d, const json & jvd, const json & jtd) const
+		{
+			if (contains(jtd, "color"))
+			{
+				d.color = parse_color(rl, jtd);
+			}
+			inflate_base(d, jvd);
+		}
+		void inflate(TextData & d, const json & jvd, const json & jtd) const
+		{
+			if (contains(jtd, "color"))
+			{
+				d.color = parse_color(rl, jtd);
+			}
+			if (contains(jtd, "display"))
+			{
+				d.display = extract_string_or_res(jtd, "display", rl);
+			}
+			inflate_base(d, jvd);
+		}
+		void inflate(TextureData & d, const json & jvd, const json & jtd) const
+		{
+			if (contains(jtd, "res"))
+			{
+				d.texture = engine::Asset{ extract_string_or_res(jtd, "res", rl) };
+			}
+			inflate_base(d, jvd);
+		}
+
 		void create(std::vector<DataVariant> & windows, const json & jwindow)
 		{
 			const json & jgroup = parse_content(jwindow, "group");
 
-			windows.emplace_back(
-				utility::in_place_type<GroupData>,
-				parse_name(rl, jwindow),
-				parse_size(rl, jwindow),
-				parse_margin(rl, jwindow),
-				parse_gravity(rl, jwindow),
-				parse_layout(rl, jgroup));
+			windows.emplace_back(utility::in_place_type<GroupData>);
 
 			GroupData & window = utility::get<GroupData>(windows.back());
+
+			inflate(window, jwindow, jgroup);
 
 			// load the windows components
 			load_components(window, jwindow["components"]);
@@ -441,46 +480,33 @@ namespace
 
 		GroupData & load_group(GroupData & parent, const json & jcomponent, const json & jgroup)
 		{
-			parent.children.emplace_back(
-				utility::in_place_type<GroupData>,
-				parse_name(rl, jcomponent),
-				parse_size(rl, jcomponent),
-				parse_margin(rl, jcomponent),
-				parse_gravity(rl, jcomponent),
-				parse_layout(rl, jgroup));
+			parent.children.emplace_back(utility::in_place_type<GroupData>);
 
 			GroupData & view = utility::get<GroupData>(parent.children.back());
+
+			inflate(view, jcomponent, jgroup);
 
 			return view;
 		}
 
 		PanelData & load_panel(GroupData & parent, const json & jcomponent, const json & jpanel)
 		{
-			parent.children.emplace_back(
-				utility::in_place_type<PanelData>,
-				parse_name(rl, jcomponent),
-				parse_size(rl, jcomponent, Size{ Size::PARENT, Size::PARENT }),
-				parse_margin(rl, jcomponent),
-				parse_gravity(rl, jcomponent),
-				parse_color(rl, jpanel));
+			parent.children.emplace_back(utility::in_place_type<PanelData>);
 
 			PanelData & view = utility::get<PanelData>(parent.children.back());
+
+			inflate(view, jcomponent, jpanel);
 
 			return view;
 		}
 
 		TextData & load_text(GroupData & parent, const json & jcomponent, const json & jtext)
 		{
-			parent.children.emplace_back(
-				utility::in_place_type<TextData>,
-				parse_name(rl, jcomponent),
-				parse_size(rl, jcomponent, Size{ Size::WRAP, Size::WRAP }),
-				parse_margin(rl, jcomponent),
-				parse_gravity(rl, jcomponent),
-				parse_color(rl, jtext),
-				parse_display(rl, jtext));
+			parent.children.emplace_back(utility::in_place_type<TextData>);
 
 			TextData & view = utility::get<TextData>(parent.children.back());
+
+			inflate(view, jcomponent, jtext);
 
 			// to compensate for text height somewhat
 			view.margin.top += height_t{ 6 };
@@ -490,15 +516,11 @@ namespace
 
 		TextureData & load_texture(GroupData & parent, const json & jcomponent, const json & jtexture)
 		{
-			parent.children.emplace_back(
-				utility::in_place_type<TextureData>,
-				parse_name(rl, jcomponent),
-				parse_size(rl, jcomponent),
-				parse_margin(rl, jcomponent),
-				parse_gravity(rl, jcomponent),
-				parse_texture(rl, jtexture));
+			parent.children.emplace_back(utility::in_place_type<TextureData>);
 
 			TextureData & view = utility::get<TextureData>(parent.children.back());
+
+			inflate(view, jcomponent, jtexture);
 
 			return view;
 		}
@@ -537,17 +559,9 @@ namespace
 				load_function(view, jcomponent);
 				load_reaction(jcomponent);
 			}
-			else if (!type.empty() && type[0] == '#')
+			else if (is_resource(type))
 			{
-				if (!contains(this->jtemplates, type))
-				{
-					debug_printline("Could not find template: ", type);
-					throw key_missing{ type };
-				}
-
-				load_views(parent, this->jtemplates[type]);
-
-				// TODO: update overriding names
+				load_template(parent, jcomponent, type);
 			}
 			else
 			{
@@ -557,6 +571,79 @@ namespace
 		void load_views(GroupData & parent, const json & jcomponent)
 		{
 			load_views(parent, parse_type(jcomponent), jcomponent);
+		}
+
+		void load_template(GroupData & parent, const json & jcomponent, const std::string & type)
+		{
+			assert_exist(this->jtemplates, type);
+			load_views(parent, this->jtemplates[type]);
+
+			if (!contains(jcomponent, "override"))
+				return;
+
+			const json & joverriders = jcomponent["override"];
+
+			// update overriding names
+			for (const json & jo : joverriders)
+			{
+				assert_exist(jo, "target");
+
+				struct
+				{
+					const WindowLoader & loader;
+					const std::string target;
+					const json & jo;
+
+					bool is_match(const ViewData & data) const
+					{
+						return data.name == target;
+					}
+
+					bool operator() (GroupData & data) const
+					{
+						if (is_match(data))
+						{
+							loader.inflate(data, jo, parse_content(jo, "group"));
+							return true;
+						}
+						for (auto & child : data.children)
+						{
+							if (visit(*this, child))
+								return true;
+						}
+						return false;
+					}
+					bool operator() (PanelData & data) const
+					{
+						if (is_match(data))
+						{
+							loader.inflate(data, jo, parse_content(jo, "panel"));
+							return true;
+						}
+						return false;
+					}
+					bool operator() (TextData & data) const
+					{
+						if (is_match(data))
+						{
+							loader.inflate(data, jo, parse_content(jo, "text"));
+							return true;
+						}
+						return false;
+					}
+					bool operator() (TextureData & data) const
+					{
+						if (is_match(data))
+						{
+							loader.inflate(data, jo, parse_content(jo, "texture"));
+							return true;
+						}
+						return false;
+					}
+				}
+				overrider{ *this, extract_string(jo, "target"), jo };
+				visit(overrider, parent.children.back());
+			}
 		}
 
 		void load_components(GroupData & parent, const json & jcomponents)

@@ -40,11 +40,11 @@ namespace gui
 	//	std::vector<InteractionData> interactions;
 	//	std::vector<ReactionData> reactions;
 
-		ViewData(std::string name, Size size, Margin margin, Gravity gravity)
-			: name(name)
+		ViewData(Size size)
+			: name()
 			, size(size)
-			, margin(margin)
-			, gravity(gravity)
+			, margin()
+			, gravity()
 		{
 		}
 
@@ -59,9 +59,9 @@ namespace gui
         Layout layout;
 		std::vector<DataVariant> children;
 
-		GroupData(std::string name, Size size, Margin margin, Gravity gravity, Layout layout)
-			: ViewData(name, size, margin, gravity)
-			, layout(layout)
+		GroupData()
+			: ViewData(Size{ Size::PARENT, Size::PARENT })
+			, layout()
 		{}
 	};
 
@@ -69,9 +69,9 @@ namespace gui
 	{
 		Asset color;
 
-		PanelData(std::string name, Size size, Margin margin, Gravity gravity, Asset color)
-			: ViewData(name, size, margin, gravity)
-			, color(color)
+		PanelData()
+			: ViewData(Size{ Size::PARENT, Size::PARENT })
+			, color(Asset::null())
 		{}
 	};
 
@@ -80,10 +80,10 @@ namespace gui
 		Asset color;
 		std::string display;
 
-		TextData(std::string name, Size size, Margin margin, Gravity gravity, Asset color, std::string display)
-			: ViewData(name, size, margin, gravity)
-			, color(color)
-			, display(display)
+		TextData()
+			: ViewData(Size{ Size::WRAP, Size::WRAP })
+			, color(Asset::null())
+			, display()
 		{}
 	};
 
@@ -91,9 +91,9 @@ namespace gui
 	{
 		Asset texture;
 
-		TextureData(std::string name, Size size, Margin margin, Gravity gravity, Asset texture)
-			: ViewData(name, size, margin, gravity)
-			, texture(texture)
+		TextureData()
+			: ViewData(Size{ Size::PARENT, Size::PARENT })
+			, texture(Asset::null())
 		{}
 	};
 

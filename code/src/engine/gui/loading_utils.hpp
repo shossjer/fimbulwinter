@@ -1,5 +1,6 @@
 
 #include "exception.hpp"
+#include "loading.hpp"
 
 #include "engine/Asset.hpp"
 #include "engine/debug.hpp"
@@ -29,31 +30,14 @@ namespace engine
 
 		public:
 
-			auto string(const key_t key, const json & jdata) const
+			std::string string(const key_t & key) const
 			{
-				if (!contains(jdata, key))
+				if (contains(jstrings, key))
 				{
-					debug_printline(engine::gui_channel, "WARNING - key: ", key, "; missing in data: ", jdata);
-					throw key_missing(key);
+					return jstrings[key].get<std::string>();
 				}
 
-				return parse_as_string(jdata[key]);
-			}
-			auto string(const key_t key, const json & jdata, std::string && def) const
-			{
-				if (!contains(jdata, key))
-					return def;
-
-				return parse_as_string(jdata[key]);
-			}
-			auto string_or_empty(const key_t key, const json & jdata) const
-			{
-				if (!contains(jdata, key))
-				{
-					return std::string{};
-				}
-
-				return parse_as_string(jdata[key]);
+				throw key_missing(key);
 			}
 
 			template<typename N>
@@ -76,17 +60,6 @@ namespace engine
 			}
 
 		private:
-
-			std::string parse_as_string(const json & jv) const
-			{
-				auto str = jv.get<std::string>();
-
-				if (!str.empty() && str[0] == '#')
-				{
-					return resource_string(str);
-				}
-				return str;
-			}
 
 			template<typename N>
 			N parse_as_number(const json & jv) const
@@ -112,16 +85,6 @@ namespace engine
 				throw bad_json("Invalid number");
 			}
 
-			std::string resource_string(const key_t & key) const
-			{
-				if (contains(jstrings, key))
-				{
-					return jstrings[key].get<std::string>();
-				}
-
-				throw key_missing(key);
-			}
-
 			template<typename N>
 			N resource_number(const key_t & key) const
 			{
@@ -144,5 +107,7 @@ namespace engine
 				return jcontent[key];
 			}
 		};
+
+
 	}
 }

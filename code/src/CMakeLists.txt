@@ -119,7 +119,6 @@ set(HEADER_FILES
 	src/gameplay/debug.hpp
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
-	src/gameplay/gamestate_data.hpp
 	src/gameplay/gamestate_gui.hpp
 	src/gameplay/gamestate_models.hpp
 	src/gameplay/recipes.hpp
