@@ -146,7 +146,13 @@ namespace engine
 				std::vector<core::maths::Matrix4x4f> matrix_pallet;
 			};
 
-			void create();
+			enum struct Type
+			{
+				OPENGL_1_2,
+				OPENGL_3_0
+			};
+
+			void create(Type type);
 			void destroy();
 
 			// void notify(Camera2D && data);
