@@ -3,6 +3,7 @@
 
 #include "common.hpp"
 #include "loading.hpp"
+#include "reaction.hpp"
 #include "view_refresh.hpp"
 
 #include <engine/console.hpp>
@@ -22,6 +23,12 @@ namespace engine
 		Resources resources;
 
 		Views views;
+
+		extern void create(const Resources & resources, View & screen_view, View::Group & screen_group, std::vector<DataVariant> && windows_data);
+
+		extern void setup(MessageDataSetup & data, Reactions & reactions);
+
+		extern void update(MessageData & data, Reactions & reactions, Views & views);
 	}
 }
 
@@ -49,7 +56,7 @@ namespace
 	{
 		interactions.clear();
 
-		reactions.clear();
+		//reactions.clear();
 
 		for (View & view : ::views.get<View>())
 		{
@@ -85,8 +92,6 @@ namespace engine
 {
 	namespace gui
 	{
-		extern void create(const Resources & resources, View & screen_view, View::Group & screen_group, std::vector<DataVariant> && windows_data);
-		
 		void create()
 		{
 			// register callback with console input
@@ -114,11 +119,13 @@ namespace engine
 				{
 					void operator() (MessageData && m)
 					{
-						// TODO: inform 'reaction' about new data available
+						// inform 'reaction' about new data available
+						update(m, reactions, views);
 					}
 					void operator() (MessageDataSetup && m)
 					{
-						// TODO: setup the 'reaction' structure
+						// setup the 'reaction' structure
+						setup(m, reactions);
 					}
 					void operator() (MessageInteraction && m)
 					{

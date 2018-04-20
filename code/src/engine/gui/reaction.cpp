@@ -1,99 +1,138 @@
 
 #include "reaction.hpp"
 
+#include "common.hpp"
+#include "update.hpp"
+
+#include "utility/variant.hpp"
+
+namespace
+{
+	using namespace engine::gui;
+
+	bool contains(const engine::Asset & key, const std::unordered_map<engine::Asset, node_t> & nodes)
+	{
+		return nodes.find(key) != nodes.end();
+	}
+
+	node_t & find(const engine::Asset & key, std::unordered_map<engine::Asset, node_t> & nodes)
+	{
+		return nodes.find(key)->second;
+	}
+
+	class SetupLookup
+	{
+	public:
+		node_t operator() (data::Values & values)
+		{
+			debug_assert(!values.data.empty());
+
+			return node_t{ utility::in_place_type<node_list_t>, std::move(values.data[0]) };
+		}
+		node_t operator() (data::KeyValues & keyValues)
+		{
+			node_t node{ utility::in_place_type<node_map_t> };
+			auto & content = utility::get<node_map_t>(node);
+
+			for (auto & keyVal : keyValues.data)
+			{
+				content.nodes.emplace(keyVal.first, visit(*this, keyVal.second));
+			}
+
+			return node;
+		}
+		node_t operator() (std::string & data)
+		{
+			return node_t{ utility::in_place_type<node_text_t> };
+		}
+		template<typename T>
+		node_t operator() (const T & data)
+		{
+			debug_unreachable();
+		}
+	};
+
+	void react(const reaction_list_t & reaction, const data::Values & values)
+	{
+		// TODO: access use list controller to update group based on item template
+	}
+
+	void react(const reaction_text_t & reaction, const std::string & data)
+	{
+		View::Text & content = utility::get<View::Text>(reaction.view->content);
+		content.display = data;
+
+		auto change = ViewUpdater::update(*reaction.view, content);
+		ViewUpdater::parent(*reaction.view, change);
+	}
+}
+
 namespace engine
 {
 	namespace gui
 	{
-		//namespace react
-		//{
-		//	void update(ViewData & data, const std::size_t index)
-		//	{
-		//		if (!data.has_reaction())
-		//			return;
+		void setup(MessageDataSetup & message, Reactions & reactions)
+		{
+			debug_assert(!contains(message.data.first, reactions));
 
-		//		for (unsigned i = 0; i < data.reaction.size(); i++)
-		//		{
-		//			if (data.reaction[i].key == engine::Asset{ "*" })
-		//			{
-		//				data.reaction[i].key = engine::Asset{ std::to_string(index) };
-		//				break;
-		//			}
-		//		}
-		//	}
-		//	void update_observer_number(DataVariant & data, const std::size_t index)
-		//	{
-		//		struct BaseData
-		//		{
-		//			std::size_t index;
+			reactions.emplace(message.data.first, visit(SetupLookup{}, message.data.second));
+		}
 
-		//			ViewData & operator() (GroupData & data)
-		//			{
-		//				for (auto & child : data.children)
-		//				{
-		//					update(visit(BaseData{index}, child), index);
-		//				}
-		//				return data;
-		//			}
-		//			ViewData & operator() (PanelData & data) { return data; }
-		//			ViewData & operator() (TextData & data) { return data; }
-		//			ViewData & operator() (TextureData & data) { return data; }
-		//		};
+		void update(MessageData & message, Reactions & reactions, Views & views)
+		{
+			debug_assert(contains(message.data.first, reactions));
 
-		//		update(visit(BaseData{index}, data), index);
-		//	}
-		//	void update_size(View & parent, Function::List & list, const std::vector<data::Value> & data)
-		//	{
-		//		auto & parent_group = ViewUpdater::content<View::Group>(parent);
+			struct Lookup
+			{
+				node_t & node;
 
-		//		if (data.size() == parent_group.children.size())
-		//			return;
+				void operator() (const data::Values & values)
+				{
+					node_list_t & list = utility::get<node_list_t>(node);
 
-		//		// create item views if needed
-		//		if (list.items.size() < data.size())
-		//		{
-		//			auto creator = Creator::instantiate(parent.depth);
+					// create nodes if list has expanded
+					for (int i = list.nodes.size(); i < values.data.size(); i++)
+					{
+						list.nodes.push_back(visit(SetupLookup{}, list.item_setup));
+					}
 
-		//			// create item views to match the size
-		//			for (std::size_t i = list.items.size(); i < data.size(); i++)
-		//			{
-		//				auto copy = list.item_template;
-		//				update_observer_number(copy, i);
-		//				auto & item = creator.create(&parent, &parent_group, copy);
-		//				list.items.emplace_back(&item);
-		//			}
-		//			ViewUpdater::creation(parent);
-		//		}
-		//		// hide item views if needed (if the update contains less items than previously)
-		//		else if (parent_group.children.size() > data.size())
-		//		{
-		//			auto & group = ViewUpdater::content<View::Group>(parent);
-		//			const std::size_t items_remove = parent_group.children.size() - data.size();
+					// inform reactions to allow them to expand view's
+					for (auto & reaction : list.reactions)
+					{
+						react(reaction, values);
+					}
 
-		//			for (std::size_t i = parent_group.children.size() - items_remove; i < parent_group.children.size(); i++)
-		//			{
-		//				ViewUpdater::hide(*list.items[i]);
-		//			}
-		//		}
-		//	}
-		//}
+					// update all nodes in list after items are created
+					for (int i = 0; i < values.data.size(); i++)
+					{
+						visit(Lookup{ list.nodes[i] }, values.data[i]);
+					}
+				}
+				void operator() (const data::KeyValues & keyValues)
+				{
+					node_map_t & map = utility::get<node_map_t>(node);
 
-		//void ListReaction::operator() (Function & function)
-		//{
-		//	auto & parent = *function.view;
-		//	auto & list = utility::get<Function::List>(function.content);
+					for (auto & keyValue : keyValues.data)
+					{
+						visit(Lookup{ find(keyValue.first, map.nodes) }, keyValue.second);
+					}
+				}
+				void operator() (const std::string & data)
+				{
+					node_text_t & text = utility::get<node_text_t>(node);
 
-		//	react::update_size(parent, list, values.data);
-		//}
+					for (auto & reaction : text.reactions)
+					{
+						react(reaction, data);
+					}
+				}
+				void operator() (const std::nullptr_t & data)
+				{
+					// TODO: act on
+				}
+			};
 
-		//void TextReaction::operator() (View & view)
-		//{
-		//	auto & content = ViewUpdater::content<View::Text>(view);
-
-		//	content.display = display;
-
-		//	auto change = ViewUpdater::update(view, content);
-		//	ViewUpdater::parent(view, change);
-		//}
+			visit(Lookup{ find(message.data.first, reactions) }, message.data.second);
+		}
 	}
 }
