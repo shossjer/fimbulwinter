@@ -26,6 +26,8 @@ namespace engine
 
 		extern void create(const Resources & resources, View & screen_view, View::Group & screen_group, std::vector<DataVariant> && windows_data);
 
+		extern void clear(Reactions & reactions);
+
 		extern void setup(MessageDataSetup & data, Reactions & reactions);
 
 		extern void update(MessageData & data, Reactions & reactions, Views & views);
@@ -56,7 +58,7 @@ namespace
 	{
 		interactions.clear();
 
-		//reactions.clear();
+		clear(reactions);
 
 		for (View & view : ::views.get<View>())
 		{
@@ -107,7 +109,7 @@ namespace engine
 
 		void destroy()
 		{
-			clear();
+			::clear();
 		}
 
 		void update()

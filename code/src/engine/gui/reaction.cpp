@@ -71,6 +71,31 @@ namespace engine
 {
 	namespace gui
 	{
+		void clear(Reactions & reactions)
+		{
+			for (auto & node : reactions)
+			{
+				struct
+				{
+					void operator() (node_list_t & node)
+					{
+						node.reactions.clear();
+					}
+					void operator() (node_map_t & node)
+					{
+						clear(node.nodes);
+					}
+					void operator() (node_text_t & node)
+					{
+						node.reactions.clear();
+					}
+
+				} inst;
+
+				visit(inst, node.second);
+			}
+		}
+
 		void setup(MessageDataSetup & message, Reactions & reactions)
 		{
 			debug_assert(!contains(message.data.first, reactions));
