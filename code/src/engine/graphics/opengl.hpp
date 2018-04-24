@@ -21,6 +21,9 @@ namespace graphics
 {
 namespace opengl
 {
+	// 1.3
+	extern PFNGLACTIVETEXTUREPROC glActiveTexture;
+
 	// 2.0
 	extern PFNGLATTACHSHADERPROC glAttachShader;
 	extern PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation;
