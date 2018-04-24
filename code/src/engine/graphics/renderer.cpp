@@ -104,6 +104,10 @@ namespace engine
 					active.store(1, std::memory_order_relaxed);
 					renderThread = core::async::Thread{ opengl_12::run };
 					break;
+				case Type::OPENGL_3_0:
+					active.store(1, std::memory_order_relaxed);
+					renderThread = core::async::Thread{ opengl_30::run };
+					break;
 				}
 			}
 

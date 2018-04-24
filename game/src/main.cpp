@@ -136,7 +136,7 @@ int main(const int argc, const char *const argv[])
 	::engine::resource::reader::create();
 	::engine::resource::loader::create();
 	::engine::physics::create();
-	::engine::graphics::renderer::create(engine::graphics::renderer::Type::OPENGL_1_2);
+	::engine::graphics::renderer::create(engine::graphics::renderer::Type::OPENGL_3_0);
 	::engine::graphics::viewer::create();
 	::engine::gui::create();
 	::engine::hid::ui::create();
