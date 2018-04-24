@@ -7,8 +7,10 @@ namespace graphics
 {
 namespace opengl
 {
+#if WINDOW_USE_USER32
 	// 1.3
 	PFNGLACTIVETEXTUREPROC glActiveTexture = nullptr;
+#endif
 
 	// 2.0
 	PFNGLATTACHSHADERPROC glAttachShader = nullptr;
@@ -52,7 +54,7 @@ namespace opengl
 	PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers = nullptr;
 	PFNGLGENRENDERBUFFERSPROC glGenRenderbuffers = nullptr;
 	PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage = nullptr;
-	
+
 	void init()
 	{
 #if WINDOW_USE_USER32
@@ -99,8 +101,6 @@ namespace opengl
 		glGenRenderbuffers = reinterpret_cast<PFNGLGENRENDERBUFFERSPROC>(wglGetProcAddress("glGenRenderbuffers"));
 		glRenderbufferStorage = reinterpret_cast<PFNGLRENDERBUFFERSTORAGEPROC>(wglGetProcAddress("glRenderbufferStorage"));
 #elif WINDOW_USE_X11
-		glActiveTexture = reinterpret_cast<PFNGLACTIVETEXTUREPROC>(glXGetProcAddress(reinterpret_cast<const GLubyte*>("glActiveTexture")));
-
 		glAttachShader = reinterpret_cast<PFNGLATTACHSHADERPROC>(glXGetProcAddress(reinterpret_cast<const GLubyte*>("glAttachShader")));
 		glBindAttribLocation = reinterpret_cast<PFNGLBINDATTRIBLOCATIONPROC>(glXGetProcAddress(reinterpret_cast<const GLubyte*>("glBindAttribLocation")));
 		glCompileShader = reinterpret_cast<PFNGLCOMPILESHADERPROC>(glXGetProcAddress(reinterpret_cast<const GLubyte*>("glCompileShader")));

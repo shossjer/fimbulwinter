@@ -21,8 +21,10 @@ namespace graphics
 {
 namespace opengl
 {
+#if WINDOW_USE_USER32
 	// 1.3
 	extern PFNGLACTIVETEXTUREPROC glActiveTexture;
+#endif
 
 	// 2.0
 	extern PFNGLATTACHSHADERPROC glAttachShader;
