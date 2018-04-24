@@ -456,26 +456,32 @@ namespace
 		}
 
 		//void load_reaction(std::vector<ViewData::React> & reaction, const json & jcomponent)
-		void load_reaction(const json & jcomponent)
+		void load_reaction(ViewData & data, const json & jcomponent)
 		{
-			//if (!contains(jcomponent, "reaction"))
-			//	return;
+			if (!contains(jcomponent, "reaction"))
+				return;
 
-			//const json & jreaction = jcomponent["reaction"];
+			const json & jreaction = jcomponent["reaction"];
 
-			//std::stringstream stream{ this->load.observe(jreaction) };
-			//std::string node;
+			if (!contains(jreaction, "observe"))
+			{
+				debug_printline(engine::gui_channel, "WARNING - key: 'observe' missing: ", jreaction);
+				throw bad_json();
+			}
 
-			//while (std::getline(stream, node, '.'))
-			//{
-			//	if (node.empty())
-			//	{
-			//		debug_printline(engine::gui_channel, "WARNING - key: 'observe' contains empty node: ", jreaction);
-			//		throw bad_json();
-			//	}
+			std::stringstream stream{ extract_string_or_res(jreaction, "observe", rl) };
+			std::string node;
 
-			//	reaction.push_back(ViewData::React{ engine::Asset{ node } });
-			//}
+			while (std::getline(stream, node, '.'))
+			{
+				if (node.empty())
+				{
+					debug_printline(engine::gui_channel, "WARNING - key: 'observe' contains empty node: ", jreaction);
+					throw bad_json();
+				}
+
+				data.reaction.observe.push_back(ReactionData::Node{ engine::Asset{ node } });
+			}
 		}
 
 		GroupData & load_group(GroupData & parent, const json & jcomponent, const json & jgroup)
@@ -533,7 +539,7 @@ namespace
 				load_components(group, jcomponent["components"]);
 
 				load_function(group, jcomponent);
-				load_reaction(jcomponent);
+				load_reaction(group, jcomponent);
 			}
 			else if (type == "panel")
 			{
@@ -541,7 +547,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
-				load_reaction(jcomponent);
+				load_reaction(view, jcomponent);
 			}
 			else if (type == "text")
 			{
@@ -549,7 +555,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
-				load_reaction(jcomponent);
+				load_reaction(view, jcomponent);
 			}
 			else if (type == "texture")
 			{
@@ -557,7 +563,7 @@ namespace
 
 				load_action(view, jcomponent);
 				load_function(view, jcomponent);
-				load_reaction(jcomponent);
+				load_reaction(view, jcomponent);
 			}
 			else if (is_resource(type))
 			{

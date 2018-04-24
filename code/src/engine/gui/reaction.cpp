@@ -10,14 +10,14 @@ namespace
 {
 	using namespace engine::gui;
 
-	bool contains(const engine::Asset & key, const std::unordered_map<engine::Asset, node_t> & nodes)
+	bool contains(const engine::Asset & key, const node_map_t & map)
 	{
-		return nodes.find(key) != nodes.end();
+		return map.nodes.find(key) != map.nodes.end();
 	}
 
-	node_t & find(const engine::Asset & key, std::unordered_map<engine::Asset, node_t> & nodes)
+	node_t & find(const engine::Asset & key, node_map_t & map)
 	{
-		return nodes.find(key)->second;
+		return map.nodes.find(key)->second;
 	}
 
 	class SetupLookup
@@ -73,34 +73,39 @@ namespace engine
 	{
 		void clear(Reactions & reactions)
 		{
-			for (auto & node : reactions)
+			struct
 			{
-				struct
+				void operator() (node_list_t & list)
 				{
-					void operator() (node_list_t & node)
-					{
-						node.reactions.clear();
-					}
-					void operator() (node_map_t & node)
-					{
-						clear(node.nodes);
-					}
-					void operator() (node_text_t & node)
-					{
-						node.reactions.clear();
-					}
+					list.reactions.clear();
 
-				} inst;
+					for (auto & node : list.nodes)
+					{
+						visit(*this, node);
+					}
+				}
+				void operator() (node_map_t & map)
+				{
+					for (auto & node : map.nodes)
+					{
+						visit(*this, node.second);
+					}
+				}
+				void operator() (node_text_t & node)
+				{
+					node.reactions.clear();
+				}
 
-				visit(inst, node.second);
-			}
+			} lookup;
+
+			lookup(reactions);
 		}
 
 		void setup(MessageDataSetup & message, Reactions & reactions)
 		{
 			debug_assert(!contains(message.data.first, reactions));
 
-			reactions.emplace(message.data.first, visit(SetupLookup{}, message.data.second));
+			reactions.nodes.emplace(message.data.first, visit(SetupLookup{}, message.data.second));
 		}
 
 		void update(MessageData & message, Reactions & reactions, Views & views)
@@ -139,7 +144,7 @@ namespace engine
 
 					for (auto & keyValue : keyValues.data)
 					{
-						visit(Lookup{ find(keyValue.first, map.nodes) }, keyValue.second);
+						visit(Lookup{ find(keyValue.first, map) }, keyValue.second);
 					}
 				}
 				void operator() (const std::string & data)

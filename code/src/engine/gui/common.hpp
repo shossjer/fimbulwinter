@@ -23,7 +23,7 @@ namespace engine
 			std::array<Interaction, 101>
 		>;
 
-		using Reactions = std::unordered_map<engine::Asset, node_t>;
+		using Reactions = node_map_t;
 
 		using Views = core::container::Collection
 		<

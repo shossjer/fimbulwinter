@@ -30,6 +30,16 @@ namespace gui
 		TextureData
 	>;
 
+	struct ReactionData
+	{
+		union Node
+		{
+			engine::Asset key;
+			int index;
+		};
+		std::vector<Node> observe;
+	};
+
 	struct ViewData
 	{
 		std::string name;
@@ -38,7 +48,7 @@ namespace gui
 		Gravity gravity;
 
 	//	std::vector<InteractionData> interactions;
-	//	std::vector<ReactionData> reactions;
+		ReactionData reaction;
 
 		ViewData(Size size)
 			: name()
@@ -51,6 +61,11 @@ namespace gui
 		bool has_name() const
 		{
 			return !this->name.empty();
+		}
+
+		bool has_reaction() const
+		{
+			return !reaction.observe.empty();
 		}
 	};
 

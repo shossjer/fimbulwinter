@@ -81,6 +81,76 @@ namespace
 		{
 		}
 
+	private:
+
+		void create_reaction(View & view, const ViewData & data)
+		{
+			if (!data.has_reaction())
+				return;
+
+			class
+			{
+			public:
+
+				View & view;
+				const std::vector<ReactionData::Node> & observe;
+				int index = 0;
+
+				void operator() (node_list_t & list)
+				{
+					if (is_finished())
+					{
+						list.reactions.emplace_back();
+					}
+					else
+					{
+						visit(*this, list.nodes[observe[index++].index]);
+					}
+				}
+				void operator() (node_map_t & node)
+				{
+					if (is_finished())
+					{
+						debug_printline("WARN - Node map listener not implemented.");
+					}
+					else
+					{
+						visit(*this, find(node, observe[index++].key));
+					}
+				}
+				void operator() (node_text_t & node)
+				{
+					if (is_finished())
+					{
+						node.reactions.push_back(reaction_text_t{ &view });
+					}
+					else
+					{
+						debug_printline("WARN - Text must be final node");
+					}
+				}
+
+				node_t & find(node_map_t & node, engine::Asset key)
+				{
+					auto itr = node.nodes.find(key);
+					if (itr == node.nodes.end())
+					{
+						// TODO: need better name feedback
+						debug_printline("WARN - Cannot find node");
+						throw key_missing{"NA"};
+					}
+					return itr->second;
+				}
+
+				bool is_finished()
+				{
+					return index >= observe.size();
+				}
+			} lookup{ view, data.reaction.observe };
+
+			lookup(reactions);
+		}
+
 	public:
 
 		View & operator() (const GroupData & data)
@@ -96,7 +166,7 @@ namespace
 
 			//	create_actions(view, data);
 			//	create_function(view, data);
-			//	create_reaction(view, data);
+			create_reaction(view, data);
 
 			//ViewUpdater::update(view, content);
 
@@ -112,7 +182,7 @@ namespace
 
 			//	create_actions(view, data);
 			//	create_function(view, data);
-			//	create_reaction(view, data);
+			create_reaction(view, data);
 
 			return view;
 		}
@@ -129,7 +199,7 @@ namespace
 
 			//	create_actions(view, data);
 			//	create_function(view, data);
-			//	create_reaction(view, data);
+			create_reaction(view, data);
 
 			return view;
 		}
@@ -143,7 +213,7 @@ namespace
 
 			//	create_actions(view, data);
 			//	create_function(view, data);
-			//	create_reaction(view, data);
+			create_reaction(view, data);
 
 			return view;
 		}
