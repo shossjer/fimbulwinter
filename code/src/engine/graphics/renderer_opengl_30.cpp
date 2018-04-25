@@ -1297,6 +1297,10 @@ namespace
 	GLint fs_tex = 0;
 	GLint p_tex = 0;
 
+	GLint vs_color = 0;
+	GLint fs_color = 0;
+	GLint p_color = 0;
+
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
@@ -1550,6 +1554,114 @@ void main()
 			int length;
 			glGetProgramInfoLog(p_tex, 1000, &length, buffer);
 			debug_printline("program texture failed to link with: ", buffer);
+		}
+
+		const char * const vs_color_source = R"(
+#version 130
+
+uniform mat4 projection_matrix;
+uniform mat4 modelview_matrix;
+// uniform float time;
+// uniform vec2 dimensions;
+
+// in mat4 modelview_matrix;
+in vec4 status_flags;
+in vec3 in_vertex;
+in vec3 in_normal;
+in vec4 in_color;
+
+out vec4 status_color;
+// out vec3 normal;
+out vec4 color;
+
+void main()
+{
+	gl_Position = projection_matrix * modelview_matrix * vec4(in_vertex.x, in_vertex.y, in_vertex.z, 1.f);
+	status_color = vec4(1.f, 1.f, 1.f, 1.f);
+	if (status_flags.x != 0.f)
+		status_color = vec4(1.f, .8f, .2f, 1.f);
+	else if (status_flags.y != 0.f)
+		status_color = vec4(.2f, .8f, 1.f, 1.f);
+	color = in_color;
+}
+)";
+
+		const char * const fs_color_source = R"(
+#version 130
+
+// uniform mat4 projection_matrix;
+uniform float time;
+uniform vec2 dimensions;
+
+uniform sampler2D entitytex;
+
+in vec4 status_color;
+in vec4 color;
+
+out vec4 out_color;
+
+void main()
+{
+	out_color = color;
+	vec4 entity = texture(entitytex, gl_FragCoord.xy / dimensions);
+	if (entity != vec4(0.f, 0.f, 0.f, 0.f))
+	{
+		bool is_edge =
+			(gl_FragCoord.x - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x - 1, gl_FragCoord.y) / dimensions)) ||
+			(gl_FragCoord.y - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y - 1) / dimensions)) ||
+			(gl_FragCoord.x + 1 >= dimensions.x || entity != texture(entitytex, vec2(gl_FragCoord.x + 1, gl_FragCoord.y) / dimensions)) ||
+			(gl_FragCoord.y + 1 >= dimensions.y || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y + 1) / dimensions));
+		if (is_edge)
+		{
+			out_color = status_color;
+		}
+	}
+}
+)";
+
+		vs_color = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vs_color, 1, &vs_color_source, nullptr);
+		glCompileShader(vs_color);
+		GLint vs_color_compile_status;
+		glGetShaderiv(vs_color, GL_COMPILE_STATUS, &vs_color_compile_status);
+		if (!vs_color_compile_status)
+		{
+			char buffer[1000];
+			int length;
+			glGetShaderInfoLog(vs_color, 1000, &length, buffer);
+			debug_printline("vertex shader color failed to compile with: ", buffer);
+		}
+
+		fs_color = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fs_color, 1, &fs_color_source, nullptr);
+		glCompileShader(fs_color);
+		GLint fs_color_compile_status;
+		glGetShaderiv(fs_color, GL_COMPILE_STATUS, &fs_color_compile_status);
+		if (!fs_color_compile_status)
+		{
+			char buffer[1000];
+			int length;
+			glGetShaderInfoLog(fs_color, 1000, &length, buffer);
+			debug_printline("fragment shader color failed to compile with: ", buffer);
+		}
+
+		p_color = glCreateProgram();
+		glAttachShader(p_color, vs_color);
+		glAttachShader(p_color, fs_color);
+		// glBindAttribLocation(p_color, 0, "modelview_matrix");
+		glBindAttribLocation(p_color, 4, "status_flags");
+		glBindAttribLocation(p_color, 5, "in_vertex");
+		glBindAttribLocation(p_color, 6, "in_normal");
+		glBindAttribLocation(p_color, 7, "in_color");
+		glLinkProgram(p_color);
+		GLint p_color_link_status;
+		glGetProgramiv(p_color, GL_LINK_STATUS, &p_color_link_status);
+		if (!p_color_link_status)
+		{
+			char buffer[1000];
+			int length;
+			glGetProgramInfoLog(p_color, 1000, &length, buffer);
+			debug_printline("program color failed to link with: ", buffer);
 		}
 
 		debug_printline("EVERYTHING IS FINE");
@@ -1952,50 +2064,70 @@ void main()
 
 			modelview_matrix.pop();
 		}
-// COLOR (highlighted / selected)
-// COLOR
-// vertices
-// normals
+		glUseProgram(p_color);
+		glUniform(p_color, "projection_matrix", display.projection_3d);
+		{
+			static int frame_count = 0;
+			frame_count++;
+
+			glUniform(p_color, "time", static_cast<float>(frame_count) / 50.f);
+		}
+		glUniform(p_color, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
 		for (const comp_c & component : components.get<comp_c>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
+			glUniform(p_color, "modelview_matrix", modelview_matrix.top());
 
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
 
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_NORMAL_ARRAY);
+			const auto status_flags_location = 4;
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, entitytexture);
+
+			glUniform(p_color, "entitytex", 0);
+
+			const auto vertex_location = 5;
+			const auto normal_location = 6;
+			glEnableVertexAttribArray(vertex_location);
+			glEnableVertexAttribArray(normal_location);
 			for (const auto & a : component.assets)
 			{
 				const mesh_t & mesh = *a.mesh;
 
-				if (is_highlighted)
-					glColor(highlighted_color);
-				else if (is_selected)
-					glColor(selected_color);
-				else
-					glColor(a.color);
+				const auto color_location = 7;
+				glVertexAttrib4f(color_location, a.color[0] / 255.f, a.color[1] / 255.f, a.color[2] / 255.f, a.color[3] / 255.f);
 
-				glVertexPointer(3, // TODO
-				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
-				                0,
-				                mesh.vertices.data());
-				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
-				                0,
-				                mesh.normals.data());
-				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
-				               BufferFormats[static_cast<int>(mesh.triangles.format())],
-				               mesh.triangles.data());
+				glVertexAttribPointer(
+					vertex_location,
+					3,
+					BufferFormats[static_cast<int>(mesh.vertices.format())],
+					GL_FALSE,
+					0,
+					mesh.vertices.data());
+				glVertexAttribPointer(
+					normal_location,
+					3,
+					BufferFormats[static_cast<int>(mesh.normals.format())],
+					GL_FALSE,
+					0,
+					mesh.normals.data());
+				glDrawElements(
+					GL_TRIANGLES,
+					mesh.triangles.count(),
+					BufferFormats[static_cast<int>(mesh.triangles.format())],
+					mesh.triangles.data());
 			}
-			glDisableClientState(GL_NORMAL_ARRAY);
-			glDisableClientState(GL_VERTEX_ARRAY);
+			glDisableVertexAttribArray(normal_location);
+			glDisableVertexAttribArray(vertex_location);
 
 			modelview_matrix.pop();
 		}
+		glUseProgram(0);
 
 		glDisable(GL_STENCIL_TEST);
 		glDisable(GL_DEPTH_TEST);
