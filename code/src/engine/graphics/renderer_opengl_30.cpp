@@ -2249,34 +2249,88 @@ void main()
 // TEXTURE
 // vertices
 // texcoords
+		glUseProgram(p_tex);
+		glUniform(p_tex, "projection_matrix", display.projection_2d);
+		{
+			static int frame_count = 0;
+			frame_count++;
+
+			glUniform(p_tex, "time", static_cast<float>(frame_count) / 50.f);
+		}
+		glUniform(p_tex, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
 		for (const auto & component : ::components.get<::ui::PanelT>())
 		{
-			component.texture->enable();
-
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
+			glUniform(p_tex, "modelview_matrix", modelview_matrix.top());
+
+			const auto entity = components.get_key(component);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
+
+			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+
+			const auto normal_location = 6;
+			glVertexAttrib4f(normal_location, 0.f, 0.f, 1.f, 0.f);
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, entitytexture);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, component.texture->id);
+
+			glUniform(p_tex, "tex", 0);
+			glUniform(p_tex, "entitytex", 1);
 
 			core::maths::Vector2f::array_type size;
 			component.size.get_aligned(size);
 
-			glBegin(GL_QUADS);
-			{
-				glTexCoord2f(1.f, 0.f);
-				glVertex2f(0.f, size[1]);
-				glTexCoord2f(0.f, 0.f);
-				glVertex2f(size[0], size[1]);
-				glTexCoord2f(0.f, 1.f);
-				glVertex2f(size[0], 0.f);
-				glTexCoord2f(1.f, 1.f);
-				glVertex2f(0.f, 0.f);
-			}
-			glEnd();
+			const GLfloat vertices[] = {
+				0.f, 0.f,
+				0.f, size[1],
+				size[0], size[1],
+				size[0], 0.f
+			};
+			const GLfloat texcoords[] = {
+				0.f, 1.f,
+				0.f, 0.f,
+				1.f, 0.f,
+				1.f, 1.f
+			};
+			const GLushort indices[] = {
+				0, 1, 2,
+				2, 3, 0
+			};
+
+			const auto vertex_location = 5;
+			const auto texcoord_location = 7;
+			glEnableVertexAttribArray(vertex_location);
+			glEnableVertexAttribArray(texcoord_location);
+			glVertexAttribPointer(
+				vertex_location,
+				2,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				vertices);
+			glVertexAttribPointer(
+				texcoord_location,
+				2,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				texcoords);
+			glDrawElements(
+				GL_TRIANGLES,
+				6,
+				GL_UNSIGNED_SHORT,
+				indices);
+			glDisableVertexAttribArray(texcoord_location);
+			glDisableVertexAttribArray(vertex_location);
 
 			modelview_matrix.pop();
-
-			component.texture->disable();
 		}
+		glUseProgram(0);
 // TEXTURE
 // COLOR
 // vertices
