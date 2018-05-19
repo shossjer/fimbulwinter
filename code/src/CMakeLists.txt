@@ -84,6 +84,7 @@ set(HEADER_FILES
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/viewer.hpp
 	src/engine/gui/common.hpp
+	src/engine/gui/controller.hpp
 	src/engine/gui/exception.hpp
 	src/engine/gui/gui.hpp
 	src/engine/gui/interaction.hpp

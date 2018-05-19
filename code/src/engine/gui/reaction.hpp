@@ -6,8 +6,6 @@
 
 #include "gui.hpp"
 
-#include "view.hpp"
-
 #include <unordered_map>
 #include <vector>
 
@@ -15,9 +13,17 @@ namespace engine
 {
 	namespace gui
 	{
+		class View;
+		class ListController;
+
 		struct reaction_list_t
 		{
 			// handle to list-controller
+			ListController * controller;
+
+			reaction_list_t(ListController * controller)
+				: controller(controller)
+			{}
 		};
 		struct reaction_text_t
 		{

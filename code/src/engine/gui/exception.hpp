@@ -45,10 +45,6 @@ namespace engine
 				: bad_json(utility::to_string("Key missing: ", name))
 			{}
 		};
-
-		class not_found
-		{
-		};
 	}
 }
 

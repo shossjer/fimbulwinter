@@ -4,6 +4,7 @@
 #ifndef ENGINE_GUI_COMMON_HPP
 #define ENGINE_GUI_COMMON_HPP
 
+#include "controller.hpp"
 #include "interaction.hpp"
 #include "reaction.hpp"
 #include "view.hpp"
@@ -17,6 +18,12 @@ namespace engine
 {
 	namespace gui
 	{
+		using Controllers = core::container::Collection
+		<
+			engine::Entity, 51,
+			std::array<ListController, 101>
+		>;
+
 		using Interactions = core::container::Collection
 		<
 			engine::Entity, 51,

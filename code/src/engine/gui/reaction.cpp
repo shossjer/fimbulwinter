@@ -6,6 +6,15 @@
 
 #include "utility/variant.hpp"
 
+namespace engine
+{
+	namespace gui
+	{
+		extern Resources resources;
+
+		extern void create(const Resources & resources, View & screen_view, View::Group & screen_group, const DataVariant & windows_data);
+	}
+}
 namespace
 {
 	using namespace engine::gui;
@@ -52,9 +61,74 @@ namespace
 		}
 	};
 
+	void update_observer_number(ViewData & data, const std::size_t index)
+	{
+		if (!data.has_reaction())
+			return;
+
+		for (unsigned i = 0; i < data.reaction.observe.size(); i++)
+		{
+			if (data.reaction.observe[i].key == engine::Asset{ "*" })
+			{
+				data.reaction.observe[i].index = index;
+				break;
+			}
+		}
+	}
+	void update_observer_number(DataVariant & data, const std::size_t index)
+	{
+		struct BaseData
+		{
+			std::size_t index;
+
+			ViewData & operator() (GroupData & data)
+			{
+				for (auto & child : data.children)
+				{
+					update_observer_number(visit(BaseData{ index }, child), index);
+				}
+				return data;
+			}
+			ViewData & operator() (PanelData & data) { return data; }
+			ViewData & operator() (TextData & data) { return data; }
+			ViewData & operator() (TextureData & data) { return data; }
+		};
+
+		update_observer_number(visit(BaseData{ index }, data), index);
+	}
+
 	void react(const reaction_list_t & reaction, const data::Values & values)
 	{
-		// TODO: access use list controller to update group based on item template
+		auto & view = reaction.controller->view;
+		auto & group = reaction.controller->group;
+
+		auto current_size = group.children.size();
+		auto goal_size = values.data.size();
+
+		if (current_size == goal_size)
+			return;
+
+		if (current_size < goal_size)
+		{
+			for (std::size_t i = current_size; i < goal_size; i++)
+			{
+				// create a copy which we will replace any list index in
+				auto copy = reaction.controller->item_template;
+				update_observer_number(copy, i);
+				create(resources, view, group, copy);
+			}
+			ViewUpdater::creation(view);
+		}
+		else
+		{
+			// hide item views if needed (if the update contains less items than previously)
+			const std::size_t items_remove = current_size - goal_size;
+
+			for (std::size_t i = current_size - items_remove; i < current_size; i++)
+			{
+				ViewUpdater::hide(*reaction.controller->group.children[i]);
+			}
+		}
 	}
 
 	void react(const reaction_text_t & reaction, const std::string & data)
@@ -127,6 +201,7 @@ namespace engine
 					}
 
 					// inform reactions to allow them to expand view's
+					// this is where list controllers create views
 					for (auto & reaction : list.reactions)
 					{
 						react(reaction, values);

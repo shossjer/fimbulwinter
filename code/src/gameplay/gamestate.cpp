@@ -918,6 +918,14 @@ namespace gamestate
 
 		engine::resource::reader::post_read_data("recipes", data_callback_recipes);
 		engine::resource::reader::post_read_data("skills", data_callback_skills);
+
+		{
+			Player data{ "Chef Elzar" };
+			data.skills.push_back(Player::Skill{ "Cutting" });
+			data.skills.push_back(Player::Skill{ "Washing hands" });
+			data.skills.push_back(Player::Skill{ "Potato" });
+			engine::gui::post(engine::gui::MessageData{ encode_gui(data) });
+		}
 	}
 
 	void destroy()

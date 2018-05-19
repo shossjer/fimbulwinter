@@ -15,6 +15,7 @@ namespace engine
 	namespace gui
 	{
 		// define gui containters just for easy access
+		extern Controllers controllers;
 		extern Interactions interactions;
 		extern Reactions reactions;
 		extern Views views;
@@ -64,91 +65,132 @@ namespace
 		return view;
 	}
 
-	// interactions
+	class FindNode
+	{
+	public:
+		const std::vector<ReactionData::Node> & observe;
+		int index = 0;
 
-	// reactions
+		void * operator() (node_list_t & list)
+		{
+			// NOTE: is it possible to determine index here based on view parent? if we can find the list view parent...
+			return is_finished() ? &list : visit(*this, list.nodes[observe[index++].index]);
+		}
+		void * operator() (node_map_t & node)
+		{
+			return is_finished() ? &node : visit(*this, find(node, observe[index++].key));
+		}
+		void * operator() (node_text_t & node)
+		{
+			if (!is_finished())
+				throw bad_json{ "Reaction to 'text' is leaf node" };
+
+			return &node;
+		}
+
+		node_t & find(node_map_t & node, engine::Asset key)
+		{
+			auto itr = node.nodes.find(key);
+			if (itr == node.nodes.end())
+			{
+				// TODO: need better name feedback
+				debug_printline("WARN - Cannot find node");
+				throw key_missing{ "NA" };
+			}
+			return itr->second;
+		}
+
+		bool is_finished()
+		{
+			return index >= observe.size();
+		}
+	};
+
+	void create_reaction(View & view, const ViewData & data)
+	{
+		if (!data.has_reaction())
+			return;
+
+		class Lookup
+		{
+		public:
+			View & view;
+			const ViewData & data;
+
+			void operator() (const View::Color & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'group'");
+			}
+			void operator() (const View::Group & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'group'");
+			}
+			void operator() (const View::Text & content)
+			{
+				auto * node = static_cast<node_text_t*>(
+					FindNode{ data.reaction.observe }(reactions));
+
+				node->reactions.push_back(reaction_text_t{ &view });
+			}
+			void operator() (const View::Texture & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'texture'");
+			}
+		};
+
+		visit(Lookup{ view, data }, view.content);
+	}
+
+	void create_controller(View & view, const ViewData & data)
+	{
+		if (!data.has_controller())
+			return;
+
+		class Lookup
+		{
+		public:
+			View & view;
+			const ViewData & data;
+
+			void operator() (const ControllerData::List & list_data)
+			{
+				auto & controller = controllers.emplace<ListController>(
+					view.entity,
+					list_data.item_template[0],
+					view,
+					utility::get<View::Group>(view.content));
+
+				auto * node = static_cast<node_list_t*>(
+					FindNode{ data.controller.reaction.observe }(reactions));
+
+				// create reaction for the list
+				node->reactions.emplace_back(&controller);
+			}
+			void operator() (const ControllerData::Tab & data)
+			{
+
+			}
+			void operator() (const std::nullptr_t & data) { debug_unreachable(); }
+		};
+
+		visit(Lookup{ view, data }, data.controller.data);
+	}
+
+	// interactions
 
 	class DataLookup
 	{
+	public:
 		const Resources & resources;
 
-		float depth = 0.f;
+		float depth;
 
 	public:
 
-		DataLookup(const Resources & resources)
+		DataLookup(const Resources & resources, const float depth)
 			: resources(resources)
+			, depth(depth)
 		{
-		}
-
-	private:
-
-		void create_reaction(View & view, const ViewData & data)
-		{
-			if (!data.has_reaction())
-				return;
-
-			class
-			{
-			public:
-
-				View & view;
-				const std::vector<ReactionData::Node> & observe;
-				int index = 0;
-
-				void operator() (node_list_t & list)
-				{
-					if (is_finished())
-					{
-						list.reactions.emplace_back();
-					}
-					else
-					{
-						visit(*this, list.nodes[observe[index++].index]);
-					}
-				}
-				void operator() (node_map_t & node)
-				{
-					if (is_finished())
-					{
-						debug_printline("WARN - Node map listener not implemented.");
-					}
-					else
-					{
-						visit(*this, find(node, observe[index++].key));
-					}
-				}
-				void operator() (node_text_t & node)
-				{
-					if (is_finished())
-					{
-						node.reactions.push_back(reaction_text_t{ &view });
-					}
-					else
-					{
-						debug_printline("WARN - Text must be final node");
-					}
-				}
-
-				node_t & find(node_map_t & node, engine::Asset key)
-				{
-					auto itr = node.nodes.find(key);
-					if (itr == node.nodes.end())
-					{
-						// TODO: need better name feedback
-						debug_printline("WARN - Cannot find node");
-						throw key_missing{"NA"};
-					}
-					return itr->second;
-				}
-
-				bool is_finished()
-				{
-					return index >= observe.size();
-				}
-			} lookup{ view, data.reaction.observe };
-
-			lookup(reactions);
 		}
 
 	public:
@@ -165,7 +207,7 @@ namespace
 			create_views(view, content, data);
 
 			//	create_actions(view, data);
-			//	create_function(view, data);
+			create_controller(view, data);
 			create_reaction(view, data);
 
 			//ViewUpdater::update(view, content);
@@ -181,7 +223,7 @@ namespace
 				data);
 
 			//	create_actions(view, data);
-			//	create_function(view, data);
+			create_controller(view, data);
 			create_reaction(view, data);
 
 			return view;
@@ -198,7 +240,7 @@ namespace
 			ViewUpdater::update(view, get_content<View::Text>(view));
 
 			//	create_actions(view, data);
-			//	create_function(view, data);
+			create_controller(view, data);
 			create_reaction(view, data);
 
 			return view;
@@ -212,7 +254,7 @@ namespace
 				data);
 
 			//	create_actions(view, data);
-			//	create_function(view, data);
+			create_controller(view, data);
 			create_reaction(view, data);
 
 			return view;
@@ -247,31 +289,35 @@ namespace engine
 {
 	namespace gui
 	{
+		void create(const Resources & resources, View & screen_view, View::Group & screen_group, const DataVariant & window_data)
+		{
+			DataLookup data_lookup{ resources, screen_view.depth };
+
+			try
+			{
+				auto & window = data_lookup.create_view(screen_view, screen_group, window_data);
+			}
+			catch (key_missing & e)
+			{
+				debug_printline(engine::gui_channel,
+					"Exception - Could not find data-mapping: ", e.message);
+			}
+			catch (bad_json & e)
+			{
+				debug_printline(engine::gui_channel,
+					"Exception - Something not right in JSON: ", e.message);
+			}
+			catch (exception & e)
+			{
+				debug_printline(engine::gui_channel,
+					"Exception creating window: ", e.message);
+			}
+		}
 		void create(const Resources & resources, View & screen_view, View::Group & screen_group, std::vector<DataVariant> && windows_data)
 		{
 			for (auto & window_data : windows_data)
 			{
-				DataLookup data_lookup{ resources };
-
-				try
-				{
-					auto & window = data_lookup.create_view(screen_view, screen_group, window_data);
-				}
-				catch (key_missing & e)
-				{
-					debug_printline(engine::gui_channel,
-						"Exception - Could not find data-mapping: ", e.message);
-				}
-				catch (bad_json & e)
-				{
-					debug_printline(engine::gui_channel,
-						"Exception - Something not right in JSON: ", e.message);
-				}
-				catch (exception & e)
-				{
-					debug_printline(engine::gui_channel,
-						"Exception creating window: ", e.message);
-				}
+				create(resources, screen_view, screen_group, window_data);
 			}
 		}
 	}

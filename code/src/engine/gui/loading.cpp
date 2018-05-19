@@ -371,56 +371,44 @@ namespace
 			//}
 		}
 
-		void load_function(ViewData & data, const json & jcomponent)
+		void load_controller(ViewData & data, const json & jcomponent)
 		{
-			//if (!contains(jcomponent, "function"))
-			//	return;
+			if (!contains(jcomponent, "controller"))
+				return;
 
-			//const json & jfunction = jcomponent["function"];
+			const json & jcontroller = jcomponent["controller"];
 
-			//auto & function = data.function;
+			load_reaction(data.controller.reaction, jcontroller);
 
-			//function.type = this->load.type(jfunction);
-			//load_reaction(function.reaction, jfunction);
+			const auto type = parse_type(jcontroller);
 
-			//switch (function.type)
-			//{
-			//case ViewData::Function::LIST:
-			//{
-			//	GroupData * group = dynamic_cast<GroupData*>(&data);
+			if (type == "list")
+			{
+				if (!data.controller.reaction.is_set())
+					throw bad_json("Controller of type 'List' should have list reaction: ", jcontroller);
 
-			//	if (group == nullptr)
-			//	{
-			//		throw bad_json("'List' can only be added to 'group': ", jfunction);
-			//	}
+				if (dynamic_cast<GroupData*>(&data) == nullptr)
+					throw bad_json("Controller of type 'List' can only be added to view of type 'Group': ", jcontroller);
 
-			//	if (!group->children.empty())
-			//	{
-			//		throw bad_json("Group with 'list' functionality must have empty component list: ", jfunction);
-			//	}
+				if (!contains(jcontroller, "template"))
+					throw bad_json("Controller of type 'List' must have 'template' definition: ", jcontroller);
 
-			//	if (!contains(jfunction, "template"))
-			//	{
-			//		throw bad_json("'List' must have 'template' definition: ", jfunction);
-			//	}
-			//	auto & jtemplate = jfunction["template"];
+				auto & jtemplate = jcontroller["template"];
 
-			//	load_component(*group, jtemplate);
-			//	function.templates = std::move(group->children);
+				if (!jtemplate.is_object())
+					throw bad_json("Controller of type 'List' must have item template of object type: ", jtemplate);
 
-			//	if (function.templates.size() != 1)
-			//	{
-			//		debug_printline(engine::gui_channel, "WARNING - 'list' functionality must have exactly 1 'template': ", jcomponent);
-			//		throw bad_json();
-			//	}
-			//	if (!group->children.empty())
-			//	{
-			//		debug_printline(engine::gui_channel, "WARNING - group with 'list' functionality must be empty: ", jcomponent);
-			//		throw bad_json();
-			//	}
+				// load the template item views to a temp parent container
+				GroupData temp_parent{};
+				load_views(temp_parent, jtemplate);
 
-			//	break;
-			//}
+				// create the controller data object
+				data.controller.data = utility::in_place_type<ControllerData::List>;
+				auto & list_data = utility::get<ControllerData::List>(data.controller.data);
+
+				// adopt child from temp container
+				list_data.item_template = std::move(temp_parent.children);
+			}
 			//case ViewData::Function::PROGRESS:
 			//{
 			////	if (contains(jfunction, "direction"))
@@ -449,14 +437,13 @@ namespace
 			//}
 			//case ViewData::Function::TAB:
 			//	break;
-
-			//default:
-			//	throw bad_json("Invalid function type: ", jfunction);
-			//}
+			else
+			{
+				throw bad_json("Invalid controller type: ", jcontroller);
+			}
 		}
 
-		//void load_reaction(std::vector<ViewData::React> & reaction, const json & jcomponent)
-		void load_reaction(ViewData & data, const json & jcomponent)
+		void load_reaction(ReactionData & reaction, const json & jcomponent)
 		{
 			if (!contains(jcomponent, "reaction"))
 				return;
@@ -480,7 +467,7 @@ namespace
 					throw bad_json();
 				}
 
-				data.reaction.observe.push_back(ReactionData::Node{ engine::Asset{ node } });
+				reaction.observe.push_back(ReactionData::Node{ engine::Asset{ node } });
 			}
 		}
 
@@ -538,32 +525,32 @@ namespace
 				auto & group = load_group(parent, jcomponent, parse_content(jcomponent, type));
 				load_components(group, jcomponent["components"]);
 
-				load_function(group, jcomponent);
-				load_reaction(group, jcomponent);
+				load_controller(group, jcomponent);
+				load_reaction(group.reaction, jcomponent);
 			}
 			else if (type == "panel")
 			{
 				auto & view = load_panel(parent, jcomponent, parse_content(jcomponent, type));
 
 				load_action(view, jcomponent);
-				load_function(view, jcomponent);
-				load_reaction(view, jcomponent);
+				load_controller(view, jcomponent);
+				load_reaction(view.reaction, jcomponent);
 			}
 			else if (type == "text")
 			{
 				auto & view = load_text(parent, jcomponent, parse_content(jcomponent, type));
 
 				load_action(view, jcomponent);
-				load_function(view, jcomponent);
-				load_reaction(view, jcomponent);
+				load_controller(view, jcomponent);
+				load_reaction(view.reaction, jcomponent);
 			}
 			else if (type == "texture")
 			{
 				auto & view = load_texture(parent, jcomponent, parse_content(jcomponent, type));
 
 				load_action(view, jcomponent);
-				load_function(view, jcomponent);
-				load_reaction(view, jcomponent);
+				load_controller(view, jcomponent);
+				load_reaction(view.reaction, jcomponent);
 			}
 			else if (is_resource(type))
 			{

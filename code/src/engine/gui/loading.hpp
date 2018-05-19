@@ -38,6 +38,37 @@ namespace gui
 			int index;
 		};
 		std::vector<Node> observe;
+
+		bool is_set() const
+		{
+			return !this->observe.empty();
+		}
+	};
+
+	struct ControllerData
+	{
+		ReactionData reaction;
+
+		struct List
+		{
+			std::vector<DataVariant> item_template;
+		};
+
+		struct Tab
+		{
+
+		};
+
+		using Variant = utility::variant
+		<
+			std::nullptr_t,
+			List,
+			Tab
+		>;
+
+		Variant data;
+
+		ControllerData() : data(utility::in_place_type<std::nullptr_t>) {}
 	};
 
 	struct ViewData
@@ -48,6 +79,7 @@ namespace gui
 		Gravity gravity;
 
 	//	std::vector<InteractionData> interactions;
+		ControllerData controller;
 		ReactionData reaction;
 
 		ViewData(Size size)
@@ -56,6 +88,11 @@ namespace gui
 			, margin()
 			, gravity()
 		{
+		}
+
+		bool has_controller() const
+		{
+			return !utility::holds_alternative<std::nullptr_t>(controller.data);
 		}
 
 		bool has_name() const
@@ -67,6 +104,9 @@ namespace gui
 		{
 			return !reaction.observe.empty();
 		}
+
+	private:
+		virtual void hack() const {}
 	};
 
 	struct GroupData : ViewData

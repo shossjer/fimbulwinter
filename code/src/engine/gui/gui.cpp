@@ -14,7 +14,7 @@ namespace engine
 {
 	namespace gui
 	{
-		// TODO: Controllers controllers;
+		Controllers controllers;
 
 		Interactions interactions;
 
@@ -56,6 +56,8 @@ namespace
 
 	void clear()
 	{
+		controllers.clear();
+
 		interactions.clear();
 
 		clear(reactions);
