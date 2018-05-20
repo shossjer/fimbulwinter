@@ -10,8 +10,6 @@ namespace engine
 {
 	namespace gui
 	{
-		extern Resources resources;
-
 		extern void create(const Resources & resources, View & screen_view, View::Group & screen_group, const DataVariant & windows_data);
 	}
 }
@@ -97,7 +95,7 @@ namespace
 		update_observer_number(visit(BaseData{ index }, data), index);
 	}
 
-	void react(const reaction_list_t & reaction, const data::Values & values)
+	void react(const Resources & resources, const reaction_list_t & reaction, const data::Values & values)
 	{
 		auto & view = reaction.controller->view;
 		auto & group = reaction.controller->group;
@@ -182,12 +180,13 @@ namespace engine
 			reactions.nodes.emplace(message.data.first, visit(SetupLookup{}, message.data.second));
 		}
 
-		void update(MessageData & message, Reactions & reactions, Views & views)
+		void update(const Resources & resources, MessageData & message, Reactions & reactions, Views & views)
 		{
 			debug_assert(contains(message.data.first, reactions));
 
 			struct Lookup
 			{
+				const Resources & resources;
 				node_t & node;
 
 				void operator() (const data::Values & values)
@@ -204,13 +203,13 @@ namespace engine
 					// this is where list controllers create views
 					for (auto & reaction : list.reactions)
 					{
-						react(reaction, values);
+						react(resources, reaction, values);
 					}
 
 					// update all nodes in list after items are created
 					for (int i = 0; i < values.data.size(); i++)
 					{
-						visit(Lookup{ list.nodes[i] }, values.data[i]);
+						visit(Lookup{ resources, list.nodes[i] }, values.data[i]);
 					}
 				}
 				void operator() (const data::KeyValues & keyValues)
@@ -219,7 +218,7 @@ namespace engine
 
 					for (auto & keyValue : keyValues.data)
 					{
-						visit(Lookup{ find(keyValue.first, map) }, keyValue.second);
+						visit(Lookup{ resources, find(keyValue.first, map) }, keyValue.second);
 					}
 				}
 				void operator() (const std::string & data)
@@ -237,7 +236,7 @@ namespace engine
 				}
 			};
 
-			visit(Lookup{ find(message.data.first, reactions) }, message.data.second);
+			visit(Lookup{ resources, find(message.data.first, reactions) }, message.data.second);
 		}
 	}
 }

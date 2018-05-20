@@ -14,7 +14,6 @@ set(CODE_TEST_SOURCE
 	src/engine/gui/composite.cpp
 	src/engine/gui/measure.cpp
 	src/engine/gui/noodle.cpp
-	src/engine/gui/react.cpp
 	src/engine/gui/update.cpp
 	src/engine/gui/visibility.cpp
 	src/utility/any.cpp

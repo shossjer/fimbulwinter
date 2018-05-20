@@ -3,7 +3,7 @@
 
 #include "gui_access.hpp"
 
-#include <engine/gui/measure.hpp>
+#include <engine/gui/view_refresh.hpp>
 
 // "refresh" hierarchy with "content updated" child (no group change)
 
@@ -17,13 +17,13 @@
 //			Child (PARENT - Affected by Group size change)
 //			Child (WRAP - Had the size update)
 
-TEST_CASE("ViewMeasure - refresh content", "[gui][ViewMeasure]")
+TEST_CASE("ViewRefresh - refresh content", "[gui][ViewRefresh]")
 {
 	View group1 = ViewAccess::create_group(
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } });
 	View group2 = ViewAccess::create_group(
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group1);
 	View child = ViewAccess::create_child(
@@ -43,7 +43,7 @@ TEST_CASE("ViewMeasure - refresh content", "[gui][ViewMeasure]")
 
 	SECTION("After update; changes should be cleared for all.")
 	{
-		ViewMeasure::refresh(group1);
+		ViewRefresh::refresh(group1);
 
 		REQUIRE(!ViewAccess::change(group1).any());
 		REQUIRE(!ViewAccess::change(group2).any());
@@ -62,7 +62,7 @@ TEST_CASE("ViewMeasure - refresh content", "[gui][ViewMeasure]")
 		FIXED/WRAP
 			Unaffected
  */
-TEST_CASE("ViewMeasure - refresh parent offset", "[gui][ViewMeasure]")
+TEST_CASE("ViewRefresh - refresh parent offset", "[gui][ViewRefresh]")
 {
 	View view = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text> },
@@ -72,7 +72,7 @@ TEST_CASE("ViewMeasure - refresh parent offset", "[gui][ViewMeasure]")
 
 	SECTION("Offset - changed")
 	{
-		ViewMeasure::refresh(view, Gravity{}, Offset{ height_t{ 100 }, width_t{ 200 } }, Size{});
+		ViewRefresh::refresh(view, Gravity{}, Offset{ height_t{ 100 }, width_t{ 200 } }, Size{});
 
 		REQUIRE(ViewAccess::change(view).affects_moved());
 
@@ -83,7 +83,7 @@ TEST_CASE("ViewMeasure - refresh parent offset", "[gui][ViewMeasure]")
 	SECTION("Offset - un-changed")
 	{
 		ViewAccess::offset(view) = Offset{ height_t{ 100 }, width_t{ 200 } };
-		ViewMeasure::refresh(view, Gravity{}, Offset{ height_t{ 100 }, width_t{ 200 } }, Size{});
+		ViewRefresh::refresh(view, Gravity{}, Offset{ height_t{ 100 }, width_t{ 200 } }, Size{});
 
 		REQUIRE(!ViewAccess::change(view).affects_moved());
 
@@ -92,7 +92,7 @@ TEST_CASE("ViewMeasure - refresh parent offset", "[gui][ViewMeasure]")
 		REQUIRE(!ViewAccess::change(view).affects_visibility());
 	}
 }
-TEST_CASE("ViewMeasure - refresh parent re-sized", "[gui][ViewMeasure]")
+TEST_CASE("ViewRefresh - refresh parent re-sized", "[gui][ViewRefresh]")
 {
 	View view = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text> },
@@ -102,7 +102,7 @@ TEST_CASE("ViewMeasure - refresh parent re-sized", "[gui][ViewMeasure]")
 
 	SECTION("Size - changed")
 	{
-		ViewMeasure::refresh(
+		ViewRefresh::refresh(
 			view,
 			Gravity{},
 			Offset{},
@@ -120,7 +120,7 @@ TEST_CASE("ViewMeasure - refresh parent re-sized", "[gui][ViewMeasure]")
 	{
 		ViewAccess::size(view) =
 			Size{ { Size::FIXED, height_t{ 100 } },{ Size::FIXED, width_t{ 50 } } };
-		ViewMeasure::refresh(
+		ViewRefresh::refresh(
 			view,
 			Gravity{},
 			Offset{},
@@ -134,7 +134,7 @@ TEST_CASE("ViewMeasure - refresh parent re-sized", "[gui][ViewMeasure]")
 	}
 }
 
-TEST_CASE("ViewMeasure - offset {parent}", "[gui][ViewMeasure][Offset]")
+TEST_CASE("ViewRefresh - offset {parent}", "[gui][ViewRefresh][Offset]")
 {
 	View view = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text> },
@@ -142,7 +142,7 @@ TEST_CASE("ViewMeasure - offset {parent}", "[gui][ViewMeasure][Offset]")
 		nullptr,
 		Margin{ width_t{10}, width_t{5}, height_t{20}, height_t{25} });
 
-	ViewMeasure::refresh(
+	ViewRefresh::refresh(
 		view,
 		Gravity{ Gravity::HORIZONTAL_LEFT | Gravity::VERTICAL_CENTRE },	// should not affect test
 		Offset{ height_t{ 10 }, width_t{ 40 } },
@@ -156,7 +156,7 @@ TEST_CASE("ViewMeasure - offset {parent}", "[gui][ViewMeasure][Offset]")
 		REQUIRE(ViewAccess::size(view).width == width_t{ 200 - 10 - 5 });
 	}
 }
-TEST_CASE("ViewMeasure - offset {fixed}", "[gui][ViewMeasure][Offset]")
+TEST_CASE("ViewRefresh - offset {fixed}", "[gui][ViewRefresh][Offset]")
 {
 	const uint32_t HEIGHT = 20;
 	const uint32_t WIDTH = 40;
@@ -176,7 +176,7 @@ TEST_CASE("ViewMeasure - offset {fixed}", "[gui][ViewMeasure][Offset]")
 
 	SECTION("Top / Left")
 	{
-		ViewMeasure::refresh(
+		ViewRefresh::refresh(
 			view,
 			Gravity{ Gravity::HORIZONTAL_LEFT | Gravity::VERTICAL_TOP },
 			parent_offset, parent_size);
@@ -188,7 +188,7 @@ TEST_CASE("ViewMeasure - offset {fixed}", "[gui][ViewMeasure][Offset]")
 	{
 		view.gravity = Gravity{ Gravity::HORIZONTAL_CENTRE | Gravity::VERTICAL_CENTRE };
 
-		ViewMeasure::refresh(
+		ViewRefresh::refresh(
 			view,
 			Gravity::unmasked(),
 			parent_offset, parent_size);
@@ -200,7 +200,7 @@ TEST_CASE("ViewMeasure - offset {fixed}", "[gui][ViewMeasure][Offset]")
 	{
 		view.gravity = Gravity{ Gravity::HORIZONTAL_CENTRE | Gravity::HORIZONTAL_RIGHT | Gravity::VERTICAL_CENTRE | Gravity::VERTICAL_BOTTOM };
 
-		ViewMeasure::refresh(
+		ViewRefresh::refresh(
 			view,
 			Gravity{ Gravity::HORIZONTAL_RIGHT | Gravity::VERTICAL_BOTTOM }, // only allow bottom / right
 			parent_offset, parent_size);

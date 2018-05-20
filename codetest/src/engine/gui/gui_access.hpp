@@ -24,7 +24,7 @@ namespace engine
 			static Size & size(View & view) { return view.size; }
 
 			static View create_group(
-				View::Group::Layout layout,
+				Layout layout,
 				Size size,
 				View * parent = nullptr,
 				Margin margin = Margin{})
@@ -51,16 +51,6 @@ namespace engine
 					margin,
 					size,
 					parent };
-			}
-
-			static Function create_function(
-				Function::Content && content,
-				View & view)
-			{
-				return Function{
-					Entity{0},
-					std::move(content),
-					&view };
 			}
 		};
 	}

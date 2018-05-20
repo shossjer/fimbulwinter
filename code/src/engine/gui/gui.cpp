@@ -30,7 +30,7 @@ namespace engine
 
 		extern void setup(MessageDataSetup & data, Reactions & reactions);
 
-		extern void update(MessageData & data, Reactions & reactions, Views & views);
+		extern void update(const Resources & resources, MessageData & data, Reactions & reactions, Views & views);
 	}
 }
 
@@ -124,7 +124,7 @@ namespace engine
 					void operator() (MessageData && m)
 					{
 						// inform 'reaction' about new data available
-						update(m, reactions, views);
+						update(resources, m, reactions, views);
 					}
 					void operator() (MessageDataSetup && m)
 					{
