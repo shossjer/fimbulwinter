@@ -1577,11 +1577,13 @@ out vec4 color;
 void main()
 {
 	gl_Position = projection_matrix * modelview_matrix * vec4(in_vertex.x, in_vertex.y, in_vertex.z, 1.f);
-	status_color = vec4(1.f, 1.f, 1.f, 1.f);
+	status_color = vec4(0.f, 0.f, 0.f, 0.f);
 	if (status_flags.x != 0.f)
 		status_color = vec4(1.f, .8f, .2f, 1.f);
 	else if (status_flags.y != 0.f)
 		status_color = vec4(.2f, .8f, 1.f, 1.f);
+	else if (status_flags.a != 0.f)
+		status_color = vec4(1.f, 1.f, 1.f, 1.f);
 	color = in_color;
 }
 )";
@@ -1603,17 +1605,20 @@ out vec4 out_color;
 void main()
 {
 	out_color = color;
-	vec4 entity = texture(entitytex, gl_FragCoord.xy / dimensions);
-	if (entity != vec4(0.f, 0.f, 0.f, 0.f))
+	if (status_color.a != 0.f) // interactible
 	{
-		bool is_edge =
-			(gl_FragCoord.x - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x - 1, gl_FragCoord.y) / dimensions)) ||
-			(gl_FragCoord.y - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y - 1) / dimensions)) ||
-			(gl_FragCoord.x + 1 >= dimensions.x || entity != texture(entitytex, vec2(gl_FragCoord.x + 1, gl_FragCoord.y) / dimensions)) ||
-			(gl_FragCoord.y + 1 >= dimensions.y || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y + 1) / dimensions));
-		if (is_edge)
+		vec4 entity = texture(entitytex, gl_FragCoord.xy / dimensions);
+		if (entity != vec4(0.f, 0.f, 0.f, 0.f))
 		{
-			out_color = status_color;
+			bool is_edge =
+				(gl_FragCoord.x - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x - 1, gl_FragCoord.y) / dimensions)) ||
+				(gl_FragCoord.y - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y - 1) / dimensions)) ||
+				(gl_FragCoord.x + 1 >= dimensions.x || entity != texture(entitytex, vec2(gl_FragCoord.x + 1, gl_FragCoord.y) / dimensions)) ||
+				(gl_FragCoord.y + 1 >= dimensions.y || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y + 1) / dimensions));
+			if (is_edge)
+			{
+				out_color = status_color;
+			}
 		}
 	}
 }
@@ -1958,112 +1963,107 @@ void main()
 			debug_assert(error_after == GL_NO_ERROR);
 		}
 		glUseProgram(0);
-// COLOR (highlighted / selected)
-// COLOR
-// vertices
+		glUseProgram(p_color);
+		glUniform(p_color, "projection_matrix", display.projection_3d);
+		{
+			static int frame_count = 0;
+			frame_count++;
+
+			glUniform(p_color, "time", static_cast<float>(frame_count) / 50.f);
+		}
+		glUniform(p_color, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
 		for (const auto & component : components.get<linec_t>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.modelview);
-			glLoadMatrix(modelview_matrix);
+			glUniform(p_color, "modelview_matrix", modelview_matrix.top());
 
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = true;
+
+			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
+
+			const auto color_location = 7;
+			glVertexAttrib4f(color_location, component.color[0] / 255.f, component.color[1] / 255.f, component.color[2] / 255.f, component.color[3] / 255.f);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, entitytexture);
+
+			glUniform(p_color, "entitytex", 0);
 
 			glLineWidth(2.f);
-			if (is_highlighted)
-				glColor(highlighted_color);
-			else if (is_selected)
-				glColor(selected_color);
-			else
-				glColor(component.color);
 
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glVertexPointer(3, // TODO
-			                BufferFormats[static_cast<int>(component.vertices.format())], // TODO
-			                0,
-			                component.vertices.data());
-			glDrawElements(GL_LINES,
-			               component.edges.count(),
-			               BufferFormats[static_cast<int>(component.edges.format())],
-			               component.edges.data());
-			glDisableClientState(GL_VERTEX_ARRAY);
+			const auto vertex_location = 5;
+			glEnableVertexAttribArray(vertex_location);
+			glVertexAttribPointer(vertex_location, 3, GL_FLOAT, GL_FALSE, 0, component.vertices.data());
+			glDrawElements(
+				GL_LINES,
+				component.edges.count(),
+				BufferFormats[static_cast<int>(component.edges.format())],
+				component.edges.data());
+			glDisableVertexAttribArray(vertex_location);
 
 			glLineWidth(1.f);
 
 			modelview_matrix.pop();
 		}
-// COLOR (highlighted / selected)
-// TEXTURE
-// vertices
-// normals
-// texcoords
+		glUseProgram(0);
+		glUseProgram(p_tex);
+		glUniform(p_tex, "projection_matrix", display.projection_3d);
+		{
+			static int frame_count = 0;
+			frame_count++;
+
+			glUniform(p_tex, "time", static_cast<float>(frame_count) / 50.f);
+		}
+		glUniform(p_tex, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
 		for (const auto & component : components.get<comp_t>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
+			glUniform(p_tex, "modelview_matrix", modelview_matrix.top());
 
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
 
+			const auto status_flags_location = 4;
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, entitytexture);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, component.texture->id);
+
+			glUniform(p_tex, "tex", 0);
+			glUniform(p_tex, "entitytex", 1);
+
 			const mesh_t & mesh = *component.mesh;
 
-			if (is_highlighted || is_selected)
-			{
-				if (is_highlighted)
-					glColor(highlighted_color);
-				else
-					glColor(selected_color);
-
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glEnableClientState(GL_NORMAL_ARRAY);
-				glVertexPointer(3, // TODO
-				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
-				                0,
-				                mesh.vertices.data());
-				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
-				                0,
-				                mesh.normals.data());
-				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
-				               BufferFormats[static_cast<int>(mesh.triangles.format())],
-				               mesh.triangles.data());
-				glDisableClientState(GL_NORMAL_ARRAY);
-				glDisableClientState(GL_VERTEX_ARRAY);
-			}
-			else
-			{
-				component.texture->enable();
-
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glEnableClientState(GL_NORMAL_ARRAY);
-				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-				glVertexPointer(3, // TODO
-				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
-				                0,
-				                mesh.vertices.data());
-				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
-				                0,
-				                mesh.normals.data());
-				glTexCoordPointer(2, // TODO
-				                  BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
-				                  0,
-				                  mesh.coords.data());
-				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
-				               BufferFormats[static_cast<int>(mesh.triangles.format())],
-				               mesh.triangles.data());
-				glDisableClientState(GL_NORMAL_ARRAY);
-				glDisableClientState(GL_VERTEX_ARRAY);
-
-				component.texture->disable();
-			}
+			const auto vertex_location = 5;
+			const auto normal_location = 6;
+			const auto texcoord_location = 7;
+			glEnableVertexAttribArray(vertex_location);
+			glEnableVertexAttribArray(normal_location);
+			glEnableVertexAttribArray(texcoord_location);
+			glVertexAttribPointer(vertex_location, 3, GL_FLOAT, GL_FALSE, 0, mesh.vertices.data());
+			glVertexAttribPointer(normal_location, 3, GL_FLOAT, GL_FALSE, 0, mesh.normals.data());
+			glVertexAttribPointer(texcoord_location, 2, GL_FLOAT, GL_FALSE, 0, mesh.coords.data());
+			glDrawElements(
+				GL_TRIANGLES,
+				mesh.triangles.count(),
+				BufferFormats[static_cast<int>(mesh.triangles.format())],
+				mesh.triangles.data());
+			glDisableVertexAttribArray(texcoord_location);
+			glDisableVertexAttribArray(normal_location);
+			glDisableVertexAttribArray(vertex_location);
 
 			modelview_matrix.pop();
 		}
+		glUseProgram(0);
 		glUseProgram(p_color);
 		glUniform(p_color, "projection_matrix", display.projection_3d);
 		{
@@ -2082,9 +2082,10 @@ void main()
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = true;
 
 			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
 
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, entitytexture);
@@ -2144,8 +2145,15 @@ void main()
 
 		// 2d
 		// ...
-// COLOR
-// vertices
+		glUseProgram(p_color);
+		glUniform(p_color, "projection_matrix", display.projection_2d);
+		{
+			static int frame_count = 0;
+			frame_count++;
+
+			glUniform(p_color, "time", static_cast<float>(frame_count) / 50.f);
+		}
+		glUniform(p_color, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
 		for (const Bar & component : components.get<Bar>())
 		{
 			modelview_matrix.push();
@@ -2158,34 +2166,81 @@ void main()
 			Matrix4x4f modelview = make_translation_matrix(Vector3f{ b[0], b[1], 0.f });
 
 			modelview_matrix.mult(modelview);
-			glLoadMatrix(modelview_matrix);
+			glUniform(p_color, "modelview_matrix", modelview_matrix.top());
+
+			const auto status_flags_location = 4;
+			glVertexAttrib4f(status_flags_location, 0.f, 0.f, 0.f, 0.f);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, entitytexture);
+
+			glUniform(p_color, "entitytex", 0);
 
 			const float WF = 28.f;
 			const float WI = WF - 2.f;
 			const float HF = 5.f;
 			const float HI = HF - 2.f;
+			const float ws = -WI + component.progress * WI * 2;
 
-			glBegin(GL_QUADS);
-			{
-				glColor3ub(20, 20, 40);
+			const GLfloat vertices[] = {
+				-WF, -HF,
+				-WF, HF,
+				WF, HF,
+				WF, -HF,
 
-				glVertex2f(-WF, HF);
-				glVertex2f(+WF, HF);
-				glVertex2f(+WF,-HF);
-				glVertex2f(-WF,-HF);
+				-WI, -HI,
+				-WI, HI,
+				ws, HI,
+				ws, -HI
+			};
+			const GLubyte colors[] = {
+				20, 20, 40, 255,
+				20, 20, 40, 255,
+				20, 20, 40, 255,
+				20, 20, 40, 255,
 
-				glColor3ub(100, 255, 80);
+				100, 255, 80, 255,
+				100, 255, 80, 255,
+				100, 255, 80, 255,
+				100, 255, 80, 255
+			};
+			const GLushort indices[] = {
+				0, 1, 2,
+				2, 3, 0,
 
-				const float ws = -WI + component.progress * WI * 2;
-				glVertex2f(-WI, HI);
-				glVertex2f(ws, HI);
-				glVertex2f(ws, -HI);
-				glVertex2f(-WI, -HI);
-			}
-			glEnd();
+				4, 5, 6,
+				6, 7, 4
+			};
+
+			const auto vertex_location = 5;
+			const auto color_location = 7;
+			glEnableVertexAttribArray(vertex_location);
+			glEnableVertexAttribArray(color_location);
+			glVertexAttribPointer(
+				vertex_location,
+				2,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				vertices);
+			glVertexAttribPointer(
+				color_location,
+				4,
+				GL_UNSIGNED_BYTE,
+				GL_TRUE,
+				0,
+				colors);
+			glDrawElements(
+				GL_TRIANGLES,
+				12,
+				GL_UNSIGNED_SHORT,
+				indices);
+			glDisableVertexAttribArray(color_location);
+			glDisableVertexAttribArray(vertex_location);
 
 			modelview_matrix.pop();
 		}
+		glUseProgram(0);
 
 
 		glLoadMatrix(modelview_matrix);
@@ -2221,34 +2276,86 @@ void main()
 		glColor3ub(255, 255, 0);
 		normal_font.draw(10, 10 + 12, "herp derp herp derp herp derp herp derp herp derp etc.");
 
-// COLOR
-// vertices
+		glUseProgram(p_color);
+		glUniform(p_color, "projection_matrix", display.projection_2d);
+		{
+			static int frame_count = 0;
+			frame_count++;
+
+			glUniform(p_color, "time", static_cast<float>(frame_count) / 50.f);
+		}
+		glUniform(p_color, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
 		for (const auto & component : ::components.get<::ui::PanelC>())
 		{
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
+			glUniform(p_color, "modelview_matrix", modelview_matrix.top());
+
+			const auto entity = components.get_key(component);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = true;
+
+			const auto status_flags_location = 4;
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
+
+			const auto color_location = 7;
+			glVertexAttrib4f(color_location, component.color[0] / 255.f, component.color[1] / 255.f, component.color[2] / 255.f, component.color[3] / 255.f);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, entitytexture);
+
+			glUniform(p_color, "entitytex", 0);
 
 			core::maths::Vector2f::array_type size;
 			component.size.get_aligned(size);
 
-			//glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
-			glColor(component.color);
+			const GLfloat vertices[] = {
+				0.f, 0.f,
+				0.f, size[1],
+				size[0], size[1],
+				size[0], 0.f
+			};
+			const GLfloat texcoords[] = {
+				0.f, 1.f,
+				0.f, 0.f,
+				1.f, 0.f,
+				1.f, 1.f
+			};
+			const GLushort indices[] = {
+				0, 1, 2,
+				2, 3, 0
+			};
 
-			glBegin(GL_QUADS);
-			{
-				glVertex2f(0.f, size[1]);
-				glVertex2f(size[0], size[1]);
-				glVertex2f(size[0], 0.f);
-				glVertex2f(0.f, 0.f);
-			}
-			glEnd();
+			const auto vertex_location = 5;
+			const auto texcoord_location = 7;
+			glEnableVertexAttribArray(vertex_location);
+			glEnableVertexAttribArray(texcoord_location);
+			glVertexAttribPointer(
+				vertex_location,
+				2,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				vertices);
+			glVertexAttribPointer(
+				texcoord_location,
+				2,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				texcoords);
+			glDrawElements(
+				GL_TRIANGLES,
+				6,
+				GL_UNSIGNED_SHORT,
+				indices);
+			glDisableVertexAttribArray(texcoord_location);
+			glDisableVertexAttribArray(vertex_location);
 
 			modelview_matrix.pop();
 		}
-// TEXTURE
-// vertices
-// texcoords
+		glUseProgram(0);
 		glUseProgram(p_tex);
 		glUniform(p_tex, "projection_matrix", display.projection_2d);
 		{
@@ -2268,7 +2375,7 @@ void main()
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
 
-			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
+			const auto status_flags_location = 4;
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
 
 			const auto normal_location = 6;
