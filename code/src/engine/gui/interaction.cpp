@@ -18,6 +18,7 @@ namespace engine
 			debug_printline(engine::gui_channel, "interaction received: ", data.entity);
 
 			Status::State state;
+			bool clicked = false;
 			switch (data.interaction)
 			{
 			case MessageInteraction::HIGHLIGHT:
@@ -31,14 +32,37 @@ namespace engine
 				break;
 			case MessageInteraction::RELEASE:
 				state = Status::HIGHLIGHT;
+				clicked = true;
 				break;
 			default:
 				return;
 			}
 
-			auto & interaction = interactions.get<action::interaction_t>(data.entity);
+			struct
+			{
+				Views & views;
+				Status::State state;
+				bool clicked;
 
-			ViewUpdater::status(views.get<View>(interaction.target), state);
+				void operator() (action::close_t & a)
+				{
+					if (clicked)
+					{
+						auto & view = views.get<View>(a.target);
+						ViewUpdater::hide(view);
+					}
+				}
+
+				void operator() (action::interaction_t & a)
+				{
+					auto & view = views.get<View>(a.target);
+					ViewUpdater::status(view, state);
+				}
+
+			}
+			lookup{ views, state, clicked };
+
+			interactions.call_all(data.entity, lookup);
 		}
 	}
 }

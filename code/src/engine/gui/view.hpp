@@ -36,8 +36,10 @@ namespace engine
 					auto itr = std::find(this->children.begin(), this->children.end(), child);
 					if (itr == this->children.end())
 					{
-						debug_printline(engine::gui_channel, "Child missing from parent.");
-						debug_unreachable();
+						// already removed
+						return;
+					//	debug_printline(engine::gui_channel, "Child missing from parent.");
+					//	debug_unreachable();
 					}
 					this->children.erase(itr);
 				}

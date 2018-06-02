@@ -14,6 +14,15 @@ namespace engine
 	{
 		namespace action
 		{
+			struct close_t
+			{
+				Entity target;
+
+				close_t(Entity target)
+					: target(target)
+				{}
+			};
+
 			struct interaction_t
 			{
 				Entity target;

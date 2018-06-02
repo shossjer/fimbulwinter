@@ -24,9 +24,10 @@ namespace engine
 			std::array<ListController, 101>
 		>;
 
-		using Interactions = core::container::Collection
+		using Interactions = core::container::MultiCollection
 		<
 			engine::Entity, 51,
+			std::array<action::close_t, 51>,
 			std::array<action::interaction_t, 101>
 		>;
 

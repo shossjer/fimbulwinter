@@ -75,10 +75,11 @@ namespace gui
 	{
 		enum
 		{
-			NONE,
-			INTERACTION
+			CLOSE,
+			INTERACTION,
+			UNKNOWN
 		}
-		type = NONE;
+		type;
 
 		std::string target;
 
@@ -96,7 +97,7 @@ namespace gui
 		Gravity gravity;
 
 		ControllerData controller;
-		interaction_data_t interaction;
+		std::vector<interaction_data_t> interactions;
 		ReactionData reaction;
 
 		ViewData(Size size)
@@ -110,11 +111,6 @@ namespace gui
 		bool has_controller() const
 		{
 			return !utility::holds_alternative<std::nullptr_t>(controller.data);
-		}
-
-		bool has_interaction() const
-		{
-			return this->interaction.type != interaction_data_t::NONE;
 		}
 
 		bool has_name() const

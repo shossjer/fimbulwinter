@@ -325,23 +325,35 @@ namespace
 
 		void load_action(ViewData & view, const json & jcomponent)
 		{
-			if (!contains(jcomponent, "action"))
+			if (!contains(jcomponent, "actions"))
 				return;
 
-			const json & jaction = jcomponent["action"];
-			const auto type = parse_type(jaction);
+			const json & jactions = jcomponent["actions"];
 
-			if (type == "interaction")
+			for (const auto & jaction : jactions)
 			{
-				view.interaction.type = interaction_data_t::INTERACTION;
-			}
-			else
-			{
-				debug_printline(engine::gui_channel, "GUI - unknown action: ", jcomponent);
-				throw bad_json();
-			}
+				const auto type = parse_type(jaction);
 
-			view.interaction.target = contains(jaction, "target") ? extract_string(jaction, "target") : "";
+				view.interactions.emplace_back();
+				auto & interaction = view.interactions.back();
+
+				if (type == "close")
+				{
+					interaction.type = interaction_data_t::CLOSE;
+				}
+				else if (type == "interaction")
+				{
+					interaction.type = interaction_data_t::INTERACTION;
+				}
+				else
+				{
+					debug_printline(engine::gui_channel, "GUI - unknown action: ", jcomponent);
+					interaction.type = interaction_data_t::UNKNOWN;
+					//throw bad_json();
+				}
+
+				interaction.target = contains(jaction, "target") ? extract_string(jaction, "target") : "";
+			}
 		}
 
 		void load_controller(ViewData & data, const json & jcomponent)

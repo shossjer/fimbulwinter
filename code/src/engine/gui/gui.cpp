@@ -60,7 +60,7 @@ namespace
 	{
 		controllers.clear();
 
-		interactions.clear();
+		//interactions.clear();
 
 		clear(reactions);
 

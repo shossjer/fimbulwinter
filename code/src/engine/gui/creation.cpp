@@ -96,6 +96,23 @@ namespace
 		}
 	};
 
+	auto & search_window(View & view)
+	{
+		View * parent = view.parent->parent;
+
+		while (parent != nullptr)
+		{
+			auto p = parent->parent;
+
+			if (p->parent == nullptr)
+				return parent;
+
+			parent = p;
+		}
+
+		return parent;
+	}
+
 	auto & search_parent(View & view, const std::string & parent_name)
 	{
 		auto name = engine::Asset{ parent_name };
@@ -150,19 +167,33 @@ namespace
 
 	void create_interaction(View & view, const ViewData & data)
 	{
-		if (!data.has_interaction())
-			return;
-
-		view.selectable = true;
-
-		auto target = data.interaction.has_target() ? search_parent(view, data.interaction.target).entity : view.entity;
-
-		switch (data.interaction.type)
+		for (auto & interaction : data.interactions)
 		{
-		case interaction_data_t::INTERACTION:
+			view.selectable = true;
 
-			interactions.emplace<action::interaction_t>(view.entity, target);
-			break;
+			engine::Entity target;
+
+			switch (interaction.type)
+			{
+			case interaction_data_t::CLOSE:
+
+				if (interaction.has_target())
+				{
+					target = search_parent(view, interaction.target).entity;
+				}
+				else
+				{
+					target = search_window(view)->entity;
+				}
+				interactions.emplace<action::close_t>(view.entity, target);
+				break;
+
+			case interaction_data_t::INTERACTION:
+
+				target = interaction.has_target() ? search_parent(view, interaction.target).entity : view.entity;
+				interactions.emplace<action::interaction_t>(view.entity, target);
+				break;
+			}
 		}
 
 		gameplay::gamestate::post_gui(view.entity);
