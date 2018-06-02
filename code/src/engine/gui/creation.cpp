@@ -22,28 +22,19 @@ namespace engine
 	}
 }
 
+namespace gameplay
+{
+	namespace gamestate
+	{
+		extern void post_gui(engine::Entity entity);
+	}
+}
+
 namespace
 {
 	using namespace engine::gui;
 
-	// TODO: move to some utility file
-	template<typename T>
-	constexpr T & get_content(View & view)
-	{
-		return utility::get<T>(view.content);
-	}
-
-	//View * find_view(const engine::Asset name)
-	//{
-	//	//for (auto i = this->named_views.rbegin(); i != this->named_views.rend(); ++i)
-	//	//{
-	//	//	if ((*i).first == name)
-	//	//		return (*i).second;
-	//	//}
-	//	return nullptr;
-	//}
-
-	View & create(const float depth, View::Content && content, const ViewData & data)
+	View & create(const float depth, View::Content && content, const ViewData & data, View *const parent)
 	{
 		const auto entity = engine::Entity::create();
 
@@ -51,15 +42,14 @@ namespace
 			entity,
 			entity,
 			std::move(content),
+			engine::Asset{ data.name },
 			data.gravity,
 			data.margin,
 			data.size,
-			nullptr);
+			parent);
 
-		//if (!data.name.empty())
-		//{
-		//	named_views.emplace_back(Asset{ data.name }, &view);
-		//}
+		// a parent is always a group
+		utility::get<View::Group>(parent->content).adopt(&view);
 
 		view.depth = depth;
 		return view;
@@ -106,39 +96,38 @@ namespace
 		}
 	};
 
-	void create_reaction(View & view, const ViewData & data)
+	auto & search_window(View & view)
 	{
-		if (!data.has_reaction())
-			return;
+		View * parent = view.parent->parent;
 
-		class Lookup
+		while (parent != nullptr)
 		{
-		public:
-			View & view;
-			const ViewData & data;
+			auto p = parent->parent;
 
-			void operator() (const View::Color & content)
-			{
-				debug_printline("WARN - Reaction not supported for 'group'");
-			}
-			void operator() (const View::Group & content)
-			{
-				debug_printline("WARN - Reaction not supported for 'group'");
-			}
-			void operator() (const View::Text & content)
-			{
-				auto * node = static_cast<node_text_t*>(
-					FindNode{ data.reaction.observe }(reactions));
+			if (p->parent == nullptr)
+				return parent;
 
-				node->reactions.push_back(reaction_text_t{ &view });
-			}
-			void operator() (const View::Texture & content)
-			{
-				debug_printline("WARN - Reaction not supported for 'texture'");
-			}
-		};
+			parent = p;
+		}
 
-		visit(Lookup{ view, data }, view.content);
+		return parent;
+	}
+
+	auto & search_parent(View & view, const std::string & parent_name)
+	{
+		auto name = engine::Asset{ parent_name };
+
+		View * parent = view.parent;
+
+		while (parent != nullptr)
+		{
+			if (parent->name == name)
+				return *parent;
+
+			parent = parent->parent;
+		}
+
+		throw bad_json{ "Could not find view named: ", parent_name };
 	}
 
 	void create_controller(View & view, const ViewData & data)
@@ -176,7 +165,74 @@ namespace
 		visit(Lookup{ view, data }, data.controller.data);
 	}
 
-	// interactions
+	void create_interaction(View & view, const ViewData & data)
+	{
+		for (auto & interaction : data.interactions)
+		{
+			view.selectable = true;
+
+			engine::Entity target;
+
+			switch (interaction.type)
+			{
+			case interaction_data_t::CLOSE:
+
+				if (interaction.has_target())
+				{
+					target = search_parent(view, interaction.target).entity;
+				}
+				else
+				{
+					target = search_window(view)->entity;
+				}
+				interactions.emplace<action::close_t>(view.entity, target);
+				break;
+
+			case interaction_data_t::INTERACTION:
+
+				target = interaction.has_target() ? search_parent(view, interaction.target).entity : view.entity;
+				interactions.emplace<action::interaction_t>(view.entity, target);
+				break;
+			}
+		}
+
+		gameplay::gamestate::post_gui(view.entity);
+	}
+
+	void create_reaction(View & view, const ViewData & data)
+	{
+		if (!data.has_reaction())
+			return;
+
+		class Lookup
+		{
+		public:
+			View & view;
+			const ViewData & data;
+
+			void operator() (const View::Color & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'group'");
+			}
+			void operator() (const View::Group & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'group'");
+			}
+			void operator() (const View::Text & content)
+			{
+				auto * node = static_cast<node_text_t*>(
+					FindNode{ data.reaction.observe }(reactions));
+
+				node->reactions.push_back(reaction_text_t{ &view });
+			}
+			void operator() (const View::Texture & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'texture'");
+			}
+		};
+
+		visit(Lookup{ view, data }, view.content);
+	}
 
 	class DataLookup
 	{
@@ -184,6 +240,8 @@ namespace
 		const Resources & resources;
 
 		float depth;
+
+		View * parent;
 
 	public:
 
@@ -200,14 +258,15 @@ namespace
 			View & view = create(
 				depth,
 				View::Content{ utility::in_place_type<View::Group>, data.layout },
-				data);
+				data,
+				parent);
 
-			auto & content = get_content<View::Group>(view);
+			auto & content = utility::get<View::Group>(view.content);
 
 			create_views(view, content, data);
 
-			//	create_actions(view, data);
 			create_controller(view, data);
+			create_interaction(view, data);
 			create_reaction(view, data);
 
 			//ViewUpdater::update(view, content);
@@ -220,10 +279,11 @@ namespace
 			View & view = create(
 				depth,
 				View::Content{ utility::in_place_type<View::Color>, resource::color(data.color) },
-				data);
+				data,
+				parent);
 
-			//	create_actions(view, data);
 			create_controller(view, data);
+			create_interaction(view, data);
 			create_reaction(view, data);
 
 			return view;
@@ -234,13 +294,14 @@ namespace
 			View & view = create(
 				depth,
 				View::Content{ utility::in_place_type<View::Text>, data.display, resource::color(data.color) },
-				data);
+				data,
+				parent);
 
 			// update size base on initial string (if any)
-			ViewUpdater::update(view, get_content<View::Text>(view));
+			ViewUpdater::update(view, utility::get<View::Text>(view.content));
 
-			//	create_actions(view, data);
 			create_controller(view, data);
+			create_interaction(view, data);
 			create_reaction(view, data);
 
 			return view;
@@ -251,10 +312,11 @@ namespace
 			View & view = create(
 				depth,
 				View::Content{ utility::in_place_type<View::Texture>, data.texture },
-				data);
+				data,
+				parent);
 
-			//	create_actions(view, data);
 			create_controller(view, data);
+			create_interaction(view, data);
 			create_reaction(view, data);
 
 			return view;
@@ -262,13 +324,11 @@ namespace
 
 		View & create_view(View & parent, View::Group & parent_content, const DataVariant & data)
 		{
+			this->parent = &parent;
+
 			View & view = visit(*this, data);
 
 			depth += .01f;
-
-			// NOTE: can it be set during construction?
-			parent_content.adopt(&view);
-			view.parent = &parent;
 
 			return view;
 		}

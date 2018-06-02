@@ -54,7 +54,7 @@ namespace engine
 		struct MessageInteraction
 		{
 			engine::Entity entity;
-			enum
+			enum State
 			{
 				CLICK,
 				HIGHLIGHT,

@@ -12,23 +12,26 @@ namespace engine
 {
 	namespace gui
 	{
-		class Interaction
+		namespace action
 		{
+			struct close_t
+			{
+				Entity target;
 
-		};
+				close_t(Entity target)
+					: target(target)
+				{}
+			};
 
-		//struct CloseAction
-		//{
-		//	Entity target;
-		//};
-		//struct InteractionAction
-		//{
-		//	Entity target;
-		//};
-		//struct TriggerAction
-		//{
-		//	Entity target;
-		//};
+			struct interaction_t
+			{
+				Entity target;
+
+				interaction_t(Entity target)
+					: target(target)
+				{}
+			};
+		}
 	}
 }
 

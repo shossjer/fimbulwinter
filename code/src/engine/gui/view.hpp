@@ -36,8 +36,10 @@ namespace engine
 					auto itr = std::find(this->children.begin(), this->children.end(), child);
 					if (itr == this->children.end())
 					{
-						debug_printline(engine::gui_channel, "Child missing from parent.");
-						debug_unreachable();
+						// already removed
+						return;
+					//	debug_printline(engine::gui_channel, "Child missing from parent.");
+					//	debug_unreachable();
 					}
 					this->children.erase(itr);
 				}
@@ -73,6 +75,8 @@ namespace engine
 
 			Content content;
 
+			Asset name;
+
 			Gravity gravity;
 
 			Margin margin;
@@ -90,23 +94,30 @@ namespace engine
 			// remove this somehow
 			float depth;
 
+			// is set to true if it has an action.
+			// possible to solve it better?
+			bool selectable;
+
 		public:
 
 			View(
 				Entity entity,
 				Content && content,
+				Asset name,
 				Gravity gravity,
 				Margin margin,
 				Size size,
 				View *const parent)
 				: entity(entity)
 				, content(std::move(content))
+				, name(name)
 				, gravity(gravity)
 				, margin(margin)
 				, size(size)
 				, parent(parent)
 				, change()
 				, status()
+				, selectable(false)
 			{}
 		};
 	}

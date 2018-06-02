@@ -32,6 +32,7 @@ namespace engine
 				return View{
 					Entity::create(),
 					View::Content{ utility::in_place_type<View::Group>, layout },
+					engine::Asset{},
 					Gravity{},
 					margin,
 					size,
@@ -47,6 +48,7 @@ namespace engine
 				return View{
 					Entity::create(),
 					std::move(content),
+					engine::Asset{},
 					gravity,
 					margin,
 					size,

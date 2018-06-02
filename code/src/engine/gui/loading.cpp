@@ -325,50 +325,35 @@ namespace
 
 		void load_action(ViewData & view, const json & jcomponent)
 		{
-			//if (!contains(jcomponent, "actions"))
-			//	return;
+			if (!contains(jcomponent, "actions"))
+				return;
 
-			//const json & jactions = jcomponent["actions"];
+			const json & jactions = jcomponent["actions"];
 
-			//for (const auto & jaction : jactions)
-			//{
-			//	view.actions.emplace_back();
-			//	auto & action = view.actions.back();
+			for (const auto & jaction : jactions)
+			{
+				const auto type = parse_type(jaction);
 
-			//	action.type = this->load.type(jaction);
-			//	action.target = this->load.has_target(jaction) ? this->load.target(jaction) : engine::Asset::null();
+				view.interactions.emplace_back();
+				auto & interaction = view.interactions.back();
 
-			//	// validate action
-			//	switch (action.type)
-			//	{
-			//	case engine::Asset{"none"}:
+				if (type == "close")
+				{
+					interaction.type = interaction_data_t::CLOSE;
+				}
+				else if (type == "interaction")
+				{
+					interaction.type = interaction_data_t::INTERACTION;
+				}
+				else
+				{
+					debug_printline(engine::gui_channel, "GUI - unknown action: ", jcomponent);
+					interaction.type = interaction_data_t::UNKNOWN;
+					//throw bad_json();
+				}
 
-			//		break;
-			//	case ViewData::Action::CLOSE:
-
-			//		break;
-			//	case ViewData::Action::INTERACTION:
-
-			//		break;
-			//	case ViewData::Action::MOVER:
-
-			//		break;
-			//	case ViewData::Action::SELECT:
-
-			//		break;
-			//	case ViewData::Action::TRIGGER:
-			//		if (action.target == engine::Asset::null())
-			//		{
-			//			debug_printline(engine::gui_channel, "WARNING - cannot find 'target' of action: ", jcomponent);
-			//			throw bad_json();
-			//		}
-			//		break;
-
-			//	default:
-			//		debug_printline(engine::gui_channel, "GUI - unknown trigger action in component: ", jcomponent);
-			//		throw bad_json();
-			//	}
-			//}
+				interaction.target = contains(jaction, "target") ? extract_string(jaction, "target") : "";
+			}
 		}
 
 		void load_controller(ViewData & data, const json & jcomponent)

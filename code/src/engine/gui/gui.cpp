@@ -31,6 +31,8 @@ namespace engine
 		extern void setup(MessageDataSetup & data, Reactions & reactions);
 
 		extern void update(const Resources & resources, MessageData & data, Reactions & reactions, Views & views);
+
+		extern void update(const Resources & resources, MessageInteraction & data, Interactions & interactions, Views & views);
 	}
 }
 
@@ -58,7 +60,7 @@ namespace
 	{
 		controllers.clear();
 
-		interactions.clear();
+		//interactions.clear();
 
 		clear(reactions);
 
@@ -83,6 +85,7 @@ namespace
 			entity,
 			entity,
 			View::Group{ Layout::RELATIVE },
+			engine::Asset{"screen"},
 			Gravity{},
 			Margin{},
 			Size{ { Size::FIXED, height_t{ WINDOW_HEIGHT }, },{ Size::FIXED, width_t{ WINDOW_WIDTH } } },
@@ -133,7 +136,11 @@ namespace engine
 					}
 					void operator() (MessageInteraction && m)
 					{
-						// TODO: manage player interaction
+						if (interactions.contains(m.entity))
+						{
+							// manage player interaction
+							update(resources, m, interactions, views);
+						}
 					}
 					void operator() (MessageReload && m)
 					{
