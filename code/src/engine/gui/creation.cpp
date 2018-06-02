@@ -34,24 +34,7 @@ namespace
 {
 	using namespace engine::gui;
 
-	// TODO: move to some utility file
-	template<typename T>
-	constexpr T & get_content(View & view)
-	{
-		return utility::get<T>(view.content);
-	}
-
-	//View * find_view(const engine::Asset name)
-	//{
-	//	//for (auto i = this->named_views.rbegin(); i != this->named_views.rend(); ++i)
-	//	//{
-	//	//	if ((*i).first == name)
-	//	//		return (*i).second;
-	//	//}
-	//	return nullptr;
-	//}
-
-	View & create(const float depth, View::Content && content, const ViewData & data)
+	View & create(const float depth, View::Content && content, const ViewData & data, View *const parent)
 	{
 		const auto entity = engine::Entity::create();
 
@@ -63,12 +46,10 @@ namespace
 			data.gravity,
 			data.margin,
 			data.size,
-			nullptr);
+			parent);
 
-		//if (!data.name.empty())
-		//{
-		//	named_views.emplace_back(Asset{ data.name }, &view);
-		//}
+		// a parent is always a group
+		utility::get<View::Group>(parent->content).adopt(&view);
 
 		view.depth = depth;
 		return view;
@@ -115,17 +96,21 @@ namespace
 		}
 	};
 
-	auto find_view(Views & views, const std::string & view_name)
+	auto & search_parent(View & view, const std::string & parent_name)
 	{
-		auto name = engine::Asset{ view_name };
+		auto name = engine::Asset{ parent_name };
 
-		for (auto & view : views.get<View>())
+		View * parent = view.parent;
+
+		while (parent != nullptr)
 		{
-			if (view.name == name)
-				return view;
+			if (parent->name == name)
+				return *parent;
+
+			parent = parent->parent;
 		}
 
-		throw bad_json{ "Could not find view named: ", view_name };
+		throw bad_json{ "Could not find view named: ", parent_name };
 	}
 
 	void create_controller(View & view, const ViewData & data)
@@ -170,7 +155,7 @@ namespace
 
 		view.selectable = true;
 
-		auto target = data.interaction.has_target() ? find_view(views, data.interaction.target).entity : view.entity;
+		auto target = data.interaction.has_target() ? search_parent(view, data.interaction.target).entity : view.entity;
 
 		switch (data.interaction.type)
 		{
@@ -225,6 +210,8 @@ namespace
 
 		float depth;
 
+		View * parent;
+
 	public:
 
 		DataLookup(const Resources & resources, const float depth)
@@ -240,9 +227,10 @@ namespace
 			View & view = create(
 				depth,
 				View::Content{ utility::in_place_type<View::Group>, data.layout },
-				data);
+				data,
+				parent);
 
-			auto & content = get_content<View::Group>(view);
+			auto & content = utility::get<View::Group>(view.content);
 
 			create_views(view, content, data);
 
@@ -260,7 +248,8 @@ namespace
 			View & view = create(
 				depth,
 				View::Content{ utility::in_place_type<View::Color>, resource::color(data.color) },
-				data);
+				data,
+				parent);
 
 			create_controller(view, data);
 			create_interaction(view, data);
@@ -274,10 +263,11 @@ namespace
 			View & view = create(
 				depth,
 				View::Content{ utility::in_place_type<View::Text>, data.display, resource::color(data.color) },
-				data);
+				data,
+				parent);
 
 			// update size base on initial string (if any)
-			ViewUpdater::update(view, get_content<View::Text>(view));
+			ViewUpdater::update(view, utility::get<View::Text>(view.content));
 
 			create_controller(view, data);
 			create_interaction(view, data);
@@ -291,7 +281,8 @@ namespace
 			View & view = create(
 				depth,
 				View::Content{ utility::in_place_type<View::Texture>, data.texture },
-				data);
+				data,
+				parent);
 
 			create_controller(view, data);
 			create_interaction(view, data);
@@ -302,13 +293,11 @@ namespace
 
 		View & create_view(View & parent, View::Group & parent_content, const DataVariant & data)
 		{
+			this->parent = &parent;
+
 			View & view = visit(*this, data);
 
 			depth += .01f;
-
-			// NOTE: can it be set during construction?
-			parent_content.adopt(&view);
-			view.parent = &parent;
 
 			return view;
 		}
