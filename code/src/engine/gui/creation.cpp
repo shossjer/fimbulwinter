@@ -22,6 +22,14 @@ namespace engine
 	}
 }
 
+namespace gameplay
+{
+	namespace gamestate
+	{
+		extern void post_gui(engine::Entity entity);
+	}
+}
+
 namespace
 {
 	using namespace engine::gui;
@@ -51,6 +59,7 @@ namespace
 			entity,
 			entity,
 			std::move(content),
+			engine::Asset{ data.name },
 			data.gravity,
 			data.margin,
 			data.size,
@@ -106,39 +115,17 @@ namespace
 		}
 	};
 
-	void create_reaction(View & view, const ViewData & data)
+	auto find_view(Views & views, const std::string & view_name)
 	{
-		if (!data.has_reaction())
-			return;
+		auto name = engine::Asset{ view_name };
 
-		class Lookup
+		for (auto & view : views.get<View>())
 		{
-		public:
-			View & view;
-			const ViewData & data;
+			if (view.name == name)
+				return view;
+		}
 
-			void operator() (const View::Color & content)
-			{
-				debug_printline("WARN - Reaction not supported for 'group'");
-			}
-			void operator() (const View::Group & content)
-			{
-				debug_printline("WARN - Reaction not supported for 'group'");
-			}
-			void operator() (const View::Text & content)
-			{
-				auto * node = static_cast<node_text_t*>(
-					FindNode{ data.reaction.observe }(reactions));
-
-				node->reactions.push_back(reaction_text_t{ &view });
-			}
-			void operator() (const View::Texture & content)
-			{
-				debug_printline("WARN - Reaction not supported for 'texture'");
-			}
-		};
-
-		visit(Lookup{ view, data }, view.content);
+		throw bad_json{ "Could not find view named: ", view_name };
 	}
 
 	void create_controller(View & view, const ViewData & data)
@@ -176,7 +163,60 @@ namespace
 		visit(Lookup{ view, data }, data.controller.data);
 	}
 
-	// interactions
+	void create_interaction(View & view, const ViewData & data)
+	{
+		if (!data.has_interaction())
+			return;
+
+		view.selectable = true;
+
+		auto target = data.interaction.has_target() ? find_view(views, data.interaction.target).entity : view.entity;
+
+		switch (data.interaction.type)
+		{
+		case interaction_data_t::INTERACTION:
+
+			interactions.emplace<action::interaction_t>(view.entity, target);
+			break;
+		}
+
+		gameplay::gamestate::post_gui(view.entity);
+	}
+
+	void create_reaction(View & view, const ViewData & data)
+	{
+		if (!data.has_reaction())
+			return;
+
+		class Lookup
+		{
+		public:
+			View & view;
+			const ViewData & data;
+
+			void operator() (const View::Color & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'group'");
+			}
+			void operator() (const View::Group & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'group'");
+			}
+			void operator() (const View::Text & content)
+			{
+				auto * node = static_cast<node_text_t*>(
+					FindNode{ data.reaction.observe }(reactions));
+
+				node->reactions.push_back(reaction_text_t{ &view });
+			}
+			void operator() (const View::Texture & content)
+			{
+				debug_printline("WARN - Reaction not supported for 'texture'");
+			}
+		};
+
+		visit(Lookup{ view, data }, view.content);
+	}
 
 	class DataLookup
 	{
@@ -206,8 +246,8 @@ namespace
 
 			create_views(view, content, data);
 
-			//	create_actions(view, data);
 			create_controller(view, data);
+			create_interaction(view, data);
 			create_reaction(view, data);
 
 			//ViewUpdater::update(view, content);
@@ -222,8 +262,8 @@ namespace
 				View::Content{ utility::in_place_type<View::Color>, resource::color(data.color) },
 				data);
 
-			//	create_actions(view, data);
 			create_controller(view, data);
+			create_interaction(view, data);
 			create_reaction(view, data);
 
 			return view;
@@ -239,8 +279,8 @@ namespace
 			// update size base on initial string (if any)
 			ViewUpdater::update(view, get_content<View::Text>(view));
 
-			//	create_actions(view, data);
 			create_controller(view, data);
+			create_interaction(view, data);
 			create_reaction(view, data);
 
 			return view;
@@ -253,8 +293,8 @@ namespace
 				View::Content{ utility::in_place_type<View::Texture>, data.texture },
 				data);
 
-			//	create_actions(view, data);
 			create_controller(view, data);
+			create_interaction(view, data);
 			create_reaction(view, data);
 
 			return view;

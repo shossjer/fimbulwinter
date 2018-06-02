@@ -71,6 +71,23 @@ namespace gui
 		ControllerData() : data(utility::in_place_type<std::nullptr_t>) {}
 	};
 
+	struct interaction_data_t
+	{
+		enum
+		{
+			NONE,
+			INTERACTION
+		}
+		type = NONE;
+
+		std::string target;
+
+		auto has_target() const
+		{
+			return !target.empty();
+		}
+	};
+
 	struct ViewData
 	{
 		std::string name;
@@ -78,8 +95,8 @@ namespace gui
 		Margin margin;
 		Gravity gravity;
 
-	//	std::vector<InteractionData> interactions;
 		ControllerData controller;
+		interaction_data_t interaction;
 		ReactionData reaction;
 
 		ViewData(Size size)
@@ -93,6 +110,11 @@ namespace gui
 		bool has_controller() const
 		{
 			return !utility::holds_alternative<std::nullptr_t>(controller.data);
+		}
+
+		bool has_interaction() const
+		{
+			return this->interaction.type != interaction_data_t::NONE;
 		}
 
 		bool has_name() const

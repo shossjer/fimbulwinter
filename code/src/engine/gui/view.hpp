@@ -73,6 +73,8 @@ namespace engine
 
 			Content content;
 
+			Asset name;
+
 			Gravity gravity;
 
 			Margin margin;
@@ -90,23 +92,30 @@ namespace engine
 			// remove this somehow
 			float depth;
 
+			// is set to true if it has an action.
+			// possible to solve it better?
+			bool selectable;
+
 		public:
 
 			View(
 				Entity entity,
 				Content && content,
+				Asset name,
 				Gravity gravity,
 				Margin margin,
 				Size size,
 				View *const parent)
 				: entity(entity)
 				, content(std::move(content))
+				, name(name)
 				, gravity(gravity)
 				, margin(margin)
 				, size(size)
 				, parent(parent)
 				, change()
 				, status()
+				, selectable(false)
 			{}
 		};
 	}

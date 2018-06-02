@@ -325,50 +325,23 @@ namespace
 
 		void load_action(ViewData & view, const json & jcomponent)
 		{
-			//if (!contains(jcomponent, "actions"))
-			//	return;
+			if (!contains(jcomponent, "action"))
+				return;
 
-			//const json & jactions = jcomponent["actions"];
+			const json & jaction = jcomponent["action"];
+			const auto type = parse_type(jaction);
 
-			//for (const auto & jaction : jactions)
-			//{
-			//	view.actions.emplace_back();
-			//	auto & action = view.actions.back();
+			if (type == "interaction")
+			{
+				view.interaction.type = interaction_data_t::INTERACTION;
+			}
+			else
+			{
+				debug_printline(engine::gui_channel, "GUI - unknown action: ", jcomponent);
+				throw bad_json();
+			}
 
-			//	action.type = this->load.type(jaction);
-			//	action.target = this->load.has_target(jaction) ? this->load.target(jaction) : engine::Asset::null();
-
-			//	// validate action
-			//	switch (action.type)
-			//	{
-			//	case engine::Asset{"none"}:
-
-			//		break;
-			//	case ViewData::Action::CLOSE:
-
-			//		break;
-			//	case ViewData::Action::INTERACTION:
-
-			//		break;
-			//	case ViewData::Action::MOVER:
-
-			//		break;
-			//	case ViewData::Action::SELECT:
-
-			//		break;
-			//	case ViewData::Action::TRIGGER:
-			//		if (action.target == engine::Asset::null())
-			//		{
-			//			debug_printline(engine::gui_channel, "WARNING - cannot find 'target' of action: ", jcomponent);
-			//			throw bad_json();
-			//		}
-			//		break;
-
-			//	default:
-			//		debug_printline(engine::gui_channel, "GUI - unknown trigger action in component: ", jcomponent);
-			//		throw bad_json();
-			//	}
-			//}
+			view.interaction.target = contains(jaction, "target") ? extract_string(jaction, "target") : "";
 		}
 
 		void load_controller(ViewData & data, const json & jcomponent)

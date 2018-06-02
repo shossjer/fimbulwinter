@@ -21,6 +21,7 @@ set(SOURCE_FILES
 	src/engine/gui/creation.cpp
 	src/engine/gui/gui.cpp
 	src/engine/gui/loading.cpp
+	src/engine/gui/interaction.cpp
 	src/engine/gui/reaction.cpp
 	src/engine/gui/render.cpp
 	src/engine/gui/resources.cpp
@@ -90,7 +91,6 @@ set(HEADER_FILES
 	src/engine/gui/interaction.hpp
 	src/engine/gui/loading.hpp
 	src/engine/gui/loading_utils.hpp
-	src/engine/gui/noodle.hpp
 	src/engine/gui/update.hpp
 	src/engine/gui/reaction.hpp
 	src/engine/gui/render.hpp

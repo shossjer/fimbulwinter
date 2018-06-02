@@ -27,7 +27,7 @@ namespace engine
 		using Interactions = core::container::Collection
 		<
 			engine::Entity, 51,
-			std::array<Interaction, 101>
+			std::array<action::interaction_t, 101>
 		>;
 
 		using Reactions = node_map_t;
