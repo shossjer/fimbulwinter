@@ -13,21 +13,27 @@ namespace engine
 {
 	namespace gui
 	{
-		class ListController
+		namespace controller
 		{
-		public:
+			struct list_t
+			{
+				DataVariant item_template;
 
-			DataVariant item_template;
+				View & view;
+				View::Group & group;
 
-			View & view;
-			View::Group & group;
+				list_t(const DataVariant & item_template, View & view, View::Group & group)
+					: item_template(item_template)
+					, view(view)
+					, group(group)
+				{}
+			};
 
-			ListController(const DataVariant & item_template, View & view, View::Group & group)
-				: item_template(item_template)
-				, view(view)
-				, group(group)
-			{}
-		};
+			struct tab_t
+			{
+
+			};
+		}
 	}
 }
 

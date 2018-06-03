@@ -53,10 +53,14 @@ namespace engine
 					}
 				}
 
-				void operator() (action::interaction_t & a)
+				void operator() (action::selection_t & a)
 				{
 					auto & view = views.get<View>(a.target);
 					ViewUpdater::status(view, state);
+				}
+
+				void operator() (action::tab_t & a)
+				{
 				}
 
 			}

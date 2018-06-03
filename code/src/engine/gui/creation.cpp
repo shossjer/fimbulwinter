@@ -143,7 +143,7 @@ namespace
 
 			void operator() (const ControllerData::List & list_data)
 			{
-				auto & controller = controllers.emplace<ListController>(
+				auto & controller = controllers.emplace<controller::list_t>(
 					view.entity,
 					list_data.item_template[0],
 					view,
@@ -191,7 +191,7 @@ namespace
 			case interaction_data_t::INTERACTION:
 
 				target = interaction.has_target() ? search_parent(view, interaction.target).entity : view.entity;
-				interactions.emplace<action::interaction_t>(view.entity, target);
+				interactions.emplace<action::selection_t>(view.entity, target);
 				break;
 			}
 		}

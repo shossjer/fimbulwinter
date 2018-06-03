@@ -14,14 +14,19 @@ namespace engine
 	namespace gui
 	{
 		class View;
-		class ListController;
+
+		namespace controller
+		{
+			struct list_t;
+			struct tab_t;
+		}
 
 		struct reaction_list_t
 		{
 			// handle to list-controller
-			ListController * controller;
+			controller::list_t * controller;
 
-			reaction_list_t(ListController * controller)
+			reaction_list_t(controller::list_t * controller)
 				: controller(controller)
 			{}
 		};

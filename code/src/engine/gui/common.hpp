@@ -20,15 +20,17 @@ namespace engine
 	{
 		using Controllers = core::container::Collection
 		<
-			engine::Entity, 51,
-			std::array<ListController, 101>
+			engine::Entity, 111,
+			std::array<controller::list_t, 51>,
+			std::array<controller::tab_t, 51>
 		>;
 
 		using Interactions = core::container::MultiCollection
 		<
-			engine::Entity, 51,
+			engine::Entity, 111,
 			std::array<action::close_t, 51>,
-			std::array<action::interaction_t, 101>
+			std::array<action::selection_t, 51>,
+			std::array<action::tab_t, 51>
 		>;
 
 		using Reactions = node_map_t;

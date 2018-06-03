@@ -23,11 +23,20 @@ namespace engine
 				{}
 			};
 
-			struct interaction_t
+			struct selection_t
 			{
 				Entity target;
 
-				interaction_t(Entity target)
+				selection_t(Entity target)
+					: target(target)
+				{}
+			};
+
+			struct tab_t
+			{
+				Entity target;
+
+				tab_t(Entity target)
 					: target(target)
 				{}
 			};
