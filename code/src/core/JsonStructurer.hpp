@@ -86,6 +86,10 @@ namespace core
 		{
 			x = j;
 		}
+		void read_number(const json & j, double & x)
+		{
+			x = j;
+		}
 		template <typename T>
 		void read_number(const json & j, utility::optional<T> & x)
 		{

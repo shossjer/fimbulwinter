@@ -29,13 +29,31 @@ namespace gameplay
 		}
 	};
 
+	class SkillAmount
+	{
+	public:
+		std::string name;
+		double amount;
+
+	public:
+		static constexpr auto serialization()
+		{
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("name"), &SkillAmount::name),
+				std::make_pair(utility::string_view("amount"), &SkillAmount::amount)
+				);
+		}
+	};
+
 	class Recipe
 	{
 	public:
 		std::string name;
 		int durability;
 		utility::optional<int> time;
+		utility::optional<int> amount;
 		std::vector<Ingredient> ingredients;
+		std::vector<SkillAmount> skill_amounts;
 
 	public:
 		static constexpr auto serialization()
@@ -44,7 +62,9 @@ namespace gameplay
 				std::make_pair(utility::string_view("name"), &Recipe::name),
 				std::make_pair(utility::string_view("durability"), &Recipe::durability),
 				std::make_pair(utility::string_view("time"), &Recipe::time),
-				std::make_pair(utility::string_view("ingredients"), &Recipe::ingredients)
+				std::make_pair(utility::string_view("amount"), &Recipe::amount),
+				std::make_pair(utility::string_view("ingredients"), &Recipe::ingredients),
+				std::make_pair(utility::string_view("skills"), &Recipe::skill_amounts)
 				);
 		}
 	};
