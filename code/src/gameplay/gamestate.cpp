@@ -65,6 +65,7 @@ namespace
 		const gameplay::Recipe * recipe;
 
 		int time_remaining;
+		int number_of_stacks;
 	};
 
 	struct Kitchen
@@ -146,8 +147,11 @@ namespace
 				if (preparation.time_remaining > 0)
 					continue;
 
+				// there should be at least one stack
+				debug_assert(preparation.number_of_stacks > 0);
+
 				const int i = recipes.index(*preparation.recipe);
-				ingredient_counts[i]++;
+				ingredient_counts[i] += preparation.number_of_stacks;
 			}
 
 			for (int i = 0; i < recipes.size(); i++)
@@ -202,26 +206,32 @@ namespace
 				if (recipes.get(index).ingredients.empty())
 					continue; // raw ingredient
 
-				for (int k = 0; k < recipe.ingredients[j].quantity; k++)
+				int quantity = recipe.ingredients[j].quantity;
+				while (quantity > 0)
 				{
-					auto table_to_be_cleared = engine::Entity::null();
-					for (const auto & preparation : tables.get<Preparation>())
+					for (auto & preparation : tables.get<Preparation>())
 					{
 						if (preparation.time_remaining > 0)
 							continue;
+						if (preparation.recipe->name != recipe.ingredients[j].name)
+							continue;
 
-						if (preparation.recipe->name == recipe.ingredients[j].name)
+						debug_assert(preparation.number_of_stacks > 0);
+						if (preparation.number_of_stacks <= quantity)
 						{
-							table_to_be_cleared = tables.get_key(preparation);
-							break;
+							quantity -= preparation.number_of_stacks;
+							tables.remove(tables.get_key(preparation));
 						}
+						else
+						{
+							preparation.number_of_stacks -= quantity;
+							quantity = 0;
+						}
+						break;
 					}
-					debug_assert(table_to_be_cleared != engine::Entity::null());
-
-					tables.remove(table_to_be_cleared);
 				}
 			}
-			return tables.emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50);
+			return tables.emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50, recipe.amount.value_or(1));
 		}
 	} kitchen;
 
