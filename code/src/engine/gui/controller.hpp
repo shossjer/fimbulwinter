@@ -31,7 +31,21 @@ namespace engine
 
 			struct tab_t
 			{
+				// active tab - should never be null
+				View * active_tab;
 
+				// pages - only one added to pager at the time
+				std::vector<View *> pages;
+
+				// vector of all tab base views (to select / deselect)
+				std::vector<View *> tabs;
+
+				// pager; group view where the tab pages are shown
+				View & pager_view;
+
+				tab_t(View & pager_view)
+					: pager_view(pager_view)
+				{}
 			};
 		}
 	}

@@ -157,7 +157,9 @@ namespace
 			}
 			void operator() (const ControllerData::Tab & data)
 			{
-
+				auto & controller = controllers.emplace<controller::tab_t>(
+					view.entity,
+					view);
 			}
 			void operator() (const std::nullptr_t & data) { debug_unreachable(); }
 		};

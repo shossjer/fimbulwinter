@@ -34,10 +34,15 @@ namespace engine
 
 			struct tab_t
 			{
+				// base view of the clickable tab
 				Entity target;
 
-				tab_t(Entity target)
+				// id of the tab controller
+				Entity controller_id;
+
+				tab_t(Entity target, Entity controller_id)
 					: target(target)
+					, controller_id(controller_id)
 				{}
 			};
 		}

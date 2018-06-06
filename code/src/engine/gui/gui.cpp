@@ -32,7 +32,8 @@ namespace engine
 
 		extern void update(const Resources & resources, MessageData & data, Reactions & reactions, Views & views);
 
-		extern void update(const Resources & resources, MessageInteraction & data, Interactions & interactions, Views & views);
+		extern void update(const Resources & resources, MessageInteraction & data);
+	//	extern void update(const Resources & resources, MessageInteraction & data, Interactions & interactions, Views & views);
 	}
 }
 
@@ -60,7 +61,7 @@ namespace
 	{
 		controllers.clear();
 
-		//interactions.clear();
+		//TODO: interactions.clear();
 
 		clear(reactions);
 
@@ -93,6 +94,40 @@ namespace
 
 		return utility::get<View::Group>(screen_view->content);
 	}
+
+	struct MessageLookup
+	{
+		void operator() (MessageData && m)
+		{
+			// inform 'reaction' about new data available
+			update(resources, m, reactions, views);
+		}
+		void operator() (MessageDataSetup && m)
+		{
+			// setup the 'reaction' structure
+			setup(m, reactions);
+		}
+		void operator() (MessageInteraction && m)
+		{
+			if (interactions.contains(m.entity))
+			{
+				// manage player interaction
+				update(resources, m);
+			}
+		}
+		void operator() (MessageReload && m)
+		{
+			debug_printline(engine::gui_channel, "Reloading GUI");
+
+			View::Group & screen_group = reset();
+
+			create(resources, *screen_view, screen_group, load());
+		}
+		void operator() (MessageVisibility && m)
+		{
+			// TODO: window visibility update
+		}
+	};
 }
 
 namespace engine
@@ -122,41 +157,7 @@ namespace engine
 			UpdateMessage message;
 			while (::queue_posts.try_pop(message))
 			{
-				struct
-				{
-					void operator() (MessageData && m)
-					{
-						// inform 'reaction' about new data available
-						update(resources, m, reactions, views);
-					}
-					void operator() (MessageDataSetup && m)
-					{
-						// setup the 'reaction' structure
-						setup(m, reactions);
-					}
-					void operator() (MessageInteraction && m)
-					{
-						if (interactions.contains(m.entity))
-						{
-							// manage player interaction
-							update(resources, m, interactions, views);
-						}
-					}
-					void operator() (MessageReload && m)
-					{
-						debug_printline(engine::gui_channel, "Reloading GUI");
-
-						View::Group & screen_group = reset();
-
-						create(resources, *screen_view, screen_group, load());
-					}
-					void operator() (MessageVisibility && m)
-					{
-						// TODO: window visibility update
-					}
-				} processMessage;
-
-				visit(processMessage, std::move(message));
+				visit(MessageLookup{}, std::move(message));
 			}
 
 			// allow view's to update based on reaction or interaction changes (if any)

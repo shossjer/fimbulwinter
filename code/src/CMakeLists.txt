@@ -18,6 +18,7 @@ set(SOURCE_FILES
 	src/engine/graphics/opengl/Font_x11.cpp
 	src/engine/graphics/renderer.cpp
 	src/engine/graphics/viewer.cpp
+	src/engine/gui/controller.cpp
 	src/engine/gui/creation.cpp
 	src/engine/gui/gui.cpp
 	src/engine/gui/loading.cpp
