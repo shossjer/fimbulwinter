@@ -130,6 +130,17 @@ namespace
 			std::vector<const gameplay::Recipe *> available_recipes;
 
 			std::vector<int> ingredient_counts(recipes.size(), 0);
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				// a raw ingredient does not have ingredients
+				if (recipes.get(i).ingredients.empty())
+				{
+					// it does not make sense to have a time if the ingredient is raw
+					debug_assert(!recipes.get(i).time.has_value());
+
+					ingredient_counts[i] = (std::numeric_limits<int>::max)();
+				}
+			}
 			for (const auto & preparation : tables.get<Preparation>())
 			{
 				if (preparation.time_remaining > 0)
@@ -141,9 +152,9 @@ namespace
 
 			for (int i = 0; i < recipes.size(); i++)
 			{
-				bool is_available = true;
 				if (!recipes.get(i).ingredients.empty())
 				{
+					bool is_available = true;
 					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
 					{
 						const int index = recipes.find(recipes.get(i).ingredients[j].name);
@@ -157,10 +168,10 @@ namespace
 							break;
 						}
 					}
-				}
-				if (is_available)
-				{
-					available_recipes.push_back(&recipes.get(i));
+					if (is_available)
+					{
+						available_recipes.push_back(&recipes.get(i));
+					}
 				}
 			}
 
@@ -185,28 +196,29 @@ namespace
 		{
 			debug_assert(is_empty(table));
 
-			if (!recipe.ingredients.empty())
+			for (int j = 0; j < recipe.ingredients.size(); j++)
 			{
-				for (int j = 0; j < recipe.ingredients.size(); j++)
+				const int index = recipes.find(recipe.ingredients[j].name);
+				if (recipes.get(index).ingredients.empty())
+					continue; // raw ingredient
+
+				for (int k = 0; k < recipe.ingredients[j].quantity; k++)
 				{
-					for (int k = 0; k < recipe.ingredients[j].quantity; k++)
+					auto table_to_be_cleared = engine::Entity::null();
+					for (const auto & preparation : tables.get<Preparation>())
 					{
-						auto table_to_be_cleared = engine::Entity::null();
-						for (const auto & preparation : tables.get<Preparation>())
+						if (preparation.time_remaining > 0)
+							continue;
+
+						if (preparation.recipe->name == recipe.ingredients[j].name)
 						{
-							if (preparation.time_remaining > 0)
-								continue;
-
-							if (preparation.recipe->name == recipe.ingredients[j].name)
-							{
-								table_to_be_cleared = tables.get_key(preparation);
-								break;
-							}
+							table_to_be_cleared = tables.get_key(preparation);
+							break;
 						}
-						debug_assert(table_to_be_cleared != engine::Entity::null());
-
-						tables.remove(table_to_be_cleared);
 					}
+					debug_assert(table_to_be_cleared != engine::Entity::null());
+
+					tables.remove(table_to_be_cleared);
 				}
 			}
 			return tables.emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50);
@@ -247,6 +259,7 @@ namespace
 			for (const auto & skill_weight : role.skill_weights)
 			{
 				const int index = kitchen.skills.find(skill_weight.name);
+				debug_assert(index >= 0);
 				role_normalized_skills[index] = skill_weight.weight;
 			}
 			const double role_sum = std::accumulate(begin(role_normalized_skills), end(role_normalized_skills), 0.);
