@@ -45,30 +45,31 @@ namespace gui
 		}
 	};
 
-	struct ControllerData
+	struct controller_data_t
 	{
 		ReactionData reaction;
 
-		struct List
+		struct list_t
 		{
 			std::vector<DataVariant> item_template;
 		};
 
-		struct Tab
+		struct tab_t
 		{
-
+			std::string pager_name;
+			std::string tabs_name;
 		};
 
 		using Variant = utility::variant
 		<
 			std::nullptr_t,
-			List,
-			Tab
+			list_t,
+			tab_t
 		>;
 
 		Variant data;
 
-		ControllerData() : data(utility::in_place_type<std::nullptr_t>) {}
+		controller_data_t() : data(utility::in_place_type<std::nullptr_t>) {}
 	};
 
 	struct interaction_data_t
@@ -77,6 +78,7 @@ namespace gui
 		{
 			CLOSE,
 			INTERACTION,
+			// TAB is only created programatically
 			UNKNOWN
 		}
 		type;
@@ -96,7 +98,7 @@ namespace gui
 		Margin margin;
 		Gravity gravity;
 
-		ControllerData controller;
+		controller_data_t controller;
 		std::vector<interaction_data_t> interactions;
 		ReactionData reaction;
 

@@ -1,5 +1,6 @@
 
 #include "common.hpp"
+#include "controller.hpp"
 #include "exception.hpp"
 #include "loading.hpp"
 #include "resources.hpp"
@@ -105,12 +106,46 @@ namespace
 			auto p = parent->parent;
 
 			if (p->parent == nullptr)
-				return parent;
+				break;
 
 			parent = p;
 		}
 
 		return parent;
+	}
+
+	View * find_child(View & parent, const std::string & name)
+	{
+		struct
+		{
+			engine::Asset key;
+
+			View * operator() (View::Group & group)
+			{
+				for (auto child : group.children)
+				{
+					if (child->name == key)
+						return child;
+
+					View * view = visit(*this, child->content);
+
+					if (view != nullptr)
+						return view;
+				}
+
+				return nullptr;
+			}
+
+			View * operator() (const View::Color &) { return nullptr; }
+			View * operator() (const View::Text &) { return nullptr; }
+			View * operator() (const View::Texture &) { return nullptr; }
+		}
+		lookup{ engine::Asset{ name } };
+
+		if (lookup.key == parent.name)
+			return &parent;
+
+		return visit(lookup, parent.content);
 	}
 
 	auto & search_parent(View & view, const std::string & parent_name)
@@ -141,7 +176,7 @@ namespace
 			View & view;
 			const ViewData & data;
 
-			void operator() (const ControllerData::List & list_data)
+			void operator() (const controller_data_t::list_t & list_data)
 			{
 				auto & controller = controllers.emplace<controller::list_t>(
 					view.entity,
@@ -155,11 +190,55 @@ namespace
 				// create reaction for the list
 				node->reactions.emplace_back(&controller);
 			}
-			void operator() (const ControllerData::Tab & data)
+			void operator() (const controller_data_t::tab_t & data)
 			{
+				View * pager = find_child(view, data.pager_name);
+
+				if (pager == nullptr)
+				{
+					throw bad_json{ "Cannot find group view named: ", data.pager_name, " for tab controller." };
+				}
+
 				auto & controller = controllers.emplace<controller::tab_t>(
 					view.entity,
-					view);
+					*pager);
+
+				View * tabs_view = find_child(view, data.tabs_name);
+				auto & tabs_group = utility::get<View::Group>(tabs_view->content);
+
+				controller.tabs = tabs_group.children;
+
+				for (View * tab_view : controller.tabs)
+				{
+					View * tab_clickable = find_child(*tab_view, "tab_trigger");
+
+					if (tab_clickable == nullptr)
+					{
+						throw bad_json{ "Each tab layout needs to contain renderable view with name 'tab_trigger'" };
+					}
+
+					// create tab click action for each tab
+					interactions.emplace<action::tab_t>(tab_clickable->entity, tab_view->entity, view.entity);
+				}
+
+				controller.active_tab = controller.tabs[0];
+
+				auto & pager_group = utility::get<View::Group>(controller.pager_view.content);
+
+				// assert number of tabs matches number of pages
+				if (pager_group.children.size() != controller.tabs.size())
+				{
+					throw bad_json{ "Controller for 'tabs' must have same number of tabs as pages." };
+				}
+				if (pager_group.children.empty())
+				{
+					return;
+				}
+
+				// the controller needs a pointer to each available page
+				// remove all but the first page from the actual pager
+				controller.pages = std::move(pager_group.children);
+				pager_group.children.push_back(controller.pages[0]);
 			}
 			void operator() (const std::nullptr_t & data) { debug_unreachable(); }
 		};

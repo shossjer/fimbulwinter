@@ -18,7 +18,7 @@ namespace engine
 		namespace controller
 		{
 			struct list_t;
-			struct tab_t;
+			//struct tab_t;
 		}
 
 		struct reaction_list_t

@@ -40,8 +40,8 @@ namespace engine
 				ViewUpdater::status(selected_tab, Status::State::PRESSED);
 
 				// switch content
-				ViewUpdater::hide(*tab_controller.active_tab);
-				ViewUpdater::show(selected_tab);
+				ViewUpdater::hide(*utility::get<View::Group>(tab_controller.pager_view.content).children[0]);
+				ViewUpdater::show(*tab_controller.pages[index]);
 
 				tab_controller.active_tab = &selected_tab;
 			}

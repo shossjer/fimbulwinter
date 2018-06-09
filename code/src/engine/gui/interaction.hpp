@@ -32,6 +32,8 @@ namespace engine
 				{}
 			};
 
+			// tab_t is only created automatically as part of controller::tab_t.
+			// it is never specified in json files.
 			struct tab_t
 			{
 				// base view of the clickable tab

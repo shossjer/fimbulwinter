@@ -78,8 +78,11 @@ namespace engine
 
 				void operator() (action::tab_t & a)
 				{
-					// notify controller about tab click
-					controller::activate(controllers, views, a);
+					if (is_click(data))
+					{
+						// notify controller about tab click
+						controller::activate(controllers, views, a);
+					}
 				}
 
 			}
