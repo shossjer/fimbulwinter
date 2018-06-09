@@ -24,15 +24,19 @@ namespace engine
 		struct reaction_list_t
 		{
 			// handle to list-controller
-			controller::list_t * controller;
+			controller::list_t & controller;
 
-			reaction_list_t(controller::list_t * controller)
+			reaction_list_t(controller::list_t & controller)
 				: controller(controller)
 			{}
 		};
 		struct reaction_text_t
 		{
-			View * view;
+			View & view;
+
+			reaction_text_t(View & view)
+				: view(view)
+			{}
 		};
 
 		struct node_list_t;
@@ -64,7 +68,8 @@ namespace engine
 
 		struct node_map_t
 		{
-			std::unordered_map<engine::Asset, node_t> nodes;
+			// replace with vector
+			std::vector<std::pair<engine::Asset, node_t>> nodes;
 		};
 
 		struct node_text_t

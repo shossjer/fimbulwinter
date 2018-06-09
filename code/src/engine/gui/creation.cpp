@@ -81,14 +81,14 @@ namespace
 
 		node_t & find(node_map_t & node, engine::Asset key)
 		{
-			auto itr = node.nodes.find(key);
-			if (itr == node.nodes.end())
+			for (auto & pair : node.nodes)
 			{
-				// TODO: need better name feedback
-				debug_printline("WARN - Cannot find node");
-				throw key_missing{ "NA" };
+				if (pair.first == key)
+					return pair.second;
 			}
-			return itr->second;
+
+			debug_printline("WARN - Cannot find node");
+			throw key_missing{ "NA" };
 		}
 
 		bool is_finished()
@@ -188,7 +188,7 @@ namespace
 					FindNode{ data.controller.reaction.observe }(reactions));
 
 				// create reaction for the list
-				node->reactions.emplace_back(&controller);
+				node->reactions.emplace_back(controller);
 			}
 			void operator() (const controller_data_t::tab_t & data)
 			{
@@ -304,7 +304,7 @@ namespace
 				auto * node = static_cast<node_text_t*>(
 					FindNode{ data.reaction.observe }(reactions));
 
-				node->reactions.push_back(reaction_text_t{ &view });
+				node->reactions.push_back(reaction_text_t{ view });
 			}
 			void operator() (const View::Texture & content)
 			{

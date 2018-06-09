@@ -19,12 +19,24 @@ namespace
 
 	bool contains(const engine::Asset & key, const node_map_t & map)
 	{
-		return map.nodes.find(key) != map.nodes.end();
+		for (auto & pair : map.nodes)
+		{
+			if (pair.first == key)
+				return true;
+		}
+
+		return false;
+		//return map.nodes.find(key) != map.nodes.end();
 	}
 
 	node_t & find(const engine::Asset & key, node_map_t & map)
 	{
-		return map.nodes.find(key)->second;
+		for (auto & pair : map.nodes)
+		{
+			if (pair.first == key)
+				return pair.second;
+		}
+		//return map.nodes.find(key)->second;
 	}
 
 	class SetupLookup
@@ -43,7 +55,7 @@ namespace
 
 			for (auto & keyVal : keyValues.data)
 			{
-				content.nodes.emplace(keyVal.first, visit(*this, keyVal.second));
+				content.nodes.emplace_back(keyVal.first, visit(*this, keyVal.second));
 			}
 
 			return node;
@@ -97,8 +109,8 @@ namespace
 
 	void react(const Resources & resources, const reaction_list_t & reaction, const data::Values & values)
 	{
-		auto & view = reaction.controller->view;
-		auto & group = reaction.controller->group;
+		auto & view = reaction.controller.view;
+		auto & group = reaction.controller.group;
 
 		auto current_size = group.children.size();
 		auto goal_size = values.data.size();
@@ -111,7 +123,7 @@ namespace
 			for (std::size_t i = current_size; i < goal_size; i++)
 			{
 				// create a copy which we will replace any list index in
-				auto copy = reaction.controller->item_template;
+				auto copy = reaction.controller.item_template;
 				update_observer_number(copy, i);
 				create(resources, view, group, copy);
 			}
@@ -124,18 +136,18 @@ namespace
 
 			for (std::size_t i = current_size - items_remove; i < current_size; i++)
 			{
-				ViewUpdater::hide(*reaction.controller->group.children[i]);
+				ViewUpdater::hide(*reaction.controller.group.children[i]);
 			}
 		}
 	}
 
 	void react(const reaction_text_t & reaction, const std::string & data)
 	{
-		View::Text & content = utility::get<View::Text>(reaction.view->content);
+		View::Text & content = utility::get<View::Text>(reaction.view.content);
 		content.display = data;
 
-		auto change = ViewUpdater::update(*reaction.view, content);
-		ViewUpdater::parent(*reaction.view, change);
+		auto change = ViewUpdater::update(reaction.view, content);
+		ViewUpdater::parent(reaction.view, change);
 	}
 }
 
@@ -177,7 +189,7 @@ namespace engine
 		{
 			debug_assert(!contains(message.data.first, reactions));
 
-			reactions.nodes.emplace(message.data.first, visit(SetupLookup{}, message.data.second));
+			reactions.nodes.emplace_back(message.data.first, visit(SetupLookup{}, message.data.second));
 		}
 
 		void update(const Resources & resources, MessageData & message, Reactions & reactions, Views & views)
