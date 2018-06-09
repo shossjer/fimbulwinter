@@ -388,40 +388,27 @@ namespace
 				load_views(temp_parent, jtemplate);
 
 				// create the controller data object
-				data.controller.data = utility::in_place_type<ControllerData::List>;
-				auto & list_data = utility::get<ControllerData::List>(data.controller.data);
+				data.controller.data = utility::in_place_type<controller_data_t::list_t>;
+				auto & list_data = utility::get<controller_data_t::list_t>(data.controller.data);
 
 				// adopt child from temp container
 				list_data.item_template = std::move(temp_parent.children);
 			}
-			//case ViewData::Function::PROGRESS:
-			//{
-			////	if (contains(jfunction, "direction"))
-			////	{
-			////		const std::string direction = jfunction["direction"];
-			////		if (direction == "horizontal")
-			////		{
-			////			target.function.direction = ProgressBar::HORIZONTAL;
-			////		}
-			////		else
-			////		if (direction == "vertical")
-			////		{
-			////			target.function.direction = ProgressBar::VERTICAL;
-			////		}
-			////		else
-			////		{
-			////			debug_printline(engine::gui_channel, "GUI - Progress bar invalid direction: ", jcomponent);
-			////			throw bad_json();
-			////		}
-			////	}
-			////	else
-			////	{
-			////		target.function.direction = ProgressBar::HORIZONTAL;
-			////	}
-			//	break;
-			//}
-			//case ViewData::Function::TAB:
-			//	break;
+			else if (type == "tab")
+			{
+				if (!contains(jcontroller, "pager"))
+					throw bad_json{ "Controller of type 'tab' must specify 'pager' name", jcontroller };
+
+				if (!contains(jcontroller, "tabs"))
+					throw bad_json{ "Controller of type 'tab' must specify 'tabs' list", jcontroller };
+
+				data.controller.data = utility::in_place_type<controller_data_t::tab_t>;
+				auto & tab_data = utility::get<controller_data_t::tab_t>(data.controller.data);
+
+				// parse name of pager and the tabs
+				tab_data.pager_name = extract_string(jcontroller, "pager");
+				tab_data.tabs_name = extract_string(jcontroller, "tabs");
+			}
 			else
 			{
 				throw bad_json("Invalid controller type: ", jcontroller);

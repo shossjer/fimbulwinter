@@ -23,12 +23,28 @@ namespace engine
 				{}
 			};
 
-			struct interaction_t
+			struct selection_t
 			{
 				Entity target;
 
-				interaction_t(Entity target)
+				selection_t(Entity target)
 					: target(target)
+				{}
+			};
+
+			// tab_t is only created automatically as part of controller::tab_t.
+			// it is never specified in json files.
+			struct tab_t
+			{
+				// base view of the clickable tab
+				Entity target;
+
+				// id of the tab controller
+				Entity controller_id;
+
+				tab_t(Entity target, Entity controller_id)
+					: target(target)
+					, controller_id(controller_id)
 				{}
 			};
 		}
