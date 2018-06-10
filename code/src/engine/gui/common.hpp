@@ -20,14 +20,14 @@ namespace engine
 	{
 		using Controllers = core::container::Collection
 		<
-			engine::Entity, 111,
+			engine::Entity, 201,
 			std::array<controller::list_t, 51>,
 			std::array<controller::tab_t, 51>
 		>;
 
 		using Interactions = core::container::MultiCollection
 		<
-			engine::Entity, 111,
+			engine::Entity, 301,
 			std::array<action::close_t, 51>,
 			std::array<action::selection_t, 51>,
 			std::array<action::tab_t, 51>
@@ -37,7 +37,7 @@ namespace engine
 
 		using Views = core::container::Collection
 		<
-			engine::Entity, 201,
+			engine::Entity, 401,
 			std::array<View, 201>
 		>;
 	}
