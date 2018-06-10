@@ -3,8 +3,7 @@
 
 #include "gui_access.hpp"
 
-#include <engine/gui/creation.hpp>
-#include <engine/gui/measure.hpp>
+#include <engine/gui/view_refresh.hpp>
 #include <engine/gui/update.hpp>
 
 // Test to verify a PARENT sized Group with VERTICAL (or HORIZONTAL) layout;
@@ -14,22 +13,22 @@
 TEST_CASE("Change child size in PARENT Group, should affect other childen.", "[gui][ViewUpdater][parent]")
 {
 	View group0 = ViewAccess::create_group(
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::FIXED, height_t{ 400 } },{ Size::FIXED, width_t{ 600 } } });
 	View group1 = ViewAccess::create_group(
-		View::Group::Layout::VERTICAL,
+		Layout::VERTICAL,
 		Size{ { Size::PARENT },{ Size::PARENT } },	// PARENT infortant for the test
 		&group0);
 	View group2 = ViewAccess::create_group(
-		View::Group::Layout::VERTICAL,
+		Layout::VERTICAL,
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group1);
 	View group2a = ViewAccess::create_group(	// child view will be added here
-		View::Group::Layout::RELATIVE,
+		Layout::RELATIVE,
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group2);
 	View group2b = ViewAccess::create_group(	// this view should be offsetted after Group2 changes size
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::FIXED, height_t{100} }, { Size::FIXED, width_t{200} } },
 		&group2);
 
@@ -44,7 +43,7 @@ TEST_CASE("Change child size in PARENT Group, should affect other childen.", "[g
 	ViewUpdater::update(group1, utility::get<View::Group>(group1.content));
 	ViewUpdater::update(group0, utility::get<View::Group>(group0.content));
 
-	ViewMeasure::refresh(group0);
+	ViewRefresh::refresh(group0);
 
 	REQUIRE(!group0.change.any());
 	REQUIRE(!group1.change.any());
@@ -73,7 +72,7 @@ TEST_CASE("Change child size in PARENT Group, should affect other childen.", "[g
 		REQUIRE(group2a.size.height == height_t{20});
 		REQUIRE(group2a.size.width == width_t{100});
 
-		ViewMeasure::refresh(group1);
+		ViewRefresh::refresh(group1);
 
 		REQUIRE(group2.size.height == height_t{ 100 + 20 });
 		REQUIRE(group2.size.width == width_t{ 200 });
@@ -86,12 +85,12 @@ TEST_CASE("Change child size in PARENT Group, should affect other childen.", "[g
 TEST_CASE("Update parent size after adding child", "[gui][ViewUpdater][parent]")
 {
 	View group = ViewAccess::create_group(	// child view will be added here
-		View::Group::Layout::RELATIVE,
+		Layout::RELATIVE,
 		Size{ { Size::WRAP },{ Size::WRAP } });
 
 	ViewUpdater::update(group, utility::get<View::Group>(group.content));
 
-	ViewMeasure::refresh(group);
+	ViewRefresh::refresh(group);
 
 	REQUIRE(!group.change.any());
 
@@ -116,91 +115,6 @@ TEST_CASE("Update parent size after adding child", "[gui][ViewUpdater][parent]")
 		REQUIRE(group.size.height == height_t{ 20 });
 		REQUIRE(group.size.width == width_t{ 100 });
 
-		ViewMeasure::refresh(group);
-	}
-}
-
-// This test verified a problem with an item under a list was not offsetted
-// after the list was updated
-TEST_CASE("View{Group} with Function{List} should WRAP dynamic content", "[list][wrap]")
-{
-	resource::put("make_this_better", 0);
-
-	auto base = ViewAccess::create_group(
-		View::Group::Layout::VERTICAL,
-		Size{ { Size::WRAP },{ Size::FIXED, width_t{ 100 } }, });
-
-	auto group = ViewAccess::create_group(
-		View::Group::Layout::VERTICAL,
-		Size{ { Size::WRAP }, { Size::FIXED, width_t{ 100 } }, },
-		&base);
-
-	auto child_group = ViewAccess::create_group(
-		View::Group::Layout::VERTICAL,
-		Size{ { Size::WRAP },{ Size::WRAP }, },
-		&base);
-	auto child_text = ViewAccess::create_child(
-		View::Content{ utility::in_place_type<View::Text>, "make_this_better" },
-		Size{ { Size::FIXED, height_t{ 20 } },{ Size::FIXED, width_t{ 100 } } },
-		&child_group);
-
-	utility::get<View::Group>(base.content).adopt(&group);
-	utility::get<View::Group>(base.content).adopt(&child_group);
-	utility::get<View::Group>(child_group.content).adopt(&child_text);
-
-	auto function = ViewAccess::create_function(
-		Function::Content
-		{
-			utility::in_place_type<Function::List>,
-			DataVariant
-			{
-				utility::in_place_type<TextData>,
-				"Name",
-				Size{},
-				Margin{},
-				Gravity{},
-				"make_this_better",
-				"Display"
-			},
-		},
-		group);
-
-	auto & group_content = utility::get<View::Group>(group.content);
-	auto & list = utility::get<Function::List>(function.content);
-
-	GIVEN("an view with list function")
-	{
-		ViewMeasure::refresh(base);
-
-		REQUIRE(group.size.height == height_t{ 0 });
-		REQUIRE(group.size.width == width_t{100});
-
-		REQUIRE(child_text.offset.height == height_t{ 0 });
-		REQUIRE(child_text.offset.width == width_t{ 0 });
-
-		WHEN("the list is updated with items.")
-		{
-			std::vector<data::Value> items;
-			items.emplace_back(utility::in_place_type<std::string>, "str1");
-			items.emplace_back(utility::in_place_type<std::string>, "str2");
-			items.emplace_back(utility::in_place_type<std::string>, "str3");
-			ListReaction{ data::Values{ items } }(function);
-
-			REQUIRE(base.change.affects_size());
-
-			ViewMeasure::refresh(base);
-
-			auto child_height = group_content.children[0]->size.height;
-			REQUIRE(child_height.value > 0);
-
-			THEN("the list view should have its size updated.")
-			{
-				REQUIRE(group.size.height == height_t{ child_height.value * 3 });
-				REQUIRE(group.size.width == width_t{ 100 });
-
-				REQUIRE(child_text.offset.height == height_t{ child_height.value * 3 });
-				REQUIRE(child_text.offset.width == width_t{ 0 });
-			}
-		}
+		ViewRefresh::refresh(group);
 	}
 }

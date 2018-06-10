@@ -23,7 +23,7 @@ namespace engine
 TEST_CASE("ViewUpdater - Wrap Group", "[gui][ViewUpdater][wrap][group]")
 {
 	View group = ViewAccess::create_group(
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } });
 	View child1 = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text> },
@@ -40,7 +40,7 @@ TEST_CASE("ViewUpdater - Wrap Group", "[gui][ViewUpdater][wrap][group]")
 
 	SECTION("Group wrap size - Horizontal (Layout::Horizontal)")
 	{
-		group_content.layout = View::Group::HORIZONTAL;
+		group_content.layout = Layout::HORIZONTAL;
 
 		auto height = ViewTester::wrap_content<height_t>(group_content);
 		auto width = ViewTester::wrap_content<width_t>(group_content);
@@ -50,7 +50,7 @@ TEST_CASE("ViewUpdater - Wrap Group", "[gui][ViewUpdater][wrap][group]")
 	}
 	SECTION("Group wrap size - Vertical")
 	{
-		group_content.layout = View::Group::VERTICAL;
+		group_content.layout = Layout::VERTICAL;
 
 		auto height = ViewTester::wrap_content<height_t>(group_content);
 		auto width = ViewTester::wrap_content<width_t>(group_content);
@@ -60,7 +60,7 @@ TEST_CASE("ViewUpdater - Wrap Group", "[gui][ViewUpdater][wrap][group]")
 	}
 	SECTION("Group wrap size - Relative")
 	{
-		group_content.layout = View::Group::RELATIVE;
+		group_content.layout = Layout::RELATIVE;
 
 		auto height = ViewTester::wrap_content<height_t>(group_content);
 		auto width = ViewTester::wrap_content<width_t>(group_content);
@@ -92,7 +92,7 @@ TEST_CASE("ViewUpdater - Wrap Text", "[gui][ViewUpdater][wrap][text]")
 SCENARIO("ViewUpdater - Parent update", "[gui][ViewUpdater][parent]")
 {
 	View group = ViewAccess::create_group(
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } });
 	View child = ViewAccess::create_child(
 		View::Content{ utility::in_place_type<View::Text>, "1234 6789" },
@@ -146,14 +146,14 @@ SCENARIO("ViewUpdater - Parent update", "[gui][ViewUpdater][parent]")
 SCENARIO("ViewUpdater - Parent(s) update", "[gui][ViewUpdater][parent]")
 {
 	View group1 = ViewAccess::create_group(
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } });
 	View group2 = ViewAccess::create_group(
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group1);
 	View group3 = ViewAccess::create_group(
-		View::Group::Layout::HORIZONTAL,
+		Layout::HORIZONTAL,
 		Size{ { Size::WRAP },{ Size::WRAP } },
 		&group2);
 	View child = ViewAccess::create_child(

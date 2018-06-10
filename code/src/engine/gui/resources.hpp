@@ -6,6 +6,8 @@
 
 #include <engine/Asset.hpp>
 
+#include <utility/json.hpp>
+
 #include <cstdint>
 
 namespace engine
@@ -31,6 +33,19 @@ namespace engine
 
 			void purge();
 		}
+
+		class Resources
+		{
+		public:
+
+			Resources() {}
+
+			Resources(const json & jdata) {}
+
+		public:
+
+			const resource::Color * color(const engine::Asset asset) { return nullptr; }
+		};
 	}
 }
 

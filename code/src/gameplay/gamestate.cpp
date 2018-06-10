@@ -1,5 +1,7 @@
 
 #include "gamestate.hpp"
+#include "gamestate_gui.hpp"
+#include "gamestate_models.hpp"
 
 #include "core/JsonStructurer.hpp"
 #include <core/container/CircleQueue.hpp>
@@ -10,8 +12,8 @@
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
-#include <engine/gui/gui.hpp>
 #include "engine/hid/ui.hpp"
+#include "engine/gui/gui.hpp"
 #include <engine/physics/physics.hpp>
 #include "engine/replay/writer.hpp"
 #include "engine/resource/reader.hpp"
@@ -30,17 +32,22 @@
 #include <fstream>
 #include <utility>
 
+
 namespace
 {
 	using CameraActivator = gameplay::component::CameraActivator;
 	using FreeCamera = gameplay::component::FreeCamera;
 	using OverviewCamera = gameplay::component::OverviewCamera;
 
+	using namespace gameplay::gamestate;
+
 	template<typename T>
 	T & access_component(const engine::Entity entity);
 
 	// update "profile" of entity if it is currently shown (will not set entity as selected).
 	void profile_update(const engine::Entity entity);
+
+	std::unordered_map<engine::Asset, RecipeIngredient> ingredient_graph;
 
 	struct Selector
 	{
@@ -274,50 +281,6 @@ namespace
 		}
 	};
 
-	struct PlayerData
-	{
-		using Value = engine::gui::data::Value;
-		using Values = engine::gui::data::Values;
-		using KeyValue = engine::gui::data::KeyValue;
-		using KeyValues = engine::gui::data::KeyValues;
-
-		std::string name;
-
-		struct Skill
-		{
-			std::string name;
-		};
-
-		std::vector<Skill> skills;
-
-		KeyValue message() const
-		{
-			KeyValue main{ engine::Asset{ "player" }, utility::in_place_type<KeyValues> };
-			KeyValues & player = utility::get<KeyValues>(main.second);
-
-			player.data.push_back(
-				KeyValue{ engine::Asset{ "name" },{ utility::in_place_type<std::string>, this->name } });
-
-			player.data.push_back(
-				KeyValue{ engine::Asset{ "skills" }, utility::in_place_type<Values> });
-			Values & skills = utility::get<Values>(player.data.back().second);
-
-			skills.data.reserve(this->skills.size());
-
-			for (auto & skill : this->skills)
-			{
-				skills.data.emplace_back(utility::in_place_type<KeyValues>);
-
-				auto & skill_map = utility::get<KeyValues>(skills.data.back());
-
-				skill_map.data.push_back(
-					KeyValue{ engine::Asset{ "name" },{ utility::in_place_type<std::string>, skill.name } });
-			}
-
-			return main;
-		}
-	};
-
 	struct
 	{
 		// entity of currently "profiled" object
@@ -325,11 +288,11 @@ namespace
 
 		void operator() (Worker & worker)
 		{
-			PlayerData data{ "Chef Elzar" };
-			data.skills.push_back(PlayerData::Skill{ "Cutting" });
-			data.skills.push_back(PlayerData::Skill{ "Washing hands" });
-			data.skills.push_back(PlayerData::Skill{ "Potato" });
-			engine::gui::post(engine::gui::MessageData{ data.message() });
+			Player data{ "Chef Elzar" };
+			data.skills.push_back(Player::Skill{ "Cutting" });
+			data.skills.push_back(Player::Skill{ "Washing hands" });
+			data.skills.push_back(Player::Skill{ "Potato" });
+			engine::gui::post(engine::gui::MessageData{ encode_gui(data) });
 		}
 
 		template<typename T>
@@ -337,45 +300,6 @@ namespace
 		{}
 	}
 	profile_updater;
-
-	struct RecipeData
-	{
-		using Value = engine::gui::data::Value;
-		using Values = engine::gui::data::Values;
-		using KeyValue = engine::gui::data::KeyValue;
-		using KeyValues = engine::gui::data::KeyValues;
-
-		struct Recipe
-		{
-			std::string name;
-		};
-
-		std::vector<Recipe> recipes;
-
-		KeyValue message() const
-		{
-			KeyValue main{ engine::Asset{ "game" }, utility::in_place_type<KeyValues> };
-			KeyValues & game = utility::get<KeyValues>(main.second);
-
-			game.data.push_back(
-				KeyValue{ engine::Asset{ "recipes" }, utility::in_place_type<Values> });
-			Values & recipes = utility::get<Values>(game.data.back().second);
-
-			recipes.data.reserve(this->recipes.size());
-
-			for (auto & recipe : this->recipes)
-			{
-				recipes.data.emplace_back(utility::in_place_type<KeyValues>);
-
-				auto & recipe_map = utility::get<KeyValues>(recipes.data.back());
-
-				recipe_map.data.push_back(
-					KeyValue{ engine::Asset{ "name" },{ utility::in_place_type<std::string>, recipe.name } });
-			}
-
-			return main;
-		}
-	};
 
 	struct GUIComponent
 	{
@@ -613,6 +537,11 @@ namespace
 			return false;
 		}
 
+		bool operator () (engine::Entity, const GUIComponent &)
+		{
+			return true;
+		}
+
 		bool operator () (engine::Entity, const Option &)
 		{
 			return true;
@@ -630,6 +559,11 @@ namespace
 		const Selector & selector;
 
 		bool operator () (const Worker &)
+		{
+			return true;
+		}
+
+		bool operator () (const GUIComponent &)
 		{
 			return true;
 		}
@@ -750,6 +684,12 @@ namespace
 		engine::graphics::renderer::post_make_deselect(entity);
 	}
 
+	void update_gui(engine::Entity entity, engine::gui::MessageInteraction::State state)
+	{
+		// check if entity is "gui" component
+		engine::gui::post(engine::gui::MessageInteraction{ entity, state });
+	}
+
 	void Selector::translate(engine::Command command, utility::any && data)
 	{
 		switch (command)
@@ -766,6 +706,7 @@ namespace
 					if (!is_interactible)
 					{
 						lowlight(entity);
+						update_gui(entity, engine::gui::MessageInteraction::LOWLIGHT);
 						highlighted_entity = engine::Entity::null();
 					}
 				}
@@ -775,6 +716,7 @@ namespace
 				if (highlighted_entity != engine::Entity::null())
 				{
 					lowlight(highlighted_entity);
+					update_gui(highlighted_entity, engine::gui::MessageInteraction::LOWLIGHT);
 					highlighted_entity = engine::Entity::null();
 				}
 				if (entity != engine::Entity::null())
@@ -783,6 +725,7 @@ namespace
 					if (is_interactible)
 					{
 						highlight(entity);
+						update_gui(entity, engine::gui::MessageInteraction::HIGHLIGHT);
 						highlighted_entity = entity;
 					}
 				}
@@ -793,6 +736,7 @@ namespace
 		{
 			engine::Entity entity = utility::any_cast<engine::Entity>(data);
 
+			update_gui(entity, engine::gui::MessageInteraction::PRESS);
 			pressed_entity = entity;
 			break;
 		}
@@ -813,6 +757,7 @@ namespace
 							if (selected_entity == entity)
 							{
 								deselect(entity);
+								update_gui(entity, engine::gui::MessageInteraction::RELEASE);
 								selected_entity = engine::Entity::null();
 							}
 							else
@@ -820,9 +765,11 @@ namespace
 								if (selected_entity != engine::Entity::null())
 								{
 									deselect(selected_entity);
+									update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 									selected_entity = engine::Entity::null();
 								}
 								select(entity);
+								update_gui(entity, engine::gui::MessageInteraction::PRESS);
 								selected_entity = entity;
 							}
 						}
@@ -833,6 +780,7 @@ namespace
 						if (selected_entity != engine::Entity::null())
 						{
 							deselect(selected_entity);
+							update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 							selected_entity = engine::Entity::null();
 						}
 						recipes_ring.hide();
@@ -843,6 +791,7 @@ namespace
 					if (selected_entity != engine::Entity::null())
 					{
 						deselect(selected_entity);
+						update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 						selected_entity = engine::Entity::null();
 					}
 					recipes_ring.hide();
@@ -853,6 +802,7 @@ namespace
 				if (selected_entity != engine::Entity::null())
 				{
 					deselect(selected_entity);
+					update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 					selected_entity = engine::Entity::null();
 				}
 				recipes_ring.hide();
@@ -872,13 +822,6 @@ namespace
 		kitchen.init_recipes(std::move(data.structurer));
 
 		recipes_ring.init(kitchen.recipes);
-
-		RecipeData gui_data;
-		for (int i = 0; i < kitchen.recipes.size(); i++)
-		{
-			gui_data.recipes.push_back(RecipeData::Recipe{ kitchen.recipes.get(i).name });
-		}
-		engine::gui::post(engine::gui::MessageData{ gui_data.message() });
 	}
 	void data_callback_skills(std::string name, engine::resource::reader::Data && data)
 	{
@@ -990,15 +933,10 @@ namespace gamestate
 		gameplay::create_level(engine::Entity::create(), "level");
 
 		// assign reaction structure to engine::gui
+		engine::gui::post(engine::gui::MessageDataSetup{ encode_gui(Player{ "name",{ Player::Skill{ "name" } } }) });
 		{
-			PlayerData data{};
-			data.skills.emplace_back(PlayerData::Skill{});
-			engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
-		}
-		{
-			RecipeData data{};
-			data.recipes.emplace_back(RecipeData::Recipe{});
-			engine::gui::post(engine::gui::MessageDataSetup{ data.message() });
+			Dish dish{ std::string{ "name" }, std::string{ "desc" } };
+			engine::gui::post(engine::gui::MessageDataSetup{ encode_gui({ &dish, &dish, &dish, &dish }) });
 		}
 
 		// trigger first load of GUI
@@ -1006,6 +944,14 @@ namespace gamestate
 
 		engine::resource::reader::post_read_data("recipes", data_callback_recipes);
 		engine::resource::reader::post_read_data("skills", data_callback_skills);
+
+		{
+			Player data{ "Chef Elzar" };
+			data.skills.push_back(Player::Skill{ "Cutting" });
+			data.skills.push_back(Player::Skill{ "Washing hands" });
+			data.skills.push_back(Player::Skill{ "Potato" });
+			engine::gui::post(engine::gui::MessageData{ encode_gui(data) });
+		}
 	}
 
 	void destroy()

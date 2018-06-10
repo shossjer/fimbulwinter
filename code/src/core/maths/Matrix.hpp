@@ -201,7 +201,7 @@ namespace core
 
 		public:
 			Matrix() = default;
-#if defined(_MSC_VER) && _MSC_VER <= 1912
+#if defined(_MSC_VER) && _MSC_VER <= 1913
 			template <typename P1, typename P2, typename P3, typename P4, typename P5, typename P6, typename P7, typename P8, typename P9, typename P10, typename P11, typename P12, typename P13, typename P14, typename P15, typename P16>
 			Matrix(P1 && p1, P2 && p2, P3 && p3, P4 && p4, P5 && p5, P6 && p6, P7 && p7, P8 && p8, P9 && p9, P10 && p10, P11 && p11, P12 && p12, P13 && p13, P14 && p14, P15 && p15, P16 && p16, mpl::enable_if_t<utility::int_hack<P1, 16>::value == M * N, int> = 0) :
 				values(utl::transpose<value_type, N, M>({{value_type{std::forward<P1>(p1)}, value_type{std::forward<P2>(p2)}, value_type{std::forward<P3>(p3)}, value_type{std::forward<P4>(p4)}, value_type{std::forward<P5>(p5)}, value_type{std::forward<P6>(p6)}, value_type{std::forward<P7>(p7)}, value_type{std::forward<P8>(p8)}, value_type{std::forward<P9>(p9)}, value_type{std::forward<P10>(p10)}, value_type{std::forward<P11>(p11)}, value_type{std::forward<P12>(p12)}, value_type{std::forward<P13>(p13)}, value_type{std::forward<P14>(p14)}, value_type{std::forward<P15>(p15)}, value_type{std::forward<P16>(p16)}}}))

@@ -2,7 +2,6 @@
 #ifndef TEST_ENGINE_GUI_GUI_ACCESS_HPP
 #define TEST_ENGINE_GUI_GUI_ACCESS_HPP
 
-#include <engine/gui/function.hpp>
 #include <engine/gui/update.hpp>
 #include <engine/gui/view.hpp>
 
@@ -25,7 +24,7 @@ namespace engine
 			static Size & size(View & view) { return view.size; }
 
 			static View create_group(
-				View::Group::Layout layout,
+				Layout layout,
 				Size size,
 				View * parent = nullptr,
 				Margin margin = Margin{})
@@ -33,6 +32,7 @@ namespace engine
 				return View{
 					Entity::create(),
 					View::Content{ utility::in_place_type<View::Group>, layout },
+					engine::Asset{},
 					Gravity{},
 					margin,
 					size,
@@ -48,20 +48,11 @@ namespace engine
 				return View{
 					Entity::create(),
 					std::move(content),
+					engine::Asset{},
 					gravity,
 					margin,
 					size,
 					parent };
-			}
-
-			static Function create_function(
-				Function::Content && content,
-				View & view)
-			{
-				return Function{
-					Entity{0},
-					std::move(content),
-					&view };
 			}
 		};
 	}

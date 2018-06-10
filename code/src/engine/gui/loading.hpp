@@ -1,12 +1,11 @@
 
 // should not be included outside gui namespace.
 
-#ifndef ENGINE_GUI_LOADING_HPP
-#define ENGINE_GUI_LOADING_HPP
+#ifndef ENGINE_GUI_VIEW_CREATION_HPP
+#define ENGINE_GUI_VIEW_CREATION_HPP
 
-#include "common.hpp"
-#include "function.hpp"
-#include "view.hpp"
+// this dependency could be removed if margin, gravity etc is replaced by some "load" version
+#include "view_data.hpp"
 
 #include <engine/Asset.hpp>
 
@@ -31,6 +30,67 @@ namespace gui
 		TextureData
 	>;
 
+	struct ReactionData
+	{
+		union Node
+		{
+			engine::Asset key;
+			int index;
+		};
+		std::vector<Node> observe;
+
+		bool is_set() const
+		{
+			return !this->observe.empty();
+		}
+	};
+
+	struct controller_data_t
+	{
+		ReactionData reaction;
+
+		struct list_t
+		{
+			std::vector<DataVariant> item_template;
+		};
+
+		struct tab_t
+		{
+			std::string pager_name;
+			std::string tabs_name;
+		};
+
+		using Variant = utility::variant
+		<
+			std::nullptr_t,
+			list_t,
+			tab_t
+		>;
+
+		Variant data;
+
+		controller_data_t() : data(utility::in_place_type<std::nullptr_t>) {}
+	};
+
+	struct interaction_data_t
+	{
+		enum
+		{
+			CLOSE,
+			INTERACTION,
+			// TAB is only created programatically
+			UNKNOWN
+		}
+		type;
+
+		std::string target;
+
+		auto has_target() const
+		{
+			return !target.empty();
+		}
+	};
+
 	struct ViewData
 	{
 		std::string name;
@@ -38,52 +98,21 @@ namespace gui
 		Margin margin;
 		Gravity gravity;
 
-		struct React
-		{
-			Asset key;
-		};
+		controller_data_t controller;
+		std::vector<interaction_data_t> interactions;
+		ReactionData reaction;
 
-		struct Action
-		{
-			static constexpr Asset CLOSE{ "close" };
-			static constexpr Asset INTERACTION{ "interaction" };
-			static constexpr Asset MOVER{ "mover" };
-			static constexpr Asset SELECT{ "selectable" };
-			static constexpr Asset TRIGGER{ "trigger" };
-
-			Asset type;
-			Asset target;
-		};
-
-		std::vector<Action> actions;
-
-		struct Function
-		{
-			static constexpr Asset LIST{ "list" };
-			static constexpr Asset PROGRESS{ "progressBar" };
-			static constexpr Asset TAB{ "tabBar" };
-
-			Asset type;
-
-			std::vector<React> reaction;
-			std::vector<DataVariant> templates;
-		}
-		function;
-
-		std::vector<React> reaction;
-
-		ViewData(std::string name, Size size, Margin margin, Gravity gravity)
-			: name(name)
+		ViewData(Size size)
+			: name()
 			, size(size)
-			, margin(margin)
-			, gravity(gravity)
+			, margin()
+			, gravity()
 		{
-			function.type = Asset::null();
 		}
 
-		bool has_action() const
+		bool has_controller() const
 		{
-			return !this->actions.empty();
+			return !utility::holds_alternative<std::nullptr_t>(controller.data);
 		}
 
 		bool has_name() const
@@ -93,21 +122,21 @@ namespace gui
 
 		bool has_reaction() const
 		{
-			return !this->reaction.empty();
+			return !reaction.observe.empty();
 		}
 
-		// in one place a dynamic cast is performed...
-		virtual void dummy() {};
+	private:
+		virtual void hack() const {}
 	};
 
 	struct GroupData : ViewData
 	{
-		View::Group::Layout layout;
+        Layout layout;
 		std::vector<DataVariant> children;
 
-		GroupData(std::string name, Size size, Margin margin, Gravity gravity, View::Group::Layout layout)
-			: ViewData(name, size, margin, gravity)
-			, layout(layout)
+		GroupData()
+			: ViewData(Size{ Size::PARENT, Size::PARENT })
+			, layout()
 		{}
 	};
 
@@ -115,9 +144,9 @@ namespace gui
 	{
 		Asset color;
 
-		PanelData(std::string name, Size size, Margin margin, Gravity gravity, Asset color)
-			: ViewData(name, size, margin, gravity)
-			, color(color)
+		PanelData()
+			: ViewData(Size{ Size::PARENT, Size::PARENT })
+			, color(Asset::null())
 		{}
 	};
 
@@ -126,10 +155,10 @@ namespace gui
 		Asset color;
 		std::string display;
 
-		TextData(std::string name, Size size, Margin margin, Gravity gravity, Asset color, std::string display)
-			: ViewData(name, size, margin, gravity)
-			, color(color)
-			, display(display)
+		TextData()
+			: ViewData(Size{ Size::WRAP, Size::WRAP })
+			, color(Asset::null())
+			, display()
 		{}
 	};
 
@@ -137,12 +166,14 @@ namespace gui
 	{
 		Asset texture;
 
-		TextureData(std::string name, Size size, Margin margin, Gravity gravity, Asset texture)
-			: ViewData(name, size, margin, gravity)
-			, texture(texture)
+		TextureData()
+			: ViewData(Size{ Size::PARENT, Size::PARENT })
+			, texture(Asset::null())
 		{}
 	};
+
+	std::vector<DataVariant> load();
 }
 }
 
-#endif // ENGINE_GUI_LOADING_HPP
+#endif // ENGINE_GUI_VIEW_CREATION_HPP

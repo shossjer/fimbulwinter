@@ -9,7 +9,6 @@
 #include "gui.hpp"
 
 #include "common.hpp"
-#include "function.hpp"
 #include "loading.hpp"
 #include "render.hpp"
 #include "view.hpp"
@@ -42,7 +41,7 @@ namespace engine
 
 				switch (content.layout)
 				{
-				case View::Group::Layout::VERTICAL:
+				case Layout::VERTICAL:
 					for (View *child : content.children)
 					{
 						// calc total height if vertical
@@ -70,7 +69,7 @@ namespace engine
 
 				switch (content.layout)
 				{
-				case View::Group::Layout::HORIZONTAL:
+				case Layout::HORIZONTAL:
 					for (View *child : content.children)
 					{
 						// calc total width if vertical

@@ -4,12 +4,14 @@
 #ifndef ENGINE_GUI_VIEW_HPP
 #define ENGINE_GUI_VIEW_HPP
 
-#include "common.hpp"
+#include "view_data.hpp"
 #include "resources.hpp"
 
-#include <engine/debug.hpp>
+#include "engine/debug.hpp"
 
-#include <utility/variant.hpp>
+#include "core/container/Collection.hpp"
+
+#include "utility/variant.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -18,26 +20,13 @@ namespace engine
 {
 	namespace gui
 	{
-		class Function;
-
 		class View
 		{
-			friend struct ViewAccess;
-			friend struct ViewMeasure;
-			friend struct ViewUpdater;
-
 		public:
 
 			struct Group
 			{
-				enum Layout
-				{
-					HORIZONTAL,
-					VERTICAL,
-					RELATIVE
-				};
-
-				Layout layout;
+                Layout layout;
 				std::vector<View *> children;
 
 				void adopt(View * child) { this->children.push_back(child); }
@@ -47,8 +36,10 @@ namespace engine
 					auto itr = std::find(this->children.begin(), this->children.end(), child);
 					if (itr == this->children.end())
 					{
-						debug_printline(engine::gui_channel, "Child missing from parent.");
-						debug_unreachable();
+						// already removed
+						return;
+					//	debug_printline(engine::gui_channel, "Child missing from parent.");
+					//	debug_unreachable();
 					}
 					this->children.erase(itr);
 				}
@@ -84,6 +75,8 @@ namespace engine
 
 			Content content;
 
+			Asset name;
+
 			Gravity gravity;
 
 			Margin margin;
@@ -101,23 +94,23 @@ namespace engine
 			// remove this somehow
 			float depth;
 
-			// remove this somehow
+			// is set to true if it has an action.
+			// possible to solve it better?
 			bool selectable;
-
-			// would be nice if it could be removed...
-			Function * function;
 
 		public:
 
 			View(
 				Entity entity,
 				Content && content,
+				Asset name,
 				Gravity gravity,
 				Margin margin,
 				Size size,
 				View *const parent)
 				: entity(entity)
 				, content(std::move(content))
+				, name(name)
 				, gravity(gravity)
 				, margin(margin)
 				, size(size)
@@ -125,7 +118,6 @@ namespace engine
 				, change()
 				, status()
 				, selectable(false)
-				, function(nullptr)
 			{}
 		};
 	}
