@@ -27,7 +27,7 @@ res/gui/windows.json    c1b2e3d9032ac2810e433204637b7f0f9994a98730389e0173a9bda4
 res/level.lvl           0cb2fe8a343f61e723c64a2323e93ff24e4859d87ae2301a0fe1fc54e4c3d175
 res/oven.json           527251e72141613a99a57e456173031096444db27ac4f16aa48795b5f821a5b8
 res/photo.png           51bfe71f704cad035b9ea120e9f14d9d92797a91a5c375c351b7f80639426831
-res/recipes.json        5f8ca22ac471ed5e23c81d3e86d5dde1c55f9f1d128c2de6b7c0eb61bfbe6f28
+res/recipes.json        9ec1a401744a943fb5b5511d3952fd076c727a9ddcfebfca846ca80b0cd8b8d9
 res/shredded-carrot.png 7ce99b9e37f2fe5e96b882332fc9483cb7aa1ff3b3a84eafd37233405d5df254
 res/skills.json         6b845ce65b8919ca499d4ab400abf353a70a2c2a8b8776e9fc11388be732922c
 res/sponge-cake.png     3b0c24d969b3331cfcf6e85f28ef0702da20b6fc59b0bba39ac74b69fbfbe86d

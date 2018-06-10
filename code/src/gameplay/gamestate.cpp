@@ -537,6 +537,11 @@ namespace
 			return false;
 		}
 
+		bool operator () (engine::Entity, const GUIComponent &)
+		{
+			return true;
+		}
+
 		bool operator () (engine::Entity, const Option &)
 		{
 			return true;
@@ -554,6 +559,11 @@ namespace
 		const Selector & selector;
 
 		bool operator () (const Worker &)
+		{
+			return true;
+		}
+
+		bool operator () (const GUIComponent &)
 		{
 			return true;
 		}
@@ -674,6 +684,12 @@ namespace
 		engine::graphics::renderer::post_make_deselect(entity);
 	}
 
+	void update_gui(engine::Entity entity, engine::gui::MessageInteraction::State state)
+	{
+		// check if entity is "gui" component
+		engine::gui::post(engine::gui::MessageInteraction{ entity, state });
+	}
+
 	void Selector::translate(engine::Command command, utility::any && data)
 	{
 		switch (command)
@@ -690,6 +706,7 @@ namespace
 					if (!is_interactible)
 					{
 						lowlight(entity);
+						update_gui(entity, engine::gui::MessageInteraction::LOWLIGHT);
 						highlighted_entity = engine::Entity::null();
 					}
 				}
@@ -699,6 +716,7 @@ namespace
 				if (highlighted_entity != engine::Entity::null())
 				{
 					lowlight(highlighted_entity);
+					update_gui(highlighted_entity, engine::gui::MessageInteraction::LOWLIGHT);
 					highlighted_entity = engine::Entity::null();
 				}
 				if (entity != engine::Entity::null())
@@ -707,6 +725,7 @@ namespace
 					if (is_interactible)
 					{
 						highlight(entity);
+						update_gui(entity, engine::gui::MessageInteraction::HIGHLIGHT);
 						highlighted_entity = entity;
 					}
 				}
@@ -717,6 +736,7 @@ namespace
 		{
 			engine::Entity entity = utility::any_cast<engine::Entity>(data);
 
+			update_gui(entity, engine::gui::MessageInteraction::PRESS);
 			pressed_entity = entity;
 			break;
 		}
@@ -737,6 +757,7 @@ namespace
 							if (selected_entity == entity)
 							{
 								deselect(entity);
+								update_gui(entity, engine::gui::MessageInteraction::RELEASE);
 								selected_entity = engine::Entity::null();
 							}
 							else
@@ -744,9 +765,11 @@ namespace
 								if (selected_entity != engine::Entity::null())
 								{
 									deselect(selected_entity);
+									update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 									selected_entity = engine::Entity::null();
 								}
 								select(entity);
+								update_gui(entity, engine::gui::MessageInteraction::PRESS);
 								selected_entity = entity;
 							}
 						}
@@ -757,6 +780,7 @@ namespace
 						if (selected_entity != engine::Entity::null())
 						{
 							deselect(selected_entity);
+							update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 							selected_entity = engine::Entity::null();
 						}
 						recipes_ring.hide();
@@ -767,6 +791,7 @@ namespace
 					if (selected_entity != engine::Entity::null())
 					{
 						deselect(selected_entity);
+						update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 						selected_entity = engine::Entity::null();
 					}
 					recipes_ring.hide();
@@ -777,6 +802,7 @@ namespace
 				if (selected_entity != engine::Entity::null())
 				{
 					deselect(selected_entity);
+					update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 					selected_entity = engine::Entity::null();
 				}
 				recipes_ring.hide();
