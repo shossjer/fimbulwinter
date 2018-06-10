@@ -97,7 +97,7 @@ namespace
 		}
 	};
 
-	auto & search_window(View & view)
+	View * search_window(View & view)
 	{
 		View * parent = view.parent->parent;
 
@@ -273,6 +273,11 @@ namespace
 
 				target = interaction.has_target() ? search_parent(view, interaction.target).entity : view.entity;
 				interactions.emplace<action::selection_t>(view.entity, target);
+				break;
+
+			default:
+
+				debug_printline(engine::gui_channel, "Unknown interaction type.");
 				break;
 			}
 		}

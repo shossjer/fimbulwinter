@@ -36,6 +36,8 @@ namespace
 			if (pair.first == key)
 				return pair.second;
 		}
+
+		debug_unreachable();
 		//return map.nodes.find(key)->second;
 	}
 
