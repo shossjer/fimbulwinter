@@ -23,6 +23,7 @@
 #include <engine/debug.hpp>
 #include "engine/graphics/message.hpp"
 #include <engine/graphics/viewer.hpp>
+#include "engine/resource/reader.hpp"
 
 #include <utility/any.hpp>
 #include <utility/variant.hpp>
@@ -147,6 +148,321 @@ namespace
 		friend void glLoadMatrix(const Stack & stack)
 		{
 			glLoadMatrix(stack.stack.top());
+		}
+	};
+
+	struct beginline_t { explicit constexpr beginline_t(int) {} };
+	struct endline_t { explicit constexpr endline_t(int) {} };
+	struct endoffile_t { explicit constexpr endoffile_t(int) {} };
+	struct newline_t { explicit constexpr newline_t(int) {} };
+	struct whitespace_t { explicit constexpr whitespace_t(int) {} };
+
+	constexpr beginline_t beginline{ 0 };
+	constexpr endline_t endline{ 0 };
+	constexpr endoffile_t endoffile{ 0 };
+	constexpr newline_t newline{ 0 };
+	constexpr whitespace_t whitespace{ 0 };
+
+	struct ShaderStructurer
+	{
+		std::vector<char> buffer;
+		int read;
+
+		int parse_impl(int curr) const
+		{
+			return curr;
+		}
+
+		template <typename ...Ps>
+		int parse_impl(int curr, beginline_t, Ps && ...ps) const
+		{
+			if (curr == 0)
+				return 0;
+
+			if (!(buffer[curr - 1] == '\n' ||
+			      buffer[curr - 1] == '\r'))
+				return -(curr + 1);
+
+			return parse_impl(curr, std::forward<Ps>(ps)...);
+		}
+
+		template <typename ...Ps>
+		int parse_impl(int curr, endline_t, Ps && ...ps) const
+		{
+			if (curr >= buffer.size())
+				return -(curr + 1);
+
+			while (buffer[curr] == '\n' ||
+			       buffer[curr] == '\r')
+			{
+				curr++;
+				if (curr >= buffer.size())
+					return -(curr + 1);
+			}
+
+			return parse_impl(curr, std::forward<Ps>(ps)...);
+		}
+
+		template <typename ...Ps>
+		int parse_impl(int curr, newline_t, Ps && ...ps) const
+		{
+			return parse_impl(curr, endline, std::forward<Ps>(ps)...);
+		}
+
+		template <typename ...Ps>
+		int parse_impl(int curr, whitespace_t, Ps && ...ps) const
+		{
+			if (curr >= buffer.size())
+				return -(curr + 1);
+
+			while (buffer[curr] == '\n' ||
+			       buffer[curr] == '\r' ||
+			       buffer[curr] == '\t' ||
+			       buffer[curr] == ' ')
+			{
+				curr++;
+				if (curr >= buffer.size())
+					return -(curr + 1);
+			}
+
+			return parse_impl(curr, std::forward<Ps>(ps)...);
+		}
+
+		template <typename ...Ps>
+		int parse_impl(int curr, const char * pattern, Ps && ...ps) const
+		{
+			for (const char * p = pattern; *p != '\0'; p++)
+			{
+				if (curr >= buffer.size())
+					return -(curr + 1);
+
+				if (*p != buffer[curr])
+					return -(curr + 1);
+
+				curr++;
+			}
+
+			return parse_impl(curr, std::forward<Ps>(ps)...);
+		}
+
+		template <typename ...Ps>
+		int parse_impl(int curr, int & x, Ps && ...ps) const
+		{
+			int end = curr;
+			if (end >= buffer.size())
+				return -(end + 1);
+
+			while (buffer[end] >= '0' && buffer[end] <= '9')
+			{
+				end++;
+				if (end >= buffer.size())
+					return -(end + 1);
+			}
+			utility::from_string(std::string(buffer.data() + curr, buffer.data() + end), x, true);
+
+			return parse_impl(end, std::forward<Ps>(ps)...);
+		}
+
+		template <typename ...Ps>
+		int parse_impl(int curr, std::string & x, Ps && ...ps) const
+		{
+			if (curr >= buffer.size())
+				return -(curr + 1);
+
+			if (buffer[curr] == '"')
+			{
+				debug_fail();
+				return -(curr + 1);
+			}
+			else
+			{
+				int end = curr;
+				while (!(buffer[end] == '\n' || buffer[end] == '\r' || buffer[end] == '\t' || buffer[end] == ' '))
+				{
+					end++;
+					if (end >= buffer.size())
+						return -(end + 1);
+				}
+				x = std::string(buffer.data() + curr, buffer.data() + end);
+
+				return parse_impl(end, std::forward<Ps>(ps)...);
+			}
+		}
+
+		template <typename P1, typename ...Ps>
+		bool parse(P1 && p1, Ps && ...ps)
+		{
+			const int curr = parse_impl(read, std::forward<P1>(p1), std::forward<Ps>(ps)...);
+			if (curr < 0)
+				return false;
+
+			read = curr;
+			return true;
+		}
+
+		int tell() const { return read; }
+
+		int find(endoffile_t) const
+		{
+			return buffer.size();
+		}
+
+		template <typename P1, typename ...Ps>
+		int find(P1 && p1, Ps && ...ps) const
+		{
+			int curr = read;
+			while(true)
+			{
+				const int match = parse_impl(curr, p1, ps...);
+				if (match >= 0)
+					return curr;
+
+				if (curr >= buffer.size())
+					return -(curr + 1);
+
+				curr++;
+			}
+		}
+
+		bool parse_region(int from, int to, std::string & x)
+		{
+			debug_assert(from == read);
+			if (!(from <= to && to <= buffer.size()))
+				return false;
+
+			x = std::string(buffer.data() + from, buffer.data() + to);
+			read = to;
+			return true;
+		}
+
+		void set(const char * const bytes, const int size)
+		{
+			buffer = std::vector<char>(bytes, bytes + size);
+			read = 0;
+		}
+	};
+
+	struct ShaderData
+	{
+		struct FragmentOutput
+		{
+			std::string name;
+			int value;
+		};
+
+		struct VertexInput
+		{
+			std::string name;
+			int value;
+		};
+
+		std::vector<VertexInput> inputs;
+		std::vector<FragmentOutput> outputs;
+		std::string vertex_source;
+		std::string fragment_source;
+
+		friend void serialize(ShaderStructurer & s, ShaderData & x)
+		{
+			s.parse("[vertex]", newline);
+			while (s.parse("[bind", whitespace))
+			{
+				x.inputs.emplace_back();
+				s.parse(x.inputs.back().name, whitespace, x.inputs.back().value, "]", newline);
+			}
+			const int vertex_source_begin = s.tell();
+			const int vertex_source_end = s.find(beginline, "[fragment]", endline);
+			s.parse_region(vertex_source_begin, vertex_source_end, x.vertex_source);
+
+			s.parse("[fragment]", newline);
+			while (s.parse("[bind", whitespace))
+			{
+				x.outputs.emplace_back();
+				s.parse(x.outputs.back().name, whitespace, x.outputs.back().value, "]", newline);
+			}
+			const int fragment_source_begin = s.tell();
+			const int fragment_source_end = s.find(endoffile);
+			s.parse_region(fragment_source_begin, fragment_source_end, x.fragment_source);
+		}
+	};
+
+	struct ShaderManager
+	{
+		engine::Asset assets[10];
+		GLint programs[10];
+		GLint vertices[10];
+		GLint fragments[10];
+		int count = 0;
+
+		GLint get(engine::Asset asset) const
+		{
+			for (int i = 0; i < count; i++)
+			{
+				if (assets[i] == asset)
+					return programs[i];
+			}
+			return -1;
+		}
+
+		GLint create(engine::Asset asset, ShaderData && shader_data)
+		{
+			GLint vs = glCreateShader(GL_VERTEX_SHADER);
+			const char * vs_source = shader_data.vertex_source.c_str();
+			glShaderSource(vs, 1, &vs_source, nullptr);
+			glCompileShader(vs);
+			GLint vs_compile_status;
+			glGetShaderiv(vs, GL_COMPILE_STATUS, &vs_compile_status);
+			if (!vs_compile_status)
+			{
+				char buffer[1000];
+				int length;
+				glGetShaderInfoLog(vs, 1000, &length, buffer);
+				debug_printline("vertex shader entity failed to compile with: ", buffer);
+			}
+
+			GLint fs = glCreateShader(GL_FRAGMENT_SHADER);
+			const char * fs_source = shader_data.fragment_source.c_str();
+			glShaderSource(fs, 1, &fs_source, nullptr);
+			glCompileShader(fs);
+			GLint fs_compile_status;
+			glGetShaderiv(fs, GL_COMPILE_STATUS, &fs_compile_status);
+			if (!fs_compile_status)
+			{
+				char buffer[1000];
+				int length;
+				glGetShaderInfoLog(fs, 1000, &length, buffer);
+				debug_printline("fragment shader entity failed to compile with: ", buffer);
+			}
+
+			GLint p = glCreateProgram();
+			glAttachShader(p, vs);
+			glAttachShader(p, fs);
+			for (const auto & input : shader_data.inputs)
+			{
+				glBindAttribLocation(p, input.value, input.name.c_str());
+			}
+			for (const auto & output : shader_data.outputs)
+			{
+				glBindFragDataLocation(p, output.value, output.name.c_str());
+			}
+			glLinkProgram(p);
+			GLint p_link_status;
+			glGetProgramiv(p, GL_LINK_STATUS, &p_link_status);
+			if (!p_link_status)
+			{
+				char buffer[1000];
+				int length;
+				glGetProgramInfoLog(p, 1000, &length, buffer);
+				debug_printline("program entity failed to link with: ", buffer);
+			}
+
+			debug_assert(count < 10);
+			assets[count] = asset;
+			programs[count] = p;
+			vertices[count] = vs;
+			fragments[count] = fs;
+			count++;
+
+			return p;
 		}
 	};
 
@@ -317,6 +633,9 @@ namespace
 			default:
 				debug_unreachable();
 			}
+
+			const auto error_before = glGetError();
+			debug_assert(error_before == GL_NO_ERROR);
 
 			glDisable(GL_TEXTURE_2D);
 		}
@@ -802,6 +1121,10 @@ namespace
 {
 	using namespace engine::graphics::renderer;
 
+	core::container::CircleQueueSRSW<std::pair<std::string, ShaderData>, 20> queue_shaders;
+
+	ShaderManager shader_manager;
+
 	void maybe_resize_framebuffer();
 	void poll_queues()
 	{
@@ -1046,6 +1369,13 @@ namespace
 			};
 			visit(ProcessMessage{}, std::move(entity_message));
 		}
+
+		std::pair<std::string, ShaderData> shader_data_pair;
+		while (queue_shaders.try_pop(shader_data_pair))
+		{
+			debug_printline("trying to create \"", shader_data_pair.first, "\"");
+			shader_manager.create(std::move(shader_data_pair.first), std::move(shader_data_pair.second));
+		}
 	}
 }
 
@@ -1289,17 +1619,18 @@ namespace
 			vertices, triangles, normals, coords });
 	}
 
-	GLint vs_entity = 0;
-	GLint fs_entity = 0;
-	GLint p_entity = 0;
+	void data_callback_shader(std::string name, std::vector<char> && content)
+	{
+		using core::serialize;
 
-	GLint vs_tex = 0;
-	GLint fs_tex = 0;
-	GLint p_tex = 0;
+		ShaderStructurer structurer;
+		structurer.set(content.data(), content.size());
 
-	GLint vs_color = 0;
-	GLint fs_color = 0;
-	GLint p_color = 0;
+		ShaderData shader_data;
+		serialize(structurer, shader_data);
+
+		queue_shaders.try_push(std::make_pair(std::move(name), std::move(shader_data)));
+	}
 
 	void render_setup()
 	{
@@ -1366,310 +1697,9 @@ namespace
 				engine::Asset{ "my_png" } });
 		// ^^^^^^^^ tmp ^^^^^^^^
 
-		const char * const vs_entity_source = R"(
-#version 130
-
-uniform mat4 projection_matrix;
-uniform mat4 modelview_matrix;
-
-// in mat4 modelview_matrix;
-in vec3 in_vertex;
-in vec4 in_color;
-
-out vec4 color;
-
-void main()
-{
-	gl_Position = projection_matrix * modelview_matrix * vec4(in_vertex.x, in_vertex.y, in_vertex.z, 1.f);
-	color = in_color;
-}
-)";
-
-		const char * const fs_entity_source = R"(
-#version 130
-
-// uniform mat4 projection_matrix;
-
-in vec4 color;
-
-out vec4 out_color1;
-out vec4 out_color2;
-
-void main()
-{
-	out_color1 = color;
-	out_color2 = color;
-	// out_color2 = vec4(1.f, 1.f, 1.f, 1.f);
-}
-)";
-
-		vs_entity = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(vs_entity, 1, &vs_entity_source, nullptr);
-		glCompileShader(vs_entity);
-		GLint vs_entity_compile_status;
-		glGetShaderiv(vs_entity, GL_COMPILE_STATUS, &vs_entity_compile_status);
-		if (!vs_entity_compile_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetShaderInfoLog(vs_entity, 1000, &length, buffer);
-			debug_printline("vertex shader entity failed to compile with: ", buffer);
-		}
-
-		fs_entity = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(fs_entity, 1, &fs_entity_source, nullptr);
-		glCompileShader(fs_entity);
-		GLint fs_entity_compile_status;
-		glGetShaderiv(fs_entity, GL_COMPILE_STATUS, &fs_entity_compile_status);
-		if (!fs_entity_compile_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetShaderInfoLog(fs_entity, 1000, &length, buffer);
-			debug_printline("fragment shader entity failed to compile with: ", buffer);
-		}
-
-		p_entity = glCreateProgram();
-		glAttachShader(p_entity, vs_entity);
-		glAttachShader(p_entity, fs_entity);
-		// glBindAttribLocation(p_entity, 0, "modelview_matrix");
-		glBindAttribLocation(p_entity, 4, "in_vertex");
-		glBindAttribLocation(p_entity, 5, "in_color");
-		glBindFragDataLocation(p_entity, 0, "out_color1");
-		glBindFragDataLocation(p_entity, 1, "out_color2");
-		glLinkProgram(p_entity);
-		GLint p_entity_link_status;
-		glGetProgramiv(p_entity, GL_LINK_STATUS, &p_entity_link_status);
-		if (!p_entity_link_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetProgramInfoLog(p_entity, 1000, &length, buffer);
-			debug_printline("program entity failed to link with: ", buffer);
-		}
-
-		const char * const vs_source = R"(
-#version 130
-
-uniform mat4 projection_matrix;
-uniform mat4 modelview_matrix;
-// uniform float time;
-// uniform vec2 dimensions;
-
-// in mat4 modelview_matrix;
-in vec4 status_flags;
-in vec3 in_vertex;
-in vec3 in_normal;
-in vec2 in_texcoord;
-
-out vec4 color;
-// out vec3 normal;
-out vec2 texcoord;
-
-void main()
-{
-	gl_Position = projection_matrix * modelview_matrix * vec4(in_vertex.x, in_vertex.y, in_vertex.z, 1.f);
-	color = vec4(1.f, 1.f, 1.f, 1.f);
-	if (status_flags.x != 0.f)
-		color = vec4(1.f, .8f, .2f, 1.f);
-	else if (status_flags.y != 0.f)
-		color = vec4(.2f, .8f, 1.f, 1.f);
-	texcoord = in_texcoord;
-}
-)";
-
-		const char * const fs_source = R"(
-#version 130
-
-// uniform mat4 projection_matrix;
-uniform float time;
-uniform vec2 dimensions;
-
-uniform sampler2D tex;
-uniform sampler2D entitytex;
-
-in vec4 color;
-in vec2 texcoord;
-
-out vec4 out_color;
-
-void main()
-{
-	// out_color = texture(tex, texcoord) * color;
-	// out_color = texture(entitytex, gl_FragCoord.xy / dimensions);
-	out_color = texture(tex, texcoord);
-	vec4 entity = texture(entitytex, gl_FragCoord.xy / dimensions);
-	bool is_edge =
-		(gl_FragCoord.x - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x - 1, gl_FragCoord.y) / dimensions)) ||
-		(gl_FragCoord.y - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y - 1) / dimensions)) ||
-		(gl_FragCoord.x + 1 >= dimensions.x || entity != texture(entitytex, vec2(gl_FragCoord.x + 1, gl_FragCoord.y) / dimensions)) ||
-		(gl_FragCoord.y + 1 >= dimensions.y || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y + 1) / dimensions));
-	if (is_edge)
-	{
-		out_color = color;
-	}
-}
-)";
-
-		vs_tex = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(vs_tex, 1, &vs_source, nullptr);
-		glCompileShader(vs_tex);
-		GLint vs_tex_compile_status;
-		glGetShaderiv(vs_tex, GL_COMPILE_STATUS, &vs_tex_compile_status);
-		if (!vs_tex_compile_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetShaderInfoLog(vs_tex, 1000, &length, buffer);
-			debug_printline("vertex shader texture failed to compile with: ", buffer);
-		}
-
-		fs_tex = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(fs_tex, 1, &fs_source, nullptr);
-		glCompileShader(fs_tex);
-		GLint fs_tex_compile_status;
-		glGetShaderiv(fs_tex, GL_COMPILE_STATUS, &fs_tex_compile_status);
-		if (!fs_tex_compile_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetShaderInfoLog(fs_tex, 1000, &length, buffer);
-			debug_printline("fragment shader texture failed to compile with: ", buffer);
-		}
-
-		p_tex = glCreateProgram();
-		glAttachShader(p_tex, vs_tex);
-		glAttachShader(p_tex, fs_tex);
-		// glBindAttribLocation(p_tex, 0, "modelview_matrix");
-		glBindAttribLocation(p_tex, 4, "status_flags");
-		glBindAttribLocation(p_tex, 5, "in_vertex");
-		glBindAttribLocation(p_tex, 6, "in_normal");
-		glBindAttribLocation(p_tex, 7, "in_texcoord");
-		glLinkProgram(p_tex);
-		GLint p_tex_link_status;
-		glGetProgramiv(p_tex, GL_LINK_STATUS, &p_tex_link_status);
-		if (!p_tex_link_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetProgramInfoLog(p_tex, 1000, &length, buffer);
-			debug_printline("program texture failed to link with: ", buffer);
-		}
-
-		const char * const vs_color_source = R"(
-#version 130
-
-uniform mat4 projection_matrix;
-uniform mat4 modelview_matrix;
-// uniform float time;
-// uniform vec2 dimensions;
-
-// in mat4 modelview_matrix;
-in vec4 status_flags;
-in vec3 in_vertex;
-in vec3 in_normal;
-in vec4 in_color;
-
-out vec4 status_color;
-// out vec3 normal;
-out vec4 color;
-
-void main()
-{
-	gl_Position = projection_matrix * modelview_matrix * vec4(in_vertex.x, in_vertex.y, in_vertex.z, 1.f);
-	status_color = vec4(0.f, 0.f, 0.f, 0.f);
-	if (status_flags.x != 0.f)
-		status_color = vec4(1.f, .8f, .2f, 1.f);
-	else if (status_flags.y != 0.f)
-		status_color = vec4(.2f, .8f, 1.f, 1.f);
-	else if (status_flags.a != 0.f)
-		status_color = vec4(1.f, 1.f, 1.f, 1.f);
-	color = in_color;
-}
-)";
-
-		const char * const fs_color_source = R"(
-#version 130
-
-// uniform mat4 projection_matrix;
-uniform float time;
-uniform vec2 dimensions;
-
-uniform sampler2D entitytex;
-
-in vec4 status_color;
-in vec4 color;
-
-out vec4 out_color;
-
-void main()
-{
-	out_color = color;
-	if (status_color.a != 0.f) // interactible
-	{
-		vec4 entity = texture(entitytex, gl_FragCoord.xy / dimensions);
-		if (entity != vec4(0.f, 0.f, 0.f, 0.f))
-		{
-			bool is_edge =
-				(gl_FragCoord.x - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x - 1, gl_FragCoord.y) / dimensions)) ||
-				(gl_FragCoord.y - 1 < 0 || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y - 1) / dimensions)) ||
-				(gl_FragCoord.x + 1 >= dimensions.x || entity != texture(entitytex, vec2(gl_FragCoord.x + 1, gl_FragCoord.y) / dimensions)) ||
-				(gl_FragCoord.y + 1 >= dimensions.y || entity != texture(entitytex, vec2(gl_FragCoord.x, gl_FragCoord.y + 1) / dimensions));
-			if (is_edge)
-			{
-				out_color = status_color;
-			}
-		}
-	}
-}
-)";
-
-		vs_color = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(vs_color, 1, &vs_color_source, nullptr);
-		glCompileShader(vs_color);
-		GLint vs_color_compile_status;
-		glGetShaderiv(vs_color, GL_COMPILE_STATUS, &vs_color_compile_status);
-		if (!vs_color_compile_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetShaderInfoLog(vs_color, 1000, &length, buffer);
-			debug_printline("vertex shader color failed to compile with: ", buffer);
-		}
-
-		fs_color = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(fs_color, 1, &fs_color_source, nullptr);
-		glCompileShader(fs_color);
-		GLint fs_color_compile_status;
-		glGetShaderiv(fs_color, GL_COMPILE_STATUS, &fs_color_compile_status);
-		if (!fs_color_compile_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetShaderInfoLog(fs_color, 1000, &length, buffer);
-			debug_printline("fragment shader color failed to compile with: ", buffer);
-		}
-
-		p_color = glCreateProgram();
-		glAttachShader(p_color, vs_color);
-		glAttachShader(p_color, fs_color);
-		// glBindAttribLocation(p_color, 0, "modelview_matrix");
-		glBindAttribLocation(p_color, 4, "status_flags");
-		glBindAttribLocation(p_color, 5, "in_vertex");
-		glBindAttribLocation(p_color, 6, "in_normal");
-		glBindAttribLocation(p_color, 7, "in_color");
-		glLinkProgram(p_color);
-		GLint p_color_link_status;
-		glGetProgramiv(p_color, GL_LINK_STATUS, &p_color_link_status);
-		if (!p_color_link_status)
-		{
-			char buffer[1000];
-			int length;
-			glGetProgramInfoLog(p_color, 1000, &length, buffer);
-			debug_printline("program color failed to link with: ", buffer);
-		}
-
-		debug_printline("EVERYTHING IS FINE");
+		engine::resource::reader::post_read("res/gfx/color.130.glsl", data_callback_shader);
+		engine::resource::reader::post_read("res/gfx/entity.130.glsl", data_callback_shader);
+		engine::resource::reader::post_read("res/gfx/texture.130.glsl", data_callback_shader);
 	}
 
 	constexpr std::array<GLenum, 10> BufferFormats =
@@ -1687,6 +1717,9 @@ void main()
 			component.update();
 		}
 
+		const GLint p_color = shader_manager.get("res/gfx/color.130.glsl");
+		const GLint p_entity = shader_manager.get("res/gfx/entity.130.glsl");
+		const GLint p_tex = shader_manager.get("res/gfx/texture.130.glsl");
 
 		glStencilMask(0x000000ff);
 		// setup frame
@@ -1718,6 +1751,8 @@ void main()
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(display.view_3d);
 
+		if (p_entity >= 0)
+		{
 		glUseProgram(p_entity);
 		glUniform(p_entity, "projection_matrix", display.projection_3d);
 		for (const auto & component : selectable_components.get<selectable_character_t>())
@@ -1798,6 +1833,7 @@ void main()
 
 			modelview_matrix.pop();
 		}
+		}
 
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);
@@ -1805,6 +1841,8 @@ void main()
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(display.view_2d);
 
+		if (p_entity >= 0)
+		{
 		glUniform(p_entity, "projection_matrix", display.projection_2d);
 		for (const auto & component : selectable_components.get<selectable_panel>())
 		{
@@ -1848,6 +1886,7 @@ void main()
 			modelview_matrix.pop();
 		}
 		glUseProgram(0);
+		}
 
 		}
 
@@ -1905,6 +1944,8 @@ void main()
 		glStencilFunc(GL_EQUAL, 0x00000000, 0x00000001);
 		//glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
+		if (p_tex >= 0)
+		{
 		glUseProgram(p_tex);
 		glUniform(p_tex, "projection_matrix", display.projection_3d);
 		{
@@ -1963,6 +2004,9 @@ void main()
 			debug_assert(error_after == GL_NO_ERROR);
 		}
 		glUseProgram(0);
+		}
+		if (p_color >= 0)
+		{
 		glUseProgram(p_color);
 		glUniform(p_color, "projection_matrix", display.projection_3d);
 		{
@@ -2011,6 +2055,9 @@ void main()
 			modelview_matrix.pop();
 		}
 		glUseProgram(0);
+		}
+		if (p_tex >= 0)
+		{
 		glUseProgram(p_tex);
 		glUniform(p_tex, "projection_matrix", display.projection_3d);
 		{
@@ -2064,6 +2111,9 @@ void main()
 			modelview_matrix.pop();
 		}
 		glUseProgram(0);
+		}
+		if (p_color >= 0)
+		{
 		glUseProgram(p_color);
 		glUniform(p_color, "projection_matrix", display.projection_3d);
 		{
@@ -2129,6 +2179,7 @@ void main()
 			modelview_matrix.pop();
 		}
 		glUseProgram(0);
+		}
 
 		glDisable(GL_STENCIL_TEST);
 		glDisable(GL_DEPTH_TEST);
@@ -2145,6 +2196,8 @@ void main()
 
 		// 2d
 		// ...
+		if (p_color >= 0)
+		{
 		glUseProgram(p_color);
 		glUniform(p_color, "projection_matrix", display.projection_2d);
 		{
@@ -2241,6 +2294,7 @@ void main()
 			modelview_matrix.pop();
 		}
 		glUseProgram(0);
+		}
 
 
 		glLoadMatrix(modelview_matrix);
@@ -2276,6 +2330,8 @@ void main()
 		glColor3ub(255, 255, 0);
 		normal_font.draw(10, 10 + 12, "herp derp herp derp herp derp herp derp herp derp etc.");
 
+		if (p_color >= 0)
+		{
 		glUseProgram(p_color);
 		glUniform(p_color, "projection_matrix", display.projection_2d);
 		{
@@ -2356,6 +2412,9 @@ void main()
 			modelview_matrix.pop();
 		}
 		glUseProgram(0);
+		}
+		if (p_tex >= 0)
+		{
 		glUseProgram(p_tex);
 		glUniform(p_tex, "projection_matrix", display.projection_2d);
 		{
@@ -2438,6 +2497,7 @@ void main()
 			modelview_matrix.pop();
 		}
 		glUseProgram(0);
+		}
 // TEXTURE
 // COLOR
 // vertices

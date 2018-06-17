@@ -203,6 +203,11 @@ namespace
 
 namespace
 {
+	struct MessageRead
+	{
+		std::string name;
+		void (* callback)(std::string name, std::vector<char> && content);
+	};
 	struct MessageReadData
 	{
 		std::string name;
@@ -220,6 +225,7 @@ namespace
 	};
 	using Message = utility::variant
 	<
+		MessageRead,
 		MessageReadData,
 		MessageReadLevel,
 		MessageReadPlaceholder
@@ -237,6 +243,22 @@ namespace
 		{
 			struct ProcessMessage
 			{
+				void operator () (MessageRead && x)
+				{
+					std::ifstream file(x.name, std::ifstream::binary);
+					debug_assert(file);
+
+					file.seekg(0, std::ifstream::end);
+					const auto file_size = file.tellg();
+					file.seekg(0, std::ifstream::beg);
+
+					std::vector<char> bytes;
+					bytes.resize(file_size);
+
+					file.read(bytes.data(), bytes.size());
+
+					x.callback(std::move(x.name), std::move(bytes));
+				}
 				void operator () (MessageReadData && x)
 				{
 					if (check_if_json(x.name))
@@ -357,6 +379,10 @@ namespace engine
 				renderThread.join();
 			}
 
+			void post_read(std::string name, void (* callback)(std::string name, std::vector<char> && content))
+			{
+				post_message<MessageRead>(std::move(name), callback);
+			}
 			void post_read_data(std::string name, void (* callback)(std::string name, Data && data))
 			{
 				post_message<MessageReadData>(std::move(name), callback);
