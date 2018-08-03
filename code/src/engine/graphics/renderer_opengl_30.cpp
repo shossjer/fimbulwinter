@@ -487,8 +487,8 @@ namespace
 			static constexpr auto serialization()
 			{
 				return make_lookup_table(
-					std::pair<utility::string_view, std::string FragmentOutput::*>("name", &FragmentOutput::name),
-					std::pair<utility::string_view, int FragmentOutput::*>("value", &FragmentOutput::value)
+					std::make_pair(utility::string_view("name"), &FragmentOutput::name),
+					std::make_pair(utility::string_view("value"), &FragmentOutput::value)
 					);
 			}
 		};
@@ -501,8 +501,8 @@ namespace
 			static constexpr auto serialization()
 			{
 				return make_lookup_table(
-					std::pair<utility::string_view, std::string VertexInput::*>("name", &VertexInput::name),
-					std::pair<utility::string_view, int VertexInput::*>("value", &VertexInput::value)
+					std::make_pair(utility::string_view("name"), &VertexInput::name),
+					std::make_pair(utility::string_view("value"), &VertexInput::value)
 					);
 			}
 		};
@@ -515,10 +515,10 @@ namespace
 		static constexpr auto serialization()
 		{
 			return make_lookup_table(
-				std::pair<utility::string_view, std::vector<VertexInput> ShaderData::*>("inputs", &ShaderData::inputs),
-				std::pair<utility::string_view, std::vector<FragmentOutput> ShaderData::*>("outputs", &ShaderData::outputs),
-				std::pair<utility::string_view, std::string ShaderData::*>("vertex_source", &ShaderData::vertex_source),
-				std::pair<utility::string_view, std::string ShaderData::*>("fragment_source", &ShaderData::fragment_source)
+				std::make_pair(utility::string_view("inputs"), &ShaderData::inputs),
+				std::make_pair(utility::string_view("outputs"), &ShaderData::outputs),
+				std::make_pair(utility::string_view("vertex_source"), &ShaderData::vertex_source),
+				std::make_pair(utility::string_view("fragment_source"), &ShaderData::fragment_source)
 				);
 		}
 	};
