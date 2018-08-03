@@ -139,6 +139,7 @@ set(HEADER_FILES
 	src/utility/spinlock.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
+   src/utility/string_view.hpp
 	src/utility/type_traits.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
