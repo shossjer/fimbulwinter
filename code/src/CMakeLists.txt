@@ -64,6 +64,7 @@ set(HEADER_FILES
 	src/core/maths/Vector.hpp
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
+   src/core/serialization.hpp
 	src/core/StringSerializer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp

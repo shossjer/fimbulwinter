@@ -24,11 +24,19 @@
 /**
  * Asserts that the condition is true.
  */
-# define debug_assert(expr) core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{})
+# ifdef __GNUG__
+#  define debug_assert(expr, ...) core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, ##__VA_ARGS__)
+# else
+#  define debug_assert(expr, ...) core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, __VA_ARGS__)
+# endif
 /**
  * Fails unconditionally.
  */
-# define debug_fail() core::debug::instance().fail(__FILE__, __LINE__)
+# ifdef __GNUG__
+#  define debug_fail(...) core::debug::instance().fail(__FILE__, __LINE__, ##__VA_ARGS__)
+# else
+#  define debug_fail(...) core::debug::instance().fail(__FILE__, __LINE__, __VA_ARGS__)
+# endif
 /**
  * Prints the arguments to the console (with a newline).
  *
@@ -45,15 +53,21 @@
  * Fails unconditionally.
  */
 # define debug_unreachable() do { debug_fail(); std::terminate(); } while(false)
+/**
+ * Verifies that the expression is true.
+ *
+ * \note Always evaluates the expression.
+ */
+# define debug_verify(expr, ...) do { if (expr) break; else { debug_fail(__VA_ARGS__); } } while(false)
 #else
 /**
  * Does nothing.
  */
-# define debug_assert(expr)
+# define debug_assert(expr, ...)
 /**
  * Does nothing.
  */
-# define debug_fail()
+# define debug_fail(...)
 /**
  * Does nothing.
  */
@@ -62,6 +76,12 @@
  * Hint to the compiler that this path will never be reached.
  */
 # define debug_unreachable() intrinsic_unreachable()
+/**
+ * Verifies that the expression is true.
+ *
+ * \note Always evaluates the expression.
+ */
+# define debug_verify(expr, ...) do { expr; } while(false)
 #endif
 
 namespace core
@@ -149,31 +169,22 @@ namespace core
 		using lock_t = utility::spinlock;
 
 	private:
-		/**
-		 */
 		lock_t lock;
-		/**
-		 */
 		uint64_t mask;
 
 	private:
-		/**
-		 */
-		debug() :
-			mask(0xffffffffffffffffull)
-		{
-		}
+		debug()
+			: mask(0xffffffffffffffffull)
+		{}
 
 	public:
-		/**
-		 */
-		template <std::size_t N, std::size_t M, typename C>
-		void affirm(const char (&file_name)[N], const int line_number, const char (&expr)[M], C && comp)
+		template <std::size_t N, std::size_t M, typename C, typename ...Ps>
+		void affirm(const char (&file_name)[N], const int line_number, const char (&expr)[M], C && comp, Ps && ...ps)
 		{
 			if (comp()) return;
 
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", expr, "\n", comp, "\n");
+			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", expr, "\n", comp, "\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
 #if defined(__GNUG__)
 			__asm__("int3");
@@ -183,13 +194,12 @@ namespace core
 			std::terminate();
 #endif
 		}
-		/**
-		 */
-		template <std::size_t N>
-		void fail(const char (&file_name)[N], const int line_number)
+
+		template <std::size_t N, typename ...Ps>
+		void fail(const char (&file_name)[N], const int line_number, Ps && ...ps)
 		{
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, "@", line_number, ": failed\n");
+			utility::to_stream(std::cerr, file_name, "@", line_number, ": failed\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
 #if defined(__GNUG__)
 			__asm__("int3");
@@ -199,11 +209,7 @@ namespace core
 			std::terminate();
 #endif
 		}
-		/**
-		 */
 
-		/**
-		 */
 		template <std::size_t N, uint64_t Bitmask, typename ...Ps>
 		void printline(const char (& file_name)[N], int line_number, channel_t<Bitmask>, Ps && ...ps)
 		{
@@ -212,15 +218,13 @@ namespace core
 
 			printline_all(file_name, line_number, std::forward<Ps>(ps)...);
 		}
-		/**
-		 */
+
 		template <std::size_t N, typename ...Ps>
 		void printline(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
 			printline_all(file_name, line_number, std::forward<Ps>(ps)...);
 		}
-		/**
-		 */
+
 		template <std::size_t N, typename ...Ps>
 		void printline_all(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
@@ -230,8 +234,6 @@ namespace core
 		}
 
 	public:
-		/**
-		 */
 		static debug & instance()
 		{
 			static debug var;

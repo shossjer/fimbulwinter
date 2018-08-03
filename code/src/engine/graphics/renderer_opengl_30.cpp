@@ -16,6 +16,7 @@
 #include <core/container/Stack.hpp>
 #include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
+#include "core/serialization.hpp"
 #include <core/sync/Event.hpp>
 
 #include <engine/Asset.hpp>
@@ -25,8 +26,9 @@
 #include <engine/graphics/viewer.hpp>
 #include "engine/resource/reader.hpp"
 
-#include <utility/any.hpp>
-#include <utility/variant.hpp>
+#include "utility/any.hpp"
+#include "utility/lookup_table.hpp"
+#include "utility/variant.hpp"
 
 #include <atomic>
 #include <fstream>
@@ -163,10 +165,123 @@ namespace
 	constexpr newline_t newline{ 0 };
 	constexpr whitespace_t whitespace{ 0 };
 
-	struct ShaderStructurer
+	class ShaderStructurer
 	{
+	private:
 		std::vector<char> buffer;
-		int read;
+		int read_;
+
+		std::string filename;
+
+	public:
+		template <typename T>
+		void read(T & x)
+		{
+			debug_verify(parse("[vertex]", newline), "expected vertex section in '", filename, "'");
+			static_assert(core::serialization<T>::has("inputs"), "");
+			// if (core::serialization<T>::has("inputs"))
+			{
+				while (parse("[bind", whitespace))
+				{
+					if (core::serialization<T>::call("inputs", x, [&](auto & y){ return read_name_value(y); }))
+					{
+						debug_verify(parse("]", newline), "expected ending bracket in '", filename, "'");
+					}
+					else
+					{
+						skip_line();
+					}
+				}
+			}
+			// else
+			// {
+			// 	while (parse("["))
+			// 	{
+			// 		skip_line();
+			// 	}
+			// }
+			const int vertex_source_begin = tell();
+			const int vertex_source_end = find(beginline, "[fragment]", endline);
+			if (core::serialization<T>::has("vertex_source"))
+			{
+				parse_region(vertex_source_begin, vertex_source_end, x.vertex_source);
+			}
+			else
+			{
+				skip_region(vertex_source_begin, vertex_source_end);
+			}
+
+			debug_verify(parse("[fragment]", newline), "expected fragment section in '", filename, "'");
+			static_assert(core::serialization<T>::has("outputs"), "");
+			// if (core::serialization<T>::has("outputs"))
+			{
+				while (parse("[bind", whitespace))
+				{
+					if (core::serialization<T>::call("outputs", x, [&](auto & y){ return read_name_value(y); }))
+					{
+						debug_verify(parse("]", newline), "expected ending bracket in '", filename, "'");
+					}
+					else
+					{
+						skip_line();
+					}
+				}
+			}
+			// else
+			// {
+			// 	while (parse("["))
+			// 	{
+			// 		skip_line();
+			// 	}
+			// }
+			const int fragment_source_begin = tell();
+			const int fragment_source_end = find(endoffile);
+			if (core::serialization<T>::has("fragment_source"))
+			{
+				parse_region(fragment_source_begin, fragment_source_end, x.fragment_source);
+			}
+			else
+			{
+				skip_region(fragment_source_begin, fragment_source_end);
+			}
+		}
+
+		void set(const char * const bytes, const int size, const std::string & filename)
+		{
+			buffer = std::vector<char>(bytes, bytes + size);
+			read_ = 0;
+
+			this->filename = filename;
+		}
+	private:
+		template <typename T>
+		bool read_name_value(std::vector<T> & x)
+		{
+			x.emplace_back();
+
+			static_assert(core::serialization<T>::has("name"), "");
+			if (!core::serialization<T>::call("name", x.back(), [&](auto & y){ return parse(y); }))
+			{
+				debug_printline("failed to parse 'name' in '", filename, "'");
+				return false;
+			}
+
+			debug_verify(parse(whitespace), "'name' and 'value' should be separated by whitespace in '", filename, "'");
+
+			static_assert(core::serialization<T>::has("value"), "");
+			if (!core::serialization<T>::call("value", x.back(), [&](auto & y){ return parse(y); }))
+			{
+				debug_printline("failed to parse 'value' in '", filename, "'");
+				return false;
+			}
+
+			return true;
+		}
+		template <typename T>
+		bool read_name_value(T &)
+		{
+			debug_unreachable();
+		}
 
 		int parse_impl(int curr) const
 		{
@@ -292,15 +407,15 @@ namespace
 		template <typename P1, typename ...Ps>
 		bool parse(P1 && p1, Ps && ...ps)
 		{
-			const int curr = parse_impl(read, std::forward<P1>(p1), std::forward<Ps>(ps)...);
+			const int curr = parse_impl(read_, std::forward<P1>(p1), std::forward<Ps>(ps)...);
 			if (curr < 0)
 				return false;
 
-			read = curr;
+			read_ = curr;
 			return true;
 		}
 
-		int tell() const { return read; }
+		int tell() const { return read_; }
 
 		int find(endoffile_t) const
 		{
@@ -310,7 +425,7 @@ namespace
 		template <typename P1, typename ...Ps>
 		int find(P1 && p1, Ps && ...ps) const
 		{
-			int curr = read;
+			int curr = read_;
 			while(true)
 			{
 				const int match = parse_impl(curr, p1, ps...);
@@ -326,19 +441,39 @@ namespace
 
 		bool parse_region(int from, int to, std::string & x)
 		{
-			debug_assert(from == read);
+			debug_assert(from == read_);
 			if (!(from <= to && to <= buffer.size()))
 				return false;
 
 			x = std::string(buffer.data() + from, buffer.data() + to);
-			read = to;
+			read_ = to;
 			return true;
 		}
 
-		void set(const char * const bytes, const int size)
+		void skip_line()
 		{
-			buffer = std::vector<char>(bytes, bytes + size);
-			read = 0;
+			int curr = read_;
+			while (curr < buffer.size() &&
+			       !(buffer[curr] == '\n' ||
+			         buffer[curr] == '\r'))
+			{
+				curr++;
+			}
+			while (curr < buffer.size() &&
+			       (buffer[curr] == '\n' ||
+			        buffer[curr] == '\r'))
+			{
+				curr++;
+			}
+			read_ = curr;
+		}
+
+		void skip_region(int from, int to)
+		{
+			debug_assert(from == read_);
+			if (!(from <= to))
+				return;
+			read_ = std::min(to, static_cast<int>(buffer.size()));
 		}
 	};
 
@@ -348,12 +483,28 @@ namespace
 		{
 			std::string name;
 			int value;
+
+			static constexpr auto serialization()
+			{
+				return make_lookup_table(
+					std::pair<utility::string_view, std::string FragmentOutput::*>("name", &FragmentOutput::name),
+					std::pair<utility::string_view, int FragmentOutput::*>("value", &FragmentOutput::value)
+					);
+			}
 		};
 
 		struct VertexInput
 		{
 			std::string name;
 			int value;
+
+			static constexpr auto serialization()
+			{
+				return make_lookup_table(
+					std::pair<utility::string_view, std::string VertexInput::*>("name", &VertexInput::name),
+					std::pair<utility::string_view, int VertexInput::*>("value", &VertexInput::value)
+					);
+			}
 		};
 
 		std::vector<VertexInput> inputs;
@@ -361,27 +512,14 @@ namespace
 		std::string vertex_source;
 		std::string fragment_source;
 
-		friend void serialize(ShaderStructurer & s, ShaderData & x)
+		static constexpr auto serialization()
 		{
-			s.parse("[vertex]", newline);
-			while (s.parse("[bind", whitespace))
-			{
-				x.inputs.emplace_back();
-				s.parse(x.inputs.back().name, whitespace, x.inputs.back().value, "]", newline);
-			}
-			const int vertex_source_begin = s.tell();
-			const int vertex_source_end = s.find(beginline, "[fragment]", endline);
-			s.parse_region(vertex_source_begin, vertex_source_end, x.vertex_source);
-
-			s.parse("[fragment]", newline);
-			while (s.parse("[bind", whitespace))
-			{
-				x.outputs.emplace_back();
-				s.parse(x.outputs.back().name, whitespace, x.outputs.back().value, "]", newline);
-			}
-			const int fragment_source_begin = s.tell();
-			const int fragment_source_end = s.find(endoffile);
-			s.parse_region(fragment_source_begin, fragment_source_end, x.fragment_source);
+			return make_lookup_table(
+				std::pair<utility::string_view, std::vector<VertexInput> ShaderData::*>("inputs", &ShaderData::inputs),
+				std::pair<utility::string_view, std::vector<FragmentOutput> ShaderData::*>("outputs", &ShaderData::outputs),
+				std::pair<utility::string_view, std::string ShaderData::*>("vertex_source", &ShaderData::vertex_source),
+				std::pair<utility::string_view, std::string ShaderData::*>("fragment_source", &ShaderData::fragment_source)
+				);
 		}
 	};
 
@@ -405,6 +543,9 @@ namespace
 
 		GLint create(engine::Asset asset, ShaderData && shader_data)
 		{
+			const auto error_before = glGetError();
+			debug_assert(error_before == GL_NO_ERROR);
+
 			GLint vs = glCreateShader(GL_VERTEX_SHADER);
 			const char * vs_source = shader_data.vertex_source.c_str();
 			glShaderSource(vs, 1, &vs_source, nullptr);
@@ -461,6 +602,9 @@ namespace
 			vertices[count] = vs;
 			fragments[count] = fs;
 			count++;
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			return p;
 		}
@@ -1624,10 +1768,11 @@ namespace
 		using core::serialize;
 
 		ShaderStructurer structurer;
-		structurer.set(content.data(), content.size());
+		structurer.set(content.data(), content.size(), name);
 
 		ShaderData shader_data;
-		serialize(structurer, shader_data);
+		// serialize(structurer, shader_data);
+		structurer.read(shader_data);
 
 		queue_shaders.try_push(std::make_pair(std::move(name), std::move(shader_data)));
 	}
