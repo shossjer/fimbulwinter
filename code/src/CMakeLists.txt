@@ -132,6 +132,7 @@ set(HEADER_FILES
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
 	src/utility/json.hpp
+   src/utility/lookup_table.hpp
 	src/utility/optional.hpp
 	src/utility/preprocessor.hpp
 	src/utility/property.hpp
