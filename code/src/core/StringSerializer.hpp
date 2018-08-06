@@ -3,101 +3,21 @@
 #define CORE_STRINGSERIALIZER_HPP
 
 #include "core/debug.hpp"
-#include "core/serialize.hpp"
+#include "core/serialization.hpp"
 
-#include <cstdint>
+#include "utility/type_traits.hpp"
+
 #include <sstream>
-#include <vector>
+#include <tuple>
 
 namespace core
 {
 	class StringSerializer
 	{
 	private:
-		struct Data
-		{
-			enum Type
-			{
-				CLASS,
-				TUPLE
-			};
-
-			Type type;
-			int next_child;
-		};
-	private:
 		std::ostringstream ss;
 
-		std::vector<Data> stack;
-
 		std::string string;
-
-	public:
-		template <typename T>
-		void operator () (const T & x)
-		{
-			if (!stack.empty())
-			{
-				auto & top = stack.back();
-				if (top.next_child++ > 0)
-				{
-					ss.put(',');
-					ss.put(' ');
-				}
-			}
-
-			ss << x;
-		}
-
-		template <typename T>
-		void push(type_class_t, const T & x)
-		{
-			if (!stack.empty())
-			{
-				auto & top = stack.back();
-				if (top.next_child++ > 0)
-				{
-					ss.put(',');
-					ss.put(' ');
-				}
-			}
-			ss.put('{');
-
-			stack.push_back(Data{Data::CLASS, 0});
-		}
-
-		template <typename T>
-		void push(type_tuple_t, const T & x)
-		{
-			if (!stack.empty())
-			{
-				auto & top = stack.back();
-				if (top.next_child++ > 0)
-				{
-					ss.put(',');
-					ss.put(' ');
-				}
-			}
-			ss.put('(');
-
-			stack.push_back(Data{Data::TUPLE, 0});
-		}
-
-		void pop()
-		{
-			const auto & top = stack.back();
-			if (top.type == Data::CLASS)
-			{
-				ss.put('}');
-			}
-			if (top.type == Data::TUPLE)
-			{
-				ss.put(')');
-				ss.put('\n');
-			}
-
-			stack.pop_back();
-		}
 
 	public:
 		const char * data() const
@@ -121,6 +41,62 @@ namespace core
 		void finalize()
 		{
 			string = ss.str();
+		}
+
+		template <typename ...Ps>
+		void write(const std::tuple<Ps...> & x)
+		{
+			write_tuple(x, mpl::make_index_sequence<sizeof...(Ps)>{});
+		}
+		template <typename T,
+		          REQUIRES((core::has_member_table<T>::value))>
+		void write(const T & x)
+		{
+			write_class(x);
+		}
+		template <typename T,
+		          REQUIRES((!core::has_member_table<T>::value))>
+		void write(const T & x)
+		{
+			write_value(x);
+		}
+	private:
+		template <typename T>
+		void write_class(const T & x)
+		{
+			ss.put('{');
+			serialization<T>::call_with_all_members(x, [&](auto && ...ys){ write_list(ys...); });
+			ss.put('}');
+		}
+
+		void write_list()
+		{}
+		template <typename T, typename ...Ts>
+		void write_list(const T & x, const Ts & ...xs)
+		{
+			write(x);
+
+			if (sizeof...(Ts) > 0)
+			{
+				ss.put(',');
+				ss.put(' ');
+			}
+			write_list(xs...);
+		}
+
+		template <typename T, std::size_t ...Is>
+		void write_tuple(const T & x, mpl::index_sequence<Is...>)
+		{
+			ss.put('(');
+			write_list(std::get<Is>(x)...);
+			ss.put(')');
+			ss.put('\n');
+		}
+
+		template <typename T>
+		void write_value(const T & x)
+		{
+			ss << x;
 		}
 	};
 }

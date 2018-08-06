@@ -2,10 +2,10 @@
 #ifndef ENGINE_ASSET_HPP
 #define ENGINE_ASSET_HPP
 
-#include <config.h>
+#include "config.h"
 
-#include <core/crypto/crc.hpp>
-#include "core/serialize.hpp"
+#include "core/crypto/crc.hpp"
+#include "core/serialization.hpp"
 
 #include "utility/concepts.hpp"
 
@@ -34,16 +34,14 @@ namespace engine
 	public:
 		Asset() = default;
 		template <std::size_t N>
-		constexpr Asset(const char (&str)[N]) :
-			id{core::crypto::crc32(str)}
-		{
-		}
-		constexpr Asset(const char *const str, const std::size_t n) :
-			id{core::crypto::crc32(str, n)}
-		{
-		}
-		Asset(const std::string & str) :
-			id{core::crypto::crc32(str.data(), str.length())}
+		constexpr Asset(const char (&str)[N])
+			: id{core::crypto::crc32(str)}
+		{}
+		constexpr Asset(const char *const str, const std::size_t n)
+			: id{core::crypto::crc32(str, n)}
+		{}
+		Asset(const std::string & str)
+			: id{core::crypto::crc32(str.data(), str.length())}
 		{
 #if MODE_DEBUG
 			std::lock_guard<utility::spinlock> lock{get_readwritelock()};
@@ -51,9 +49,9 @@ namespace engine
 #endif
 		}
 	private:
-		constexpr Asset(value_type val) : id(val)
-		{
-		}
+		constexpr Asset(value_type val)
+			: id(val)
+		{}
 
 	public:
 		constexpr operator value_type () const
@@ -81,13 +79,11 @@ namespace engine
 #endif
 
 	public:
-		template <typename S, typename X,
-		          REQUIRES((mpl::is_same<mpl::decay_t<X>, this_type>::value))>
-		friend void serialize_class(S & s, X & x)
+		static constexpr auto serialization()
 		{
-			using core::serialize;
-
-			serialize(s, x.id);
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("id"), &Asset::id)
+				);
 		}
 
 		friend std::ostream & operator << (std::ostream & stream, const this_type & asset)

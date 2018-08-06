@@ -276,7 +276,7 @@ namespace
 						file.read(bytes.data(), bytes.size());
 
 						engine::resource::reader::Data data;
-						data.structurer.set(bytes.data(), bytes.size());
+						data.structurer.set(bytes.data(), bytes.size(), "res/" + x.name + ".json");
 						x.callback(std::move(x.name), std::move(data));
 					}
 					else

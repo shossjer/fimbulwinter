@@ -13,9 +13,10 @@ namespace utility
 	template <typename Key, typename ...Values>
 	class lookup_table
 	{
+	public:
+		enum { capacity = sizeof...(Values) };
 	private:
 		using this_type = lookup_table<Key, Values...>;
-		enum { capacity = sizeof...(Values) };
 
 	private:
 		std::array<Key, capacity> keys;

@@ -2,7 +2,7 @@
 #include "reader.hpp"
 
 #include "core/debug.hpp"
-#include "core/serialize.hpp"
+#include "core/serialization.hpp"
 #include "core/StringStructurer.hpp"
 
 #include "engine/commands.hpp"
@@ -21,40 +21,30 @@ namespace gameplay
 	}
 }
 
-template <typename S>
-void serialize(S & s, utility::any & data, engine::Command command)
-{
-	using core::serialize;
-
-	switch (command)
-	{
-	case engine::command::RENDER_DESELECT:
-	case engine::command::RENDER_HIGHLIGHT:
-	case engine::command::RENDER_SELECT:
-		serialize(s, data.emplace<engine::Entity>());
-		break;
-	default:
-		;
-	}
-}
-
 namespace
 {
+	template <typename Structurer>
+	void parse_data(Structurer & s, utility::any & data, engine::Command command)
+	{
+		switch (command)
+		{
+		case engine::command::RENDER_DESELECT:
+		case engine::command::RENDER_HIGHLIGHT:
+		case engine::command::RENDER_SELECT:
+			s.read(data.emplace<engine::Entity>());
+			break;
+		default:
+			break;
+		}
+	}
+
 	template <typename Structurer>
 	std::tuple<int, engine::Entity, engine::Command, utility::any>
 	parse_next_command(Structurer & s)
 	{
-		using core::serialize;
-		using ::serialize;
-
 		std::tuple<int, engine::Entity, engine::Command, utility::any> command_args;
 		std::get<0>(command_args) = INT32_MAX;
-		s.push(core::type_tuple, command_args);
-		serialize(s, std::get<0>(command_args));
-		serialize(s, std::get<1>(command_args));
-		serialize(s, std::get<2>(command_args));
-		serialize(s, std::get<3>(command_args), std::get<2>(command_args));
-		s.pop();
+		s.read_as_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), [&](Structurer & s_){ parse_data(s_, std::get<3>(command_args), std::get<2>(command_args)); });
 		return command_args;
 	}
 

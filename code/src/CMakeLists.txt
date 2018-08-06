@@ -57,6 +57,7 @@ set(HEADER_FILES
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
+   src/core/JsonStructurer.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp
@@ -66,6 +67,7 @@ set(HEADER_FILES
 	src/core/maths/util.hpp
    src/core/serialization.hpp
 	src/core/StringSerializer.hpp
+   src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp

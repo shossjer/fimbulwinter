@@ -2,8 +2,8 @@
 #ifndef ENGINE_ENTITY_HPP
 #define ENGINE_ENTITY_HPP
 
-#include <core/debug.hpp>
-#include "core/serialize.hpp"
+#include "core/debug.hpp"
+#include "core/serialization.hpp"
 
 #include "utility/concepts.hpp"
 
@@ -32,8 +32,8 @@ namespace engine
 		// creating any  numbered entity, but  there is a lot  of code
 		// now that depends on the fact  that entities are the same as
 		// regular integers so that needs to be fixed first.
-		constexpr Entity(const value_type id) :
-			id{id}
+		constexpr Entity(const value_type id)
+			: id{id}
 		{}
 
 	public:
@@ -43,13 +43,11 @@ namespace engine
 		}
 
 	public:
-		template <typename S, typename X,
-		          REQUIRES((mpl::is_same<mpl::decay_t<X>, this_type>::value))>
-		friend void serialize_class(S & s, X & x)
+		static constexpr auto serialization()
 		{
-			using core::serialize;
-
-			serialize(s, x.id);
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("id"), &Entity::id)
+				);
 		}
 
 		friend std::ostream & operator << (std::ostream & stream, this_type x)

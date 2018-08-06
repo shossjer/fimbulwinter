@@ -3,112 +3,106 @@
 #define CORE_STRINGSTRUCTURER_HPP
 
 #include "core/debug.hpp"
-#include "core/serialize.hpp"
+#include "core/serialization.hpp"
 
-#include <cstdint>
+#include "utility/type_traits.hpp"
+
 #include <sstream>
-#include <vector>
+#include <tuple>
 
 namespace core
 {
 	class StringStructurer
 	{
 	private:
-		struct Data
-		{
-			enum Type
-			{
-				CLASS,
-				TUPLE
-			};
-
-			Type type;
-			int next_child;
-		};
-
-	private:
 		std::istringstream ss;
 
-		std::vector<Data> stack;
-
 	public:
-		template <typename T>
-		void operator () (T & x)
+		template <typename ...Ps>
+		void read(std::tuple<Ps...> & x)
+		{
+			read_tuple(x, mpl::make_index_sequence<sizeof...(Ps)>{});
+		}
+		template <typename T,
+		          REQUIRES((core::has_member_table<T>::value))>
+		void read(T & x)
+		{
+			read_class(x);
+		}
+		template <typename T,
+		          REQUIRES((!core::has_member_table<T>::value))>
+		void read(T & x)
+		{
+			read_value(x);
+		}
+
+		template <typename ...Ts>
+		void read_as_tuple(Ts && ...xs)
 		{
 			skip_whitespace();
-			if (!stack.empty())
-			{
-				auto & top = stack.back();
-				if (top.next_child++ > 0)
-				{
-					int c = ss.get();
-					debug_assert(c == ',');
-					skip_whitespace();
-				}
-			}
+			debug_verify(ss.get() == '(');
+			read_list(std::forward<Ts>(xs)...);
+			skip_whitespace();
+			debug_verify(ss.get() == ')');
+		}
+	private:
+		template <typename T>
+		void read_class(T & x)
+		{
+			skip_whitespace();
+			debug_verify(ss.get() == '{');
+			serialization<T>::call_with_all_members(x, [&](auto & ...ys){ read_list(ys...); });
+			skip_whitespace();
+			debug_verify(ss.get() == '}');
+		}
 
+		template <typename T>
+		void call_or_read(T && x)
+		{
+			call_or_read_impl(std::forward<T>(x), 0);
+		}
+
+		template <typename T>
+		auto call_or_read_impl(T && x, int) -> decltype(x(*this), void())
+		{
+			x(*this);
+		}
+		template <typename T>
+		auto call_or_read_impl(T && x, ...) -> void
+		{
+			read(std::forward<T>(x));
+		}
+
+		void read_list()
+		{}
+		template <typename T, typename ...Ts>
+		void read_list(T && x, Ts && ...xs)
+		{
+			call_or_read(std::forward<T>(x));
+
+			if (sizeof...(Ts) > 0)
+			{
+				skip_whitespace();
+				if (ss.peek() == ')')
+					return;
+				debug_verify(ss.get() == ',');
+			}
+			read_list(std::forward<Ts>(xs)...);
+		}
+
+		template <typename T, std::size_t ...Is>
+		void read_tuple(T & x, mpl::index_sequence<Is...>)
+		{
+			read_as_tuple(std::get<Is>(x)...);
+		}
+
+		template <typename T>
+		void read_value(T & x)
+		{
+			skip_whitespace();
 			ss >> x;
 		}
 
-		template <typename T>
-		void push(type_class_t, T & x)
-		{
-			skip_whitespace();
-			if (!stack.empty())
-			{
-				auto & top = stack.back();
-				if (top.next_child++ > 0)
-				{
-					int c = ss.get();
-					debug_assert(c == ',');
-					skip_whitespace();
-				}
-			}
-			int c = ss.get();
-			debug_assert(c == '{');
-
-			stack.push_back(Data{Data::CLASS, 0});
-		}
-
-		template <typename T>
-		void push(type_tuple_t, T & x)
-		{
-			skip_whitespace();
-			if (!stack.empty())
-			{
-				auto & top = stack.back();
-				if (top.next_child++ > 0)
-				{
-					int c = ss.get();
-					debug_assert(c == ',');
-					skip_whitespace();
-				}
-			}
-			int c = ss.get();
-			debug_assert(c == '(');
-
-			stack.push_back(Data{Data::TUPLE, 0});
-		}
-
-		void pop()
-		{
-			const auto & top = stack.back();
-			if (top.type == Data::CLASS)
-			{
-				skip_whitespace();
-				int c = ss.get();
-				debug_assert(c == '}');
-			}
-			if (top.type == Data::TUPLE)
-			{
-				skip_whitespace();
-				int c = ss.get();
-				debug_assert(c == ')');
-			}
-
-			stack.pop_back();
-		}
-	private:
 		void skip_whitespace()
 		{
 			for (int c = ss.peek(); c == ' ' || c == '\n'; ss.get(), c = ss.peek());

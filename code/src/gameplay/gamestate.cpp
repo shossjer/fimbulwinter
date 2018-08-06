@@ -78,17 +78,17 @@ namespace
 
 		void init_recipes(core::JsonStructurer && s)
 		{
-			serialize(s, recipes);
+			s.read(recipes);
 
 			debug_printline("recipes:");
 			for (int i = 0; i < recipes.size(); i++)
 			{
 				debug_printline("name = \"", recipes.get(i).name, "\"");
-				if (recipes.get(i).ingredients)
+				if (!recipes.get(i).ingredients.empty())
 				{
-					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
 					{
-						debug_printline((*recipes.get(i).ingredients)[j].quantity, "x ", (*recipes.get(i).ingredients)[j].name);
+						debug_printline(recipes.get(i).ingredients[j].quantity, "x ", recipes.get(i).ingredients[j].name);
 					}
 				}
 				else
@@ -115,14 +115,14 @@ namespace
 			for (int i = 0; i < recipes.size(); i++)
 			{
 				bool is_available = true;
-				if (recipes.get(i).ingredients)
+				if (!recipes.get(i).ingredients.empty())
 				{
-					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
 					{
-						const int index = recipes.find((*recipes.get(i).ingredients)[j].name);
+						const int index = recipes.find(recipes.get(i).ingredients[j].name);
 						debug_assert(index >= 0);
 
-						const int need = (*recipes.get(i).ingredients)[j].quantity;
+						const int need = recipes.get(i).ingredients[j].quantity;
 						const int have = ingredient_counts[index];
 						if (have < need)
 						{
@@ -158,11 +158,11 @@ namespace
 		{
 			debug_assert(is_empty(table));
 
-			if (recipe.ingredients)
+			if (!recipe.ingredients.empty())
 			{
-				for (int j = 0; j < recipe.ingredients->size(); j++)
+				for (int j = 0; j < recipe.ingredients.size(); j++)
 				{
-					for (int k = 0; k < (*recipe.ingredients)[j].quantity; k++)
+					for (int k = 0; k < recipe.ingredients[j].quantity; k++)
 					{
 						auto table_to_be_cleared = engine::Entity::null();
 						for (const auto & preparation : tables.get<Preparation>())
@@ -170,7 +170,7 @@ namespace
 							if (preparation.time_remaining > 0)
 								continue;
 
-							if (preparation.recipe->name == (*recipe.ingredients)[j].name)
+							if (preparation.recipe->name == recipe.ingredients[j].name)
 							{
 								table_to_be_cleared = tables.get_key(preparation);
 								break;
@@ -883,7 +883,7 @@ namespace
 	void data_callback_skills(std::string name, engine::resource::reader::Data && data)
 	{
 		gameplay::Skills skills;
-		serialize(data.structurer, skills);
+		data.structurer.read(skills);
 
 		debug_printline("skills:");
 		for (int i = 0; i < skills.size(); i++)

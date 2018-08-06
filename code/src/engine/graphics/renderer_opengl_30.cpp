@@ -1765,13 +1765,10 @@ namespace
 
 	void data_callback_shader(std::string name, std::vector<char> && content)
 	{
-		using core::serialize;
-
 		ShaderStructurer structurer;
 		structurer.set(content.data(), content.size(), name);
 
 		ShaderData shader_data;
-		// serialize(structurer, shader_data);
 		structurer.read(shader_data);
 
 		queue_shaders.try_push(std::make_pair(std::move(name), std::move(shader_data)));

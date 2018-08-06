@@ -2,7 +2,7 @@
 #ifndef GAMEPLAY_RECIPES_HPP
 #define GAMEPLAY_RECIPES_HPP
 
-#include "core/serialize.hpp"
+#include "core/serialization.hpp"
 
 #include "engine/Asset.hpp"
 
@@ -20,13 +20,12 @@ namespace gameplay
 		int quantity;
 
 	public:
-		template <typename S>
-		friend void serialize_class(S & s, Ingredient & x)
+		static constexpr auto serialization()
 		{
-			using core::serialize;
-
-			serialize(s, "name", x.name);
-			serialize(s, "quantity", x.quantity);
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("name"), &Ingredient::name),
+				std::make_pair(utility::string_view("quantity"), &Ingredient::quantity)
+				);
 		}
 	};
 
@@ -36,18 +35,17 @@ namespace gameplay
 		std::string name;
 		int durability;
 		utility::optional<int> time;
-		utility::optional<std::vector<Ingredient>> ingredients;
+		std::vector<Ingredient> ingredients;
 
 	public:
-		template <typename S>
-		friend void serialize_class(S & s, Recipe & x)
+		static constexpr auto serialization()
 		{
-			using core::serialize;
-
-			serialize(s, "name", x.name);
-			serialize(s, "durability", x.durability);
-			serialize(s, "time", x.time);
-			serialize(s, "ingredients", x.ingredients);
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("name"), &Recipe::name),
+				std::make_pair(utility::string_view("durability"), &Recipe::durability),
+				std::make_pair(utility::string_view("time"), &Recipe::time),
+				std::make_pair(utility::string_view("ingredients"), &Recipe::ingredients)
+				);
 		}
 	};
 
@@ -76,12 +74,11 @@ namespace gameplay
 		int size() const { return recipes.size(); }
 
 	public:
-		template <typename S>
-		friend void serialize_class(S & s, Recipes & x)
+		static constexpr auto serialization()
 		{
-			using core::serialize;
-
-			serialize(s, "recipes", x.recipes);
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("recipes"), &Recipes::recipes)
+				);
 		}
 	};
 }
