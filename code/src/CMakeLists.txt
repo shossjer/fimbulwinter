@@ -4,7 +4,6 @@ set(SOURCE_FILES
 	src/core/async/Thread.cpp
 	src/core/container/Buffer.cpp
 	src/core/crypto/crc.cpp
-	src/core/graphics/Image.cpp
 	src/engine/animation/Armature.cpp
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
@@ -57,6 +56,7 @@ set(HEADER_FILES
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
+   src/core/graphics/types.hpp
    src/core/JsonStructurer.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
@@ -65,6 +65,7 @@ set(HEADER_FILES
 	src/core/maths/Vector.hpp
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
+   src/core/PngStructurer.hpp
    src/core/serialization.hpp
 	src/core/StringSerializer.hpp
    src/core/StringStructurer.hpp

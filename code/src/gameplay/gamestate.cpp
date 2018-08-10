@@ -6,6 +6,7 @@
 #include <core/container/Collection.hpp>
 #include <core/container/ExchangeQueue.hpp>
 #include <core/maths/algorithm.hpp>
+#include "core/PngStructurer.hpp"
 
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
@@ -435,6 +436,21 @@ namespace
 	>
 	components;
 
+	void data_callback_image(std::string name, std::vector<char> && content)
+	{
+		core::PngStructurer structurer;
+		structurer.set(content.data(), content.size(), name);
+
+		core::graphics::Image image;
+		structurer.read(image);
+
+		debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
+		debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
+		auto asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
+
+		engine::graphics::renderer::post_register_texture(asset, std::move(image));
+	}
+
 	struct
 	{
 		std::vector<engine::Entity> entities;
@@ -447,8 +463,7 @@ namespace
 
 			for (int i = 0; i < recipes.size(); i++)
 			{
-				core::graphics::Image image( utility::to_string("res/", recipes.get(i).name, ".png"));
-				engine::graphics::renderer::post_register_texture(engine::Asset(recipes.get(i).name), std::move(image));
+				engine::resource::reader::post_read(utility::to_string("res/", recipes.get(i).name, ".png"), data_callback_image);
 
 				const engine::Entity entity = engine::Entity::create();
 				entities.push_back(entity);
