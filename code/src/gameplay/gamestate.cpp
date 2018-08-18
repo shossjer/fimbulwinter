@@ -436,13 +436,25 @@ namespace
 	>
 	components;
 
-	void data_callback_image(std::string name, std::vector<char> && content)
+	struct TryReadImage
 	{
-		core::PngStructurer structurer;
-		structurer.set(content.data(), content.size(), name);
+		core::graphics::Image & image;
 
+		void operator () (core::PngStructurer && x)
+		{
+			x.read(image);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("impossible to read, maybe");
+		}
+	};
+
+	void data_callback_image(std::string name, engine::resource::reader::Structurer && structurer)
+	{
 		core::graphics::Image image;
-		structurer.read(image);
+		visit(TryReadImage{image}, std::move(structurer));
 
 		debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
 		debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
@@ -882,9 +894,21 @@ namespace
 
 namespace
 {
-	void data_callback_recipes(std::string name, engine::resource::reader::Data && data)
+	struct data_callback_recipes_handler
 	{
-		kitchen.init_recipes(std::move(data.structurer));
+		void operator () (core::JsonStructurer && s)
+		{
+			kitchen.init_recipes(std::move(s));
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_unreachable();
+		}
+	};
+	void data_callback_recipes(std::string name, engine::resource::reader::Structurer && structurer)
+	{
+		utility::visit(data_callback_recipes_handler{}, std::move(structurer));
 
 		recipes_ring.init(kitchen.recipes);
 
@@ -895,10 +919,25 @@ namespace
 		}
 		engine::gui::post(engine::gui::MessageData{ gui_data.message() });
 	}
-	void data_callback_skills(std::string name, engine::resource::reader::Data && data)
+
+	struct data_callback_skills_handler
+	{
+		gameplay::Skills & skills;
+
+		void operator () (core::JsonStructurer && s)
+		{
+			s.read(skills);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_unreachable();
+		}
+	};
+	void data_callback_skills(std::string name, engine::resource::reader::Structurer && structurer)
 	{
 		gameplay::Skills skills;
-		data.structurer.read(skills);
+		utility::visit(data_callback_skills_handler{skills}, std::move(structurer));
 
 		debug_printline("skills:");
 		for (int i = 0; i < skills.size(); i++)
@@ -1019,8 +1058,8 @@ namespace gamestate
 		// trigger first load of GUI
 		engine::gui::post(engine::gui::MessageReload{});
 
-		engine::resource::reader::post_read_data("recipes", data_callback_recipes);
-		engine::resource::reader::post_read_data("skills", data_callback_skills);
+		engine::resource::reader::post_read("recipes", data_callback_recipes);
+		engine::resource::reader::post_read("skills", data_callback_skills);
 	}
 
 	void destroy()

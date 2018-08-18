@@ -1315,13 +1315,27 @@ namespace
 			vertices, triangles, normals, coords });
 	}
 
-	void data_callback_image(std::string name, std::vector<char> && content)
-	{
-		core::PngStructurer structurer;
-		structurer.set(content.data(), content.size(), name);
+	std::atomic_int texture_lock(0);
 
+	struct TryReadImage
+	{
+		core::graphics::Image & image;
+
+		void operator () (core::PngStructurer && x)
+		{
+			x.read(image);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("impossible to read, maybe");
+		}
+	};
+
+	void data_callback_image(std::string name, engine::resource::reader::Structurer && structurer)
+	{
 		core::graphics::Image image;
-		structurer.read(image);
+		visit(TryReadImage{image}, std::move(structurer));
 
 		engine::Asset asset = engine::Asset::null();
 		if (name == "res/box.png")
@@ -1334,6 +1348,7 @@ namespace
 		}
 
 		engine::graphics::renderer::post_register_texture(asset, std::move(image));
+		texture_lock++;
 	}
 
 	void render_setup()
@@ -1385,6 +1400,7 @@ namespace
 		engine::resource::reader::post_read("res/box.png", data_callback_image);
 		engine::resource::reader::post_read("res/dude.png", data_callback_image);
 		engine::resource::reader::post_read("res/photo.png", data_callback_image);
+		while (texture_lock < 3);
 
 		engine::graphics::renderer::post_add_component(
 			engine::Entity::create(),

@@ -3,6 +3,7 @@
 #define CORE_PNGSTRUCTURER_HPP
 
 #include "core/debug.hpp"
+#include "core/graphics/types.hpp"
 #include "core/serialization.hpp"
 
 #include "utility/optional.hpp"
@@ -52,6 +53,17 @@ namespace core
 		std::string filename;
 
 	public:
+		PngStructurer(int size, std::string filename)
+			: bytes(size)
+			, filename(std::move(filename))
+		{}
+		PngStructurer(std::vector<char> && bytes, std::string filename)
+			: bytes(std::move(bytes))
+			, filename(std::move(filename))
+		{}
+
+		char * data() { return bytes.data(); }
+
 		template <typename T>
 		void read(T & x)
 		{
@@ -155,14 +167,6 @@ namespace core
 			{
 				serialization<T>::call("pixel_data", x, TryAssign<std::vector<char> &&>(std::move(pixels)));
 			}
-		}
-
-		void set(const char * data, size_t size, const std::string & filename)
-		{
-			bytes.resize(size);
-			std::copy(data, data + size, bytes.begin());
-
-			this->filename = filename;
 		}
 	private:
 		void read_color_type(int color_type, graphics::ColorType & x)

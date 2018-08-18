@@ -45,6 +45,7 @@ set(SOURCE_FILES
 # source listing
 set(HEADER_FILES
 	src/core/JsonStructurer.hpp
+   src/core/LevelStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
 	src/core/color.hpp
@@ -65,8 +66,10 @@ set(HEADER_FILES
 	src/core/maths/Vector.hpp
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
+   src/core/PlaceholderStructurer.hpp
    src/core/PngStructurer.hpp
    src/core/serialization.hpp
+   src/core/ShaderStructurer.hpp
 	src/core/StringSerializer.hpp
    src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp

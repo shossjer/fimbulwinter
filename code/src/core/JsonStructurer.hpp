@@ -21,13 +21,20 @@ namespace core
 		std::string filename;
 
 	public:
+		JsonStructurer(std::string filename)
+			: filename(std::move(filename))
+		{}
+
+	public:
+		const json & get() const { return root; }
+
 		template <typename T>
 		void read(T & x)
 		{
 			read_object(root, x);
 		}
 
-		void set(const char * data, size_t size, const std::string & filename)
+		void set(const char * data, size_t size)
 		{
 			try
 			{
@@ -37,8 +44,6 @@ namespace core
 			{
 				debug_fail("something is wrong with the json in '", filename, "'");
 			}
-
-			this->filename = filename;
 		}
 	private:
 		template <typename T>
