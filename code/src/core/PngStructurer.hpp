@@ -15,36 +15,6 @@
 
 namespace core
 {
-	template <typename T>
-	class TryAssign
-	{
-	private:
-		T v;
-
-	public:
-		TryAssign(T value)
-			: v(std::forward<T>(value))
-		{}
-
-	public:
-		template <typename U>
-		void operator () (U & object)
-		{
-			impl(object, 0);
-		}
-	private:
-		template <typename U>
-		auto impl(U & object, int) -> decltype(object = std::declval<T>(), void())
-		{
-			object = std::forward<T>(v);
-		}
-		template <typename U>
-		void impl(U & object, ...)
-		{
-			debug_fail("incompatible types");
-		}
-	};
-
 	class PngStructurer
 	{
 	private:

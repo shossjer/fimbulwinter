@@ -4,7 +4,6 @@ set(SOURCE_FILES
 	src/core/async/Thread.cpp
 	src/core/container/Buffer.cpp
 	src/core/crypto/crc.cpp
-	src/engine/animation/Armature.cpp
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
@@ -44,7 +43,8 @@ set(SOURCE_FILES
 
 # source listing
 set(HEADER_FILES
-	src/core/JsonStructurer.hpp
+   src/core/ArmatureStructurer.hpp
+   src/core/JsonStructurer.hpp
    src/core/LevelStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp

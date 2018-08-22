@@ -33,6 +33,10 @@ namespace
 		return true;
 	}
 
+	bool check_if_arm(const std::string & name)
+	{
+		return file_exists(utility::to_string("res/", name, ".arm"));
+	}
 	bool check_if_glsl(const std::string & name)
 	{
 		return file_exists(utility::to_string("res/gfx/", name, ".glsl"));
@@ -72,6 +76,23 @@ namespace
 
 namespace
 {
+	void read_arm(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	{
+		debug_printline("reading '", filename, "'");
+		std::ifstream file(filename, std::ifstream::binary);
+		debug_assert(file);
+
+		file.seekg(0, std::ifstream::end);
+		const auto file_size = file.tellg();
+		file.seekg(0, std::ifstream::beg);
+
+		using StructurerType = core::ArmatureStructurer;
+		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
+		file.read(utility::get<StructurerType>(structurer).data(), file_size);
+
+		callback(std::move(name), std::move(structurer));
+	}
+
 	void read_glsl(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
 		debug_printline("reading '", filename, "'");
@@ -171,7 +192,11 @@ namespace
 				{
 					if (file_exists(x.name))
 					{
-						if (has_extension(x.name, ".glsl"))
+						if (has_extension(x.name, ".arm"))
+						{
+							read_arm(x.name, x.name, x.callback);
+						}
+						else if (has_extension(x.name, ".glsl"))
 						{
 							read_glsl(x.name, x.name, x.callback);
 						}
@@ -207,6 +232,10 @@ namespace
 					else if (check_if_png(x.name))
 					{
 						read_png(x.name, "res/" + x.name + ".png", x.callback);
+					}
+					else if (check_if_arm(x.name))
+					{
+						read_arm(x.name, "res/" + x.name + ".arm", x.callback);
 					}
 					else if (check_if_json(x.name))
 					{

@@ -2,6 +2,7 @@
 #ifndef ENGINE_RESOURCE_READER_HPP
 #define ENGINE_RESOURCE_READER_HPP
 
+#include "core/ArmatureStructurer.hpp"
 #include "core/JsonStructurer.hpp"
 #include "core/LevelStructurer.hpp"
 #include "core/PlaceholderStructurer.hpp"
@@ -19,6 +20,7 @@ namespace engine
 		namespace reader
 		{
 			using Structurer = utility::variant<
+				core::ArmatureStructurer,
 				core::JsonStructurer,
 				core::LevelStructurer,
 				core::PlaceholderStructurer,
