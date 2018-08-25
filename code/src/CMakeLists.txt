@@ -17,6 +17,8 @@ set(SOURCE_FILES
 	src/engine/graphics/opengl/Font_user32.cpp
 	src/engine/graphics/opengl/Font_x11.cpp
 	src/engine/graphics/renderer.cpp
+	src/engine/graphics/renderer_opengl_12.cpp
+	src/engine/graphics/renderer_opengl_30.cpp
 	src/engine/graphics/viewer.cpp
 	src/engine/gui/controller.cpp
 	src/engine/gui/creation.cpp
@@ -80,10 +82,11 @@ set(HEADER_FILES
 	src/engine/application/window.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
-	src/engine/graphics/renderer.hpp
+	src/engine/graphics/message.hpp
 	src/engine/graphics/opengl.hpp
 	src/engine/graphics/opengl/Font.hpp
 	src/engine/graphics/opengl/Matrix.hpp
+	src/engine/graphics/renderer.hpp
 	src/engine/graphics/viewer.hpp
 	src/engine/gui/common.hpp
 	src/engine/gui/controller.hpp

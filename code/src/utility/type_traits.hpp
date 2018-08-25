@@ -15,57 +15,72 @@ namespace mpl
 	//  std
 	//
 	//////////////////////////////////////////////////////////////////
-	// true/false type
+	// C++11 true/false type
 	using std::true_type;
 	using std::false_type;
 
-	// integral_constant
+	// C++11 integral constant
 	using std::integral_constant;
-
+	// C++17 bool constant
 	template <bool Value>
 	using bool_constant = integral_constant<bool, Value>;
-	template <std::size_t Value>
-	using index_constant = integral_constant<std::size_t, Value>;
 
-	// enable_if
+	// C++11 enable_if
 	using std::enable_if;
 	template <bool Cond, typename T = void>
 	using enable_if_t = typename enable_if<Cond, T>::type;
 
-	template <bool Cond, typename T = void>
-	using disable_if = enable_if<!Cond, T>;
-	template <bool Cond, typename T = void>
-	using disable_if_t = typename disable_if<Cond, T>::type;
-
-	// conditional
+	// C++11 conditional
+	using std::conditional;
 	template <bool Cond, typename TrueType, typename FalseType>
-	using conditional_t = typename std::conditional<Cond, TrueType, FalseType>::type;
+	using conditional_t = typename conditional<Cond, TrueType, FalseType>::type;
 
+	// C++11 remove reference
 	using std::remove_reference;
 	template <typename T>
 	using remove_reference_t = typename remove_reference<T>::type;
 
+	// C++11 remove const volatile
+	using std::remove_cv;
+	template <typename T>
+	using remove_cv_t = typename remove_cv<T>::type;
+
+	// C++20 remove const volatile referene
+	template <typename T>
+	struct remove_cvref
+	{
+		using type = remove_cv_t<remove_reference_t<T>>;
+	};
+	template <typename T>
+	using remove_cvref_t = typename remove_cvref<T>::type;
+
+	// C++11 decay
 	using std::decay;
 	template <typename T>
 	using decay_t = typename decay<T>::type;
 
-	// align
-	template <std::size_t Len, std::size_t Align>
-	using aligned_storage_t = typename std::aligned_storage<Len, Align>::type;
-
-	// conjunction
+	// C++17 conjunction
 	template <typename ...Bs>
 	struct conjunction : true_type {};
 	template <typename B1, typename ...Bs>
 	struct conjunction<B1, Bs...> : conditional_t<bool(B1::value), conjunction<Bs...>, B1> {};
-	// disjunction
+	// C++17 disjunction
 	template <typename ...Bs>
 	struct disjunction : false_type {};
 	template <typename B1, typename ...Bs>
 	struct disjunction<B1, Bs...> : conditional_t<bool(B1::value), B1, disjunction<Bs...>> {};
-	// negation
+	// C++17 negation
 	template <typename B>
 	struct negation : bool_constant<!bool(B::value)> {};
+
+	// C++17 void
+	template <typename ...>
+	struct void_impl
+	{
+		using type = void;
+	};
+	template <typename ...Ts>
+	using void_t = typename void_impl<Ts...>::type;
 
 	////////////////////////////////////////////////////////////////////////////
 	//
@@ -84,16 +99,19 @@ namespace mpl
 		enum { size = sizeof...(Ts) };
 	};
 
-	template <typename ...>
-	struct void_impl : type_is<void> {};
-	template <typename ...Ts>
-	using void_t = typename void_impl<Ts...>::type;
-
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  std-extensions
 	//
 	//////////////////////////////////////////////////////////////////
+	template <std::size_t Value>
+	using index_constant = integral_constant<std::size_t, Value>;
+
+	template <bool Cond, typename T = void>
+	using disable_if = enable_if<!Cond, T>;
+	template <bool Cond, typename T = void>
+	using disable_if_t = typename disable_if<Cond, T>::type;
+
 	template <typename ...Ts>
 	struct is_same : is_same<type_list<Ts...>> {};
 	template <>
@@ -129,6 +147,19 @@ namespace mpl
 	};
 	template <typename T, typename ...Ps>
 	using is_paren_constructible = decltype(is_paren_constructible_impl::test<T, Ps...>(0));
+
+	namespace is_range_impl
+	{
+		using std::begin;
+		using std::end;
+
+		template <typename T>
+		auto test(int) -> decltype(begin(std::declval<T>()), end(std::declval<T>()), true_type());
+		template <typename T>
+		auto test(...) -> false_type;
+	}
+	template <typename T>
+	using is_range = decltype(is_range_impl::test<T>(0));
 
 	////////////////////////////////////////////////////////////////////////////
 	//

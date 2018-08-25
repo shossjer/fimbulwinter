@@ -63,6 +63,7 @@ namespace engine
 				{}
 			};
 
+			void post_read(std::string name, void (* callback)(std::string name, std::vector<char> && content));
 			void post_read_data(std::string name, void (* callback)(std::string name, Data && data));
 			void post_read_level(std::string name, void (* callback)(std::string name, Level && data));
 			void post_read_placeholder(std::string name, void (* callback)(std::string name, Placeholder && data));

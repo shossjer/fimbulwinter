@@ -160,7 +160,7 @@ namespace core
 
 	template <typename S, typename T>
 	auto serialize_impl(S & s, T & xs, int) ->
-		decltype(std::begin(xs), std::end(xs), void())
+		mpl::enable_if_t<mpl::is_range<T>::value>
 	{
 		s.push(type_list, xs);
 		for (auto && x : xs)
@@ -311,7 +311,7 @@ namespace core
 
 	template <typename S, typename T>
 	auto serialize_impl(S & s, const char * key, T & xs, int) ->
-		decltype(std::begin(xs), std::end(xs), void())
+		mpl::enable_if_t<mpl::is_range<T>::value>
 	{
 		s.push(type_list, key, xs);
 		for (auto && x : xs)
