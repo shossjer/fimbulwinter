@@ -220,9 +220,6 @@ namespace
 
 		GLint create(engine::Asset asset, ShaderData && shader_data)
 		{
-			const auto error_before = glGetError();
-			debug_assert(error_before == GL_NO_ERROR);
-
 			GLint vs = glCreateShader(GL_VERTEX_SHADER);
 			const char * vs_source = shader_data.vertex_source.c_str();
 			glShaderSource(vs, 1, &vs_source, nullptr);
@@ -430,6 +427,9 @@ namespace
 		~texture_t()
 		{
 			glDeleteTextures(1, &id);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 		}
 		texture_t(core::graphics::Image && image)
 		{
@@ -459,6 +459,9 @@ namespace
 			debug_assert(error_before == GL_NO_ERROR);
 
 			glDisable(GL_TEXTURE_2D);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 		}
 
 		void enable() const
@@ -466,10 +469,16 @@ namespace
 			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, id);
 			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 		}
 		void disable() const
 		{
 			glDisable(GL_TEXTURE_2D);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 		}
 	};
 
@@ -1251,6 +1260,9 @@ namespace
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
 		entitypixels.resize(framebuffer_width * framebuffer_height);
+
+		const auto error_after = glGetError();
+		debug_assert(error_after == GL_NO_ERROR);
 	}
 	void maybe_resize_framebuffer()
 	{
@@ -1307,6 +1319,9 @@ namespace
 		glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
 		glEnable(GL_LIGHT0);
+
+		const auto error_after = glGetError();
+		debug_assert(error_after == GL_NO_ERROR);
 	}
 
 	template <typename T, std::size_t N>
@@ -1629,13 +1644,22 @@ namespace
 
 			const auto vertex_location = 4;// glGetAttribLocation(p_tex, "in_vertex");
 			glEnableVertexAttribArray(vertex_location);
-			glVertexAttribPointer(vertex_location, 3, GL_FLOAT, GL_FALSE, 0, component.object->vertices.data());
+			glVertexAttribPointer(
+				vertex_location,
+				3,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				component.object->vertices.data());
 			glDrawElements(
 				GL_TRIANGLES,
 				component.mesh->triangles.count(),
 				GL_UNSIGNED_SHORT, // TODO
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -1667,6 +1691,9 @@ namespace
 			}
 			glDisableVertexAttribArray(vertex_location);
 
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
+
 			modelview_matrix.pop();
 		}
 		for (const auto & component : selectable_components.get<selectable_comp_t>())
@@ -1693,6 +1720,9 @@ namespace
 				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -1745,6 +1775,9 @@ namespace
 				GL_UNSIGNED_SHORT,
 				indices);
 			glDisableVertexAttribArray(vertex_location);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -1820,9 +1853,6 @@ namespace
 		glUniform(p_tex, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
 		for (auto & component : components.get<Character>())
 		{
-			const auto error_before = glGetError();
-			debug_assert(error_before == GL_NO_ERROR);
-
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
 			modelview_matrix.mult(component.mesh->modelview);
@@ -1849,9 +1879,27 @@ namespace
 			glEnableVertexAttribArray(vertex_location);
 			glEnableVertexAttribArray(normal_location);
 			glEnableVertexAttribArray(texcoord_location);
-			glVertexAttribPointer(vertex_location, 3, GL_FLOAT, GL_FALSE, 0, component.object->vertices.data());
-			glVertexAttribPointer(normal_location, 3, GL_FLOAT, GL_FALSE, 0, component.mesh->normals.data());
-			glVertexAttribPointer(texcoord_location, 2, GL_FLOAT, GL_FALSE, 0, component.mesh->coords.data());
+			glVertexAttribPointer(
+				vertex_location,
+				3,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				component.object->vertices.data());
+			glVertexAttribPointer(
+				normal_location,
+				3,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				component.mesh->normals.data());
+			glVertexAttribPointer(
+				texcoord_location,
+				2,
+				GL_FLOAT,
+				GL_FALSE,
+				0,
+				component.mesh->coords.data());
 			glDrawElements(
 				GL_TRIANGLES,
 				component.mesh->triangles.count(),
@@ -1861,10 +1909,10 @@ namespace
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			modelview_matrix.pop();
-
 			const auto error_after = glGetError();
 			debug_assert(error_after == GL_NO_ERROR);
+
+			modelview_matrix.pop();
 		}
 		glUseProgram(0);
 		}
@@ -1905,7 +1953,13 @@ namespace
 
 			const auto vertex_location = 5;
 			glEnableVertexAttribArray(vertex_location);
-			glVertexAttribPointer(vertex_location, 3, GL_FLOAT, GL_FALSE, 0, component.vertices.data());
+			glVertexAttribPointer(
+				vertex_location,
+				3,
+				BufferFormats[static_cast<int>(component.vertices.format())],
+				GL_FALSE,
+				0,
+				component.vertices.data());
 			glDrawElements(
 				GL_LINES,
 				component.edges.count(),
@@ -1914,6 +1968,9 @@ namespace
 			glDisableVertexAttribArray(vertex_location);
 
 			glLineWidth(1.f);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -1959,9 +2016,27 @@ namespace
 			glEnableVertexAttribArray(vertex_location);
 			glEnableVertexAttribArray(normal_location);
 			glEnableVertexAttribArray(texcoord_location);
-			glVertexAttribPointer(vertex_location, 3, GL_FLOAT, GL_FALSE, 0, mesh.vertices.data());
-			glVertexAttribPointer(normal_location, 3, GL_FLOAT, GL_FALSE, 0, mesh.normals.data());
-			glVertexAttribPointer(texcoord_location, 2, GL_FLOAT, GL_FALSE, 0, mesh.coords.data());
+			glVertexAttribPointer(
+				vertex_location,
+				3,
+				BufferFormats[static_cast<int>(mesh.vertices.format())],
+				GL_FALSE,
+				0,
+				mesh.vertices.data());
+			glVertexAttribPointer(
+				normal_location,
+				3,
+				BufferFormats[static_cast<int>(mesh.normals.format())],
+				GL_FALSE,
+				0,
+				mesh.normals.data());
+			glVertexAttribPointer(
+				texcoord_location,
+				2,
+				BufferFormats[static_cast<int>(mesh.coords.format())],
+				GL_FALSE,
+				0,
+				mesh.coords.data());
 			glDrawElements(
 				GL_TRIANGLES,
 				mesh.triangles.count(),
@@ -1970,6 +2045,9 @@ namespace
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2038,6 +2116,9 @@ namespace
 			}
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2153,6 +2234,9 @@ namespace
 				indices);
 			glDisableVertexAttribArray(color_location);
 			glDisableVertexAttribArray(vertex_location);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2272,6 +2356,9 @@ namespace
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
+
 			modelview_matrix.pop();
 		}
 		glUseProgram(0);
@@ -2356,6 +2443,9 @@ namespace
 				indices);
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
