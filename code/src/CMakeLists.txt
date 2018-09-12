@@ -34,7 +34,6 @@ set(SOURCE_FILES
 	src/engine/physics/physics_physx.cpp
 	src/engine/replay/reader.cpp
 	src/engine/replay/writer.cpp
-	src/engine/resource/loader.cpp
 	src/engine/resource/reader.cpp
 	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
@@ -119,7 +118,6 @@ set(HEADER_FILES
 	src/engine/physics/physics_physx.hpp
 	src/engine/replay/reader.hpp
 	src/engine/replay/writer.hpp
-	src/engine/resource/loader.hpp
 	src/engine/resource/reader.hpp
 	src/gameplay/commands.hpp
 	src/gameplay/component/CameraActivator.hpp
