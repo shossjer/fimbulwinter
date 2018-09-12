@@ -4,9 +4,11 @@
 
 #include "defines.hpp"
 
-#include <core/maths/util.hpp>
-#include <core/maths/Vector.hpp>
-#include <core/maths/Matrix.hpp>
+#include "core/maths/util.hpp"
+#include "core/maths/Vector.hpp"
+#include "core/maths/Matrix.hpp"
+
+#include "engine/Entity.hpp"
 
 /**
  *	\note Declare and call from creation context (main)
@@ -21,8 +23,8 @@ namespace physics
 	{
 		struct Bounds
 		{
-			Vector3f min;
-			Vector3f max;
+			core::maths::Vector3f min;
+			core::maths::Vector3f max;
 		};
 
 		/**
@@ -37,11 +39,11 @@ namespace physics
 		 *	The bounding volume is set using the coordinate of the "min" corner
 		 *	of the volume and the coordinate of the "max" corner of the volume.
 		 */
-		void add(engine::Entity camera, Vector3f position, bool bounded = true);
+		void add(engine::Entity camera, core::maths::Vector3f position, bool bounded = true);
 		/**
 		 *	Update movement of the camera within its bounds.
 		 */
-		void update(engine::Entity camera, Vector3f movement);
+		void update(engine::Entity camera, core::maths::Vector3f movement);
 	}
 
 	struct orientation_movement

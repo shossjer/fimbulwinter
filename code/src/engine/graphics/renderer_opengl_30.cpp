@@ -633,7 +633,7 @@ namespace
 
 	struct Bar
 	{
-		Vector3f worldPosition;
+		core::maths::Vector3f worldPosition;
 		float progress;
 
 		Bar(engine::graphics::data::Bar && bar)
@@ -1555,7 +1555,7 @@ namespace
 			engine::Entity::create(),
 			engine::graphics::data::CompT{
 				core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f),
-				Vector3f{1.f, 1.f, 1.f},
+				core::maths::Vector3f{1.f, 1.f, 1.f},
 				engine::Asset{ "cuboid" },
 				engine::Asset{ "my_png" } });
 		// ^^^^^^^^ tmp ^^^^^^^^
@@ -2079,7 +2079,7 @@ namespace
 			core::maths::Vector2f::array_type b;
 			frameCoord.get_aligned(b);
 
-			Matrix4x4f modelview = make_translation_matrix(Vector3f{ b[0], b[1], 0.f });
+			core::maths::Matrix4x4f modelview = make_translation_matrix(core::maths::Vector3f{ b[0], b[1], 0.f });
 
 			modelview_matrix.mult(modelview);
 			glUniform(p_color, "modelview_matrix", modelview_matrix.top());

@@ -244,7 +244,7 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							Vector3f{ 1.f, 1.f, 1.f },
+							core::maths::Vector3f{ 1.f, 1.f, 1.f },
 							resource.assets });
 				engine::graphics::renderer::post_make_selectable(entity);
 
@@ -312,7 +312,7 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							Vector3f{ 1.f, 1.f, 1.f },
+							core::maths::Vector3f{ 1.f, 1.f, 1.f },
 							resource.assets });
 			}
 			Created(Created && x)
@@ -374,7 +374,7 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							Vector3f{ 1.f, 1.f, 1.f },
+							core::maths::Vector3f{ 1.f, 1.f, 1.f },
 							resource.assets });
 				engine::graphics::renderer::post_make_selectable(entity);
 
@@ -445,7 +445,7 @@ namespace
 					entity,
 					engine::graphics::data::CompT{
 						modelview,
-							Vector3f { 1.f, 1.f, 1.f },
+							core::maths::Vector3f { 1.f, 1.f, 1.f },
 							resource.mesh,
 								engine::Asset{ "dude" }});
 				engine::graphics::renderer::post_make_selectable(entity);

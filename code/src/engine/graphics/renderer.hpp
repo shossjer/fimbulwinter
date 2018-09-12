@@ -3,12 +3,13 @@
 #define ENGINE_GRAPHICS_RENDERER_HPP
 
 #include "engine/Command.hpp"
-#include <engine/common.hpp>
-#include <engine/model/data.hpp>
+#include "engine/Entity.hpp"
+#include "engine/common.hpp"
+#include "engine/model/data.hpp"
 
-#include <core/container/Buffer.hpp>
-#include <core/graphics/Image.hpp>
-#include <core/maths/Matrix.hpp>
+#include "core/container/Buffer.hpp"
+#include "core/graphics/Image.hpp"
+#include "core/maths/Matrix.hpp"
 
 #include <vector>
 
@@ -44,7 +45,7 @@ namespace engine
 			struct CompT
 			{
 				core::maths::Matrix4x4f modelview;
-				Vector3f scale;
+				core::maths::Vector3f scale;
 				engine::Asset mesh;
 				engine::Asset texture;
 			};
@@ -52,7 +53,7 @@ namespace engine
 			struct CompC
 			{
 				core::maths::Matrix4x4f modelview;
-				Vector3f scale;
+				core::maths::Vector3f scale;
 
 				struct asset
 				{
@@ -66,7 +67,7 @@ namespace engine
 			{
 				// TODO: enum for type of Bar (Progress, Hitpoints, Level etc)
 
-				Vector3f worldPosition;
+				core::maths::Vector3f worldPosition;
 
 				// value between 0.f to 1.f
 				float progress;

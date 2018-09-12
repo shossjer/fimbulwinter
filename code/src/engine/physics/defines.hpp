@@ -164,8 +164,8 @@ namespace physics
 
 	struct PlaneData
 	{
-		Vector3f point;
-		Vector3f normal;
+		core::maths::Vector3f point;
+		core::maths::Vector3f normal;
 		Material material;
 	};
 }

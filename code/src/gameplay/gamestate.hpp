@@ -2,11 +2,12 @@
 #ifndef GAMEPLAY_GAMESTATE_HPP
 #define GAMEPLAY_GAMESTATE_HPP
 
-#include <engine/Command.hpp>
-#include <engine/common.hpp>
-#include <engine/graphics/renderer.hpp>
+#include "engine/Command.hpp"
+#include "engine/Entity.hpp"
+#include "engine/common.hpp"
+#include "engine/graphics/renderer.hpp"
 
-#include <utility/any.hpp>
+#include "utility/any.hpp"
 
 namespace gameplay
 {
@@ -30,8 +31,8 @@ namespace gamestate
 	void post_add_workstation(
 		engine::Entity entity,
 		WorkstationType type,
-		Matrix4x4f front,
-		Matrix4x4f top);
+		core::maths::Matrix4x4f front,
+		core::maths::Matrix4x4f top);
 
 	void post_add_worker(engine::Entity entity);
 }

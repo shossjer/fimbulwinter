@@ -311,8 +311,8 @@ namespace
 	struct Workstation
 	{
 		gameplay::gamestate::WorkstationType type;
-		Matrix4x4f front;
-		Matrix4x4f top;
+		core::maths::Matrix4x4f front;
+		core::maths::Matrix4x4f top;
 		engine::Entity worker = engine::Entity::null();
 
 	private:
@@ -322,8 +322,8 @@ namespace
 	public:
 		Workstation(
 			gameplay::gamestate::WorkstationType type,
-			Matrix4x4f front,
-			Matrix4x4f top)
+			core::maths::Matrix4x4f front,
+			core::maths::Matrix4x4f top)
 			: type(type)
 			, front(front)
 			, top(top)
@@ -406,7 +406,7 @@ namespace
 		void barUpdate(float normalized_progress)
 		{
 			engine::graphics::renderer::post_add_bar(bar, engine::graphics::data::Bar{
-					to_xyz(top.get_column<3>()) + Vector3f{ 0.f, .5f, 0.f }, normalized_progress});
+					to_xyz(top.get_column<3>()) + core::maths::Vector3f{ 0.f, .5f, 0.f }, normalized_progress});
 		}
 	};
 
@@ -654,7 +654,7 @@ namespace
 				const float angle = static_cast<float>(i) / static_cast<float>(shown_recipes.size()) * 2.f * 3.14159265f - 3.14159265f / 2.f;
 
 				core::maths::Matrix4x4f matrix = make_translation_matrix(
-					center + Vector3f(
+					center + core::maths::Vector3f(
 						radius * std::cos(angle) - 32.f,
 						radius * std::sin(angle) - 32.f,
 						0.f));
@@ -703,8 +703,8 @@ namespace
 		<
 			engine::Entity,
 			gameplay::gamestate::WorkstationType,
-			Matrix4x4f,
-			Matrix4x4f
+			core::maths::Matrix4x4f,
+			core::maths::Matrix4x4f
 		>,
 		100> queue_workstations;
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_gui_components;
@@ -1107,8 +1107,8 @@ namespace gamestate
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
-		Vector3f debug_camera_pos{ 0.f, 4.f, 0.f };
-		Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
+		core::maths::Vector3f debug_camera_pos{ 0.f, 4.f, 0.f };
+		core::maths::Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
 
 		components.emplace<FreeCamera>(debug_camera, debug_camera);
 		components.emplace<OverviewCamera>(game_camera, game_camera);
@@ -1227,7 +1227,7 @@ namespace gamestate
 				worker.clear_skills(kitchen.skills);
 			}
 
-			std::tuple<engine::Entity, WorkstationType, Matrix4x4f, Matrix4x4f> workstation_args;
+			std::tuple<engine::Entity, WorkstationType, core::maths::Matrix4x4f, core::maths::Matrix4x4f> workstation_args;
 			while (queue_workstations.try_pop(workstation_args))
 			{
 				components.emplace<Workstation>(
@@ -1300,8 +1300,8 @@ namespace gamestate
 	void post_add_workstation(
 			engine::Entity entity,
 			WorkstationType type,
-			Matrix4x4f front,
-			Matrix4x4f top)
+			core::maths::Matrix4x4f front,
+			core::maths::Matrix4x4f top)
 	{
 		const auto res = queue_workstations.try_emplace(entity, type, front, top);
 		debug_assert(res);

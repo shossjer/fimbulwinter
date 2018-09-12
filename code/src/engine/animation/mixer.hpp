@@ -2,11 +2,12 @@
 #ifndef ENGINE_ANIMATION_MIXER_HPP
 #define ENGINE_ANIMATION_MIXER_HPP
 
-#include <core/maths/Quaternion.hpp>
-#include <core/maths/Vector.hpp>
+#include "core/maths/Quaternion.hpp"
+#include "core/maths/Vector.hpp"
 
-#include <engine/Asset.hpp>
-#include <engine/common.hpp>
+#include "engine/Asset.hpp"
+#include "engine/Entity.hpp"
+#include "engine/common.hpp"
 
 #include <string>
 #include <vector>

@@ -24,9 +24,9 @@ namespace
 	struct Camera
 	{
 		bool bounded;
-		Vector3f position;
+		core::maths::Vector3f position;
 
-		void update(Vector3f & movement)
+		void update(core::maths::Vector3f & movement)
 		{
 			if (!this->bounded)
 			{
@@ -34,7 +34,7 @@ namespace
 			}
 			else
 			{
-				Vector3f np = this->position + movement;
+				core::maths::Vector3f np = this->position + movement;
 
 				core::maths::Vector3f::array_type bmin;
 				bounds.min.get_aligned(bmin);
@@ -52,7 +52,7 @@ namespace
 				if (pos[1] > bmax[1]) pos[1] = bmax[1];
 				if (pos[2] > bmax[2]) pos[2] = bmax[2];
 
-				this->position = Vector3f{ pos[0], pos[1], pos[2] };
+				this->position = core::maths::Vector3f{ pos[0], pos[1], pos[2] };
 			}
 		}
 	};
@@ -90,21 +90,21 @@ namespace camera
 		// snap existing cameras to new bound
 		for (Camera & camera : components.get<Camera>())
 		{
-			update(components.get_key(camera), Vector3f{ 0.f, 0.f, 0.f });
+			update(components.get_key(camera), core::maths::Vector3f{ 0.f, 0.f, 0.f });
 		}
 	}
 
 	// TODO: make thread safe when needed
-	void add(engine::Entity id, Vector3f position, bool bounded)
+	void add(engine::Entity id, core::maths::Vector3f position, bool bounded)
 	{
 		components.emplace<Camera>(id, Camera{ bounded, position });
 
 		// snap new camera to bounds
-		update(id, Vector3f{ 0.f, 0.f, 0.f });
+		update(id, core::maths::Vector3f{ 0.f, 0.f, 0.f });
 	}
 
 	// TODO: make thread safe when needed
-	void update(engine::Entity id, Vector3f movement)
+	void update(engine::Entity id, core::maths::Vector3f movement)
 	{
 		Camera & camera = components.get<Camera>(id);
 
