@@ -341,7 +341,7 @@ namespace
 		{
 			debug_assert(preparation.time_remaining > 0);
 
-			engine::animation::update(worker, engine::animation::action{"work", true});
+			engine::animation::post_update_action(worker, engine::animation::action{"work", true});
 
 			const int remaining_time = preparation.time_remaining;
 			const int total_time = preparation.recipe->time.value_or(0) * 50;
@@ -396,7 +396,7 @@ namespace
 	private:
 		void cleanup(const Preparation & preparation)
 		{
-			engine::animation::update(worker, engine::animation::action{"idle", true});
+			engine::animation::post_update_action(worker, engine::animation::action{"idle", true});
 
 			gameplay::destroy(boardModel);
 

@@ -255,26 +255,48 @@ namespace
 	{
 		struct Loaded
 		{
-			std::string name;
-
+			engine::Asset armature;
 			engine::Asset mesh;
 
 			~Loaded()
 			{
+				// engine::animation::post_unregister(armature);
 				// engine::graphics::renderer::post_unregister(mesh);
 			}
-			Loaded(engine::Asset && asset, std::string && name, engine::model::mesh_t && data)
-			{
-				debug_printline("registering character \"", name, "\"");
-				this->name = std::move(name);
-
-				engine::graphics::renderer::post_register_character(asset, std::move(data));
-				mesh = asset;
-			}
+			Loaded(engine::Asset armature, engine::Asset mesh)
+				: armature(armature)
+				, mesh(mesh)
+			{}
 		};
 		struct Loading
 		{
 			std::vector<engine::Entity> entities;
+
+			engine::Asset armature = engine::Asset::null();
+			engine::Asset mesh = engine::Asset::null();
+
+			Loading()
+			{}
+
+			bool set(engine::Asset && asset, std::string && name, engine::model::mesh_t && data)
+			{
+				debug_assert(mesh == engine::Asset::null());
+				mesh = asset;
+
+				debug_printline("registering character \"", name, "\"");
+				engine::graphics::renderer::post_register_character(asset, std::move(data));
+
+				return armature != engine::Asset::null();
+			}
+			bool set(engine::Asset && asset, std::string && name, engine::animation::Armature && data)
+			{
+				debug_assert(armature == engine::Asset::null());
+				armature = asset;
+
+				engine::animation::post_register_armature(asset, std::move(data));
+
+				return mesh != engine::Asset::null();
+			}
 		};
 		using State = utility::variant<Loading, Loaded>;
 
@@ -299,17 +321,30 @@ namespace
 			utility::get<Loading>(state).entities.push_back(entity);
 		}
 
-		void load(engine::Asset && asset, std::string && name, engine::model::mesh_t && data);
+		void load(Loading loading);
+		void load(engine::Asset && asset, std::string && name, engine::model::mesh_t && data)
+		{
+			debug_assert(utility::holds_alternative<Loading>(state));
+			auto & loading = utility::get<Loading>(state);
+
+			if (loading.set(std::move(asset), std::move(name), std::move(data)))
+				load(std::move(loading));
+		}
+		void load(engine::Asset && asset, std::string && name, engine::animation::Armature && data)
+		{
+			debug_assert(utility::holds_alternative<Loading>(state));
+			auto & loading = utility::get<Loading>(state);
+
+			if (loading.set(std::move(asset), std::move(name), std::move(data)))
+				load(std::move(loading));
+		}
 	};
 
 	void create_entity(engine::Entity entity, const ResourceCharacter::Loaded & resource);
 
-	void ResourceCharacter::load(engine::Asset && asset, std::string && name, engine::model::mesh_t && data)
+	void ResourceCharacter::load(Loading loading)
 	{
-		debug_assert(utility::holds_alternative<Loading>(state));
-
-		Loading loading = utility::get<Loading>(std::move(state));
-		const auto& loaded = state.emplace<Loaded>(std::move(asset), std::move(name), std::move(data));
+		const auto& loaded = state.emplace<Loaded>(loading.armature, loading.mesh);
 
 		for (engine::Entity entity : loading.entities)
 		{
@@ -941,8 +976,8 @@ namespace
 				core::maths::Vector3f scale;
 				decompose(modelview, translation, rotation, scale);
 				engine::physics::post_add_object(entity, engine::transform_t{translation, rotation});
-				engine::animation::add(entity, engine::animation::armature{utility::to_string("res/", resource.name, ".arm")});
-				engine::animation::update(entity, engine::animation::action{"turn-left", true});
+				engine::animation::post_add_character(entity, engine::animation::character{resource.armature});
+				engine::animation::post_update_action(entity, engine::animation::action{"turn-left", true});
 
 				gameplay::gamestate::post_add_worker(entity);
 			}
@@ -1071,6 +1106,36 @@ namespace
 
 namespace
 {
+	struct TryReadArmature
+	{
+		std::string && name;
+
+		void operator () (core::ArmatureStructurer && x)
+		{
+			engine::animation::Armature data;
+			x.read(data);
+
+			auto asset = engine::Asset(name);
+
+			std::lock_guard<core::sync::CriticalSection> lock(resources_cs);
+			debug_assert(resources.contains<ResourceCharacter>(asset));
+
+			auto & resource = resources.get<ResourceCharacter>(asset);
+			resource.load(std::move(asset), std::move(name), std::move(data));
+		}
+
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("not possible to serialize");
+		}
+	};
+
+	void read_armature_callback(std::string name, engine::resource::reader::Structurer && structurer)
+	{
+		visit(TryReadArmature{std::move(name)}, std::move(structurer));
+	}
+
 	struct TryReadCharacter
 	{
 		std::string && name;
@@ -1245,7 +1310,32 @@ namespace
 	void create_worker_lockfree(engine::Entity entity, const core::maths::Matrix4x4f & modelview)
 	{
 		constexpr const auto & name = "dude2";
-		create_entity_lockfree<ResourceCharacter, EntityWorker>(name, name, read_character_callback, entity, modelview);
+		constexpr engine::Asset asset = name;
+
+		if (resources.contains(asset))
+		{
+			debug_assert(resources.contains<ResourceCharacter>(asset));
+
+			auto & resource = resources.get<ResourceCharacter>(asset);
+			if (resource.is_loading())
+			{
+				entities.emplace<EntityWorker>(entity, modelview);
+				resource.add(entity);
+			}
+			else
+			{
+				entities.emplace<EntityWorker>(entity, entity, resource.get_loaded(), modelview);
+				// resource.add(entity);
+			}
+		}
+		else
+		{
+			entities.emplace<EntityWorker>(entity, modelview);
+			auto & resource = resources.emplace<ResourceCharacter>(asset);
+			resource.add(entity);
+			engine::resource::reader::post_read(name, read_character_callback, engine::resource::reader::PlaceholderFormat);
+			engine::resource::reader::post_read(name, read_armature_callback, engine::resource::reader::ArmatureFormat);
+		}
 	}
 
 	void create_placeholder_lockfree(engine::Asset asset, engine::Entity entity, const core::maths::Matrix4x4f & modelview)
