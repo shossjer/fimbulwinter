@@ -24,7 +24,11 @@ namespace utility
 
 	public:
 		template <typename ...Pairs,
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((sizeof...(Pairs) == sizeof...(Values))),
+#else
 		          REQUIRES((sizeof...(Pairs) == capacity)),
+#endif
 		          REQUIRES((sizeof...(Pairs) != 1 || !mpl::is_same<this_type, mpl::decay_t<Pairs>...>::value ))>
 		constexpr explicit lookup_table(Pairs && ...pairs)
 			: keys{{pairs.first...}}
@@ -45,10 +49,18 @@ namespace utility
 		}
 
 		template <std::size_t I,
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((I < sizeof...(Values)))>
+#else
 		          REQUIRES((I < capacity))>
+#endif
 		constexpr mpl::type_at<I, Values...> & get_value() { return std::get<I>(values); }
 		template <std::size_t I,
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((I < sizeof...(Values)))>
+#else
 		          REQUIRES((I < capacity))>
+#endif
 		constexpr const mpl::type_at<I, Values...> & get_value() const { return std::get<I>(values); }
 	private:
 		constexpr std::size_t find_impl(const Key & key, mpl::index_constant<capacity>) const

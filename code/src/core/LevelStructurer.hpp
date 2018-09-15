@@ -17,6 +17,26 @@
 
 namespace core
 {
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+	template <typename T>
+	struct LevelStructurerHelper
+	{
+		static const bool IsMesh =
+			serialization<T>::has("name") &&
+			serialization<T>::has("matrix") &&
+			serialization<T>::has("color") &&
+			serialization<T>::has("vertices") &&
+			serialization<T>::has("normals") &&
+			serialization<T>::has("triangles");
+
+		static const bool IsPlaceholder =
+			serialization<T>::has("name") &&
+			serialization<T>::has("translation") &&
+			serialization<T>::has("rotation") &&
+			serialization<T>::has("scale");
+	};
+#endif
+
 	class LevelStructurer
 	{
 	private:
@@ -101,12 +121,16 @@ namespace core
 		}
 
 		template <typename T,
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((LevelStructurerHelper<T>::IsMesh))>
+#else
 		          REQUIRES((serialization<T>::has("name") &&
 		                    serialization<T>::has("matrix") &&
 		                    serialization<T>::has("color") &&
 		                    serialization<T>::has("vertices") &&
-			                 serialization<T>::has("normals") &&
-			                 serialization<T>::has("triangles")))>
+		                    serialization<T>::has("normals") &&
+		                    serialization<T>::has("triangles")))>
+#endif
 		int read_meshes(int & curr, std::vector<T> & x)
 		{
 			uint16_t nmeshes;
@@ -141,10 +165,14 @@ namespace core
 		}
 
 		template <typename T,
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((LevelStructurerHelper<T>::IsPlaceholder))>
+#else
 		          REQUIRES((serialization<T>::has("name") &&
 		                    serialization<T>::has("translation") &&
-			                 serialization<T>::has("rotation") &&
+		                    serialization<T>::has("rotation") &&
 		                    serialization<T>::has("scale")))>
+#endif
 		int read_placeholders(int & curr, std::vector<T> & x)
 		{
 			uint16_t nplaceholders;

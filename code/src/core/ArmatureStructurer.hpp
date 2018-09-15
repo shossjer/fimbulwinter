@@ -14,6 +14,27 @@
 
 namespace core
 {
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+	template <typename T>
+	struct ArmatureStructurerHelper
+	{
+		static const bool IsAction =
+			serialization<T>::has("name") &&
+			serialization<T>::has("length") &&
+			serialization<T>::has("frames") &&
+			serialization<T>::has("positions") &&
+			serialization<T>::has("orientations");
+
+		static const bool IsFrame = serialization<T>::has("channels");
+
+		static const bool IsJoint =
+			serialization<T>::has("name") &&
+			serialization<T>::has("inv_matrix") &&
+			serialization<T>::has("parent") &&
+			serialization<T>::has("children");
+	};
+#endif
+
 	class ArmatureStructurer
 	{
 	private:
@@ -98,11 +119,15 @@ namespace core
 		}
 
 		template <typename T,
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((ArmatureStructurerHelper<T>::IsAction))>
+#else
 		          REQUIRES((serialization<T>::has("name") &&
 		                    serialization<T>::has("length") &&
 		                    serialization<T>::has("frames") &&
 		                    serialization<T>::has("positions") &&
 		                    serialization<T>::has("orientations")))>
+#endif
 		void read_actions(int & curr, std::vector<T> & actions, int njoints, int nactions)
 		{
 			actions.reserve(nactions);
@@ -155,7 +180,11 @@ namespace core
 
 		template <typename T,
 		          REQUIRES((has_member_table<T>::value)),
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((ArmatureStructurerHelper<T>::IsFrame))>
+#else
 		          REQUIRES((serialization<T>::has("channels")))>
+#endif
 		void read_frames(int & curr, std::vector<T> & frames, int njoints, int length)
 		{
 			frames.reserve(length + 1);
@@ -221,10 +250,14 @@ namespace core
 		}
 
 		template <typename T,
+#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((ArmatureStructurerHelper<T>::IsJoint))>
+#else
 		          REQUIRES((serialization<T>::has("name") &&
 		                    serialization<T>::has("inv_matrix") &&
 		                    serialization<T>::has("parent") &&
 		                    serialization<T>::has("children")))>
+#endif
 		void read_joints(int & curr, std::vector<T> & x, int count)
 		{
 			x.reserve(count);
