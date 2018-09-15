@@ -414,46 +414,28 @@ namespace mpl
 	//////////////////////////////////////////////////////////////////
 	namespace detail
 	{
-		struct best_convertible_dummy {};
-
-		template <typename A, typename P1, typename P2>
-		struct best_convertible_helper
+		template <typename ...Ps>
+		struct best_convertible_calls;
+		template <typename P, typename ...Ps>
+		struct best_convertible_calls<P, Ps...> : best_convertible_calls<Ps...>
 		{
-			struct convertible_test
-			{
-				P1 func(P1);
-				P2 func(P2);
-				best_convertible_dummy func(...);
-			};
+			using best_convertible_calls<Ps...>::call;
 
-			using type = decltype(convertible_test{}.func(std::declval<A>()));
+			P call(P);
 		};
-		template <typename A, typename P>
-		struct best_convertible_helper<A, P, P> : best_convertible_helper<A, best_convertible_dummy, P> {};
-
-		template <typename A, typename ...Ps>
-		struct best_convertible_impl;
-		template <typename A, typename P1, typename P2, typename ...Ps>
-		struct best_convertible_impl<A, P1, P2, Ps...> :
-			best_convertible_impl<A, typename best_convertible_helper<A, P1, P2>::type, Ps...> {};
-		template <typename A, typename P1, typename P2>
-		struct best_convertible_impl<A, P1, P2> :
-			best_convertible_helper<A, P1, P2> {};
-		template <typename A, typename P1>
-		struct best_convertible_impl<A, P1, P1> :
-			best_convertible_helper<A, P1, P1> {};
+		template <>
+		struct best_convertible_calls<>
+		{
+			void call(...);
+		};
 	}
 
 	template <typename A, typename ...Ps>
-	class best_convertible
+	struct best_convertible
 	{
-		using best_match = typename detail::best_convertible_impl<A, Ps...>::type;
-	public:
-		using type = conditional_t<is_same<best_match,
-		                                   detail::best_convertible_dummy>::value,
-		                           void,
-		                           best_match>;
+		using type = decltype(detail::best_convertible_calls<Ps...>{}.call(std::declval<A>()));
 	};
+
 	template <typename A, typename ...Ps>
 	using best_convertible_t = typename best_convertible<A, Ps...>::type;
 
