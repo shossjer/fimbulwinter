@@ -26,10 +26,12 @@
 #include <gameplay/debug.hpp>
 #include <gameplay/factory.hpp>
 #include "gameplay/recipes.hpp"
+#include "gameplay/roles.hpp"
 #include "gameplay/skills.hpp"
 
 #include "utility/string.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <utility>
 
@@ -70,11 +72,14 @@ namespace
 		const gameplay::Recipe * recipe;
 
 		int time_remaining;
+		int number_of_stacks;
 	};
 
 	struct Kitchen
 	{
 		gameplay::Recipes recipes;
+		gameplay::Roles roles;
+		gameplay::Skills skills;
 
 		core::container::Collection
 		<
@@ -106,25 +111,61 @@ namespace
 			}
 		}
 
+		void init_roles(core::JsonStructurer && s)
+		{
+			s.read(roles);
+
+			debug_printline("classes:");
+			for (int i = 0; i < roles.size(); i++)
+			{
+				debug_printline("name = \"", roles.get(i).name, "\"");
+			}
+		}
+
+		void init_skills(core::JsonStructurer && s)
+		{
+			s.read(skills);
+
+			debug_printline("skills:");
+			for (int i = 0; i < skills.size(); i++)
+			{
+				debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
+			}
+		}
+
 		std::vector<const gameplay::Recipe *> get_available_recipes() const
 		{
 			std::vector<const gameplay::Recipe *> available_recipes;
 
 			std::vector<int> ingredient_counts(recipes.size(), 0);
+			for (int i = 0; i < recipes.size(); i++)
+			{
+				// a raw ingredient does not have ingredients
+				if (recipes.get(i).ingredients.empty())
+				{
+					// it does not make sense to have a time if the ingredient is raw
+					debug_assert(!recipes.get(i).time.has_value());
+
+					ingredient_counts[i] = (std::numeric_limits<int>::max)();
+				}
+			}
 			for (const auto & preparation : tables.get<Preparation>())
 			{
 				if (preparation.time_remaining > 0)
 					continue;
 
+				// there should be at least one stack
+				debug_assert(preparation.number_of_stacks > 0);
+
 				const int i = recipes.index(*preparation.recipe);
-				ingredient_counts[i]++;
+				ingredient_counts[i] += preparation.number_of_stacks;
 			}
 
 			for (int i = 0; i < recipes.size(); i++)
 			{
-				bool is_available = true;
 				if (!recipes.get(i).ingredients.empty())
 				{
+					bool is_available = true;
 					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
 					{
 						const int index = recipes.find(recipes.get(i).ingredients[j].name);
@@ -138,10 +179,10 @@ namespace
 							break;
 						}
 					}
-				}
-				if (is_available)
-				{
-					available_recipes.push_back(&recipes.get(i));
+					if (is_available)
+					{
+						available_recipes.push_back(&recipes.get(i));
+					}
 				}
 			}
 
@@ -166,37 +207,112 @@ namespace
 		{
 			debug_assert(is_empty(table));
 
-			if (!recipe.ingredients.empty())
+			for (int j = 0; j < recipe.ingredients.size(); j++)
 			{
-				for (int j = 0; j < recipe.ingredients.size(); j++)
+				const int index = recipes.find(recipe.ingredients[j].name);
+				if (recipes.get(index).ingredients.empty())
+					continue; // raw ingredient
+
+				int quantity = recipe.ingredients[j].quantity;
+				while (quantity > 0)
 				{
-					for (int k = 0; k < recipe.ingredients[j].quantity; k++)
+					for (auto & preparation : tables.get<Preparation>())
 					{
-						auto table_to_be_cleared = engine::Entity::null();
-						for (const auto & preparation : tables.get<Preparation>())
+						if (preparation.time_remaining > 0)
+							continue;
+						if (preparation.recipe->name != recipe.ingredients[j].name)
+							continue;
+
+						debug_assert(preparation.number_of_stacks > 0);
+						if (preparation.number_of_stacks <= quantity)
 						{
-							if (preparation.time_remaining > 0)
-								continue;
-
-							if (preparation.recipe->name == recipe.ingredients[j].name)
-							{
-								table_to_be_cleared = tables.get_key(preparation);
-								break;
-							}
+							quantity -= preparation.number_of_stacks;
+							tables.remove(tables.get_key(preparation));
 						}
-						debug_assert(table_to_be_cleared != engine::Entity::null());
-
-						tables.remove(table_to_be_cleared);
+						else
+						{
+							preparation.number_of_stacks -= quantity;
+							quantity = 0;
+						}
+						break;
 					}
 				}
 			}
-			return tables.emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50);
+			return tables.emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50, recipe.amount.value_or(1));
 		}
 	} kitchen;
 
 	struct Worker
 	{
 		engine::Entity workstation = engine::Entity::null();
+
+		std::vector<double> skills;
+
+		void clear_skills(const gameplay::Skills & skills)
+		{
+			this->skills.resize(skills.size(), 0.);
+		}
+		void add_skill(int index, double amount)
+		{
+			skills[index] += amount;
+		}
+
+		double score_role(const gameplay::Role & role) const
+		{
+			using std::begin;
+			using std::end;
+
+			std::vector<double> my_normalized_skills = skills;
+			const double my_sum = std::accumulate(begin(my_normalized_skills), end(my_normalized_skills), 0.);
+			if (my_sum != 0.)
+			{
+				for (int i = 0; i < my_normalized_skills.size(); i++)
+				{
+					my_normalized_skills[i] /= my_sum;
+				}
+			}
+
+			std::vector<double> role_normalized_skills(skills.size(), role.default_weight);
+			for (const auto & skill_weight : role.skill_weights)
+			{
+				const int index = kitchen.skills.find(skill_weight.name);
+				debug_assert(index >= 0);
+				role_normalized_skills[index] = skill_weight.weight;
+			}
+			const double role_sum = std::accumulate(begin(role_normalized_skills), end(role_normalized_skills), 0.);
+			if (role_sum != 0.)
+			{
+				for (int i = 0; i < role_normalized_skills.size(); i++)
+				{
+					role_normalized_skills[i] /= role_sum;
+				}
+			}
+
+			double diff = 0.;
+			for (int i = 0; i < my_normalized_skills.size(); i++)
+			{
+				diff += std::abs(my_normalized_skills[i] - role_normalized_skills[i]);
+			}
+			return diff;
+		}
+
+		void compute_role(const gameplay::Roles & roles)
+		{
+			std::vector<double> scores;
+			std::vector<int> indices;
+			for (int i = 0; i < roles.size(); i++)
+			{
+				scores.push_back(score_role(roles.get(i)));
+				indices.push_back(i);
+			}
+			std::sort(std::begin(indices), std::end(indices), [&](int a, int b){ return scores[a] < scores[b]; });
+
+			debug_printline("best to worst matching classes:");
+			for (int i = 0; i < roles.size(); i++)
+			{
+				debug_printline("\"", roles.get(indices[i]).name, "\" = ", static_cast<int>((2. - scores[indices[i]]) / 2. * 100.), "%");
+			}
+		}
 	};
 
 	struct Workstation
@@ -243,6 +359,24 @@ namespace
 			}
 		}
 
+		void finish(const Preparation & preparation)
+		{
+			Worker & w = access_component<Worker>(worker);
+			for (auto & skill_amount : preparation.recipe->skill_amounts)
+			{
+				const int index = kitchen.skills.find(skill_amount.name);
+				debug_assert(index >= 0);
+				w.add_skill(index, skill_amount.amount);
+			}
+
+			debug_printline("worker (", worker, ") skills:");
+			for (int i = 0; i < kitchen.skills.size(); i++)
+			{
+				debug_printline("\"", kitchen.skills.get(i).name, "\" = ", w.skills[i]);
+			}
+			w.compute_role(kitchen.roles);
+		}
+
 		void update(Preparation & preparation)
 		{
 			if (worker == engine::Entity::null())
@@ -261,12 +395,13 @@ namespace
 
 			if (preparation.time_remaining <= 0)
 			{
-				cleanup();
+				cleanup(preparation);
+				finish(preparation);
 			}
 		}
 
 	private:
-		void cleanup()
+		void cleanup(const Preparation & preparation)
 		{
 			engine::animation::update(worker, engine::animation::action{"idle", true});
 
@@ -355,7 +490,7 @@ namespace
 		std::array<Selector, 1>,
 		std::array<Worker, 10>,
 		std::array<Workstation, 20>,
-		std::array<Option, 20>,
+		std::array<Option, 40>,
 		std::array<Loader, 1>
 	>
 	components;
@@ -638,6 +773,7 @@ namespace
 				auto & preparation = kitchen.tables.get<Preparation>(entity);
 				if (preparation.time_remaining <= 0)
 				{
+					x.finish(preparation);
 				}
 				else
 				{
@@ -677,6 +813,7 @@ namespace
 
 			if (preparation.time_remaining <= 0)
 			{
+				workstation.finish(preparation);
 			}
 			else
 			{
@@ -853,9 +990,36 @@ namespace
 		template <typename T>
 		void operator () (T && x)
 		{
-			debug_unreachable();
+			debug_fail("unknown format");
 		}
 	};
+
+	struct data_callback_roles_handler
+	{
+		void operator () (core::JsonStructurer && s)
+		{
+			kitchen.init_roles(std::move(s));
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("unknown format");
+		}
+	};
+
+	struct data_callback_skills_handler
+	{
+		void operator () (core::JsonStructurer && s)
+		{
+			kitchen.init_skills(std::move(s));
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("unknown format");
+		}
+	};
+
 	void data_callback_recipes(std::string name, engine::resource::reader::Structurer && structurer)
 	{
 		utility::visit(data_callback_recipes_handler{}, std::move(structurer));
@@ -863,30 +1027,14 @@ namespace
 		recipes_ring.init(kitchen.recipes);
 	}
 
-	struct data_callback_skills_handler
+	void data_callback_roles(std::string name, engine::resource::reader::Structurer && structurer)
 	{
-		gameplay::Skills & skills;
+		utility::visit(data_callback_roles_handler{}, std::move(structurer));
+	}
 
-		void operator () (core::JsonStructurer && s)
-		{
-			s.read(skills);
-		}
-		template <typename T>
-		void operator () (T && x)
-		{
-			debug_unreachable();
-		}
-	};
 	void data_callback_skills(std::string name, engine::resource::reader::Structurer && structurer)
 	{
-		gameplay::Skills skills;
-		utility::visit(data_callback_skills_handler{skills}, std::move(structurer));
-
-		debug_printline("skills:");
-		for (int i = 0; i < skills.size(); i++)
-		{
-			debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
-		}
+		utility::visit(data_callback_skills_handler{}, std::move(structurer));
 	}
 }
 
@@ -997,6 +1145,7 @@ namespace gamestate
 		engine::gui::post(engine::gui::MessageReload{});
 
 		engine::resource::reader::post_read("recipes", data_callback_recipes);
+		engine::resource::reader::post_read("classes", data_callback_roles);
 		engine::resource::reader::post_read("skills", data_callback_skills);
 
 		{
@@ -1020,7 +1169,8 @@ namespace gamestate
 			engine::Entity worker_args;
 			while (queue_workers.try_pop(worker_args))
 			{
-				components.emplace<Worker>(worker_args);
+				Worker& worker = components.emplace<Worker>(worker_args);
+				worker.clear_skills(kitchen.skills);
 			}
 
 			std::tuple<engine::Entity, WorkstationType, Matrix4x4f, Matrix4x4f> workstation_args;

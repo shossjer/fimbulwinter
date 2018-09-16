@@ -38,7 +38,17 @@ namespace gameplay
 		Skills & operator = (const Skills &) = delete;
 
 	public:
+		int find(const std::string & name) const
+		{
+			for (int i = 0; i < skills.size(); i++)
+			{
+				if (skills[i].name == name)
+					return i;
+			}
+			return -1;
+		}
 		const Skill & get(int i) const { return skills[i]; }
+		int index(const Skill & skill) const { return static_cast<int>(&skill - skills.data()); }
 		int size() const { return skills.size(); }
 
 	public:
