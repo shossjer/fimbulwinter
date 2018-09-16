@@ -137,17 +137,17 @@ namespace engine
 			void post_update_display(engine::Asset asset, camera_2d && data)
 			{
 				const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera2D>, asset, std::move(data));
-				debug_assert(res);
+				// debug_assert(res);
 			}
 			void post_update_display(engine::Asset asset, camera_3d && data)
 			{
 				const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera3D>, asset, std::move(data));
-				debug_assert(res);
+				// debug_assert(res);
 			}
 			void post_update_display(engine::Asset asset, viewport && data)
 			{
 				const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayViewport>, asset, std::move(data));
-				debug_assert(res);
+				// debug_assert(res);
 			}
 
 			void post_register_character(engine::Asset asset, engine::model::mesh_t && data)
@@ -284,7 +284,7 @@ namespace engine
 			void post_select(int x, int y, engine::Entity entity, engine::Command command)
 			{
 				const auto res = queue_select.try_emplace(x, y, entity, command);
-				debug_assert(res);
+				// debug_assert(res);
 			}
 
 			void toggle_down()
