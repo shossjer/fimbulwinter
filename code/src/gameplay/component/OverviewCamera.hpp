@@ -73,19 +73,19 @@ namespace gameplay
 				if (move_left > 0)
 					engine::physics::camera::update(
 						camera,
-						Vector3f{-1.f, 0.f, 0.f});
+						core::maths::Vector3f{-1.f, 0.f, 0.f});
 				if (move_right > 0)
 					engine::physics::camera::update(
 						camera,
-						Vector3f{1.f, 0.f, 0.f});
+						core::maths::Vector3f{1.f, 0.f, 0.f});
 				if (move_up > 0)
 					engine::physics::camera::update(
 						camera,
-						Vector3f{0.f, 0.f, -1.f});
+						core::maths::Vector3f{0.f, 0.f, -1.f});
 				if (move_down > 0)
 					engine::physics::camera::update(
 						camera,
-						Vector3f{0.f, 0.f, 1.f});
+						core::maths::Vector3f{0.f, 0.f, 1.f});
 			}
 		};
 	}

@@ -97,7 +97,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::console::create();
 	;;engine::replay::create();
 	::engine::resource::reader::create();
-	::engine::resource::loader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create(engine::graphics::renderer::Type::OPENGL_3_0);
 	::engine::graphics::viewer::create();
@@ -117,7 +116,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
-	::engine::resource::loader::destroy();
 	::engine::resource::reader::destroy();
 	::engine::replay::destroy();
 	::engine::console::destroy();
@@ -134,7 +132,6 @@ int main(const int argc, const char *const argv[])
 	::engine::console::create();
 	;;engine::replay::create();
 	::engine::resource::reader::create();
-	::engine::resource::loader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create(engine::graphics::renderer::Type::OPENGL_3_0);
 	::engine::graphics::viewer::create();
@@ -154,7 +151,6 @@ int main(const int argc, const char *const argv[])
 	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
-	::engine::resource::loader::destroy();
 	::engine::resource::reader::destroy();
 	::engine::replay::destroy();
 	::engine::console::destroy();

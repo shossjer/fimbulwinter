@@ -68,6 +68,21 @@ namespace utility
 	struct variant_size<const volatile Variant> :
 		variant_size<Variant> {};
 
+	template <typename T, typename Variant>
+	struct variant_index_of;
+	template <typename T, typename ...Ts>
+	struct variant_index_of<T, variant<Ts...>> :
+		mpl::index_of<T, Ts...> {};
+	template <typename T, typename Variant>
+	struct variant_index_of<T, const Variant> :
+		variant_index_of<T, Variant> {};
+	template <typename T, typename Variant>
+	struct variant_index_of<T, volatile Variant> :
+		variant_index_of<T, Variant> {};
+	template <typename T, typename Variant>
+	struct variant_index_of<T, const volatile Variant> :
+		variant_index_of<T, Variant> {};
+
 	namespace detail
 	{
 		template <typename T, typename ...Ps>

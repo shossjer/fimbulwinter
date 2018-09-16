@@ -7,10 +7,10 @@ namespace engine
 {
 	namespace gui
 	{
-		Matrix4x4f render_matrix(const View & view)
+		core::maths::Matrix4x4f render_matrix(const View & view)
 		{
 			return make_translation_matrix(
-				Vector3f{
+				core::maths::Vector3f{
 					static_cast<float>(view.offset.width.value),
 					static_cast<float>(view.offset.height.value),
 					view.depth });

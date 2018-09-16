@@ -449,47 +449,51 @@ namespace
 		}
 	};
 
-	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::animation::armature>,
-	                                 20> queue_add_armature;
-	core::container::CircleQueueSRMW<engine::Entity,
-	                                 20> queue_remove;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::animation::action>,
-	                                 50> queue_update_action;
-
-	core::container::CircleQueueSRMW<std::pair<engine::Asset, engine::animation::object>,
-	                                 10> queue_add_asset_object;
-	core::container::CircleQueueSRMW<std::pair<engine::Entity, engine::Asset>,
-	                                 10> queue_add_model;
-	core::container::CircleQueueSRMW<engine::Asset,
-	                                 10> queue_remove_asset;
-
-	std::atomic_int armature_lock(0);
-
-	struct TryReadArmature
+	struct MessageRegisterArmature
 	{
-		Armature & armature;
-
-		void operator () (core::ArmatureStructurer && x)
-		{
-			x.read(armature);
-		}
-		template <typename T>
-		void operator () (T && x)
-		{
-			debug_fail("impossible to read, maybe");
-		}
+		engine::Asset asset;
+		engine::animation::Armature data;
 	};
-
-	void data_callback_armature(std::string name, engine::resource::reader::Structurer && structurer)
+	struct MessageRegisterObject
 	{
-		Armature armature;
-		visit(TryReadArmature{armature}, std::move(structurer));
+		engine::Asset asset;
+		engine::animation::object data;
+	};
+	using AssetMessage = utility::variant
+	<
+		MessageRegisterArmature,
+		MessageRegisterObject
+	>;
 
-		const engine::Asset armasset = name;
-		sources.add(armasset, std::move(armature));
+	struct MessageAddCharacter
+	{
+		engine::Entity entity;
+		engine::animation::character data;
+	};
+	struct MessageAddModel
+	{
+		engine::Entity entity;
+		engine::animation::model data;
+	};
+	struct MessageUpdateAction
+	{
+		engine::Entity entity;
+		engine::animation::action data;
+	};
+	struct MessageRemove
+	{
+		engine::Entity entity;
+	};
+	using EntityMessage = utility::variant
+	<
+		MessageAddCharacter,
+		MessageAddModel,
+		MessageUpdateAction,
+		MessageRemove
+	>;
 
-		armature_lock++;
-	}
+	core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
+	core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
 }
 
 namespace engine
@@ -506,55 +510,54 @@ namespace engine
 
 		void update()
 		{
-			// receive messages
-			// ====---- assets ----====
-			// add
-			std::pair<engine::Asset, engine::animation::object> message_add_asset_object;
-			while (queue_add_asset_object.try_pop(message_add_asset_object))
+			AssetMessage asset_message;
+			while (queue_assets.try_pop(asset_message))
 			{
-				sources.add(message_add_asset_object.first, std::move(message_add_asset_object.second));
-			}
-			// remove
-			engine::Asset message_remove_asset;
-			while (queue_remove_asset.try_pop(message_remove_asset))
-			{
-				sources.remove(message_remove_asset);
-			}
-			// ====---- entities ----====
-			// add
-			std::pair<engine::Entity, armature> message_add_armature;
-			while (queue_add_armature.try_pop(message_add_armature))
-			{
-				// TODO: this should be done in a loader thread somehow
-				const engine::Asset armasset{message_add_armature.second.armfile};
-				if (!sources.contains(armasset))
+				struct ProcessMessage
 				{
-					armature_lock = 0;
-					engine::resource::reader::post_read(message_add_armature.second.armfile, data_callback_armature);
-					while (armature_lock < 1);
-				}
-				components.emplace<Character>(message_add_armature.first,
-				                              message_add_armature.first, sources.get<Armature>(armasset));
+					void operator () (MessageRegisterArmature && x)
+					{
+						debug_assert(!sources.contains(x.asset));
+						sources.emplace<Armature>(x.asset, std::move(x.data));
+					}
+					void operator () (MessageRegisterObject && x)
+					{
+						debug_assert(!sources.contains(x.asset));
+						sources.emplace<engine::animation::object>(x.asset, std::move(x.data));
+					}
+				};
+				visit(ProcessMessage{}, std::move(asset_message));
 			}
-			std::pair<engine::Entity, engine::Asset> message_add_model;
-			while (queue_add_model.try_pop(message_add_model))
+
+			EntityMessage entity_message;
+			while (queue_entities.try_pop(entity_message))
 			{
-				auto & object = sources.get<engine::animation::object>(message_add_model.second);
-				components.emplace<Model>(message_add_model.first,
-				                          message_add_model.first, object);
-			}
-			// remove
-			engine::Entity message_remove;
-			while (queue_remove.try_pop(message_remove))
-			{
-				// TODO: remove assets that no one uses any more
-				components.remove(message_remove);
-			}
-			// update
-			std::pair<engine::Entity, action> message_update_action;
-			while (queue_update_action.try_pop(message_update_action))
-			{
-				components.call(message_update_action.first, set_action{message_update_action.second});
+				struct ProcessMessage
+				{
+					void operator () (MessageAddCharacter && x)
+					{
+						debug_assert(sources.contains<Armature>(x.data.armature));
+						const auto & armature = sources.get<Armature>(x.data.armature);
+
+						components.emplace<Character>(x.entity, x.entity, armature);
+					}
+					void operator () (MessageAddModel && x)
+					{
+						debug_assert(sources.contains<engine::animation::object>(x.data.object));
+						const auto & object = sources.get<engine::animation::object>(x.data.object);
+
+						components.emplace<Model>(x.entity, x.entity, object);
+					}
+					void operator () (MessageUpdateAction && x)
+					{
+						components.call(x.entity, set_action{std::move(x.data)});
+					}
+					void operator () (MessageRemove && x)
+					{
+						components.remove(x.entity);
+					}
+				};
+				visit(ProcessMessage{}, std::move(entity_message));
 			}
 
 			// update stuff
@@ -578,35 +581,39 @@ namespace engine
 			}
 		}
 
-		void add(engine::Entity entity, const armature & data)
+		void post_register_armature(engine::Asset asset, engine::animation::Armature && data)
 		{
-			const auto res = queue_add_armature.try_emplace(entity, data);
-			debug_assert(res);
-		}
-		void remove(engine::Entity entity)
-		{
-			const auto res = queue_remove.try_push(entity);
-			debug_assert(res);
-		}
-		void update(engine::Entity entity, const action & data)
-		{
-			const auto res = queue_update_action.try_emplace(entity, data);
+			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterArmature>, asset, std::move(data));
 			debug_assert(res);
 		}
 
-		void add(engine::Asset asset, object && data)
+		void post_register_object(engine::Asset asset, engine::animation::object && data)
 		{
-			const auto res = queue_add_asset_object.try_emplace(asset, std::move(data));
+			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterObject>, asset, std::move(data));
 			debug_assert(res);
 		}
-		void add_model(engine::Entity entity, engine::Asset asset)
+
+		void post_add_character(engine::Entity entity, engine::animation::character && data)
 		{
-			const auto res = queue_add_model.try_emplace(entity, asset);
+			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddCharacter>, entity, std::move(data));
 			debug_assert(res);
 		}
-		void remove(engine::Asset asset)
+
+		void post_add_model(engine::Entity entity, engine::animation::model && data)
 		{
-			const auto res = queue_remove_asset.try_push(asset);
+			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddModel>, entity, std::move(data));
+			debug_assert(res);
+		}
+
+		void post_update_action(engine::Entity entity, engine::animation::action && data)
+		{
+			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateAction>, entity, std::move(data));
+			debug_assert(res);
+		}
+
+		void post_remove(engine::Entity entity)
+		{
+			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
 			debug_assert(res);
 		}
 	}

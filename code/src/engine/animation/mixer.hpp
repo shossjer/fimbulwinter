@@ -2,11 +2,13 @@
 #ifndef ENGINE_ANIMATION_MIXER_HPP
 #define ENGINE_ANIMATION_MIXER_HPP
 
-#include <core/maths/Quaternion.hpp>
-#include <core/maths/Vector.hpp>
+#include "core/maths/Quaternion.hpp"
+#include "core/maths/Vector.hpp"
 
-#include <engine/Asset.hpp>
-#include <engine/common.hpp>
+#include "engine/Asset.hpp"
+#include "engine/Entity.hpp"
+#include "engine/common.hpp"
+#include "engine/animation/Armature.hpp"
 
 #include <string>
 #include <vector>
@@ -16,21 +18,6 @@ namespace engine
 	namespace animation
 	{
 		void update();
-
-		struct armature
-		{
-			std::string armfile;
-		};
-
-		struct action
-		{
-			std::string name;
-			bool repetative;
-		};
-
-		void add(engine::Entity entity, const armature & data);
-		void remove(engine::Entity entity);
-		void update(engine::Entity entity, const action & data);
 
 		struct object
 		{
@@ -55,9 +42,31 @@ namespace engine
 			std::vector<action> actions;
 		};
 
-		void add(engine::Asset asset, object && data);
-		void add_model(engine::Entity entity, engine::Asset asset);
-		void remove(engine::Asset asset);
+		struct character
+		{
+			engine::Asset armature;
+		};
+
+		struct model
+		{
+			engine::Asset object;
+		};
+
+		struct action
+		{
+			std::string name;
+			bool repetative;
+		};
+
+		void post_register_armature(engine::Asset asset, engine::animation::Armature && data);
+		void post_register_object(engine::Asset asset, object && data);
+
+		void post_add_character(engine::Entity entity, character && data);
+		void post_add_model(engine::Entity entity, model && data);
+
+		void post_update_action(engine::Entity entity, action && data);
+
+		void post_remove(engine::Entity entity);
 	}
 }
 

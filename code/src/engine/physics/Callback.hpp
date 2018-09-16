@@ -2,8 +2,9 @@
 #ifndef ENGINE_PHYSICS_CALLBACK_HPP
 #define ENGINE_PHYSICS_CALLBACK_HPP
 
-#include <engine/common.hpp>
-#include <engine/physics/defines.hpp>
+#include "engine/Entity.hpp"
+#include "engine/common.hpp"
+#include "engine/physics/defines.hpp"
 
 #include <array>
 
