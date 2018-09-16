@@ -481,7 +481,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		301,
+		401,
 		std::array<CameraActivator, 2>,
 		std::array<FreeCamera, 1>,
 		std::array<GUIComponent, 100>,
