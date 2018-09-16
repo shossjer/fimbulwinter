@@ -111,7 +111,8 @@ namespace core
 			debug_assert(j.is_object());
 			for (auto it = j.begin(); it != j.end(); ++it)
 			{
-				const utility::string_view key = it.key().c_str();
+				const auto key_string = it.key();
+				const utility::string_view key = key_string.c_str();
 				if (!serialization<T>::has(key))
 					continue;
 
