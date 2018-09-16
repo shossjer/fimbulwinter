@@ -2,6 +2,8 @@
 #ifndef ENGINE_COMMAND_HPP
 #define ENGINE_COMMAND_HPP
 
+#include "core/serialization.hpp"
+
 #include "engine/Asset.hpp"
 
 namespace engine
@@ -31,15 +33,11 @@ namespace engine
 		}
 
 	public:
-		template <typename S>
-		friend void serialize(S & s, const this_type & x)
+		static constexpr auto serialization()
 		{
-			serialize(s, x.asset);
-		}
-		template <typename S>
-		friend void serialize(S & s, this_type & x)
-		{
-			serialize(s, x.asset);
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("asset"), &Command::asset)
+				);
 		}
 
 		friend std::ostream & operator << (std::ostream & stream, const this_type & command)

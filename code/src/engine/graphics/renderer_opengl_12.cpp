@@ -16,6 +16,7 @@
 #include <core/container/Stack.hpp>
 #include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
+#include "core/PngStructurer.hpp"
 #include <core/sync/Event.hpp>
 
 #include <engine/Asset.hpp>
@@ -23,6 +24,7 @@
 #include <engine/debug.hpp>
 #include "engine/graphics/message.hpp"
 #include <engine/graphics/viewer.hpp>
+#include "engine/resource/reader.hpp"
 
 #include <utility/any.hpp>
 #include <utility/variant.hpp>
@@ -286,10 +288,10 @@ namespace
 
 			switch (image.color())
 			{
-			case core::graphics::ImageColor::RGB:
+			case core::graphics::ColorType::RGB:
 				glTexImage2D(GL_TEXTURE_2D, 0, 3, image.width(), image.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, image.data());
 				break;
-			case core::graphics::ImageColor::RGBA:
+			case core::graphics::ColorType::RGBA:
 				glTexImage2D(GL_TEXTURE_2D, 0, 4, image.width(), image.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
 				break;
 			default:
@@ -1313,6 +1315,42 @@ namespace
 			vertices, triangles, normals, coords });
 	}
 
+	std::atomic_int texture_lock(0);
+
+	struct TryReadImage
+	{
+		core::graphics::Image & image;
+
+		void operator () (core::PngStructurer && x)
+		{
+			x.read(image);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("impossible to read, maybe");
+		}
+	};
+
+	void data_callback_image(std::string name, engine::resource::reader::Structurer && structurer)
+	{
+		core::graphics::Image image;
+		visit(TryReadImage{image}, std::move(structurer));
+
+		engine::Asset asset = engine::Asset::null();
+		if (name == "res/box.png")
+			asset = engine::Asset("my_png");
+		else
+		{
+			debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
+			debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
+			asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
+		}
+
+		engine::graphics::renderer::post_register_texture(asset, std::move(image));
+		texture_lock++;
+	}
+
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
@@ -1359,14 +1397,10 @@ namespace
 			engine::Asset{ "cuboid" },
 			createCuboid());
 
-		core::graphics::Image image{"res/box.png"};
-		engine::graphics::renderer::post_register_texture(engine::Asset{"my_png"}, std::move(image));
-
-		core::graphics::Image image2{ "res/dude.png" };
-		engine::graphics::renderer::post_register_texture(engine::Asset{ "dude" }, std::move(image2));
-
-		core::graphics::Image image3{ "res/photo.png" };
-		engine::graphics::renderer::post_register_texture(engine::Asset{ "photo" }, std::move(image3));
+		engine::resource::reader::post_read("res/box.png", data_callback_image);
+		engine::resource::reader::post_read("res/dude.png", data_callback_image);
+		engine::resource::reader::post_read("res/photo.png", data_callback_image);
+		while (texture_lock < 3);
 
 		engine::graphics::renderer::post_add_component(
 			engine::Entity::create(),

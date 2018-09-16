@@ -4,7 +4,7 @@
 #include "core/async/Thread.hpp"
 #include "core/container/CircleQueue.hpp"
 #include "core/debug.hpp"
-#include "core/serialize.hpp"
+#include "core/serialization.hpp"
 #include "core/StringSerializer.hpp"
 #include "core/sync/Event.hpp"
 
@@ -13,24 +13,6 @@
 #include <atomic>
 #include <fstream>
 #include <tuple>
-
-template <typename S>
-void serialize(S & s, const utility::any & data, engine::Command command)
-{
-	using core::serialize;
-
-	switch (command)
-	{
-	case engine::command::RENDER_DESELECT:
-	case engine::command::RENDER_HIGHLIGHT:
-	case engine::command::RENDER_SELECT:
-		debug_assert(data.has_value());
-		serialize(s, utility::any_cast<engine::Entity>(data));
-		break;
-	default:
-		debug_assert(!data.has_value());
-	}
-}
 
 namespace
 {
@@ -43,18 +25,21 @@ namespace
 	template <typename Serializer>
 	void process_messages(Serializer & s)
 	{
-		using core::serialize;
-		using ::serialize;
-
 		std::tuple<int, engine::Entity, engine::Command, utility::any> command_args;
 		while (queue_commands.try_pop(command_args))
 		{
-			s.push(core::type_tuple, command_args);
-			serialize(s, std::get<0>(command_args));
-			serialize(s, std::get<1>(command_args));
-			serialize(s, std::get<2>(command_args));
-			serialize(s, std::get<3>(command_args), std::get<2>(command_args));
-			s.pop();
+			switch (std::get<2>(command_args))
+			{
+			case engine::command::RENDER_DESELECT:
+			case engine::command::RENDER_HIGHLIGHT:
+			case engine::command::RENDER_SELECT:
+				debug_assert(std::get<3>(command_args).has_value());
+				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), utility::any_cast<engine::Entity>(std::get<3>(command_args))));
+				break;
+			default:
+				debug_assert(!std::get<3>(command_args).has_value());
+				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args)));
+			}
 		}
 	}
 

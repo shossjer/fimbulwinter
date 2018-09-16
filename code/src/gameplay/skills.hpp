@@ -2,7 +2,7 @@
 #ifndef GAMEPLAY_SKILLS_HPP
 #define GAMEPLAY_SKILLS_HPP
 
-#include "core/serialize.hpp"
+#include "core/serialization.hpp"
 
 #include "engine/Asset.hpp"
 
@@ -18,13 +18,12 @@ namespace gameplay
 		std::string type;
 
 	public:
-		template <typename S>
-		friend void serialize_class(S & s, Skill & x)
+		static constexpr auto serialization()
 		{
-			using core::serialize;
-
-			serialize(s, "name", x.name);
-			serialize(s, "type", x.type);
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("name"), &Skill::name),
+				std::make_pair(utility::string_view("type"), &Skill::type)
+				);
 		}
 	};
 
@@ -43,12 +42,11 @@ namespace gameplay
 		int size() const { return skills.size(); }
 
 	public:
-		template <typename S>
-		friend void serialize_class(S & s, Skills & x)
+		static constexpr auto serialization()
 		{
-			using core::serialize;
-
-			serialize(s, "skills", x.skills);
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("skills"), &Skills::skills)
+				);
 		}
 	};
 }

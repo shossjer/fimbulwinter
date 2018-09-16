@@ -8,6 +8,7 @@
 #include <core/container/Collection.hpp>
 #include <core/container/ExchangeQueue.hpp>
 #include <core/maths/algorithm.hpp>
+#include "core/PngStructurer.hpp"
 
 #include <engine/animation/mixer.hpp>
 #include <engine/graphics/renderer.hpp>
@@ -85,17 +86,17 @@ namespace
 
 		void init_recipes(core::JsonStructurer && s)
 		{
-			serialize(s, recipes);
+			s.read(recipes);
 
 			debug_printline("recipes:");
 			for (int i = 0; i < recipes.size(); i++)
 			{
 				debug_printline("name = \"", recipes.get(i).name, "\"");
-				if (recipes.get(i).ingredients)
+				if (!recipes.get(i).ingredients.empty())
 				{
-					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
 					{
-						debug_printline((*recipes.get(i).ingredients)[j].quantity, "x ", (*recipes.get(i).ingredients)[j].name);
+						debug_printline(recipes.get(i).ingredients[j].quantity, "x ", recipes.get(i).ingredients[j].name);
 					}
 				}
 				else
@@ -122,14 +123,14 @@ namespace
 			for (int i = 0; i < recipes.size(); i++)
 			{
 				bool is_available = true;
-				if (recipes.get(i).ingredients)
+				if (!recipes.get(i).ingredients.empty())
 				{
-					for (int j = 0; j < recipes.get(i).ingredients->size(); j++)
+					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
 					{
-						const int index = recipes.find((*recipes.get(i).ingredients)[j].name);
+						const int index = recipes.find(recipes.get(i).ingredients[j].name);
 						debug_assert(index >= 0);
 
-						const int need = (*recipes.get(i).ingredients)[j].quantity;
+						const int need = recipes.get(i).ingredients[j].quantity;
 						const int have = ingredient_counts[index];
 						if (have < need)
 						{
@@ -165,11 +166,11 @@ namespace
 		{
 			debug_assert(is_empty(table));
 
-			if (recipe.ingredients)
+			if (!recipe.ingredients.empty())
 			{
-				for (int j = 0; j < recipe.ingredients->size(); j++)
+				for (int j = 0; j < recipe.ingredients.size(); j++)
 				{
-					for (int k = 0; k < (*recipe.ingredients)[j].quantity; k++)
+					for (int k = 0; k < recipe.ingredients[j].quantity; k++)
 					{
 						auto table_to_be_cleared = engine::Entity::null();
 						for (const auto & preparation : tables.get<Preparation>())
@@ -177,7 +178,7 @@ namespace
 							if (preparation.time_remaining > 0)
 								continue;
 
-							if (preparation.recipe->name == (*recipe.ingredients)[j].name)
+							if (preparation.recipe->name == recipe.ingredients[j].name)
 							{
 								table_to_be_cleared = tables.get_key(preparation);
 								break;
@@ -359,6 +360,33 @@ namespace
 	>
 	components;
 
+	struct TryReadImage
+	{
+		core::graphics::Image & image;
+
+		void operator () (core::PngStructurer && x)
+		{
+			x.read(image);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("impossible to read, maybe");
+		}
+	};
+
+	void data_callback_image(std::string name, engine::resource::reader::Structurer && structurer)
+	{
+		core::graphics::Image image;
+		visit(TryReadImage{image}, std::move(structurer));
+
+		debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
+		debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
+		auto asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
+
+		engine::graphics::renderer::post_register_texture(asset, std::move(image));
+	}
+
 	struct
 	{
 		std::vector<engine::Entity> entities;
@@ -371,8 +399,7 @@ namespace
 
 			for (int i = 0; i < recipes.size(); i++)
 			{
-				core::graphics::Image image( utility::to_string("res/", recipes.get(i).name, ".png"));
-				engine::graphics::renderer::post_register_texture(engine::Asset(recipes.get(i).name), std::move(image));
+				engine::resource::reader::post_read(utility::to_string("res/", recipes.get(i).name, ".png"), data_callback_image);
 
 				const engine::Entity entity = engine::Entity::create();
 				entities.push_back(entity);
@@ -817,16 +844,43 @@ namespace
 
 namespace
 {
-	void data_callback_recipes(std::string name, engine::resource::reader::Data && data)
+	struct data_callback_recipes_handler
 	{
-		kitchen.init_recipes(std::move(data.structurer));
+		void operator () (core::JsonStructurer && s)
+		{
+			kitchen.init_recipes(std::move(s));
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_unreachable();
+		}
+	};
+	void data_callback_recipes(std::string name, engine::resource::reader::Structurer && structurer)
+	{
+		utility::visit(data_callback_recipes_handler{}, std::move(structurer));
 
 		recipes_ring.init(kitchen.recipes);
 	}
-	void data_callback_skills(std::string name, engine::resource::reader::Data && data)
+
+	struct data_callback_skills_handler
+	{
+		gameplay::Skills & skills;
+
+		void operator () (core::JsonStructurer && s)
+		{
+			s.read(skills);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_unreachable();
+		}
+	};
+	void data_callback_skills(std::string name, engine::resource::reader::Structurer && structurer)
 	{
 		gameplay::Skills skills;
-		serialize(data.structurer, skills);
+		utility::visit(data_callback_skills_handler{skills}, std::move(structurer));
 
 		debug_printline("skills:");
 		for (int i = 0; i < skills.size(); i++)
@@ -942,8 +996,8 @@ namespace gamestate
 		// trigger first load of GUI
 		engine::gui::post(engine::gui::MessageReload{});
 
-		engine::resource::reader::post_read_data("recipes", data_callback_recipes);
-		engine::resource::reader::post_read_data("skills", data_callback_skills);
+		engine::resource::reader::post_read("recipes", data_callback_recipes);
+		engine::resource::reader::post_read("skills", data_callback_skills);
 
 		{
 			Player data{ "Chef Elzar" };

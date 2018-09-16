@@ -16,9 +16,9 @@
 #include <engine/Entity.hpp>
 #include <engine/graphics/renderer.hpp>
 #include <engine/physics/physics.hpp>
+#include "engine/resource/reader.hpp"
 
 #include <cstdint>
-#include <fstream>
 #include <utility>
 #include <vector>
 
@@ -91,7 +91,7 @@ namespace
 		core::maths::Vector3f position_movement;
 		core::maths::Quaternionf orientation_movement;
 
-		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), repeat(repeat), finished(false), framei(0), matrices(armature.njoints) {}
+		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), repeat(repeat), finished(false), framei(0), matrices(armature.joints.size()) {}
 		// ^^^"^^^^ tmp
 
 		bool isFinished() const
@@ -116,7 +116,7 @@ namespace
 			}
 
 			int rooti = 0;
-			while (rooti < static_cast<int>(armature->njoints))
+			while (rooti < static_cast<int>(armature->joints.size()))
 				rooti = update(*action, rooti, core::maths::Matrix4x4f::identity(), framei);
 
 			if (!action->positions.empty())
@@ -153,7 +153,7 @@ namespace
 		{
 			// vvvvvvvv tmp
 			debug_assert(matrix_pallet.size() == matrices.size());
-			for (int i = 0; i < static_cast<int>(armature->njoints); i++)
+			for (int i = 0; i < static_cast<int>(armature->joints.size()); i++)
 				matrix_pallet[i] = matrices[i] * armature->joints[i].inv_matrix;
 			// ^^^"^^^^ tmp
 		}
@@ -330,9 +330,8 @@ namespace
 			me(me),
 			armature(&armature),
 			mixer(-1),
-			matrix_pallet(armature.njoints)
-		{
-		}
+			matrix_pallet(armature.joints.size())
+		{}
 
 		void finalize()
 		{
@@ -463,6 +462,34 @@ namespace
 	                                 10> queue_add_model;
 	core::container::CircleQueueSRMW<engine::Asset,
 	                                 10> queue_remove_asset;
+
+	std::atomic_int armature_lock(0);
+
+	struct TryReadArmature
+	{
+		Armature & armature;
+
+		void operator () (core::ArmatureStructurer && x)
+		{
+			x.read(armature);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("impossible to read, maybe");
+		}
+	};
+
+	void data_callback_armature(std::string name, engine::resource::reader::Structurer && structurer)
+	{
+		Armature armature;
+		visit(TryReadArmature{armature}, std::move(structurer));
+
+		const engine::Asset armasset = name;
+		sources.add(armasset, std::move(armature));
+
+		armature_lock++;
+	}
 }
 
 namespace engine
@@ -502,10 +529,9 @@ namespace engine
 				const engine::Asset armasset{message_add_armature.second.armfile};
 				if (!sources.contains(armasset))
 				{
-					std::ifstream file(message_add_armature.second.armfile, std::ifstream::binary | std::ifstream::in);
-					Armature arm;
-					arm.read(file);
-					sources.add(armasset, std::move(arm));
+					armature_lock = 0;
+					engine::resource::reader::post_read(message_add_armature.second.armfile, data_callback_armature);
+					while (armature_lock < 1);
 				}
 				components.emplace<Character>(message_add_armature.first,
 				                              message_add_armature.first, sources.get<Armature>(armasset));

@@ -4,6 +4,7 @@
 #include <core/async/Thread.hpp>
 #include <core/container/CircleQueue.hpp>
 #include <core/container/Collection.hpp>
+#include "core/serialization.hpp"
 #include <core/sync/Event.hpp>
 
 #include <engine/animation/mixer.hpp>
@@ -342,22 +343,16 @@ namespace
 		std::string name;
 		void (* callback)(std::string name, const engine::resource::loader::Placeholder & data);
 	};
-	struct MessageReadLevel
+	struct MessageRead
 	{
 		std::string name;
-		engine::resource::reader::Level data;
-	};
-	struct MessageReadPlaceholder
-	{
-		std::string name;
-		engine::resource::reader::Placeholder data;
+		engine::resource::reader::Structurer structurer;
 	};
 	using Message = utility::variant
 	<
 		MessageLoadLevel,
 		MessageLoadPlaceholder,
-		MessageReadLevel,
-		MessageReadPlaceholder
+		MessageRead
 	>;
 
 	core::container::CircleQueueSRMW<Message, 100> queue_messages;
@@ -365,8 +360,108 @@ namespace
 
 namespace
 {
-	engine::resource::loader::Level create_asset(std::string && name, engine::resource::reader::Level && data)
+	struct LevelData
 	{
+		struct Mesh
+		{
+			std::string name;
+			core::maths::Matrix4x4f matrix;
+			float color[3];
+			core::container::Buffer vertices;
+			core::container::Buffer triangles;
+			core::container::Buffer normals;
+
+			static constexpr auto serialization()
+			{
+				return utility::make_lookup_table(
+					std::make_pair(utility::string_view("name"), &Mesh::name),
+					std::make_pair(utility::string_view("matrix"), &Mesh::matrix),
+					std::make_pair(utility::string_view("color"), &Mesh::color),
+					std::make_pair(utility::string_view("vertices"), &Mesh::vertices),
+					std::make_pair(utility::string_view("triangles"), &Mesh::triangles),
+					std::make_pair(utility::string_view("normals"), &Mesh::normals)
+					);
+			}
+		};
+		struct Placeholder
+		{
+			std::string name;
+			core::maths::Vector3f translation;
+			core::maths::Quaternionf rotation;
+			core::maths::Vector3f scale;
+
+			static constexpr auto serialization()
+			{
+				return utility::make_lookup_table(
+					std::make_pair(utility::string_view("name"), &Placeholder::name),
+					std::make_pair(utility::string_view("translation"), &Placeholder::translation),
+					std::make_pair(utility::string_view("rotation"), &Placeholder::rotation),
+					std::make_pair(utility::string_view("scale"), &Placeholder::scale)
+					);
+			}
+		};
+
+		std::vector<Mesh> meshes;
+		std::vector<Placeholder> placeholders;
+
+		static constexpr auto serialization()
+		{
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("meshes"), &LevelData::meshes),
+				std::make_pair(utility::string_view("placeholders"), &LevelData::placeholders)
+				);
+		}
+	};
+
+	struct TryReadLevel
+	{
+		LevelData & data;
+
+		void operator () (core::LevelStructurer && x)
+		{
+			x.read(data);
+		}
+
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("not possible to serialize");
+		}
+	};
+
+	struct TryReadPlaceholder
+	{
+		std::string && name;
+
+		engine::resource::loader::Placeholder operator () (core::PlaceholderStructurer && x)
+		{
+			engine::model::mesh_t data;
+			x.read(data);
+
+			debug_printline(engine::resource_channel, "registering character \"", name, "\"");
+			engine::graphics::renderer::post_register_character(std::move(name), std::move(data));
+
+			return engine::resource::loader::Placeholder();
+		}
+		engine::resource::loader::Placeholder operator () (core::JsonStructurer && x)
+		{
+			const engine::resource::loader::asset_template_t & assetTemplate = load(std::move(name), std::move(x.get()));
+
+			return engine::resource::loader::Placeholder(assetTemplate);
+		}
+		template <typename T>
+		engine::resource::loader::Placeholder operator () (T && x)
+		{
+			debug_fail("not possible to serialize");
+			return engine::resource::loader::Placeholder();
+		}
+	};
+
+	engine::resource::loader::Level create_level_asset(std::string && name, engine::resource::reader::Structurer && structurer)
+	{
+		LevelData data;
+		visit(TryReadLevel{data}, std::move(structurer));
+
 		engine::physics::camera::set(engine::physics::camera::Bounds{
 				Vector3f{-6.f, 0.f, -4.f},
 				Vector3f{6.f, 10.f, 12.f} });
@@ -403,27 +498,9 @@ namespace
 		return level;
 	}
 
-	engine::resource::loader::Placeholder create_asset(std::string && name, engine::resource::reader::Placeholder && data)
+	engine::resource::loader::Placeholder create_placeholder_asset(std::string && name, engine::resource::reader::Structurer && structurer)
 	{
-		struct CreateAsset
-		{
-			std::string && name;
-
-			engine::resource::loader::Placeholder operator () (engine::model::mesh_t && data)
-			{
-				debug_printline(engine::resource_channel, "registering character \"", name, "\"");
-				engine::graphics::renderer::post_register_character(std::move(name), std::move(data));
-
-				return engine::resource::loader::Placeholder();
-			}
-			engine::resource::loader::Placeholder operator () (json && data)
-			{
-				const engine::resource::loader::asset_template_t & assetTemplate = load(std::move(name), std::move(data));
-
-				return engine::resource::loader::Placeholder(assetTemplate);
-			}
-		};
-		return visit(CreateAsset{std::move(name)}, std::move(data.data));
+		return visit(TryReadPlaceholder{std::move(name)}, std::move(structurer));
 	}
 
 	struct AssetLevel
@@ -471,13 +548,13 @@ namespace
 			visit(AddOrCall{std::move(message)}, state);
 		}
 
-		void load(std::string && name, engine::resource::reader::Level && data)
+		void load(std::string && name, engine::resource::reader::Structurer && structurer)
 		{
 			debug_assert(utility::holds_alternative<Loading>(state));
 
 			std::vector<MessageLoadLevel> messages = std::move(utility::get<Loading>(state).messages);
 
-			const Loaded & loaded = state.emplace<Loaded>(create_asset(std::move(name), std::move(data)));
+			const Loaded & loaded = state.emplace<Loaded>(create_level_asset(std::move(name), std::move(structurer)));
 
 			for (const auto & message : messages)
 			{
@@ -530,13 +607,13 @@ namespace
 			visit(AddOrCall{std::move(message)}, state);
 		}
 
-		void load(std::string && name, engine::resource::reader::Placeholder && data)
+		void load(std::string && name, engine::resource::reader::Structurer && structurer)
 		{
 			debug_assert(utility::holds_alternative<Loading>(state));
 
 			std::vector<MessageLoadPlaceholder> messages = std::move(utility::get<Loading>(state).messages);
 
-			const Loaded & loaded = state.emplace<Loaded>(create_asset(std::move(name), std::move(data)));
+			const Loaded & loaded = state.emplace<Loaded>(create_placeholder_asset(std::move(name), std::move(structurer)));
 
 			for (const auto & message : messages)
 			{
@@ -556,8 +633,7 @@ namespace
 
 namespace
 {
-	template <typename MessageRead>
-	void read_callback(std::string name, decltype(std::declval<MessageRead>().data) && data);
+	void read_callback(std::string name, engine::resource::reader::Structurer && structurer);
 
 	void loader_load()
 	{
@@ -577,7 +653,7 @@ namespace
 					}
 					else
 					{
-						engine::resource::reader::post_read_level(x.name, read_callback<MessageReadLevel>);
+						engine::resource::reader::post_read(x.name, read_callback);
 						assets.emplace<AssetLevel>(asset, std::move(x));
 					}
 				}
@@ -592,33 +668,19 @@ namespace
 					}
 					else
 					{
-						engine::resource::reader::post_read_placeholder(x.name, read_callback<MessageReadPlaceholder>);
+						engine::resource::reader::post_read(x.name, read_callback);
 						assets.emplace<AssetPlaceholder>(asset, std::move(x));
 					}
 				}
-				void operator () (MessageReadLevel && x)
+				void operator () (MessageRead && x)
 				{
 					const engine::Asset asset = x.name;
 					if (!assets.contains(asset))
 					{
-						debug_printline(engine::resource_channel, "We have read an asset that is not used any more");
-						debug_fail();
+						debug_fail("We have read an asset that is not used any more");
 					}
-					debug_assert(assets.contains<AssetLevel>(asset));
 
-					assets.get<AssetLevel>(asset).load(std::move(x.name), std::move(x.data));
-				}
-				void operator () (MessageReadPlaceholder && x)
-				{
-					const engine::Asset asset = x.name;
-					if (!assets.contains(asset))
-					{
-						debug_printline(engine::resource_channel, "We have read an asset that is not used any more");
-						debug_fail();
-					}
-					debug_assert(assets.contains<AssetPlaceholder>(asset));
-
-					assets.get<AssetPlaceholder>(asset).load(std::move(x.name), std::move(x.data));
+					assets.call(asset, [&](auto & asset){ asset.load(std::move(x.name), std::move(x.structurer)); });
 				}
 			};
 			visit(ProcessMessage{}, std::move(message));
@@ -654,10 +716,9 @@ namespace
 		}
 	}
 
-	template <typename MessageRead>
-	void read_callback(std::string name, decltype(std::declval<MessageRead>().data) && data)
+	void read_callback(std::string name, engine::resource::reader::Structurer && structurer)
 	{
-		post_message<MessageRead>(std::move(name), std::move(data));
+		post_message<MessageRead>(std::move(name), std::move(structurer));
 	}
 }
 

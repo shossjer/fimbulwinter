@@ -4,8 +4,6 @@ set(SOURCE_FILES
 	src/core/async/Thread.cpp
 	src/core/container/Buffer.cpp
 	src/core/crypto/crc.cpp
-	src/core/graphics/Image.cpp
-	src/engine/animation/Armature.cpp
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
@@ -48,7 +46,9 @@ set(SOURCE_FILES
 
 # source listing
 set(HEADER_FILES
-	src/core/JsonStructurer.hpp
+   src/core/ArmatureStructurer.hpp
+   src/core/JsonStructurer.hpp
+   src/core/LevelStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
 	src/core/color.hpp
@@ -60,6 +60,8 @@ set(HEADER_FILES
 	src/core/crypto/crc.hpp
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
+   src/core/graphics/types.hpp
+   src/core/JsonStructurer.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp
@@ -67,7 +69,12 @@ set(HEADER_FILES
 	src/core/maths/Vector.hpp
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
+   src/core/PlaceholderStructurer.hpp
+   src/core/PngStructurer.hpp
+   src/core/serialization.hpp
+   src/core/ShaderStructurer.hpp
 	src/core/StringSerializer.hpp
+   src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
@@ -137,6 +144,7 @@ set(HEADER_FILES
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
 	src/utility/json.hpp
+   src/utility/lookup_table.hpp
 	src/utility/optional.hpp
 	src/utility/preprocessor.hpp
 	src/utility/property.hpp
@@ -144,6 +152,7 @@ set(HEADER_FILES
 	src/utility/spinlock.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
+   src/utility/string_view.hpp
 	src/utility/type_traits.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp

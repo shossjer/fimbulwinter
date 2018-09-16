@@ -16,6 +16,8 @@
 #include <core/container/Stack.hpp>
 #include <core/maths/Vector.hpp>
 #include <core/maths/algorithm.hpp>
+#include "core/PngStructurer.hpp"
+#include "core/serialization.hpp"
 #include <core/sync/Event.hpp>
 
 #include <engine/Asset.hpp>
@@ -25,8 +27,9 @@
 #include <engine/graphics/viewer.hpp>
 #include "engine/resource/reader.hpp"
 
-#include <utility/any.hpp>
-#include <utility/variant.hpp>
+#include "utility/any.hpp"
+#include "utility/lookup_table.hpp"
+#include "utility/variant.hpp"
 
 #include <atomic>
 #include <fstream>
@@ -151,209 +154,34 @@ namespace
 		}
 	};
 
-	struct beginline_t { explicit constexpr beginline_t(int) {} };
-	struct endline_t { explicit constexpr endline_t(int) {} };
-	struct endoffile_t { explicit constexpr endoffile_t(int) {} };
-	struct newline_t { explicit constexpr newline_t(int) {} };
-	struct whitespace_t { explicit constexpr whitespace_t(int) {} };
-
-	constexpr beginline_t beginline{ 0 };
-	constexpr endline_t endline{ 0 };
-	constexpr endoffile_t endoffile{ 0 };
-	constexpr newline_t newline{ 0 };
-	constexpr whitespace_t whitespace{ 0 };
-
-	struct ShaderStructurer
-	{
-		std::vector<char> buffer;
-		int read;
-
-		int parse_impl(int curr) const
-		{
-			return curr;
-		}
-
-		template <typename ...Ps>
-		int parse_impl(int curr, beginline_t, Ps && ...ps) const
-		{
-			if (curr == 0)
-				return 0;
-
-			if (!(buffer[curr - 1] == '\n' ||
-			      buffer[curr - 1] == '\r'))
-				return -(curr + 1);
-
-			return parse_impl(curr, std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		int parse_impl(int curr, endline_t, Ps && ...ps) const
-		{
-			if (curr >= buffer.size())
-				return -(curr + 1);
-
-			while (buffer[curr] == '\n' ||
-			       buffer[curr] == '\r')
-			{
-				curr++;
-				if (curr >= buffer.size())
-					return -(curr + 1);
-			}
-
-			return parse_impl(curr, std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		int parse_impl(int curr, newline_t, Ps && ...ps) const
-		{
-			return parse_impl(curr, endline, std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		int parse_impl(int curr, whitespace_t, Ps && ...ps) const
-		{
-			if (curr >= buffer.size())
-				return -(curr + 1);
-
-			while (buffer[curr] == '\n' ||
-			       buffer[curr] == '\r' ||
-			       buffer[curr] == '\t' ||
-			       buffer[curr] == ' ')
-			{
-				curr++;
-				if (curr >= buffer.size())
-					return -(curr + 1);
-			}
-
-			return parse_impl(curr, std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		int parse_impl(int curr, const char * pattern, Ps && ...ps) const
-		{
-			for (const char * p = pattern; *p != '\0'; p++)
-			{
-				if (curr >= buffer.size())
-					return -(curr + 1);
-
-				if (*p != buffer[curr])
-					return -(curr + 1);
-
-				curr++;
-			}
-
-			return parse_impl(curr, std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		int parse_impl(int curr, int & x, Ps && ...ps) const
-		{
-			int end = curr;
-			if (end >= buffer.size())
-				return -(end + 1);
-
-			while (buffer[end] >= '0' && buffer[end] <= '9')
-			{
-				end++;
-				if (end >= buffer.size())
-					return -(end + 1);
-			}
-			utility::from_string(std::string(buffer.data() + curr, buffer.data() + end), x, true);
-
-			return parse_impl(end, std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		int parse_impl(int curr, std::string & x, Ps && ...ps) const
-		{
-			if (curr >= buffer.size())
-				return -(curr + 1);
-
-			if (buffer[curr] == '"')
-			{
-				debug_fail();
-				return -(curr + 1);
-			}
-			else
-			{
-				int end = curr;
-				while (!(buffer[end] == '\n' || buffer[end] == '\r' || buffer[end] == '\t' || buffer[end] == ' '))
-				{
-					end++;
-					if (end >= buffer.size())
-						return -(end + 1);
-				}
-				x = std::string(buffer.data() + curr, buffer.data() + end);
-
-				return parse_impl(end, std::forward<Ps>(ps)...);
-			}
-		}
-
-		template <typename P1, typename ...Ps>
-		bool parse(P1 && p1, Ps && ...ps)
-		{
-			const int curr = parse_impl(read, std::forward<P1>(p1), std::forward<Ps>(ps)...);
-			if (curr < 0)
-				return false;
-
-			read = curr;
-			return true;
-		}
-
-		int tell() const { return read; }
-
-		int find(endoffile_t) const
-		{
-			return buffer.size();
-		}
-
-		template <typename P1, typename ...Ps>
-		int find(P1 && p1, Ps && ...ps) const
-		{
-			int curr = read;
-			while(true)
-			{
-				const int match = parse_impl(curr, p1, ps...);
-				if (match >= 0)
-					return curr;
-
-				if (curr >= buffer.size())
-					return -(curr + 1);
-
-				curr++;
-			}
-		}
-
-		bool parse_region(int from, int to, std::string & x)
-		{
-			debug_assert(from == read);
-			if (!(from <= to && to <= buffer.size()))
-				return false;
-
-			x = std::string(buffer.data() + from, buffer.data() + to);
-			read = to;
-			return true;
-		}
-
-		void set(const char * const bytes, const int size)
-		{
-			buffer = std::vector<char>(bytes, bytes + size);
-			read = 0;
-		}
-	};
-
 	struct ShaderData
 	{
 		struct FragmentOutput
 		{
 			std::string name;
 			int value;
+
+			static constexpr auto serialization()
+			{
+				return make_lookup_table(
+					std::make_pair(utility::string_view("name"), &FragmentOutput::name),
+					std::make_pair(utility::string_view("value"), &FragmentOutput::value)
+					);
+			}
 		};
 
 		struct VertexInput
 		{
 			std::string name;
 			int value;
+
+			static constexpr auto serialization()
+			{
+				return make_lookup_table(
+					std::make_pair(utility::string_view("name"), &VertexInput::name),
+					std::make_pair(utility::string_view("value"), &VertexInput::value)
+					);
+			}
 		};
 
 		std::vector<VertexInput> inputs;
@@ -361,27 +189,14 @@ namespace
 		std::string vertex_source;
 		std::string fragment_source;
 
-		friend void serialize(ShaderStructurer & s, ShaderData & x)
+		static constexpr auto serialization()
 		{
-			s.parse("[vertex]", newline);
-			while (s.parse("[bind", whitespace))
-			{
-				x.inputs.emplace_back();
-				s.parse(x.inputs.back().name, whitespace, x.inputs.back().value, "]", newline);
-			}
-			const int vertex_source_begin = s.tell();
-			const int vertex_source_end = s.find(beginline, "[fragment]", endline);
-			s.parse_region(vertex_source_begin, vertex_source_end, x.vertex_source);
-
-			s.parse("[fragment]", newline);
-			while (s.parse("[bind", whitespace))
-			{
-				x.outputs.emplace_back();
-				s.parse(x.outputs.back().name, whitespace, x.outputs.back().value, "]", newline);
-			}
-			const int fragment_source_begin = s.tell();
-			const int fragment_source_end = s.find(endoffile);
-			s.parse_region(fragment_source_begin, fragment_source_end, x.fragment_source);
+			return make_lookup_table(
+				std::make_pair(utility::string_view("inputs"), &ShaderData::inputs),
+				std::make_pair(utility::string_view("outputs"), &ShaderData::outputs),
+				std::make_pair(utility::string_view("vertex_source"), &ShaderData::vertex_source),
+				std::make_pair(utility::string_view("fragment_source"), &ShaderData::fragment_source)
+				);
 		}
 	};
 
@@ -405,6 +220,9 @@ namespace
 
 		GLint create(engine::Asset asset, ShaderData && shader_data)
 		{
+			const auto error_before = glGetError();
+			debug_assert(error_before == GL_NO_ERROR);
+
 			GLint vs = glCreateShader(GL_VERTEX_SHADER);
 			const char * vs_source = shader_data.vertex_source.c_str();
 			glShaderSource(vs, 1, &vs_source, nullptr);
@@ -461,6 +279,9 @@ namespace
 			vertices[count] = vs;
 			fragments[count] = fs;
 			count++;
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
 
 			return p;
 		}
@@ -624,10 +445,10 @@ namespace
 
 			switch (image.color())
 			{
-			case core::graphics::ImageColor::RGB:
+			case core::graphics::ColorType::RGB:
 				glTexImage2D(GL_TEXTURE_2D, 0, 3, image.width(), image.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, image.data());
 				break;
-			case core::graphics::ImageColor::RGBA:
+			case core::graphics::ColorType::RGBA:
 				glTexImage2D(GL_TEXTURE_2D, 0, 4, image.width(), image.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
 				break;
 			default:
@@ -1619,15 +1440,61 @@ namespace
 			vertices, triangles, normals, coords });
 	}
 
-	void data_callback_shader(std::string name, std::vector<char> && content)
+	std::atomic_int texture_lock(0);
+
+	struct TryReadImage
 	{
-		using core::serialize;
+		core::graphics::Image & image;
 
-		ShaderStructurer structurer;
-		structurer.set(content.data(), content.size());
+		void operator () (core::PngStructurer && x)
+		{
+			x.read(image);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("impossible to read, maybe");
+		}
+	};
 
+	void data_callback_image(std::string name, engine::resource::reader::Structurer && structurer)
+	{
+		core::graphics::Image image;
+		visit(TryReadImage{image}, std::move(structurer));
+
+		engine::Asset asset = engine::Asset::null();
+		if (name == "res/box.png")
+			asset = engine::Asset("my_png");
+		else
+		{
+			debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
+			debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
+			asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
+		}
+
+		engine::graphics::renderer::post_register_texture(asset, std::move(image));
+		texture_lock++;
+	}
+
+	struct TryReadShader
+	{
+		ShaderData & image;
+
+		void operator () (core::ShaderStructurer && x)
+		{
+			x.read(image);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("impossible to read, maybe");
+		}
+	};
+
+	void data_callback_shader(std::string name, engine::resource::reader::Structurer && structurer)
+	{
 		ShaderData shader_data;
-		serialize(structurer, shader_data);
+		visit(TryReadShader{shader_data}, std::move(structurer));
 
 		queue_shaders.try_push(std::make_pair(std::move(name), std::move(shader_data)));
 	}
@@ -1679,14 +1546,10 @@ namespace
 			engine::Asset{ "cuboid" },
 			createCuboid());
 
-		core::graphics::Image image{"res/box.png"};
-		engine::graphics::renderer::post_register_texture(engine::Asset{"my_png"}, std::move(image));
-
-		core::graphics::Image image2{ "res/dude.png" };
-		engine::graphics::renderer::post_register_texture(engine::Asset{ "dude" }, std::move(image2));
-
-		core::graphics::Image image3{ "res/photo.png" };
-		engine::graphics::renderer::post_register_texture(engine::Asset{ "photo" }, std::move(image3));
+		engine::resource::reader::post_read("res/box.png", data_callback_image);
+		engine::resource::reader::post_read("res/dude.png", data_callback_image);
+		engine::resource::reader::post_read("res/photo.png", data_callback_image);
+		while (texture_lock < 3);
 
 		engine::graphics::renderer::post_add_component(
 			engine::Entity::create(),
