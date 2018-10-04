@@ -7,16 +7,46 @@
 #include "utility/preprocessor.hpp"
 #include "utility/string_view.hpp"
 #include "utility/type_traits.hpp"
+#include "utility/utility.hpp"
 
 #include "utility/lookup_table.hpp"
 
 namespace core
 {
 	template <typename T>
+	constexpr auto serialization(utility::in_place_type_t<T>) -> decltype(T::serialization())
+	{
+		return T::serialization();
+	}
+
+	template <typename T>
+	class value_table
+	{
+	private:
+		static constexpr decltype(serialization(utility::in_place_type<T>)) lookup_table = serialization(utility::in_place_type<T>);
+
+		static_assert(lookup_table.all_values_same_type, "");
+
+	public:
+		static constexpr bool has(utility::string_view name)
+		{
+			return lookup_table.contains(name);
+		}
+
+		static constexpr decltype(auto) get(utility::string_view name)
+		{
+			return lookup_table.get_value(lookup_table.find(name));
+		}
+	};
+
+	template <typename T>
+	constexpr decltype(serialization(utility::in_place_type<T>)) value_table<T>::lookup_table;
+
+	template <typename T>
 	class member_table
 	{
 	private:
-		static constexpr decltype(T::serialization()) lookup_table = T::serialization();
+		static constexpr decltype(serialization(utility::in_place_type<T>)) lookup_table = serialization(utility::in_place_type<T>);
 
 	public:
 		static constexpr bool has(utility::string_view name)
@@ -82,13 +112,13 @@ namespace core
 	};
 
 	template <typename T>
-	constexpr decltype(T::serialization()) member_table<T>::lookup_table;
+	constexpr decltype(serialization(utility::in_place_type<T>)) member_table<T>::lookup_table;
 
 	template <typename T>
 	struct has_lookup_table_impl
 	{
 		template <typename U>
-		static auto test(int) -> decltype(U::serialization(), mpl::true_type());
+		static auto test(int) -> decltype(serialization(utility::in_place_type<U>), mpl::true_type());
 		template <typename U>
 		static auto test(...) -> mpl::false_type;
 

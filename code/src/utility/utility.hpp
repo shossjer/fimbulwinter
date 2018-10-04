@@ -28,11 +28,9 @@ namespace utility
 	struct is_in_place_index<in_place_index_t<I>> : mpl::true_type {};
 
 	template <typename T>
-	struct in_place_type_helper {};
+	struct in_place_type_t { explicit constexpr in_place_type_t(int) {} };
 	template <typename T>
-	in_place_type_helper<T> in_place_type() { return {}; }
-	template <typename T>
-	using in_place_type_t = in_place_type_helper<T>();
+	constexpr in_place_type_t<T> in_place_type = in_place_type_t<T>(0);
 
 	template <typename T>
 	struct is_in_place_type : mpl::false_type {};
