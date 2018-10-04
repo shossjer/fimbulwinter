@@ -52,12 +52,12 @@ namespace core
 		void read(T & x)
 		{
 			debug_verify(parse("[vertex]", newline), "expected vertex section in '", filename, "'");
-			static_assert(core::serialization<T>::has("inputs"), "");
-			// if (core::serialization<T>::has("inputs"))
+			static_assert(core::member_table<T>::has("inputs"), "");
+			// if (core::member_table<T>::has("inputs"))
 			{
 				while (parse("[bind", whitespace))
 				{
-					if (core::serialization<T>::call("inputs", x, [&](auto & y){ return read_name_value(y); }))
+					if (core::member_table<T>::call("inputs", x, [&](auto & y){ return read_name_value(y); }))
 					{
 						debug_verify(parse("]", newline), "expected ending bracket in '", filename, "'");
 					}
@@ -76,7 +76,7 @@ namespace core
 			// }
 			const int vertex_source_begin = tell();
 			const int vertex_source_end = find(beginline, "[fragment]", endline);
-			if (core::serialization<T>::has("vertex_source"))
+			if (core::member_table<T>::has("vertex_source"))
 			{
 				parse_region(vertex_source_begin, vertex_source_end, x.vertex_source);
 			}
@@ -86,12 +86,12 @@ namespace core
 			}
 
 			debug_verify(parse("[fragment]", newline), "expected fragment section in '", filename, "'");
-			static_assert(core::serialization<T>::has("outputs"), "");
-			// if (core::serialization<T>::has("outputs"))
+			static_assert(core::member_table<T>::has("outputs"), "");
+			// if (core::member_table<T>::has("outputs"))
 			{
 				while (parse("[bind", whitespace))
 				{
-					if (core::serialization<T>::call("outputs", x, [&](auto & y){ return read_name_value(y); }))
+					if (core::member_table<T>::call("outputs", x, [&](auto & y){ return read_name_value(y); }))
 					{
 						debug_verify(parse("]", newline), "expected ending bracket in '", filename, "'");
 					}
@@ -110,7 +110,7 @@ namespace core
 			// }
 			const int fragment_source_begin = tell();
 			const int fragment_source_end = find(endoffile);
-			if (core::serialization<T>::has("fragment_source"))
+			if (core::member_table<T>::has("fragment_source"))
 			{
 				parse_region(fragment_source_begin, fragment_source_end, x.fragment_source);
 			}
@@ -125,8 +125,8 @@ namespace core
 		{
 			x.emplace_back();
 
-			static_assert(core::serialization<T>::has("name"), "");
-			if (!core::serialization<T>::call("name", x.back(), [&](auto & y){ return parse(y); }))
+			static_assert(core::member_table<T>::has("name"), "");
+			if (!core::member_table<T>::call("name", x.back(), [&](auto & y){ return parse(y); }))
 			{
 				debug_printline("failed to parse 'name' in '", filename, "'");
 				return false;
@@ -134,8 +134,8 @@ namespace core
 
 			debug_verify(parse(whitespace), "'name' and 'value' should be separated by whitespace in '", filename, "'");
 
-			static_assert(core::serialization<T>::has("value"), "");
-			if (!core::serialization<T>::call("value", x.back(), [&](auto & y){ return parse(y); }))
+			static_assert(core::member_table<T>::has("value"), "");
+			if (!core::member_table<T>::call("value", x.back(), [&](auto & y){ return parse(y); }))
 			{
 				debug_printline("failed to parse 'value' in '", filename, "'");
 				return false;

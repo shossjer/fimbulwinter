@@ -49,13 +49,13 @@ namespace core
 			write_tuple(x, mpl::make_index_sequence<sizeof...(Ps)>{});
 		}
 		template <typename T,
-		          REQUIRES((core::has_member_table<T>::value))>
+		          REQUIRES((core::has_lookup_table<T>::value))>
 		void write(const T & x)
 		{
 			write_class(x);
 		}
 		template <typename T,
-		          REQUIRES((!core::has_member_table<T>::value))>
+		          REQUIRES((!core::has_lookup_table<T>::value))>
 		void write(const T & x)
 		{
 			write_value(x);
@@ -65,7 +65,7 @@ namespace core
 		void write_class(const T & x)
 		{
 			ss.put('{');
-			serialization<T>::call_with_all_members(x, [&](auto && ...ys){ write_list(ys...); });
+			member_table<T>::call_with_all_members(x, [&](auto && ...ys){ write_list(ys...); });
 			ss.put('}');
 		}
 

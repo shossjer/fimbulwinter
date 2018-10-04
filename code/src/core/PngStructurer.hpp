@@ -111,31 +111,31 @@ namespace core
 
 			png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
 
-			if (serialization<T>::has("width"))
+			if (member_table<T>::has("width"))
 			{
-				serialization<T>::call("width", x, TryAssign<int>(image_width));
+				member_table<T>::call("width", x, TryAssign<int>(image_width));
 			}
-			if (serialization<T>::has("height"))
+			if (member_table<T>::has("height"))
 			{
-				serialization<T>::call("height", x, TryAssign<int>(image_height));
-			}
-
-			if (serialization<T>::has("bit_depth"))
-			{
-				serialization<T>::call("bit_depth", x, TryAssign<int>(bit_depth));
-			}
-			if (serialization<T>::has("channel_count"))
-			{
-				serialization<T>::call("channel_count", x, TryAssign<int>(channels));
-			}
-			if (serialization<T>::has("color_type"))
-			{
-				serialization<T>::call("color_type", x, [&](auto & y){ read_color_type(color_type, y); });
+				member_table<T>::call("height", x, TryAssign<int>(image_height));
 			}
 
-			if (serialization<T>::has("pixel_data"))
+			if (member_table<T>::has("bit_depth"))
 			{
-				serialization<T>::call("pixel_data", x, TryAssign<std::vector<char> &&>(std::move(pixels)));
+				member_table<T>::call("bit_depth", x, TryAssign<int>(bit_depth));
+			}
+			if (member_table<T>::has("channel_count"))
+			{
+				member_table<T>::call("channel_count", x, TryAssign<int>(channels));
+			}
+			if (member_table<T>::has("color_type"))
+			{
+				member_table<T>::call("color_type", x, [&](auto & y){ read_color_type(color_type, y); });
+			}
+
+			if (member_table<T>::has("pixel_data"))
+			{
+				member_table<T>::call("pixel_data", x, TryAssign<std::vector<char> &&>(std::move(pixels)));
 			}
 		}
 	private:

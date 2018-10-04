@@ -294,7 +294,7 @@ namespace core
 			}
 		}
 		template <typename T,
-		          REQUIRES((core::has_member_table<T>::value))>
+		          REQUIRES((core::has_lookup_table<T>::value))>
 		void read_object(const json & j, T & x)
 		{
 			debug_assert(j.is_object());
@@ -302,25 +302,25 @@ namespace core
 			{
 				const auto key_string = it.key();
 				const utility::string_view key = key_string.c_str();
-				if (!serialization<T>::has(key))
+				if (!member_table<T>::has(key))
 					continue;
 
 				const json & v = it.value();
 				if (v.is_array())
 				{
-					serialization<T>::call(key, x, [&](auto & y){ read_array(v, y); });
+					member_table<T>::call(key, x, [&](auto & y){ read_array(v, y); });
 				}
 				else if (v.is_number())
 				{
-					serialization<T>::call(key, x, [&](auto & y){ read_number(v, y); });
+					member_table<T>::call(key, x, [&](auto & y){ read_number(v, y); });
 				}
 				else if (v.is_object())
 				{
-					serialization<T>::call(key, x, [&](auto & y){ read_object(v, y); });
+					member_table<T>::call(key, x, [&](auto & y){ read_object(v, y); });
 				}
 				else if (v.is_string())
 				{
-					serialization<T>::call(key, x, [&](auto & y){ read_string(v, y); });
+					member_table<T>::call(key, x, [&](auto & y){ read_string(v, y); });
 				}
 				else
 				{
@@ -329,7 +329,7 @@ namespace core
 			}
 		}
 		template <typename T,
-		          REQUIRES((!core::has_member_table<T>::value))>
+		          REQUIRES((!core::has_lookup_table<T>::value))>
 		void read_object(const json &, T &)
 		{
 			debug_fail("attempting to read object into a non class type (or a class type without a member table) in json '", filename, "'");
