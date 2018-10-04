@@ -46,8 +46,6 @@ set(SOURCE_FILES
 # source listing
 set(HEADER_FILES
    src/core/ArmatureStructurer.hpp
-   src/core/JsonStructurer.hpp
-   src/core/LevelStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
 	src/core/color.hpp
@@ -60,7 +58,9 @@ set(HEADER_FILES
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
    src/core/graphics/types.hpp
+   src/core/IniStructurer.hpp
    src/core/JsonStructurer.hpp
+   src/core/LevelStructurer.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp

@@ -3,6 +3,7 @@
 #define ENGINE_RESOURCE_READER_HPP
 
 #include "core/ArmatureStructurer.hpp"
+#include "core/IniStructurer.hpp"
 #include "core/JsonStructurer.hpp"
 #include "core/LevelStructurer.hpp"
 #include "core/PlaceholderStructurer.hpp"
@@ -21,6 +22,7 @@ namespace engine
 		{
 			using Structurer = utility::variant<
 				core::ArmatureStructurer,
+				core::IniStructurer,
 				core::JsonStructurer,
 				core::LevelStructurer,
 				core::PlaceholderStructurer,
@@ -31,6 +33,7 @@ namespace engine
 			using FormatMask = uint32_t;
 
 			constexpr FormatMask ArmatureFormat = FormatMask(1) << utility::variant_index_of<core::ArmatureStructurer, Structurer>::value;
+			constexpr FormatMask IniFormat = FormatMask(1) << utility::variant_index_of<core::IniStructurer, Structurer>::value;
 			constexpr FormatMask JsonFormat = FormatMask(1) << utility::variant_index_of<core::JsonStructurer, Structurer>::value;
 			constexpr FormatMask LevelFormat = FormatMask(1) << utility::variant_index_of<core::LevelStructurer, Structurer>::value;
 			constexpr FormatMask PlaceholderFormat = FormatMask(1) << utility::variant_index_of<core::PlaceholderStructurer, Structurer>::value;

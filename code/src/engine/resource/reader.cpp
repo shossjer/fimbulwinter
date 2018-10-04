@@ -41,6 +41,10 @@ namespace
 	{
 		return file_exists(utility::to_string("res/gfx/", name, ".glsl"));
 	}
+	bool check_if_ini(const std::string & name)
+	{
+		return file_exists(utility::to_string("res/", name, ".ini"));
+	}
 	bool check_if_json(const std::string & name)
 	{
 		return file_exists(utility::to_string("res/", name, ".json"));
@@ -105,6 +109,23 @@ namespace
 		file.seekg(0, std::ifstream::beg);
 
 		using StructurerType = core::ShaderStructurer;
+		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
+		file.read(utility::get<StructurerType>(structurer).data(), file_size);
+
+		callback(std::move(name), std::move(structurer));
+	}
+
+	void read_ini(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	{
+		debug_printline("reading '", filename, "'");
+		std::ifstream file(filename, std::ifstream::binary);
+		debug_assert(file);
+
+		file.seekg(0, std::ifstream::end);
+		const auto file_size = file.tellg();
+		file.seekg(0, std::ifstream::beg);
+
+		using StructurerType = core::IniStructurer;
 		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
 		file.read(utility::get<StructurerType>(structurer).data(), file_size);
 
@@ -201,6 +222,10 @@ namespace
 						{
 							read_glsl(x.name, x.name, x.callback);
 						}
+						else if ((x.formats & engine::resource::reader::IniFormat) && has_extension(x.name, ".ini"))
+						{
+							read_ini(x.name, x.name, x.callback);
+						}
 						else if ((x.formats & engine::resource::reader::JsonFormat) && has_extension(x.name, ".json"))
 						{
 							read_json(x.name, x.name, x.callback);
@@ -230,6 +255,7 @@ namespace
 					{
 						const engine::resource::reader::FormatMask available_formats =
 							(check_if_arm(x.name) * engine::resource::reader::ArmatureFormat) |
+							(check_if_ini(x.name) * engine::resource::reader::IniFormat) |
 							(check_if_json(x.name) * engine::resource::reader::JsonFormat) |
 							(check_if_lvl(x.name) * engine::resource::reader::LevelFormat) |
 							(check_if_msh(x.name) * engine::resource::reader::PlaceholderFormat) |
@@ -245,6 +271,10 @@ namespace
 						else if (matching_formats & engine::resource::reader::ArmatureFormat)
 						{
 							read_arm(x.name, "res/" + x.name + ".arm", x.callback);
+						}
+						else if (matching_formats & engine::resource::reader::IniFormat)
+						{
+							read_ini(x.name, "res/" + x.name + ".ini", x.callback);
 						}
 						else if (matching_formats & engine::resource::reader::JsonFormat)
 						{
