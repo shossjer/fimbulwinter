@@ -55,12 +55,6 @@ namespace engine
 
 	namespace resource
 	{
-		namespace loader
-		{
-			extern void create();
-			extern void destroy();
-		}
-
 		namespace reader
 		{
 			extern void create();

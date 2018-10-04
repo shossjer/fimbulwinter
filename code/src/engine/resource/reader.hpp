@@ -37,8 +37,12 @@ namespace engine
 			constexpr FormatMask PngFormat = FormatMask(1) << utility::variant_index_of<core::PngStructurer, Structurer>::value;
 			constexpr FormatMask ShaderFormat = FormatMask(1) << utility::variant_index_of<core::ShaderStructurer, Structurer>::value;
 
-			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer));
 			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer), FormatMask formats);
+
+			inline void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer))
+			{
+				return post_read(std::move(name), callback, (FormatMask(1) << utility::variant_size<Structurer>::value) - 1);
+			}
 		}
 	}
 }

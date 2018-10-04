@@ -298,17 +298,6 @@ namespace
 			event.reset();
 		}
 	}
-
-	template <typename MessageType, typename ...Ps>
-	void post_message(Ps && ...ps)
-	{
-		const auto res = queue_messages.try_emplace(utility::in_place_type<MessageType>, std::forward<Ps>(ps)...);
-		debug_assert(res);
-		if (res)
-		{
-			event.set();
-		}
-	}
 }
 
 namespace engine
@@ -335,14 +324,14 @@ namespace engine
 				renderThread.join();
 			}
 
-			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer))
-			{
-				post_message<MessageRead>(std::move(name), callback, (FormatMask(1) << utility::variant_size<Structurer>::value) - 1);
-			}
-
 			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer), FormatMask formats)
 			{
-				post_message<MessageRead>(std::move(name), callback, formats);
+				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRead>, std::move(name), callback, formats);
+				debug_assert(res);
+				if (res)
+				{
+					event.set();
+				}
 			}
 		}
 	}
