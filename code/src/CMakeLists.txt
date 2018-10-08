@@ -121,6 +121,7 @@ set(HEADER_FILES
 	src/engine/physics/physics_physx.hpp
 	src/engine/replay/reader.hpp
 	src/engine/replay/writer.hpp
+   src/engine/resource/formats.hpp
 	src/engine/resource/reader.hpp
 	src/gameplay/commands.hpp
 	src/gameplay/component/CameraActivator.hpp

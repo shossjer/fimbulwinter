@@ -69,7 +69,7 @@ namespace
 	{
 		std::string name;
 		void (* callback)(std::string name, engine::resource::reader::Structurer && structurer);
-		engine::resource::reader::FormatMask formats;
+		engine::resource::FormatMask formats;
 	};
 	using Message = utility::variant
 	<
@@ -214,35 +214,35 @@ namespace
 				{
 					if (file_exists(x.name))
 					{
-						if ((x.formats & engine::resource::reader::ArmatureFormat) && has_extension(x.name, ".arm"))
+						if ((x.formats & engine::resource::Format::Armature) && has_extension(x.name, ".arm"))
 						{
 							read_arm(x.name, x.name, x.callback);
 						}
-						else if ((x.formats & engine::resource::reader::ShaderFormat) && has_extension(x.name, ".glsl"))
+						else if ((x.formats & engine::resource::Format::Shader) && has_extension(x.name, ".glsl"))
 						{
 							read_glsl(x.name, x.name, x.callback);
 						}
-						else if ((x.formats & engine::resource::reader::IniFormat) && has_extension(x.name, ".ini"))
+						else if ((x.formats & engine::resource::Format::Ini) && has_extension(x.name, ".ini"))
 						{
 							read_ini(x.name, x.name, x.callback);
 						}
-						else if ((x.formats & engine::resource::reader::JsonFormat) && has_extension(x.name, ".json"))
+						else if ((x.formats & engine::resource::Format::Json) && has_extension(x.name, ".json"))
 						{
 							read_json(x.name, x.name, x.callback);
 						}
-						else if ((x.formats & engine::resource::reader::LevelFormat) && has_extension(x.name, ".lvl"))
+						else if ((x.formats & engine::resource::Format::Level) && has_extension(x.name, ".lvl"))
 						{
 							read_lvl(x.name, x.name, x.callback);
 						}
-						else if ((x.formats & engine::resource::reader::PlaceholderFormat) && has_extension(x.name, ".msh"))
+						else if ((x.formats & engine::resource::Format::Placeholder) && has_extension(x.name, ".msh"))
 						{
 							read_msh(x.name, x.name, x.callback);
 						}
-						else if ((x.formats & engine::resource::reader::PngFormat) && has_extension(x.name, ".png"))
+						else if ((x.formats & engine::resource::Format::Png) && has_extension(x.name, ".png"))
 						{
 							read_png(x.name, x.name, x.callback);
 						}
-						else if (x.formats & ((engine::resource::reader::FormatMask(1) << utility::variant_size<engine::resource::reader::Structurer>::value) - 1))
+						else if (x.formats & engine::resource::FormatMask::all())
 						{
 							debug_fail("unknown file format for '", x.name, "'");
 						}
@@ -253,46 +253,45 @@ namespace
 					}
 					else
 					{
-						const engine::resource::reader::FormatMask available_formats =
-							(check_if_arm(x.name) * engine::resource::reader::ArmatureFormat) |
-							(check_if_ini(x.name) * engine::resource::reader::IniFormat) |
-							(check_if_json(x.name) * engine::resource::reader::JsonFormat) |
-							(check_if_lvl(x.name) * engine::resource::reader::LevelFormat) |
-							(check_if_msh(x.name) * engine::resource::reader::PlaceholderFormat) |
-							(check_if_png(x.name) * engine::resource::reader::PngFormat) |
-							(check_if_glsl(x.name) * engine::resource::reader::ShaderFormat);
+						const engine::resource::FormatMask available_formats =
+							(engine::resource::FormatMask::fill(check_if_arm(x.name)) & engine::resource::Format::Armature) |
+							(engine::resource::FormatMask::fill(check_if_ini(x.name)) & engine::resource::Format::Ini) |
+							(engine::resource::FormatMask::fill(check_if_json(x.name)) & engine::resource::Format::Json) |
+							(engine::resource::FormatMask::fill(check_if_lvl(x.name)) & engine::resource::Format::Level) |
+							(engine::resource::FormatMask::fill(check_if_msh(x.name)) & engine::resource::Format::Placeholder) |
+							(engine::resource::FormatMask::fill(check_if_png(x.name)) & engine::resource::Format::Png) |
+							(engine::resource::FormatMask::fill(check_if_glsl(x.name)) & engine::resource::Format::Shader);
 
-						const engine::resource::reader::FormatMask matching_formats = available_formats & x.formats;
-						const bool more_than_one_match = ((matching_formats - 1) & matching_formats) != 0;
-						if (more_than_one_match)
+						const engine::resource::FormatMask matching_formats = available_formats & x.formats;
+						if (!matching_formats.unique())
 						{
 							debug_fail("more than one formats matches '", x.name, "'");
 						}
-						else if (matching_formats & engine::resource::reader::ArmatureFormat)
+						else if (matching_formats & engine::resource::Format::Armature)
 						{
 							read_arm(x.name, "res/" + x.name + ".arm", x.callback);
 						}
-						else if (matching_formats & engine::resource::reader::IniFormat)
+						else if (matching_formats & engine::resource::Format::Ini)
 						{
 							read_ini(x.name, "res/" + x.name + ".ini", x.callback);
 						}
-						else if (matching_formats & engine::resource::reader::JsonFormat)
+						else if (matching_formats & engine::resource::Format::Json)
 						{
 							read_json(x.name, "res/" + x.name + ".json", x.callback);
 						}
-						else if (matching_formats & engine::resource::reader::LevelFormat)
+						else if (matching_formats & engine::resource::Format::Level)
 						{
 							read_lvl(x.name, "res/" + x.name + ".lvl", x.callback);
 						}
-						else if (matching_formats & engine::resource::reader::PlaceholderFormat)
+						else if (matching_formats & engine::resource::Format::Placeholder)
 						{
 							read_msh(x.name, "res/" + x.name + ".msh", x.callback);
 						}
-						else if (matching_formats & engine::resource::reader::PngFormat)
+						else if (matching_formats & engine::resource::Format::Png)
 						{
 							read_png(x.name, "res/" + x.name + ".png", x.callback);
 						}
-						else if (matching_formats & engine::resource::reader::ShaderFormat)
+						else if (matching_formats & engine::resource::Format::Shader)
 						{
 							read_glsl(x.name, "res/gfx/" + x.name + ".glsl", x.callback);
 						}
