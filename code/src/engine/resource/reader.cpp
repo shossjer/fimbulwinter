@@ -41,13 +41,19 @@ namespace
 	{
 		return file_exists(utility::to_string("res/gfx/", name, ".glsl"));
 	}
-	bool check_if_ini(const std::string & name)
+	int check_if_ini(const std::string & name)
 	{
-		return file_exists(utility::to_string("res/", name, ".ini"));
+		return
+			file_exists(name + ".ini") ? 1 :
+			file_exists("res/" + name + ".ini") ? 2 :
+			0;
 	}
-	bool check_if_json(const std::string & name)
+	int check_if_json(const std::string & name)
 	{
-		return file_exists(utility::to_string("res/", name, ".json"));
+		return
+			file_exists(name + ".json") ? 1 :
+			file_exists("res/" + name + ".json") ? 2 :
+			0;
 	}
 	bool check_if_lvl(const std::string & name)
 	{
@@ -280,11 +286,13 @@ namespace
 						}
 						else if (matching_formats & engine::resource::Format::Ini)
 						{
-							read_ini(x.name, "res/" + x.name + ".ini", x.callback);
+							std::string filename = (check_if_ini(x.name) == 2 ? "res/" : "") + x.name + ".ini";
+							read_ini(x.name, filename, x.callback);
 						}
 						else if (matching_formats & engine::resource::Format::Json)
 						{
-							read_json(x.name, "res/" + x.name + ".json", x.callback);
+							std::string filename = (check_if_json(x.name) == 2 ? "res/" : "") + x.name + ".json";
+							read_json(x.name, filename, x.callback);
 						}
 						else if (matching_formats & engine::resource::Format::Level)
 						{
