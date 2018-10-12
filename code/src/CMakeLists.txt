@@ -37,6 +37,7 @@ set(SOURCE_FILES
 	src/engine/replay/reader.cpp
 	src/engine/replay/writer.cpp
 	src/engine/resource/reader.cpp
+   src/engine/resource/writer.cpp
 	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
 	src/gameplay/gamestate_gui.cpp
@@ -126,6 +127,7 @@ set(HEADER_FILES
 	src/engine/replay/writer.hpp
    src/engine/resource/formats.hpp
 	src/engine/resource/reader.hpp
+   src/engine/resource/writer.hpp
 	src/gameplay/commands.hpp
 	src/gameplay/component/CameraActivator.hpp
 	src/gameplay/component/FreeCamera.hpp

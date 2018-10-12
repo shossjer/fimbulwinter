@@ -60,6 +60,12 @@ namespace engine
 			extern void create();
 			extern void destroy();
 		}
+
+		namespace writer
+		{
+			extern void create();
+			extern void destroy();
+		}
 	}
 }
 
@@ -86,11 +92,13 @@ int main(const int argc, const char *const argv[])
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 # endif
+	::engine::resource::reader::create();
+	::engine::resource::writer::create();
+
 	engine::application::window::create(hInstance, nCmdShow);
 
 	::engine::console::create();
 	;;engine::replay::create();
-	::engine::resource::reader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create(engine::graphics::renderer::Type::OPENGL_3_0);
 	::engine::graphics::viewer::create();
@@ -110,22 +118,26 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
-	::engine::resource::reader::destroy();
 	::engine::replay::destroy();
 	::engine::console::destroy();
 
 	engine::application::window::destroy(hInstance);
+
+	::engine::resource::writer::destroy();
+	::engine::resource::reader::destroy();
 
 	return ret;
 }
 #elif WINDOW_USE_X11
 int main(const int argc, const char *const argv[])
 {
+	::engine::resource::reader::create();
+	::engine::resource::writer::create();
+
 	engine::application::window::create();
 
 	::engine::console::create();
 	;;engine::replay::create();
-	::engine::resource::reader::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create(engine::graphics::renderer::Type::OPENGL_3_0);
 	::engine::graphics::viewer::create();
@@ -145,11 +157,13 @@ int main(const int argc, const char *const argv[])
 	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
-	::engine::resource::reader::destroy();
 	::engine::replay::destroy();
 	::engine::console::destroy();
 
 	engine::application::window::destroy();
+
+	::engine::resource::writer::destroy();
+	::engine::resource::reader::destroy();
 
 	return ret;
 }
