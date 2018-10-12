@@ -2,7 +2,9 @@
 #ifndef ENGINE_APPLICATION_WINDOW_HPP
 #define ENGINE_APPLICATION_WINDOW_HPP
 
-#include <config.h>
+#include "config.hpp"
+
+#include "config.h"
 
 #if WINDOW_USE_USER32
 # include <windows.h>
@@ -17,14 +19,14 @@ namespace engine
 #if WINDOW_USE_USER32
 			/**
 			 */
-			void create(HINSTANCE hInstance, int nCmdShow);
+			void create(HINSTANCE hInstance, int nCmdShow, const config_t & config);
 			/**
 			 */
 			void destroy(HINSTANCE hInstance);
 #elif WINDOW_USE_X11
 			/**
 			 */
-			void create();
+			void create(const config_t & config);
 			/**
 			 */
 			void destroy();

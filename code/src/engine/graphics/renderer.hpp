@@ -10,6 +10,7 @@
 #include "core/container/Buffer.hpp"
 #include "core/graphics/Image.hpp"
 #include "core/maths/Matrix.hpp"
+#include "core/serialization.hpp"
 
 #include <vector>
 
@@ -152,6 +153,14 @@ namespace engine
 				OPENGL_1_2,
 				OPENGL_3_0
 			};
+
+			constexpr auto serialization(utility::in_place_type_t<Type>)
+			{
+				return utility::make_lookup_table(
+					std::make_pair(utility::string_view("opengl1.2"), Type::OPENGL_1_2),
+					std::make_pair(utility::string_view("opengl3.0"), Type::OPENGL_3_0)
+					);
+			}
 
 			void create(Type type);
 			void destroy();

@@ -2,6 +2,8 @@
 #ifndef ENGINE_RESOURCE_FORMATS_HPP
 #define ENGINE_RESOURCE_FORMATS_HPP
 
+#include "core/serialization.hpp"
+
 #include <cstdint>
 
 namespace engine
@@ -21,6 +23,19 @@ namespace engine
 			COUNT,
 			None = COUNT
 		};
+
+		constexpr auto serialization(utility::in_place_type_t<Format>)
+		{
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("arm"), Format::Armature),
+				std::make_pair(utility::string_view("ini"), Format::Ini),
+				std::make_pair(utility::string_view("json"), Format::Json),
+				std::make_pair(utility::string_view("lvl"), Format::Level),
+				std::make_pair(utility::string_view("msh"), Format::Placeholder),
+				std::make_pair(utility::string_view("png"), Format::Png),
+				std::make_pair(utility::string_view("glsl"), Format::Shader),
+				std::make_pair(utility::string_view("rec"), Format::String));
+		}
 
 		class FormatMask
 		{

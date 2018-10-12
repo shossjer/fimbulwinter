@@ -89,9 +89,11 @@ set(HEADER_FILES
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
 	src/engine/animation/mixer.hpp
+   src/engine/application/config.hpp
 	src/engine/application/window.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
+   src/engine/graphics/config.hpp
 	src/engine/graphics/message.hpp
 	src/engine/graphics/opengl.hpp
 	src/engine/graphics/opengl/Font.hpp

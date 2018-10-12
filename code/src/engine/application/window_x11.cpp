@@ -3,6 +3,8 @@
 
 #if WINDOW_USE_X11
 
+#include "window.hpp"
+
 #include <engine/debug.hpp>
 #include <utility/string.hpp>
 
@@ -297,7 +299,7 @@ namespace engine
 	{
 		namespace window
 		{
-			void create()
+			void create(const config_t & config)
 			{
 				// XOpenDisplay
 				Display_guard event_display(nullptr);
@@ -383,8 +385,8 @@ namespace engine
 				                                     root,
 				                                     0,
 				                                     0,
-				                                     800,
-				                                     400,
+				                                     config.window_width,
+				                                     config.window_height,
 				                                     0,
 				                                     visual_info->depth,
 				                                     InputOutput,

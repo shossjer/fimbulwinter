@@ -5,7 +5,8 @@ set(SOURCE_FILES
 	)
 
 set(HEADER_FILES
-	)
+  src/settings.hpp
+  )
 
 set(ALL_FILES ${SOURCE_FILES} ${HEADER_FILES})
 
