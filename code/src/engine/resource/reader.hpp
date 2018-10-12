@@ -9,6 +9,7 @@
 #include "core/PlaceholderStructurer.hpp"
 #include "core/PngStructurer.hpp"
 #include "core/ShaderStructurer.hpp"
+#include "core/NoSerializer.hpp"
 
 #include "engine/resource/formats.hpp"
 
@@ -29,7 +30,8 @@ namespace engine
 				core::LevelStructurer,
 				core::PlaceholderStructurer,
 				core::PngStructurer,
-				core::ShaderStructurer
+				core::ShaderStructurer,
+				core::NoSerializer
 				>;
 
 			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer), FormatMask formats);

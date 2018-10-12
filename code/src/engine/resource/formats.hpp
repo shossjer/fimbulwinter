@@ -18,7 +18,8 @@ namespace engine
 			Png,
 			Shader,
 			String,
-			COUNT
+			COUNT,
+			None = COUNT
 		};
 
 		class FormatMask

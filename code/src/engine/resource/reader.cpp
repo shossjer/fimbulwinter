@@ -203,6 +203,13 @@ namespace
 		callback(std::move(name), std::move(structurer));
 	}
 
+	void no_read(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	{
+		using StructurerType = core::NoSerializer;
+		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, filename);
+		callback(std::move(name), std::move(structurer));
+	}
+
 	void process_messages()
 	{
 		Message message;
@@ -298,6 +305,10 @@ namespace
 						else if (matching_formats)
 						{
 							debug_fail("unknown file format for '", x.name, "'");
+						}
+						else if (x.formats & engine::resource::Format::None)
+						{
+							no_read(x.name, x.name, x.callback);
 						}
 						else
 						{

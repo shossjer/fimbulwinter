@@ -68,6 +68,7 @@ set(HEADER_FILES
 	src/core/maths/Vector.hpp
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
+   src/core/NoSerializer.hpp
    src/core/PlaceholderStructurer.hpp
    src/core/PngStructurer.hpp
    src/core/serialization.hpp
