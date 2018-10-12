@@ -31,6 +31,12 @@ namespace utility
 			{
 				return find_impl(key, mpl::index_constant<0>{});
 			}
+
+			template <std::size_t I,
+			          REQUIRES((I < N))>
+			constexpr const Key & get_key() const { return std::get<I>(keys); }
+
+			constexpr const Key & get_key(std::ptrdiff_t index) const { return keys[index]; }
 		private:
 			constexpr std::size_t find_impl(const Key & key, mpl::index_constant<N>) const
 			{
@@ -58,11 +64,26 @@ namespace utility
 				, values{{pairs.second...}}
 			{}
 
+			constexpr std::ptrdiff_t find_value(const Value & value) const
+			{
+				return find_value_impl(value, mpl::index_constant<0>{});
+			}
+
 			template <std::size_t I,
 			          REQUIRES((I < N))>
 			constexpr const Value & get_value() const { return std::get<I>(values); }
 
 			constexpr const Value & get_value(std::ptrdiff_t index) const { return values[index]; }
+		private:
+			constexpr std::size_t find_value_impl(const Value & value, mpl::index_constant<N>) const
+			{
+				return std::size_t(-1);
+			}
+			template <std::size_t I>
+			constexpr std::size_t find_value_impl(const Value & value, mpl::index_constant<I>) const
+			{
+				return std::get<I>(values) == value ? I : find_value_impl(value, mpl::index_constant<I + 1>{});
+			}
 		};
 
 		template <typename Key, typename ...Values>

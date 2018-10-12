@@ -37,6 +37,12 @@ namespace core
 		{
 			return lookup_table.get_value(lookup_table.find(name));
 		}
+
+		template <typename P>
+		static constexpr decltype(auto) get_key(P && value)
+		{
+			return lookup_table.get_key(lookup_table.find_value(std::forward<P>(value)));
+		}
 	};
 
 	template <typename T>
