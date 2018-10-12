@@ -52,7 +52,10 @@ namespace core
 	class member_table
 	{
 	private:
-		static constexpr decltype(serialization(utility::in_place_type<T>)) lookup_table = serialization(utility::in_place_type<T>);
+		using lookup_table_t = decltype(serialization(utility::in_place_type<T>));
+
+	private:
+		static constexpr lookup_table_t lookup_table = serialization(utility::in_place_type<T>);
 
 	public:
 		static constexpr bool has(utility::string_view name)
@@ -112,8 +115,19 @@ namespace core
 		template <std::size_t I, typename X, typename F>
 		static void for_each_member_impl(mpl::index_constant<I>, X && x, F && f)
 		{
-			f(x.* lookup_table.template get_value<I>());
+			call_f(mpl::index_constant<I>{}, x, f);
 			for_each_member_impl(mpl::index_constant<I + 1>{}, std::forward<X>(x), std::forward<F>(f));
+		}
+
+		template <std::size_t I, typename X, typename F>
+		static auto call_f(mpl::index_constant<I>, X && x, F && f) -> decltype(f(x.* std::declval<lookup_table_t>().template get_value<I>()), void())
+		{
+			f(x.* lookup_table.template get_value<I>());
+		}
+		template <std::size_t I, typename X, typename F>
+		static auto call_f(mpl::index_constant<I>, X && x, F && f) -> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), x.* std::declval<lookup_table_t>().template get_value<I>()), void())
+		{
+			f(lookup_table.template get_key<I>(), x.* lookup_table.template get_value<I>());
 		}
 	};
 
