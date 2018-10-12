@@ -58,7 +58,9 @@ set(HEADER_FILES
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
    src/core/graphics/types.hpp
+   src/core/IniSerializer.hpp
    src/core/IniStructurer.hpp
+   src/core/JsonSerializer.hpp
    src/core/JsonStructurer.hpp
    src/core/LevelStructurer.hpp
 	src/core/maths/Matrix.hpp
