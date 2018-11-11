@@ -182,19 +182,19 @@ namespace engine
 			{
 				debug_assert(id == GLuint(-1));
 
-				glEnable(GL_TEXTURE_2D);
+				// glEnable(GL_TEXTURE_2D);
 
-				glGenTextures(1, &id);
-				glBindTexture(GL_TEXTURE_2D, id);
+				// glGenTextures(1, &id);
+				// glBindTexture(GL_TEXTURE_2D, id);
 
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_INTENSITY, data.texture_size, data.texture_size, 0, GL_RED, GL_UNSIGNED_BYTE, data.pixels.data());
+				// glTexImage2D(GL_TEXTURE_2D, 0, GL_INTENSITY, data.texture_size, data.texture_size, 0, GL_RED, GL_UNSIGNED_BYTE, data.pixels.data());
 
-				glDisable(GL_TEXTURE_2D);
+				// glDisable(GL_TEXTURE_2D);
 
 				max_bitmap_width = data.max_bitmap_width;
 				max_bitmap_height = data.max_bitmap_height;
@@ -205,7 +205,7 @@ namespace engine
 			{
 				debug_assert(id != GLuint(-1));
 
-				glDeleteTextures(1, &id);
+				// glDeleteTextures(1, &id);
 				id = GLuint(-1);
 			}
 
@@ -213,76 +213,76 @@ namespace engine
 			{
 				debug_assert(id != GLuint(-1));
 
-				glEnable(GL_BLEND);
-				glEnable(GL_TEXTURE_2D);
+				// glEnable(GL_BLEND);
+				// glEnable(GL_TEXTURE_2D);
 
-				glDepthMask(GL_FALSE);
+				// glDepthMask(GL_FALSE);
 
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-				glBindTexture(GL_TEXTURE_2D, id);
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+				// glBindTexture(GL_TEXTURE_2D, id);
+				// glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-				const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
-				glBegin(GL_QUADS);
-				const int bitmap_slot_x = c % max_number_of_bitmaps_in_x;
-				const int bitmap_slot_y = c / max_number_of_bitmaps_in_x;
-				const int ox = x - params[c].bitmap_left;
-				const int oy = y - params[c].bitmap_top;
-				glTexCoord2f(float(bitmap_slot_x) / float(texture_size), float(bitmap_slot_y) / float(texture_size));
-				glVertex2i(ox, oy);
-				glTexCoord2f(float(bitmap_slot_x) / float(texture_size), float(bitmap_slot_y + 1) / float(texture_size));
-				glVertex2i(ox, oy + max_bitmap_height);
-				glTexCoord2f(float(bitmap_slot_x + 1) / float(texture_size), float(bitmap_slot_y + 1) / float(texture_size));
-				glVertex2i(ox + max_bitmap_width, oy + max_bitmap_height);
-				glTexCoord2f(float(bitmap_slot_x + 1) / float(texture_size), float(bitmap_slot_y) / float(texture_size));
-				glVertex2i(ox + max_bitmap_width, oy);
-				glEnd();
+				// const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
+				// glBegin(GL_QUADS);
+				// const int bitmap_slot_x = c % max_number_of_bitmaps_in_x;
+				// const int bitmap_slot_y = c / max_number_of_bitmaps_in_x;
+				// const int ox = x - params[c].bitmap_left;
+				// const int oy = y - params[c].bitmap_top;
+				// glTexCoord2f(float(bitmap_slot_x) / float(texture_size), float(bitmap_slot_y) / float(texture_size));
+				// glVertex2i(ox, oy);
+				// glTexCoord2f(float(bitmap_slot_x) / float(texture_size), float(bitmap_slot_y + 1) / float(texture_size));
+				// glVertex2i(ox, oy + max_bitmap_height);
+				// glTexCoord2f(float(bitmap_slot_x + 1) / float(texture_size), float(bitmap_slot_y + 1) / float(texture_size));
+				// glVertex2i(ox + max_bitmap_width, oy + max_bitmap_height);
+				// glTexCoord2f(float(bitmap_slot_x + 1) / float(texture_size), float(bitmap_slot_y) / float(texture_size));
+				// glVertex2i(ox + max_bitmap_width, oy);
+				// glEnd();
 
-				glDepthMask(GL_TRUE);
+				// glDepthMask(GL_TRUE);
 
-				glDisable(GL_TEXTURE_2D);
-				glDisable(GL_BLEND);
+				// glDisable(GL_TEXTURE_2D);
+				// glDisable(GL_BLEND);
 			}
 			void Font::draw(int x, int y, const char * text) const
 			{
 				debug_assert(id != GLuint(-1));
 
-				glEnable(GL_BLEND);
-				glEnable(GL_TEXTURE_2D);
+				// glEnable(GL_BLEND);
+				// glEnable(GL_TEXTURE_2D);
 
-				glDepthMask(GL_FALSE);
+				// glDepthMask(GL_FALSE);
 
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-				glBindTexture(GL_TEXTURE_2D, id);
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+				// glBindTexture(GL_TEXTURE_2D, id);
+				// glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-				const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
-				glBegin(GL_QUADS);
-				for (char c = *text; c; c = *++text)
-				{
-					const int bitmap_slot_x = c % max_number_of_bitmaps_in_x;
-					const int bitmap_slot_y = c / max_number_of_bitmaps_in_x;
-					const int ox = x - params[c].bitmap_left;
-					const int oy = y - params[c].bitmap_top;
-					glTexCoord2f(float(bitmap_slot_x * max_bitmap_width) / float(texture_size), float(bitmap_slot_y * max_bitmap_height) / float(texture_size));
-					glVertex2i(ox, oy);
-					glTexCoord2f(float(bitmap_slot_x * max_bitmap_width) / float(texture_size), float((bitmap_slot_y + 1) * max_bitmap_height) / float(texture_size));
-					glVertex2i(ox, oy + max_bitmap_height);
-					glTexCoord2f(float((bitmap_slot_x + 1) * max_bitmap_width) / float(texture_size), float((bitmap_slot_y + 1) * max_bitmap_height) / float(texture_size));
-					glVertex2i(ox + max_bitmap_width, oy + max_bitmap_height);
-					glTexCoord2f(float((bitmap_slot_x + 1) * max_bitmap_width) / float(texture_size), float(bitmap_slot_y * max_bitmap_height) / float(texture_size));
-					glVertex2i(ox + max_bitmap_width, oy);
-					x += params[c].advance_x;
-					y += params[c].advance_y;
-				}
-				glEnd();
+				// const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
+				// glBegin(GL_QUADS);
+				// for (char c = *text; c; c = *++text)
+				// {
+				// 	const int bitmap_slot_x = c % max_number_of_bitmaps_in_x;
+				// 	const int bitmap_slot_y = c / max_number_of_bitmaps_in_x;
+				// 	const int ox = x - params[c].bitmap_left;
+				// 	const int oy = y - params[c].bitmap_top;
+				// 	glTexCoord2f(float(bitmap_slot_x * max_bitmap_width) / float(texture_size), float(bitmap_slot_y * max_bitmap_height) / float(texture_size));
+				// 	glVertex2i(ox, oy);
+				// 	glTexCoord2f(float(bitmap_slot_x * max_bitmap_width) / float(texture_size), float((bitmap_slot_y + 1) * max_bitmap_height) / float(texture_size));
+				// 	glVertex2i(ox, oy + max_bitmap_height);
+				// 	glTexCoord2f(float((bitmap_slot_x + 1) * max_bitmap_width) / float(texture_size), float((bitmap_slot_y + 1) * max_bitmap_height) / float(texture_size));
+				// 	glVertex2i(ox + max_bitmap_width, oy + max_bitmap_height);
+				// 	glTexCoord2f(float((bitmap_slot_x + 1) * max_bitmap_width) / float(texture_size), float(bitmap_slot_y * max_bitmap_height) / float(texture_size));
+				// 	glVertex2i(ox + max_bitmap_width, oy);
+				// 	x += params[c].advance_x;
+				// 	y += params[c].advance_y;
+				// }
+				// glEnd();
 
-				glDepthMask(GL_TRUE);
+				// glDepthMask(GL_TRUE);
 
-				glDisable(GL_TEXTURE_2D);
-				glDisable(GL_BLEND);
+				// glDisable(GL_TEXTURE_2D);
+				// glDisable(GL_BLEND);
 			}
 			void Font::draw(int x, int y, const std::string & string) const
 			{
@@ -292,42 +292,42 @@ namespace engine
 			{
 				debug_assert(id != GLuint(-1));
 
-				glEnable(GL_BLEND);
-				glEnable(GL_TEXTURE_2D);
+				// glEnable(GL_BLEND);
+				// glEnable(GL_TEXTURE_2D);
 
-				glDepthMask(GL_FALSE);
+				// glDepthMask(GL_FALSE);
 
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-				glBindTexture(GL_TEXTURE_2D, id);
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+				// glBindTexture(GL_TEXTURE_2D, id);
+				// glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-				const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
-				glBegin(GL_QUADS);
-				for (int i = 0; i < length; i++)
-				{
-					const char c = text[i];
-					const int bitmap_slot_x = c % max_number_of_bitmaps_in_x;
-					const int bitmap_slot_y = c / max_number_of_bitmaps_in_x;
-					const int ox = x - params[c].bitmap_left;
-					const int oy = y - params[c].bitmap_top;
-					glTexCoord2f(float(bitmap_slot_x * max_bitmap_width) / float(texture_size), float(bitmap_slot_y * max_bitmap_height) / float(texture_size));
-					glVertex2i(ox, oy);
-					glTexCoord2f(float(bitmap_slot_x * max_bitmap_width) / float(texture_size), float((bitmap_slot_y + 1) * max_bitmap_height) / float(texture_size));
-					glVertex2i(ox, oy + max_bitmap_height);
-					glTexCoord2f(float((bitmap_slot_x + 1) * max_bitmap_width) / float(texture_size), float((bitmap_slot_y + 1) * max_bitmap_height) / float(texture_size));
-					glVertex2i(ox + max_bitmap_width, oy + max_bitmap_height);
-					glTexCoord2f(float((bitmap_slot_x + 1) * max_bitmap_width) / float(texture_size), float(bitmap_slot_y * max_bitmap_height) / float(texture_size));
-					glVertex2i(ox + max_bitmap_width, oy);
-					x += params[c].advance_x;
-					y += params[c].advance_y;
-				}
-				glEnd();
+				// const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
+				// glBegin(GL_QUADS);
+				// for (int i = 0; i < length; i++)
+				// {
+				// 	const char c = text[i];
+				// 	const int bitmap_slot_x = c % max_number_of_bitmaps_in_x;
+				// 	const int bitmap_slot_y = c / max_number_of_bitmaps_in_x;
+				// 	const int ox = x - params[c].bitmap_left;
+				// 	const int oy = y - params[c].bitmap_top;
+				// 	glTexCoord2f(float(bitmap_slot_x * max_bitmap_width) / float(texture_size), float(bitmap_slot_y * max_bitmap_height) / float(texture_size));
+				// 	glVertex2i(ox, oy);
+				// 	glTexCoord2f(float(bitmap_slot_x * max_bitmap_width) / float(texture_size), float((bitmap_slot_y + 1) * max_bitmap_height) / float(texture_size));
+				// 	glVertex2i(ox, oy + max_bitmap_height);
+				// 	glTexCoord2f(float((bitmap_slot_x + 1) * max_bitmap_width) / float(texture_size), float((bitmap_slot_y + 1) * max_bitmap_height) / float(texture_size));
+				// 	glVertex2i(ox + max_bitmap_width, oy + max_bitmap_height);
+				// 	glTexCoord2f(float((bitmap_slot_x + 1) * max_bitmap_width) / float(texture_size), float(bitmap_slot_y * max_bitmap_height) / float(texture_size));
+				// 	glVertex2i(ox + max_bitmap_width, oy);
+				// 	x += params[c].advance_x;
+				// 	y += params[c].advance_y;
+				// }
+				// glEnd();
 
-				glDepthMask(GL_TRUE);
+				// glDepthMask(GL_TRUE);
 
-				glDisable(GL_TEXTURE_2D);
-				glDisable(GL_BLEND);
+				// glDisable(GL_TEXTURE_2D);
+				// glDisable(GL_BLEND);
 			}
 		}
 	}

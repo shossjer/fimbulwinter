@@ -1,4 +1,8 @@
 
+#include <config.h>
+
+#if GRAPHICS_USE_OPENGL
+
 #include "renderer.hpp"
 
 #include "opengl.hpp"
@@ -2529,3 +2533,5 @@ namespace engine
 		}
 	}
 }
+
+#endif

@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 3.0)
 
 include(ExternalProject)
 
-set(INSTALL_DIR "${PROJECT_SOURCE_DIR}")
+message(STATUS "CMAKE_SYSTEM_NAME ${CMAKE_SYSTEM_NAME}")
+message(STATUS "CMAKE_TOOLCHAIN_FILE ${CMAKE_TOOLCHAIN_FILE}")
 
+set(INSTALL_DIR "${PROJECT_SOURCE_DIR}/${CMAKE_SYSTEM_NAME}")
+#set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/${CMAKE_SYSTEM_NAME}")
+
+message(STATUS "INSTALL_DIR ${INSTALL_DIR}")
 
 set(CONFIG_ARGS "")
+list(APPEND CONFIG_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 list(APPEND CONFIG_ARGS "-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}")
 if (MSVC)
   list(APPEND CONFIG_FLAGS_DEBUG "/MTd /Zi /Ob0 /Od /RTC1")
@@ -24,13 +30,26 @@ ExternalProject_Add(
   URL "http://zlib.net/zlib-1.2.11.tar.gz"
   TIMEOUT 10
   CMAKE_ARGS "${CONFIG_ARGS}"
+  BINARY_DIR "${PROJECT_SOURCE_DIR}/downloads/zlib/build-${CMAKE_SYSTEM_NAME}"
   LOG_DOWNLOAD ON
   )
 
 
+#set(ROOT_PATHS "")
+#if (CMAKE_FIND_ROOT_PATH)
+#  list(APPEND ROOT_PATHS "${INSTALL_DIR}")
+#  list(APPEND ROOT_PATHS "${CMAKE_FIND_ROOT_PATH}")
+#endif ()
+
 set(CONFIG_ARGS "")
+list(APPEND CONFIG_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
+#list(APPEND CONFIG_ARGS "-DCMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH}")
+#if (CMAKE_FIND_ROOT_PATH)
+#  list(APPEND CONFIG_ARGS "-DCMAKE_FIND_ROOT_PATH=${ROOT_PATHS}")
+#endif ()
 list(APPEND CONFIG_ARGS "-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}")
 list(APPEND CONFIG_ARGS "-DCMAKE_PREFIX_PATH=${INSTALL_DIR}")
+list(APPEND CONFIG_ARGS "-DCMAKE_C_FLAGS=-DPNG_ARM_NEON_OPT=0")
 if (MSVC)
   list(APPEND CONFIG_FLAGS_DEBUG "/MTd /Zi /Ob0 /Od /RTC1")
   list(APPEND CONFIG_ARGS "-DCMAKE_C_FLAGS_DEBUG=${CONFIG_FLAGS_DEBUG}")
@@ -41,19 +60,24 @@ if (MSVC)
   list(APPEND CONFIG_FLAGS_RELEASE "/MT /O2 /Ob2 /DNDEBUG")
   list(APPEND CONFIG_ARGS "-DCMAKE_C_FLAGS_RELEASE=${CONFIG_FLAGS_RELEASE}")
 endif ()
+message(STATUS "${CONFIG_ARGS}")
 
 ExternalProject_Add(
   libpng
   DEPENDS zlib
   PREFIX "${PROJECT_SOURCE_DIR}/downloads/libpng"
   URL "https://sourceforge.net/projects/libpng/files/libpng16/older-releases/1.6.30/libpng-1.6.30.tar.xz/download"
-  TIMEOUT 10
+  #  URL "https://sourceforge.net/projects/libpng/files/libpng16/1.6.35/libpng-1.6.35.tar.xz/download"
+  #  TIMEOUT 10
+  TIMEOUT 20
   CMAKE_ARGS "${CONFIG_ARGS}"
+  BINARY_DIR "${PROJECT_SOURCE_DIR}/downloads/libpng/build-${CMAKE_SYSTEM_NAME}"
   LOG_DOWNLOAD ON
   )
 
 
 set(CONFIG_ARGS "")
+list(APPEND CONFIG_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 list(APPEND CONFIG_ARGS "-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}")
 if (MSVC)
   list(APPEND CONFIG_FLAGS_DEBUG "/MTd /Zi /Ob0 /Od /RTC1")
@@ -73,11 +97,13 @@ ExternalProject_Add(
   GIT_TAG "ce0b3fe5a334567825a554a08b76c725d0790500"
   TIMEOUT 10
   CMAKE_ARGS "${CONFIG_ARGS}"
+  BINARY_DIR "${PROJECT_SOURCE_DIR}/downloads/nlohmann-json/build-${CMAKE_SYSTEM_NAME}"
   LOG_DOWNLOAD ON
   )
 
 
 set(CONFIG_ARGS "")
+list(APPEND CONFIG_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 list(APPEND CONFIG_ARGS "-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}")
 if (MSVC)
   list(APPEND CONFIG_FLAGS_DEBUG "/MTd /Zi /Ob0 /Od /RTC1")
@@ -97,11 +123,13 @@ ExternalProject_Add(
   GIT_TAG "Catch1.x"
   TIMEOUT 10
   CMAKE_ARGS "${CONFIG_ARGS}"
+  BINARY_DIR "${PROJECT_SOURCE_DIR}/downloads/catch/build-${CMAKE_SYSTEM_NAME}"
   LOG_DOWNLOAD ON
   )
 
 
 set(CONFIG_ARGS "")
+list(APPEND CONFIG_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 list(APPEND CONFIG_ARGS "-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}")
 if (MSVC)
   list(APPEND CONFIG_FLAGS_DEBUG "/MTd /Zi /Ob0 /Od /RTC1")
@@ -120,11 +148,12 @@ ExternalProject_Add(
   URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.8.1.tar.gz"
   TIMEOUT 10
   CMAKE_ARGS "${CONFIG_ARGS}"
+  BINARY_DIR "${PROJECT_SOURCE_DIR}/downloads/freetype/build-${CMAKE_SYSTEM_NAME}"
   LOG_DOWNLOAD ON
   )
 
 
 file(DOWNLOAD "https://www.khronos.org/registry/OpenGL/api/GL/glext.h" "${PROJECT_SOURCE_DIR}/downloads/glext/src/glext.h" TIMEOUT 10)
-if (NOT EXISTS "${PROJECT_SOURCE_DIR}/include/GL/glext.h")
-	file(INSTALL "${PROJECT_SOURCE_DIR}/downloads/glext/src/glext.h" DESTINATION "${PROJECT_SOURCE_DIR}/include/GL")
+if (NOT EXISTS "${INSTALL_DIR}/include/GL/glext.h")
+	file(INSTALL "${PROJECT_SOURCE_DIR}/downloads/glext/src/glext.h" DESTINATION "${INSTALL_DIR}/include/GL")
 endif ()

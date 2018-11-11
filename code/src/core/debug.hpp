@@ -187,7 +187,8 @@ namespace core
 			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", expr, "\n", comp, "\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
 #if defined(__GNUG__)
-			__asm__("int3");
+			// __asm__("int3");
+			__builtin_trap();
 #elif defined(_MSC_VER)
 			__debugbreak();
 #else
@@ -202,7 +203,8 @@ namespace core
 			utility::to_stream(std::cerr, file_name, "@", line_number, ": failed\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
 #if defined(__GNUG__)
-			__asm__("int3");
+			// __asm__("int3");
+			__builtin_trap();
 #elif defined(_MSC_VER)
 			__debugbreak();
 #else

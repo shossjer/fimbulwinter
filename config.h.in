@@ -25,6 +25,13 @@
 
 /**
  */
+#cmakedefine GRAPHICS_USE_OPENGL 1
+/**
+ */
+#cmakedefine GRAPHICS_USE_OPENGL_ES 1
+
+/**
+ */
 #cmakedefine SOUND_USE_OPENAL 1
 
 /**
@@ -44,6 +51,9 @@
  */
 #cmakedefine THREAD_USE_PTHREAD 1
 
+/**
+ */
+#cmakedefine WINDOW_USE_ANDROID 1
 /**
  */
 #cmakedefine WINDOW_USE_USER32 1

@@ -17,6 +17,7 @@ set(SOURCE_FILES
 	src/engine/graphics/renderer.cpp
 	src/engine/graphics/renderer_opengl_12.cpp
 	src/engine/graphics/renderer_opengl_30.cpp
+   src/engine/graphics/renderer_opengl_es.cpp
 	src/engine/graphics/viewer.cpp
 	src/engine/gui/controller.cpp
 	src/engine/gui/creation.cpp

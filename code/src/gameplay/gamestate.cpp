@@ -1092,14 +1092,14 @@ namespace gamestate
 
 		profile_updater.entity = engine::Entity::null();
 		auto inventorycontrol = engine::Entity::create();
-		engine::hid::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
-		engine::hid::ui::post_bind("debug", inventorycontrol, 0);
-		engine::hid::ui::post_bind("game", inventorycontrol, 0);
+		// engine::hid::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
+		// engine::hid::ui::post_bind("debug", inventorycontrol, 0);
+		// engine::hid::ui::post_bind("game", inventorycontrol, 0);
 		components.emplace<GUIWindow>(inventorycontrol, "inventory");
 		auto profilecontrol = engine::Entity::create();
-		engine::hid::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
-		engine::hid::ui::post_bind("debug", profilecontrol, 0);
-		engine::hid::ui::post_bind("game", profilecontrol, 0);
+		// engine::hid::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
+		// engine::hid::ui::post_bind("debug", profilecontrol, 0);
+		// engine::hid::ui::post_bind("game", profilecontrol, 0);
 		components.emplace<GUIWindow>(profilecontrol, "profile");
 
 		auto debug_switch = engine::Entity::create();
@@ -1108,15 +1108,15 @@ namespace gamestate
 		components.emplace<CameraActivator>(debug_switch, "game", debug_camera);
 		components.emplace<CameraActivator>(game_switch, "game", game_camera);
 
-		engine::hid::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, "debug");
-		engine::hid::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, "game");
-		engine::hid::ui::post_bind("debug", game_switch, -10);
-		engine::hid::ui::post_bind("game", debug_switch, -10);
+		// engine::hid::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, "debug");
+		// engine::hid::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, "game");
+		// engine::hid::ui::post_bind("debug", game_switch, -10);
+		// engine::hid::ui::post_bind("game", debug_switch, -10);
 
 		auto game_renderswitch = engine::Entity::create();
-		engine::hid::ui::post_add_renderswitch(game_renderswitch, engine::hid::Input::Button::KEY_F5);
-		engine::hid::ui::post_bind("debug", game_renderswitch, -5);
-		engine::hid::ui::post_bind("game", game_renderswitch, -5);
+		// engine::hid::ui::post_add_renderswitch(game_renderswitch, engine::hid::Input::Button::KEY_F5);
+		// engine::hid::ui::post_bind("debug", game_renderswitch, -5);
+		// engine::hid::ui::post_bind("game", game_renderswitch, -5);
 
 		auto selector = engine::Entity::create();
 		components.emplace<Selector>(selector);

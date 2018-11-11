@@ -2,9 +2,9 @@
 cmake_minimum_required(VERSION 3.5.1)
 project(hellskitchen C CXX)
 
-include_directories("${PROJECT_SOURCE_DIR}/dep/include")
-set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/include")
-set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/dep/lib")
+include_directories("${PROJECT_SOURCE_DIR}/dep/${CMAKE_SYSTEM_NAME}/include")
+set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/${CMAKE_SYSTEM_NAME}/include")
+set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/dep/${CMAKE_SYSTEM_NAME}/lib")
 
 if (MSVC)
   set(CMAKE_CXX_FLAGS_DEBUG
@@ -68,6 +68,13 @@ set(PHYSICS_USE_BOX2D 0)
 set(PHYSICS_USE_PHYSX 0)
 
 # lookup dependencies
+# Android
+message(STATUS "Looking for android")
+find_library(LIBRARY_ANDROID android)
+message(STATUS "Looking for android - ${LIBRARY_ANDROID}")
+find_library(LIBRARY_LOG log)
+message(STATUS "Looking for android - ${LIBRARY_LOG}")
+# Box2D
 if (PHYSICS_USE_BOX2D)
 	find_file(FILE_PHYSICS_BOX_HEADERS Box2D/Box2D.h)
 	message(STATUS "Looking for Physics Box header files - ${FILE_PHYSICS_BOX_HEADERS}")
@@ -136,6 +143,28 @@ find_library(LIBRARY_GL GL)
 find_library(LIBRARY_OPENGL32 opengl32)
 message(STATUS "Looking for OpenGL - ${LIBRARY_GL}")
 message(STATUS "Looking for OpenGL - ${LIBRARY_OPENGL32}")
+# OpenGL ES
+message(STATUS "Looking for OpenGL ES")
+find_file(FILE_EGL_EGL_H EGL/egl.h)
+find_file(FILE_GLES_GL_H GLES/gl.h)
+find_file(FILE_GLES2_GL2_H GLES2/gl2.h)
+find_file(FILE_GLES3_GL3_H GLES3/gl3.h)
+find_file(FILE_GLES3_GL31_H GLES3/gl31.h)
+find_file(FILE_GLES3_GL32_H GLES3/gl32.h)
+message(STATUS "Looking for OpenGL ES - ${FILE_EGL_EGL_H}")
+message(STATUS "Looking for OpenGL ES - ${FILE_GLES_GL_H}")
+message(STATUS "Looking for OpenGL ES - ${FILE_GLES2_GL2_H}")
+message(STATUS "Looking for OpenGL ES - ${FILE_GLES3_GL3_H}")
+message(STATUS "Looking for OpenGL ES - ${FILE_GLES3_GL31_H}")
+message(STATUS "Looking for OpenGL ES - ${FILE_GLES3_GL32_H}")
+find_library(LIBRARY_EGL EGL)
+find_library(LIBRARY_GLESv1_CM GLESv1_CM)
+find_library(LIBRARY_GLESv2 GLESv2)
+find_library(LIBRARY_GLESv3 GLESv3)
+message(STATUS "Looking for OpenGL ES - ${LIBRARY_EGL}")
+message(STATUS "Looking for OpenGL ES - ${LIBRARY_GLESv1_CM}")
+message(STATUS "Looking for OpenGL ES - ${LIBRARY_GLESv2}")
+message(STATUS "Looking for OpenGL ES - ${LIBRARY_GLESv3}")
 # physics PHYSX
 if (PHYSICS_USE_PHYSX)
 	find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
@@ -325,6 +354,13 @@ elseif (FILE_GL_GL_H AND
   message(STATUS "Graphics - OpenGL")
   set(GRAPHICS_USE_OPENGL 1)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENGL32}")
+elseif (FILE_EGL_EGL_H AND
+    FILE_GLES_GL_H AND
+    LIBRARY_EGL AND
+    LIBRARY_GLESv3)
+  message(STATUS "Graphics - OpenGL ES")
+  set(GRAPHICS_USE_OPENGL_ES 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_EGL};${LIBRARY_GLESv3}")
 else()
   message(FATAL_ERROR "Graphics - Disabled")
 endif()
@@ -369,12 +405,20 @@ elseif(FILE_PTHREAD_H AND
   message(STATUS "Thread - Pthread")
   set(THREAD_USE_PTHREAD 1)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_PTHREAD}")
+elseif(FILE_PTHREAD_H)
+  message(STATUS "Thread - Pthread")
+  set(THREAD_USE_PTHREAD 1)
 else()
   message(FATAL_ERROR "Thread - Disabled")
 endif()
 
 # window
-if (LIBRARY_GDI32 AND
+if (LIBRARY_ANDROID AND
+    LIBRARY_LOG)
+  message(STATUS "Window - Android")
+  set(WINDOW_USE_ANDROID 1)
+  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_ANDROID};${LIBRARY_LOG}")
+elseif (LIBRARY_GDI32 AND
 	LIBRARY_USER32)
   message(STATUS "Window - User32")
   set(WINDOW_USE_USER32 1)

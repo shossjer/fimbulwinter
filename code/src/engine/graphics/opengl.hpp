@@ -4,7 +4,11 @@
 
 #include <config.h>
 
-#if WINDOW_USE_USER32
+#if WINDOW_USE_ANDROID
+# include <EGL/egl.h>
+# include <GLES/gl.h>
+# include <GLES/glext.h>
+#elif WINDOW_USE_USER32
 // windows needs its header before any opengl header
 # include <windows.h>
 # include <GL/gl.h>
@@ -26,10 +30,11 @@ namespace graphics
 {
 namespace opengl
 {
-#if WINDOW_USE_USER32
+#if GRAPHICS_USE_OPENGL
+# if WINDOW_USE_USER32
 	// 1.3
 	extern PFNGLACTIVETEXTUREPROC glActiveTexture;
-#endif
+# endif
 
 	// 2.0
 	extern PFNGLATTACHSHADERPROC glAttachShader;
@@ -73,7 +78,9 @@ namespace opengl
 	extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
 	extern PFNGLGENRENDERBUFFERSPROC glGenRenderbuffers;
 	extern PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
+#elif WINDOW_USE_OPENGL_ES
 
+#endif
 	void init();
 }
 }

@@ -12,7 +12,9 @@
 
 #include "config.h"
 
-#if WINDOW_USE_USER32
+#if WINDOW_USE_ANDROID
+# include "android_native_app_glue.h"
+#elif WINDOW_USE_USER32
 # include <windows.h>
 #endif
 
@@ -159,7 +161,16 @@ namespace
 	}
 }
 
-#if WINDOW_USE_USER32
+#if WINDOW_USE_ANDROID
+void android_main(struct android_app * state)
+{
+	// state->userData = &engine;
+	// state->onAppCmd = engine_handle_cmd;
+	// state->onInputEvent = engine_handle_input;
+
+	
+}
+#elif WINDOW_USE_USER32
 # if MODE_DEBUG
 int main(const int argc, const char *const argv[])
 {
@@ -218,6 +229,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 #elif WINDOW_USE_X11
 int main(const int argc, const char *const argv[])
 {
+	std::string thdo = "hello";
+
 	::engine::resource::reader::create();
 	::engine::resource::writer::create();
 

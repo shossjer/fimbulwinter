@@ -1,12 +1,14 @@
 
 # source listing
 set(SOURCE_FILES
+	src/android_native_app_glue.c
 	src/main.cpp
 	)
 
 set(HEADER_FILES
-  src/settings.hpp
-  )
+	src/android_native_app_glue.h
+	src/settings.hpp
+	)
 
 set(ALL_FILES ${SOURCE_FILES} ${HEADER_FILES})
 
@@ -36,7 +38,12 @@ if (GENERAL_INCLUDES)
 	include_directories("${GENERAL_INCLUDES}")
 endif()
 
-add_executable(HellsKitchen ${ALL_FILES})
+if(WINDOW_USE_ANDROID)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
+  add_library(HellsKitchen SHARED ${ALL_FILES})
+else()
+  add_executable(HellsKitchen ${ALL_FILES})
+endif()
 
 if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
 	set_target_properties(HellsKitchen PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")

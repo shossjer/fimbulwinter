@@ -34,7 +34,7 @@ namespace core
 			const unsigned int sec = millisec / 1000;
 			millisec = millisec % 1000;
 
-			const struct timespec sleep_time = {sec, millisec * 1000000};
+			const struct timespec sleep_time = {static_cast<time_t>(sec), static_cast<time_t>(millisec) * 1000000};
 
 			clock_nanosleep(CLOCK_REALTIME, 0, &sleep_time, NULL);
 #endif

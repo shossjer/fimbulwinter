@@ -17,70 +17,70 @@ namespace engine
 		{
 			namespace detail
 			{
-				inline void glColor(const std::array<GLbyte, 3> &channels)
-				{
-					glColor3bv(channels.data());
-				}
-				inline void glColor(const std::array<GLshort, 3> &channels)
-				{
-					glColor3sv(channels.data());
-				}
-				inline void glColor(const std::array<GLint, 3> &channels)
-				{
-					glColor3iv(channels.data());
-				}
-				inline void glColor(const std::array<GLfloat, 3> &channels)
-				{
-					glColor3fv(channels.data());
-				}
-				inline void glColor(const std::array<GLdouble, 3> &channels)
-				{
-					glColor3dv(channels.data());
-				}
-				inline void glColor(const std::array<GLubyte, 3> &channels)
-				{
-					glColor3ubv(channels.data());
-				}
-				inline void glColor(const std::array<GLushort, 3> &channels)
-				{
-					glColor3usv(channels.data());
-				}
-				inline void glColor(const std::array<GLuint, 3> &channels)
-				{
-					glColor3uiv(channels.data());
-				}
-				inline void glColor(const std::array<GLbyte, 4> &channels)
-				{
-					glColor4bv(channels.data());
-				}
-				inline void glColor(const std::array<GLshort, 4> &channels)
-				{
-					glColor4sv(channels.data());
-				}
-				inline void glColor(const std::array<GLint, 4> &channels)
-				{
-					glColor4iv(channels.data());
-				}
-				inline void glColor(const std::array<GLfloat, 4> &channels)
-				{
-					glColor4fv(channels.data());
-				}
-				inline void glColor(const std::array<GLdouble, 4> &channels)
-				{
-					glColor4dv(channels.data());
-				}
-				inline void glColor(const std::array<GLubyte, 4> &channels)
-				{
-					glColor4ubv(channels.data());
-				}
-				inline void glColor(const std::array<GLushort, 4> &channels)
-				{
-					glColor4usv(channels.data());
-				}
-				inline void glColor(const std::array<GLuint, 4> &channels)
-				{
-					glColor4uiv(channels.data());
-				}
+				// inline void glColor(const std::array<GLbyte, 3> &channels)
+				// {
+				// 	glColor3bv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLshort, 3> &channels)
+				// {
+				// 	glColor3sv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLint, 3> &channels)
+				// {
+				// 	glColor3iv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLfloat, 3> &channels)
+				// {
+				// 	glColor3fv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLdouble, 3> &channels)
+				// {
+				// 	glColor3dv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLubyte, 3> &channels)
+				// {
+				// 	glColor3ubv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLushort, 3> &channels)
+				// {
+				// 	glColor3usv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLuint, 3> &channels)
+				// {
+				// 	glColor3uiv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLbyte, 4> &channels)
+				// {
+				// 	glColor4bv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLshort, 4> &channels)
+				// {
+				// 	glColor4sv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLint, 4> &channels)
+				// {
+				// 	glColor4iv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLfloat, 4> &channels)
+				// {
+				// 	glColor4fv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLdouble, 4> &channels)
+				// {
+				// 	glColor4dv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLubyte, 4> &channels)
+				// {
+				// 	glColor4ubv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLushort, 4> &channels)
+				// {
+				// 	glColor4usv(channels.data());
+				// }
+				// inline void glColor(const std::array<GLuint, 4> &channels)
+				// {
+				// 	glColor4uiv(channels.data());
+				// }
 
 				inline GLbyte invert_channel(const GLbyte channel)
 				{
@@ -191,7 +191,7 @@ namespace engine
 				 */
 				friend void glColor(const Color<D, T> &color)
 				{
-					detail::glColor(color.channels);
+					// detail::glColor(color.channels);
 				}
 			};
 			/**
@@ -213,7 +213,7 @@ namespace engine
 			using Color3s = Color<3, GLshort>;
 			using Color3i = Color<3, GLint>;
 			using Color3f = Color<3, GLfloat>;
-			using Color3d = Color<3, GLdouble>;
+			// using Color3d = Color<3, GLdouble>;
 			using Color3ub = Color<3, GLubyte>;
 			using Color3us = Color<3, GLushort>;
 			using Color3ui = Color<3, GLuint>;
@@ -221,7 +221,7 @@ namespace engine
 			using Color4s = Color<4, GLshort>;
 			using Color4i = Color<4, GLint>;
 			using Color4f = Color<4, GLfloat>;
-			using Color4d = Color<4, GLdouble>;
+			// using Color4d = Color<4, GLdouble>;
 			using Color4ub = Color<4, GLubyte>;
 			using Color4us = Color<4, GLushort>;
 			using Color4ui = Color<4, GLuint>;

@@ -14,7 +14,7 @@ namespace core
 			// TODO: make aligned
 			Matrix4x4d::array_type buffer;
 			matrix.get_aligned(buffer);
-			glLoadMatrixd(buffer);
+			// glLoadMatrixd(buffer);
 		}
 		inline void glLoadMatrix(const Matrix4x4f & matrix)
 		{
@@ -31,7 +31,7 @@ namespace core
 			// TODO: make aligned
 			Matrix4x4d::array_type buffer;
 			matrix.get_aligned(buffer);
-			glMultMatrixd(buffer);
+			// glMultMatrixd(buffer);
 		}
 		/**
 		 * \note Do not use, prefer glLoadMatrix instead!

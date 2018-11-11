@@ -1,4 +1,8 @@
 
+#include <config.h>
+
+#if GRAPHICS_USE_OPENGL
+
 #include "opengl.hpp"
 
 namespace engine
@@ -146,3 +150,5 @@ namespace opengl
 }
 }
 }
+
+#endif
