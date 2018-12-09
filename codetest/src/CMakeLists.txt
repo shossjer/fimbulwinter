@@ -17,6 +17,7 @@ set(CODE_TEST_SOURCE
 	src/engine/gui/visibility.cpp
 	src/utility/any.cpp
 	src/utility/array.cpp
+   src/utility/array_alloc.cpp
 	src/utility/optional.cpp
 	src/utility/property.cpp
 	src/utility/variant.cpp

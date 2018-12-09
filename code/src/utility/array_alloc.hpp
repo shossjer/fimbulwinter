@@ -13,17 +13,66 @@ namespace utility
 
 	namespace detail
 	{
-		template <typename T>
-		union array_alloc_storage_t
+		template <typename T, bool = std::is_trivially_destructible<T>::value>
+		struct array_alloc_storage_t
 		{
-			char dummy;
-			T value;
+			union
+			{
+				char dummy;
+				T value;
+			};
+
+			constexpr array_alloc_storage_t() noexcept
+				: dummy()
+			{}
+			template <typename U,
+			          REQUIRES((std::is_constructible<T, U &&>::value)),
+			          REQUIRES((!mpl::is_same<mpl::decay_t<U>, in_place_t>::value))>
+			constexpr array_alloc_storage_t(U && u)
+				: value(std::forward<U>(u))
+			{}
+			template <typename ...Ps>
+			array_alloc_storage_t(in_place_t, Ps && ...ps)
+				: value(std::forward<Ps>(ps)...)
+			{}
+
+			template <typename ...Ps>
+			T & construct(Ps && ...ps)
+			{
+				return construct_at<T>(&value, std::forward<Ps>(ps)...);
+			}
+			void destruct()
+			{
+			}
+		};
+		template <typename T>
+		struct array_alloc_storage_t<T, false>
+		{
+			union
+			{
+				char dummy;
+				T value;
+			};
 
 			~array_alloc_storage_t()
 			{}
-			constexpr array_alloc_storage_t()
+			array_alloc_storage_t() noexcept
 				: dummy()
 			{}
+			template <typename ...Ps>
+			array_alloc_storage_t(in_place_t, Ps && ...ps)
+				: value(std::forward<Ps>(ps)...)
+			{}
+
+			template <typename ...Ps>
+			T & construct(Ps && ...ps)
+			{
+				return construct_at<T>(&value, std::forward<Ps>(ps)...);
+			}
+			void destruct()
+			{
+				value.T::~T();
+			}
 		};
 	}
 
@@ -36,7 +85,10 @@ namespace utility
 		static_assert(sizeof(storage_t) == sizeof(T), "");
 		static_assert(alignof(storage_t) == alignof(T), "");
 
-	private:
+	public:
+		enum { value_trivially_destructible = std::is_trivially_destructible<storage_t>::value };
+
+	public:
 		std::array<storage_t, Capacity> storage;
 
 	public:
@@ -52,7 +104,7 @@ namespace utility
 		template <typename ...Ps>
 		T & construct_at(int index, Ps && ...ps)
 		{
-			return utility::construct_at<T>(&storage[index], std::forward<Ps>(ps)...);
+			return storage[index].construct(std::forward<Ps>(ps)...);
 		}
 		template <typename ...Ps>
 		void construct_range(int begin, int end, Ps && ...ps)
@@ -64,7 +116,7 @@ namespace utility
 		}
 		void destruct_at(int index)
 		{
-			storage[index].value.T::~T();
+			storage[index].destruct();
 		}
 		void destruct_range(int begin, int end)
 		{
@@ -83,6 +135,11 @@ namespace utility
 			return &storage[0].value;
 		}
 
+		constexpr bool empty() const
+		{
+			return Capacity == 0;
+		}
+
 		constexpr std::ptrdiff_t index_of(const T & x) const
 		{
 			return reinterpret_cast<const storage_t *>(&x) - &storage[0];
@@ -97,6 +154,9 @@ namespace utility
 
 		static_assert(sizeof(storage_t) == sizeof(T), "");
 		static_assert(alignof(storage_t) == alignof(T), "");
+
+	public:
+		enum { value_trivially_destructible = std::is_trivially_destructible<storage_t>::value };
 
 	private:
 		std::unique_ptr<storage_t[]> storage;
@@ -119,7 +179,7 @@ namespace utility
 		template <typename ...Ps>
 		T & construct_at(int index, Ps && ...ps)
 		{
-			return utility::construct_at<T>(&storage[index], std::forward<Ps>(ps)...);
+			return storage[index].construct(std::forward<Ps>(ps)...);
 		}
 		template <typename ...Ps>
 		void construct_range(int begin, int end, Ps && ...ps)
@@ -131,7 +191,7 @@ namespace utility
 		}
 		void destruct_at(int index)
 		{
-			storage[index].value.T::~T();
+			storage[index].destruct();
 		}
 		void destruct_range(int begin, int end)
 		{
@@ -143,16 +203,21 @@ namespace utility
 
 		T * data()
 		{
-			return &storage[0].value;
+			return &storage.get()->value;
 		}
 		const T * data() const
 		{
-			return &storage[0].value;
+			return &storage.get()->value;
+		}
+
+		bool empty() const
+		{
+			return !storage;
 		}
 
 		std::ptrdiff_t index_of(const T & x) const
 		{
-			return reinterpret_cast<const storage_t *>(&x) - &storage[0];
+			return reinterpret_cast<const storage_t *>(&x) - storage.get();
 		}
 
 		void resize(int capacity)
