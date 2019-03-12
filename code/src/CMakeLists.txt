@@ -149,6 +149,7 @@ set(HEADER_FILES
 	src/utility/concepts.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
+   src/utility/iterator.hpp
 	src/utility/json.hpp
    src/utility/lookup_table.hpp
 	src/utility/optional.hpp
