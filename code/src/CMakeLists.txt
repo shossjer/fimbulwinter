@@ -158,6 +158,7 @@ set(HEADER_FILES
 	src/utility/property.hpp
 	src/utility/scalar_alloc.hpp
 	src/utility/spinlock.hpp
+   src/utility/storage.hpp
    src/utility/storing.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
