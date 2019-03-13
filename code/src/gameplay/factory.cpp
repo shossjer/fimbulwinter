@@ -1021,12 +1021,13 @@ namespace
 	<
 		engine::Entity,
 		801,
-		std::array<EntityBench, 100>,
-		std::array<EntityBoard, 100>,
-		std::array<EntityLevel, 100>,
-		std::array<EntityOven, 100>,
-		std::array<EntityWorker, 100>
-	> entities;
+		utility::heap_storage<EntityBench>,
+		utility::heap_storage<EntityBoard>,
+		utility::heap_storage<EntityLevel>,
+		utility::heap_storage<EntityOven>,
+		utility::heap_storage<EntityWorker>
+	>
+	entities;
 
 	void create_entity(engine::Entity entity, const ResourceCharacter::Loaded & resource)
 	{

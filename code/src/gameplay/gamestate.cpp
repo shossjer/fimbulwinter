@@ -85,9 +85,9 @@ namespace
 		<
 			engine::Entity,
 			200,
-			std::array<Preparation, 100>,
-			std::array<Preparation, 1>
-		> tables;
+			utility::static_storage<Preparation, 100>
+		>
+		tables;
 
 		void init_recipes(core::JsonStructurer && s)
 		{
@@ -482,16 +482,16 @@ namespace
 	<
 		engine::Entity,
 		401,
-		std::array<CameraActivator, 2>,
-		std::array<FreeCamera, 1>,
-		std::array<GUIComponent, 100>,
-		std::array<GUIWindow, 10>,
-		std::array<OverviewCamera, 1>,
-		std::array<Selector, 1>,
-		std::array<Worker, 10>,
-		std::array<Workstation, 20>,
-		std::array<Option, 40>,
-		std::array<Loader, 1>
+		utility::static_storage<CameraActivator, 2>,
+		utility::static_storage<FreeCamera, 1>,
+		utility::heap_storage<GUIComponent>,
+		utility::heap_storage<GUIWindow>,
+		utility::static_storage<OverviewCamera, 1>,
+		utility::static_storage<Selector, 1>,
+		utility::heap_storage<Worker>,
+		utility::heap_storage<Workstation>,
+		utility::heap_storage<Option>,
+		utility::static_storage<Loader, 1>
 	>
 	components;
 

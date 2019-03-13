@@ -231,11 +231,11 @@ namespace
 	<
 		Mixer,
 		1001,
-		std::array<Fade, 101>,
-		std::array<Fadein, 101>,
-		std::array<Fadeout, 101>,
-		std::array<Playback, 101>,
-		std::array<ObjectPlayback, 101>
+		utility::heap_storage<Fade>,
+		utility::heap_storage<Fadein>,
+		utility::heap_storage<Fadeout>,
+		utility::heap_storage<Playback>,
+		utility::heap_storage<ObjectPlayback>
 	>
 	mixers;
 
@@ -394,8 +394,8 @@ namespace
 	<
 		engine::Entity,
 		201,
-		std::array<Character, 101>,
-		std::array<Model, 101>
+		utility::heap_storage<Character>,
+		utility::heap_storage<Model>
 	>
 	components;
 

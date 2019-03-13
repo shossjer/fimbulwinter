@@ -58,9 +58,9 @@ namespace physics
 	<
 		engine::Entity,
 		600,
-		std::array<ActorCharacter, 100>,
-		std::array<ActorDynamic, 100>,
-		std::array<ActorStatic, 100>
+		utility::heap_storage<ActorCharacter>,
+		utility::heap_storage<ActorDynamic>,
+		utility::heap_storage<ActorStatic>
 	>;
 
 	// Collecation containing all Actors in the world.
@@ -92,8 +92,8 @@ namespace physics
 	<
 		engine::Entity,
 		400,
-		std::array<RevoluteJoint, 100>,
-		std::array<FixedJoint, 100>
+		utility::heap_storage<RevoluteJoint>,
+		utility::heap_storage<FixedJoint>
 	>;
 
 	extern JointCollection joints;

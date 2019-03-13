@@ -35,7 +35,7 @@ namespace core
 			int readi;
 			int writei;
 			std::bitset<3> writebits;
-			utility::array_alloc<T, 3> buffer;
+			utility::static_storage<T, 3> buffer;
 
 		public:
 			ExchangeQueue() :
@@ -88,7 +88,7 @@ namespace core
 			int readi;
 			int writei;
 			std::bitset<3> writebits;
-			utility::array_alloc<T, 3> buffer;
+			utility::static_storage<T, 3> buffer;
 			utility::spinlock writelock;
 
 		public:

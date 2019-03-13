@@ -61,8 +61,7 @@ namespace
 	<
 		engine::Entity,
 		21,
-		std::array<Camera, 10>,
-		std::array<int, 10>
+		utility::static_storage<Camera, 10>
 	>
 	components;
 }
@@ -136,8 +135,7 @@ namespace
 	<
 		engine::Entity,
 		201,
-		std::array<object_t, 100>,
-		std::array<object_t, 1>
+		utility::heap_storage<object_t>
 	>
 	objects;
 

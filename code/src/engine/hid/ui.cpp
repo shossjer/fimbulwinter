@@ -622,14 +622,14 @@ namespace
 	<
 		engine::Entity,
 		101,
-		std::array<ContextSwitch, 10>,
-		std::array<Bordercontrol, 10>,
-		std::array<Flycontrol, 10>,
-		std::array<Buttoncontrol, 20>,
-		std::array<Pancontrol, 10>,
-		std::array<RenderHover, 10>,
-		std::array<RenderSelect, 10>,
-		std::array<RenderSwitch, 10>
+		utility::heap_storage<ContextSwitch>,
+		utility::heap_storage<Bordercontrol>,
+		utility::heap_storage<Flycontrol>,
+		utility::heap_storage<Buttoncontrol>,
+		utility::heap_storage<Pancontrol>,
+		utility::static_storage<RenderHover, 10>,
+		utility::static_storage<RenderSelect, 10>,
+		utility::static_storage<RenderSwitch, 10>
 	>
 	components;
 

@@ -294,8 +294,7 @@ namespace
 	<
 		engine::Entity,
 		41,
-		std::array<Camera, 20>,
-		std::array<Camera, 1>
+		utility::static_storage<Camera, 20>
 	>
 	cameras;
 

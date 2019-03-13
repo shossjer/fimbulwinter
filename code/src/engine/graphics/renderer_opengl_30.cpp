@@ -336,8 +336,7 @@ namespace
 	<
 		engine::Asset,
 		21,
-		std::array<display_t, 10>,
-		std::array<display_t, 1>
+		utility::static_storage<display_t, 10>
 	>
 	displays;
 
@@ -731,14 +730,14 @@ namespace
 	<
 		engine::Entity,
 		1601,
-		std::array<comp_c, 100>,
-		std::array<comp_t, 100>,
-		std::array<Character, 100>,
-		std::array<Bar, 100>,
-		std::array<linec_t, 100>,
-		std::array<::ui::PanelC, 100>,
-		std::array<::ui::PanelT, 100>,
-		std::array<::ui::Text, 100>
+		utility::heap_storage<comp_c>,
+		utility::heap_storage<comp_t>,
+		utility::heap_storage<Character>,
+		utility::heap_storage<Bar>,
+		utility::heap_storage<linec_t>,
+		utility::heap_storage<::ui::PanelC>,
+		utility::heap_storage<::ui::PanelT>,
+		utility::heap_storage<::ui::Text>
 	>
 	components;
 
@@ -814,10 +813,10 @@ namespace
 	<
 		engine::Entity,
 		1601,
-		std::array<selectable_character_t, 200>,
-		std::array<selectable_comp_c, 250>,
-		std::array<selectable_comp_t, 250>,
-		std::array<selectable_panel, 100>
+		utility::heap_storage<selectable_character_t>,
+		utility::heap_storage<selectable_comp_c>,
+		utility::heap_storage<selectable_comp_t>,
+		utility::heap_storage<selectable_panel>
 	>
 	selectable_components;
 
@@ -910,8 +909,7 @@ namespace
 	<
 		engine::Entity,
 		1601,
-		std::array<updateable_character_t, 200>,
-		std::array<updateable_character_t, 1>
+		utility::heap_storage<updateable_character_t>
 	>
 	updateable_components;
 
