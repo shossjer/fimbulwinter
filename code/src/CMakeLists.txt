@@ -147,6 +147,7 @@ set(HEADER_FILES
 	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
+   src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
    src/utility/iterator.hpp
