@@ -131,9 +131,11 @@ namespace
 		const auto file_size = file.tellg();
 		file.seekg(0, std::ifstream::beg);
 
+		core::SmallFile stream(file_size, filename);
+		file.read(stream.data(), file_size);
+
 		using StructurerType = core::IniStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
-		file.read(utility::get<StructurerType>(structurer).data(), file_size);
+		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, stream);
 
 		callback(std::move(name), std::move(structurer));
 	}
