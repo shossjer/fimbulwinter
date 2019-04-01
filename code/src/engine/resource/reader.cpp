@@ -284,8 +284,9 @@ namespace
 		}
 	}
 
-	core::async::Thread renderThread;
-	volatile bool active = false;
+	std::atomic_int active(0);
+
+	core::async::Thread readerThread;
 	core::sync::Event<true> event;
 
 	void run()
@@ -293,7 +294,7 @@ namespace
 		event.wait();
 		event.reset();
 
-		while (active)
+		while (active.load(std::memory_order_relaxed))
 		{
 			process_messages();
 
@@ -311,20 +312,20 @@ namespace engine
 		{
 			void create()
 			{
-				debug_assert(!active);
+				debug_assert(!active.load(std::memory_order_relaxed));
 
-				active = true;
-				renderThread = core::async::Thread{ run };
+				active.store(1, std::memory_order_relaxed);
+				readerThread = core::async::Thread{ run };
 			}
 
 			void destroy()
 			{
-				debug_assert(active);
+				debug_assert(active.load(std::memory_order_relaxed));
 
-				active = false;
+				active.store(0, std::memory_order_relaxed);
 				event.set();
 
-				renderThread.join();
+				readerThread.join();
 			}
 
 			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer), FormatMask formats)
