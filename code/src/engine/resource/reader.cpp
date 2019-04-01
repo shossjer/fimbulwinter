@@ -87,6 +87,48 @@ namespace
 
 namespace
 {
+	struct ReadData
+	{
+		std::ifstream file;
+
+		ReadData(std::string filename)
+			: file(filename, std::ifstream::binary)
+		{
+			if (!file)
+				throw std::runtime_error("");
+		}
+
+		std::size_t read(char * dest, std::size_t n)
+		{
+			file.read(dest, n);
+
+			return file.gcount();
+		}
+	};
+
+	uint64_t read_callback(char * dest, std::size_t n, void * data)
+	{
+		debug_assert(n < 0x7fffffffffffffffll);
+		ReadData & read_data = *static_cast<ReadData *>(data);
+
+		uint64_t amount = read_data.read(dest, n);
+		if (amount < n)
+			amount |= 0x8000000000000000ll;
+
+		return amount;
+	}
+
+	template <typename StructurerType>
+	void read_file(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	{
+		debug_printline("reading '", filename, "'");
+		ReadData read_data(filename);
+
+		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, core::ReadStream(read_callback, &read_data, filename));
+
+		callback(std::move(name), std::move(structurer));
+	}
+
 	void read_arm(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
 		debug_printline("reading '", filename, "'");
@@ -123,21 +165,7 @@ namespace
 
 	void read_ini(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		core::SmallFile stream(file_size, filename);
-		file.read(stream.data(), file_size);
-
-		using StructurerType = core::IniStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, stream);
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::IniStructurer>(name, filename, callback);
 	}
 
 	void read_json(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))

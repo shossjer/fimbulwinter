@@ -5,6 +5,7 @@
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
 
+#include "utility/storage.hpp"
 #include "utility/string.hpp"
 
 #include <exception>
@@ -13,61 +14,125 @@
 
 namespace core
 {
-	class SmallFile
+	class ReadStream
 	{
 	private:
-		std::vector<char> buffer;
-		int p = 0;
+		uint64_t (* read_callback_)(char * dest, std::size_t n, void * data);
+		void * data_;
 
-		std::string filename;
+		bool done_ = false;
+		std::string filename_;
 
 	public:
-		SmallFile(int size, std::string filename)
-			: buffer(size)
-			, filename(std::move(filename))
+		ReadStream(uint64_t (* read_callback)(char * dest, std::size_t n, void * data), void * data, std::string filename)
+			: read_callback_(read_callback)
+			, data_(data)
+			, filename_(std::move(filename))
 		{}
 
 	public:
-		char * data() { return buffer.data(); }
-
-		const char * data(int pos) const
+		bool valid() const
 		{
-			debug_assert(pos >= 0);
+			return !done_;
+		}
 
-			return buffer.data() + pos;
+		uint64_t read(char * dest, std::size_t n)
+		{
+			debug_assert(!done_);
+			debug_assert(n > 0);
+
+			const uint64_t ret = read_callback_(dest, n, data_);
+			done_ = ret > 0x7fffffffffffffffll;
+			return ret & 0x7fffffffffffffffll;
+		}
+	};
+
+	class BufferedStream
+	{
+	private:
+		const char * from_;
+		std::ptrdiff_t size_ = 0;
+		std::ptrdiff_t pos_ = 0;
+
+		ReadStream read_stream_;
+
+		utility::static_storage<char, 0x10000> buffer_;
+
+	public:
+		BufferedStream(ReadStream && stream)
+			: read_stream_(std::move(stream))
+		{
+			fill_buffer();
+		}
+
+	public:
+		const char * data(std::ptrdiff_t pos) const
+		{
+			debug_assert((0 <= pos && pos <= pos_));
+
+			return from_ + pos;
 		}
 
 		char peek() const
 		{
-			debug_assert(p < buffer.size());
+			debug_assert(valid());
 
-			return buffer[p];
+			return from_[pos_];
 		}
 
-		int pos() const
+		std::ptrdiff_t pos() const
 		{
-			return p;
+			return pos_;
 		}
 
 		bool valid() const
 		{
-			return p < buffer.size();
+			return pos_ < size_ || read_stream_.valid();
+		}
+
+		void consume() { consume(pos_); }
+		void consume(std::ptrdiff_t pos)
+		{
+			debug_assert((0 <= pos && pos <= pos_));
+
+			from_ += pos;
+			size_ -= pos;
+			pos_ -= pos;
 		}
 
 		void next()
 		{
-			p++;
+			debug_assert(valid());
+
+			pos_++;
+
+			if (pos_ >= size_)
+			{
+				std::memmove(buffer_.data(), from_, size_);
+
+				while (pos_ >= size_ && read_stream_.valid())
+				{
+					fill_buffer();
+				}
+			}
+		}
+	private:
+		void fill_buffer()
+		{
+			const uint64_t amount = read_stream_.read(buffer_.data() + size_, buffer_.max_size() - size_);
+			from_ = buffer_.data();
+			size_ += amount;
 		}
 	};
 
 	class IniStructurer
 	{
 	private:
-		SmallFile & stream;
+		BufferedStream stream;
 
 	public:
-		IniStructurer(SmallFile & stream)
-			: stream(stream)
+		IniStructurer(ReadStream && stream)
+			: stream(std::move(stream))
 		{}
 
 	public:
@@ -91,6 +156,7 @@ namespace core
 
 		void skip_line()
 		{
+			stream.consume();
 			while (!is_newline())
 			{
 				stream.next();
@@ -120,6 +186,7 @@ namespace core
 		{
 			debug_assert(is_header());
 
+			stream.consume();
 			stream.next(); // '['
 			if (!stream.valid())
 				throw std::runtime_error("unexpected eof");
@@ -140,6 +207,9 @@ namespace core
 			stream.next(); // ']'
 			if (!stream.valid())
 				throw std::runtime_error("unexpected eof");
+
+			if (!is_newline())
+				throw std::runtime_error("expected eol");
 
 			core::member_table<T>::call(header_name, x, [&](auto & y){ return read_key_values(y); });
 		}
@@ -192,6 +262,8 @@ namespace core
 		template <typename T>
 		void read_key_value(T & x)
 		{
+			stream.consume();
+
 			const int key_from = stream.pos();
 			while (stream.peek() != '=')
 			{
