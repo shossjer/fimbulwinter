@@ -49,6 +49,7 @@ set(HEADER_FILES
    src/core/ArmatureStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
+   src/core/BufferedStream.hpp
 	src/core/color.hpp
 	src/core/container/Buffer.hpp
 	src/core/container/CircleQueue.hpp
@@ -74,6 +75,7 @@ set(HEADER_FILES
    src/core/NoSerializer.hpp
    src/core/PlaceholderStructurer.hpp
    src/core/PngStructurer.hpp
+   src/core/ReadStream.hpp
    src/core/serialization.hpp
    src/core/ShaderStructurer.hpp
 	src/core/StringSerializer.hpp

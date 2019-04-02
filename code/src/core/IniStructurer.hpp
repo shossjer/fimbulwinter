@@ -2,129 +2,17 @@
 #ifndef CORE_INISTRUCTURER_HPP
 #define CORE_INISTRUCTURER_HPP
 
+#include "core/BufferedStream.hpp"
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
 
-#include "utility/storage.hpp"
 #include "utility/string.hpp"
 
 #include <exception>
 #include <string>
-#include <vector>
 
 namespace core
 {
-	class ReadStream
-	{
-	private:
-		uint64_t (* read_callback_)(char * dest, std::size_t n, void * data);
-		void * data_;
-
-		bool done_ = false;
-		std::string filename_;
-
-	public:
-		ReadStream(uint64_t (* read_callback)(char * dest, std::size_t n, void * data), void * data, std::string filename)
-			: read_callback_(read_callback)
-			, data_(data)
-			, filename_(std::move(filename))
-		{}
-
-	public:
-		bool valid() const
-		{
-			return !done_;
-		}
-
-		uint64_t read(char * dest, std::size_t n)
-		{
-			debug_assert(!done_);
-			debug_assert(n > 0);
-
-			const uint64_t ret = read_callback_(dest, n, data_);
-			done_ = ret > 0x7fffffffffffffffll;
-			return ret & 0x7fffffffffffffffll;
-		}
-	};
-
-	class BufferedStream
-	{
-	private:
-		const char * from_;
-		std::ptrdiff_t size_ = 0;
-		std::ptrdiff_t pos_ = 0;
-
-		ReadStream read_stream_;
-
-		utility::static_storage<char, 0x10000> buffer_;
-
-	public:
-		BufferedStream(ReadStream && stream)
-			: read_stream_(std::move(stream))
-		{
-			fill_buffer();
-		}
-
-	public:
-		const char * data(std::ptrdiff_t pos) const
-		{
-			debug_assert((0 <= pos && pos <= pos_));
-
-			return from_ + pos;
-		}
-
-		char peek() const
-		{
-			debug_assert(valid());
-
-			return from_[pos_];
-		}
-
-		std::ptrdiff_t pos() const
-		{
-			return pos_;
-		}
-
-		bool valid() const
-		{
-			return pos_ < size_ || read_stream_.valid();
-		}
-
-		void consume() { consume(pos_); }
-		void consume(std::ptrdiff_t pos)
-		{
-			debug_assert((0 <= pos && pos <= pos_));
-
-			from_ += pos;
-			size_ -= pos;
-			pos_ -= pos;
-		}
-
-		void next()
-		{
-			debug_assert(valid());
-
-			pos_++;
-
-			if (pos_ >= size_)
-			{
-				std::memmove(buffer_.data(), from_, size_);
-
-				while (pos_ >= size_ && read_stream_.valid())
-				{
-					fill_buffer();
-				}
-			}
-		}
-	private:
-		void fill_buffer()
-		{
-			const uint64_t amount = read_stream_.read(buffer_.data() + size_, buffer_.max_size() - size_);
-			from_ = buffer_.data();
-			size_ += amount;
-		}
-	};
-
 	class IniStructurer
 	{
 	private:

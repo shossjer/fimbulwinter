@@ -224,19 +224,7 @@ namespace
 
 	void read_png(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		using StructurerType = core::PngStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
-		file.read(utility::get<StructurerType>(structurer).data(), file_size);
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::PngStructurer>(name, filename, callback);
 	}
 
 	void no_read(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))

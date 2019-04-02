@@ -4,11 +4,9 @@
 
 #include "core/debug.hpp"
 #include "core/graphics/types.hpp"
+#include "core/ReadStream.hpp"
 #include "core/serialization.hpp"
 
-#include "utility/optional.hpp"
-
-#include <cstdint>
 #include <vector>
 
 #include <png.h>
@@ -18,40 +16,36 @@ namespace core
 	class PngStructurer
 	{
 	private:
-		std::vector<char> bytes;
-
-		std::string filename;
+		ReadStream read_stream_;
 
 	public:
-		PngStructurer(int size, std::string filename)
-			: bytes(size)
-			, filename(std::move(filename))
+		PngStructurer(ReadStream && read_stream)
+			: read_stream_(std::move(read_stream))
 		{}
-		PngStructurer(std::vector<char> && bytes, std::string filename)
-			: bytes(std::move(bytes))
-			, filename(std::move(filename))
-		{}
-
-		char * data() { return bytes.data(); }
 
 		template <typename T>
 		void read(T & x)
 		{
 			png_byte sig[8];
-			if (png_sig_cmp(reinterpret_cast<png_bytep>(bytes.data()), 0, 8))
+			const auto sig_read = read_stream_.read_block(reinterpret_cast<char *>(sig), 8);
+			debug_assert(sig_read == 8);
+			if (png_sig_cmp(sig, 0, 8))
 			{
+				debug_fail("not a png signature");
 				return;
 			}
 
 			png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 			if (!png_ptr)
 			{
+				debug_fail("cannot create png read struct");
 				return;
 			}
 
 			png_infop info_ptr = png_create_info_struct(png_ptr);
 			if (!info_ptr)
 			{
+				debug_fail("cannot create png info struct");
 				png_destroy_read_struct(&png_ptr, NULL, NULL);
 				return;
 			}
@@ -59,31 +53,33 @@ namespace core
 			png_infop end_info = png_create_info_struct(png_ptr);
 			if (!end_info)
 			{
+				debug_fail("cannot create png info struct");
 				png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 				return;
 			}
 
 			if (setjmp(png_jmpbuf(png_ptr)))
 			{
+				debug_fail("png is borked");
 				png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
 				return;
 			}
 
-			struct io_data_t
-			{
-				png_bytep bytes;
-				std::size_t size;
-				std::size_t read;
-			} io_data{reinterpret_cast<png_bytep>(bytes.data()), bytes.size(), 8};
-			png_set_read_fn(png_ptr, &io_data, [](png_structp png_ptr, png_bytep data, png_size_t size)
-			                                   {
-				                                   io_data_t & io_data = *static_cast<io_data_t*>(png_get_io_ptr(png_ptr));
-				                                   const std::size_t min_size = std::min(io_data.size, size);
-				                                   const png_bytep from = io_data.bytes + io_data.read;
-				                                   const png_bytep to = from + min_size;
-				                                   std::copy(from, to, data);
-				                                   io_data.read += min_size;
-			                                   });
+			auto custom_read =
+				[](png_structp png_ptr, png_bytep data, png_size_t size)
+				{
+					ReadStream & read_stream = *static_cast<ReadStream *>(png_get_io_ptr(png_ptr));
+					if (!read_stream.valid())
+					{
+						png_error(png_ptr, "unexpected eol");
+					}
+					const auto amount_read = read_stream.read_block(reinterpret_cast<char * >(data), size);
+					if (amount_read < size)
+					{
+						png_error(png_ptr, "unexpected eol");
+					}
+				};
+			png_set_read_fn(png_ptr, &read_stream_, custom_read);
 			png_set_sig_bytes(png_ptr, 8);
 
 			png_read_info(png_ptr, info_ptr);
@@ -94,7 +90,7 @@ namespace core
 			const int image_height = png_get_image_height(png_ptr, info_ptr);
 			const int bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 			const int row_size = image_width * channels * (bit_depth / 8);
-			debug_printline(core::core_channel, "texture: ", filename);
+			debug_printline(core::core_channel, "texture: ", read_stream_.filename);
 			debug_printline(core::core_channel, "channels: ", channels);
 			debug_printline(core::core_channel, "color_type: ", color_type);
 			debug_printline(core::core_channel, "image_width: ", image_width);
