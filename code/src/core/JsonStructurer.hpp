@@ -7,6 +7,7 @@
 #include "core/debug.hpp"
 #include "core/maths/Quaternion.hpp"
 #include "core/maths/Vector.hpp"
+#include "core/ReadStream.hpp"
 #include "core/serialization.hpp"
 
 #include "utility/json.hpp"
@@ -23,34 +24,40 @@ namespace core
 	class JsonStructurer
 	{
 	private:
-		json root;
-
 		std::string filename;
 
-	public:
-		JsonStructurer(std::string filename)
-			: filename(std::move(filename))
-		{}
+		json root;
 
 	public:
-		const json & get() const { return root; }
-
-		template <typename T>
-		void read(T & x)
+		JsonStructurer(core::ReadStream && read_stream)
+			: filename(read_stream.filename)
 		{
-			read_object(root, x);
-		}
+			std::vector<char> buffer;
+			std::ptrdiff_t filled = 0;
 
-		void set(const char * data, size_t size)
-		{
+			while (read_stream.valid())
+			{
+				const int extra = 0x1000;
+				buffer.resize(filled + extra);
+
+				filled += read_stream.read(buffer.data() + filled, extra);
+			}
+
 			try
 			{
-				root = json::parse(data, data + size);
+				root = json::parse(buffer.data(), buffer.data() + filled);
 			}
 			catch (...)
 			{
 				debug_fail("something is wrong with the json in '", filename, "'");
 			}
+		}
+
+	public:
+		template <typename T>
+		void read(T & x)
+		{
+			read_object(root, x);
 		}
 	private:
 		core::container::Buffer::Format figure_out_buffer_type(json::const_iterator from, json::const_iterator to) const

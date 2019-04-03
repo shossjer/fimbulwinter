@@ -170,22 +170,7 @@ namespace
 
 	void read_json(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		std::vector<char> bytes(file_size);
-		file.read(bytes.data(), file_size);
-
-		using StructurerType = core::JsonStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, filename);
-		utility::get<StructurerType>(structurer).set(bytes.data(), bytes.size());
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::JsonStructurer>(name, filename, callback);
 	}
 
 	void read_lvl(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
