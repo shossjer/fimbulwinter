@@ -7,6 +7,7 @@
 #include "core/maths/Matrix.hpp"
 #include "core/maths/Quaternion.hpp"
 #include "core/maths/Vector.hpp"
+#include "core/ReadStream.hpp"
 #include "core/serialization.hpp"
 
 #include "utility/concepts.hpp"
@@ -40,84 +41,74 @@ namespace core
 	class LevelStructurer
 	{
 	private:
-		std::vector<char> bytes;
-
-		std::string filename;
+		core::ReadStream stream;
 
 	public:
-		LevelStructurer(int size, std::string filename)
-			: bytes(size)
-			, filename(std::move(filename))
-		{}
-		LevelStructurer(std::vector<char> && bytes, std::string filename)
-			: bytes(std::move(bytes))
-			, filename(std::move(filename))
+		LevelStructurer(core::ReadStream && stream)
+			: stream(std::move(stream))
 		{}
 
 	public:
-		char * data() { return bytes.data(); }
-
 		template <typename T>
 		void read(T & x)
 		{
-			int curr = 0;
 			static_assert(member_table<T>::has("meshes"), "");
-			member_table<T>::call("meshes", x, [&](auto & y){ read_meshes(curr, y); });
+			member_table<T>::call("meshes", x, [&](auto & y){ read_meshes(y); });
 			static_assert(member_table<T>::has("placeholders"), "");
-			member_table<T>::call("placeholders", x, [&](auto & y){ read_placeholders(curr, y); });
+			member_table<T>::call("placeholders", x, [&](auto & y){ read_placeholders(y); });
 		}
 	private:
 		template <typename T>
-		int read_array(int & curr, container::Buffer & x, int element_size = 1)
+		int read_array(container::Buffer & x, int element_size = 1)
 		{
 			uint16_t count;
-			read_count(curr, count);
+			read_count(count);
 
 			x.resize<T>(count * element_size);
-			read_bytes(curr, x.data(), count * element_size * sizeof(T));
+			read_bytes(x.data(), count * element_size * sizeof(T));
 			return count * element_size;
 		}
 		template <typename T, typename P>
-		int read_array(int & curr, P & x, int element_size = 1)
+		int read_array(P & x, int element_size = 1)
 		{
-			debug_fail("attempting to read array into a non array type in level '", filename, "'");
+			debug_fail("attempting to read array into a non array type in level '", stream.filename, "'");
 			return 0;
 		}
 
-		void read_bytes(int & curr, char * ptr, int size)
+		void read_bytes(char * ptr, int size)
 		{
-			const auto from = bytes.begin() + curr;
-			const auto to = from + size;
-			debug_assert(to <= bytes.end());
-			std::copy(from, to, ptr);
-			curr += size;
+			if (!stream.valid())
+				throw std::runtime_error("unexpected eol");
+			const auto amount_read = stream.read_block(ptr, size);
+			if (amount_read < size)
+				throw std::runtime_error("unexpected eol");
 		}
 
-		void read_color(int & curr, float (& buffer)[3])
+		void read_color(float (& buffer)[3])
 		{
-			read_bytes(curr, reinterpret_cast<char *>(buffer), sizeof(buffer));
+			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 		}
 		template <typename T>
-		void read_color(int & curr, T & x)
+		void read_color(T & x)
 		{
-			debug_fail("attempting to read color into a non color type in level '", filename, "'");
+			debug_fail("attempting to read color into a non color type in level '", stream.filename, "'");
 		}
 
-		void read_count(int & curr, uint16_t & count)
+		void read_count(uint16_t & count)
 		{
-			read_bytes(curr, reinterpret_cast<char *>(&count), sizeof(uint16_t));
+			read_bytes(reinterpret_cast<char *>(&count), sizeof(uint16_t));
 		}
 
-		void read_matrix(int & curr, core::maths::Matrix4x4f & x)
+		void read_matrix(core::maths::Matrix4x4f & x)
 		{
 			core::maths::Matrix4x4f::array_type buffer;
-			read_bytes(curr, reinterpret_cast<char *>(buffer), sizeof(buffer));
+			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_matrix(int & curr, T & x)
+		void read_matrix(T & x)
 		{
-			debug_fail("attempting to read matrix into a non matrix type in level '", filename, "'");
+			debug_fail("attempting to read matrix into a non matrix type in level '", stream.filename, "'");
 		}
 
 		template <typename T,
@@ -131,36 +122,36 @@ namespace core
 		                    member_table<T>::has("normals") &&
 		                    member_table<T>::has("triangles")))>
 #endif
-		int read_meshes(int & curr, std::vector<T> & x)
+		int read_meshes(std::vector<T> & x)
 		{
 			uint16_t nmeshes;
-			read_count(curr, nmeshes);
+			read_count(nmeshes);
 
 			x.resize(nmeshes);
 			for (auto & m : x)
 			{
 				static_assert(member_table<T>::has("name"), "");
-				member_table<T>::call("name", m, [&](auto & y){ read_string(curr, y); });
+				member_table<T>::call("name", m, [&](auto & y){ read_string(y); });
 				static_assert(member_table<T>::has("matrix"), "");
-				member_table<T>::call("matrix", m, [&](auto & y){ read_matrix(curr, y); });
+				member_table<T>::call("matrix", m, [&](auto & y){ read_matrix(y); });
 
 				static_assert(member_table<T>::has("color"), "");
-				member_table<T>::call("color", m, [&](auto & y){ read_color(curr, y); });
+				member_table<T>::call("color", m, [&](auto & y){ read_color(y); });
 
 				static_assert(member_table<T>::has("vertices"), "");
-				const auto nvertices = member_table<T>::call("vertices", m, [&](auto & y){ return read_array<float>(curr, y, 3); });
+				const auto nvertices = member_table<T>::call("vertices", m, [&](auto & y){ return read_array<float>(y, 3); });
 				static_assert(member_table<T>::has("normals"), "");
-				const auto nnormals = member_table<T>::call("normals", m, [&](auto & y){ return read_array<float>(curr, y, 3); });
+				const auto nnormals = member_table<T>::call("normals", m, [&](auto & y){ return read_array<float>(y, 3); });
 				debug_assert(nvertices == nnormals);
 				static_assert(member_table<T>::has("triangles"), "");
-				member_table<T>::call("triangles", m, [&](auto & y){ return read_array<uint16_t>(curr, y, 3); });
+				member_table<T>::call("triangles", m, [&](auto & y){ return read_array<uint16_t>(y, 3); });
 			}
 			return nmeshes;
 		}
 		template <typename T>
-		int read_meshes(int & curr, T & x)
+		int read_meshes(T & x)
 		{
-			debug_fail("attempting to read meshes into a non array type in level '", filename, "'");
+			debug_fail("attempting to read meshes into a non array type in level '", stream.filename, "'");
 			return 0;
 		}
 
@@ -173,76 +164,76 @@ namespace core
 		                    member_table<T>::has("rotation") &&
 		                    member_table<T>::has("scale")))>
 #endif
-		int read_placeholders(int & curr, std::vector<T> & x)
+		int read_placeholders(std::vector<T> & x)
 		{
 			uint16_t nplaceholders;
-			read_count(curr, nplaceholders);
+			read_count(nplaceholders);
 
 			x.resize(nplaceholders);
 			for (auto & p : x)
 			{
 				static_assert(member_table<T>::has("name"), "");
-				member_table<T>::call("name", p, [&](auto & y){ read_string(curr, y); });
+				member_table<T>::call("name", p, [&](auto & y){ read_string(y); });
 				static_assert(member_table<T>::has("translation"), "");
-				member_table<T>::call("translation", p, [&](auto & y){ read_vector(curr, y); });
+				member_table<T>::call("translation", p, [&](auto & y){ read_vector(y); });
 				static_assert(member_table<T>::has("rotation"), "");
-				member_table<T>::call("rotation", p, [&](auto & y){ read_quaternion(curr, y); });
+				member_table<T>::call("rotation", p, [&](auto & y){ read_quaternion(y); });
 				static_assert(member_table<T>::has("scale"), "");
-				member_table<T>::call("scale", p, [&](auto & y){ read_vector(curr, y); });
+				member_table<T>::call("scale", p, [&](auto & y){ read_vector(y); });
 			}
 			return nplaceholders;
 		}
 		template <typename T>
-		int read_placeholders(int & curr, T & x)
+		int read_placeholders(T & x)
 		{
-			debug_fail("attempting to read placeholders into a non array type in level '", filename, "'");
+			debug_fail("attempting to read placeholders into a non array type in level '", stream.filename, "'");
 			return 0;
 		}
 
-		void read_quaternion(int & curr, core::maths::Quaternionf & x)
+		void read_quaternion(core::maths::Quaternionf & x)
 		{
 			core::maths::Quaternionf::array_type buffer;
-			read_bytes(curr, reinterpret_cast<char *>(buffer), sizeof(buffer));
+			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_quaternion(int & curr, T & x)
+		void read_quaternion(T & x)
 		{
-			debug_fail("attempting to read quaternion into a non quaternion type in level '", filename, "'");
+			debug_fail("attempting to read quaternion into a non quaternion type in level '", stream.filename, "'");
 		}
 
 		template <std::size_t N>
-		void read_string(int & curr, char (& buffer)[N])
+		void read_string(char (& buffer)[N])
 		{
 			uint16_t len; // excluding null character
-			read_count(curr, len);
+			read_count(len);
 			debug_assert(len < N);
 
-			read_bytes(curr, buffer, len);
+			read_bytes(buffer, len);
 			buffer[len] = '\0';
 		}
-		void read_string(int & curr, std::string & x)
+		void read_string(std::string & x)
 		{
 			char buffer[64]; // arbitrary
-			read_string(curr, buffer);
+			read_string(buffer);
 			x = buffer;
 		}
 		template <typename T>
-		void read_string(int & curr, T & x)
+		void read_string(T & x)
 		{
-			debug_fail("attempting to read string into a non string type in level '", filename, "'");
+			debug_fail("attempting to read string into a non string type in level '", stream.filename, "'");
 		}
 
-		void read_vector(int & curr, core::maths::Vector3f & x)
+		void read_vector(core::maths::Vector3f & x)
 		{
 			core::maths::Vector3f::array_type buffer;
-			read_bytes(curr, reinterpret_cast<char *>(buffer), sizeof(buffer));
+			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_vector(int & curr, T & x)
+		void read_vector(T & x)
 		{
-			debug_fail("attempting to read vector into a non vector type in level '", filename, "'");
+			debug_fail("attempting to read vector into a non vector type in level '", stream.filename, "'");
 		}
 	};
 }
