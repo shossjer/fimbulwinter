@@ -30,18 +30,21 @@ namespace core
 		}
 
 	public:
+		const std::string & filename() const { return read_stream_.filename; }
+
 		const char * data(std::ptrdiff_t pos) const
 		{
-			debug_assert((0 <= pos && pos <= pos_));
+			debug_assert((0 <= pos && pos <= size_));
 
 			return from_ + pos;
 		}
 
-		char peek() const
+		char peek() const { return peek(pos_); }
+		char peek(std::ptrdiff_t pos) const
 		{
-			debug_assert(valid());
+			debug_assert((0 <= pos && pos < size_));
 
-			return from_[pos_];
+			return from_[pos];
 		}
 
 		std::ptrdiff_t pos() const
@@ -70,15 +73,22 @@ namespace core
 
 			pos_++;
 
-			if (pos_ >= size_)
+			while (pos_ >= size_ && read_stream_.valid())
 			{
-				std::memmove(buffer_.data(), from_, size_);
-
-				while (pos_ >= size_ && read_stream_.valid())
+				if (from_ != buffer_.data())
 				{
-					fill_buffer();
+					std::memmove(buffer_.data(), from_, size_);
 				}
+				fill_buffer();
 			}
+		}
+
+		void seek(std::ptrdiff_t pos)
+		{
+			debug_assert((0 <= pos && pos <= size_));
+			debug_assert((pos < size_ || !read_stream_.valid()), "if you seek to the end then the stream should end");
+
+			pos_ = pos;
 		}
 	private:
 		void fill_buffer()
