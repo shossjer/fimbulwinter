@@ -1,6 +1,5 @@
 
 #include "gamestate.hpp"
-#include "gamestate_gui.hpp"
 #include "gamestate_models.hpp"
 
 #include "core/JsonStructurer.hpp"
@@ -14,7 +13,6 @@
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 #include "engine/hid/ui.hpp"
-#include "engine/gui/gui.hpp"
 #include <engine/physics/physics.hpp>
 #include "engine/replay/writer.hpp"
 #include "engine/resource/reader.hpp"
@@ -390,9 +388,6 @@ namespace
 			const auto progress_percentage = static_cast<float>(preparation.time_remaining) / static_cast<float>(preparation.recipe->time.value() * 50);
 			barUpdate(progress_percentage);
 
-			const Worker & w = access_component<Worker>(worker);
-			profile_update(worker);
-
 			if (preparation.time_remaining <= 0)
 			{
 				cleanup(preparation);
@@ -417,54 +412,6 @@ namespace
 		}
 	};
 
-	struct
-	{
-		// entity of currently "profiled" object
-		engine::Entity entity;
-
-		void operator() (Worker & worker)
-		{
-			Player data{ "Chef Elzar" };
-			data.skills.push_back(Player::Skill{ "Cutting" });
-			data.skills.push_back(Player::Skill{ "Washing hands" });
-			data.skills.push_back(Player::Skill{ "Potato" });
-			engine::gui::post(engine::gui::MessageData{ encode_gui(data) });
-		}
-
-		template<typename T>
-		void operator() (const T &)
-		{}
-	}
-	profile_updater;
-
-	struct GUIComponent
-	{
-		engine::Entity id;
-	};
-
-	struct GUIWindow
-	{
-		engine::Asset window;
-
-		void translate(engine::Command command, utility::any && data)
-		{
-			switch (command)
-			{
-			case engine::command::BUTTON_DOWN_ACTIVE:
-			case engine::command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!data.has_value());
-				engine::gui::post(engine::gui::MessageVisibility{ window, engine::gui::MessageVisibility::TOGGLE });
-				break;
-			case engine::command::BUTTON_UP_ACTIVE:
-			case engine::command::BUTTON_UP_INACTIVE:
-				debug_assert(!data.has_value());
-				break;
-			default:
-				debug_unreachable();
-			}
-		}
-	};
-
 	struct Option
 	{
 	};
@@ -484,8 +431,6 @@ namespace
 		401,
 		utility::static_storage<CameraActivator, 2>,
 		utility::static_storage<FreeCamera, 1>,
-		utility::heap_storage<GUIComponent>,
-		utility::heap_storage<GUIWindow>,
 		utility::static_storage<OverviewCamera, 1>,
 		utility::static_storage<Selector, 1>,
 		utility::heap_storage<Worker>,
@@ -631,21 +576,13 @@ namespace
 			core::maths::Matrix4x4f
 		>,
 		100> queue_workstations;
-	core::container::CircleQueueSRMW<engine::Entity, 100> queue_gui_components;
+
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
 	template<typename T>
 	T & access_component(const engine::Entity entity)
 	{
 		return components.get<T>(entity);
-	}
-
-	void profile_update(const engine::Entity entity)
-	{
-		if (entity == profile_updater.entity)
-		{
-			components.call(entity, profile_updater);
-		}
 	}
 
 	void move_to_workstation(Worker & w, engine::Entity we, Workstation & s, engine::Entity se)
@@ -699,11 +636,6 @@ namespace
 			return false;
 		}
 
-		bool operator () (engine::Entity, const GUIComponent &)
-		{
-			return true;
-		}
-
 		bool operator () (engine::Entity, const Option &)
 		{
 			return true;
@@ -721,11 +653,6 @@ namespace
 		const Selector & selector;
 
 		bool operator () (const Worker &)
-		{
-			return true;
-		}
-
-		bool operator () (const GUIComponent &)
 		{
 			return true;
 		}
@@ -848,12 +775,6 @@ namespace
 		engine::graphics::renderer::post_make_deselect(entity);
 	}
 
-	void update_gui(engine::Entity entity, engine::gui::MessageInteraction::State state)
-	{
-		// check if entity is "gui" component
-		engine::gui::post(engine::gui::MessageInteraction{ entity, state });
-	}
-
 	void Selector::translate(engine::Command command, utility::any && data)
 	{
 		switch (command)
@@ -870,7 +791,6 @@ namespace
 					if (!is_interactible)
 					{
 						lowlight(entity);
-						update_gui(entity, engine::gui::MessageInteraction::LOWLIGHT);
 						highlighted_entity = engine::Entity::null();
 					}
 				}
@@ -880,7 +800,6 @@ namespace
 				if (highlighted_entity != engine::Entity::null())
 				{
 					lowlight(highlighted_entity);
-					update_gui(highlighted_entity, engine::gui::MessageInteraction::LOWLIGHT);
 					highlighted_entity = engine::Entity::null();
 				}
 				if (entity != engine::Entity::null())
@@ -889,7 +808,6 @@ namespace
 					if (is_interactible)
 					{
 						highlight(entity);
-						update_gui(entity, engine::gui::MessageInteraction::HIGHLIGHT);
 						highlighted_entity = entity;
 					}
 				}
@@ -900,7 +818,6 @@ namespace
 		{
 			engine::Entity entity = utility::any_cast<engine::Entity>(data);
 
-			update_gui(entity, engine::gui::MessageInteraction::PRESS);
 			pressed_entity = entity;
 			break;
 		}
@@ -921,7 +838,6 @@ namespace
 							if (selected_entity == entity)
 							{
 								deselect(entity);
-								update_gui(entity, engine::gui::MessageInteraction::RELEASE);
 								selected_entity = engine::Entity::null();
 							}
 							else
@@ -929,11 +845,9 @@ namespace
 								if (selected_entity != engine::Entity::null())
 								{
 									deselect(selected_entity);
-									update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 									selected_entity = engine::Entity::null();
 								}
 								select(entity);
-								update_gui(entity, engine::gui::MessageInteraction::PRESS);
 								selected_entity = entity;
 							}
 						}
@@ -944,7 +858,6 @@ namespace
 						if (selected_entity != engine::Entity::null())
 						{
 							deselect(selected_entity);
-							update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 							selected_entity = engine::Entity::null();
 						}
 						recipes_ring.hide();
@@ -955,7 +868,6 @@ namespace
 					if (selected_entity != engine::Entity::null())
 					{
 						deselect(selected_entity);
-						update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 						selected_entity = engine::Entity::null();
 					}
 					recipes_ring.hide();
@@ -966,7 +878,6 @@ namespace
 				if (selected_entity != engine::Entity::null())
 				{
 					deselect(selected_entity);
-					update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 					selected_entity = engine::Entity::null();
 				}
 				recipes_ring.hide();
@@ -1090,18 +1001,6 @@ namespace gamestate
 		engine::hid::ui::post_bind("game", pancontrol, 0);
 		engine::hid::ui::post_bind("game", bordercontrol, 0);
 
-		profile_updater.entity = engine::Entity::null();
-		auto inventorycontrol = engine::Entity::create();
-		engine::hid::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
-		engine::hid::ui::post_bind("debug", inventorycontrol, 0);
-		engine::hid::ui::post_bind("game", inventorycontrol, 0);
-		components.emplace<GUIWindow>(inventorycontrol, "inventory");
-		auto profilecontrol = engine::Entity::create();
-		engine::hid::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
-		engine::hid::ui::post_bind("debug", profilecontrol, 0);
-		engine::hid::ui::post_bind("game", profilecontrol, 0);
-		components.emplace<GUIWindow>(profilecontrol, "profile");
-
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
@@ -1134,27 +1033,9 @@ namespace gamestate
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");
 
-		// assign reaction structure to engine::gui
-		engine::gui::post(engine::gui::MessageDataSetup{ encode_gui(Player{ "name",{ Player::Skill{ "name" } } }) });
-		{
-			Dish dish{ std::string{ "name" }, std::string{ "desc" } };
-			engine::gui::post(engine::gui::MessageDataSetup{ encode_gui({ &dish, &dish, &dish, &dish }) });
-		}
-
-		// trigger first load of GUI
-		engine::gui::post(engine::gui::MessageReload{});
-
 		engine::resource::reader::post_read("recipes", data_callback_recipes);
 		engine::resource::reader::post_read("classes", data_callback_roles);
 		engine::resource::reader::post_read("skills", data_callback_skills);
-
-		{
-			Player data{ "Chef Elzar" };
-			data.skills.push_back(Player::Skill{ "Cutting" });
-			data.skills.push_back(Player::Skill{ "Washing hands" });
-			data.skills.push_back(Player::Skill{ "Potato" });
-			engine::gui::post(engine::gui::MessageData{ encode_gui(data) });
-		}
 	}
 
 	void destroy()
@@ -1181,12 +1062,6 @@ namespace gamestate
 					std::get<1>(workstation_args),
 					std::get<2>(workstation_args),
 					std::get<3>(workstation_args));
-			}
-
-			engine::Entity gui_component;
-			while (queue_gui_components.try_pop(gui_component))
-			{
-				components.emplace<GUIComponent>(gui_component, gui_component);
 			}
 		}
 
@@ -1234,12 +1109,6 @@ namespace gamestate
 	void post_command(engine::Entity entity, engine::Command command, utility::any && data)
 	{
 		const auto res = queue_commands.try_emplace(entity, command, std::move(data));
-		debug_assert(res);
-	}
-
-	void post_gui(engine::Entity entity)
-	{
-		const auto res = queue_gui_components.try_emplace(entity);
 		debug_assert(res);
 	}
 

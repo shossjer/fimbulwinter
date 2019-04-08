@@ -95,8 +95,6 @@ namespace looper
 			::engine::replay::update(frame_count);
 			::gameplay::gamestate::update(frame_count);
 
-			::engine::gui::update();
-
 			//
 			::engine::graphics::viewer::update();
 			::engine::graphics::renderer::update();
