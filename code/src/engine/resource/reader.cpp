@@ -233,7 +233,7 @@ namespace
 						const engine::resource::FormatMask matching_formats = available_formats & x.formats;
 						if (!matching_formats.unique())
 						{
-							debug_fail("more than one formats matches '", x.name, "'");
+							debug_fail("more than one format matches '", x.name, "'");
 						}
 						else if (matching_formats & engine::resource::Format::Armature)
 						{
