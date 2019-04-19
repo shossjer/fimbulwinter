@@ -3,6 +3,7 @@
 #define UTILITY_STRING_VIEW_HPP
 
 #include <cstddef>
+#include <ostream>
 
 namespace utility
 {
@@ -95,6 +96,14 @@ namespace utility
 	inline constexpr bool operator <= (string_view a, string_view b) noexcept { return a.compare(b) <= 0; }
 	inline constexpr bool operator > (string_view a, string_view b) noexcept { return a.compare(b) > 0; }
 	inline constexpr bool operator >= (string_view a, string_view b) noexcept { return a.compare(b) >= 0; }
+
+	inline std::ostream & operator << (std::ostream & s, string_view v)
+	{
+		for (char c : v)
+			s.put(c);
+
+		return s;
+	}
 }
 
 #endif /* UTILITY_STRING_VIEW_HPP */
