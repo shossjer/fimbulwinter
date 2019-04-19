@@ -8,6 +8,7 @@
 #include "core/serialization.hpp"
 
 #include "utility/concepts.hpp"
+#include "utility/string_view.hpp"
 
 #include <ostream>
 #include <string>
@@ -39,6 +40,9 @@ namespace engine
 		{}
 		constexpr Asset(const char *const str, const std::size_t n)
 			: id{core::crypto::crc32(str, n)}
+		{}
+		constexpr Asset(utility::string_view str)
+			: id{core::crypto::crc32(str.data(), str.length())}
 		{}
 		Asset(const std::string & str)
 			: id{core::crypto::crc32(str.data(), str.length())}
