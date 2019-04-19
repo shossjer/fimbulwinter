@@ -98,7 +98,7 @@ namespace
 
 	void set_active_context(engine::Asset context)
 	{
-		debug_printline(engine::hid_channel, "Switching context: ", static_cast<int>(active_context), " -> ", static_cast<int>(context));
+		debug_printline(engine::hid_channel, "Switching context: ", active_context, " -> ", context);
 		active_context = context;
 	}
 	ContextEntities & get_active_context()
