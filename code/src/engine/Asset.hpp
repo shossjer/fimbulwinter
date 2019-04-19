@@ -14,7 +14,10 @@
 #include <string>
 
 #if MODE_DEBUG
-# include <utility/spinlock.hpp>
+# include "engine/debug.hpp"
+
+# include "utility/spinlock.hpp"
+# include "utility/string.hpp"
 
 # include <mutex>
 # include <unordered_map>
@@ -69,6 +72,12 @@ namespace engine
 			return Asset(0);
 		}
 #if MODE_DEBUG
+		// not thread safe
+		template <std::size_t N>
+		static void enumerate(const char (& str)[N])
+		{
+			get_lookup_table().emplace(core::crypto::crc32(str), str);
+		}
 	private:
 		static std::unordered_map<value_type, std::string> & get_lookup_table()
 		{
@@ -121,5 +130,34 @@ namespace std
 	};
 }
 
+#if MODE_DEBUG
+# define debug_assets(...) \
+	namespace \
+	{ \
+		struct enumerate_assets_t \
+		{ \
+			enumerate_assets_t() \
+			{ \
+				printline(__VA_ARGS__); \
+				enumerate(__VA_ARGS__); \
+			} \
+\
+			template <typename ...Ps> \
+			void printline(Ps && ...ps) \
+			{ \
+				debug_printline(engine::asset_channel, "adding asset enumeration:", utility::to_string(" \"", ps, "\"")...); \
+			} \
+\
+			template <typename ...Ps> \
+			void enumerate(Ps && ...ps) \
+			{ \
+				int enumeration[] = {(engine::Asset::enumerate(std::forward<Ps>(ps)), 0)...}; \
+			} \
+		}; \
+	} \
+	static enumerate_assets_t asset_enumeration
+#else
+# define debug_assets(...) static_assert(true, "")
+#endif
 
 #endif /* ENGINE_ASSET_HPP */

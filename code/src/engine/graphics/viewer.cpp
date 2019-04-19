@@ -13,6 +13,8 @@
 
 #include "utility/variant.hpp"
 
+debug_assets("root");
+
 namespace
 {
 	struct dimension_t

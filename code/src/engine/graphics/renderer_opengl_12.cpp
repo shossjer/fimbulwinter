@@ -73,6 +73,8 @@ namespace gameplay
 	}
 }
 
+debug_assets("box", "cuboid", "dude", "my_png", "photo");
+
 namespace
 {
 	class Stack

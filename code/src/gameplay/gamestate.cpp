@@ -33,6 +33,7 @@
 #include <fstream>
 #include <utility>
 
+debug_assets("debug", "game", "my-perspective-2d", "my-perspective-3d");
 
 namespace
 {

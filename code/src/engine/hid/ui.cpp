@@ -23,6 +23,8 @@ namespace gamestate
 }
 }
 
+debug_assets("null");
+
 namespace
 {
 	struct dimension_t
