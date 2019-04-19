@@ -449,7 +449,7 @@ namespace
 			}
 		};
 
-		nodes.call("root", BuildViewports{0, 0, dimension.width, dimension.height});
+		nodes.call(engine::Asset("root"), BuildViewports{0, 0, dimension.width, dimension.height});
 	}
 }
 
@@ -580,7 +580,7 @@ namespace engine
 		{
 			void create()
 			{
-				nodes.emplace<Root>("root", engine::Asset::null());
+				nodes.emplace<Root>(engine::Asset("root"), engine::Asset::null());
 			}
 
 			void destroy()

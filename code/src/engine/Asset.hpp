@@ -35,16 +35,16 @@ namespace engine
 	public:
 		Asset() = default;
 		template <std::size_t N>
-		constexpr Asset(const char (&str)[N])
+		explicit constexpr Asset(const char (&str)[N])
 			: id{core::crypto::crc32(str)}
 		{}
-		constexpr Asset(const char *const str, const std::size_t n)
+		explicit constexpr Asset(const char *const str, const std::size_t n)
 			: id{core::crypto::crc32(str, n)}
 		{}
-		constexpr Asset(utility::string_view str)
+		explicit constexpr Asset(utility::string_view str)
 			: id{core::crypto::crc32(str.data(), str.length())}
 		{}
-		Asset(const std::string & str)
+		explicit Asset(const std::string & str)
 			: id{core::crypto::crc32(str.data(), str.length())}
 		{
 #if MODE_DEBUG
@@ -53,7 +53,7 @@ namespace engine
 #endif
 		}
 	private:
-		constexpr Asset(value_type val)
+		explicit constexpr Asset(value_type val)
 			: id(val)
 		{}
 

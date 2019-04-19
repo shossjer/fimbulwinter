@@ -1202,7 +1202,7 @@ namespace
 		while (queue_shaders.try_pop(shader_data_pair))
 		{
 			debug_printline("trying to create \"", shader_data_pair.first, "\"");
-			shader_manager.create(std::move(shader_data_pair.first), std::move(shader_data_pair.second));
+			shader_manager.create(engine::Asset(shader_data_pair.first), std::move(shader_data_pair.second));
 		}
 	}
 }
@@ -1593,9 +1593,9 @@ namespace
 			component.update();
 		}
 
-		const GLint p_color = shader_manager.get("res/gfx/color.130.glsl");
-		const GLint p_entity = shader_manager.get("res/gfx/entity.130.glsl");
-		const GLint p_tex = shader_manager.get("res/gfx/texture.130.glsl");
+		const GLint p_color = shader_manager.get(engine::Asset("res/gfx/color.130.glsl"));
+		const GLint p_entity = shader_manager.get(engine::Asset("res/gfx/entity.130.glsl"));
+		const GLint p_tex = shader_manager.get(engine::Asset("res/gfx/texture.130.glsl"));
 
 		glStencilMask(0x000000ff);
 		// setup frame

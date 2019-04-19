@@ -955,9 +955,9 @@ namespace gamestate
 {
 	void create()
 	{
-		engine::hid::ui::post_add_context("debug");
-		engine::hid::ui::post_add_context("game");
-		engine::hid::ui::post_activate_context("game");
+		engine::hid::ui::post_add_context(engine::Asset("debug"));
+		engine::hid::ui::post_add_context(engine::Asset("game"));
+		engine::hid::ui::post_activate_context(engine::Asset("game"));
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
@@ -970,26 +970,26 @@ namespace gamestate
 		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
 		engine::physics::camera::add(game_camera, game_camera_pos, true);
 
-		engine::graphics::viewer::post_add_frame("game", engine::graphics::viewer::dynamic{"root"});
+		engine::graphics::viewer::post_add_frame(engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root")});
 
-		engine::graphics::viewer::post_add_projection("my-perspective-3d", engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
-		engine::graphics::viewer::post_add_projection("my-perspective-2d", engine::graphics::viewer::orthographic{-100., 100});
+		engine::graphics::viewer::post_add_projection(engine::Asset("my-perspective-3d"), engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
+		engine::graphics::viewer::post_add_projection(engine::Asset("my-perspective-2d"), engine::graphics::viewer::orthographic{-100., 100});
 
 		engine::graphics::viewer::post_add_camera(
 				debug_camera,
 				engine::graphics::viewer::camera{
-					"my-perspective-3d",
-					"my-perspective-2d",
+					engine::Asset("my-perspective-3d"),
+					engine::Asset("my-perspective-2d"),
 					core::maths::Quaternionf{ 1.f, 0.f, 0.f, 0.f },
 					debug_camera_pos});
 		engine::graphics::viewer::post_add_camera(
 				game_camera,
 				engine::graphics::viewer::camera{
-					"my-perspective-3d",
-					"my-perspective-2d",
+					engine::Asset("my-perspective-3d"),
+					engine::Asset("my-perspective-2d"),
 					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{-40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{-40.f/2.f}).get()), 0.f, 0.f },
 					game_camera_pos});
-		engine::graphics::viewer::post_bind("game", game_camera);
+		engine::graphics::viewer::post_bind(engine::Asset("game"), game_camera);
 
 		auto bordercontrol = engine::Entity::create();
 		engine::hid::ui::post_add_bordercontrol(bordercontrol, game_camera);
@@ -997,38 +997,38 @@ namespace gamestate
 		engine::hid::ui::post_add_flycontrol(flycontrol, debug_camera);
 		auto pancontrol = engine::Entity::create();
 		engine::hid::ui::post_add_pancontrol(pancontrol, game_camera);
-		engine::hid::ui::post_bind("debug", flycontrol, 0);
-		engine::hid::ui::post_bind("game", pancontrol, 0);
-		engine::hid::ui::post_bind("game", bordercontrol, 0);
+		engine::hid::ui::post_bind(engine::Asset("debug"), flycontrol, 0);
+		engine::hid::ui::post_bind(engine::Asset("game"), pancontrol, 0);
+		engine::hid::ui::post_bind(engine::Asset("game"), bordercontrol, 0);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
-		components.emplace<CameraActivator>(debug_switch, "game", debug_camera);
-		components.emplace<CameraActivator>(game_switch, "game", game_camera);
+		components.emplace<CameraActivator>(debug_switch, engine::Asset("game"), debug_camera);
+		components.emplace<CameraActivator>(game_switch, engine::Asset("game"), game_camera);
 
-		engine::hid::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, "debug");
-		engine::hid::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, "game");
-		engine::hid::ui::post_bind("debug", game_switch, -10);
-		engine::hid::ui::post_bind("game", debug_switch, -10);
+		engine::hid::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, engine::Asset("debug"));
+		engine::hid::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, engine::Asset("game"));
+		engine::hid::ui::post_bind(engine::Asset("debug"), game_switch, -10);
+		engine::hid::ui::post_bind(engine::Asset("game"), debug_switch, -10);
 
 		auto game_renderswitch = engine::Entity::create();
 		engine::hid::ui::post_add_renderswitch(game_renderswitch, engine::hid::Input::Button::KEY_F5);
-		engine::hid::ui::post_bind("debug", game_renderswitch, -5);
-		engine::hid::ui::post_bind("game", game_renderswitch, -5);
+		engine::hid::ui::post_bind(engine::Asset("debug"), game_renderswitch, -5);
+		engine::hid::ui::post_bind(engine::Asset("game"), game_renderswitch, -5);
 
 		auto selector = engine::Entity::create();
 		components.emplace<Selector>(selector);
 
 		auto game_renderhover = engine::Entity::create();
 		engine::hid::ui::post_add_renderhover(game_renderhover, selector);
-		engine::hid::ui::post_bind("debug", game_renderhover, 5);
-		engine::hid::ui::post_bind("game", game_renderhover, 5);
+		engine::hid::ui::post_bind(engine::Asset("debug"), game_renderhover, 5);
+		engine::hid::ui::post_bind(engine::Asset("game"), game_renderhover, 5);
 
 		auto game_renderselect = engine::Entity::create();
 		engine::hid::ui::post_add_renderselect(game_renderselect, selector);
-		engine::hid::ui::post_bind("debug", game_renderselect, 5);
-		engine::hid::ui::post_bind("game", game_renderselect, 5);
+		engine::hid::ui::post_bind(engine::Asset("debug"), game_renderselect, 5);
+		engine::hid::ui::post_bind(engine::Asset("game"), game_renderselect, 5);
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");

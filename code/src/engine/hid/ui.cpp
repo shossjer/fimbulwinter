@@ -688,8 +688,8 @@ namespace ui
 {
 	void create()
 	{
-		add_context("null");
-		set_active_context("null");
+		add_context(engine::Asset("null"));
+		set_active_context(engine::Asset("null"));
 	}
 
 	void destroy()
