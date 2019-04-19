@@ -28,7 +28,7 @@ namespace
 {
 	core::async::Thread thread;
 
-	int interrupt_pipes[2];
+	int interupt_pipe[2];
 }
 
 namespace
@@ -36,7 +36,7 @@ namespace
 	void read_input()
 	{
 		struct pollfd fds[2] = {
-			{interrupt_pipes[0], 0, 0},
+			{interupt_pipe[0], 0, 0},
 			{STDIN_FILENO, POLLIN, 0}
 		};
 
@@ -59,7 +59,7 @@ namespace
 				engine::console::read_input(line);
 			}
 		}
-		close(interrupt_pipes[0]);
+		close(interupt_pipe[0]);
 
 		debug_printline("console thread stopping");
 	}
@@ -71,14 +71,14 @@ namespace engine
 	{
 		void create()
 		{
-			pipe(interrupt_pipes);
+			pipe(interupt_pipe);
 
 			thread = core::async::Thread{ ::read_input };
 		}
 
 		void destroy()
 		{
-			close(interrupt_pipes[1]);
+			close(interupt_pipe[1]);
 
 			thread.join();
 		}
