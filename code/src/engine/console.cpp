@@ -1,12 +1,14 @@
 
 #include "console.hpp"
 
-#include <engine/Asset.hpp>
-#include <engine/debug.hpp>
+#include "engine/Asset.hpp"
+#include "engine/debug.hpp"
+
+#include "utility/string.hpp"
+#include "utility/string_view.hpp"
 
 #include <algorithm>
-#include <sstream>
-#include <unordered_map>
+#include <iostream>
 #include <vector>
 
 #include <cctype>
@@ -23,75 +25,66 @@ namespace engine
 {
 	namespace console
 	{
-		bool is_number_candidate(const std::string & str)
+		std::vector<Argument> parse_params(const std::string & line, int from)
 		{
-			return str.find_first_not_of("-.0123456789") == std::string::npos;
-		}
+			std::vector<Argument> params;
 
-		auto parse_params(const std::string & raw_line)
-		{
-			if (raw_line.empty())
+			while (from < line.length())
 			{
-				return std::vector<Param>{};
-			}
-
-			std::vector<Param> params;
-
-			std::stringstream stream{ raw_line };
-
-			while (!stream.eof())
-			{
-				std::string data;
-
-				if (stream.peek() == '"')
+				if (line[from] == '"')
 				{
-					stream.get(); // step over first char
-					std::getline(stream, data, '"');
+					const int to = line.find('"', from + 1);
+					if (to == std::string::npos)
+						throw std::runtime_error("missing ending quote (\") on string argument");
 
-					if (data.empty()) continue;
+					params.emplace_back(utility::in_place_type<utility::string_view>, line.data() + from + 1, to - from - 1);
+					from = to + 1;
+					continue;
+				}
 
-					params.emplace_back(utility::in_place_type<std::string>, data);
+				int to = line.find(' ', from);
+				if (from == to)
+				{
+					from++;
+					continue;
+				}
+				if (to == std::string::npos)
+				{
+					to = line.length();
+				}
+
+				utility::string_view word(line.data() + from, to - from);
+				if (word.compare("true") == 0)
+				{
+					params.emplace_back(utility::in_place_type<bool>, true);
+				}
+				else if (word.compare("false") == 0)
+				{
+					params.emplace_back(utility::in_place_type<bool>, false);
+				}
+				else if (line.find('.', from) < to)
+				{
+					try
+					{
+						params.emplace_back(utility::in_place_type<double>, std::stod(line.substr(from, to - from)));
+					}
+					catch (const std::invalid_argument & e)
+					{
+						throw std::runtime_error(utility::to_string("at ", from, ": argument not a floating type"));
+					}
 				}
 				else
 				{
-					std::getline(stream, data, ' ');
-
-					if (data.empty()) continue;
-
-					if (is_number_candidate(data))
+					try
 					{
-						try
-						{
-							if (data.find(".") == std::string::npos)
-							{
-								int value = std::stoi(data);
-								params.emplace_back(utility::in_place_type<int>, value);
-							}
-							else
-							{
-								float value = std::stof(data);
-								params.emplace_back(utility::in_place_type<float>, value);
-							}
-						}
-						catch (const std::invalid_argument & e)
-						{
-							debug_printline("Could not parse: ", data, " as number: ", e.what());
-							params.emplace_back(utility::in_place_type<std::string>, data);
-						}
+						params.emplace_back(utility::in_place_type<int64_t>, std::stoll(line.substr(from, to - from)));
 					}
-					else if ("false" == data)
+					catch (const std::invalid_argument & e)
 					{
-						params.emplace_back(utility::in_place_type<bool>, false);
-					}
-					else if ("true" == data)
-					{
-						params.emplace_back(utility::in_place_type<bool>, true);
-					}
-					else
-					{
-						params.emplace_back(utility::in_place_type<std::string>, data);
+						throw std::runtime_error(utility::to_string("at ", from, ": argument not a integral type"));
 					}
 				}
+				from = to + 1;
 			}
 
 			return params;
@@ -99,7 +92,7 @@ namespace engine
 
 		void observe_impl(const std::string & keyword, std::unique_ptr<CallbackBase> && callback)
 		{
-			const auto key = engine::Asset{ keyword };
+			const auto key = engine::Asset(keyword);
 
 			observers.emplace_back(key, std::move(callback));
 		}
@@ -109,21 +102,23 @@ namespace engine
 			if (line.empty())
 				return;
 
-			std::stringstream stream{ line };
-			std::string data;
+			const int command_begin = 0;
+			const int command_end = line.find(' ', command_begin);
 
-			std::getline(stream, data, ' ');
-			const engine::Asset key{ data };
+			const utility::string_view command_name(line.data() + command_begin, command_end - command_begin);
+			const engine::Asset command_key(command_name);
 
-			std::string str_params;
-			std::getline(stream, str_params);
-			std::vector<Param> params = parse_params(str_params);
+			const std::vector<Argument> params = parse_params(line, command_end + 1);
 
 			for (auto & observer : observers)
 			{
-				if (observer.first == key)
+				if (observer.first == command_key)
+				{
 					observer.second->call(params);
+					return;
+				}
 			}
+			std::cout << "no matching observer found to \"" << command_name << "\"\n";
 		}
 	}
 }
