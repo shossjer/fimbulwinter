@@ -681,8 +681,8 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							core::maths::Vector3f{ 1.f, 1.f, 1.f },
-							resource.assets });
+						core::maths::Vector3f{ 1.f, 1.f, 1.f },
+						resource.assets });
 				engine::graphics::renderer::post_make_selectable(entity);
 
 				gameplay::gamestate::post_add_workstation(
@@ -750,8 +750,8 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							core::maths::Vector3f{ 1.f, 1.f, 1.f },
-							resource.assets });
+						core::maths::Vector3f{ 1.f, 1.f, 1.f },
+						resource.assets });
 			}
 			Created(Created && x)
 				: entity(x.entity)
@@ -894,8 +894,8 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							core::maths::Vector3f{ 1.f, 1.f, 1.f },
-							resource.assets });
+						core::maths::Vector3f{ 1.f, 1.f, 1.f },
+						resource.assets });
 				engine::graphics::renderer::post_make_selectable(entity);
 
 				gameplay::gamestate::post_add_workstation(
@@ -966,9 +966,9 @@ namespace
 					entity,
 					engine::graphics::data::CompT{
 						modelview,
-							core::maths::Vector3f { 1.f, 1.f, 1.f },
-							resource.mesh,
-								engine::Asset{ "dude" }});
+						core::maths::Vector3f { 1.f, 1.f, 1.f },
+						resource.mesh,
+						engine::Asset{ "dude" }});
 				engine::graphics::renderer::post_make_selectable(entity);
 
 				core::maths::Vector3f translation;
