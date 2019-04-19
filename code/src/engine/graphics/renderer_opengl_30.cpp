@@ -2242,29 +2242,6 @@ namespace
 		}
 
 
-		glLoadMatrix(modelview_matrix);
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, entitytexture);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-		glBegin(GL_QUADS);
-		{
-			glTexCoord2f(0.f, 0.f);
-			glVertex2i(100, 300);
-			glTexCoord2f(1.f// framebuffer_width
-			             , 0.f);
-			glVertex2i(300, 300);
-			glTexCoord2f(1.f// framebuffer_width
-			             , 1.f// framebuffer_height
-				);
-			glVertex2i(300, 100);
-			glTexCoord2f(0.f, 1.f// framebuffer_height
-				);
-			glVertex2i(100, 100);
-		}
-		glEnd();
-		glDisable(GL_TEXTURE_2D);
-
-
 		// clear depth to make GUI show over all prev. rendering
 		glClearDepth(1.0);
 		glEnable(GL_DEPTH_TEST);
