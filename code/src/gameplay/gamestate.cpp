@@ -463,7 +463,7 @@ namespace
 
 		debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
 		debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
-		auto asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
+		const engine::Asset asset(name.substr(4, name.length() - 4 - 4));
 
 		engine::graphics::renderer::post_register_texture(asset, std::move(image));
 	}

@@ -696,6 +696,11 @@ namespace ui
 
 	void destroy()
 	{
+		debug_printline(engine::asset_channel, contexts.size(), " contexts not unregistered:");
+		for (const auto & context : contexts)
+		{
+			debug_printline(engine::asset_channel, context.context);
+		}
 	}
 
 	void update()

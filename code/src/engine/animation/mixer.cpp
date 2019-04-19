@@ -500,6 +500,20 @@ namespace engine
 {
 	namespace animation
 	{
+		void create()
+		{}
+
+		void destroy()
+		{
+			engine::Asset sources_not_unregistered[sources.max_size()];
+			const int source_count = sources.get_all_keys(sources_not_unregistered, sources.max_size());
+			debug_printline(source_count, " sources not unregistered:");
+			for (int i = 0; i < source_count; i++)
+			{
+				debug_printline(sources_not_unregistered[i]);
+			}
+		}
+
 		/**
 		 * Sets callback instance, called from looper during setup
 		 */
