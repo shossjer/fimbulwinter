@@ -17,6 +17,7 @@ set(CODE_TEST_SOURCE
 	src/utility/iterator.cpp
 	src/utility/optional.cpp
 	src/utility/property.cpp
+   src/utility/string_view.cpp
 	src/utility/variant.cpp
 	)
 
