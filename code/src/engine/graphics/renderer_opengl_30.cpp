@@ -2296,21 +2296,13 @@ namespace
 				size[0], size[1],
 				size[0], 0.f
 			};
-			const GLfloat texcoords[] = {
-				0.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				1.f, 1.f
-			};
 			const GLushort indices[] = {
 				0, 1, 2,
 				2, 3, 0
 			};
 
 			const auto vertex_location = 5;
-			const auto texcoord_location = 7;
 			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(texcoord_location);
 			glVertexAttribPointer(
 				vertex_location,
 				2,
@@ -2318,19 +2310,11 @@ namespace
 				GL_FALSE,
 				0,
 				vertices);
-			glVertexAttribPointer(
-				texcoord_location,
-				2,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				texcoords);
 			glDrawElements(
 				GL_TRIANGLES,
 				6,
 				GL_UNSIGNED_SHORT,
 				indices);
-			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
 			const auto error_after = glGetError();
