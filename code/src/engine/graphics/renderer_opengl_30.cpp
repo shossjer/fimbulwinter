@@ -1937,7 +1937,7 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = true;
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
@@ -2074,7 +2074,7 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = true;
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
@@ -2275,7 +2275,7 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = true;
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
