@@ -1567,7 +1567,8 @@ namespace
 			std::tuple<int, int, engine::Entity, engine::Command> select_args;
 			while (queue_select.try_pop(select_args))
 			{
-				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
+				engine::graphics::renderer::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
+				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
 			}
 		}
 

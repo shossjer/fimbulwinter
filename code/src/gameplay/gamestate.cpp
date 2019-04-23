@@ -542,6 +542,57 @@ namespace
 		}
 	} recipes_ring;
 
+	struct get_tooltip
+	{
+		std::string operator () (engine::Entity entity, const Option &)
+		{
+			const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
+			return recipe.name;
+		}
+
+		template <typename X>
+		std::string operator () (engine::Entity entity, const X &)
+		{
+			return utility::to_string("description for entity ", entity);
+		}
+	};
+
+	struct Tooltip
+	{
+		engine::Entity frame = engine::Entity::create();
+		engine::Entity label = engine::Entity::create();
+
+		engine::Entity target = engine::Entity::null();
+
+		void display(engine::Entity entity, int x, int y)
+		{
+			if (target == entity)
+				return;
+
+			if (target != engine::Entity::null())
+			{
+				engine::graphics::renderer::post_remove(label);
+				engine::graphics::renderer::post_remove(frame);
+			}
+			if (entity != engine::Entity::null())
+			{
+				engine::graphics::renderer::post_add_panel(
+					frame,
+					engine::graphics::data::ui::PanelC{
+						make_translation_matrix(core::maths::Vector3f(static_cast<float>(x), static_cast<float>(y), 90.f)),
+						{200.f, 16.f},
+						0xff000000});
+				engine::graphics::renderer::post_add_text(
+					label,
+					engine::graphics::data::ui::Text{
+						make_translation_matrix(core::maths::Vector3f(static_cast<float>(x) + 1.f, static_cast<float>(y) + 15.f, 91.f)),
+						0xffffffff,
+						components.call(entity, get_tooltip{})});
+			}
+			target = entity;
+		}
+	} tooltip;
+
 	struct translate_command
 	{
 		engine::Command command;
@@ -782,16 +833,16 @@ namespace
 		{
 		case engine::command::RENDER_HIGHLIGHT:
 		{
-			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
-			if (highlighted_entity == entity)
+			if (highlighted_entity == select_data.entity)
 			{
-				if (entity != engine::Entity::null())
+				if (select_data.entity != engine::Entity::null())
 				{
-					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					const bool is_interactible = components.call(select_data.entity, can_be_interacted_with{*this});
 					if (!is_interactible)
 					{
-						lowlight(entity);
+						lowlight(select_data.entity);
 						highlighted_entity = engine::Entity::null();
 					}
 				}
@@ -803,42 +854,43 @@ namespace
 					lowlight(highlighted_entity);
 					highlighted_entity = engine::Entity::null();
 				}
-				if (entity != engine::Entity::null())
+				if (select_data.entity != engine::Entity::null())
 				{
-					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					const bool is_interactible = components.call(select_data.entity, can_be_interacted_with{*this});
 					if (is_interactible)
 					{
-						highlight(entity);
-						highlighted_entity = entity;
+						highlight(select_data.entity);
+						highlighted_entity = select_data.entity;
 					}
 				}
 			}
+			tooltip.display(highlighted_entity, select_data.cursor.x, select_data.cursor.y);
 			break;
 		}
 		case engine::command::RENDER_SELECT:
 		{
-			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
-			pressed_entity = entity;
+			pressed_entity = select_data.entity;
 			break;
 		}
 		case engine::command::RENDER_DESELECT:
 		{
-			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
-			if (pressed_entity == entity)
+			if (pressed_entity == select_data.entity)
 			{
-				if (entity != engine::Entity::null())
+				if (select_data.entity != engine::Entity::null())
 				{
-					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					const bool is_interactible = components.call(select_data.entity, can_be_interacted_with{*this});
 					if (is_interactible)
 					{
-						const bool is_selectable = components.call(entity, can_be_selected{*this});
+						const bool is_selectable = components.call(select_data.entity, can_be_selected{*this});
 						if (is_selectable)
 						{
-							if (selected_entity == entity)
+							if (selected_entity == select_data.entity)
 							{
-								deselect(entity);
+								deselect(select_data.entity);
 								selected_entity = engine::Entity::null();
 							}
 							else
@@ -848,11 +900,11 @@ namespace
 									deselect(selected_entity);
 									selected_entity = engine::Entity::null();
 								}
-								select(entity);
-								selected_entity = entity;
+								select(select_data.entity);
+								selected_entity = select_data.entity;
 							}
 						}
-						components.call(entity, interact_with{*this});
+						components.call(select_data.entity, interact_with{*this});
 					}
 					else
 					{
