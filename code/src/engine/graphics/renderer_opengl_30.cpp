@@ -1862,9 +1862,10 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
 
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, entitytexture);
@@ -1997,9 +1998,10 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
 
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, entitytexture);
@@ -2345,9 +2347,10 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
 
 			const auto normal_location = 6;
 			glVertexAttrib4f(normal_location, 0.f, 0.f, 1.f, 0.f);
