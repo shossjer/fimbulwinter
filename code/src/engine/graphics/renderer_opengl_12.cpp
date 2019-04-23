@@ -1380,9 +1380,9 @@ namespace
 			engine::graphics::opengl::Font::Data data;
 
 #if TEXT_USE_FREETYPE
-			if (!data.load("res/font/consolas.ttf", 12))
+			if (!data.load("res/font/consolas.ttf", 14))
 #else
-			if (!data.load("consolas", 12))
+			if (!data.load("consolas", 14))
 #endif
 			{
 				debug_fail();
