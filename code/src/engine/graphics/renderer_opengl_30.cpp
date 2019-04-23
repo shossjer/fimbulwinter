@@ -8,23 +8,23 @@
 
 #include <config.h>
 
-#include <core/color.hpp>
-#include <core/async/Thread.hpp>
-#include <core/container/CircleQueue.hpp>
-#include <core/container/Collection.hpp>
-#include <core/container/ExchangeQueue.hpp>
-#include <core/container/Stack.hpp>
-#include <core/maths/Vector.hpp>
-#include <core/maths/algorithm.hpp>
+#include "core/color.hpp"
+#include "core/async/Thread.hpp"
+#include "core/container/CircleQueue.hpp"
+#include "core/container/Collection.hpp"
+#include "core/container/ExchangeQueue.hpp"
+#include "core/container/Stack.hpp"
+#include "core/maths/Vector.hpp"
+#include "core/maths/algorithm.hpp"
 #include "core/PngStructurer.hpp"
 #include "core/serialization.hpp"
-#include <core/sync/Event.hpp>
+#include "core/sync/Event.hpp"
 
-#include <engine/Asset.hpp>
-#include <engine/Command.hpp>
-#include <engine/debug.hpp>
+#include "engine/Asset.hpp"
+#include "engine/Command.hpp"
+#include "engine/debug.hpp"
 #include "engine/graphics/message.hpp"
-#include <engine/graphics/viewer.hpp>
+#include "engine/graphics/viewer.hpp"
 #include "engine/resource/reader.hpp"
 
 #include "utility/any.hpp"
