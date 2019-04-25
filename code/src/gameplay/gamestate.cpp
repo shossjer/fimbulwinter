@@ -307,7 +307,25 @@ namespace
 			return diff;
 		}
 
-		void compute_role(const gameplay::Roles & roles)
+		const gameplay::Role & compute_role(const gameplay::Roles & roles) const
+		{
+			debug_assert(roles.size() > 0);
+
+			double best_score = score_role(roles.get(0));
+			int best_index = 0;
+			for (int i = 1; i < roles.size(); i++)
+			{
+				const double score = score_role(roles.get(i));
+				if (score < best_score)
+				{
+					best_score = score;
+					best_index = i;
+				}
+			}
+			return roles.get(best_index);
+		}
+
+		void print_best_to_worst_roles(const gameplay::Roles & roles) const
 		{
 			std::vector<double> scores;
 			std::vector<int> indices;
@@ -385,7 +403,7 @@ namespace
 			{
 				debug_printline("\"", kitchen.skills.get(i).name, "\" = ", w.skills[i]);
 			}
-			w.compute_role(kitchen.roles);
+			w.print_best_to_worst_roles(kitchen.roles);
 		}
 
 		void update(Preparation & preparation)
@@ -560,6 +578,12 @@ namespace
 		{
 			const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
 			return recipe.name;
+		}
+
+		std::string operator () (engine::Entity entity, const Worker & x)
+		{
+			const auto & role = x.compute_role(kitchen.roles);
+			return role.name;
 		}
 
 		std::string operator () (engine::Entity entity, const Workstation & x)
