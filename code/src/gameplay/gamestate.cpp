@@ -193,6 +193,11 @@ namespace
 			return !tables.contains(table);
 		}
 
+		bool has_preparation(engine::Entity table) const
+		{
+			return tables.contains<Preparation>(table);
+		}
+
 		bool has_preparation_in_progress(engine::Entity table) const
 		{
 			if (!tables.contains<Preparation>(table))
@@ -202,7 +207,14 @@ namespace
 			return preparation.time_remaining > 0;
 		}
 
-		Preparation& prepare(engine::Entity table, const gameplay::Recipe & recipe)
+		const Preparation & get_preparation(engine::Entity table) const
+		{
+			debug_assert(has_preparation(table));
+
+			return tables.get<Preparation>(table);
+		}
+
+		Preparation & prepare(engine::Entity table, const gameplay::Recipe & recipe)
 		{
 			debug_assert(is_empty(table));
 
@@ -550,6 +562,27 @@ namespace
 			return recipe.name;
 		}
 
+		std::string operator () (engine::Entity entity, const Workstation & x)
+		{
+			if (kitchen.is_empty(entity))
+				return "empty";
+
+			if (kitchen.has_preparation_in_progress(entity))
+			{
+				const auto & preparation = kitchen.get_preparation(entity);
+				const double percentage_complete = static_cast<double>(preparation.recipe->time.value() * 50 - preparation.time_remaining) / static_cast<double>(preparation.recipe->time.value() * 50) * 100.;
+				return utility::to_string(preparation.recipe->name, " ", static_cast<int>(percentage_complete), "%");
+			}
+
+			if (kitchen.has_preparation(entity))
+			{
+				const auto & preparation = kitchen.get_preparation(entity);
+				return utility::to_string(preparation.number_of_stacks, "x ", preparation.recipe->name);
+			}
+
+			return "unknown workstation state";
+		}
+
 		template <typename X>
 		std::string operator () (engine::Entity entity, const X &)
 		{
@@ -563,33 +596,48 @@ namespace
 		engine::Entity label = engine::Entity::create();
 
 		engine::Entity target = engine::Entity::null();
+		int x;
+		int y;
+
+		engine::graphics::data::ui::PanelC build_frame() const
+		{
+			return {make_translation_matrix(core::maths::Vector3f(static_cast<float>(x), static_cast<float>(y), 90.f)),
+			        {200.f, 16.f},
+			        0xff000000};
+		}
+		engine::graphics::data::ui::Text build_label() const
+		{
+			return {make_translation_matrix(core::maths::Vector3f(static_cast<float>(x) + 1.f, static_cast<float>(y) + 15.f, 91.f)),
+			        0xffffffff,
+			        components.call(target, get_tooltip{})};
+		}
 
 		void display(engine::Entity entity, int x, int y)
 		{
 			if (target == entity)
+			{
+				if (target != engine::Entity::null())
+				{
+					engine::graphics::renderer::post_update_panel(frame, build_frame());
+					engine::graphics::renderer::post_update_text(label, build_label());
+				}
 				return;
+			}
 
 			if (target != engine::Entity::null())
 			{
 				engine::graphics::renderer::post_remove(label);
 				engine::graphics::renderer::post_remove(frame);
 			}
-			if (entity != engine::Entity::null())
-			{
-				engine::graphics::renderer::post_add_panel(
-					frame,
-					engine::graphics::data::ui::PanelC{
-						make_translation_matrix(core::maths::Vector3f(static_cast<float>(x), static_cast<float>(y), 90.f)),
-						{200.f, 16.f},
-						0xff000000});
-				engine::graphics::renderer::post_add_text(
-					label,
-					engine::graphics::data::ui::Text{
-						make_translation_matrix(core::maths::Vector3f(static_cast<float>(x) + 1.f, static_cast<float>(y) + 15.f, 91.f)),
-						0xffffffff,
-						components.call(entity, get_tooltip{})});
-			}
 			target = entity;
+			this->x = x;
+			this->y = y;
+
+			if (target != engine::Entity::null())
+			{
+				engine::graphics::renderer::post_add_panel(frame, build_frame());
+				engine::graphics::renderer::post_add_text(label, build_label());
+			}
 		}
 	} tooltip;
 
@@ -864,7 +912,7 @@ namespace
 					}
 				}
 			}
-			tooltip.display(highlighted_entity, select_data.cursor.x, select_data.cursor.y);
+			tooltip.display(select_data.entity, select_data.cursor.x, select_data.cursor.y);
 			break;
 		}
 		case engine::command::RENDER_SELECT:
