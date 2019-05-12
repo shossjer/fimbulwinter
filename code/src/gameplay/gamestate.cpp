@@ -426,7 +426,6 @@ namespace
 			}
 		}
 
-	private:
 		void cleanup(const Preparation & preparation)
 		{
 			engine::animation::post_update_action(worker, engine::animation::action{"idle", true});
@@ -436,6 +435,7 @@ namespace
 			engine::graphics::renderer::post_remove(bar);
 		}
 
+	private:
 		void barUpdate(float normalized_progress)
 		{
 			engine::graphics::renderer::post_add_bar(bar, engine::graphics::data::Bar{
@@ -500,12 +500,15 @@ namespace
 
 	struct
 	{
-		std::vector<engine::Entity> entities;
+		std::vector<engine::Entity> recipe_entities;
+		std::vector<engine::Entity> other_entities;
+
 		std::vector<engine::Entity> shown_entities;
 
 		void init(const gameplay::Recipes & recipes)
 		{
-			entities.reserve(recipes.size());
+			recipe_entities.reserve(recipes.size());
+			other_entities.reserve(2);
 			shown_entities.reserve(recipes.size());
 
 			for (int i = 0; i < recipes.size(); i++)
@@ -513,18 +516,31 @@ namespace
 				engine::resource::reader::post_read(utility::to_string("res/", recipes.get(i).name, ".png"), data_callback_image);
 
 				const engine::Entity entity = engine::Entity::create();
-				entities.push_back(entity);
+				recipe_entities.push_back(entity);
+				components.emplace<Option>(entity);
+			}
+
+			for (int i = 0; i < 2; i++)
+			{
+				const engine::Entity entity = engine::Entity::create();
+				other_entities.push_back(entity);
 				components.emplace<Option>(entity);
 			}
 		}
 
+		bool is_recipe(engine::Entity entity) const
+		{
+			auto maybe = std::find(recipe_entities.begin(), recipe_entities.end(), entity);
+			return maybe != recipe_entities.end();
+		}
+
 		const gameplay::Recipe & get(const gameplay::Recipes & recipes, engine::Entity entity) const
 		{
-			debug_assert(recipes.size() == entities.size());
+			debug_assert(recipes.size() == recipe_entities.size());
 
-			auto maybe = std::find(entities.begin(), entities.end(), entity);
-			debug_assert(maybe != entities.end());
-			const int index = std::distance(entities.begin(), maybe);
+			auto maybe = std::find(recipe_entities.begin(), recipe_entities.end(), entity);
+			debug_assert(maybe != recipe_entities.end());
+			const int index = std::distance(recipe_entities.begin(), maybe);
 
 			return recipes.get(index);
 		}
@@ -540,14 +556,14 @@ namespace
 
 		void show(const gameplay::Recipes & recipes, const std::vector<const gameplay::Recipe *> & shown_recipes, const core::maths::Vector3f & center)
 		{
-			debug_assert(recipes.size() == entities.size());
+			debug_assert(recipes.size() == recipe_entities.size());
 
 			hide();
 
 			for (int i = 0; i < shown_recipes.size(); i++)
 			{
 				const int recipe_index = recipes.index(*shown_recipes[i]);
-				const auto entity = entities[recipe_index];
+				const auto entity = recipe_entities[recipe_index];
 				debug_assert(std::find(shown_entities.begin(), shown_entities.end(), entity) == shown_entities.end());
 
 				const float radius = 96.f;
@@ -570,14 +586,70 @@ namespace
 				shown_entities.push_back(entity);
 			}
 		}
+
+		int index_of_other(engine::Asset asset) const
+		{
+			constexpr engine::Asset assets[] = {engine::Asset("continue"), engine::Asset("trash")};
+
+			auto maybe = std::find(std::begin(assets), std::end(assets), asset);
+			debug_assert(maybe != std::end(assets));
+			return std::distance(std::begin(assets), maybe);
+		}
+
+		std::string name_of_other(engine::Entity entity) const
+		{
+			constexpr const char * const names[] = {"continue", "trash"};
+
+			auto maybe = std::find(other_entities.begin(), other_entities.end(), entity);
+			debug_assert(maybe != other_entities.end());
+			const int index = std::distance(other_entities.begin(), maybe);
+			return names[index];
+		}
+
+		void show(const engine::Asset * const assets, int nassets, const core::maths::Vector3f & center)
+		{
+			hide();
+
+			for (int i = 0; i < nassets; i++)
+			{
+				const int other_index = index_of_other(assets[i]);
+				const auto entity = other_entities[other_index];
+
+				const float radius = 96.f;
+				const float angle = static_cast<float>(i) / static_cast<float>(nassets) * 2.f * 3.14159265f - 3.14159265f / 2.f;
+
+				core::maths::Matrix4x4f matrix = make_translation_matrix(
+					center + core::maths::Vector3f(
+						radius * std::cos(angle) - 32.f,
+						radius * std::sin(angle) - 32.f,
+						0.f));
+				core::maths::Vector2f size(64.f, 64.f);
+
+				engine::graphics::renderer::post_add_panel(
+					entity,
+					engine::graphics::data::ui::PanelC{
+						matrix,
+						size,
+						other_index == 0 ? 0xff00ffff : other_index == 1 ? 0xff00ff00 : other_index == 2 ? 0xff0000ff : 0xffcccccc});
+				engine::graphics::renderer::post_make_selectable(entity);
+				shown_entities.push_back(entity);
+			}
+		}
 	} recipes_ring;
 
 	struct get_tooltip
 	{
 		std::string operator () (engine::Entity entity, const Option &)
 		{
-			const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
-			return recipe.name;
+			if (recipes_ring.is_recipe(entity))
+			{
+				const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
+				return recipe.name;
+			}
+			else
+			{
+				return recipes_ring.name_of_other(entity);
+			}
 		}
 
 		std::string operator () (engine::Entity entity, const Worker & x)
@@ -738,26 +810,26 @@ namespace
 			return true;
 		}
 
-		bool operator () (engine::Entity entity, const Workstation &)
+		bool operator () (engine::Entity entity, const Workstation & x)
 		{
 			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
 			if (!has_selected_worker)
 				return false;
+
+			const bool is_busy = x.isBusy() && x.worker != selector.selected_entity;
+			if (is_busy)
+				return false;
+
+			const bool is_empty = kitchen.is_empty(entity);
+			if (!is_empty)
+				return true;
 
 			const auto & available_recipes = kitchen.get_available_recipes();
 			const bool has_available_recipes = !available_recipes.empty();
 			if (!has_available_recipes)
 				return false;
 
-			const bool is_empty = kitchen.is_empty(entity);
-			if (is_empty)
-				return true;
-
-			const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(entity);
-			if (has_preparation_in_progress)
-				return true;
-
-			return false;
+			return true;
 		}
 
 		bool operator () (engine::Entity, const Option &)
@@ -797,51 +869,35 @@ namespace
 			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
 			debug_assert(has_selected_worker);
 
-			const auto & available_recipes = kitchen.get_available_recipes();
-			const bool has_available_recipes = !available_recipes.empty();
-			debug_assert(has_available_recipes);
+			const bool is_busy = x.isBusy() && x.worker != selector.selected_entity;
+			debug_assert(!is_busy);
 
 			const bool is_empty = kitchen.is_empty(entity);
-			const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(entity);
-			debug_assert((is_empty || has_preparation_in_progress));
-
-			if (x.isBusy())
+			if (is_empty)
 			{
-				if (x.worker == selector.selected_entity)
-				{
-					debug_printline(gameplay::gameplay_channel, "I'm already working as fast as I can!");
-					return;
-				}
-				debug_printline(gameplay::gameplay_channel, "The station is busy!");
-				return;
-			}
-
-			if (has_preparation_in_progress)
-			{
-				Worker & worker = components.get<Worker>(selector.selected_entity);
-				move_to_workstation(worker, selector.selected_entity, x, entity);
-
-				auto & preparation = kitchen.tables.get<Preparation>(entity);
-				if (preparation.time_remaining <= 0)
-				{
-					x.finish(preparation);
-				}
-				else
-				{
-					x.start(preparation);
-				}
-			}
-			else
-			{
-				debug_printline("What would you want me to do? I can...");
-				for (const auto& recipe : available_recipes)
-				{
-					debug_printline("make some ", recipe->name);
-				}
+				const auto & available_recipes = kitchen.get_available_recipes();
+				const bool has_available_recipes = !available_recipes.empty();
+				debug_assert(has_available_recipes);
 
 				selector.targeted_entity = entity;
 				recipes_ring.show(kitchen.recipes, available_recipes, {200.f, 200.f, 0.f});
+				return;
 			}
+
+			const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(entity);
+			if (has_preparation_in_progress)
+			{
+				constexpr engine::Asset assets[] = { engine::Asset("continue"), engine::Asset("trash") };
+
+				selector.targeted_entity = entity;
+				recipes_ring.show(assets, 2, {200.f, 200.f, 0.f});
+				return;
+			}
+
+			constexpr engine::Asset assets[] = { engine::Asset("trash") };
+
+			selector.targeted_entity = entity;
+			recipes_ring.show(assets, 1, {200.f, 200.f, 0.f});
 		}
 
 		void operator () (engine::Entity entity, const Option &)
@@ -854,21 +910,67 @@ namespace
 
 			recipes_ring.hide();
 
-			const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
-			auto & preparation = kitchen.prepare(selector.targeted_entity, recipe);
-
-			Worker & worker = components.get<Worker>(selector.selected_entity);
-			Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
-			// assign worker to station, clears prev. if any.
-			move_to_workstation(worker, selector.selected_entity, workstation, selector.targeted_entity);
-
-			if (preparation.time_remaining <= 0)
+			if (recipes_ring.is_recipe(entity))
 			{
-				workstation.finish(preparation);
+				Worker & worker = components.get<Worker>(selector.selected_entity);
+				Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
+				move_to_workstation(worker, selector.selected_entity, workstation, selector.targeted_entity);
+
+				const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
+				auto & preparation = kitchen.prepare(selector.targeted_entity, recipe);
+				if (preparation.time_remaining <= 0)
+				{
+					workstation.finish(preparation);
+				}
+				else
+				{
+					workstation.start(preparation);
+				}
 			}
 			else
 			{
-				workstation.start(preparation);
+				switch (engine::Asset(recipes_ring.name_of_other(entity)))
+				{
+				case engine::Asset("continue"):
+				{
+					const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(selector.targeted_entity);
+					debug_assert(has_preparation_in_progress);
+
+					Worker & worker = components.get<Worker>(selector.selected_entity);
+					Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
+					move_to_workstation(worker, selector.selected_entity, workstation, selector.targeted_entity);
+
+					auto & preparation = kitchen.tables.get<Preparation>(selector.targeted_entity);
+					if (preparation.time_remaining <= 0)
+					{
+						workstation.finish(preparation);
+					}
+					else
+					{
+						workstation.start(preparation);
+					}
+					break;
+				}
+				case engine::Asset("trash"):
+				{
+					const bool is_empty = kitchen.is_empty(selector.targeted_entity);
+					debug_assert(!is_empty);
+
+					Worker & worker = components.get<Worker>(selector.selected_entity);
+					Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
+					move_to_workstation(worker, selector.selected_entity, workstation, selector.targeted_entity);
+
+					auto & preparation = kitchen.tables.get<Preparation>(selector.targeted_entity);
+					if (preparation.time_remaining > 0)
+					{
+						workstation.cleanup(preparation);
+					}
+					kitchen.tables.remove(selector.targeted_entity);
+					break;
+				}
+				default:
+					debug_unreachable();
+				}
 			}
 		}
 
