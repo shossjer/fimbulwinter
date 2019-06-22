@@ -128,9 +128,9 @@ namespace utility
 		std::array<storing_t, Capacity> storage_;
 
 	public:
-		void allocate(std::size_t capacity)
+		bool allocate(std::size_t capacity)
 		{
-			assert(capacity <= Capacity);
+			return capacity <= Capacity;
 		}
 
 		void deallocate(std::size_t capacity)
@@ -217,12 +217,13 @@ namespace utility
 		} impl_;
 
 	public:
-		void allocate(std::size_t capacity)
+		bool allocate(std::size_t capacity)
 		{
 #if MODE_DEBUG
 			assert(!storage());
 #endif
 			storage() = allocator_traits::allocate(allocator(), capacity);
+			return storage() != nullptr;
 		}
 
 		void deallocate(std::size_t capacity)
