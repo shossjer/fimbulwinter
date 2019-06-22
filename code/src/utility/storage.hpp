@@ -320,6 +320,22 @@ namespace utility
 	template <template <typename> class Allocator>
 	using dynamic_storage_traits = storage_traits<dynamic_storage<int, Allocator>>;
 	using heap_storage_traits = dynamic_storage_traits<heap_allocator>;
+
+	template <typename StorageTraits, typename ...Us>
+	using storage_traits_is_trivially_destructible = mpl::conjunction<typename StorageTraits::template storage_type<Us>::storing_trivially_destructible...,
+	                                                                  typename StorageTraits::trivial_deallocate>;
+	template <typename StorageTraits, typename ...Us>
+	using storage_traits_is_copy_constructible = mpl::conjunction<std::is_copy_constructible<typename StorageTraits::template storage_type<Us>>...>;
+	template <typename StorageTraits, typename ...Us>
+	using storage_traits_is_copy_assignable = mpl::conjunction<std::is_copy_assignable<typename StorageTraits::template storage_type<Us>>...>;
+	template <typename StorageTraits, typename ...Us>
+	using storage_traits_is_trivially_move_constructible =
+		mpl::conjunction<std::is_move_constructible<typename StorageTraits::template storage_type<Us>>...,
+		                 mpl::negation<typename StorageTraits::moves_allocation>>;
+	template <typename StorageTraits, typename ...Us>
+	using storage_traits_is_trivially_move_assignable =
+		mpl::conjunction<std::is_move_assignable<typename StorageTraits::template storage_type<Us>>...,
+		                 mpl::negation<typename StorageTraits::moves_allocation>>;
 }
 
 #endif /* UTILITY_STORAGE_HPP */

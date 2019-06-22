@@ -50,18 +50,17 @@ namespace core
 
 			using bucket_t = uint32_t;
 
-			template <typename storage_traits, typename C>
+			template <typename StorageTraits, typename C>
 			class bucket_array_t
 			{
 			private:
-				std::size_t size_ = 0;
-				utility::array_alloc<storage_traits, C, bucket_t> data_;
+				utility::array_wrapper<utility::array_data<StorageTraits, C, bucket_t>> data_;
 
 			public:
 				C * begin() { return components().data(); }
 				const C * begin() const { return components().data(); }
-				C * end() { return components().data() + size_; }
-				const C * end() const { return components().data() + size_; }
+				C * end() { return components().data() + data_.size(); }
+				const C * end() const { return components().data() + data_.size(); }
 
 				C & get(std::ptrdiff_t index) { return components()[index]; }
 				const C & get(std::ptrdiff_t index) const { return components()[index]; }
@@ -69,39 +68,34 @@ namespace core
 				bucket_t bucket_at(std::ptrdiff_t index) const { return buckets()[index]; }
 
 				constexpr std::size_t capacity() const { return data_.capacity(); }
-				std::size_t size() const { return size_; }
+				std::size_t size() const { return data_.size(); }
 
 				void clear()
 				{
-				   components().destruct_range(0, size_);
-				   using bucket_storage_t = mpl::remove_cvref_t<decltype(buckets())>;
-				   static_assert(bucket_storage_t::storing_trivially_destructible::value, "no need to destruct");
-					size_ = 0;
+					data_.destruct_range(0, data_.size());
+					data_.set_size(0);
 				}
 
 				template <typename ...Ps>
 				void emplace_back(bucket_t bucket, Ps && ...ps)
 				{
-					data_.try_grow(size_);
-					debug_assert(size_ < data_.capacity());
+					data_.grow();
 
-				   components().construct_at(size_, std::forward<Ps>(ps)...);
-					buckets()[size_] = bucket;
-					size_++;
+					components().construct_at(data_.size(), std::forward<Ps>(ps)...);
+					buckets()[data_.size()] = bucket;
+					data_.set_size(data_.size() + 1);
 				}
 
 				void remove_at(std::ptrdiff_t index)
 				{
-					debug_assert((0 <= index && index < size_));
+					debug_assert((0 <= index && index < data_.size()));
 
-					const auto last = size_ - 1;
+					const auto last = data_.size() - 1;
 
-				   components()[index] = std::move(components()[last]);
+					components()[index] = std::move(components()[last]);
 					buckets()[index] = std::move(buckets()[last]);
-				   components().destruct_at(last);
-				   using bucket_storage_t = mpl::remove_cvref_t<decltype(buckets())>;
-					static_assert(bucket_storage_t::storing_trivially_destructible::value, "no need to destruct");
-					size_--;
+					data_.destruct_range(last, data_.size());
+					data_.set_size(last);
 				}
 			private:
 				decltype(auto) components() { return data_.template get<0>(); }
