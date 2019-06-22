@@ -274,18 +274,6 @@ namespace utility
 
 	template <typename Storage>
 	struct storage_traits;
-	template <typename T, std::size_t Capacity>
-	struct storage_traits<static_storage<T, Capacity>>
-	{
-		template <typename U>
-		using storage_type = static_storage<U, Capacity>;
-
-		using static_capacity = mpl::true_type;
-		using trivial_allocate = mpl::true_type;
-		using trivial_deallocate = mpl::true_type;
-
-		static constexpr std::size_t capacity_value = Capacity;
-	};
 	template <typename T>
 	struct storage_traits<heap_storage<T>>
 	{
@@ -295,10 +283,35 @@ namespace utility
 		using static_capacity = mpl::false_type;
 		using trivial_allocate = mpl::false_type;
 		using trivial_deallocate = mpl::false_type;
+		using moves_allocation = mpl::true_type;
 
-		static std::size_t grow(std::size_t capacity)
+		static std::size_t grow(std::size_t capacity, std::size_t amount)
 		{
+			assert(amount <= 8 || amount <= capacity);
 			return capacity < 8 ? 8 : capacity * 2;
+		}
+
+		static std::size_t capacity_for(std::size_t size)
+		{
+			return size;
+		}
+	};
+	template <typename T, std::size_t Capacity>
+	struct storage_traits<static_storage<T, Capacity>>
+	{
+		template <typename U>
+		using storage_type = static_storage<U, Capacity>;
+
+		using static_capacity = mpl::true_type;
+		using trivial_allocate = mpl::true_type;
+		using trivial_deallocate = mpl::true_type;
+		using moves_allocation = mpl::false_type;
+
+		static constexpr std::size_t capacity_value = Capacity;
+
+		static std::size_t capacity_for(std::size_t /*size*/)
+		{
+			return capacity_value;
 		}
 	};
 
