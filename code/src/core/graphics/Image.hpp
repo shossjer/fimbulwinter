@@ -26,6 +26,17 @@ namespace core
 			core::container::Buffer pixels_;
 
 		public:
+			Image() = default;
+			Image(int width, int height, int8_t bit_depth, int8_t channel_count, ColorType color, core::container::Buffer && pixels)
+				: width_(width)
+				, height_(height)
+				, bit_depth_(bit_depth)
+				, channel_count_(channel_count)
+				, color_(color)
+				, pixels_(std::move(pixels))
+			{}
+
+		public:
 			int width() const { return width_; }
 			int height() const { return height_; }
 
