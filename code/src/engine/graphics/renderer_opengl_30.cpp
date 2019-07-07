@@ -509,6 +509,131 @@ namespace
 	materials;
 
 
+	struct FontManager
+	{
+		struct SymbolData
+		{
+			int16_t offset_x;
+			int16_t offset_y;
+			int16_t advance_x;
+			int16_t advance_y;
+		};
+
+		struct FontInfo
+		{
+			std::vector<int> allowed_unicodes;
+			std::vector<SymbolData> symbol_data;
+
+			int symbol_width;
+			int symbol_height;
+			int texture_width; // ?
+			int texture_height; // ?
+
+			std::string name;
+			int size;
+		};
+
+		engine::Asset assets[10];
+		FontInfo infos[10];
+		int count = 0;
+
+		int find(engine::Asset asset) const
+		{
+			return std::find(assets, assets + count, asset) - assets;
+		}
+
+		bool has(engine::Asset asset) const
+		{
+			return find(asset) < count;
+		}
+
+		void compile(engine::Asset asset, utility::string_view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
+		{
+			const int index = find(asset);
+			debug_assert(index < count);
+
+			const FontInfo & info = infos[index];
+
+			const int len = text.length().get();
+			vertices.resize<float>(4 * len * 2);
+			texcoords.resize<float>(4 * len * 2);
+
+			const int slots_in_width = info.texture_width / info.symbol_width;
+
+			float * vertex_data = vertices.data_as<float>();
+			float * texcoord_data = texcoords.data_as<float>();
+
+			int x = 0;
+			int y = 0;
+			int i = 0;
+			for (auto cp : text)
+			{
+				// the null glyph is stored at the end
+				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp.get());
+				const int slot = (maybe == info.allowed_unicodes.end() || *maybe != cp.get() ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin();
+				const int slot_y = slot / slots_in_width;
+				const int slot_x = slot % slots_in_width;
+
+				const float blx = static_cast<float>(x + info.symbol_data[slot].offset_x);
+				const float bly = static_cast<float>(y + info.symbol_data[slot].offset_y);
+				const float trx = static_cast<float>(x + info.symbol_data[slot].offset_x + info.symbol_width);
+				const float try_ = static_cast<float>(y + info.symbol_data[slot].offset_y - info.symbol_height);
+
+				vertex_data[2 * 0 + 0] = blx;
+				vertex_data[2 * 0 + 1] = bly;
+				vertex_data[2 * 1 + 0] = trx;
+				vertex_data[2 * 1 + 1] = bly;
+				vertex_data[2 * 2 + 0] = trx;
+				vertex_data[2 * 2 + 1] = try_;
+				vertex_data[2 * 3 + 0] = blx;
+				vertex_data[2 * 3 + 1] = try_;
+
+				const float tex_blx = static_cast<float>(static_cast<double>(slot_x * info.symbol_width) / static_cast<double>(info.texture_width));
+				const float tex_bly = static_cast<float>(static_cast<double>(slot_y * info.symbol_height) / static_cast<double>(info.texture_height));
+				const float tex_trx = static_cast<float>(static_cast<double>((slot_x + 1) * info.symbol_width) / static_cast<double>(info.texture_width));
+				const float tex_try = static_cast<float>(static_cast<double>((slot_y + 1) * info.symbol_height) / static_cast<double>(info.texture_height));
+
+				texcoord_data[2 * 0 + 0] = tex_blx;
+				texcoord_data[2 * 0 + 1] = tex_bly;
+				texcoord_data[2 * 1 + 0] = tex_trx;
+				texcoord_data[2 * 1 + 1] = tex_bly;
+				texcoord_data[2 * 2 + 0] = tex_trx;
+				texcoord_data[2 * 2 + 1] = tex_try;
+				texcoord_data[2 * 3 + 0] = tex_blx;
+				texcoord_data[2 * 3 + 1] = tex_try;
+
+				vertex_data += 4 * 2;
+				texcoord_data += 4 * 2;
+
+				x += info.symbol_data[slot].advance_x;
+				y += info.symbol_data[slot].advance_y;
+				i++;
+			}
+		}
+
+		void create(std::string && name, std::vector<int> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
+		{
+			const engine::Asset asset(name);
+			const int index = find(asset);
+			debug_assert(index >= count);
+
+			assets[index] = asset;
+
+			FontInfo & info = infos[index];
+			info.allowed_unicodes = std::move(allowed_unicodes);
+			info.symbol_data = std::move(symbol_data);
+			info.symbol_width = symbol_width;
+			info.symbol_height = symbol_height;
+			info.texture_width = texture_width;
+			info.texture_height = texture_height;
+			info.name = std::move(name);
+			info.size = 0; // ?
+
+			count++;
+		}
+	};
+
+
 	struct mesh_t
 	{
 		core::maths::Matrix4x4f modelview;
@@ -969,6 +1094,7 @@ namespace
 
 	core::container::CircleQueueSRSW<std::pair<std::string, ShaderData>, 20> queue_shaders;
 
+	FontManager font_manager;
 	ShaderManager shader_manager;
 
 	void maybe_resize_framebuffer();
