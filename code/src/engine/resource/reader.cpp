@@ -134,6 +134,11 @@ namespace
 		read_file<core::ArmatureStructurer>(name, filename, callback);
 	}
 
+	void read_bytes(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	{
+		read_file<core::BytesStructurer>(name, filename, callback);
+	}
+
 	void read_glsl(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
 		read_file<core::ShaderStructurer>(name, filename, callback);

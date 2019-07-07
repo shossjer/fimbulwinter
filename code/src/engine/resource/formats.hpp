@@ -13,6 +13,7 @@ namespace engine
 		enum struct Format
 		{
 			Armature,
+			Bytes,
 			Ini,
 			Json,
 			Level,
@@ -28,6 +29,7 @@ namespace engine
 		{
 			return utility::make_lookup_table(
 				std::make_pair(utility::string_view("arm"), Format::Armature),
+				std::make_pair(utility::string_view("bytes"), Format::Bytes),
 				std::make_pair(utility::string_view("ini"), Format::Ini),
 				std::make_pair(utility::string_view("json"), Format::Json),
 				std::make_pair(utility::string_view("lvl"), Format::Level),
