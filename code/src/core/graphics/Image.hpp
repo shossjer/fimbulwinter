@@ -2,6 +2,7 @@
 #ifndef CORE_GRAPHICS_IMAGE_HPP
 #define CORE_GRAPHICS_IMAGE_HPP
 
+#include "core/container/Buffer.hpp"
 #include "core/graphics/types.hpp"
 #include "core/serialization.hpp"
 
@@ -22,7 +23,7 @@ namespace core
 			int8_t channel_count_;
 			ColorType color_;
 
-			std::vector<char> pixels_;
+			core::container::Buffer pixels_;
 
 		public:
 			int width() const { return width_; }
@@ -33,6 +34,7 @@ namespace core
 			ColorType color() const { return color_; }
 
 			const void * data() const { return pixels_.data(); }
+			const core::container::Buffer & pixels() const { return pixels_; }
 
 		public:
 			static constexpr auto serialization()

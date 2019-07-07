@@ -2,6 +2,7 @@
 #ifndef CORE_PNGSTRUCTURER_HPP
 #define CORE_PNGSTRUCTURER_HPP
 
+#include "core/container/Buffer.hpp"
 #include "core/debug.hpp"
 #include "core/graphics/types.hpp"
 #include "core/ReadStream.hpp"
@@ -96,11 +97,13 @@ namespace core
 			debug_printline(core::core_channel, "image_width: ", image_width);
 			debug_printline(core::core_channel, "image_height: ", image_height);
 			debug_printline(core::core_channel, "bit_depth: ", bit_depth);
-			std::vector<char> pixels(row_size * image_height);
+			core::container::Buffer pixels(core::container::Buffer::Format::uint8, row_size * image_height);
 			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
 			std::vector<png_bytep> rows(image_height);
 			for (int i = 0; i < image_height; i++)
-				rows[i] = reinterpret_cast<png_bytep>(&pixels[(image_height - 1 - i) * row_size]);
+			{
+				rows[i] = reinterpret_cast<png_bytep>(pixels.data() + (image_height - 1 - i) * row_size);
+			}
 
 			png_read_image(png_ptr, rows.data());
 			png_read_end(png_ptr, end_info);
@@ -131,7 +134,7 @@ namespace core
 
 			if (member_table<T>::has("pixel_data"))
 			{
-				member_table<T>::call("pixel_data", x, TryAssign<std::vector<char> &&>(std::move(pixels)));
+				member_table<T>::call("pixel_data", x, TryAssign<core::container::Buffer &&>(std::move(pixels)));
 			}
 		}
 	private:

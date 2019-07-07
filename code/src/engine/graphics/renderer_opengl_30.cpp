@@ -311,6 +311,11 @@ namespace
 
 namespace
 {
+	constexpr std::array<GLenum, 10> BufferFormats =
+	{{
+		GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, (GLenum)-1, GL_BYTE, GL_SHORT, GL_INT, (GLenum)-1, GL_FLOAT, GL_DOUBLE
+	}};
+
 	struct display_t
 	{
 		int x;
@@ -447,10 +452,10 @@ namespace
 			switch (image.color())
 			{
 			case core::graphics::ColorType::RGB:
-				glTexImage2D(GL_TEXTURE_2D, 0, 3, image.width(), image.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, image.data());
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_RGB, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
 				break;
 			case core::graphics::ColorType::RGBA:
-				glTexImage2D(GL_TEXTURE_2D, 0, 4, image.width(), image.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_RGBA, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
 				break;
 			default:
 				debug_unreachable();
@@ -1579,11 +1584,6 @@ namespace
 		engine::resource::reader::post_read("res/gfx/entity.130.glsl", data_callback_shader);
 		engine::resource::reader::post_read("res/gfx/texture.130.glsl", data_callback_shader);
 	}
-
-	constexpr std::array<GLenum, 10> BufferFormats =
-	{{
-		GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, (GLenum)-1, GL_BYTE, GL_SHORT, GL_INT, (GLenum)-1, GL_FLOAT, GL_DOUBLE
-	}};
 
 	void render_update()
 	{
