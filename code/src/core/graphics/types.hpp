@@ -8,6 +8,7 @@ namespace core
 	{
 		enum struct ColorType
 		{
+			R,
 			RGB,
 			RGBA
 		};

@@ -459,6 +459,9 @@ namespace
 
 			switch (image.color())
 			{
+			case core::graphics::ColorType::R:
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, image.width(), image.height(), 0, GL_RED, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				break;
 			case core::graphics::ColorType::RGB:
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_RGB, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
 				break;
