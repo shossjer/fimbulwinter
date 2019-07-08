@@ -67,6 +67,10 @@ namespace
 	{
 		return file_exists(utility::to_string("res/", name, ".png"));
 	}
+	bool check_if_ttf(const std::string & name)
+	{
+		return file_exists(utility::to_string("res/font/", name, ".ttf"));
+	}
 }
 
 namespace
@@ -215,6 +219,10 @@ namespace
 						{
 							read_png(x.name, x.name, x.callback);
 						}
+						else if ((x.formats & engine::resource::Format::Ttf) && has_extension(x.name, ".ttf"))
+						{
+							read_bytes(x.name, x.name, x.callback);
+						}
 						else if (x.formats & engine::resource::FormatMask::all())
 						{
 							debug_fail("unknown file format for '", x.name, "'");
@@ -233,7 +241,8 @@ namespace
 							(engine::resource::FormatMask::fill(check_if_lvl(x.name)) & engine::resource::Format::Level) |
 							(engine::resource::FormatMask::fill(check_if_msh(x.name)) & engine::resource::Format::Placeholder) |
 							(engine::resource::FormatMask::fill(check_if_png(x.name)) & engine::resource::Format::Png) |
-							(engine::resource::FormatMask::fill(check_if_glsl(x.name)) & engine::resource::Format::Shader);
+							(engine::resource::FormatMask::fill(check_if_glsl(x.name)) & engine::resource::Format::Shader) |
+							(engine::resource::FormatMask::fill(check_if_ttf(x.name)) & engine::resource::Format::Ttf);
 
 						const engine::resource::FormatMask matching_formats = available_formats & x.formats;
 						if (!matching_formats.unique())
@@ -273,6 +282,10 @@ namespace
 						else if (matching_formats)
 						{
 							debug_fail("unknown file format for '", x.name, "'");
+						}
+						else if (matching_formats & engine::resource::Format::Ttf)
+						{
+							read_bytes(x.name, "res/font/" + x.name + ".ttf", x.callback);
 						}
 						else if (x.formats & engine::resource::Format::None)
 						{

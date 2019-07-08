@@ -3,7 +3,9 @@
 
 #include "opengl.hpp"
 #include "opengl/Color.hpp"
-#include "opengl/Font.hpp"
+#if !TEXT_USE_FREETYPE
+# include "opengl/Font.hpp"
+#endif
 #include "opengl/Matrix.hpp"
 
 #include <config.h>
@@ -29,11 +31,18 @@
 
 #include "utility/any.hpp"
 #include "utility/lookup_table.hpp"
+#include "utility/unicode.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>
 #include <fstream>
 #include <utility>
+
+#if TEXT_USE_FREETYPE
+# include <freetype2/ft2build.h>
+# include FT_FREETYPE_H
+# include FT_GLYPH_H
+#endif
 
 using namespace engine::graphics::opengl;
 
@@ -1355,7 +1364,9 @@ namespace
 {
 	Stack modelview_matrix;
 
+#if !TEXT_USE_FREETYPE
 	engine::graphics::opengl::Font normal_font;
+#endif
 
 	int framebuffer_width = 0;
 	int framebuffer_height = 0;
@@ -1656,6 +1667,214 @@ namespace
 		queue_shaders.try_push(std::make_pair(std::move(name), std::move(shader_data)));
 	}
 
+#if TEXT_USE_FREETYPE
+	struct TryReadTtf
+	{
+		std::vector<char> & data;
+
+		void operator () (core::BytesStructurer && x)
+		{
+			x.read(data);
+		}
+		template <typename T>
+		void operator () (T && x)
+		{
+			debug_fail("impossible to read, maybe");
+		}
+	};
+
+	void data_callback_ttf(std::string name, engine::resource::reader::Structurer && structurer)
+	{
+		std::vector<char> data;
+		visit(TryReadTtf{data}, std::move(structurer));
+
+		debug_printline("<<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>");
+
+		FT_Library library;
+		if (FT_Init_FreeType(&library))
+			debug_fail();
+
+		FT_Face face;
+		if (FT_New_Memory_Face(library, reinterpret_cast<const FT_Byte*>(data.data()), data.size(), 0, &face))
+		{
+			debug_fail();
+			goto cleanup_library;
+		}
+		debug_printline(name, ": face->num_glyphs = ", face->num_glyphs);
+		debug_printline(name, ": face has kerning = ", FT_HAS_KERNING(face));
+
+		if (FT_Select_Charmap(face, FT_ENCODING_UNICODE))
+		{
+			debug_fail();
+			goto cleanup_face;
+		}
+
+		if (FT_Set_Pixel_Sizes(face, 0, 24))
+		{
+			debug_fail();
+			goto cleanup_face;
+		}
+
+		{
+			std::vector<int> unicode_indices;
+			unicode_indices.reserve(face->num_glyphs);
+			std::vector<int> glyph_indices;
+			glyph_indices.reserve(face->num_glyphs);
+
+			FT_UInt glyph_index;
+			FT_UInt unicode_index = FT_Get_First_Char(face, &glyph_index);
+			while (glyph_index != 0)
+			{
+				unicode_indices.push_back(unicode_index);
+				glyph_indices.push_back(glyph_index);
+
+				unicode_index = FT_Get_Next_Char(face, unicode_index, &glyph_index);
+			}
+			glyph_indices.push_back(0);
+			debug_assert(unicode_indices.size() + 1 == glyph_indices.size());
+			debug_printline(name, ": face charmap size = ", unicode_indices.size());
+
+			const int total_slots = glyph_indices.size();
+
+
+			int maxx = 0, maxy = 0;
+			std::vector<FontManager::SymbolData> symbol_data(total_slots);
+			for (int i = 0; i < total_slots; i++)
+			{
+				const int glyph_index = glyph_indices[i];
+				if (FT_Load_Glyph(face, glyph_index, FT_LOAD_RENDER))
+				{
+					debug_fail();
+					continue;
+				}
+
+				maxx = std::max(maxx, static_cast<int>(face->glyph->bitmap.width));
+				maxy = std::max(maxy, static_cast<int>(face->glyph->bitmap.rows));
+
+				symbol_data[i].offset_x = face->glyph->bitmap_left;
+				symbol_data[i].offset_y = face->glyph->bitmap.rows - face->glyph->bitmap_top;
+				symbol_data[i].advance_x = face->glyph->advance.x >> 6;
+				symbol_data[i].advance_y = face->glyph->advance.y >> 6;
+			}
+			debug_printline(name, ": face max = {", maxx, ", ", maxy, "}");
+			debug_assert(maxx > 0);
+			debug_assert(maxy > 0);
+
+
+			const int border_size = 1;
+			const int slot_size_x = maxx + border_size * 2;
+			const int slot_size_y = maxy + border_size * 2;
+
+			std::vector<std::tuple<int, int, int, int>> texture_dimensions;
+			for (int texture_height = utility::clp2(slot_size_y);; texture_height *= 2)
+			{
+				const int max_in_y = texture_height / slot_size_y;
+				const int needed_in_x = (total_slots + max_in_y - 1) / max_in_y;
+
+				const int texture_width = utility::clp2(needed_in_x * slot_size_x);
+				const int max_in_x = texture_width / slot_size_x;
+
+				const int unused_slots = max_in_x * max_in_y - total_slots;
+
+				texture_dimensions.push_back({std::abs(texture_width - texture_height), unused_slots, texture_width, texture_height});
+
+				if (max_in_y >= total_slots)
+					break;
+			}
+			std::sort(texture_dimensions.begin(), texture_dimensions.end());
+
+			for (const auto & dim : texture_dimensions)
+			{
+				debug_printline(name, ": face texture dimension = {", std::get<2>(dim), ", ", std::get<3>(dim), "}, unused slots = ", std::get<1>(dim), "(", static_cast<int>(static_cast<double>(std::get<1>(dim) * slot_size_x * slot_size_y) / static_cast<double>(std::get<2>(dim) * std::get<3>(dim)) * 100.), "%)");
+			}
+
+
+			const int texture_width = std::get<2>(texture_dimensions.front());
+			const int texture_height = std::get<3>(texture_dimensions.front());
+			const int slots_in_x = texture_width / slot_size_x;
+			const int slots_in_y = texture_height / slot_size_y;
+
+
+			core::container::Buffer pixels(core::container::Buffer::Format::float32, texture_width * texture_height);
+			std::vector<float> distance_field(slot_size_x * slot_size_y);
+			const double furthest_d = std::sqrt(slot_size_x * slot_size_x + slot_size_y * slot_size_y);
+			for (int i = 0; i < total_slots; i++)
+			{
+				const int glyph_index = glyph_indices[i];
+				if (FT_Load_Glyph(face, glyph_index, FT_LOAD_RENDER))
+				{
+					debug_fail();
+					continue;
+				}
+
+				const unsigned char * const bitmap_buffer = face->glyph->bitmap.pitch < 0 ? face->glyph->bitmap.buffer : face->glyph->bitmap.buffer + face->glyph->bitmap.pitch * (face->glyph->bitmap.rows - 1);
+				const auto sample_at =
+					[&](int x, int y)
+					{
+						return
+							(x >= border_size && x < border_size + face->glyph->bitmap.width) &&
+							(y >= border_size && y < border_size + face->glyph->bitmap.rows) ?
+							bitmap_buffer[(x - border_size) - (y - border_size) * face->glyph->bitmap.pitch] >= 128 : 0;
+					};
+				std::fill(distance_field.begin(), distance_field.end(), furthest_d);
+				// for (int y = 0; y < slot_size_y; y++)
+				for (int y = 0; y < face->glyph->bitmap.rows + 2 * border_size; y++)
+				{
+					// for (int x = 0; x < slot_size_x; x++)
+					for (int x = 0; x < face->glyph->bitmap.width + 2 * border_size; x++)
+					{
+						const auto sample = sample_at(x, y);
+
+						double closest_dsq = slot_size_x * slot_size_x + slot_size_y * slot_size_y;
+						// for (int t = 0; t < slot_size_y; t++)
+						for (int t = 0; t < face->glyph->bitmap.rows + 2 * border_size; t++)
+						{
+							// for (int s = 0; s < slot_size_x; s++)
+							for (int s = 0; s < face->glyph->bitmap.width + 2 * border_size; s++)
+							{
+								if (sample_at(s, t) == sample)
+									continue;
+
+								const double dx = s - x;
+								const double dy = t - y;
+								const double dsq = dx * dx + dy * dy;
+								closest_dsq = std::min(dsq, closest_dsq);
+							}
+						}
+						distance_field[x + y * slot_size_x] = ((sample == 0 ? 1 : -1) * std::sqrt(closest_dsq) + furthest_d) / (2. * furthest_d);
+					}
+				}
+
+				const int slot_index = i;
+				const int slot_x = slot_index % slots_in_x;
+				const int slot_y = slot_index / slots_in_x;
+				const int pixel_offset = slot_x * slot_size_x + (slot_y * slot_size_y) * texture_width;
+				float * const pixel_data = pixels.data_as<float>() + pixel_offset;
+				for (int y = 0; y < slot_size_y; y++)
+				{
+					for (int x = 0; x < slot_size_x; x++)
+					{
+						pixel_data[x + y * texture_width] = distance_field[x + y * slot_size_x];
+					}
+				}
+			}
+
+
+			const auto asset = engine::Asset(name);
+			engine::graphics::renderer::post_register_texture(asset, core::graphics::Image(texture_width, texture_height, 8, 1, core::graphics::ColorType::R, std::move(pixels)));
+
+			font_manager.create(std::move(name), std::move(unicode_indices), std::move(symbol_data), slot_size_x, slot_size_y, texture_width, texture_height);
+		}
+
+	cleanup_face:
+		FT_Done_Face(face);
+	cleanup_library:
+		FT_Done_FreeType(library);
+
+		debug_printline("<<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>");
+	}
+#endif
+
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
@@ -1682,14 +1901,13 @@ namespace
 
 		// TODO: move to loader/level
 		// vvvvvvvv tmp vvvvvvvv
+#if TEXT_USE_FREETYPE
+		engine::resource::reader::post_read("res/font/consolas.ttf", data_callback_ttf);
+#else
 		{
 			engine::graphics::opengl::Font::Data data;
 
-#if TEXT_USE_FREETYPE
-			if (!data.load("res/font/consolas.ttf", 14))
-#else
 			if (!data.load("consolas", 14))
-#endif
 			{
 				debug_fail();
 			}
@@ -1697,6 +1915,7 @@ namespace
 
 			data.free();
 		}
+#endif
 
 		// add cuboid mesh as an asset
 		engine::graphics::renderer::post_register_mesh(
@@ -1715,11 +1934,12 @@ namespace
 				core::maths::Vector3f{1.f, 1.f, 1.f},
 				engine::Asset{ "cuboid" },
 				engine::Asset{ "my_png" } });
-		// ^^^^^^^^ tmp ^^^^^^^^
 
 		engine::resource::reader::post_read("res/gfx/color.130.glsl", data_callback_shader);
 		engine::resource::reader::post_read("res/gfx/entity.130.glsl", data_callback_shader);
+		engine::resource::reader::post_read("res/gfx/text.130.glsl", data_callback_shader);
 		engine::resource::reader::post_read("res/gfx/texture.130.glsl", data_callback_shader);
+		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 
 	void render_update()
@@ -1735,6 +1955,7 @@ namespace
 		const GLint p_color = shader_manager.get(engine::Asset("res/gfx/color.130.glsl"));
 		const GLint p_entity = shader_manager.get(engine::Asset("res/gfx/entity.130.glsl"));
 		const GLint p_tex = shader_manager.get(engine::Asset("res/gfx/texture.130.glsl"));
+		const GLint p_text = shader_manager.get(engine::Asset("res/gfx/text.130.glsl"));
 
 		glStencilMask(0x000000ff);
 		// setup frame
@@ -2389,10 +2610,74 @@ namespace
 		glEnable(GL_DEPTH_TEST);
 
 		// draw gui
-		// ...
-		glLoadMatrix(modelview_matrix);
-		glColor3ub(255, 255, 0);
-		normal_font.draw(10, 10 + 12, "herp derp herp derp herp derp herp derp herp derp etc.");
+#if TEXT_USE_FREETYPE
+		if (p_text >= 0 && materials.contains<texture_t>(engine::Asset("res/font/consolas.ttf")) && font_manager.has(engine::Asset("res/font/consolas.ttf")))
+		{
+		glUseProgram(p_text);
+		glUniform(p_text, "projection_matrix", display.projection_2d);
+		{
+			core::container::Buffer vertices;
+			core::container::Buffer texcoords;
+			font_manager.compile(engine::Asset("res/font/consolas.ttf"), "herp derp herp derp \u00c5\u00c4\u00d6 \u00e5\u00e4\u00f6 \u03b1\u03b2\u03b3\u03b4\u03b5\u03b6\u03b7 \u0410\u0411\u0412\u0413\u0414\u0415\u0416 \u2603.", vertices, texcoords);
+			debug_assert(vertices.count() / 8 == 46);
+			debug_assert(texcoords.count() / 8 == 46);
+			debug_assert(vertices.format() == core::container::Buffer::Format::float32);
+			debug_assert(texcoords.format() == core::container::Buffer::Format::float32);
+
+			const auto & texture = materials.get<texture_t>(engine::Asset("res/font/consolas.ttf"));
+
+			const auto error_before = glGetError();
+			debug_assert(error_before == GL_NO_ERROR);
+
+			modelview_matrix.push();
+			modelview_matrix.rotate(core::maths::degreef(10.f), 0.f, 0.f, -1.f);
+			modelview_matrix.translate(20.f, 160.f, 0.f);
+			glUniform(p_text, "modelview_matrix", modelview_matrix.top());
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, texture.id);
+
+			glUniform(p_text, "tex", 0);
+
+			const auto vertex_location = 5;
+			const auto texcoord_location = 7;
+			glEnableVertexAttribArray(vertex_location);
+			glEnableVertexAttribArray(texcoord_location);
+			glVertexAttribPointer(
+				vertex_location,
+				2,
+				BufferFormats[static_cast<int>(vertices.format())],
+				GL_FALSE,
+				0,
+				vertices.data());
+			glVertexAttribPointer(
+				texcoord_location,
+				2,
+				BufferFormats[static_cast<int>(texcoords.format())],
+				GL_FALSE,
+				0,
+				texcoords.data());
+			glDrawArrays(
+				GL_QUADS, // deprecated
+				0,
+				vertices.count() / 2);
+			glDisableVertexAttribArray(texcoord_location);
+			glDisableVertexAttribArray(vertex_location);
+
+			const auto error_after = glGetError();
+			debug_assert(error_after == GL_NO_ERROR);
+
+			modelview_matrix.pop();
+		}
+		glUseProgram(0);
+		}
+#else
+		{
+			glLoadMatrix(modelview_matrix);
+			glColor3ub(255, 255, 0);
+			normal_font.draw(10, 10 + 12, "herp derp herp derp herp derp herp derp herp derp etc.");
+		}
+#endif
 
 		if (p_color >= 0)
 		{
@@ -2553,10 +2838,59 @@ namespace
 		}
 		glUseProgram(0);
 		}
-// TEXTURE
-// COLOR
-// vertices
-// texcoords
+
+#if TEXT_USE_FREETYPE
+		if (p_text >= 0 && materials.contains<texture_t>(engine::Asset("res/font/consolas.ttf")) && font_manager.has(engine::Asset("res/font/consolas.ttf")))
+		{
+		glUseProgram(p_text);
+		glUniform(p_text, "projection_matrix", display.projection_2d);
+		for (const ::ui::Text & component : ::components.get<::ui::Text>())
+		{
+			core::container::Buffer vertices;
+			core::container::Buffer texcoords;
+			font_manager.compile(engine::Asset("res/font/consolas.ttf"), component.display.c_str(), vertices, texcoords);
+
+			const auto & texture = materials.get<texture_t>(engine::Asset("res/font/consolas.ttf"));
+
+			modelview_matrix.push();
+			modelview_matrix.mult(component.object->modelview);
+			glUniform(p_text, "modelview_matrix", modelview_matrix.top());
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, texture.id);
+
+			glUniform(p_text, "tex", 0);
+
+			const auto vertex_location = 5;
+			const auto texcoord_location = 7;
+			glEnableVertexAttribArray(vertex_location);
+			glEnableVertexAttribArray(texcoord_location);
+			glVertexAttribPointer(
+				vertex_location,
+				2,
+				BufferFormats[static_cast<int>(vertices.format())],
+				GL_FALSE,
+				0,
+				vertices.data());
+			glVertexAttribPointer(
+				texcoord_location,
+				2,
+				BufferFormats[static_cast<int>(texcoords.format())],
+				GL_FALSE,
+				0,
+				texcoords.data());
+			glDrawArrays(
+				GL_QUADS, // deprecated
+				0,
+				vertices.count() / 2);
+			glDisableVertexAttribArray(texcoord_location);
+			glDisableVertexAttribArray(vertex_location);
+
+			modelview_matrix.pop();
+		}
+		glUseProgram(0);
+		}
+#else
 		for (const ::ui::Text & component : ::components.get<::ui::Text>())
 		{
 			core::maths::Vector4f vec = component.object->modelview.get_column<3>();
@@ -2572,6 +2906,7 @@ namespace
 
 			modelview_matrix.pop();
 		}
+#endif
 
 		}
 
@@ -2592,11 +2927,13 @@ namespace
 	void render_teardown()
 	{
 		debug_printline(engine::graphics_channel, "render_callback stopping");
+#if !TEXT_USE_FREETYPE
 		// vvvvvvvv tmp vvvvvvvv
 		{
 			normal_font.decompile();
 		}
 		// ^^^^^^^^ tmp ^^^^^^^^
+#endif
 		glDeleteRenderbuffers(2, entitybuffers);
 		glDeleteFramebuffers(1, &framebuffer);
 

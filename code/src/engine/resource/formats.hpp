@@ -21,6 +21,7 @@ namespace engine
 			Png,
 			Shader,
 			String,
+			Ttf,
 			COUNT,
 			None = COUNT
 		};
@@ -36,7 +37,8 @@ namespace engine
 				std::make_pair(utility::string_view("msh"), Format::Placeholder),
 				std::make_pair(utility::string_view("png"), Format::Png),
 				std::make_pair(utility::string_view("glsl"), Format::Shader),
-				std::make_pair(utility::string_view("rec"), Format::String));
+				std::make_pair(utility::string_view("rec"), Format::String),
+				std::make_pair(utility::string_view("ttf"), Format::Bytes));
 		}
 
 		class FormatMask
