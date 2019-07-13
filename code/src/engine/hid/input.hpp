@@ -15,18 +15,12 @@ namespace engine
 {
 	namespace hid
 	{
-		/**
-		 */
 		class Input
 		{
 		public:
-			/**
-			 */
 			class Additional
 			{
 			public:
-				/**
-				 */
 				enum Flag
 				{
 					ALT               = 0x0001,
@@ -42,61 +36,40 @@ namespace engine
 				};
 
 			private:
-				/**
-				 */
 				uint16_t mask;
 
 			public:
-				/**
-				 */
 				Additional() : mask(0) {}
-				/**
-				 */
 				Additional(const Additional & additional) = default;
-				/**
-				 */
 				Additional(const uint_fast16_t mask) : mask(mask) {}
 
-				/**
-				 */
 				Additional & operator = (const Additional & additional) = default;
 
 			public:
-				/**
-				 */
 				bool operator == (const Additional & additional) const
 				{
 					return mask == additional.mask;
 				}
-				/**
-				 */
 				bool operator != (const Additional & additional) const
 				{
 					return mask != additional.mask;
 				}
 
 			public:
-				/**
-				 */
 				void reset(Flag flag)
 				{
 					mask &= ~(uint16_t)flag;
 				}
-				/**
-				 */
 				void set(Flag flag)
 				{
 					mask |= (uint16_t)flag;
 				}
-				/**
-				 */
 				void toggle(Flag flag)
 				{
 					mask ^= (uint16_t)flag;
 				}
 			};
-			/**
-			 */
+
 			enum class Button
 			{
 #if WINDOW_USE_USER32
@@ -347,44 +320,28 @@ namespace engine
 				  SEPARATOR = 0x6C, // separator key
 				*/
 			};
-			/**
-			 */
+
 			struct Code
 			{
 #if WINDOW_USE_USER32
-				/**
-				 */
 				BYTE virtual_key;
-				/**
-				 */
 				BYTE scan_code;
 #elif WINDOW_USE_X11
-				/**
-				 */
 				uint16_t keycode;
-				/**
-				 */
 				uint16_t state;
 #endif
 			};
-			/**
-			 */
+
 			struct Cursor
 			{
-				/**
-				 */
 				int16_t x, y;
 			};
-			/**
-			 */
+
 			struct Move
 			{
-				/**
-				 */
 				int16_t dx, dy;
 			};
-			/**
-			 */
+
 			enum class State
 			{
 				DOWN,
@@ -392,35 +349,21 @@ namespace engine
 				UP,
 				WHEEL
 			};
-			/**
-			 */
+
 			struct Wheel
 			{
 				// TODO: add appropriate data here
 			};
 
 		private:
-			/**
-			 */
 			Cursor cursor;
-			/**
-			 */
 			Additional additional;
-			/**
-			 */
 			State state;
-			/**
-			 */
+
 			union
 			{
-				/**
-				 */
 				Code code;
-				/**
-				 */
 				Move move;
-				/**
-				 */
 				Wheel wheel;
 			} data;
 
