@@ -28,42 +28,43 @@ namespace engine
 		                  const unsigned int state,
 		                  const ::Time time)
 		{
-			input.setDown(buttoncode, state);
 
+			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
 			dispatch(input);
 		}
 		void button_release(const unsigned int buttoncode,
 		                    const unsigned int state,
 		                    const ::Time time)
 		{
-			input.setUp(buttoncode, state);
 
+			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
 			dispatch(input);
 		}
 		void key_press(const unsigned int keycode,
 		               const unsigned int state,
 		               const ::Time time)
 		{
-			input.setDown(keycode, state);
 
+			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
+			dispatch(input);
+			input.setKeyDown(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
 			dispatch(input);
 		}
 		void key_release(const unsigned int keycode,
 		                 const unsigned int state,
 		                 const ::Time time)
 		{
-			input.setUp(keycode, state);
 
+			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
+			dispatch(input);
+			input.setKeyUp(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
 			dispatch(input);
 		}
 		void motion_notify(const int x,
 		                   const int y,
 		                   const ::Time time)
 		{
-			input.setMove(x - input.getCursor().x,
-			              y - input.getCursor().y);
-			input.setCursor(x, y);
-
+			input.setCursorAbsolute(0, x, y);
 			dispatch(input);
 		}
 	}

@@ -122,7 +122,7 @@ namespace
 		{
 			switch (input.getState())
 			{
-			case engine::hid::Input::State::DOWN:
+			case engine::hid::Input::State::BUTTON_DOWN:
 				if (input.getButton() == button)
 				{
 					set_active_context(context);
@@ -154,12 +154,11 @@ namespace
 		int flags;
 
 	public:
-
 		Bordercontrol(engine::Entity callback) : callback(callback) {}
 
 		bool translate(const engine::hid::Input & input)
 		{
-			if (input.getState() != engine::hid::Input::State::MOVE)
+			if (input.getState() != engine::hid::Input::State::CURSOR_ABSOLUTE)
 				return false;
 
 			const auto BL = MARGIN;
@@ -169,13 +168,13 @@ namespace
 
 			unsigned int flags = 0;
 
-			if (input.getCursor().x <= BL) flags|= FLEFT;
+			if (input.getPosition().x <= BL) flags|= FLEFT;
 			else
-			if (input.getCursor().x >= BR) flags|= FRIGHT;
+			if (input.getPosition().x >= BR) flags|= FRIGHT;
 
-			if (input.getCursor().y <= BT) flags|= FTOP;
+			if (input.getPosition().y <= BT) flags|= FTOP;
 			else
-			if (input.getCursor().y >= BB) flags|= FBOTTOM;
+			if (input.getPosition().y >= BB) flags|= FBOTTOM;
 
 			if (this->flags != flags)
 			{
@@ -238,7 +237,7 @@ namespace
 		{
 			switch (input.getState())
 			{
-			case engine::hid::Input::State::DOWN:
+			case engine::hid::Input::State::BUTTON_DOWN:
 				if (this->button == input.getButton())
 				{
 					if (!this->state)
@@ -254,7 +253,7 @@ namespace
 					return true;
 				}
 				return false;
-			case engine::hid::Input::State::UP:
+			case engine::hid::Input::State::BUTTON_UP:
 				if (this->button == input.getButton())
 				{
 					gameplay::gamestate::post_command(
@@ -292,31 +291,31 @@ namespace
 		{
 			switch (input.getState())
 			{
-			case engine::hid::Input::State::DOWN:
+			case engine::hid::Input::State::BUTTON_DOWN:
 				switch (input.getButton())
 				{
-				case engine::hid::Input::Button::KEY_ARROWLEFT:
+				case engine::hid::Input::Button::KEY_LEFT:
 					if (!is_down_left_turn)
 					{
 						is_down_left_turn = true;
 						gameplay::gamestate::post_command(entity, engine::command::TURN_LEFT_DOWN);
 					}
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWRIGHT:
+				case engine::hid::Input::Button::KEY_RIGHT:
 					if (!is_down_right_turn)
 					{
 						is_down_right_turn = true;
 						gameplay::gamestate::post_command(entity, engine::command::TURN_RIGHT_DOWN);
 					}
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWUP:
+				case engine::hid::Input::Button::KEY_UP:
 					if (!is_down_up_turn)
 					{
 						is_down_up_turn = true;
 						gameplay::gamestate::post_command(entity, engine::command::TURN_UP_DOWN);
 					}
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWDOWN:
+				case engine::hid::Input::Button::KEY_DOWN:
 					if (!is_down_down_turn)
 					{
 						is_down_down_turn = true;
@@ -365,14 +364,14 @@ namespace
 						gameplay::gamestate::post_command(entity, engine::command::ROLL_RIGHT_DOWN);
 					}
 					return true;
-				case engine::hid::Input::Button::KEY_SPACEBAR:
+				case engine::hid::Input::Button::KEY_SPACE:
 					if (!is_down_up_elevate)
 					{
 						is_down_up_elevate = true;
 						gameplay::gamestate::post_command(entity, engine::command::ELEVATE_UP_DOWN);
 					}
 					return true;
-				case engine::hid::Input::Button::KEY_CTRL_LEFT:
+				case engine::hid::Input::Button::KEY_LEFTCTRL:
 					if (!is_down_down_elevate)
 					{
 						is_down_down_elevate = true;
@@ -382,22 +381,22 @@ namespace
 				default:
 					return false;
 				}
-			case engine::hid::Input::State::UP:
+			case engine::hid::Input::State::BUTTON_UP:
 				switch (input.getButton())
 				{
-				case engine::hid::Input::Button::KEY_ARROWLEFT:
+				case engine::hid::Input::Button::KEY_LEFT:
 					is_down_left_turn = false;
 					gameplay::gamestate::post_command(entity, engine::command::TURN_LEFT_UP);
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWRIGHT:
+				case engine::hid::Input::Button::KEY_RIGHT:
 					is_down_right_turn = false;
 					gameplay::gamestate::post_command(entity, engine::command::TURN_RIGHT_UP);
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWUP:
+				case engine::hid::Input::Button::KEY_UP:
 					is_down_up_turn = false;
 					gameplay::gamestate::post_command(entity, engine::command::TURN_UP_UP);
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWDOWN:
+				case engine::hid::Input::Button::KEY_DOWN:
 					is_down_down_turn = false;
 					gameplay::gamestate::post_command(entity, engine::command::TURN_DOWN_UP);
 					return true;
@@ -425,11 +424,11 @@ namespace
 					is_down_right_roll = false;
 					gameplay::gamestate::post_command(entity, engine::command::ROLL_RIGHT_UP);
 					return true;
-				case engine::hid::Input::Button::KEY_SPACEBAR:
+				case engine::hid::Input::Button::KEY_SPACE:
 					is_down_up_elevate = false;
 					gameplay::gamestate::post_command(entity, engine::command::ELEVATE_UP_UP);
 					return true;
-				case engine::hid::Input::Button::KEY_CTRL_LEFT:
+				case engine::hid::Input::Button::KEY_LEFTCTRL:
 					is_down_down_elevate = false;
 					gameplay::gamestate::post_command(entity, engine::command::ELEVATE_DOWN_UP);
 					return true;
@@ -458,31 +457,31 @@ namespace
 		{
 			switch (input.getState())
 			{
-			case engine::hid::Input::State::DOWN:
+			case engine::hid::Input::State::BUTTON_DOWN:
 				switch (input.getButton())
 				{
-				case engine::hid::Input::Button::KEY_ARROWLEFT:
+				case engine::hid::Input::Button::KEY_LEFT:
 					if (!is_down_left_move)
 					{
 						is_down_left_move = true;
 						gameplay::gamestate::post_command(entity, engine::command::MOVE_LEFT_DOWN);
 					}
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWRIGHT:
+				case engine::hid::Input::Button::KEY_RIGHT:
 					if (!is_down_right_move)
 					{
 						is_down_right_move = true;
 						gameplay::gamestate::post_command(entity, engine::command::MOVE_RIGHT_DOWN);
 					}
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWUP:
+				case engine::hid::Input::Button::KEY_UP:
 					if (!is_down_up_move)
 					{
 						is_down_up_move = true;
 						gameplay::gamestate::post_command(entity, engine::command::MOVE_UP_DOWN);
 					}
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWDOWN:
+				case engine::hid::Input::Button::KEY_DOWN:
 					if (!is_down_down_move)
 					{
 						is_down_down_move = true;
@@ -492,22 +491,22 @@ namespace
 				default:
 					return false;
 				}
-			case engine::hid::Input::State::UP:
+			case engine::hid::Input::State::BUTTON_UP:
 				switch (input.getButton())
 				{
-				case engine::hid::Input::Button::KEY_ARROWLEFT:
+				case engine::hid::Input::Button::KEY_LEFT:
 					is_down_left_move = false;
 					gameplay::gamestate::post_command(entity, engine::command::MOVE_LEFT_UP);
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWRIGHT:
+				case engine::hid::Input::Button::KEY_RIGHT:
 					is_down_right_move = false;
 					gameplay::gamestate::post_command(entity, engine::command::MOVE_RIGHT_UP);
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWUP:
+				case engine::hid::Input::Button::KEY_UP:
 					is_down_up_move = false;
 					gameplay::gamestate::post_command(entity, engine::command::MOVE_UP_UP);
 					return true;
-				case engine::hid::Input::Button::KEY_ARROWDOWN:
+				case engine::hid::Input::Button::KEY_DOWN:
 					is_down_down_move = false;
 					gameplay::gamestate::post_command(entity, engine::command::MOVE_DOWN_UP);
 					return true;
@@ -534,9 +533,9 @@ namespace
 		{
 			switch (input.getState())
 			{
-			case engine::hid::Input::State::MOVE:
-				x = input.getCursor().x;
-				y = input.getCursor().y;
+			case engine::hid::Input::State::CURSOR_ABSOLUTE:
+				x = input.getPosition().x;
+				y = input.getPosition().y;
 				return true;
 			default:
 				return false;
@@ -559,20 +558,20 @@ namespace
 		{
 			switch (input.getState())
 			{
-			case engine::hid::Input::State::DOWN:
+			case engine::hid::Input::State::BUTTON_DOWN:
 				switch (input.getButton())
 				{
 				case engine::hid::Input::Button::MOUSE_LEFT:
-					engine::graphics::renderer::post_select(input.getCursor().x, input.getCursor().y, entity, engine::command::RENDER_SELECT);
+					engine::graphics::renderer::post_select(input.getPosition().x, input.getPosition().y, entity, engine::command::RENDER_SELECT);
 					return true;
 				default:
 					return false;
 				}
-			case engine::hid::Input::State::UP:
+			case engine::hid::Input::State::BUTTON_UP:
 				switch (input.getButton())
 				{
 				case engine::hid::Input::Button::MOUSE_LEFT:
-					engine::graphics::renderer::post_select(input.getCursor().x, input.getCursor().y, entity, engine::command::RENDER_DESELECT);
+					engine::graphics::renderer::post_select(input.getPosition().x, input.getPosition().y, entity, engine::command::RENDER_DESELECT);
 					return true;
 				default:
 					return false;
@@ -595,7 +594,7 @@ namespace
 		{
 			switch (input.getState())
 			{
-			case engine::hid::Input::State::DOWN:
+			case engine::hid::Input::State::BUTTON_DOWN:
 				if (input.getButton() == button)
 				{
 					if (!is_down)
@@ -606,7 +605,7 @@ namespace
 					return true;
 				}
 				return false;
-			case engine::hid::Input::State::UP:
+			case engine::hid::Input::State::BUTTON_UP:
 				if (input.getButton() == button)
 				{
 					is_down = false;
