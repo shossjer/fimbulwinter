@@ -300,6 +300,8 @@ TEST_CASE("store ascii in code point", "[utility][unicode]")
 	CHECK(ascii_cp.size() == ascii_size);
 	CHECK(ascii_cp.get() == ascii_value);
 
+	CHECK(ascii_cp == utility::code_point(ascii_value));
+
 	SECTION("extract code units from code point")
 	{
 		utility::code_unit_utf8 chars[4];
@@ -349,6 +351,8 @@ TEST_CASE("store german in code point", "[utility][unicode]")
 	const auto german_cp = utility::code_point(german);
 	CHECK(german_cp.size() == german_size);
 	CHECK(german_cp.get() == german_value);
+
+	CHECK(german_cp == utility::code_point(german_value));
 
 	SECTION("extract code units from code point")
 	{
@@ -400,6 +404,8 @@ TEST_CASE("store snowman in code point", "[utility][unicode]")
 	CHECK(snowman_cp.size() == snowman_size);
 	CHECK(snowman_cp.get() == snowman_value);
 
+	CHECK(snowman_cp == utility::code_point(snowman_value));
+
 	SECTION("extract code units from code point")
 	{
 		utility::code_unit_utf8 chars[4];
@@ -450,6 +456,8 @@ TEST_CASE("store smiley in code point", "[utility][unicode]")
 	CHECK(smiley_cp.size() == smiley_size);
 	CHECK(smiley_cp.get() == smiley_value);
 
+	CHECK(smiley_cp == utility::code_point(smiley_value));
+
 	SECTION("extract code units from code point")
 	{
 		utility::code_unit_utf8 chars[4];
@@ -499,6 +507,8 @@ TEST_CASE("code point can hold the null character", "[utility][unicode]")
 	const auto empty = utility::code_point("");
 	CHECK(empty.size() == 1);
 	CHECK(empty.get() == '\0');
+
+	CHECK(empty == utility::code_point(0));
 
 	SECTION("empty and null are the same")
 	{

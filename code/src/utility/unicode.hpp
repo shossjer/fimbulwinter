@@ -22,6 +22,14 @@ namespace utility
 			: value_(0)
 			, size_(1)
 		{}
+		explicit constexpr code_point(int32_t value)
+			: value_(value)
+			, size_(value < 0x80 ? 1 : value < 0x800 ? 2 : value < 0x10000 ? 3 : 4)
+		{}
+		explicit constexpr code_point(uint32_t value)
+			: value_(value)
+			, size_(value < 0x80 ? 1 : value < 0x800 ? 2 : value < 0x10000 ? 3 : 4)
+		{}
 		explicit constexpr code_point(const code_unit_utf8 * s)
 			: code_point(s, s ? extract_size(s) : 1)
 		{}
