@@ -128,3 +128,8 @@ file(DOWNLOAD "https://www.khronos.org/registry/OpenGL/api/GL/glext.h" "${PROJEC
 if (NOT EXISTS "${PROJECT_SOURCE_DIR}/include/GL/glext.h")
 	file(INSTALL "${PROJECT_SOURCE_DIR}/downloads/glext/src/glext.h" DESTINATION "${PROJECT_SOURCE_DIR}/include/GL")
 endif ()
+
+file(DOWNLOAD "https://www.khronos.org/registry/EGL/api/KHR/khrplatform.h" "${PROJECT_SOURCE_DIR}/downloads/glext/src/khrplatform.h" TIMEOUT 10)
+if (NOT EXISTS "${PROJECT_SOURCE_DIR}/include/KHR/khrplatform.h")
+	file(INSTALL "${PROJECT_SOURCE_DIR}/downloads/glext/src/khrplatform.h" DESTINATION "${PROJECT_SOURCE_DIR}/include/KHR")
+endif ()
