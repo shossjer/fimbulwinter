@@ -117,13 +117,13 @@ namespace utility
 	struct is_contiguous_iterator_impl
 	{
 		template <typename T>
-		static mpl::true_type foo(T *, int) { intrinsic_unreachable(); }
+		static mpl::true_type foo(T *, signed) { intrinsic_unreachable(); }
 		template <typename BaseIt>
-		static mpl::true_type foo(const contiguous_iterator<BaseIt> &, int) { intrinsic_unreachable(); }
+		static mpl::true_type foo(const contiguous_iterator<BaseIt> &, signed) { intrinsic_unreachable(); }
 		template <typename T>
 		static mpl::false_type foo(const T &, ...) { intrinsic_unreachable(); }
 		template <typename T>
-		static auto foo(const T & it, decltype(it.base(), int())) { return foo(it.base(), 0); }
+		static auto foo(const T & it, decltype(it.base(), unsigned())) { return foo(it.base(), 0); }
 
 		using type = decltype(foo(std::declval<It>(), 0));
 	};
