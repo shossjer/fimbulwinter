@@ -42,7 +42,7 @@ namespace utility
 		explicit monostate() = default;
 	};
 
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 	template <typename T, typename ...Ps>
 	mpl::enable_if_t<mpl::is_paren_constructible<T, Ps...>::value, T>
 	construct(Ps && ...ps)

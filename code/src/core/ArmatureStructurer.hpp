@@ -14,7 +14,7 @@
 
 namespace core
 {
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 	template <typename T>
 	struct ArmatureStructurerHelper
 	{
@@ -119,7 +119,7 @@ namespace core
 		}
 
 		template <typename T,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((ArmatureStructurerHelper<T>::IsAction))>
 #else
 		          REQUIRES((member_table<T>::has("name") &&
@@ -180,7 +180,7 @@ namespace core
 
 		template <typename T,
 		          REQUIRES((has_lookup_table<T>::value)),
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((ArmatureStructurerHelper<T>::IsFrame))>
 #else
 		          REQUIRES((member_table<T>::has("channels")))>
@@ -250,7 +250,7 @@ namespace core
 		}
 
 		template <typename T,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((ArmatureStructurerHelper<T>::IsJoint))>
 #else
 		          REQUIRES((member_table<T>::has("name") &&

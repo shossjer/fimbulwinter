@@ -121,7 +121,7 @@ namespace utility
 
 	public:
 		template <typename ...Pairs,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((sizeof...(Pairs) == sizeof...(Values))),
 #else
 		          REQUIRES((sizeof...(Pairs) == capacity)),

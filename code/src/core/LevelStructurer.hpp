@@ -17,7 +17,7 @@
 
 namespace core
 {
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 	template <typename T>
 	struct LevelStructurerHelper
 	{
@@ -121,7 +121,7 @@ namespace core
 		}
 
 		template <typename T,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((LevelStructurerHelper<T>::IsMesh))>
 #else
 		          REQUIRES((member_table<T>::has("name") &&
@@ -165,7 +165,7 @@ namespace core
 		}
 
 		template <typename T,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((LevelStructurerHelper<T>::IsPlaceholder))>
 #else
 		          REQUIRES((member_table<T>::has("name") &&
