@@ -23,6 +23,8 @@ namespace gamestate
 }
 }
 
+debug_assets("null");
+
 namespace
 {
 	struct dimension_t
@@ -96,7 +98,7 @@ namespace
 
 	void set_active_context(engine::Asset context)
 	{
-		debug_printline(engine::hid_channel, "Switching context: ", static_cast<int>(active_context), " -> ", static_cast<int>(context));
+		debug_printline(engine::hid_channel, "Switching context: ", active_context, " -> ", context);
 		active_context = context;
 	}
 	ContextEntities & get_active_context()
@@ -688,12 +690,17 @@ namespace ui
 {
 	void create()
 	{
-		add_context("null");
-		set_active_context("null");
+		add_context(engine::Asset("null"));
+		set_active_context(engine::Asset("null"));
 	}
 
 	void destroy()
 	{
+		debug_printline(engine::asset_channel, contexts.size(), " contexts not unregistered:");
+		for (const auto & context : contexts)
+		{
+			debug_printline(engine::asset_channel, context.context);
+		}
 	}
 
 	void update()

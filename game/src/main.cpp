@@ -18,6 +18,12 @@
 
 namespace engine
 {
+	namespace animation
+	{
+		extern void create();
+		extern void destroy();
+	}
+
 	namespace console
 	{
 		extern void create();
@@ -185,11 +191,11 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	engine::application::window::create(hInstance, nCmdShow, settings.application);
 
 	::engine::console::create();
-	;;engine::replay::create();
+	::engine::replay::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create(settings.graphics.renderer_type);
 	::engine::graphics::viewer::create();
-	::engine::gui::create();
+	::engine::animation::create();
 	::engine::hid::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::looper::create();
@@ -201,7 +207,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::gameplay::looper::destroy();
 	::gameplay::gamestate::destroy();
 	::engine::hid::ui::destroy();
-	::engine::gui::destroy();
+	::engine::animation::destroy();
 	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
@@ -230,11 +236,11 @@ int main(const int argc, const char *const argv[])
 	engine::application::window::create(settings.application);
 
 	::engine::console::create();
-	;;engine::replay::create();
+	::engine::replay::create();
 	::engine::physics::create();
 	::engine::graphics::renderer::create(settings.graphics.renderer_type);
 	::engine::graphics::viewer::create();
-	::engine::gui::create();
+	::engine::animation::create();
 	::engine::hid::ui::create();
 	::gameplay::gamestate::create();
 	::gameplay::looper::create();
@@ -246,7 +252,7 @@ int main(const int argc, const char *const argv[])
 	::gameplay::looper::destroy();
 	::gameplay::gamestate::destroy();
 	::engine::hid::ui::destroy();
-	::engine::gui::destroy();
+	::engine::animation::destroy();
 	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();

@@ -8,12 +8,16 @@
 #include "core/serialization.hpp"
 
 #include "utility/concepts.hpp"
+#include "utility/string_view.hpp"
 
 #include <ostream>
 #include <string>
 
 #if MODE_DEBUG
-# include <utility/spinlock.hpp>
+# include "engine/debug.hpp"
+
+# include "utility/spinlock.hpp"
+# include "utility/string.hpp"
 
 # include <mutex>
 # include <unordered_map>
@@ -34,13 +38,16 @@ namespace engine
 	public:
 		Asset() = default;
 		template <std::size_t N>
-		constexpr Asset(const char (&str)[N])
+		explicit constexpr Asset(const char (&str)[N])
 			: id{core::crypto::crc32(str)}
 		{}
-		constexpr Asset(const char *const str, const std::size_t n)
+		explicit constexpr Asset(const char *const str, const std::size_t n)
 			: id{core::crypto::crc32(str, n)}
 		{}
-		Asset(const std::string & str)
+		explicit constexpr Asset(utility::string_view str)
+			: id{core::crypto::crc32(str.data(), str.length())}
+		{}
+		explicit Asset(const std::string & str)
 			: id{core::crypto::crc32(str.data(), str.length())}
 		{
 #if MODE_DEBUG
@@ -49,7 +56,7 @@ namespace engine
 #endif
 		}
 	private:
-		constexpr Asset(value_type val)
+		explicit constexpr Asset(value_type val)
 			: id(val)
 		{}
 
@@ -65,6 +72,12 @@ namespace engine
 			return Asset(0);
 		}
 #if MODE_DEBUG
+		// not thread safe
+		template <std::size_t N>
+		static void enumerate(const char (& str)[N])
+		{
+			get_lookup_table().emplace(core::crypto::crc32(str), str);
+		}
 	private:
 		static std::unordered_map<value_type, std::string> & get_lookup_table()
 		{
@@ -117,5 +130,34 @@ namespace std
 	};
 }
 
+#if MODE_DEBUG
+# define debug_assets(...) \
+	namespace \
+	{ \
+		struct enumerate_assets_t \
+		{ \
+			enumerate_assets_t() \
+			{ \
+				printline(__VA_ARGS__); \
+				enumerate(__VA_ARGS__); \
+			} \
+\
+			template <typename ...Ps> \
+			void printline(Ps && ...ps) \
+			{ \
+				debug_printline(engine::asset_channel, "adding asset enumeration:", utility::to_string(" \"", ps, "\"")...); \
+			} \
+\
+			template <typename ...Ps> \
+			void enumerate(Ps && ...ps) \
+			{ \
+				int enumeration[] = {(engine::Asset::enumerate(std::forward<Ps>(ps)), 0)...}; \
+			} \
+		}; \
+	} \
+	static enumerate_assets_t asset_enumeration
+#else
+# define debug_assets(...) static_assert(true, "")
+#endif
 
 #endif /* ENGINE_ASSET_HPP */

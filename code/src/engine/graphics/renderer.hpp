@@ -143,6 +143,12 @@ namespace engine
 				int32_t y;
 			};
 
+			struct SelectData
+			{
+				engine::Entity entity;
+				Cursor cursor;
+			};
+
 			struct CharacterSkinning
 			{
 				std::vector<core::maths::Matrix4x4f> matrix_pallet;

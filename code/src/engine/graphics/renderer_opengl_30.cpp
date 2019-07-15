@@ -8,23 +8,23 @@
 
 #include <config.h>
 
-#include <core/color.hpp>
-#include <core/async/Thread.hpp>
-#include <core/container/CircleQueue.hpp>
-#include <core/container/Collection.hpp>
-#include <core/container/ExchangeQueue.hpp>
-#include <core/container/Stack.hpp>
-#include <core/maths/Vector.hpp>
-#include <core/maths/algorithm.hpp>
+#include "core/color.hpp"
+#include "core/async/Thread.hpp"
+#include "core/container/CircleQueue.hpp"
+#include "core/container/Collection.hpp"
+#include "core/container/ExchangeQueue.hpp"
+#include "core/container/Stack.hpp"
+#include "core/maths/Vector.hpp"
+#include "core/maths/algorithm.hpp"
 #include "core/PngStructurer.hpp"
 #include "core/serialization.hpp"
-#include <core/sync/Event.hpp>
+#include "core/sync/Event.hpp"
 
-#include <engine/Asset.hpp>
-#include <engine/Command.hpp>
-#include <engine/debug.hpp>
+#include "engine/Asset.hpp"
+#include "engine/Command.hpp"
+#include "engine/debug.hpp"
 #include "engine/graphics/message.hpp"
-#include <engine/graphics/viewer.hpp>
+#include "engine/graphics/viewer.hpp"
 #include "engine/resource/reader.hpp"
 
 #include "utility/any.hpp"
@@ -74,6 +74,8 @@ namespace gameplay
 		extern void post_command(engine::Entity entity, engine::Command command, utility::any && data);
 	}
 }
+
+debug_assets("box", "cuboid", "dude", "my_png", "photo");
 
 namespace
 {
@@ -1202,7 +1204,7 @@ namespace
 		while (queue_shaders.try_pop(shader_data_pair))
 		{
 			debug_printline("trying to create \"", shader_data_pair.first, "\"");
-			shader_manager.create(std::move(shader_data_pair.first), std::move(shader_data_pair.second));
+			shader_manager.create(engine::Asset(shader_data_pair.first), std::move(shader_data_pair.second));
 		}
 	}
 }
@@ -1542,9 +1544,9 @@ namespace
 			engine::graphics::opengl::Font::Data data;
 
 #if TEXT_USE_FREETYPE
-			if (!data.load("res/font/consolas.ttf", 12))
+			if (!data.load("res/font/consolas.ttf", 14))
 #else
-			if (!data.load("consolas", 12))
+			if (!data.load("consolas", 14))
 #endif
 			{
 				debug_fail();
@@ -1593,9 +1595,9 @@ namespace
 			component.update();
 		}
 
-		const GLint p_color = shader_manager.get("res/gfx/color.130.glsl");
-		const GLint p_entity = shader_manager.get("res/gfx/entity.130.glsl");
-		const GLint p_tex = shader_manager.get("res/gfx/texture.130.glsl");
+		const GLint p_color = shader_manager.get(engine::Asset("res/gfx/color.130.glsl"));
+		const GLint p_entity = shader_manager.get(engine::Asset("res/gfx/entity.130.glsl"));
+		const GLint p_tex = shader_manager.get(engine::Asset("res/gfx/texture.130.glsl"));
 
 		glStencilMask(0x000000ff);
 		// setup frame
@@ -1797,7 +1799,8 @@ namespace
 			std::tuple<int, int, engine::Entity, engine::Command> select_args;
 			while (queue_select.try_pop(select_args))
 			{
-				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
+				engine::graphics::renderer::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
+				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
 			}
 		}
 
@@ -1859,9 +1862,10 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
 
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, entitytexture);
@@ -1934,7 +1938,7 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = true;
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
@@ -1994,9 +1998,10 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
 
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, entitytexture);
@@ -2071,7 +2076,7 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = true;
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
@@ -2242,29 +2247,6 @@ namespace
 		}
 
 
-		glLoadMatrix(modelview_matrix);
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, entitytexture);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-		glBegin(GL_QUADS);
-		{
-			glTexCoord2f(0.f, 0.f);
-			glVertex2i(100, 300);
-			glTexCoord2f(1.f// framebuffer_width
-			             , 0.f);
-			glVertex2i(300, 300);
-			glTexCoord2f(1.f// framebuffer_width
-			             , 1.f// framebuffer_height
-				);
-			glVertex2i(300, 100);
-			glTexCoord2f(0.f, 1.f// framebuffer_height
-				);
-			glVertex2i(100, 100);
-		}
-		glEnd();
-		glDisable(GL_TEXTURE_2D);
-
-
 		// clear depth to make GUI show over all prev. rendering
 		glClearDepth(1.0);
 		glEnable(GL_DEPTH_TEST);
@@ -2295,7 +2277,7 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = true;
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
@@ -2317,21 +2299,13 @@ namespace
 				size[0], size[1],
 				size[0], 0.f
 			};
-			const GLfloat texcoords[] = {
-				0.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				1.f, 1.f
-			};
 			const GLushort indices[] = {
 				0, 1, 2,
 				2, 3, 0
 			};
 
 			const auto vertex_location = 5;
-			const auto texcoord_location = 7;
 			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(texcoord_location);
 			glVertexAttribPointer(
 				vertex_location,
 				2,
@@ -2339,19 +2313,11 @@ namespace
 				GL_FALSE,
 				0,
 				vertices);
-			glVertexAttribPointer(
-				texcoord_location,
-				2,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				texcoords);
 			glDrawElements(
 				GL_TRIANGLES,
 				6,
 				GL_UNSIGNED_SHORT,
 				indices);
-			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
 			const auto error_after = glGetError();
@@ -2381,9 +2347,10 @@ namespace
 			const auto entity = components.get_key(component);
 			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
 			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = selectable_components.contains(entity);
 
 			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, 0.f);
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
 
 			const auto normal_location = 6;
 			glVertexAttrib4f(normal_location, 0.f, 0.f, 1.f, 0.f);
@@ -2495,6 +2462,22 @@ namespace
 		// ^^^^^^^^ tmp ^^^^^^^^
 		glDeleteRenderbuffers(2, entitybuffers);
 		glDeleteFramebuffers(1, &framebuffer);
+
+		engine::Asset resources_not_unregistered[resources.max_size()];
+		const int resource_count = resources.get_all_keys(resources_not_unregistered, resources.max_size());
+		debug_printline(engine::asset_channel, resource_count, " resources not unregistered:");
+		for (int i = 0; i < resource_count; i++)
+		{
+			debug_printline(engine::asset_channel, resources_not_unregistered[i]);
+		}
+
+		engine::Asset materials_not_unregistered[materials.max_size()];
+		const int material_count = materials.get_all_keys(materials_not_unregistered, materials.max_size());
+		debug_printline(engine::asset_channel, material_count, " materials not unregistered:");
+		for (int i = 0; i < material_count; i++)
+		{
+			debug_printline(engine::asset_channel, materials_not_unregistered[i]);
+		}
 	}
 }
 

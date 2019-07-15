@@ -1,6 +1,5 @@
 
 #include "gamestate.hpp"
-#include "gamestate_gui.hpp"
 #include "gamestate_models.hpp"
 
 #include "core/JsonStructurer.hpp"
@@ -14,7 +13,6 @@
 #include <engine/graphics/renderer.hpp>
 #include <engine/graphics/viewer.hpp>
 #include "engine/hid/ui.hpp"
-#include "engine/gui/gui.hpp"
 #include <engine/physics/physics.hpp>
 #include "engine/replay/writer.hpp"
 #include "engine/resource/reader.hpp"
@@ -35,6 +33,7 @@
 #include <fstream>
 #include <utility>
 
+debug_assets("debug", "game", "my-perspective-2d", "my-perspective-3d");
 
 namespace
 {
@@ -390,9 +389,6 @@ namespace
 			const auto progress_percentage = static_cast<float>(preparation.time_remaining) / static_cast<float>(preparation.recipe->time.value() * 50);
 			barUpdate(progress_percentage);
 
-			const Worker & w = access_component<Worker>(worker);
-			profile_update(worker);
-
 			if (preparation.time_remaining <= 0)
 			{
 				cleanup(preparation);
@@ -417,54 +413,6 @@ namespace
 		}
 	};
 
-	struct
-	{
-		// entity of currently "profiled" object
-		engine::Entity entity;
-
-		void operator() (Worker & worker)
-		{
-			Player data{ "Chef Elzar" };
-			data.skills.push_back(Player::Skill{ "Cutting" });
-			data.skills.push_back(Player::Skill{ "Washing hands" });
-			data.skills.push_back(Player::Skill{ "Potato" });
-			engine::gui::post(engine::gui::MessageData{ encode_gui(data) });
-		}
-
-		template<typename T>
-		void operator() (const T &)
-		{}
-	}
-	profile_updater;
-
-	struct GUIComponent
-	{
-		engine::Entity id;
-	};
-
-	struct GUIWindow
-	{
-		engine::Asset window;
-
-		void translate(engine::Command command, utility::any && data)
-		{
-			switch (command)
-			{
-			case engine::command::BUTTON_DOWN_ACTIVE:
-			case engine::command::BUTTON_DOWN_INACTIVE:
-				debug_assert(!data.has_value());
-				engine::gui::post(engine::gui::MessageVisibility{ window, engine::gui::MessageVisibility::TOGGLE });
-				break;
-			case engine::command::BUTTON_UP_ACTIVE:
-			case engine::command::BUTTON_UP_INACTIVE:
-				debug_assert(!data.has_value());
-				break;
-			default:
-				debug_unreachable();
-			}
-		}
-	};
-
 	struct Option
 	{
 	};
@@ -484,8 +432,6 @@ namespace
 		401,
 		utility::static_storage<CameraActivator, 2>,
 		utility::static_storage<FreeCamera, 1>,
-		utility::heap_storage<GUIComponent>,
-		utility::heap_storage<GUIWindow>,
 		utility::static_storage<OverviewCamera, 1>,
 		utility::static_storage<Selector, 1>,
 		utility::heap_storage<Worker>,
@@ -517,7 +463,7 @@ namespace
 
 		debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
 		debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
-		auto asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
+		const engine::Asset asset(name.substr(4, name.length() - 4 - 4));
 
 		engine::graphics::renderer::post_register_texture(asset, std::move(image));
 	}
@@ -596,6 +542,57 @@ namespace
 		}
 	} recipes_ring;
 
+	struct get_tooltip
+	{
+		std::string operator () (engine::Entity entity, const Option &)
+		{
+			const gameplay::Recipe & recipe = recipes_ring.get(kitchen.recipes, entity);
+			return recipe.name;
+		}
+
+		template <typename X>
+		std::string operator () (engine::Entity entity, const X &)
+		{
+			return utility::to_string("description for entity ", entity);
+		}
+	};
+
+	struct Tooltip
+	{
+		engine::Entity frame = engine::Entity::create();
+		engine::Entity label = engine::Entity::create();
+
+		engine::Entity target = engine::Entity::null();
+
+		void display(engine::Entity entity, int x, int y)
+		{
+			if (target == entity)
+				return;
+
+			if (target != engine::Entity::null())
+			{
+				engine::graphics::renderer::post_remove(label);
+				engine::graphics::renderer::post_remove(frame);
+			}
+			if (entity != engine::Entity::null())
+			{
+				engine::graphics::renderer::post_add_panel(
+					frame,
+					engine::graphics::data::ui::PanelC{
+						make_translation_matrix(core::maths::Vector3f(static_cast<float>(x), static_cast<float>(y), 90.f)),
+						{200.f, 16.f},
+						0xff000000});
+				engine::graphics::renderer::post_add_text(
+					label,
+					engine::graphics::data::ui::Text{
+						make_translation_matrix(core::maths::Vector3f(static_cast<float>(x) + 1.f, static_cast<float>(y) + 15.f, 91.f)),
+						0xffffffff,
+						components.call(entity, get_tooltip{})});
+			}
+			target = entity;
+		}
+	} tooltip;
+
 	struct translate_command
 	{
 		engine::Command command;
@@ -631,21 +628,13 @@ namespace
 			core::maths::Matrix4x4f
 		>,
 		100> queue_workstations;
-	core::container::CircleQueueSRMW<engine::Entity, 100> queue_gui_components;
+
 	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
 
 	template<typename T>
 	T & access_component(const engine::Entity entity)
 	{
 		return components.get<T>(entity);
-	}
-
-	void profile_update(const engine::Entity entity)
-	{
-		if (entity == profile_updater.entity)
-		{
-			components.call(entity, profile_updater);
-		}
 	}
 
 	void move_to_workstation(Worker & w, engine::Entity we, Workstation & s, engine::Entity se)
@@ -699,11 +688,6 @@ namespace
 			return false;
 		}
 
-		bool operator () (engine::Entity, const GUIComponent &)
-		{
-			return true;
-		}
-
 		bool operator () (engine::Entity, const Option &)
 		{
 			return true;
@@ -721,11 +705,6 @@ namespace
 		const Selector & selector;
 
 		bool operator () (const Worker &)
-		{
-			return true;
-		}
-
-		bool operator () (const GUIComponent &)
 		{
 			return true;
 		}
@@ -848,29 +827,22 @@ namespace
 		engine::graphics::renderer::post_make_deselect(entity);
 	}
 
-	void update_gui(engine::Entity entity, engine::gui::MessageInteraction::State state)
-	{
-		// check if entity is "gui" component
-		engine::gui::post(engine::gui::MessageInteraction{ entity, state });
-	}
-
 	void Selector::translate(engine::Command command, utility::any && data)
 	{
 		switch (command)
 		{
 		case engine::command::RENDER_HIGHLIGHT:
 		{
-			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
-			if (highlighted_entity == entity)
+			if (highlighted_entity == select_data.entity)
 			{
-				if (entity != engine::Entity::null())
+				if (select_data.entity != engine::Entity::null())
 				{
-					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					const bool is_interactible = components.call(select_data.entity, can_be_interacted_with{*this});
 					if (!is_interactible)
 					{
-						lowlight(entity);
-						update_gui(entity, engine::gui::MessageInteraction::LOWLIGHT);
+						lowlight(select_data.entity);
 						highlighted_entity = engine::Entity::null();
 					}
 				}
@@ -880,48 +852,45 @@ namespace
 				if (highlighted_entity != engine::Entity::null())
 				{
 					lowlight(highlighted_entity);
-					update_gui(highlighted_entity, engine::gui::MessageInteraction::LOWLIGHT);
 					highlighted_entity = engine::Entity::null();
 				}
-				if (entity != engine::Entity::null())
+				if (select_data.entity != engine::Entity::null())
 				{
-					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					const bool is_interactible = components.call(select_data.entity, can_be_interacted_with{*this});
 					if (is_interactible)
 					{
-						highlight(entity);
-						update_gui(entity, engine::gui::MessageInteraction::HIGHLIGHT);
-						highlighted_entity = entity;
+						highlight(select_data.entity);
+						highlighted_entity = select_data.entity;
 					}
 				}
 			}
+			tooltip.display(highlighted_entity, select_data.cursor.x, select_data.cursor.y);
 			break;
 		}
 		case engine::command::RENDER_SELECT:
 		{
-			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
-			update_gui(entity, engine::gui::MessageInteraction::PRESS);
-			pressed_entity = entity;
+			pressed_entity = select_data.entity;
 			break;
 		}
 		case engine::command::RENDER_DESELECT:
 		{
-			engine::Entity entity = utility::any_cast<engine::Entity>(data);
+			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
-			if (pressed_entity == entity)
+			if (pressed_entity == select_data.entity)
 			{
-				if (entity != engine::Entity::null())
+				if (select_data.entity != engine::Entity::null())
 				{
-					const bool is_interactible = components.call(entity, can_be_interacted_with{*this});
+					const bool is_interactible = components.call(select_data.entity, can_be_interacted_with{*this});
 					if (is_interactible)
 					{
-						const bool is_selectable = components.call(entity, can_be_selected{*this});
+						const bool is_selectable = components.call(select_data.entity, can_be_selected{*this});
 						if (is_selectable)
 						{
-							if (selected_entity == entity)
+							if (selected_entity == select_data.entity)
 							{
-								deselect(entity);
-								update_gui(entity, engine::gui::MessageInteraction::RELEASE);
+								deselect(select_data.entity);
 								selected_entity = engine::Entity::null();
 							}
 							else
@@ -929,22 +898,19 @@ namespace
 								if (selected_entity != engine::Entity::null())
 								{
 									deselect(selected_entity);
-									update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 									selected_entity = engine::Entity::null();
 								}
-								select(entity);
-								update_gui(entity, engine::gui::MessageInteraction::PRESS);
-								selected_entity = entity;
+								select(select_data.entity);
+								selected_entity = select_data.entity;
 							}
 						}
-						components.call(entity, interact_with{*this});
+						components.call(select_data.entity, interact_with{*this});
 					}
 					else
 					{
 						if (selected_entity != engine::Entity::null())
 						{
 							deselect(selected_entity);
-							update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 							selected_entity = engine::Entity::null();
 						}
 						recipes_ring.hide();
@@ -955,7 +921,6 @@ namespace
 					if (selected_entity != engine::Entity::null())
 					{
 						deselect(selected_entity);
-						update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 						selected_entity = engine::Entity::null();
 					}
 					recipes_ring.hide();
@@ -966,7 +931,6 @@ namespace
 				if (selected_entity != engine::Entity::null())
 				{
 					deselect(selected_entity);
-					update_gui(selected_entity, engine::gui::MessageInteraction::RELEASE);
 					selected_entity = engine::Entity::null();
 				}
 				recipes_ring.hide();
@@ -1044,9 +1008,9 @@ namespace gamestate
 {
 	void create()
 	{
-		engine::hid::ui::post_add_context("debug");
-		engine::hid::ui::post_add_context("game");
-		engine::hid::ui::post_activate_context("game");
+		engine::hid::ui::post_add_context(engine::Asset("debug"));
+		engine::hid::ui::post_add_context(engine::Asset("game"));
+		engine::hid::ui::post_activate_context(engine::Asset("game"));
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
@@ -1059,26 +1023,26 @@ namespace gamestate
 		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
 		engine::physics::camera::add(game_camera, game_camera_pos, true);
 
-		engine::graphics::viewer::post_add_frame("game", engine::graphics::viewer::dynamic{"root"});
+		engine::graphics::viewer::post_add_frame(engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root")});
 
-		engine::graphics::viewer::post_add_projection("my-perspective-3d", engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
-		engine::graphics::viewer::post_add_projection("my-perspective-2d", engine::graphics::viewer::orthographic{-100., 100});
+		engine::graphics::viewer::post_add_projection(engine::Asset("my-perspective-3d"), engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
+		engine::graphics::viewer::post_add_projection(engine::Asset("my-perspective-2d"), engine::graphics::viewer::orthographic{-100., 100});
 
 		engine::graphics::viewer::post_add_camera(
 				debug_camera,
 				engine::graphics::viewer::camera{
-					"my-perspective-3d",
-					"my-perspective-2d",
+					engine::Asset("my-perspective-3d"),
+					engine::Asset("my-perspective-2d"),
 					core::maths::Quaternionf{ 1.f, 0.f, 0.f, 0.f },
 					debug_camera_pos});
 		engine::graphics::viewer::post_add_camera(
 				game_camera,
 				engine::graphics::viewer::camera{
-					"my-perspective-3d",
-					"my-perspective-2d",
+					engine::Asset("my-perspective-3d"),
+					engine::Asset("my-perspective-2d"),
 					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{-40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{-40.f/2.f}).get()), 0.f, 0.f },
 					game_camera_pos});
-		engine::graphics::viewer::post_bind("game", game_camera);
+		engine::graphics::viewer::post_bind(engine::Asset("game"), game_camera);
 
 		auto bordercontrol = engine::Entity::create();
 		engine::hid::ui::post_add_bordercontrol(bordercontrol, game_camera);
@@ -1086,75 +1050,45 @@ namespace gamestate
 		engine::hid::ui::post_add_flycontrol(flycontrol, debug_camera);
 		auto pancontrol = engine::Entity::create();
 		engine::hid::ui::post_add_pancontrol(pancontrol, game_camera);
-		engine::hid::ui::post_bind("debug", flycontrol, 0);
-		engine::hid::ui::post_bind("game", pancontrol, 0);
-		engine::hid::ui::post_bind("game", bordercontrol, 0);
-
-		profile_updater.entity = engine::Entity::null();
-		auto inventorycontrol = engine::Entity::create();
-		engine::hid::ui::post_add_buttoncontrol(inventorycontrol, engine::hid::Input::Button::KEY_I);
-		engine::hid::ui::post_bind("debug", inventorycontrol, 0);
-		engine::hid::ui::post_bind("game", inventorycontrol, 0);
-		components.emplace<GUIWindow>(inventorycontrol, "inventory");
-		auto profilecontrol = engine::Entity::create();
-		engine::hid::ui::post_add_buttoncontrol(profilecontrol, engine::hid::Input::Button::KEY_P);
-		engine::hid::ui::post_bind("debug", profilecontrol, 0);
-		engine::hid::ui::post_bind("game", profilecontrol, 0);
-		components.emplace<GUIWindow>(profilecontrol, "profile");
+		engine::hid::ui::post_bind(engine::Asset("debug"), flycontrol, 0);
+		engine::hid::ui::post_bind(engine::Asset("game"), pancontrol, 0);
+		engine::hid::ui::post_bind(engine::Asset("game"), bordercontrol, 0);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
-		components.emplace<CameraActivator>(debug_switch, "game", debug_camera);
-		components.emplace<CameraActivator>(game_switch, "game", game_camera);
+		components.emplace<CameraActivator>(debug_switch, engine::Asset("game"), debug_camera);
+		components.emplace<CameraActivator>(game_switch, engine::Asset("game"), game_camera);
 
-		engine::hid::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, "debug");
-		engine::hid::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, "game");
-		engine::hid::ui::post_bind("debug", game_switch, -10);
-		engine::hid::ui::post_bind("game", debug_switch, -10);
+		engine::hid::ui::post_add_contextswitch(debug_switch, engine::hid::Input::Button::KEY_F1, engine::Asset("debug"));
+		engine::hid::ui::post_add_contextswitch(game_switch, engine::hid::Input::Button::KEY_F2, engine::Asset("game"));
+		engine::hid::ui::post_bind(engine::Asset("debug"), game_switch, -10);
+		engine::hid::ui::post_bind(engine::Asset("game"), debug_switch, -10);
 
 		auto game_renderswitch = engine::Entity::create();
 		engine::hid::ui::post_add_renderswitch(game_renderswitch, engine::hid::Input::Button::KEY_F5);
-		engine::hid::ui::post_bind("debug", game_renderswitch, -5);
-		engine::hid::ui::post_bind("game", game_renderswitch, -5);
+		engine::hid::ui::post_bind(engine::Asset("debug"), game_renderswitch, -5);
+		engine::hid::ui::post_bind(engine::Asset("game"), game_renderswitch, -5);
 
 		auto selector = engine::Entity::create();
 		components.emplace<Selector>(selector);
 
 		auto game_renderhover = engine::Entity::create();
 		engine::hid::ui::post_add_renderhover(game_renderhover, selector);
-		engine::hid::ui::post_bind("debug", game_renderhover, 5);
-		engine::hid::ui::post_bind("game", game_renderhover, 5);
+		engine::hid::ui::post_bind(engine::Asset("debug"), game_renderhover, 5);
+		engine::hid::ui::post_bind(engine::Asset("game"), game_renderhover, 5);
 
 		auto game_renderselect = engine::Entity::create();
 		engine::hid::ui::post_add_renderselect(game_renderselect, selector);
-		engine::hid::ui::post_bind("debug", game_renderselect, 5);
-		engine::hid::ui::post_bind("game", game_renderselect, 5);
+		engine::hid::ui::post_bind(engine::Asset("debug"), game_renderselect, 5);
+		engine::hid::ui::post_bind(engine::Asset("game"), game_renderselect, 5);
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");
 
-		// assign reaction structure to engine::gui
-		engine::gui::post(engine::gui::MessageDataSetup{ encode_gui(Player{ "name",{ Player::Skill{ "name" } } }) });
-		{
-			Dish dish{ std::string{ "name" }, std::string{ "desc" } };
-			engine::gui::post(engine::gui::MessageDataSetup{ encode_gui({ &dish, &dish, &dish, &dish }) });
-		}
-
-		// trigger first load of GUI
-		engine::gui::post(engine::gui::MessageReload{});
-
 		engine::resource::reader::post_read("recipes", data_callback_recipes);
 		engine::resource::reader::post_read("classes", data_callback_roles);
 		engine::resource::reader::post_read("skills", data_callback_skills);
-
-		{
-			Player data{ "Chef Elzar" };
-			data.skills.push_back(Player::Skill{ "Cutting" });
-			data.skills.push_back(Player::Skill{ "Washing hands" });
-			data.skills.push_back(Player::Skill{ "Potato" });
-			engine::gui::post(engine::gui::MessageData{ encode_gui(data) });
-		}
 	}
 
 	void destroy()
@@ -1181,12 +1115,6 @@ namespace gamestate
 					std::get<1>(workstation_args),
 					std::get<2>(workstation_args),
 					std::get<3>(workstation_args));
-			}
-
-			engine::Entity gui_component;
-			while (queue_gui_components.try_pop(gui_component))
-			{
-				components.emplace<GUIComponent>(gui_component, gui_component);
 			}
 		}
 
@@ -1234,12 +1162,6 @@ namespace gamestate
 	void post_command(engine::Entity entity, engine::Command command, utility::any && data)
 	{
 		const auto res = queue_commands.try_emplace(entity, command, std::move(data));
-		debug_assert(res);
-	}
-
-	void post_gui(engine::Entity entity)
-	{
-		const auto res = queue_gui_components.try_emplace(entity);
 		debug_assert(res);
 	}
 

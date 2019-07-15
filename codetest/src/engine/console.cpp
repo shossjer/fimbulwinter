@@ -7,8 +7,7 @@ namespace engine
 {
 	namespace console
 	{
-		extern std::vector<Param> parse_params(const std::string & raw_line);
-		extern bool is_number_candidate(const std::string & str);
+		extern std::vector<Argument> parse_params(const std::string & line, int from);
 	}
 }
 
@@ -17,30 +16,13 @@ using namespace engine::console;
 namespace
 {
 	template<typename T>
-	T test(std::string str_param, T expected)
+	void test(std::string line, T expected)
 	{
-		auto params = parse_params(str_param);
+		const auto params = parse_params(line, 0);
 		REQUIRE(params.size() == 1);
 		REQUIRE(utility::holds_alternative<T>(params[0]));
-
-		T actual = utility::get<T>(params[0]);
-		REQUIRE(actual == expected);
-		return actual;
+		REQUIRE(utility::get<T>(params[0]) == expected);
 	}
-}
-
-TEST_CASE("Verify is_number_candidate method")
-{
-	REQUIRE(is_number_candidate("0"));
-	REQUIRE(is_number_candidate("-0"));
-	REQUIRE(is_number_candidate("0.1"));
-	REQUIRE(is_number_candidate("1000."));
-
-	REQUIRE(!is_number_candidate("0xFF"));
-	REQUIRE(!is_number_candidate("0.1f"));
-	REQUIRE(!is_number_candidate("zero"));
-	REQUIRE(!is_number_candidate("true"));
-	REQUIRE(!is_number_candidate(" "));
 }
 
 TEST_CASE("Verify boolean parsing")
@@ -56,21 +38,21 @@ TEST_CASE("Verify number parsing")
 {
 	SECTION("Signed Integer")
 	{
-		test("-1", -1);
-		test("-1234", -1234);
-		test("-0", -0);
+		test("-1", int64_t(-1));
+		test("-1234", int64_t(-1234));
+		test("-0", int64_t(-0));
 	}
 	SECTION("Unsigned Integer")
 	{
-		test("1", 1);
-		test("1234", 1234);
-		test("0", 0);
+		test("1", int64_t(1));
+		test("1234", int64_t(1234));
+		test("0", int64_t(0));
 	}
 	SECTION("Float")
 	{
-		test("0.0", 0.0f);
-		test("1.0", 1.0f);
-		test("1234.5678", 1234.5678f);
+		test("0.0", 0.0);
+		test("-1.0", -1.0);
+		test("1234.5678", 1234.5678);
 	}
 }
 
@@ -78,25 +60,25 @@ TEST_CASE("Verify string parsing")
 {
 	SECTION("Parse strings")
 	{
-		test<std::string>("a_single_string", "a_single_string");
+		test("\"a_single_string\"", utility::string_view("a_single_string"));
 	}
 	SECTION("Parse string scope")
 	{
-		test<std::string>("\"String with spaces\"", "String with spaces");
+		test("\"String with spaces\"", utility::string_view("String with spaces"));
 	}
 	SECTION("Non-strings as strings")
 	{
-		test<std::string>("\"1234\"", "1234");
-		test<std::string>("\"0.5\"", "0.5");
-		test<std::string>("\"false\"", "false");
-		test<std::string>("\"true\"", "true");
+		test("\"1234\"", utility::string_view("1234"));
+		test("\"0.5\"", utility::string_view("0.5"));
+		test("\"false\"", utility::string_view("false"));
+		test("\"true\"", utility::string_view("true"));
 	}
 	SECTION("Number-like strings")
 	{
-		test<std::string>("0x1234", "0x1234");
-		test<std::string>("0xffff", "0xffff");
-		test<std::string>("12b", "12b");
-		test<std::string>("a1234", "a1234");
+		test("\"0x1234\"", utility::string_view("0x1234"));
+		test("\"0xffff\"", utility::string_view("0xffff"));
+		test("\"12b\"", utility::string_view("12b"));
+		test("\"a1234\"", utility::string_view("a1234"));
 	}
 }
 
@@ -104,44 +86,52 @@ TEST_CASE("Verify multiple args")
 {
 	SECTION("Parse strings")
 	{
-		auto params = parse_params("\"String with spaces\" hey_how_are_you \"Another string\" \"true\"");
+		const std::string line = "\"String with spaces\" \"hey_how_are_you\" \"Another string\" \"true\"";
+		const auto params = parse_params(line, 0);
 
 		REQUIRE(params.size() == 4);
-		REQUIRE(utility::holds_alternative<std::string>(params[0]));
-		REQUIRE(utility::holds_alternative<std::string>(params[1]));
-		REQUIRE(utility::holds_alternative<std::string>(params[2]));
-		REQUIRE(utility::holds_alternative<std::string>(params[3]));
+		REQUIRE(utility::holds_alternative<utility::string_view>(params[0]));
+		REQUIRE(utility::holds_alternative<utility::string_view>(params[1]));
+		REQUIRE(utility::holds_alternative<utility::string_view>(params[2]));
+		REQUIRE(utility::holds_alternative<utility::string_view>(params[3]));
 
-		REQUIRE(utility::get<std::string>(params[0]) == "String with spaces");
-		REQUIRE(utility::get<std::string>(params[1]) == "hey_how_are_you");
-		REQUIRE(utility::get<std::string>(params[2]) == "Another string");
-		REQUIRE(utility::get<std::string>(params[3]) == "true");
+		REQUIRE(utility::get<utility::string_view>(params[0]) == "String with spaces");
+		REQUIRE(utility::get<utility::string_view>(params[1]) == "hey_how_are_you");
+		REQUIRE(utility::get<utility::string_view>(params[2]) == "Another string");
+		REQUIRE(utility::get<utility::string_view>(params[3]) == "true");
 	}
 	SECTION("Parse mix")
 	{
-		auto params = parse_params("\"String with spaces\" a_string true 1234 0.5");
+		const std::string line = "\"String with spaces\" \"a_string\" true 1234 0.5";
+		const auto params = parse_params(line, 0);
 
 		REQUIRE(params.size() == 5);
-		REQUIRE(utility::holds_alternative<std::string>(params[0]));
-		REQUIRE(utility::holds_alternative<std::string>(params[1]));
+		REQUIRE(utility::holds_alternative<utility::string_view>(params[0]));
+		REQUIRE(utility::holds_alternative<utility::string_view>(params[1]));
 		REQUIRE(utility::holds_alternative<bool>(params[2]));
-		REQUIRE(utility::holds_alternative<int>(params[3]));
-		REQUIRE(utility::holds_alternative<float>(params[4]));
+		REQUIRE(utility::holds_alternative<int64_t>(params[3]));
+		REQUIRE(utility::holds_alternative<double>(params[4]));
 
-		REQUIRE(utility::get<std::string>(params[0]) == "String with spaces");
-		REQUIRE(utility::get<std::string>(params[1]) == "a_string");
+		REQUIRE(utility::get<utility::string_view>(params[0]) == "String with spaces");
+		REQUIRE(utility::get<utility::string_view>(params[1]) == "a_string");
 		REQUIRE(utility::get<bool>(params[2]) == true);
-		REQUIRE(utility::get<int>(params[3]) == 1234);
-		REQUIRE(utility::get<float>(params[4]) == 0.5f);
+		REQUIRE(utility::get<int64_t>(params[3]) == 1234);
+		REQUIRE(utility::get<double>(params[4]) == 0.5f);
 	}
 }
 
 namespace
 {
-	void f_empty() {}
-	void f_single(std::string) {}
-	void f_dual1(bool, int) {}
-	void f_dual2(bool, bool) {}
+	void f_empty(void * data) {}
+	void f_single(void * data, utility::string_view) {}
+	void f_dual1(void * data, bool, int64_t) {}
+	void f_dual2(void * data, bool, bool) {}
+
+	template <typename ...Parameters>
+	auto create_callback(void (* fun)(void * data, Parameters...), void * data)
+	{
+		return Callback<Parameters...>(fun, data);
+	}
 }
 
 // TODO: test variadic lookup
@@ -149,23 +139,23 @@ TEST_CASE("Verify variadic parsing")
 {
 	SECTION("Lookup no args")
 	{
-		Callback<> callback{ f_empty };
-		std::vector<Param> params;
+		auto callback = create_callback(f_empty, nullptr);
+		std::vector<Argument> params;
 		REQUIRE(callback.call(params));
-		params.emplace_back(utility::in_place_type<std::string>, "");
+		params.emplace_back(utility::in_place_type<utility::string_view>, "");
 		REQUIRE(!callback.call(params));
 	}
 
 	SECTION("Lookup args")
 	{
-		Callback<> c_empty{ f_empty };
-		Callback<std::string> c_single{ f_single };
+		auto c_empty = create_callback(f_empty, nullptr);
+		auto c_single = create_callback(f_single, nullptr);
 
-		std::vector<Param> params;
+		std::vector<Argument> params;
 		REQUIRE(c_empty.call(params));		// match
 		REQUIRE(!c_single.call(params));	// too few args
 
-		params.emplace_back(utility::in_place_type<std::string>, "");
+		params.emplace_back(utility::in_place_type<utility::string_view>, "");
 
 		REQUIRE(!c_empty.call(params));		// too many args
 		REQUIRE(c_single.call(params));		// match
@@ -173,26 +163,34 @@ TEST_CASE("Verify variadic parsing")
 
 	SECTION("Lookup argument missmatch")
 	{
-		Callback<std::string> c_single{ f_single };
+		auto c_single = create_callback(f_single, nullptr);
 
-		std::vector<Param> params;
+		std::vector<Argument> params;
 		params.emplace_back(utility::in_place_type<bool>, false);
 
 		REQUIRE(!c_single.call(params));	// missmatch
 	}
 	SECTION("Lookup multi args match")
 	{
-		std::vector<Param> params;
+		std::vector<Argument> params;
 
-		Callback<bool, int> call_match{ f_dual1 };
-		Callback<bool, bool> call_inval{ f_dual2 };
+		auto call_match = create_callback(f_dual1, nullptr);
+		auto call_inval = create_callback(f_dual2, nullptr);
 
 		params.emplace_back(utility::in_place_type<bool>, false);
 		REQUIRE(!call_match.call(params));	// too few args
 		REQUIRE(!call_inval.call(params));	// too few args
 
-		params.emplace_back(utility::in_place_type<int>, 0);
+		params.emplace_back(utility::in_place_type<int64_t>, 0);
 		REQUIRE(call_match.call(params));	// match
 		REQUIRE(!call_inval.call(params));	// missmatch
+	}
+	SECTION("try to send and use data")
+	{
+		void (*const fun)(void * data) = [](void * data){ REQUIRE(reinterpret_cast<std::intptr_t>(data) == 4711); };
+		auto callback = create_callback(fun, reinterpret_cast<void *>(4711));
+
+		std::vector<Argument> params;
+		REQUIRE(callback.call(params));
 	}
 }

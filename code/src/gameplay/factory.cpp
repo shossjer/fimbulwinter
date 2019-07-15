@@ -372,7 +372,7 @@ namespace
 				for (int i = 0; i < part.render.shapes.size(); i++)
 				{
 					const auto & mesh = part.render.shapes[i];
-					const engine::Asset meshId = name + part.name + std::to_string(i);
+					const engine::Asset meshId(name + part.name + std::to_string(i));
 
 					engine::graphics::renderer::post_register_mesh(
 						meshId,
@@ -475,7 +475,7 @@ namespace
 
 				for (const auto & mesh : data.meshes)
 				{
-					const engine::Asset asset = mesh.name;
+					const engine::Asset asset(mesh.name);
 
 					engine::graphics::renderer::post_register_mesh(
 						asset,
@@ -501,7 +501,7 @@ namespace
 						make_matrix(placeholder.rotation) *
 						make_scale_matrix(placeholder.scale);
 
-					create_placeholder_lockfree(placeholder.name, entity, modelview);
+					create_placeholder_lockfree(engine::Asset(placeholder.name), entity, modelview);
 
 					placeholders.push_back({placeholder.name, entity});
 				}
@@ -575,7 +575,7 @@ namespace
 				for (int i = 0; i < part.render.shapes.size(); i++)
 				{
 					const auto & mesh = part.render.shapes[i];
-					const engine::Asset meshId = name + part.name + std::to_string(i);
+					const engine::Asset meshId(name + part.name + std::to_string(i));
 
 					engine::graphics::renderer::post_register_mesh(
 						meshId,
@@ -681,8 +681,8 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							core::maths::Vector3f{ 1.f, 1.f, 1.f },
-							resource.assets });
+						core::maths::Vector3f{ 1.f, 1.f, 1.f },
+						resource.assets });
 				engine::graphics::renderer::post_make_selectable(entity);
 
 				gameplay::gamestate::post_add_workstation(
@@ -750,8 +750,8 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							core::maths::Vector3f{ 1.f, 1.f, 1.f },
-							resource.assets });
+						core::maths::Vector3f{ 1.f, 1.f, 1.f },
+						resource.assets });
 			}
 			Created(Created && x)
 				: entity(x.entity)
@@ -813,7 +813,7 @@ namespace
 			{
 				for (const auto & mesh : resource.meshes)
 				{
-					const engine::Asset asset = mesh.name;
+					const engine::Asset asset(mesh.name);
 
 					std::vector<engine::graphics::data::CompC::asset> assets;
 					assets.push_back({asset, mesh.color});
@@ -894,8 +894,8 @@ namespace
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
-							core::maths::Vector3f{ 1.f, 1.f, 1.f },
-							resource.assets });
+						core::maths::Vector3f{ 1.f, 1.f, 1.f },
+						resource.assets });
 				engine::graphics::renderer::post_make_selectable(entity);
 
 				gameplay::gamestate::post_add_workstation(
@@ -966,9 +966,9 @@ namespace
 					entity,
 					engine::graphics::data::CompT{
 						modelview,
-							core::maths::Vector3f { 1.f, 1.f, 1.f },
-							resource.mesh,
-								engine::Asset{ "dude" }});
+						core::maths::Vector3f { 1.f, 1.f, 1.f },
+						resource.mesh,
+						engine::Asset{ "dude" }});
 				engine::graphics::renderer::post_make_selectable(entity);
 
 				core::maths::Vector3f translation;
@@ -1287,31 +1287,31 @@ namespace
 
 	void create_level_lockfree(engine::Entity entity, const std::string & name)
 	{
-		create_entity_lockfree<ResourceLevel, EntityLevel>(name, name, read_level_callback, entity);
+		create_entity_lockfree<ResourceLevel, EntityLevel>(name, engine::Asset(name), read_level_callback, entity);
 	}
 
 	void create_bench_lockfree(engine::Entity entity, const core::maths::Matrix4x4f & modelview)
 	{
 		constexpr const auto & name = "bench";
-		create_entity_lockfree<ResourceTable, EntityBench>(name, name, read_table_callback, entity, modelview);
+		create_entity_lockfree<ResourceTable, EntityBench>(name, engine::Asset(name), read_table_callback, entity, modelview);
 	}
 
 	void create_board_lockfree(engine::Entity entity, const core::maths::Matrix4x4f & modelview)
 	{
 		constexpr const auto & name = "board";
-		create_entity_lockfree<ResourceDecoration, EntityBoard>(name, name, read_decoration_callback, entity, modelview);
+		create_entity_lockfree<ResourceDecoration, EntityBoard>(name, engine::Asset(name), read_decoration_callback, entity, modelview);
 	}
 
 	void create_oven_lockfree(engine::Entity entity, const core::maths::Matrix4x4f & modelview)
 	{
 		constexpr const auto & name = "oven";
-		create_entity_lockfree<ResourceTable, EntityOven>(name, name, read_table_callback, entity, modelview);
+		create_entity_lockfree<ResourceTable, EntityOven>(name, engine::Asset(name), read_table_callback, entity, modelview);
 	}
 
 	void create_worker_lockfree(engine::Entity entity, const core::maths::Matrix4x4f & modelview)
 	{
 		constexpr const auto & name = "dude2";
-		constexpr engine::Asset asset = name;
+		constexpr engine::Asset asset(name);
 
 		if (resources.contains(asset))
 		{
@@ -1368,8 +1368,8 @@ namespace gameplay
 		create_level_lockfree(entity, name);
 
 		// tmp
-		debug_assert(!resources.contains("board"));
-		resources.emplace<ResourceDecoration>("board");
+		debug_assert(!resources.contains(engine::Asset("board")));
+		resources.emplace<ResourceDecoration>(engine::Asset("board"));
 		engine::resource::reader::post_read("board", read_decoration_callback);
 	}
 

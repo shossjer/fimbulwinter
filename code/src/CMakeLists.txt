@@ -18,14 +18,6 @@ set(SOURCE_FILES
 	src/engine/graphics/renderer_opengl_12.cpp
 	src/engine/graphics/renderer_opengl_30.cpp
 	src/engine/graphics/viewer.cpp
-	src/engine/gui/controller.cpp
-	src/engine/gui/creation.cpp
-	src/engine/gui/gui.cpp
-	src/engine/gui/loading.cpp
-	src/engine/gui/interaction.cpp
-	src/engine/gui/reaction.cpp
-	src/engine/gui/render.cpp
-	src/engine/gui/resources.cpp
 	src/engine/hid/input.cpp
 	src/engine/hid/input_user32.cpp
 	src/engine/hid/input_x11.cpp
@@ -40,7 +32,6 @@ set(SOURCE_FILES
    src/engine/resource/writer.cpp
 	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
-	src/gameplay/gamestate_gui.cpp
 	src/gameplay/looper.cpp
 	)
 
@@ -102,20 +93,6 @@ set(HEADER_FILES
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/viewer.hpp
-	src/engine/gui/common.hpp
-	src/engine/gui/controller.hpp
-	src/engine/gui/exception.hpp
-	src/engine/gui/gui.hpp
-	src/engine/gui/interaction.hpp
-	src/engine/gui/loading.hpp
-	src/engine/gui/loading_utils.hpp
-	src/engine/gui/update.hpp
-	src/engine/gui/reaction.hpp
-	src/engine/gui/render.hpp
-	src/engine/gui/resources.hpp
-	src/engine/gui/view.hpp
-	src/engine/gui/view_data.hpp
-	src/engine/gui/view_refresh.hpp
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
@@ -139,7 +116,6 @@ set(HEADER_FILES
 	src/gameplay/debug.hpp
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
-	src/gameplay/gamestate_gui.hpp
 	src/gameplay/gamestate_models.hpp
 	src/gameplay/recipes.hpp
 	src/gameplay/skills.hpp

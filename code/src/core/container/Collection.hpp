@@ -987,6 +987,24 @@ namespace core
 
 				return std::get<type>(arrays).get(index);
 			}
+			int get_all_keys(K * buffer, int size) const
+			{
+				int count = 0;
+				if (size <= 0)
+					return count;
+
+				for (int bucket = 0; bucket < M; bucket++)
+				{
+					if (slots[bucket].empty())
+						continue;
+
+					buffer[count++] = keys[bucket];
+					if (count >= size)
+						return count;
+				}
+				return count;
+			}
+			constexpr std::size_t max_size() const { return M; }
 
 			template <typename D>
 			void add(K key, D && data)

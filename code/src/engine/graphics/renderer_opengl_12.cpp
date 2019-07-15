@@ -73,6 +73,8 @@ namespace gameplay
 	}
 }
 
+debug_assets("box", "cuboid", "dude", "my_png", "photo");
+
 namespace
 {
 	class Stack
@@ -1378,9 +1380,9 @@ namespace
 			engine::graphics::opengl::Font::Data data;
 
 #if TEXT_USE_FREETYPE
-			if (!data.load("res/font/consolas.ttf", 12))
+			if (!data.load("res/font/consolas.ttf", 14))
 #else
-			if (!data.load("consolas", 12))
+			if (!data.load("consolas", 14))
 #endif
 			{
 				debug_fail();
@@ -1565,7 +1567,8 @@ namespace
 			std::tuple<int, int, engine::Entity, engine::Command> select_args;
 			while (queue_select.try_pop(select_args))
 			{
-				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)));
+				engine::graphics::renderer::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
+				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
 			}
 		}
 
@@ -1925,6 +1928,22 @@ namespace
 		// ^^^^^^^^ tmp ^^^^^^^^
 		glDeleteRenderbuffers(2, entitybuffers);
 		glDeleteFramebuffers(1, &framebuffer);
+
+		engine::Asset resources_not_unregistered[resources.max_size()];
+		const int resource_count = resources.get_all_keys(resources_not_unregistered, resources.max_size());
+		debug_printline(engine::asset_channel, resource_count, " resources not unregistered:");
+		for (int i = 0; i < resource_count; i++)
+		{
+			debug_printline(engine::asset_channel, resources_not_unregistered[i]);
+		}
+
+		engine::Asset materials_not_unregistered[materials.max_size()];
+		const int material_count = materials.get_all_keys(materials_not_unregistered, materials.max_size());
+		debug_printline(engine::asset_channel, material_count, " materials not unregistered:");
+		for (int i = 0; i < material_count; i++)
+		{
+			debug_printline(engine::asset_channel, materials_not_unregistered[i]);
+		}
 	}
 }
 

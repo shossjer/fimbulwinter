@@ -13,6 +13,8 @@
 
 #include "utility/variant.hpp"
 
+debug_assets("root");
+
 namespace
 {
 	struct dimension_t
@@ -449,7 +451,7 @@ namespace
 			}
 		};
 
-		nodes.call("root", BuildViewports{0, 0, dimension.width, dimension.height});
+		nodes.call(engine::Asset("root"), BuildViewports{0, 0, dimension.width, dimension.height});
 	}
 }
 
@@ -580,11 +582,27 @@ namespace engine
 		{
 			void create()
 			{
-				nodes.emplace<Root>("root", engine::Asset::null());
+				nodes.emplace<Root>(engine::Asset("root"), engine::Asset::null());
 			}
 
 			void destroy()
-			{}
+			{
+				engine::Asset projections_not_unregistered[projections.max_size()];
+				const int projection_count = projections.get_all_keys(projections_not_unregistered, projections.max_size());
+				debug_printline(engine::asset_channel, projection_count, " projections not unregistered:");
+				for (int i = 0; i < projection_count; i++)
+				{
+					debug_printline(engine::asset_channel, projections_not_unregistered[i]);
+				}
+
+				engine::Asset nodes_not_unregistered[nodes.max_size()];
+				const int node_count = nodes.get_all_keys(nodes_not_unregistered, nodes.max_size());
+				debug_printline(engine::asset_channel, node_count, " nodes not unregistered:");
+				for (int i = 0; i < node_count; i++)
+				{
+					debug_printline(engine::asset_channel, nodes_not_unregistered[i]);
+				}
+			}
 
 			void update()
 			{
