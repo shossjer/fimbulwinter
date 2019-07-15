@@ -2618,7 +2618,7 @@ namespace
 		{
 			core::container::Buffer vertices;
 			core::container::Buffer texcoords;
-			font_manager.compile(engine::Asset("res/font/consolas.ttf"), "herp derp herp derp \u00c5\u00c4\u00d6 \u00e5\u00e4\u00f6 \u03b1\u03b2\u03b3\u03b4\u03b5\u03b6\u03b7 \u0410\u0411\u0412\u0413\u0414\u0415\u0416 \u2603.", vertices, texcoords);
+			font_manager.compile(engine::Asset("res/font/consolas.ttf"), u8"herp derp herp derp \u00c5\u00c4\u00d6 \u00e5\u00e4\u00f6 \u03b1\u03b2\u03b3\u03b4\u03b5\u03b6\u03b7 \u0410\u0411\u0412\u0413\u0414\u0415\u0416 \u2603.", vertices, texcoords);
 			debug_assert(vertices.count() / 8 == 46);
 			debug_assert(texcoords.count() / 8 == 46);
 			debug_assert(vertices.format() == core::container::Buffer::Format::float32);
