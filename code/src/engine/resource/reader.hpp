@@ -3,6 +3,7 @@
 #define ENGINE_RESOURCE_READER_HPP
 
 #include "core/ArmatureStructurer.hpp"
+#include "core/BytesStructurer.hpp"
 #include "core/IniStructurer.hpp"
 #include "core/JsonStructurer.hpp"
 #include "core/LevelStructurer.hpp"
@@ -25,6 +26,7 @@ namespace engine
 		{
 			using Structurer = utility::variant<
 				core::ArmatureStructurer,
+				core::BytesStructurer,
 				core::IniStructurer,
 				core::JsonStructurer,
 				core::LevelStructurer,

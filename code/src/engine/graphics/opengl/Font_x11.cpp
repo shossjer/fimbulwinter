@@ -1,7 +1,7 @@
 
 #include "Font.hpp"
 
-#if TEXT_USE_BITMAP
+#if TEXT_USE_X11
 
 #include <core/debug.hpp>
 

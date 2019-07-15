@@ -41,6 +41,7 @@ set(HEADER_FILES
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
    src/core/BufferedStream.hpp
+   src/core/BytesStructurer.hpp
 	src/core/color.hpp
 	src/core/container/Buffer.hpp
 	src/core/container/CircleQueue.hpp

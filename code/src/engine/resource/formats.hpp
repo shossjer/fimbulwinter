@@ -13,6 +13,7 @@ namespace engine
 		enum struct Format
 		{
 			Armature,
+			Bytes,
 			Ini,
 			Json,
 			Level,
@@ -20,6 +21,7 @@ namespace engine
 			Png,
 			Shader,
 			String,
+			Ttf,
 			COUNT,
 			None = COUNT
 		};
@@ -28,13 +30,15 @@ namespace engine
 		{
 			return utility::make_lookup_table(
 				std::make_pair(utility::string_view("arm"), Format::Armature),
+				std::make_pair(utility::string_view("bytes"), Format::Bytes),
 				std::make_pair(utility::string_view("ini"), Format::Ini),
 				std::make_pair(utility::string_view("json"), Format::Json),
 				std::make_pair(utility::string_view("lvl"), Format::Level),
 				std::make_pair(utility::string_view("msh"), Format::Placeholder),
 				std::make_pair(utility::string_view("png"), Format::Png),
 				std::make_pair(utility::string_view("glsl"), Format::Shader),
-				std::make_pair(utility::string_view("rec"), Format::String));
+				std::make_pair(utility::string_view("rec"), Format::String),
+				std::make_pair(utility::string_view("ttf"), Format::Bytes));
 		}
 
 		class FormatMask
