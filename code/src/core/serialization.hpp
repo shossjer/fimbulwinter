@@ -7,30 +7,69 @@
 #include "utility/preprocessor.hpp"
 #include "utility/string_view.hpp"
 #include "utility/type_traits.hpp"
+#include "utility/utility.hpp"
 
 #include "utility/lookup_table.hpp"
 
 namespace core
 {
 	template <typename T>
-	class serialization
+	constexpr auto serialization(utility::in_place_type_t<T>) -> decltype(T::serialization())
+	{
+		return T::serialization();
+	}
+
+	template <typename T>
+	class value_table
 	{
 	private:
-		static constexpr decltype(T::serialization()) member_table = T::serialization();
+		static constexpr decltype(serialization(utility::in_place_type<T>)) lookup_table = serialization(utility::in_place_type<T>);
+
+		static_assert(lookup_table.all_values_same_type, "");
 
 	public:
 		static constexpr bool has(utility::string_view name)
 		{
-			return member_table.contains(name);
+			return lookup_table.contains(name);
+		}
+
+		static constexpr decltype(auto) get(utility::string_view name)
+		{
+			return lookup_table.get_value(lookup_table.find(name));
+		}
+
+		template <typename P>
+		static constexpr decltype(auto) get_key(P && value)
+		{
+			return lookup_table.get_key(lookup_table.find_value(std::forward<P>(value)));
+		}
+	};
+
+	template <typename T>
+	constexpr decltype(serialization(utility::in_place_type<T>)) value_table<T>::lookup_table;
+
+	template <typename T>
+	class member_table
+	{
+	private:
+		using lookup_table_t = decltype(serialization(utility::in_place_type<T>));
+
+	private:
+		static constexpr lookup_table_t lookup_table = serialization(utility::in_place_type<T>);
+
+	public:
+		static constexpr bool has(utility::string_view name)
+		{
+			return lookup_table.contains(name);
 		}
 
 		template <typename X, typename F>
 		static decltype(auto) call(utility::string_view name, X && x, F && f)
 		{
-			switch (member_table.find(name))
+			switch (lookup_table.find(name))
 			{
 #define CASE(n) case (n):	  \
-				return call_impl(mpl::index_constant<((n) < member_table.size() ? (n) : std::size_t(-1))>{}, std::forward<X>(x), std::forward<F>(f))
+				return call_impl(mpl::index_constant<((n) < lookup_table.size() ? (n) : std::size_t(-1))>{}, std::forward<X>(x), std::forward<F>(f))
 
 				PP_EXPAND_128(CASE, 0);
 #undef CASE
@@ -42,7 +81,7 @@ namespace core
 		template <typename X, typename F>
 		static decltype(auto) call_with_all_members(X && x, F && f)
 		{
-			return call_with_all_members_impl(mpl::make_index_sequence<member_table.capacity>{}, std::forward<X>(x), std::forward<F>(f));
+			return call_with_all_members_impl(mpl::make_index_sequence<lookup_table.capacity>{}, std::forward<X>(x), std::forward<F>(f));
 		}
 
 		template <typename X, typename F>
@@ -55,40 +94,51 @@ namespace core
 		static decltype(auto) call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
 		{
 			debug_unreachable();
-			return f(x.* member_table.template get_value<0>());
+			return f(x.* lookup_table.template get_value<0>());
 		}
 		template <std::size_t I, typename X, typename F>
 		static decltype(auto) call_impl(mpl::index_constant<I>, X && x, F && f)
 		{
-			return f(x.* member_table.template get_value<I>());
+			return f(x.* lookup_table.template get_value<I>());
 		}
 
 		template <std::size_t ...Is, typename X, typename F>
 		static decltype(auto) call_with_all_members_impl(mpl::index_sequence<Is...>, X && x, F && f)
 		{
-			return f(x.* member_table.template get_value<Is>()...);
+			return f(x.* lookup_table.template get_value<Is>()...);
 		}
 
 		template <typename X, typename F>
-		static void for_each_member_impl(mpl::index_constant<member_table.capacity>, X &&, F &&)
+		static void for_each_member_impl(mpl::index_constant<lookup_table.capacity>, X &&, F &&)
 		{
 		}
 		template <std::size_t I, typename X, typename F>
 		static void for_each_member_impl(mpl::index_constant<I>, X && x, F && f)
 		{
-			f(x.* member_table.template get_value<I>());
+			call_f(mpl::index_constant<I>{}, x, f);
 			for_each_member_impl(mpl::index_constant<I + 1>{}, std::forward<X>(x), std::forward<F>(f));
+		}
+
+		template <std::size_t I, typename X, typename F>
+		static auto call_f(mpl::index_constant<I>, X && x, F && f) -> decltype(f(x.* std::declval<lookup_table_t>().template get_value<I>()), void())
+		{
+			f(x.* lookup_table.template get_value<I>());
+		}
+		template <std::size_t I, typename X, typename F>
+		static auto call_f(mpl::index_constant<I>, X && x, F && f) -> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), x.* std::declval<lookup_table_t>().template get_value<I>()), void())
+		{
+			f(lookup_table.template get_key<I>(), x.* lookup_table.template get_value<I>());
 		}
 	};
 
 	template <typename T>
-	constexpr decltype(T::serialization()) serialization<T>::member_table;
+	constexpr decltype(serialization(utility::in_place_type<T>)) member_table<T>::lookup_table;
 
 	template <typename T>
-	struct has_member_table_impl
+	struct has_lookup_table_impl
 	{
 		template <typename U>
-		static auto test(int) -> decltype(U::serialization(), mpl::true_type());
+		static auto test(int) -> decltype(serialization(utility::in_place_type<U>), mpl::true_type());
 		template <typename U>
 		static auto test(...) -> mpl::false_type;
 
@@ -96,7 +146,7 @@ namespace core
 	};
 
 	template <typename T>
-	using has_member_table = typename has_member_table_impl<T>::type;
+	using has_lookup_table = typename has_lookup_table_impl<T>::type;
 
 	template <typename T>
 	class TryAssign

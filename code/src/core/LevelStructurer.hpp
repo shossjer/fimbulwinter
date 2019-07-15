@@ -17,23 +17,23 @@
 
 namespace core
 {
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 	template <typename T>
 	struct LevelStructurerHelper
 	{
 		static const bool IsMesh =
-			serialization<T>::has("name") &&
-			serialization<T>::has("matrix") &&
-			serialization<T>::has("color") &&
-			serialization<T>::has("vertices") &&
-			serialization<T>::has("normals") &&
-			serialization<T>::has("triangles");
+			member_table<T>::has("name") &&
+			member_table<T>::has("matrix") &&
+			member_table<T>::has("color") &&
+			member_table<T>::has("vertices") &&
+			member_table<T>::has("normals") &&
+			member_table<T>::has("triangles");
 
 		static const bool IsPlaceholder =
-			serialization<T>::has("name") &&
-			serialization<T>::has("translation") &&
-			serialization<T>::has("rotation") &&
-			serialization<T>::has("scale");
+			member_table<T>::has("name") &&
+			member_table<T>::has("translation") &&
+			member_table<T>::has("rotation") &&
+			member_table<T>::has("scale");
 	};
 #endif
 
@@ -61,10 +61,10 @@ namespace core
 		void read(T & x)
 		{
 			int curr = 0;
-			static_assert(serialization<T>::has("meshes"), "");
-			serialization<T>::call("meshes", x, [&](auto & y){ read_meshes(curr, y); });
-			static_assert(serialization<T>::has("placeholders"), "");
-			serialization<T>::call("placeholders", x, [&](auto & y){ read_placeholders(curr, y); });
+			static_assert(member_table<T>::has("meshes"), "");
+			member_table<T>::call("meshes", x, [&](auto & y){ read_meshes(curr, y); });
+			static_assert(member_table<T>::has("placeholders"), "");
+			member_table<T>::call("placeholders", x, [&](auto & y){ read_placeholders(curr, y); });
 		}
 	private:
 		template <typename T>
@@ -121,15 +121,15 @@ namespace core
 		}
 
 		template <typename T,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((LevelStructurerHelper<T>::IsMesh))>
 #else
-		          REQUIRES((serialization<T>::has("name") &&
-		                    serialization<T>::has("matrix") &&
-		                    serialization<T>::has("color") &&
-		                    serialization<T>::has("vertices") &&
-		                    serialization<T>::has("normals") &&
-		                    serialization<T>::has("triangles")))>
+		          REQUIRES((member_table<T>::has("name") &&
+		                    member_table<T>::has("matrix") &&
+		                    member_table<T>::has("color") &&
+		                    member_table<T>::has("vertices") &&
+		                    member_table<T>::has("normals") &&
+		                    member_table<T>::has("triangles")))>
 #endif
 		int read_meshes(int & curr, std::vector<T> & x)
 		{
@@ -139,21 +139,21 @@ namespace core
 			x.resize(nmeshes);
 			for (auto & m : x)
 			{
-				static_assert(serialization<T>::has("name"), "");
-				serialization<T>::call("name", m, [&](auto & y){ read_string(curr, y); });
-				static_assert(serialization<T>::has("matrix"), "");
-				serialization<T>::call("matrix", m, [&](auto & y){ read_matrix(curr, y); });
+				static_assert(member_table<T>::has("name"), "");
+				member_table<T>::call("name", m, [&](auto & y){ read_string(curr, y); });
+				static_assert(member_table<T>::has("matrix"), "");
+				member_table<T>::call("matrix", m, [&](auto & y){ read_matrix(curr, y); });
 
-				static_assert(serialization<T>::has("color"), "");
-				serialization<T>::call("color", m, [&](auto & y){ read_color(curr, y); });
+				static_assert(member_table<T>::has("color"), "");
+				member_table<T>::call("color", m, [&](auto & y){ read_color(curr, y); });
 
-				static_assert(serialization<T>::has("vertices"), "");
-				const auto nvertices = serialization<T>::call("vertices", m, [&](auto & y){ return read_array<float>(curr, y, 3); });
-				static_assert(serialization<T>::has("normals"), "");
-				const auto nnormals = serialization<T>::call("normals", m, [&](auto & y){ return read_array<float>(curr, y, 3); });
+				static_assert(member_table<T>::has("vertices"), "");
+				const auto nvertices = member_table<T>::call("vertices", m, [&](auto & y){ return read_array<float>(curr, y, 3); });
+				static_assert(member_table<T>::has("normals"), "");
+				const auto nnormals = member_table<T>::call("normals", m, [&](auto & y){ return read_array<float>(curr, y, 3); });
 				debug_assert(nvertices == nnormals);
-				static_assert(serialization<T>::has("triangles"), "");
-				serialization<T>::call("triangles", m, [&](auto & y){ return read_array<uint16_t>(curr, y, 3); });
+				static_assert(member_table<T>::has("triangles"), "");
+				member_table<T>::call("triangles", m, [&](auto & y){ return read_array<uint16_t>(curr, y, 3); });
 			}
 			return nmeshes;
 		}
@@ -165,13 +165,13 @@ namespace core
 		}
 
 		template <typename T,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((LevelStructurerHelper<T>::IsPlaceholder))>
 #else
-		          REQUIRES((serialization<T>::has("name") &&
-		                    serialization<T>::has("translation") &&
-		                    serialization<T>::has("rotation") &&
-		                    serialization<T>::has("scale")))>
+		          REQUIRES((member_table<T>::has("name") &&
+		                    member_table<T>::has("translation") &&
+		                    member_table<T>::has("rotation") &&
+		                    member_table<T>::has("scale")))>
 #endif
 		int read_placeholders(int & curr, std::vector<T> & x)
 		{
@@ -181,14 +181,14 @@ namespace core
 			x.resize(nplaceholders);
 			for (auto & p : x)
 			{
-				static_assert(serialization<T>::has("name"), "");
-				serialization<T>::call("name", p, [&](auto & y){ read_string(curr, y); });
-				static_assert(serialization<T>::has("translation"), "");
-				serialization<T>::call("translation", p, [&](auto & y){ read_vector(curr, y); });
-				static_assert(serialization<T>::has("rotation"), "");
-				serialization<T>::call("rotation", p, [&](auto & y){ read_quaternion(curr, y); });
-				static_assert(serialization<T>::has("scale"), "");
-				serialization<T>::call("scale", p, [&](auto & y){ read_vector(curr, y); });
+				static_assert(member_table<T>::has("name"), "");
+				member_table<T>::call("name", p, [&](auto & y){ read_string(curr, y); });
+				static_assert(member_table<T>::has("translation"), "");
+				member_table<T>::call("translation", p, [&](auto & y){ read_vector(curr, y); });
+				static_assert(member_table<T>::has("rotation"), "");
+				member_table<T>::call("rotation", p, [&](auto & y){ read_quaternion(curr, y); });
+				static_assert(member_table<T>::has("scale"), "");
+				member_table<T>::call("scale", p, [&](auto & y){ read_vector(curr, y); });
 			}
 			return nplaceholders;
 		}

@@ -13,6 +13,11 @@
 # include <GL/gl.h>
 # include <GL/glx.h>
 # include <GL/glext.h>
+
+// undefine macro from X.h
+# ifdef None
+#  undef None
+# endif
 #endif
 
 namespace engine

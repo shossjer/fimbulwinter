@@ -3,6 +3,8 @@
 
 #if WINDOW_USE_USER32
 
+#include "window.hpp"
+
 #include <engine/debug.hpp>
 
 #include <windowsx.h>
@@ -156,7 +158,7 @@ namespace engine
 		namespace window
 		{
 			// TODO: proper error handling
-			void create(HINSTANCE hInstance, const int nCmdShow)
+			void create(HINSTANCE hInstance, const int nCmdShow, const config_t & config)
 			{
 				OSVERSIONINFO osvi;
 				{
@@ -188,8 +190,8 @@ namespace engine
 				                           WS_OVERLAPPEDWINDOW,
 				                           CW_USEDEFAULT,
 				                           CW_USEDEFAULT,
-				                           1024,
-				                           720,
+				                           config.window_width,
+				                           config.window_height,
 				                           0,
 				                           0,
 				                           hInstance,

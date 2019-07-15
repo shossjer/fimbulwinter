@@ -44,18 +44,18 @@ namespace core
 			read_string(curr, name);
 			debug_printline("mesh name: ", name);
 
-			static_assert(serialization<T>::has("matrix"), "");
-			serialization<T>::call("matrix", x, [&](auto & y){ read_matrix(curr, y); });
-			static_assert(serialization<T>::has("vertices"), "");
-			serialization<T>::call("vertices", x, [&](auto & y){ read_array<float>(curr, y, 3); });
-			static_assert(serialization<T>::has("uvs"), "");
-			serialization<T>::call("uvs", x, [&](auto & y){ read_array<float>(curr, y, 2); });
-			static_assert(serialization<T>::has("normals"), "");
-			serialization<T>::call("normals", x, [&](auto & y){ read_array<float>(curr, y, 3); });
-			static_assert(serialization<T>::has("weights"), "");
-			serialization<T>::call("weights", x, [&](auto & y){ read_weights(curr, y); });
-			static_assert(serialization<T>::has("triangles"), "");
-			serialization<T>::call("triangles", x, [&](auto & y){ read_array<unsigned int>(curr, y, 3); });
+			static_assert(member_table<T>::has("matrix"), "");
+			member_table<T>::call("matrix", x, [&](auto & y){ read_matrix(curr, y); });
+			static_assert(member_table<T>::has("vertices"), "");
+			member_table<T>::call("vertices", x, [&](auto & y){ read_array<float>(curr, y, 3); });
+			static_assert(member_table<T>::has("uvs"), "");
+			member_table<T>::call("uvs", x, [&](auto & y){ read_array<float>(curr, y, 2); });
+			static_assert(member_table<T>::has("normals"), "");
+			member_table<T>::call("normals", x, [&](auto & y){ read_array<float>(curr, y, 3); });
+			static_assert(member_table<T>::has("weights"), "");
+			member_table<T>::call("weights", x, [&](auto & y){ read_weights(curr, y); });
+			static_assert(member_table<T>::has("triangles"), "");
+			member_table<T>::call("triangles", x, [&](auto & y){ read_array<unsigned int>(curr, y, 3); });
 		}
 	private:
 		template <typename T>
@@ -158,10 +158,10 @@ namespace core
 				debug_assert(ngroups > 0);
 
 				// read the first weight value
-				static_assert(serialization<T>::has("index"), "");
-				serialization<T>::call("index", w, [&](auto & y){ read_count(curr, y); });
-				static_assert(serialization<T>::has("value"), "");
-				serialization<T>::call("value", w, [&](auto & y){ read_value(curr, y); });
+				static_assert(member_table<T>::has("index"), "");
+				member_table<T>::call("index", w, [&](auto & y){ read_count(curr, y); });
+				static_assert(member_table<T>::has("value"), "");
+				member_table<T>::call("value", w, [&](auto & y){ read_value(curr, y); });
 
 				// skip remaining ones if any for now
 				for (auto i = 1; i < ngroups; i++)

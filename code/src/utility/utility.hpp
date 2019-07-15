@@ -28,11 +28,9 @@ namespace utility
 	struct is_in_place_index<in_place_index_t<I>> : mpl::true_type {};
 
 	template <typename T>
-	struct in_place_type_helper {};
+	struct in_place_type_t { explicit constexpr in_place_type_t(int) {} };
 	template <typename T>
-	in_place_type_helper<T> in_place_type() { return {}; }
-	template <typename T>
-	using in_place_type_t = in_place_type_helper<T>();
+	constexpr in_place_type_t<T> in_place_type = in_place_type_t<T>(0);
 
 	template <typename T>
 	struct is_in_place_type : mpl::false_type {};
@@ -44,7 +42,7 @@ namespace utility
 		explicit monostate() = default;
 	};
 
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 	template <typename T, typename ...Ps>
 	mpl::enable_if_t<mpl::is_paren_constructible<T, Ps...>::value, T>
 	construct(Ps && ...ps)

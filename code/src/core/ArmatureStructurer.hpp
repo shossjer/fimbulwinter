@@ -14,24 +14,24 @@
 
 namespace core
 {
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 	template <typename T>
 	struct ArmatureStructurerHelper
 	{
 		static const bool IsAction =
-			serialization<T>::has("name") &&
-			serialization<T>::has("length") &&
-			serialization<T>::has("frames") &&
-			serialization<T>::has("positions") &&
-			serialization<T>::has("orientations");
+			member_table<T>::has("name") &&
+			member_table<T>::has("length") &&
+			member_table<T>::has("frames") &&
+			member_table<T>::has("positions") &&
+			member_table<T>::has("orientations");
 
-		static const bool IsFrame = serialization<T>::has("channels");
+		static const bool IsFrame = member_table<T>::has("channels");
 
 		static const bool IsJoint =
-			serialization<T>::has("name") &&
-			serialization<T>::has("inv_matrix") &&
-			serialization<T>::has("parent") &&
-			serialization<T>::has("children");
+			member_table<T>::has("name") &&
+			member_table<T>::has("inv_matrix") &&
+			member_table<T>::has("parent") &&
+			member_table<T>::has("children");
 	};
 #endif
 
@@ -59,8 +59,8 @@ namespace core
 		void read(T & x)
 		{
 			int curr = 0;
-			static_assert(serialization<T>::has("name"), "");
-			serialization<T>::call("name", x, [&](auto & y){ read_string(curr, y); });
+			static_assert(member_table<T>::has("name"), "");
+			member_table<T>::call("name", x, [&](auto & y){ read_string(curr, y); });
 
 			uint16_t njoints;
 			read_count(curr, njoints);
@@ -70,32 +70,32 @@ namespace core
 			read_count(curr, nroots);
 			debug_printline("armature nroots: ", nroots);
 
-			static_assert(serialization<T>::has("joints"), "");
-			serialization<T>::call("joints", x, [&](auto & y){ read_joints(curr, y, njoints); });
+			static_assert(member_table<T>::has("joints"), "");
+			member_table<T>::call("joints", x, [&](auto & y){ read_joints(curr, y, njoints); });
 
 			uint16_t nactions;
 			read_count(curr, nactions);
 			debug_printline("armature nactions: ", nactions);
 
-			static_assert(serialization<T>::has("actions"), "");
-			serialization<T>::call("actions", x, [&](auto & y){ read_actions(curr, y, njoints, nactions); });
+			static_assert(member_table<T>::has("actions"), "");
+			member_table<T>::call("actions", x, [&](auto & y){ read_actions(curr, y, njoints, nactions); });
 		}
 	private:
 		template <typename T>
 		void read_action(int & curr, T & x, int njoints)
 		{
-			static_assert(serialization<T>::has("name"), "");
-			serialization<T>::call("name", x, [&](auto & y){ read_string(curr, y); });
+			static_assert(member_table<T>::has("name"), "");
+			member_table<T>::call("name", x, [&](auto & y){ read_string(curr, y); });
 
 			int32_t length;
 			read_length(curr, length);
 			debug_printline(length);
 
-			static_assert(serialization<T>::has("length"), "");
-			serialization<T>::call("length", x, TryAssign<int32_t>(length));
+			static_assert(member_table<T>::has("length"), "");
+			member_table<T>::call("length", x, TryAssign<int32_t>(length));
 
-			static_assert(serialization<T>::has("frames"), "");
-			serialization<T>::call("frames", x, [&](auto & y){ read_frames(curr, y, njoints, length); });
+			static_assert(member_table<T>::has("frames"), "");
+			member_table<T>::call("frames", x, [&](auto & y){ read_frames(curr, y, njoints, length); });
 
 			uint8_t has_positions;
 			read_byte(curr, has_positions);
@@ -103,8 +103,8 @@ namespace core
 
 			if (has_positions)
 			{
-				static_assert(serialization<T>::has("positions"), "");
-				serialization<T>::call("positions", x, [&](auto & y){ read_positions(curr, y, length); });
+				static_assert(member_table<T>::has("positions"), "");
+				member_table<T>::call("positions", x, [&](auto & y){ read_positions(curr, y, length); });
 			}
 
 			uint8_t has_orientations;
@@ -113,20 +113,20 @@ namespace core
 
 			if (has_orientations)
 			{
-				static_assert(serialization<T>::has("orientations"), "");
-				serialization<T>::call("orientations", x, [&](auto & y){ read_orientations(curr, y, length); });
+				static_assert(member_table<T>::has("orientations"), "");
+				member_table<T>::call("orientations", x, [&](auto & y){ read_orientations(curr, y, length); });
 			}
 		}
 
 		template <typename T,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((ArmatureStructurerHelper<T>::IsAction))>
 #else
-		          REQUIRES((serialization<T>::has("name") &&
-		                    serialization<T>::has("length") &&
-		                    serialization<T>::has("frames") &&
-		                    serialization<T>::has("positions") &&
-		                    serialization<T>::has("orientations")))>
+		          REQUIRES((member_table<T>::has("name") &&
+		                    member_table<T>::has("length") &&
+		                    member_table<T>::has("frames") &&
+		                    member_table<T>::has("positions") &&
+		                    member_table<T>::has("orientations")))>
 #endif
 		void read_actions(int & curr, std::vector<T> & actions, int njoints, int nactions)
 		{
@@ -170,20 +170,20 @@ namespace core
 		template <typename T>
 		void read_frame(int & curr, std::vector<T> & channels, int index)
 		{
-			static_assert(serialization<T>::has("translation"), "");
-			serialization<T>::call("translation", channels[index], [&](auto & y){ read_vector(curr, y); });
-			static_assert(serialization<T>::has("rotation"), "");
-			serialization<T>::call("rotation", channels[index], [&](auto & y){ read_quaternion(curr, y); });
-			static_assert(serialization<T>::has("scale"), "");
-			serialization<T>::call("scale", channels[index], [&](auto & y){ read_vector(curr, y); });
+			static_assert(member_table<T>::has("translation"), "");
+			member_table<T>::call("translation", channels[index], [&](auto & y){ read_vector(curr, y); });
+			static_assert(member_table<T>::has("rotation"), "");
+			member_table<T>::call("rotation", channels[index], [&](auto & y){ read_quaternion(curr, y); });
+			static_assert(member_table<T>::has("scale"), "");
+			member_table<T>::call("scale", channels[index], [&](auto & y){ read_vector(curr, y); });
 		}
 
 		template <typename T,
-		          REQUIRES((has_member_table<T>::value)),
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+		          REQUIRES((has_lookup_table<T>::value)),
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((ArmatureStructurerHelper<T>::IsFrame))>
 #else
-		          REQUIRES((serialization<T>::has("channels")))>
+		          REQUIRES((member_table<T>::has("channels")))>
 #endif
 		void read_frames(int & curr, std::vector<T> & frames, int njoints, int length)
 		{
@@ -196,8 +196,8 @@ namespace core
 					uint16_t index;
 					read_count(curr, index);
 
-					static_assert(serialization<T>::has("channels"), "");
-					serialization<T>::call("channels", frames.back(), [&](auto & y){ read_frame(curr, y, index); });
+					static_assert(member_table<T>::has("channels"), "");
+					member_table<T>::call("channels", frames.back(), [&](auto & y){ read_frame(curr, y, index); });
 				}
 			}
 		}
@@ -214,21 +214,21 @@ namespace core
 			joints.emplace_back();
 			T & me = joints.back();
 
-			static_assert(serialization<T>::has("name"), "");
-			serialization<T>::call("name", me, [&](auto & y){ read_string(curr, me.name); });
+			static_assert(member_table<T>::has("name"), "");
+			member_table<T>::call("name", me, [&](auto & y){ read_string(curr, me.name); });
 
-			if (serialization<T>::has("matrix"))
+			if (member_table<T>::has("matrix"))
 			{
-				serialization<T>::call("matrix", me, [&](auto & y){ read_matrix(curr, y); });
+				member_table<T>::call("matrix", me, [&](auto & y){ read_matrix(curr, y); });
 			}
 			else
 			{
 				core::maths::Matrix4x4f unused;
 				read_matrix(curr, unused);
 			}
-			if (serialization<T>::has("inv_matrix"))
+			if (member_table<T>::has("inv_matrix"))
 			{
-				serialization<T>::call("inv_matrix", me, [&](auto & y){ read_matrix(curr, y); });
+				member_table<T>::call("inv_matrix", me, [&](auto & y){ read_matrix(curr, y); });
 			}
 			else
 			{
@@ -236,13 +236,13 @@ namespace core
 				read_matrix(curr, unused);
 			}
 
-			static_assert(serialization<T>::has("parent"), "");
-			serialization<T>::call("parent", me, TryAssign<int>(parenti));
+			static_assert(member_table<T>::has("parent"), "");
+			member_table<T>::call("parent", me, TryAssign<int>(parenti));
 
 			uint16_t nchildren;
 			read_count(curr, nchildren);
-			static_assert(serialization<T>::has("children"), "");
-			serialization<T>::call("children", me, TryAssign<uint16_t>(nchildren));
+			static_assert(member_table<T>::has("children"), "");
+			member_table<T>::call("children", me, TryAssign<uint16_t>(nchildren));
 			for (int i = 0; i < static_cast<int>(nchildren); i++)
 			{
 				read_joint_chain(curr, joints, mei);
@@ -250,13 +250,13 @@ namespace core
 		}
 
 		template <typename T,
-#if defined(_MSC_VER) && _MSC_VER <= 1913
+#if defined(_MSC_VER) && _MSC_VER <= 1916
 		          REQUIRES((ArmatureStructurerHelper<T>::IsJoint))>
 #else
-		          REQUIRES((serialization<T>::has("name") &&
-		                    serialization<T>::has("inv_matrix") &&
-		                    serialization<T>::has("parent") &&
-		                    serialization<T>::has("children")))>
+		          REQUIRES((member_table<T>::has("name") &&
+		                    member_table<T>::has("inv_matrix") &&
+		                    member_table<T>::has("parent") &&
+		                    member_table<T>::has("children")))>
 #endif
 		void read_joints(int & curr, std::vector<T> & x, int count)
 		{

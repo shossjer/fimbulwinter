@@ -1333,8 +1333,8 @@ namespace
 			entities.emplace<EntityWorker>(entity, modelview);
 			auto & resource = resources.emplace<ResourceCharacter>(asset);
 			resource.add(entity);
-			engine::resource::reader::post_read(name, read_character_callback, engine::resource::reader::PlaceholderFormat);
-			engine::resource::reader::post_read(name, read_armature_callback, engine::resource::reader::ArmatureFormat);
+			engine::resource::reader::post_read(name, read_character_callback, engine::resource::Format::Placeholder);
+			engine::resource::reader::post_read(name, read_armature_callback, engine::resource::Format::Armature);
 		}
 	}
 
