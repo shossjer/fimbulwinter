@@ -189,50 +189,70 @@ TEST_CASE( "heap_storage<unique_ptr, dynamic_alloc>", "[utility]" )
 	aa1.deallocate(5);
 }
 
-TEST_CASE( "array_alloc", "[utility]" )
+TEST_CASE("", "")
 {
-	using array_alloc1 = utility::array_alloc<utility::static_storage_traits<5>, int>;
-	static_assert(std::is_trivially_destructible<array_alloc1>::value, "");
-	static_assert(std::is_trivially_default_constructible<array_alloc1>::value, "");
-	static_assert(std::is_trivially_copy_constructible<array_alloc1>::value, "");
-	static_assert(std::is_trivially_move_constructible<array_alloc1>::value, "");
-	static_assert(std::is_trivially_copy_assignable<array_alloc1>::value, "");
-	static_assert(std::is_trivially_move_assignable<array_alloc1>::value, "");
-	static_assert(std::is_trivial<array_alloc1>::value, "");
+	using static_int_array = utility::array_wrapper<utility::array_data<utility::static_storage_traits<5>, int>>;
+	static_assert(std::is_trivially_destructible<static_int_array>::value, "");
+	static_assert(!std::is_trivially_default_constructible<static_int_array>::value, "");
+	static_assert(std::is_default_constructible<static_int_array>::value, "");
+	static_assert(std::is_trivially_copy_constructible<static_int_array>::value, "");
+	static_assert(std::is_trivially_move_constructible<static_int_array>::value, "");
+	static_assert(std::is_trivially_copy_assignable<static_int_array>::value, "");
+	static_assert(std::is_trivially_move_assignable<static_int_array>::value, "");
 
-	using array_alloc2 = utility::array_alloc<utility::static_storage_traits<5>, std::unique_ptr<int>>;
-	static_assert(!std::is_trivially_destructible<array_alloc2>::value, "");
-	static_assert(!std::is_trivially_default_constructible<array_alloc2>::value, "");
-	static_assert(std::is_default_constructible<array_alloc2>::value, "");
-	static_assert(!std::is_copy_constructible<array_alloc2>::value, "");
-	static_assert(!std::is_move_constructible<array_alloc2>::value, "");
-	static_assert(!std::is_copy_assignable<array_alloc2>::value, "");
-	static_assert(!std::is_move_assignable<array_alloc2>::value, "");
-	static_assert(!std::is_trivial<array_alloc2>::value, "");
+	using static_unique_ptr_array = utility::array_wrapper<utility::array_data<utility::static_storage_traits<5>, std::unique_ptr<int>>>;
+	static_assert(!std::is_trivially_destructible<static_unique_ptr_array>::value, "");
+	static_assert(std::is_destructible<static_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_default_constructible<static_unique_ptr_array>::value, "");
+	static_assert(std::is_default_constructible<static_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_copy_constructible<static_unique_ptr_array>::value, "");
+	static_assert(std::is_copy_constructible<static_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_move_constructible<static_unique_ptr_array>::value, "");
+	static_assert(std::is_move_constructible<static_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_copy_assignable<static_unique_ptr_array>::value, "");
+	static_assert(std::is_copy_assignable<static_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_move_assignable<static_unique_ptr_array>::value, "");
+	static_assert(std::is_move_assignable<static_unique_ptr_array>::value, "");
 
-	using array_alloc3 = utility::array_alloc<utility::heap_storage_traits, int>;
-	static_assert(!std::is_trivially_destructible<array_alloc3>::value, "");
-	static_assert(!std::is_trivially_default_constructible<array_alloc3>::value, "");
-	static_assert(std::is_default_constructible<array_alloc3>::value, "");
-	static_assert(!std::is_trivially_copy_constructible<array_alloc3>::value, "");
-	static_assert(std::is_copy_constructible<array_alloc3>::value, "");
-	static_assert(!std::is_trivially_move_constructible<array_alloc3>::value, "");
-	static_assert(std::is_move_constructible<array_alloc3>::value, "");
-	static_assert(!std::is_trivially_copy_assignable<array_alloc3>::value, "");
-	static_assert(std::is_copy_assignable<array_alloc3>::value, "");
-	static_assert(!std::is_trivially_move_assignable<array_alloc3>::value, "");
-	static_assert(std::is_move_assignable<array_alloc3>::value, "");
-	static_assert(!std::is_trivial<array_alloc3>::value, "");
+	using heap_int_array = utility::array_wrapper<utility::array_data<utility::heap_storage_traits, int>>;
+	static_assert(!std::is_trivially_destructible<heap_int_array>::value, "");
+	static_assert(std::is_destructible<heap_int_array>::value, "");
+	static_assert(!std::is_trivially_default_constructible<heap_int_array>::value, "");
+	static_assert(std::is_default_constructible<heap_int_array>::value, "");
+	static_assert(!std::is_trivially_copy_constructible<heap_int_array>::value, "");
+	static_assert(std::is_copy_constructible<heap_int_array>::value, "");
+	static_assert(!std::is_trivially_move_constructible<heap_int_array>::value, "");
+	static_assert(std::is_move_constructible<heap_int_array>::value, "");
+	static_assert(!std::is_trivially_copy_assignable<heap_int_array>::value, "");
+	static_assert(std::is_copy_assignable<heap_int_array>::value, "");
+	static_assert(!std::is_trivially_move_assignable<heap_int_array>::value, "");
+	static_assert(std::is_move_assignable<heap_int_array>::value, "");
 
-	using array_alloc4 = utility::array_alloc<utility::heap_storage_traits, std::unique_ptr<int>>;
-	static_assert(!std::is_trivially_destructible<array_alloc4>::value, "");
-	static_assert(!std::is_trivially_default_constructible<array_alloc4>::value, "");
-	static_assert(std::is_default_constructible<array_alloc4>::value, "");
-	static_assert(!std::is_copy_constructible<array_alloc4>::value, "");
-	static_assert(!std::is_trivially_move_constructible<array_alloc4>::value, "");
-	static_assert(std::is_move_constructible<array_alloc4>::value, "");
-	static_assert(!std::is_copy_assignable<array_alloc4>::value, "");
-	static_assert(!std::is_trivially_move_assignable<array_alloc4>::value, "");
-	static_assert(std::is_move_assignable<array_alloc4>::value, "");
-	static_assert(!std::is_trivial<array_alloc4>::value, "");
+	using heap_unique_ptr_array = utility::array_wrapper<utility::array_data<utility::heap_storage_traits, std::unique_ptr<int>>>;
+	static_assert(!std::is_trivially_destructible<heap_unique_ptr_array>::value, "");
+	static_assert(std::is_destructible<heap_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_default_constructible<heap_unique_ptr_array>::value, "");
+	static_assert(std::is_default_constructible<heap_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_copy_constructible<heap_unique_ptr_array>::value, "");
+	static_assert(std::is_copy_constructible<heap_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_move_constructible<heap_unique_ptr_array>::value, "");
+	static_assert(std::is_move_constructible<heap_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_copy_assignable<heap_unique_ptr_array>::value, "");
+	static_assert(std::is_copy_assignable<heap_unique_ptr_array>::value, "");
+	static_assert(!std::is_trivially_move_assignable<heap_unique_ptr_array>::value, "");
+	static_assert(std::is_move_assignable<heap_unique_ptr_array>::value, "");
+
+	using heap_int_unique_ptr_int_array = utility::array_wrapper<utility::array_data<utility::heap_storage_traits, int ,std::unique_ptr<int>, int>>;
+	static_assert(!std::is_trivially_destructible<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(std::is_destructible<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(!std::is_trivially_default_constructible<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(std::is_default_constructible<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(!std::is_trivially_copy_constructible<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(std::is_copy_constructible<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(!std::is_trivially_move_constructible<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(std::is_move_constructible<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(!std::is_trivially_copy_assignable<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(std::is_copy_assignable<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(!std::is_trivially_move_assignable<heap_int_unique_ptr_int_array>::value, "");
+	static_assert(std::is_move_assignable<heap_int_unique_ptr_int_array>::value, "");
 }

@@ -2,7 +2,6 @@
 #ifndef UTILITY_ARRAY_ALLOC_HPP
 #define UTILITY_ARRAY_ALLOC_HPP
 
-#include "property.hpp"
 #include "storage.hpp"
 #include "tuple.hpp"
 #include "utility.hpp"
@@ -11,272 +10,548 @@
 
 namespace utility
 {
-	namespace detail
+	template <typename StorageTraits, typename Types, bool = StorageTraits::static_capacity::value>
+	struct array_data_impl;
+	template <typename StorageTraits, typename ...Ts>
+	struct array_data_impl<StorageTraits, mpl::type_list<Ts...>, true /*static capacity*/>
 	{
-		template <typename StorageTraits>
-		using array_alloc_is_trivially_destructible = typename StorageTraits::trivial_deallocate;
-		template <typename StorageTraits>
-		using array_alloc_is_trivially_copy_constructible = typename StorageTraits::trivial_allocate;
-		template <typename StorageTraits>
-		using array_alloc_is_trivially_copy_assignable =
-			mpl::conjunction<typename StorageTraits::trivial_allocate,
-			                 typename StorageTraits::trivial_deallocate>;
+		using is_trivially_destructible = storage_traits_is_trivially_destructible<StorageTraits, Ts...>;
+		using is_trivially_copy_constructible = storage_traits_is_copy_constructible<StorageTraits, Ts...>;
+		using is_trivially_copy_assignable = storage_traits_is_copy_assignable<StorageTraits, Ts...>;
+		using is_trivially_move_constructible = storage_traits_is_trivially_move_constructible<StorageTraits, Ts...>;
+		using is_trivially_move_assignable = storage_traits_is_trivially_move_assignable<StorageTraits, Ts...>;
 
-		template <typename StorageTraits, typename ...Ts>
-		using array_alloc_is_copy_constructible =
-			mpl::disjunction<mpl::conjunction<std::is_copy_constructible<typename StorageTraits::template storage_type<Ts>>...>,
-			                 mpl::conjunction<typename StorageTraits::template storage_type<Ts>::storing_trivially_copyable...>>;
-		template <typename StorageTraits, typename ...Ts>
-		using array_alloc_is_copy_assignable =
-			mpl::disjunction<mpl::conjunction<std::is_copy_assignable<typename StorageTraits::template storage_type<Ts>>...>,
-			                 mpl::conjunction<typename StorageTraits::template storage_type<Ts>::storing_trivially_copyable...>>;
+		using this_type = array_data_impl<StorageTraits, mpl::type_list<Ts...>>;
 
-		struct array_alloc_helper
+		using size_type = std::size_t;
+		using storage_traits = StorageTraits;
+
+		template <typename T>
+		using storage_type = typename StorageTraits::template storage_type<T>;
+
+		size_type size_ = 0;
+		tuple<storage_type<Ts>...> storages_;
+
+		bool allocate_storage(std::size_t capacity)
 		{
-			template <typename Tuple>
-			static void allocate_storages(mpl::index_sequence<>, Tuple & storages, std::size_t capacity) {}
-			template <std::size_t I, std::size_t ...Is, typename Tuple>
-			static void allocate_storages(mpl::index_sequence<I, Is...>, Tuple & storages, std::size_t capacity)
-			{
-				get<I>(storages).allocate(capacity);
-				allocate_storages(mpl::index_sequence<Is...>{}, storages, capacity);
-			}
-
-			template <typename Tuple>
-			static void construct_range_storages(mpl::index_sequence<>, Tuple & dest, Tuple & src, std::ptrdiff_t index, std::size_t size) {}
-			template <std::size_t I, std::size_t ...Is, typename Tuple>
-			static void construct_range_storages(mpl::index_sequence<I, Is...>, Tuple & dest, Tuple & src, std::ptrdiff_t index, std::size_t size)
-			{
-				get<I>(dest).construct_range(index, std::make_move_iterator(get<I>(src).data()), std::make_move_iterator(get<I>(src).data() + size));
-				construct_range_storages(mpl::index_sequence<Is...>{}, dest, src, index, size);
-			}
-
-			template <typename Tuple>
-			static void deallocate_storages(mpl::index_sequence<>, Tuple & storages, std::size_t capacity) {}
-			template <std::size_t I, std::size_t ...Is, typename Tuple>
-			static void deallocate_storages(mpl::index_sequence<I, Is...>, Tuple & storages, std::size_t capacity)
-			{
-				get<I>(storages).deallocate(capacity);
-				deallocate_storages(mpl::index_sequence<Is...>{}, storages, capacity);
-			}
-
-			template <typename Tuple>
-			static void memcpy_range_storages(mpl::index_sequence<>, Tuple & dest, Tuple & src, std::ptrdiff_t index, std::size_t size) {}
-			template <std::size_t I, std::size_t ...Is, typename Tuple>
-			static void memcpy_range_storages(mpl::index_sequence<I, Is...>, Tuple & dest, Tuple & src, std::ptrdiff_t index, std::size_t size)
-			{
-				get<I>(dest).memcpy_range(index, std::make_move_iterator(get<I>(src).data()), std::make_move_iterator(get<I>(src).data() + size));
-				memcpy_range_storages(mpl::index_sequence<Is...>{}, dest, src, index, size);
-			}
-		};
-
-		template <typename StorageTraits, typename Types, bool = StorageTraits::static_capacity::value>
-		struct array_alloc_static_capacity;
-		template <typename StorageTraits, typename ...Ts>
-		struct array_alloc_static_capacity<StorageTraits, mpl::type_list<Ts...>, true /*static_capacity*/>
-			: array_alloc_helper
+			return allocate_storages(mpl::make_index_sequence_for<Ts...>{}, storages_, capacity);
+		}
+		template <typename Tuple>
+		static bool allocate_storages(mpl::index_sequence<>, Tuple & dest, std::size_t capacity) { return true; }
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static bool allocate_storages(mpl::index_sequence<I, Is...>, Tuple & dest, std::size_t capacity)
 		{
-			template <typename T>
-			using storage_type = typename StorageTraits::template storage_type<T>;
-
-			tuple<storage_type<Ts>...> storages_;
-
-			array_alloc_static_capacity() = default;
-			array_alloc_static_capacity(std::size_t capacity)
+			if (!utility::get<I>(dest).allocate(capacity))
 			{
-				assert(capacity == StorageTraits::capacity_value);
+				deallocate_storages(mpl::make_index_sequence<I>{}, dest, capacity);
 			}
-
-			constexpr std::size_t capacity() const { return StorageTraits::capacity_value; }
-
-			tuple<storage_type<Ts>...> & storages() { return storages_; }
-			const tuple<storage_type<Ts>...> & storages() const { return storages_; }
-
-			void set_capacity(std::size_t capacity)
-			{
-				assert(capacity == StorageTraits::capacity_value);
-			}
-
-			bool try_grow2(std::size_t old_size) { return false; }
-		};
-		template <typename StorageTraits, typename ...Ts>
-		struct array_alloc_static_capacity<StorageTraits, mpl::type_list<Ts...>, false /*static_capacity*/>
-			: array_alloc_helper
+			return allocate_storages(mpl::index_sequence<Is...>{}, dest, capacity);
+		}
+		void deallocate_storage(std::size_t capacity)
 		{
-			template <typename T>
-			using storage_type = typename StorageTraits::template storage_type<T>;
-
-			struct capacity_type
-			{
-				std::size_t capacity_ = 0;
-
-				capacity_type() = default;
-				capacity_type(const capacity_type & other) = default;
-				capacity_type(capacity_type && other)
-					: capacity_(std::exchange(other.capacity_, 0))
-				{}
-				capacity_type(std::size_t capacity)
-					: capacity_(capacity)
-				{}
-				capacity_type & operator = (const capacity_type & other) = default;
-				capacity_type & operator = (capacity_type && other)
-				{
-					capacity_ = std::exchange(other.capacity_, 0);
-
-					return *this;
-				}
-			};
-
-			tuple<storage_type<Ts>...> storages_;
-			capacity_type capacity_;
-
-			array_alloc_static_capacity() = default;
-			array_alloc_static_capacity(std::size_t capacity)
-				: capacity_(capacity)
-			{}
-
-			std::size_t capacity() const { return capacity_.capacity_; }
-
-			tuple<storage_type<Ts>...> & storages() { return storages_; }
-			const tuple<storage_type<Ts>...> & storages() const { return storages_; }
-
-			void set_capacity(std::size_t capacity) { capacity_.capacity_ = capacity; }
-
-			bool try_grow2(std::size_t old_size)
-			{
-				assert(old_size == capacity());
-
-				const std::size_t new_capacity = StorageTraits::grow(capacity_.capacity_);
-				if (old_size >= new_capacity)
-					return false;
-
-				tuple<storage_type<Ts>...> new_storages;
-				allocate_storages(mpl::make_index_sequence<sizeof...(Ts)>{}, new_storages, new_capacity);
-				if (capacity_.capacity_ > 0)
-				{
-					construct_range_storages(mpl::make_index_sequence<sizeof...(Ts)>{}, new_storages, storages_, 0, capacity_.capacity_);
-					deallocate_storages(mpl::make_index_sequence<sizeof...(Ts)>{}, storages_, capacity_.capacity_);
-				}
-				storages_ = std::move(new_storages);
-				capacity_.capacity_ = new_capacity;
-
-				return true;
-			}
-		};
-
-		template <typename StorageTraits, typename Types, bool = array_alloc_is_trivially_destructible<StorageTraits>::value>
-		struct array_alloc_trivially_destructible
-			: array_alloc_static_capacity<StorageTraits, Types>
-		{};
-		template <typename StorageTraits, typename Types>
-		struct array_alloc_trivially_destructible<StorageTraits, Types, false>
-			: array_alloc_static_capacity<StorageTraits, Types>
+			deallocate_storages(mpl::make_index_sequence_for<Ts...>{}, storages_, capacity);
+		}
+		template <typename Tuple>
+		static void deallocate_storages(mpl::index_sequence<>, Tuple & dest, std::size_t capacity) {}
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static void deallocate_storages(mpl::index_sequence<I, Is...>, Tuple & dest, std::size_t capacity)
 		{
-			using base_type = array_alloc_static_capacity<StorageTraits, Types>;
+			utility::get<I>(dest).deallocate(capacity);
+			deallocate_storages(mpl::index_sequence<Is...>{}, dest, capacity);
+		}
 
-			using base_type::base_type;
+		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			copy_construct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, index, other.storages_, from, to);
+		}
+		template <typename Tuple>
+		static void copy_construct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static void copy_construct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			utility::get<I>(dest).construct_range(index, utility::get<I>(src).data() + from, utility::get<I>(src).data() + to);
+			copy_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
+		}
+		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			move_construct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, index, other.storages_, from, to);
+		}
+		template <typename Tuple>
+		static void move_construct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static void move_construct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			utility::get<I>(dest).construct_range(index, std::make_move_iterator(utility::get<I>(src).data() + from), std::make_move_iterator(utility::get<I>(src).data() + to));
+			move_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
+		}
+		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			destruct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, from, to);
+		}
+		template <typename Tuple>
+		static void destruct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static void destruct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			utility::get<I>(dest).destruct_range(from, to);
+			destruct_ranges(mpl::index_sequence<Is...>{}, dest, from, to);
+		}
 
-			~array_alloc_trivially_destructible()
+		void initialize()
+		{
+			set_capacity(0);
+			set_size(0);
+		}
+		void set_capacity(size_type capacity)
+		{
+			assert(capacity == StorageTraits::capacity_value);
+		}
+		void set_size(size_type size)
+		{
+			size_ = size;
+		}
+
+		constexpr size_type capacity() const { return StorageTraits::capacity_value; }
+		size_type size() const { return size_; }
+
+		template <typename T>
+		decltype(auto) get() { return utility::get<T>(storages_); }
+		template <typename T>
+		decltype(auto) get() const { return utility::get<T>(storages_); }
+		template <std::size_t I>
+		decltype(auto) get() { return utility::get<I>(storages_); }
+		template <std::size_t I>
+		decltype(auto) get() const { return utility::get<I>(storages_); }
+	};
+	template <typename StorageTraits, typename ...Ts>
+	struct array_data_impl<StorageTraits, mpl::type_list<Ts...>, false /*static capacity*/>
+	{
+		using is_trivially_destructible = storage_traits_is_trivially_destructible<StorageTraits, Ts...>;
+		using is_trivially_copy_constructible = storage_traits_is_copy_constructible<StorageTraits, Ts...>;
+		using is_trivially_copy_assignable = storage_traits_is_copy_assignable<StorageTraits, Ts...>;
+		using is_trivially_move_constructible = storage_traits_is_trivially_move_constructible<StorageTraits, Ts...>;
+		using is_trivially_move_assignable = storage_traits_is_trivially_move_assignable<StorageTraits, Ts...>;
+
+		using this_type = array_data_impl<StorageTraits, mpl::type_list<Ts...>>;
+
+		using size_type = std::size_t;
+		using storage_traits = StorageTraits;
+
+		template <typename T>
+		using storage_type = typename StorageTraits::template storage_type<T>;
+
+		size_type size_ = 0;
+		size_type capacity_ = 0;
+		tuple<storage_type<Ts>...> storages_;
+
+		bool allocate_storage(std::size_t capacity)
+		{
+			return allocate_storages(mpl::make_index_sequence_for<Ts...>{}, storages_, capacity);
+		}
+		template <typename Tuple>
+		static bool allocate_storages(mpl::index_sequence<>, Tuple & dest, std::size_t capacity) { return true; }
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static bool allocate_storages(mpl::index_sequence<I, Is...>, Tuple & dest, std::size_t capacity)
+		{
+			if (!utility::get<I>(dest).allocate(capacity))
+			{
+				deallocate_storages(mpl::make_index_sequence<I>{}, dest, capacity);
+			}
+			return allocate_storages(mpl::index_sequence<Is...>{}, dest, capacity);
+		}
+		void deallocate_storage(std::size_t capacity)
+		{
+			deallocate_storages(mpl::make_index_sequence_for<Ts...>{}, storages_, capacity);
+		}
+		template <typename Tuple>
+		static void deallocate_storages(mpl::index_sequence<>, Tuple & dest, std::size_t capacity) {}
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static void deallocate_storages(mpl::index_sequence<I, Is...>, Tuple & dest, std::size_t capacity)
+		{
+			utility::get<I>(dest).deallocate(capacity);
+			deallocate_storages(mpl::index_sequence<Is...>{}, dest, capacity);
+		}
+
+		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			copy_construct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, index, other.storages_, from, to);
+		}
+		template <typename Tuple>
+		static void copy_construct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static void copy_construct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			utility::get<I>(dest).construct_range(index, utility::get<I>(src).data() + from, utility::get<I>(src).data() + to);
+			copy_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
+		}
+		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			move_construct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, index, other.storages_, from, to);
+		}
+		template <typename Tuple>
+		static void move_construct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static void move_construct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			utility::get<I>(dest).construct_range(index, std::make_move_iterator(utility::get<I>(src).data() + from), std::make_move_iterator(utility::get<I>(src).data() + to));
+			move_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
+		}
+		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			destruct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, from, to);
+		}
+		template <typename Tuple>
+		static void destruct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is, typename Tuple>
+		static void destruct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			utility::get<I>(dest).destruct_range(from, to);
+			destruct_ranges(mpl::index_sequence<Is...>{}, dest, from, to);
+		}
+
+		void initialize()
+		{
+			set_capacity(0);
+			set_size(0);
+		}
+		void set_capacity(size_type capacity)
+		{
+			capacity_ = capacity;
+		}
+		void set_size(size_type size)
+		{
+			size_ = size;
+		}
+
+		size_type capacity() const { return capacity_; }
+		size_type size() const { return size_; }
+
+		template <typename T>
+		decltype(auto) get() { return utility::get<T>(storages_); }
+		template <typename T>
+		decltype(auto) get() const { return utility::get<T>(storages_); }
+		template <std::size_t I>
+		decltype(auto) get() { return utility::get<I>(storages_); }
+		template <std::size_t I>
+		decltype(auto) get() const { return utility::get<I>(storages_); }
+	};
+
+	template <typename StorageTraits, typename ...Ts>
+	using array_data = array_data_impl<StorageTraits, mpl::type_list<Ts...>>;
+
+	template <typename StorageData, bool = StorageData::is_trivially_destructible::value>
+	struct array_wrapper_trivially_destructible
+		: StorageData
+	{};
+	template <typename StorageData>
+	struct array_wrapper_trivially_destructible<StorageData, false /*trivially destructible*/>
+		: StorageData
+	{
+		using base_type = StorageData;
+		using this_type = array_wrapper_trivially_destructible<StorageData, false>;
+
+		using base_type::base_type;
+
+		~array_wrapper_trivially_destructible()
+		{
+			if (this->capacity() > 0)
+			{
+				this->destruct_range(0, this->size());
+				this->deallocate_storage(this->capacity());
+			}
+		}
+		array_wrapper_trivially_destructible() = default;
+		array_wrapper_trivially_destructible(const this_type &) = default;
+		array_wrapper_trivially_destructible(this_type &&) = default;
+		this_type & operator = (const this_type &) = default;
+		this_type & operator = (this_type &&) = default;
+	};
+
+	template <typename StorageData, bool = StorageData::is_trivially_copy_constructible::value>
+	struct array_wrapper_trivially_copy_constructible
+		: array_wrapper_trivially_destructible<StorageData>
+	{};
+	template <typename StorageData>
+	struct array_wrapper_trivially_copy_constructible<StorageData, false /*copy constructible*/>
+		: array_wrapper_trivially_destructible<StorageData>
+	{
+		using base_type = array_wrapper_trivially_destructible<StorageData>;
+		using this_type = array_wrapper_trivially_copy_constructible<StorageData, false>;
+
+		using base_type::base_type;
+
+		array_wrapper_trivially_copy_constructible() = default;
+		array_wrapper_trivially_copy_constructible(const this_type & other)
+		{
+			this->set_capacity(StorageData::storage_traits::capacity_for(other.size())); // x
+			const auto ret = this->allocate_storage(this->capacity());
+			assert(ret);
+
+			this->set_size(other.size()); // x
+			this->copy_construct_range(0, other, 0, other.size());
+		}
+		array_wrapper_trivially_copy_constructible(this_type &&) = default;
+		this_type & operator = (const this_type &) = default;
+		this_type & operator = (this_type &&) = default;
+	};
+
+	template <typename StorageData, bool = StorageData::is_trivially_copy_assignable::value>
+	struct array_wrapper_trivially_copy_assignable
+		: array_wrapper_trivially_copy_constructible<StorageData>
+	{};
+	template <typename StorageData>
+	struct array_wrapper_trivially_copy_assignable<StorageData, false /*copy assignable*/>
+		: array_wrapper_trivially_copy_constructible<StorageData>
+	{
+		using base_type = array_wrapper_trivially_copy_constructible<StorageData>;
+		using this_type = array_wrapper_trivially_copy_assignable<StorageData, false>;
+
+		using base_type::base_type;
+
+		array_wrapper_trivially_copy_assignable() = default;
+		array_wrapper_trivially_copy_assignable(const this_type &) = default;
+		array_wrapper_trivially_copy_assignable(this_type &&) = default;
+		this_type & operator = (const this_type & other)
+		{
+			if (this->capacity() < other.size())
 			{
 				if (this->capacity() > 0)
 				{
-					this->deallocate_storages(mpl::make_index_sequence<Types::size>{}, this->storages_, this->capacity());
+					this->destruct_range(0, this->size());
+					this->deallocate_storage(this->capacity());
 				}
+				this->set_capacity(StorageData::storage_traits::capacity_for(other.size())); // x
+				const auto ret = this->allocate_storage(this->capacity());
+				assert(ret);
 			}
-			array_alloc_trivially_destructible() = default;
-			array_alloc_trivially_destructible(const array_alloc_trivially_destructible &) = default;
-			array_alloc_trivially_destructible(array_alloc_trivially_destructible &&) = default;
-			array_alloc_trivially_destructible & operator = (const array_alloc_trivially_destructible &) = default;
-			array_alloc_trivially_destructible & operator = (array_alloc_trivially_destructible &&) = default;
-		};
-
-		template <typename StorageTraits, typename Types, bool = array_alloc_is_trivially_copy_constructible<StorageTraits>::value>
-		struct array_alloc_trivially_copy_constructible
-			: array_alloc_trivially_destructible<StorageTraits, Types>
-		{};
-		template <typename StorageTraits, typename Types>
-		struct array_alloc_trivially_copy_constructible<StorageTraits, Types, false>
-			: array_alloc_trivially_destructible<StorageTraits, Types>
-		{
-			using base_type = array_alloc_trivially_destructible<StorageTraits, Types>;
-
-			using base_type::base_type;
-
-			array_alloc_trivially_copy_constructible() = default;
-			array_alloc_trivially_copy_constructible(const array_alloc_trivially_copy_constructible & other)
-				: base_type(other.capacity())
+			else if (this->capacity() > 0)
 			{
-				this->allocate_storages(mpl::make_index_sequence<Types::size>{}, this->storages_, other.capacity());
-				this->memcpy_range_storages(mpl::make_index_sequence<Types::size>{}, this->storages_, other.storages_, 0, other.capacity());
+				this->destruct_range(0, this->size());
 			}
-			array_alloc_trivially_copy_constructible(array_alloc_trivially_copy_constructible &&) = default;
-			array_alloc_trivially_copy_constructible & operator = (const array_alloc_trivially_copy_constructible &) = default;
-			array_alloc_trivially_copy_constructible & operator = (array_alloc_trivially_copy_constructible &&) = default;
-		};
+			this->set_size(other.size()); // x
+			this->copy_construct_range(0, other, 0, other.size());
 
-		template <typename StorageTraits, typename Types, bool = array_alloc_is_trivially_copy_assignable<StorageTraits>::value>
-		struct array_alloc_trivially_copy_assignable
-			: array_alloc_trivially_copy_constructible<StorageTraits, Types>
-		{};
-		template <typename StorageTraits, typename Types>
-		struct array_alloc_trivially_copy_assignable<StorageTraits, Types, false>
-			: array_alloc_trivially_copy_constructible<StorageTraits, Types>
-		{
-			using base_type = array_alloc_trivially_copy_constructible<StorageTraits, Types>;
+			return *this;
+		}
+		this_type & operator = (this_type &&) = default;
+	};
 
-			using base_type::base_type;
-
-			array_alloc_trivially_copy_assignable() = default;
-			array_alloc_trivially_copy_assignable(const array_alloc_trivially_copy_assignable &) = default;
-			array_alloc_trivially_copy_assignable(array_alloc_trivially_copy_assignable &&) = default;
-			array_alloc_trivially_copy_assignable & operator = (const array_alloc_trivially_copy_assignable & other)
-			{
-				if (this->capacity() < other.capacity())
-				{
-					if (this->capacity() > 0)
-					{
-						this->deallocate_storages(mpl::make_index_sequence<Types::size>{}, this->storages_, this->capacity());
-					}
-					this->allocate_storages(mpl::make_index_sequence<Types::size>{}, this->storages_, other.capacity());
-					this->set_capacity(other.capacity());
-				}
-				this->memcpy_range_storages(mpl::make_index_sequence<Types::size>{}, this->storages_, other.storages_, 0, other.capacity());
-
-				return *this;
-			}
-			array_alloc_trivially_copy_assignable & operator = (array_alloc_trivially_copy_assignable &&) = default;
-		};
-	}
-
-	template <typename StorageTraits, typename ...Ts>
-	class array_alloc
-		: enable_copy_constructor<detail::array_alloc_is_copy_constructible<StorageTraits, Ts...>::value>
-		, enable_copy_assignment<detail::array_alloc_is_copy_assignable<StorageTraits, Ts...>::value>
+	template <typename StorageData, bool = StorageData::is_trivially_move_constructible::value, bool = StorageData::storage_traits::moves_allocation::value>
+	struct array_wrapper_trivially_move_constructible
+		: array_wrapper_trivially_copy_assignable<StorageData>
+	{};
+	template <typename StorageData>
+	struct array_wrapper_trivially_move_constructible<StorageData, false /*trivially move constructible*/, true /*moves allocation*/>
+		: array_wrapper_trivially_copy_assignable<StorageData>
 	{
-	public:
-		using storage_traits = StorageTraits;
+		using base_type = array_wrapper_trivially_copy_assignable<StorageData>;
+		using this_type = array_wrapper_trivially_move_constructible<StorageData, false, true>;
 
-	private:
-		detail::array_alloc_trivially_copy_assignable<StorageTraits, mpl::type_list<Ts...>> data_;
+		using base_type::base_type;
 
-	public:
-		template <typename T>
-		decltype(auto) get() { return utility::get<T>(data_.storages_); }
-		template <typename T>
-		decltype(auto) get() const { return utility::get<T>(data_.storages_); }
-		template <std::size_t I>
-		decltype(auto) get() { return utility::get<I>(data_.storages_); }
-		template <std::size_t I>
-		decltype(auto) get() const { return utility::get<I>(data_.storages_); }
-
-		constexpr std::size_t capacity() const { return data_.capacity(); }
-
-		bool try_grow(std::size_t old_size)
+		array_wrapper_trivially_move_constructible() = default;
+		array_wrapper_trivially_move_constructible(const this_type &) = default;
+		array_wrapper_trivially_move_constructible(this_type && other)
+			: base_type(std::move(other))
 		{
-			if (old_size < data_.capacity())
+			other.initialize();
+		}
+		this_type & operator = (const this_type &) = default;
+		this_type & operator = (this_type &&) = default;
+	};
+	template <typename StorageData>
+	struct array_wrapper_trivially_move_constructible<StorageData, false /*trivially move constructible*/, false /*moves allocation*/>
+		: array_wrapper_trivially_copy_assignable<StorageData>
+	{
+		using base_type = array_wrapper_trivially_copy_assignable<StorageData>;
+		using this_type = array_wrapper_trivially_move_constructible<StorageData, false, false>;
+
+		using base_type::base_type;
+
+		array_wrapper_trivially_move_constructible() = default;
+		array_wrapper_trivially_move_constructible(const this_type &) = default;
+		array_wrapper_trivially_move_constructible(this_type && other)
+		{
+			this->set_capacity(StorageData::storage_traits::capacity_for(other.size())); // x
+			const auto ret = this->allocate_storage(this->capacity());
+			assert(ret);
+
+			this->set_size(other.size()); // x
+			this->move_construct_range(0, other, 0, other.size());
+		}
+		this_type & operator = (const this_type &) = default;
+		this_type & operator = (this_type &&) = default;
+	};
+
+	template <typename StorageData, bool = StorageData::is_trivially_move_assignable::value, bool = StorageData::storage_traits::moves_allocation::value>
+	struct array_wrapper_trivially_move_assignable
+		: array_wrapper_trivially_move_constructible<StorageData>
+	{};
+	template <typename StorageData>
+	struct array_wrapper_trivially_move_assignable<StorageData, false /*trivially move assignable*/, true /*moves allocation*/>
+		: array_wrapper_trivially_move_constructible<StorageData>
+	{
+		using base_type = array_wrapper_trivially_move_constructible<StorageData>;
+		using this_type = array_wrapper_trivially_move_assignable<StorageData, false, true>;
+
+		using base_type::base_type;
+
+		array_wrapper_trivially_move_assignable() = default;
+		array_wrapper_trivially_move_assignable(const this_type &) = default;
+		array_wrapper_trivially_move_assignable(this_type &&) = default;
+		this_type & operator = (const this_type &) = default;
+		this_type & operator = (this_type && other)
+		{
+			if (this->capacity() > 0)
+			{
+				this->destruct_range(0, this->size());
+				this->deallocate_storage(this->capacity());
+			}
+
+			static_cast<base_type &>(*this) = std::move(other);
+
+			other.initialize();
+			return *this;
+		}
+	};
+	template <typename StorageData>
+	struct array_wrapper_trivially_move_assignable<StorageData, false /*trivially move assignable*/, false /*moves allocation*/>
+		: array_wrapper_trivially_move_constructible<StorageData>
+	{
+		using base_type = array_wrapper_trivially_move_constructible<StorageData>;
+		using this_type = array_wrapper_trivially_move_assignable<StorageData, false, false>;
+
+		using base_type::base_type;
+
+		array_wrapper_trivially_move_assignable() = default;
+		array_wrapper_trivially_move_assignable(const this_type &) = default;
+		array_wrapper_trivially_move_assignable(this_type &&) = default;
+		this_type & operator = (const this_type &) = default;
+		this_type & operator = (this_type && other)
+		{
+			if (this->capacity() < other.size())
+			{
+				if (this->capacity() > 0)
+				{
+					this->destruct_range(0, this->size());
+					this->deallocate_storage(this->capacity());
+				}
+				this->set_capacity(StorageData::storage_traits::capacity_for(other.size())); // x
+				const auto ret = this->allocate_storage(this->capacity());
+				assert(ret);
+			}
+			else if (this->capacity() > 0)
+			{
+				this->destruct_range(0, this->size());
+			}
+			this->set_size(other.size()); // x
+			this->move_construct_range(0, other, 0, other.size());
+
+			return *this;
+		}
+	};
+
+	template <typename StorageData>
+	struct array_wrapper : array_wrapper_trivially_move_assignable<StorageData>
+	{
+		array_wrapper() = default;
+		array_wrapper(std::size_t capacity)
+		{
+			capacity = StorageData::storage_traits::capacity_for(capacity);
+			this->set_capacity(capacity);
+			const auto ret = this->allocate_storage(capacity);
+			assert(ret);
+		}
+
+		template <typename Callback>
+		bool try_replace_with(std::size_t size, Callback && callback)
+		{
+			if (this->capacity() < size)
+				return try_reallocate_with(StorageData::storage_traits::capacity_for(size), std::forward<Callback>(callback));
+
+			this->destruct_range(0, this->size());
+
+			this->set_size(size);
+			callback(*this);
+			return true;
+		}
+
+		template <typename Callback>
+		bool try_reallocate_with(std::size_t capacity, Callback && callback)
+		{
+			StorageData new_data;
+			new_data.set_capacity(capacity);
+			if (!new_data.allocate_storage(capacity))
+				return false;
+
+			new_data.set_size(this->size());
+			callback(new_data);
+
+			if (this->capacity() > 0)
+			{
+				this->destruct_range(0, this->size());
+				this->deallocate_storage(this->capacity());
+			}
+
+			static_cast<StorageData &>(*this) = std::move(new_data);
+
+			new_data.set_capacity(0);
+			new_data.set_size(0);
+			return true;
+		}
+
+		bool try_reallocate(std::size_t capacity)
+		{
+			return try_reallocate_with(
+				capacity,
+				[&](StorageData & new_data)
+				{
+					new_data.move_construct_range(0, *this, 0, this->size());
+				});
+		}
+
+		bool try_reserve(std::size_t count)
+		{
+			if (count <= this->capacity())
 				return true;
 
-			return data_.try_grow2(old_size);
+			const std::size_t capacity = StorageData::storage_traits::capacity_for(count);
+			if (capacity < count)
+				return false;
+
+			return try_reallocate(capacity);
+		}
+		void reserve(std::size_t count)
+		{
+			const auto ret = try_reserve(count);
+			assert(ret);
+		}
+
+		bool try_grow(std::size_t amount = 1)
+		{
+			return try_grow_impl<typename StorageData::storage_traits>(amount, 0);
+		}
+		template <typename StorageTraits>
+		auto try_grow_impl(std::size_t amount, int) -> decltype(StorageTraits::grow(std::declval<std::size_t>(), std::declval<std::size_t>()), bool())
+		{
+			if (this->size() + amount <= this->capacity())
+				return true;
+
+			const std::size_t capacity = StorageData::storage_traits::grow(this->capacity(), this->size() + amount - this->capacity());
+			if (capacity < this->size() + amount)
+				return false;
+
+			return try_reallocate(capacity);
+		}
+		template <typename StorageTraits>
+		bool try_grow_impl(std::size_t amount, ...)
+		{
+			return this->size() + amount <= this->capacity();
+		}
+		void grow(std::size_t amount = 1)
+		{
+			const auto ret = try_grow(amount);
+			assert(ret);
 		}
 	};
 }

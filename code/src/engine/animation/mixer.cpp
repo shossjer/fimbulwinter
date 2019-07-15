@@ -61,7 +61,7 @@ namespace
 
 		Action::Frame compute()
 		{
-
+			debug_unreachable();
 		}
 	};
 	struct Fadein
