@@ -248,7 +248,7 @@ namespace utility
 		: StorageData
 	{
 		using base_type = StorageData;
-		using this_type = array_wrapper_trivially_destructible<StorageData>;
+		using this_type = array_wrapper_trivially_destructible<StorageData, false>;
 
 		using base_type::base_type;
 
@@ -276,7 +276,7 @@ namespace utility
 		: array_wrapper_trivially_destructible<StorageData>
 	{
 		using base_type = array_wrapper_trivially_destructible<StorageData>;
-		using this_type = array_wrapper_trivially_copy_constructible<StorageData>;
+		using this_type = array_wrapper_trivially_copy_constructible<StorageData, false>;
 
 		using base_type::base_type;
 
@@ -304,7 +304,7 @@ namespace utility
 		: array_wrapper_trivially_copy_constructible<StorageData>
 	{
 		using base_type = array_wrapper_trivially_copy_constructible<StorageData>;
-		using this_type = array_wrapper_trivially_copy_assignable<StorageData>;
+		using this_type = array_wrapper_trivially_copy_assignable<StorageData, false>;
 
 		using base_type::base_type;
 
@@ -345,7 +345,7 @@ namespace utility
 		: array_wrapper_trivially_copy_assignable<StorageData>
 	{
 		using base_type = array_wrapper_trivially_copy_assignable<StorageData>;
-		using this_type = array_wrapper_trivially_move_constructible<StorageData>;
+		using this_type = array_wrapper_trivially_move_constructible<StorageData, false, true>;
 
 		using base_type::base_type;
 
@@ -364,7 +364,7 @@ namespace utility
 		: array_wrapper_trivially_copy_assignable<StorageData>
 	{
 		using base_type = array_wrapper_trivially_copy_assignable<StorageData>;
-		using this_type = array_wrapper_trivially_move_constructible<StorageData>;
+		using this_type = array_wrapper_trivially_move_constructible<StorageData, false, false>;
 
 		using base_type::base_type;
 
@@ -392,7 +392,7 @@ namespace utility
 		: array_wrapper_trivially_move_constructible<StorageData>
 	{
 		using base_type = array_wrapper_trivially_move_constructible<StorageData>;
-		using this_type = array_wrapper_trivially_move_assignable<StorageData>;
+		using this_type = array_wrapper_trivially_move_assignable<StorageData, false, true>;
 
 		using base_type::base_type;
 
@@ -419,7 +419,7 @@ namespace utility
 		: array_wrapper_trivially_move_constructible<StorageData>
 	{
 		using base_type = array_wrapper_trivially_move_constructible<StorageData>;
-		using this_type = array_wrapper_trivially_move_assignable<StorageData>;
+		using this_type = array_wrapper_trivially_move_assignable<StorageData, false, false>;
 
 		using base_type::base_type;
 
