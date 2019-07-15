@@ -87,126 +87,81 @@ namespace
 
 namespace
 {
-	void read_arm(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	struct ReadData
+	{
+		std::ifstream file;
+
+		ReadData(std::string filename)
+			: file(filename, std::ifstream::binary)
+		{
+			if (!file)
+				throw std::runtime_error("");
+		}
+
+		std::size_t read(char * dest, std::size_t n)
+		{
+			file.read(dest, n);
+
+			return file.gcount();
+		}
+	};
+
+	uint64_t read_callback(char * dest, std::size_t n, void * data)
+	{
+		debug_assert(n < 0x7fffffffffffffffll);
+		ReadData & read_data = *static_cast<ReadData *>(data);
+
+		uint64_t amount = read_data.read(dest, n);
+		if (amount < n)
+			amount |= 0x8000000000000000ll;
+
+		return amount;
+	}
+
+	template <typename StructurerType>
+	void read_file(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
 		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
+		ReadData read_data(filename);
 
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		using StructurerType = core::ArmatureStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
-		file.read(utility::get<StructurerType>(structurer).data(), file_size);
+		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, core::ReadStream(read_callback, &read_data, filename));
 
 		callback(std::move(name), std::move(structurer));
+	}
+
+	void read_arm(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	{
+		read_file<core::ArmatureStructurer>(name, filename, callback);
 	}
 
 	void read_glsl(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		using StructurerType = core::ShaderStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
-		file.read(utility::get<StructurerType>(structurer).data(), file_size);
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::ShaderStructurer>(name, filename, callback);
 	}
 
 	void read_ini(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		using StructurerType = core::IniStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
-		file.read(utility::get<StructurerType>(structurer).data(), file_size);
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::IniStructurer>(name, filename, callback);
 	}
 
 	void read_json(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		std::vector<char> bytes(file_size);
-		file.read(bytes.data(), file_size);
-
-		using StructurerType = core::JsonStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, filename);
-		utility::get<StructurerType>(structurer).set(bytes.data(), bytes.size());
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::JsonStructurer>(name, filename, callback);
 	}
 
 	void read_lvl(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		using StructurerType = core::LevelStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
-		file.read(utility::get<StructurerType>(structurer).data(), file_size);
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::LevelStructurer>(name, filename, callback);
 	}
 
 	void read_msh(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		using StructurerType = core::PlaceholderStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
-		file.read(utility::get<StructurerType>(structurer).data(), file_size);
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::PlaceholderStructurer>(name, filename, callback);
 	}
 
 	void read_png(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		debug_printline("reading '", filename, "'");
-		std::ifstream file(filename, std::ifstream::binary);
-		debug_assert(file);
-
-		file.seekg(0, std::ifstream::end);
-		const auto file_size = file.tellg();
-		file.seekg(0, std::ifstream::beg);
-
-		using StructurerType = core::PngStructurer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, file_size, filename);
-		file.read(utility::get<StructurerType>(structurer).data(), file_size);
-
-		callback(std::move(name), std::move(structurer));
+		read_file<core::PngStructurer>(name, filename, callback);
 	}
 
 	void no_read(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
@@ -278,7 +233,7 @@ namespace
 						const engine::resource::FormatMask matching_formats = available_formats & x.formats;
 						if (!matching_formats.unique())
 						{
-							debug_fail("more than one formats matches '", x.name, "'");
+							debug_fail("more than one format matches '", x.name, "'");
 						}
 						else if (matching_formats & engine::resource::Format::Armature)
 						{
@@ -329,8 +284,9 @@ namespace
 		}
 	}
 
-	core::async::Thread renderThread;
-	volatile bool active = false;
+	std::atomic_int active(0);
+
+	core::async::Thread readerThread;
 	core::sync::Event<true> event;
 
 	void run()
@@ -338,7 +294,7 @@ namespace
 		event.wait();
 		event.reset();
 
-		while (active)
+		while (active.load(std::memory_order_relaxed))
 		{
 			process_messages();
 
@@ -356,20 +312,20 @@ namespace engine
 		{
 			void create()
 			{
-				debug_assert(!active);
+				debug_assert(!active.load(std::memory_order_relaxed));
 
-				active = true;
-				renderThread = core::async::Thread{ run };
+				active.store(1, std::memory_order_relaxed);
+				readerThread = core::async::Thread{ run };
 			}
 
 			void destroy()
 			{
-				debug_assert(active);
+				debug_assert(active.load(std::memory_order_relaxed));
 
-				active = false;
+				active.store(0, std::memory_order_relaxed);
 				event.set();
 
-				renderThread.join();
+				readerThread.join();
 			}
 
 			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer), FormatMask formats)

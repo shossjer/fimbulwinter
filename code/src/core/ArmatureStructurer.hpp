@@ -6,6 +6,7 @@
 #include "core/maths/Matrix.hpp"
 #include "core/maths/Quaternion.hpp"
 #include "core/maths/Vector.hpp"
+#include "core/ReadStream.hpp"
 #include "core/serialization.hpp"
 
 #include <cstddef>
@@ -38,83 +39,73 @@ namespace core
 	class ArmatureStructurer
 	{
 	private:
-		std::vector<char> bytes;
-
-		std::string filename;
+		ReadStream read_stream_;
 
 	public:
-		ArmatureStructurer(int size, std::string filename)
-			: bytes(size)
-			, filename(std::move(filename))
-		{}
-		ArmatureStructurer(std::vector<char> && bytes, std::string filename)
-			: bytes(std::move(bytes))
-			, filename(std::move(filename))
+		ArmatureStructurer(ReadStream && read_stream)
+			: read_stream_(std::move(read_stream))
 		{}
 
 	public:
-		char * data() { return bytes.data(); }
-
 		template <typename T>
 		void read(T & x)
 		{
-			int curr = 0;
 			static_assert(member_table<T>::has("name"), "");
-			member_table<T>::call("name", x, [&](auto & y){ read_string(curr, y); });
+			member_table<T>::call("name", x, [&](auto & y){ read_string(y); });
 
 			uint16_t njoints;
-			read_count(curr, njoints);
+			read_count(njoints);
 			debug_printline("armature njoints: ", njoints);
 
 			uint16_t nroots;
-			read_count(curr, nroots);
+			read_count(nroots);
 			debug_printline("armature nroots: ", nroots);
 
 			static_assert(member_table<T>::has("joints"), "");
-			member_table<T>::call("joints", x, [&](auto & y){ read_joints(curr, y, njoints); });
+			member_table<T>::call("joints", x, [&](auto & y){ read_joints(y, njoints); });
 
 			uint16_t nactions;
-			read_count(curr, nactions);
+			read_count(nactions);
 			debug_printline("armature nactions: ", nactions);
 
 			static_assert(member_table<T>::has("actions"), "");
-			member_table<T>::call("actions", x, [&](auto & y){ read_actions(curr, y, njoints, nactions); });
+			member_table<T>::call("actions", x, [&](auto & y){ read_actions(y, njoints, nactions); });
 		}
 	private:
 		template <typename T>
-		void read_action(int & curr, T & x, int njoints)
+		void read_action(T & x, int njoints)
 		{
 			static_assert(member_table<T>::has("name"), "");
-			member_table<T>::call("name", x, [&](auto & y){ read_string(curr, y); });
+			member_table<T>::call("name", x, [&](auto & y){ read_string(y); });
 
 			int32_t length;
-			read_length(curr, length);
+			read_length(length);
 			debug_printline(length);
 
 			static_assert(member_table<T>::has("length"), "");
 			member_table<T>::call("length", x, TryAssign<int32_t>(length));
 
 			static_assert(member_table<T>::has("frames"), "");
-			member_table<T>::call("frames", x, [&](auto & y){ read_frames(curr, y, njoints, length); });
+			member_table<T>::call("frames", x, [&](auto & y){ read_frames(y, njoints, length); });
 
 			uint8_t has_positions;
-			read_byte(curr, has_positions);
+			read_byte(has_positions);
 			debug_printline(has_positions ? "has positions" : "has NOT positions");
 
 			if (has_positions)
 			{
 				static_assert(member_table<T>::has("positions"), "");
-				member_table<T>::call("positions", x, [&](auto & y){ read_positions(curr, y, length); });
+				member_table<T>::call("positions", x, [&](auto & y){ read_positions(y, length); });
 			}
 
 			uint8_t has_orientations;
-			read_byte(curr, has_orientations);
+			read_byte(has_orientations);
 			debug_printline(has_orientations ? "has orientations" : "has NOT orientations");
 
 			if (has_orientations)
 			{
 				static_assert(member_table<T>::has("orientations"), "");
-				member_table<T>::call("orientations", x, [&](auto & y){ read_orientations(curr, y, length); });
+				member_table<T>::call("orientations", x, [&](auto & y){ read_orientations(y, length); });
 			}
 		}
 
@@ -128,54 +119,54 @@ namespace core
 		                    member_table<T>::has("positions") &&
 		                    member_table<T>::has("orientations")))>
 #endif
-		void read_actions(int & curr, std::vector<T> & actions, int njoints, int nactions)
+		void read_actions(std::vector<T> & actions, int njoints, int nactions)
 		{
 			actions.reserve(nactions);
 			while (actions.size() < nactions)
 			{
 				actions.emplace_back();
-				read_action(curr, actions.back(), njoints);
+				read_action(actions.back(), njoints);
 			}
 		}
 		template <typename T>
-		void read_actions(int & curr, T & x, int njoints, int nactions)
+		void read_actions(T & x, int njoints, int nactions)
 		{
-			debug_fail("attempting to read actions into a non array type in armature '", filename, "'");
+			debug_fail("attempting to read actions into a non array type in armature '", read_stream_.filename, "'");
 		}
 
-		void read_byte(int & curr, uint8_t & byte)
+		void read_byte(uint8_t & byte)
 		{
-			read_bytes(curr, reinterpret_cast<char *>(&byte), sizeof(uint8_t));
+			read_bytes(reinterpret_cast<char *>(&byte), sizeof(uint8_t));
 		}
 
-		void read_bytes(int & curr, char * ptr, int size)
+		void read_bytes(char * ptr, int size)
 		{
-			const auto from = bytes.begin() + curr;
-			const auto to = from + size;
-			debug_assert(to <= bytes.end());
-			std::copy(from, to, ptr);
-			curr += size;
+			if (!read_stream_.valid())
+				throw std::runtime_error("unexpected eol");
+			const auto amount_read = read_stream_.read_block(ptr, size);
+			if (amount_read < size)
+				throw std::runtime_error("unexpected eol");
 		}
 
-		void read_count(int & curr, uint16_t & count)
+		void read_count(uint16_t & count)
 		{
-			read_bytes(curr, reinterpret_cast<char *>(&count), sizeof(uint16_t));
+			read_bytes(reinterpret_cast<char *>(&count), sizeof(uint16_t));
 		}
 		template <typename T>
-		void read_count(int & curr, T & x)
+		void read_count(T & x)
 		{
-			debug_fail("attempting to read count into a non count type in armature '", filename, "'");
+			debug_fail("attempting to read count into a non count type in armature '", read_stream_.filename, "'");
 		}
 
 		template <typename T>
-		void read_frame(int & curr, std::vector<T> & channels, int index)
+		void read_frame(std::vector<T> & channels, int index)
 		{
 			static_assert(member_table<T>::has("translation"), "");
-			member_table<T>::call("translation", channels[index], [&](auto & y){ read_vector(curr, y); });
+			member_table<T>::call("translation", channels[index], [&](auto & y){ read_vector(y); });
 			static_assert(member_table<T>::has("rotation"), "");
-			member_table<T>::call("rotation", channels[index], [&](auto & y){ read_quaternion(curr, y); });
+			member_table<T>::call("rotation", channels[index], [&](auto & y){ read_quaternion(y); });
 			static_assert(member_table<T>::has("scale"), "");
-			member_table<T>::call("scale", channels[index], [&](auto & y){ read_vector(curr, y); });
+			member_table<T>::call("scale", channels[index], [&](auto & y){ read_vector(y); });
 		}
 
 		template <typename T,
@@ -185,7 +176,7 @@ namespace core
 #else
 		          REQUIRES((member_table<T>::has("channels")))>
 #endif
-		void read_frames(int & curr, std::vector<T> & frames, int njoints, int length)
+		void read_frames(std::vector<T> & frames, int njoints, int length)
 		{
 			frames.reserve(length + 1);
 			for (int framei = 0; framei <= length; framei++)
@@ -194,58 +185,58 @@ namespace core
 				for (int i = 0; i < njoints; i++)
 				{
 					uint16_t index;
-					read_count(curr, index);
+					read_count(index);
 
 					static_assert(member_table<T>::has("channels"), "");
-					member_table<T>::call("channels", frames.back(), [&](auto & y){ read_frame(curr, y, index); });
+					member_table<T>::call("channels", frames.back(), [&](auto & y){ read_frame(y, index); });
 				}
 			}
 		}
 		template <typename T>
-		void read_frames(int & curr, T & x, int njoints, int length)
+		void read_frames(T & x, int njoints, int length)
 		{
-			debug_fail("attempting to read frames into a non array type in armature '", filename, "'");
+			debug_fail("attempting to read frames into a non array type in armature '", read_stream_.filename, "'");
 		}
 
 		template <typename T>
-		void read_joint_chain(int & curr, std::vector<T> & joints, int parenti)
+		void read_joint_chain(std::vector<T> & joints, int parenti)
 		{
 			const int mei = joints.size();
 			joints.emplace_back();
 			T & me = joints.back();
 
 			static_assert(member_table<T>::has("name"), "");
-			member_table<T>::call("name", me, [&](auto & y){ read_string(curr, me.name); });
+			member_table<T>::call("name", me, [&](auto & y){ read_string(me.name); });
 
 			if (member_table<T>::has("matrix"))
 			{
-				member_table<T>::call("matrix", me, [&](auto & y){ read_matrix(curr, y); });
+				member_table<T>::call("matrix", me, [&](auto & y){ read_matrix(y); });
 			}
 			else
 			{
 				core::maths::Matrix4x4f unused;
-				read_matrix(curr, unused);
+				read_matrix(unused);
 			}
 			if (member_table<T>::has("inv_matrix"))
 			{
-				member_table<T>::call("inv_matrix", me, [&](auto & y){ read_matrix(curr, y); });
+				member_table<T>::call("inv_matrix", me, [&](auto & y){ read_matrix(y); });
 			}
 			else
 			{
 				core::maths::Matrix4x4f unused;
-				read_matrix(curr, unused);
+				read_matrix(unused);
 			}
 
 			static_assert(member_table<T>::has("parent"), "");
 			member_table<T>::call("parent", me, TryAssign<int>(parenti));
 
 			uint16_t nchildren;
-			read_count(curr, nchildren);
+			read_count(nchildren);
 			static_assert(member_table<T>::has("children"), "");
 			member_table<T>::call("children", me, TryAssign<uint16_t>(nchildren));
 			for (int i = 0; i < static_cast<int>(nchildren); i++)
 			{
-				read_joint_chain(curr, joints, mei);
+				read_joint_chain(joints, mei);
 			}
 		}
 
@@ -258,113 +249,113 @@ namespace core
 		                    member_table<T>::has("parent") &&
 		                    member_table<T>::has("children")))>
 #endif
-		void read_joints(int & curr, std::vector<T> & x, int count)
+		void read_joints(std::vector<T> & x, int count)
 		{
 			x.reserve(count);
 			while (x.size() < count)
 			{
-				read_joint_chain(curr, x, -1);
+				read_joint_chain(x, -1);
 			}
 		}
 		template <typename T>
-		void read_joints(int & curr, T & x, int count)
+		void read_joints(T & x, int count)
 		{
-			debug_fail("attempting to read joints into a non array type in armature '", filename, "'");
+			debug_fail("attempting to read joints into a non array type in armature '", read_stream_.filename, "'");
 		}
 
-		void read_length(int & curr, int32_t & length)
+		void read_length(int32_t & length)
 		{
-			read_bytes(curr, reinterpret_cast<char *>(&length), sizeof(int32_t));
+			read_bytes(reinterpret_cast<char *>(&length), sizeof(int32_t));
 		}
 
-		void read_matrix(int & curr, core::maths::Matrix4x4f & x)
+		void read_matrix(core::maths::Matrix4x4f & x)
 		{
 			core::maths::Matrix4x4f::array_type buffer;
-			read_bytes(curr, reinterpret_cast<char *>(buffer), sizeof(buffer));
+			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_matrix(int & curr, T & x)
+		void read_matrix(T & x)
 		{
-			debug_fail("attempting to read matrix into a non matrix type in armature '", filename, "'");
+			debug_fail("attempting to read matrix into a non matrix type in armature '", read_stream_.filename, "'");
 		}
 
 		template <typename T,
 		          REQUIRES((mpl::is_same<T, core::maths::Quaternionf>::value))>
-		void read_orientations(int & curr, std::vector<T> & orientations, int length)
+		void read_orientations(std::vector<T> & orientations, int length)
 		{
 			orientations.resize(length + 1);
 			for (int framei = 0; framei <= length; framei++)
 			{
-				read_quaternion(curr, orientations[framei]);
+				read_quaternion(orientations[framei]);
 			}
 		}
 		template <typename T>
-		void read_orientations(int & curr, T & x, int length)
+		void read_orientations(T & x, int length)
 		{
-			debug_fail("attempting to read orientations into a non array type in armature '", filename, "'");
+			debug_fail("attempting to read orientations into a non array type in armature '", read_stream_.filename, "'");
 		}
 
 		template <typename T,
 		          REQUIRES((mpl::is_same<T, core::maths::Vector3f>::value))>
-		void read_positions(int & curr, std::vector<T> & positions, int length)
+		void read_positions(std::vector<T> & positions, int length)
 		{
 			positions.resize(length + 1);
 			for (int framei = 0; framei <= length; framei++)
 			{
-				read_vector(curr, positions[framei]);
+				read_vector(positions[framei]);
 			}
 		}
 		template <typename T>
-		void read_positions(int & curr, T & x, int length)
+		void read_positions(T & x, int length)
 		{
-			debug_fail("attempting to read positions into a non array type in armature '", filename, "'");
+			debug_fail("attempting to read positions into a non array type in armature '", read_stream_.filename, "'");
 		}
 
-		void read_quaternion(int & curr, core::maths::Quaternionf & x)
+		void read_quaternion(core::maths::Quaternionf & x)
 		{
 			core::maths::Quaternionf::array_type buffer;
-			read_bytes(curr, reinterpret_cast<char *>(buffer), sizeof(buffer));
+			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_quaternion(int & curr, T & x)
+		void read_quaternion(T & x)
 		{
-			debug_fail("attempting to read quaternion into a non quaternion type in level '", filename, "'");
+			debug_fail("attempting to read quaternion into a non quaternion type in level '", read_stream_.filename, "'");
 		}
 
 		template <std::size_t N>
-		void read_string(int & curr, char (& buffer)[N])
+		void read_string(char (& buffer)[N])
 		{
 			uint16_t len; // excluding null character
-			read_count(curr, len);
+			read_count(len);
 			debug_assert(len < N);
 
-			read_bytes(curr, buffer, len);
+			read_bytes(buffer, len);
 			buffer[len] = '\0';
 		}
-		void read_string(int & curr, std::string & x)
+		void read_string(std::string & x)
 		{
 			char buffer[64]; // arbitrary
-			read_string(curr, buffer);
+			read_string(buffer);
 			x = buffer;
 		}
 		template <typename T>
-		void read_string(int & curr, T & x)
+		void read_string(T & x)
 		{
-			debug_fail("attempting to read string into a non string type in level '", filename, "'");
+			debug_fail("attempting to read string into a non string type in level '", read_stream_.filename, "'");
 		}
 
-		void read_vector(int & curr, core::maths::Vector3f & x)
+		void read_vector(core::maths::Vector3f & x)
 		{
 			core::maths::Vector3f::array_type buffer;
-			read_bytes(curr, reinterpret_cast<char *>(buffer), sizeof(buffer));
+			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_vector(int & curr, T & x)
+		void read_vector(T & x)
 		{
-			debug_fail("attempting to read vector into a non vector type in level '", filename, "'");
+			debug_fail("attempting to read vector into a non vector type in level '", read_stream_.filename, "'");
 		}
 	};
 }

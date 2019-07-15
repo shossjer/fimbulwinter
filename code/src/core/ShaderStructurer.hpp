@@ -2,6 +2,7 @@
 #ifndef CORE_SHADERSTRUCTURER_HPP
 #define CORE_SHADERSTRUCTURER_HPP
 
+#include "core/BufferedStream.hpp"
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
 
@@ -28,30 +29,18 @@ namespace core
 	class ShaderStructurer
 	{
 	private:
-		std::vector<char> buffer;
-		int read_;
-
-		std::string filename;
+		BufferedStream stream;
 
 	public:
-		ShaderStructurer(int size, std::string filename)
-			: buffer(size)
-			, read_(0)
-			, filename(std::move(filename))
-		{}
-		ShaderStructurer(std::vector<char> && buffer, std::string filename)
-			: buffer(std::move(buffer))
-			, read_(0)
-			, filename(std::move(filename))
+		ShaderStructurer(ReadStream && stream)
+			: stream(std::move(stream))
 		{}
 
 	public:
-		char * data() { return buffer.data(); }
-
 		template <typename T>
 		void read(T & x)
 		{
-			debug_verify(parse("[vertex]", newline), "expected vertex section in '", filename, "'");
+			debug_verify(parse("[vertex]", newline), "expected vertex section in '", stream.filename(), "'");
 			static_assert(core::member_table<T>::has("inputs"), "");
 			// if (core::member_table<T>::has("inputs"))
 			{
@@ -59,7 +48,7 @@ namespace core
 				{
 					if (core::member_table<T>::call("inputs", x, [&](auto & y){ return read_name_value(y); }))
 					{
-						debug_verify(parse("]", newline), "expected ending bracket in '", filename, "'");
+						debug_verify(parse("]", newline), "expected ending bracket in '", stream.filename(), "'");
 					}
 					else
 					{
@@ -74,7 +63,8 @@ namespace core
 			// 		skip_line();
 			// 	}
 			// }
-			const int vertex_source_begin = tell();
+			stream.consume();
+			const int vertex_source_begin = stream.pos();
 			const int vertex_source_end = find(beginline, "[fragment]", endline);
 			if (core::member_table<T>::has("vertex_source"))
 			{
@@ -84,8 +74,10 @@ namespace core
 			{
 				skip_region(vertex_source_begin, vertex_source_end);
 			}
+			// debug_printline(std::string(stream.data(vertex_source_begin), stream.data(vertex_source_end)));
 
-			debug_verify(parse("[fragment]", newline), "expected fragment section in '", filename, "'");
+			stream.consume();
+			debug_verify(parse("[fragment]", newline), "expected fragment section in '", stream.filename(), "'");
 			static_assert(core::member_table<T>::has("outputs"), "");
 			// if (core::member_table<T>::has("outputs"))
 			{
@@ -93,7 +85,7 @@ namespace core
 				{
 					if (core::member_table<T>::call("outputs", x, [&](auto & y){ return read_name_value(y); }))
 					{
-						debug_verify(parse("]", newline), "expected ending bracket in '", filename, "'");
+						debug_verify(parse("]", newline), "expected ending bracket in '", stream.filename(), "'");
 					}
 					else
 					{
@@ -108,7 +100,8 @@ namespace core
 			// 		skip_line();
 			// 	}
 			// }
-			const int fragment_source_begin = tell();
+			stream.consume();
+			const int fragment_source_begin = stream.pos();
 			const int fragment_source_end = find(endoffile);
 			if (core::member_table<T>::has("fragment_source"))
 			{
@@ -118,6 +111,9 @@ namespace core
 			{
 				skip_region(fragment_source_begin, fragment_source_end);
 			}
+			// debug_printline(std::string(stream.data(fragment_source_begin), stream.data(fragment_source_end)));
+
+			debug_assert(!stream.valid());
 		}
 	private:
 		template <typename T>
@@ -128,16 +124,16 @@ namespace core
 			static_assert(core::member_table<T>::has("name"), "");
 			if (!core::member_table<T>::call("name", x.back(), [&](auto & y){ return parse(y); }))
 			{
-				debug_printline("failed to parse 'name' in '", filename, "'");
+				debug_printline("failed to parse 'name' in '", stream.filename(), "'");
 				return false;
 			}
 
-			debug_verify(parse(whitespace), "'name' and 'value' should be separated by whitespace in '", filename, "'");
+			debug_verify(parse(whitespace), "'name' and 'value' should be separated by whitespace in '", stream.filename(), "'");
 
 			static_assert(core::member_table<T>::has("value"), "");
 			if (!core::member_table<T>::call("value", x.back(), [&](auto & y){ return parse(y); }))
 			{
-				debug_printline("failed to parse 'value' in '", filename, "'");
+				debug_printline("failed to parse 'value' in '", stream.filename(), "'");
 				return false;
 			}
 
@@ -149,197 +145,205 @@ namespace core
 			debug_unreachable();
 		}
 
-		int parse_impl(int curr) const
+		bool parse_impl() const
 		{
-			return curr;
+			return true;
 		}
 
 		template <typename ...Ps>
-		int parse_impl(int curr, beginline_t, Ps && ...ps) const
+		bool parse_impl(beginline_t, Ps && ...ps)
 		{
-			if (curr == 0)
-				return 0;
+			if (!stream.valid())
+				return false;
 
-			if (!(buffer[curr - 1] == '\n' ||
-			      buffer[curr - 1] == '\r'))
-				return -(curr + 1);
+			if (!(stream.pos() <= 0 ||
+			      (stream.peek(stream.pos() - 1) == '\n' ||
+			       stream.peek(stream.pos() - 1) == '\r')))
+				return false;
 
-			return parse_impl(curr, std::forward<Ps>(ps)...);
+			return parse_impl(std::forward<Ps>(ps)...);
 		}
 
 		template <typename ...Ps>
-		int parse_impl(int curr, endline_t, Ps && ...ps) const
+		bool parse_impl(endline_t, Ps && ...ps)
 		{
-			if (curr >= buffer.size())
-				return -(curr + 1);
+			if (!stream.valid())
+				return false;
 
-			while (buffer[curr] == '\n' ||
-			       buffer[curr] == '\r')
+			while (stream.peek() == '\n' ||
+			       stream.peek() == '\r')
 			{
-				curr++;
-				if (curr >= buffer.size())
-					return -(curr + 1);
+				stream.next();
+				if (!stream.valid())
+					break;
 			}
 
-			return parse_impl(curr, std::forward<Ps>(ps)...);
+			return parse_impl(std::forward<Ps>(ps)...);
 		}
 
 		template <typename ...Ps>
-		int parse_impl(int curr, newline_t, Ps && ...ps) const
+		bool parse_impl(newline_t, Ps && ...ps)
 		{
-			return parse_impl(curr, endline, std::forward<Ps>(ps)...);
+			return parse_impl(endline, std::forward<Ps>(ps)...);
 		}
 
 		template <typename ...Ps>
-		int parse_impl(int curr, whitespace_t, Ps && ...ps) const
+		bool parse_impl(whitespace_t, Ps && ...ps)
 		{
-			if (curr >= buffer.size())
-				return -(curr + 1);
+			if (!stream.valid())
+				return false;
 
-			while (buffer[curr] == '\n' ||
-			       buffer[curr] == '\r' ||
-			       buffer[curr] == '\t' ||
-			       buffer[curr] == ' ')
+			while (stream.peek() == '\n' ||
+			       stream.peek() == '\r' ||
+			       stream.peek() == '\t' ||
+			       stream.peek() == ' ')
 			{
-				curr++;
-				if (curr >= buffer.size())
-					return -(curr + 1);
+				stream.next();
+				if (!stream.valid())
+					return false;
 			}
 
-			return parse_impl(curr, std::forward<Ps>(ps)...);
+			return parse_impl(std::forward<Ps>(ps)...);
 		}
 
 		template <typename ...Ps>
-		int parse_impl(int curr, const char * pattern, Ps && ...ps) const
+		bool parse_impl(const char * pattern, Ps && ...ps)
 		{
 			for (const char * p = pattern; *p != '\0'; p++)
 			{
-				if (curr >= buffer.size())
-					return -(curr + 1);
+				if (!stream.valid())
+					return false;
 
-				if (*p != buffer[curr])
-					return -(curr + 1);
+				if (*p != stream.peek())
+					return false;
 
-				curr++;
+				stream.next();
+				if (!stream.valid())
+					return false;
 			}
 
-			return parse_impl(curr, std::forward<Ps>(ps)...);
+			return parse_impl(std::forward<Ps>(ps)...);
 		}
 
 		template <typename ...Ps>
-		int parse_impl(int curr, int & x, Ps && ...ps) const
+		bool parse_impl(int & x, Ps && ...ps)
 		{
-			int end = curr;
-			if (end >= buffer.size())
-				return -(end + 1);
+			if (!stream.valid())
+				return false;
 
-			while (buffer[end] >= '0' && buffer[end] <= '9')
+			const auto from = stream.pos();
+			while (stream.peek() >= '0' && stream.peek() <= '9')
 			{
-				end++;
-				if (end >= buffer.size())
-					return -(end + 1);
+				stream.next();
+				if (!stream.valid())
+					return false;
 			}
-			utility::from_string(std::string(buffer.data() + curr, buffer.data() + end), x, true);
+			utility::from_string(std::string(stream.data(from), stream.data(stream.pos())), x, true);
 
-			return parse_impl(end, std::forward<Ps>(ps)...);
+			return parse_impl(std::forward<Ps>(ps)...);
 		}
 
 		template <typename ...Ps>
-		int parse_impl(int curr, std::string & x, Ps && ...ps) const
+		bool parse_impl(std::string & x, Ps && ...ps)
 		{
-			if (curr >= buffer.size())
-				return -(curr + 1);
+			if (!stream.valid())
+				return false;
 
-			if (buffer[curr] == '"')
+			if (stream.peek() == '"')
 			{
 				debug_fail();
-				return -(curr + 1);
+				return false;
 			}
 			else
 			{
-				int end = curr;
-				while (!(buffer[end] == '\n' || buffer[end] == '\r' || buffer[end] == '\t' || buffer[end] == ' '))
+				const auto from = stream.pos();
+				while (!(stream.peek() == '\n' ||
+				         stream.peek() == '\r' ||
+				         stream.peek() == '\t' ||
+				         stream.peek() == ' '))
 				{
-					end++;
-					if (end >= buffer.size())
-						return -(end + 1);
+					stream.next();
+					if (!stream.valid())
+						return false;
 				}
-				x = std::string(buffer.data() + curr, buffer.data() + end);
+				x = std::string(stream.data(from), stream.data(stream.pos()));
 
-				return parse_impl(end, std::forward<Ps>(ps)...);
+				return parse_impl(std::forward<Ps>(ps)...);
 			}
 		}
 
 		template <typename P1, typename ...Ps>
 		bool parse(P1 && p1, Ps && ...ps)
 		{
-			const int curr = parse_impl(read_, std::forward<P1>(p1), std::forward<Ps>(ps)...);
-			if (curr < 0)
-				return false;
+			const auto pos = stream.pos();
+			if (parse_impl(std::forward<P1>(p1), std::forward<Ps>(ps)...))
+				return true;
 
-			read_ = curr;
-			return true;
+			stream.seek(pos);
+			return false;
 		}
 
-		int tell() const { return read_; }
-
-		int find(endoffile_t) const
+		int find(endoffile_t)
 		{
-			return buffer.size();
+			const auto bak = stream.pos();
+			while (stream.valid())
+			{
+				stream.next();
+			}
+			const auto pos = stream.pos();
+			stream.seek(bak);
+			return pos;
 		}
 
 		template <typename P1, typename ...Ps>
-		int find(P1 && p1, Ps && ...ps) const
+		int find(P1 && p1, Ps && ...ps)
 		{
-			int curr = read_;
-			while (true)
+			const auto bak = stream.pos();
+			while (stream.valid())
 			{
-				const int match = parse_impl(curr, p1, ps...);
-				if (match >= 0)
-					return curr;
+				const auto pos = stream.pos();
+				const auto match = parse_impl(p1, ps...);
+				stream.seek(pos);
 
-				if (curr >= buffer.size())
-					return -(curr + 1);
+				if (match)
+					break;
 
-				curr++;
+				stream.next();
 			}
+			const auto pos = stream.pos();
+			stream.seek(bak);
+			return pos;
 		}
 
-		bool parse_region(int from, int to, std::string & x)
+		void parse_region(int from, int to, std::string & x)
 		{
-			debug_assert(from == read_);
-			if (!(from <= to && to <= buffer.size()))
-				return false;
+			debug_assert(from == stream.pos());
 
-			x = std::string(buffer.data() + from, buffer.data() + to);
-			read_ = to;
-			return true;
+			x = std::string(stream.data(from), stream.data(to));
+			stream.seek(to);
 		}
 
 		void skip_line()
 		{
-			int curr = read_;
-			while (curr < buffer.size() &&
-			       !(buffer[curr] == '\n' ||
-			         buffer[curr] == '\r'))
+			while (stream.valid() &&
+			       !(stream.peek() == '\n' ||
+			         stream.peek() == '\r'))
 			{
-				curr++;
+				stream.next();
 			}
-			while (curr < buffer.size() &&
-			       (buffer[curr] == '\n' ||
-			        buffer[curr] == '\r'))
+			while (stream.valid() &&
+			       (stream.peek() == '\n' ||
+			        stream.peek() == '\r'))
 			{
-				curr++;
+				stream.next();
 			}
-			read_ = curr;
 		}
 
 		void skip_region(int from, int to)
 		{
-			debug_assert(from == read_);
-			if (!(from <= to))
-				return;
-			read_ = std::min(to, static_cast<int>(buffer.size()));
+			debug_assert(from == stream.pos());
+
+			stream.seek(to);
 		}
 	};
 }

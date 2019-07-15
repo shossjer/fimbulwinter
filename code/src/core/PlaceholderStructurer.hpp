@@ -7,6 +7,7 @@
 #include "core/maths/Matrix.hpp"
 #include "core/maths/Quaternion.hpp"
 #include "core/maths/Vector.hpp"
+#include "core/ReadStream.hpp"
 #include "core/serialization.hpp"
 
 #include <algorithm>
@@ -18,167 +19,154 @@ namespace core
 	class PlaceholderStructurer
 	{
 	private:
-		std::vector<char> bytes;
-
-		std::string filename;
+		ReadStream stream;
 
 	public:
-		PlaceholderStructurer(int size, std::string filename)
-			: bytes(size)
-			, filename(std::move(filename))
-		{}
-		PlaceholderStructurer(std::vector<char> && bytes, std::string filename)
-			: bytes(std::move(bytes))
-			, filename(std::move(filename))
+		PlaceholderStructurer(ReadStream && stream)
+			: stream(std::move(stream))
 		{}
 
 	public:
-		char * data() { return bytes.data(); }
-
 		template <typename T>
 		void read(T & x)
 		{
-			int curr = 0;
-
 			std::string name;
-			read_string(curr, name);
+			read_string(name);
 			debug_printline("mesh name: ", name);
 
 			static_assert(member_table<T>::has("matrix"), "");
-			member_table<T>::call("matrix", x, [&](auto & y){ read_matrix(curr, y); });
+			member_table<T>::call("matrix", x, [&](auto & y){ read_matrix(y); });
 			static_assert(member_table<T>::has("vertices"), "");
-			member_table<T>::call("vertices", x, [&](auto & y){ read_array<float>(curr, y, 3); });
+			member_table<T>::call("vertices", x, [&](auto & y){ read_array<float>(y, 3); });
 			static_assert(member_table<T>::has("uvs"), "");
-			member_table<T>::call("uvs", x, [&](auto & y){ read_array<float>(curr, y, 2); });
+			member_table<T>::call("uvs", x, [&](auto & y){ read_array<float>(y, 2); });
 			static_assert(member_table<T>::has("normals"), "");
-			member_table<T>::call("normals", x, [&](auto & y){ read_array<float>(curr, y, 3); });
+			member_table<T>::call("normals", x, [&](auto & y){ read_array<float>(y, 3); });
 			static_assert(member_table<T>::has("weights"), "");
-			member_table<T>::call("weights", x, [&](auto & y){ read_weights(curr, y); });
+			member_table<T>::call("weights", x, [&](auto & y){ read_weights(y); });
 			static_assert(member_table<T>::has("triangles"), "");
-			member_table<T>::call("triangles", x, [&](auto & y){ read_array<unsigned int>(curr, y, 3); });
+			member_table<T>::call("triangles", x, [&](auto & y){ read_array<unsigned int>(y, 3); });
 		}
 	private:
 		template <typename T>
-		int read_array(int & curr, container::Buffer & x, int element_size = 1)
+		int read_array(container::Buffer & x, int element_size = 1)
 		{
 			uint16_t count;
-			read_count(curr, count);
-			debug_printline(count, " array count in placeholder '", filename, "'");
+			read_count(count);
+			debug_printline(count, " array count in placeholder '", stream.filename, "'");
 
 			x.resize<T>(count * element_size);
-			read_bytes(curr, x.data(), count * element_size * sizeof(T));
+			read_bytes(x.data(), count * element_size * sizeof(T));
 			return count * element_size;
 		}
 		template <typename T, typename P>
-		int read_array(int & curr, P & x, int element_size = 1)
+		int read_array(P & x, int element_size = 1)
 		{
-			debug_fail("attempting to read array into a non array type in placeholder '", filename, "'");
+			debug_fail("attempting to read array into a non array type in placeholder '", stream.filename, "'");
 			return 0;
 		}
 
-		void read_bytes(int & curr, char * ptr, int size)
+		void read_bytes(char * ptr, int size)
 		{
-			if (bytes.size() - curr < size)
+			if (!stream.valid())
+				throw std::runtime_error("unexpected eol");
+			const auto amount_read = stream.read_block(ptr, size);
+			if (amount_read < size)
 			{
-				debug_printline("warning: eof while reading '", filename, "'");
-				size = bytes.size() - curr;
+				debug_printline("warning: eof while reading '", stream.filename, "'");
 			}
-			const auto from = bytes.begin() + curr;
-			const auto to = from + size;
-			std::copy(from, to, ptr);
-			curr += size;
 		}
 
-		void read_count(int & curr, uint16_t & count)
+		void read_count(uint16_t & count)
 		{
-			read_bytes(curr, reinterpret_cast<char *>(&count), sizeof(uint16_t));
+			read_bytes(reinterpret_cast<char *>(&count), sizeof(uint16_t));
 		}
 		template <typename T>
-		void read_count(int & curr, T & x)
+		void read_count(T & x)
 		{
-			debug_fail("attempting to read count into a non count type in placeholder '", filename, "'");
+			debug_fail("attempting to read count into a non count type in placeholder '", stream.filename, "'");
 		}
 
-		void read_matrix(int & curr, core::maths::Matrix4x4f & x)
+		void read_matrix(core::maths::Matrix4x4f & x)
 		{
 			core::maths::Matrix4x4f::array_type buffer;
-			read_bytes(curr, reinterpret_cast<char *>(buffer), sizeof(buffer));
+			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_matrix(int & curr, T & x)
+		void read_matrix(T & x)
 		{
-			debug_fail("attempting to read matrix into a non matrix type in placeholder '", filename, "'");
+			debug_fail("attempting to read matrix into a non matrix type in placeholder '", stream.filename, "'");
 		}
 
 		template <std::size_t N>
-		void read_string(int & curr, char (& buffer)[N])
+		void read_string(char (& buffer)[N])
 		{
 			uint16_t len; // excluding null character
-			read_count(curr, len);
+			read_count(len);
 			debug_assert(len < N);
 
-			read_bytes(curr, buffer, len);
+			read_bytes(buffer, len);
 			buffer[len] = '\0';
 		}
-		void read_string(int & curr, std::string & x)
+		void read_string(std::string & x)
 		{
 			char buffer[64]; // arbitrary
-			read_string(curr, buffer);
+			read_string(buffer);
 			x = buffer;
 		}
 		template <typename T>
-		void read_string(int & curr, T & x)
+		void read_string(T & x)
 		{
-			debug_fail("attempting to read string into a non string type in placeholder '", filename, "'");
+			debug_fail("attempting to read string into a non string type in placeholder '", stream.filename, "'");
 		}
 
-		void read_value(int & curr, float & value)
+		void read_value(float & value)
 		{
-			read_bytes(curr, reinterpret_cast<char *>(&value), sizeof(float));
+			read_bytes(reinterpret_cast<char *>(&value), sizeof(float));
 		}
 		template <typename T>
-		void read_value(int & curr, T & x)
+		void read_value(T & x)
 		{
-			debug_fail("attempting to read value into a non value type in placeholder '", filename, "'");
+			debug_fail("attempting to read value into a non value type in placeholder '", stream.filename, "'");
 		}
 
 		template <typename T>
-		int read_weights(int & curr, std::vector<T> & x)
+		int read_weights(std::vector<T> & x)
 		{
 			uint16_t nweights;
-			read_count(curr, nweights);
-			debug_printline(nweights, " weight count in placeholder '", filename, "'");
+			read_count(nweights);
+			debug_printline(nweights, " weight count in placeholder '", stream.filename, "'");
 
 			x.resize(nweights);
 			for (auto & w : x)
 			{
 				uint16_t ngroups;
-				read_count(curr, ngroups);
+				read_count(ngroups);
 				debug_assert(ngroups > 0);
 
 				// read the first weight value
 				static_assert(member_table<T>::has("index"), "");
-				member_table<T>::call("index", w, [&](auto & y){ read_count(curr, y); });
+				member_table<T>::call("index", w, [&](auto & y){ read_count(y); });
 				static_assert(member_table<T>::has("value"), "");
-				member_table<T>::call("value", w, [&](auto & y){ read_value(curr, y); });
+				member_table<T>::call("value", w, [&](auto & y){ read_value(y); });
 
 				// skip remaining ones if any for now
 				for (auto i = 1; i < ngroups; i++)
 				{
 					uint16_t unused_index;
-					read_count(curr, unused_index);
+					read_count(unused_index);
 
 					float unused_value;
-					read_value(curr, unused_value);
+					read_value(unused_value);
 				}
 			}
 			return nweights;
 		}
 		template <typename T>
-		int read_weights(int & curr, T & x)
+		int read_weights(T & x)
 		{
-			debug_fail("attempting to read weights into a non array type in placeholder '", filename, "'");
+			debug_fail("attempting to read weights into a non array type in placeholder '", stream.filename, "'");
 			return 0;
 		}
 	};
