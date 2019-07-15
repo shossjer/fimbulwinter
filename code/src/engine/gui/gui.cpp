@@ -100,7 +100,7 @@ namespace
 		void operator() (MessageData && m)
 		{
 			// inform 'reaction' about new data available
-			update(resources, m, reactions, views);
+			engine::gui::update(resources, m, reactions, views);
 		}
 		void operator() (MessageDataSetup && m)
 		{

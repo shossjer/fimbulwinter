@@ -21,8 +21,8 @@ namespace engine
 		using Controllers = core::container::Collection
 		<
 			engine::Entity, 201,
-			std::array<controller::list_t, 51>,
-			std::array<controller::tab_t, 51>
+			utility::heap_storage<controller::list_t>,
+			utility::heap_storage<controller::tab_t>
 		>;
 
 		using Interactions = core::container::MultiCollection
@@ -35,10 +35,13 @@ namespace engine
 
 		using Reactions = node_map_t;
 
+		// todo: the way in which others keep pointers to the views in
+		// this collection is not okay, as the collection is free to
+		// move the views around
 		using Views = core::container::Collection
 		<
 			engine::Entity, 401,
-			std::array<View, 201>
+			utility::static_storage<View, 201>
 		>;
 	}
 }

@@ -147,8 +147,10 @@ set(HEADER_FILES
 	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
+   src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
+   src/utility/iterator.hpp
 	src/utility/json.hpp
    src/utility/lookup_table.hpp
 	src/utility/optional.hpp
@@ -156,9 +158,12 @@ set(HEADER_FILES
 	src/utility/property.hpp
 	src/utility/scalar_alloc.hpp
 	src/utility/spinlock.hpp
+   src/utility/storage.hpp
+   src/utility/storing.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
    src/utility/string_view.hpp
+   src/utility/tuple.hpp
 	src/utility/type_traits.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp

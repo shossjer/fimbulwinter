@@ -119,3 +119,20 @@ TEST_CASE( "multicollection", "[core][container]" )
 	CHECK(!collection.contains<long long>(5u));
 	CHECK(!collection.contains<char>(5u));
 }
+
+TEST_CASE( "collection dynamic_alloc", "[core][container]" )
+{
+	core::container::Collection
+	<
+		unsigned int,
+		10,
+		utility::heap_storage<int>
+	>
+	collection;
+
+	collection.emplace<int>(1u, 1);
+	collection.emplace<int>(2u, 2);
+	collection.emplace<int>(3u, 3);
+	collection.emplace<int>(4u, 4);
+	collection.emplace<int>(5u, 5);
+}

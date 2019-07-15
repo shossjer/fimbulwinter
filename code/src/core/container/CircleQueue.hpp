@@ -34,7 +34,7 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			utility::array_alloc<T, N> buffer;
+			utility::static_storage<T, N> buffer;
 
 		public:
 			CircleQueue() :
@@ -117,7 +117,7 @@ namespace core
 		public:
 			std::atomic_int begini;
 			std::atomic_int endi;
-			utility::array_alloc<T, N> buffer;
+			utility::static_storage<T, N> buffer;
 			utility::spinlock writelock;
 
 		public:
