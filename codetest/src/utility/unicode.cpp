@@ -8,28 +8,28 @@
 
 namespace
 {
-	constexpr const utility::code_unit_utf8 ascii[] = "\u0024";
+	constexpr const utility::code_unit_utf8 ascii[] = u8"\u0024";
 	constexpr const int ascii_value = 0x24;
 	constexpr const int ascii_size = 1;
 
-	constexpr const utility::code_unit_utf8 german[] = "\u00f6";
+	constexpr const utility::code_unit_utf8 german[] = u8"\u00f6";
 	constexpr const int german_value = 0xf6;
 	constexpr const int german_size = 2;
 
-	constexpr const utility::code_unit_utf8 snowman[] = "\u2603";
+	constexpr const utility::code_unit_utf8 snowman[] = u8"\u2603";
 	constexpr const int snowman_value = 0x2603;
 	constexpr const int snowman_size = 3;
 
-	constexpr const utility::code_unit_utf8 smiley[] = "\U00010348";
+	constexpr const utility::code_unit_utf8 smiley[] = u8"\U00010348";
 	constexpr const int smiley_value = 0x10348;
 	constexpr const int smiley_size = 4;
 
-	constexpr const utility::code_unit_utf8 three_snowmen[] = "\u2603\u2603\u2603";
+	constexpr const utility::code_unit_utf8 three_snowmen[] = u8"\u2603\u2603\u2603";
 	constexpr const int three_snowmen_size = sizeof(three_snowmen) - 1;
 	constexpr const int three_snowmen_length = sizeof(three_snowmen) - 1 - 3 * 2;
 	//                                    two extra bytes for 3-byte characters^
 
-	constexpr const utility::code_unit_utf8 long_text[] = "This is a story about a \u2603, named Sn\u00f6gubben, who was very good at making \u0024 since his \U00010348 was one of the best a \u2603 could have, and then he died.";
+	constexpr const utility::code_unit_utf8 long_text[] = u8"This is a story about a \u2603, named Sn\u00f6gubben, who was very good at making \u0024 since his \U00010348 was one of the best a \u2603 could have, and then he died.";
 	constexpr const int long_text_size = sizeof(long_text) - 1;
 	constexpr const int long_text_length = sizeof(long_text) - 1 - 1 * 1 - 2 * 2 - 1 * 3;
 	//                             one extra byte for 2-byte characters^       ^       ^
@@ -48,7 +48,7 @@ namespace
 	constexpr const auto long_text_symbol_4_point = utility::PointDifference(84);
 	constexpr const auto long_text_symbol_5_point = utility::PointDifference(108);
 
-	constexpr const utility::code_unit_utf8 short_text[] = "This is a story about a \u2603, and then he died.";
+	constexpr const utility::code_unit_utf8 short_text[] = u8"This is a story about a \u2603, and then he died.";
 }
 
 TEST_CASE("heap string type traits", "[utility][unicode]")
