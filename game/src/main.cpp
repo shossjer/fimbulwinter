@@ -51,6 +51,12 @@ namespace engine
 		extern void destroy();
 	}
 
+	namespace hid
+	{
+		extern void create();
+		extern void destroy();
+	}
+
 	namespace physics
 	{
 		extern void create();
@@ -189,6 +195,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	while (settings_lock < 2);
 
 	engine::application::window::create(hInstance, nCmdShow, settings.application);
+	engine::hid::create();
 
 	::engine::console::create();
 	::engine::replay::create();
@@ -214,6 +221,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::replay::destroy();
 	::engine::console::destroy();
 
+	engine::hid::destroy();
 	engine::application::window::destroy(hInstance);
 
 	::engine::resource::writer::destroy();
