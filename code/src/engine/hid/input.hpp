@@ -21,8 +21,7 @@ namespace engine
 				BUTTON_DOWN,
 				BUTTON_UP,
 				CURSOR_ABSOLUTE,
-				KEY_DOWN,
-				KEY_UP,
+				KEY_CHARACTER,
 				COUNT,
 			};
 
@@ -191,28 +190,19 @@ namespace engine
 			} cursor_absolute;
 			static_assert(std::is_trivial<CursorAbsolute>::value, "");
 
-			struct KeyDown
+			struct KeyCharacter
 			{
 				State state;
 				Player player;
 				Button code;
 				utility::code_point unicode;
-			} key_down;
-			static_assert(std::is_trivial<KeyDown>::value, "");
-
-			struct KeyUp
-			{
-				State state;
-				Player player;
-				Button code;
-				utility::code_point unicode;
-			} key_up;
-			static_assert(std::is_trivial<KeyUp>::value, "");
+			} key_character;
+			static_assert(std::is_trivial<KeyCharacter>::value, "");
 
 
 		public:
 			/**
-			 * \note Valid iff state is `BUTTON_DOWN` or `BUTTON_UP`.
+			 * \note Valid iff state is `BUTTON_DOWN`, `BUTTON_UP`, or `KEY_CHARACTER`.
 			 */
 			Button getButton() const
 			{
@@ -220,6 +210,7 @@ namespace engine
 				{
 				case State::BUTTON_DOWN: return button_down.code;
 				case State::BUTTON_UP: return button_up.code;
+				case State::KEY_CHARACTER: return key_character.code;
 				default: debug_unreachable();
 				}
 			}
@@ -243,14 +234,13 @@ namespace engine
 			State getState() const { return common_header.state; }
 
 			/**
-			 * \note Valid iff state is `KEY_DOWN` or `KEY_UP`.
+			 * \note Valid iff state is `KEY_CHARACTER`.
 			 */
 			utility::code_point getUnicode() const
 			{
 				switch (common_header.state)
 				{
-				case State::KEY_DOWN: return key_down.unicode;
-				case State::KEY_UP: return key_down.unicode;
+				case State::KEY_CHARACTER: return key_character.unicode;
 				default: debug_unreachable();
 				}
 			}
@@ -281,20 +271,12 @@ namespace engine
 				cursor_absolute.position.y = y;
 			}
 
-			void setKeyDown(int_fast8_t player, Button code, utility::code_point unicode)
+			void setKeyCharacter(int_fast8_t player, Button code, utility::code_point unicode)
 			{
-				key_down.state = State::KEY_DOWN;
-				key_down.player = player;
-				key_down.code = code;
-				key_down.unicode = unicode;
-			}
-
-			void setKeyUp(int_fast8_t player, Button code, utility::code_point unicode)
-			{
-				key_up.state = State::KEY_UP;
-				key_up.player = player;
-				key_up.code = code;
-				key_up.unicode = unicode;
+				key_character.state = State::KEY_CHARACTER;
+				key_character.player = player;
+				key_character.code = code;
+				key_character.unicode = unicode;
 			}
 		};
 		static_assert(sizeof(Input) == 8, "This is not a hard requirement but it would be nice to know if it grows.");

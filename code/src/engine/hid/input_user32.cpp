@@ -24,20 +24,33 @@ namespace engine
 {
 	namespace hid
 	{
+		void key_character(int scancode, const char16_t * u16)
+		{
+			input.setKeyCharacter(0, engine::hid::Input::Button::INVALID, utility::code_point(u16));
+			dispatch(input);
+		}
+
 		void key_down(WPARAM wParam, LPARAM lParam, LONG time)
 		{
 			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
-			dispatch(input);
-			input.setKeyDown(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
 			dispatch(input);
 		}
 		void key_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
 			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
 			dispatch(input);
-			input.setKeyUp(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
+		}
+		void syskey_down(WPARAM wParam, LPARAM lParam, LONG time)
+		{
+			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
 			dispatch(input);
 		}
+		void syskey_up(WPARAM wParam, LPARAM lParam, LONG time)
+		{
+			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
+			dispatch(input);
+		}
+
 		void lbutton_down(LONG time)
 		{
 			input.setButtonDown(0, engine::hid::Input::Button::MOUSE_LEFT, 0, 0);
@@ -79,21 +92,6 @@ namespace engine
 		                 LONG time)
 		{
 			// TODO:
-		}
-
-		void syskey_down(WPARAM wParam, LPARAM lParam, LONG time)
-		{
-			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
-			dispatch(input);
-			input.setKeyDown(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
-			dispatch(input);
-		}
-		void syskey_up(WPARAM wParam, LPARAM lParam, LONG time)
-		{
-			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
-			dispatch(input);
-			input.setKeyUp(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
-			dispatch(input);
 		}
 	}
 }

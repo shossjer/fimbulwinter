@@ -24,6 +24,8 @@ namespace engine
 	}
 	namespace hid
 	{
+		extern void key_character(int scancode, const char16_t * character);
+
 		extern void key_down(WPARAM wParam, LPARAM lParam, LONG time);
 		extern void key_up(WPARAM wParam, LPARAM lParam, LONG time);
 		extern void syskey_down(WPARAM wParam, LPARAM lParam, LONG time);
@@ -66,6 +68,10 @@ namespace
 	{
 		switch (msg)
 		{
+		 case WM_CHAR:
+			engine::hid::key_character(uint32_t(lParam & 0xff0000) >> 16, reinterpret_cast<const char16_t *>(&wParam));
+			break;
+
 		case WM_KEYDOWN:
 			engine::hid::key_down(wParam, lParam, GetMessageTime());
 			break;
