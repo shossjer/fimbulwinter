@@ -28,7 +28,7 @@ set(SOURCE_FILES
 	src/engine/replay/reader.cpp
 	src/engine/replay/writer.cpp
 	src/engine/resource/reader.cpp
-   src/engine/resource/writer.cpp
+	src/engine/resource/writer.cpp
 	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
 	src/gameplay/looper.cpp
@@ -37,11 +37,11 @@ set(SOURCE_FILES
 
 # source listing
 set(HEADER_FILES
-   src/core/ArmatureStructurer.hpp
+	src/core/ArmatureStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
-   src/core/BufferedStream.hpp
-   src/core/BytesStructurer.hpp
+	src/core/BufferedStream.hpp
+	src/core/BytesStructurer.hpp
 	src/core/color.hpp
 	src/core/container/Buffer.hpp
 	src/core/container/CircleQueue.hpp
@@ -50,12 +50,12 @@ set(HEADER_FILES
 	src/core/container/Stack.hpp
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
-   src/core/graphics/types.hpp
-   src/core/IniSerializer.hpp
-   src/core/IniStructurer.hpp
-   src/core/JsonSerializer.hpp
-   src/core/JsonStructurer.hpp
-   src/core/LevelStructurer.hpp
+	src/core/graphics/types.hpp
+	src/core/IniSerializer.hpp
+	src/core/IniStructurer.hpp
+	src/core/JsonSerializer.hpp
+	src/core/JsonStructurer.hpp
+	src/core/LevelStructurer.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp
@@ -63,14 +63,14 @@ set(HEADER_FILES
 	src/core/maths/Vector.hpp
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
-   src/core/NoSerializer.hpp
-   src/core/PlaceholderStructurer.hpp
-   src/core/PngStructurer.hpp
-   src/core/ReadStream.hpp
-   src/core/serialization.hpp
-   src/core/ShaderStructurer.hpp
+	src/core/NoSerializer.hpp
+	src/core/PlaceholderStructurer.hpp
+	src/core/PngStructurer.hpp
+	src/core/ReadStream.hpp
+	src/core/serialization.hpp
+	src/core/ShaderStructurer.hpp
 	src/core/StringSerializer.hpp
-   src/core/StringStructurer.hpp
+	src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
@@ -82,11 +82,11 @@ set(HEADER_FILES
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
 	src/engine/animation/mixer.hpp
-   src/engine/application/config.hpp
+	src/engine/application/config.hpp
 	src/engine/application/window.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
-   src/engine/graphics/config.hpp
+	src/engine/graphics/config.hpp
 	src/engine/graphics/message.hpp
 	src/engine/graphics/opengl.hpp
 	src/engine/graphics/opengl/Font.hpp
@@ -106,9 +106,9 @@ set(HEADER_FILES
 	src/engine/physics/physics_physx.hpp
 	src/engine/replay/reader.hpp
 	src/engine/replay/writer.hpp
-   src/engine/resource/formats.hpp
+	src/engine/resource/formats.hpp
 	src/engine/resource/reader.hpp
-   src/engine/resource/writer.hpp
+	src/engine/resource/writer.hpp
 	src/gameplay/commands.hpp
 	src/gameplay/component/CameraActivator.hpp
 	src/gameplay/component/FreeCamera.hpp
@@ -125,27 +125,27 @@ set(HEADER_FILES
 	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
-   src/utility/crypto/crc.hpp
-   src/utility/heap_allocator.hpp
+	src/utility/crypto/crc.hpp
+	src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
-   src/utility/iterator.hpp
+	src/utility/iterator.hpp
 	src/utility/json.hpp
-   src/utility/lookup_table.hpp
+	src/utility/lookup_table.hpp
 	src/utility/optional.hpp
 	src/utility/preprocessor.hpp
 	src/utility/property.hpp
 	src/utility/scalar_alloc.hpp
 	src/utility/spinlock.hpp
-   src/utility/storage.hpp
-   src/utility/storing.hpp
+	src/utility/storage.hpp
+	src/utility/storing.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
-   src/utility/string_view.hpp
-   src/utility/tuple.hpp
-   src/utility/type_info.hpp
+	src/utility/string_view.hpp
+	src/utility/tuple.hpp
+	src/utility/type_info.hpp
 	src/utility/type_traits.hpp
-   src/utility/unicode.hpp
+	src/utility/unicode.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
 	)
