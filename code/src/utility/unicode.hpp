@@ -9,6 +9,7 @@
 namespace utility
 {
 	using code_unit_utf8 = char;
+	using code_unit_utf16 = char16_t;
 
 	class code_point
 	{
@@ -32,6 +33,9 @@ namespace utility
 		{}
 		explicit constexpr code_point(const code_unit_utf8 * s)
 			: code_point(s, s ? extract_size(s) : 1)
+		{}
+		explicit constexpr code_point(const code_unit_utf16 * s)
+			: code_point(s ? extract_value(s, (s[0] & 0xfc00) == 0xd800 ? 2 : 1) : 0)
 		{}
 	private:
 		constexpr code_point(const code_unit_utf8 * s, uint32_t size)
@@ -149,6 +153,16 @@ namespace utility
 				// 0x1f = 0001 1111
 				// 0x3f = 0011 1111
 			case 2: return uint32_t(s[0] & 0x1f) << 6 | uint32_t(s[1] & 0x3f);
+			case 1: return s[0];
+			default: intrinsic_unreachable();
+			}
+		}
+		static constexpr int extract_value(const code_unit_utf16 * s, int size)
+		{
+			switch (size)
+			{
+				// 0x03ff = 0000 0011 1111 1111
+			case 2: return (uint32_t(s[0] & 0x03ff) << 10 | uint32_t(s[1] & 0x03ff)) + 0x10000;
 			case 1: return s[0];
 			default: intrinsic_unreachable();
 			}

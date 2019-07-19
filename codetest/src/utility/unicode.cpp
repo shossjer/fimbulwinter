@@ -562,6 +562,24 @@ TEST_CASE("code point can hold the null character", "[utility][unicode]")
 	}
 }
 
+TEST_CASE("code point can hold any encoding", "[utility][unicode]")
+{
+	auto u0024_8 = utility::code_point(u8"\u0024");
+	auto u20ac_8 = utility::code_point(u8"\u20ac");
+	auto u00010437_8 = utility::code_point(u8"\U00010437");
+	auto u00024b62_8 = utility::code_point(u8"\U00024b62");
+
+	auto u0024_16 = utility::code_point(u"\u0024");
+	auto u20ac_16 = utility::code_point(u"\u20ac");
+	auto u00010437_16 = utility::code_point(u"\U00010437");
+	auto u00024b62_16 = utility::code_point(u"\U00024b62");
+
+	CHECK(u0024_8 == u0024_16);
+	CHECK(u20ac_8 == u20ac_16);
+	CHECK(u00010437_8 == u00010437_16);
+	CHECK(u00024b62_8 == u00024b62_16);
+}
+
 TEST_CASE("static string", "[utility][unicode]")
 {
 	using string_utf8 = utility::static_string_utf8<(long_text_size + 1)>;
