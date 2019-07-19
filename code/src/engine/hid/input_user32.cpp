@@ -24,18 +24,14 @@ namespace engine
 {
 	namespace hid
 	{
-		void key_down(BYTE virtual_key,
-		              BYTE scan_code,
-		              LONG time)
+		void key_down(WPARAM wParam, LPARAM lParam, LONG time)
 		{
 			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
 			dispatch(input);
 			input.setKeyDown(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
 			dispatch(input);
 		}
-		void key_up(BYTE virtual_key,
-		            BYTE scan_code,
-		            LONG time)
+		void key_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
 			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
 			dispatch(input);
@@ -85,18 +81,14 @@ namespace engine
 			// TODO:
 		}
 
-		void syskey_down(BYTE virtual_key,
-		                 BYTE scan_code,
-		                 LONG time)
+		void syskey_down(WPARAM wParam, LPARAM lParam, LONG time)
 		{
 			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
 			dispatch(input);
 			input.setKeyDown(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
 			dispatch(input);
 		}
-		void syskey_up(BYTE virtual_key,
-		               BYTE scan_code,
-		               LONG time)
+		void syskey_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
 			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
 			dispatch(input);

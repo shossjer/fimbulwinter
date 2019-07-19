@@ -5,7 +5,7 @@
 
 #include "window.hpp"
 
-#include <engine/debug.hpp>
+#include "engine/debug.hpp"
 
 #include <windowsx.h>
 #include <windows.h>
@@ -24,12 +24,11 @@ namespace engine
 	}
 	namespace hid
 	{
-		extern void key_down(BYTE virtual_key,
-		                     BYTE scan_code,
-		                     LONG time);
-		extern void key_up(BYTE virtual_key,
-		                   BYTE scan_code,
-		                   LONG time);
+		extern void key_down(WPARAM wParam, LPARAM lParam, LONG time);
+		extern void key_up(WPARAM wParam, LPARAM lParam, LONG time);
+		extern void syskey_down(WPARAM wParam, LPARAM lParam, LONG time);
+		extern void syskey_up(WPARAM wParam, LPARAM lParam, LONG time);
+
 		extern void lbutton_down(LONG time);
 		extern void lbutton_up(LONG time);
 		extern void mbutton_down(LONG time);
@@ -41,13 +40,6 @@ namespace engine
 		                       LONG time);
 		extern void mouse_wheel(const int_fast16_t delta,
 		                        LONG time);
-
-		extern void syskey_down(BYTE virtual_key,
-		                        BYTE scan_code,
-		                        LONG time);
-		extern void syskey_up(BYTE virtual_key,
-		                      BYTE scan_code,
-		                      LONG time);
 
 		namespace ui
 		{
@@ -74,26 +66,18 @@ namespace
 	{
 		switch (msg)
 		{
-			// case WM_CHAR:
-			// 	break;
-			// case WM_DEADCHAR:
-			// 	break;
 		case WM_KEYDOWN:
-			engine::hid::key_down((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
+			engine::hid::key_down(wParam, lParam, GetMessageTime());
 			break;
 		case WM_KEYUP:
-			engine::hid::key_up((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
+			engine::hid::key_up(wParam, lParam, GetMessageTime());
 			break;
-			// case WM_SYSDEADCHAR:
-			// 	break;
 		case WM_SYSKEYDOWN:
-			engine::hid::syskey_down((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
+			engine::hid::syskey_down(wParam, lParam, GetMessageTime());
 			break;
 		case WM_SYSKEYUP:
-			engine::hid::syskey_up((BYTE)wParam, (BYTE)(lParam >> 16), GetMessageTime());
+			engine::hid::syskey_up(wParam, lParam, GetMessageTime());
 			break;
-			// case WM_UNICHAR:
-			// 	break;
 
 		case WM_MOUSEMOVE:
 			engine::hid::mouse_move((int_fast16_t)GET_X_LPARAM(lParam), (int_fast16_t)GET_Y_LPARAM(lParam), GetMessageTime());
@@ -117,7 +101,6 @@ namespace
 			engine::hid::mbutton_up(GetMessageTime());
 			break;
 		case WM_MOUSEWHEEL:
-			// cronus::core::dispatch_wheel((int)((int16_t)HIWORD(wParam) / WHEEL_DELTA), GetMessageTime());
 			engine::hid::mouse_wheel((int_fast16_t)HIWORD(wParam), GetMessageTime());
 			break;
 
@@ -158,7 +141,7 @@ namespace engine
 		namespace window
 		{
 			// TODO: proper error handling
-			void create(HINSTANCE hInstance, const int nCmdShow, const config_t & config)
+			void create(HINSTANCE hInstance, int nCmdShow, const config_t & config)
 			{
 				OSVERSIONINFO osvi;
 				{
