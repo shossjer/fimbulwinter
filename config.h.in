@@ -25,6 +25,19 @@
 
 /**
  */
+#cmakedefine INPUT_USE_HID 1
+/**
+ */
+#cmakedefine INPUT_USE_USER32 1
+/**
+ * Enable raw input by default if possible
+ */
+#if INPUT_USE_HID || INPUT_USE_USER32
+# define INPUT_USE_RAWINPUT 1
+#endif
+
+/**
+ */
 #cmakedefine SOUND_USE_OPENAL 1
 
 /**
@@ -65,13 +78,6 @@
 /**
  */
 #cmakedefine PHYSICS_USE_PHYSX 1
-
-/*
- * Enable raw input by default if possible
- */
-#if WINDOW_USE_USER32
-# define INPUT_USE_RAWINPUT 1
-#endif
 
 /**
  * Hack that defines _DEBUG if NDEBUG is not defined, needed by PhysX

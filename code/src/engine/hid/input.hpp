@@ -37,6 +37,19 @@ namespace engine
 				MOUSE_MIDDLE,
 				MOUSE_RIGHT,
 				MOUSE_SIDE,
+				GAMEPAD_EAST = 8,
+				GAMEPAD_NORTH,
+				GAMEPAD_SOUTH,
+				GAMEPAD_WEST,
+				GAMEPAD_THUMBL,
+				GAMEPAD_THUMBR,
+				GAMEPAD_TL,
+				GAMEPAD_TL2,
+				GAMEPAD_TR,
+				GAMEPAD_TR2,
+				GAMEPAD_MODE,
+				GAMEPAD_SELECT,
+				GAMEPAD_START,
 				KEY_0 = 32,
 				KEY_1,
 				KEY_2,
@@ -168,6 +181,19 @@ namespace engine
 					std::make_pair(utility::string_view("mouse-middle"), Button::MOUSE_MIDDLE),
 					std::make_pair(utility::string_view("mouse-right"), Button::MOUSE_RIGHT),
 					std::make_pair(utility::string_view("mouse-side"), Button::MOUSE_SIDE),
+					std::make_pair(utility::string_view("gamepad-east"), Button::GAMEPAD_EAST),
+					std::make_pair(utility::string_view("gamepad-north"), Button::GAMEPAD_NORTH),
+					std::make_pair(utility::string_view("gamepad-south"), Button::GAMEPAD_SOUTH),
+					std::make_pair(utility::string_view("gamepad-west"), Button::GAMEPAD_WEST),
+					std::make_pair(utility::string_view("gamepad-thumbl"), Button::GAMEPAD_THUMBL),
+					std::make_pair(utility::string_view("gamepad-thumbr"), Button::GAMEPAD_THUMBR),
+					std::make_pair(utility::string_view("gamepad-tl"), Button::GAMEPAD_TL),
+					std::make_pair(utility::string_view("gamepad-tl2"), Button::GAMEPAD_TL2),
+					std::make_pair(utility::string_view("gamepad-tr"), Button::GAMEPAD_TR),
+					std::make_pair(utility::string_view("gamepad-tr2"), Button::GAMEPAD_TR2),
+					std::make_pair(utility::string_view("gamepad-mode"), Button::GAMEPAD_MODE),
+					std::make_pair(utility::string_view("gamepad-select"), Button::GAMEPAD_SELECT),
+					std::make_pair(utility::string_view("gamepad-start"), Button::GAMEPAD_START),
 					std::make_pair(utility::string_view("key-0"), Button::KEY_0),
 					std::make_pair(utility::string_view("key-1"), Button::KEY_1),
 					std::make_pair(utility::string_view("key-2"), Button::KEY_2),
@@ -339,7 +365,6 @@ namespace engine
 				utility::code_point unicode;
 			} key_character;
 			static_assert(std::is_trivial<KeyCharacter>::value, "");
-
 
 		public:
 			/**

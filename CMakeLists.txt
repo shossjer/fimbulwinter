@@ -110,6 +110,12 @@ message(STATUS "Looking for freetype - ${LIBRARY_FREETYPED}")
 message(STATUS "Looking for Gdi32")
 find_library(LIBRARY_GDI32 gdi32)
 message(STATUS "Looking for Gdi32 - ${LIBRARY_GDI32}")
+# Hid
+message(STATUS "Looking for Hid")
+find_file(FILE_HIDSDI_H Hidsdi.h)
+message(STATUS "Looking for Hid - ${FILE_HIDSDI_H}")
+find_library(LIBRARY_HID Hid)
+message(STATUS "Looking for Hid - ${LIBRARY_HID}")
 # Kernel32
 message(STATUS "Looking for Kernel32")
 find_library(LIBRARY_KERNEL32 kernel32)
@@ -387,6 +393,18 @@ else()
 endif()
 
 # additional libraries
+# input
+if(WINDOW_USE_USER32)
+	if(FILE_HIDSDI_H AND LIBRARY_HID)
+		message(STATUS "Input - Hid")
+		set(INPUT_USE_HID 1)
+		set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_HID}")
+	else()
+		message(STATUS "Input - User32")
+		set(INPUT_USE_USER32 1)
+	endif()
+endif()
+
 # text
 if ((FILE_FT2BUILD_H OR
 	  FILE_FREETYPE2_FT2BUILD_H) AND
