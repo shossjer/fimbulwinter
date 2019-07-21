@@ -242,6 +242,7 @@ int main(const int argc, const char *const argv[])
 	while (settings_lock < 2);
 
 	engine::application::window::create(settings.application);
+	engine::hid::create();
 
 	::engine::console::create();
 	::engine::replay::create();
@@ -267,6 +268,7 @@ int main(const int argc, const char *const argv[])
 	::engine::replay::destroy();
 	::engine::console::destroy();
 
+	engine::hid::destroy();
 	engine::application::window::destroy();
 
 	::engine::resource::writer::destroy();

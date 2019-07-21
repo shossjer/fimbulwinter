@@ -11,6 +11,7 @@
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
+#include <X11/XKBlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glxext.h>
@@ -671,6 +672,50 @@ namespace engine
 #else
 				glXSwapBuffers(render_display, render_window);
 #endif
+			}
+
+			XkbDescPtr load_key_names()
+			{
+				int lib_major = XkbMajorVersion;
+				int lib_minor = XkbMinorVersion;
+
+				if (XkbLibraryVersion(&lib_major, &lib_minor) == False)
+				{
+					debug_fail("Not compatible with runtime version of XKB");
+					return nullptr;
+				}
+
+				int opcode;
+				int event;
+				int error;
+				int major = XkbMajorVersion;
+				int minor = XkbMinorVersion;
+
+				if (XkbQueryExtension(event_display, &opcode, &event, &error, &major, &minor) == False)
+				{
+					debug_fail("Not compatible with server version of XKB");
+					return nullptr;
+				}
+
+				XkbDescPtr const desc = XkbGetMap(event_display, 0, XkbUseCoreKbd);
+				if (!desc)
+				{
+					debug_fail("Failed to get XKB map");
+					return nullptr;
+				}
+				if (XkbGetNames(event_display, XkbKeyNamesMask, desc) != Success)
+				{
+					debug_fail("Failed to get XKB names");
+					XkbFreeClientMap(desc, 0, True);
+					return nullptr;
+				}
+
+				return desc;
+			}
+			void free_key_names(XkbDescPtr desc)
+			{
+				XkbFreeNames(desc, XkbKeyNamesMask, True);
+				XkbFreeClientMap(desc, 0, True);
 			}
 
 #if TEXT_USE_X11
