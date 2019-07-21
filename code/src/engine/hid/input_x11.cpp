@@ -5,10 +5,20 @@
 
 #include "input.hpp"
 
+#include "core/async/Thread.hpp"
+
 #include "engine/Asset.hpp"
 #include "engine/debug.hpp"
 
 #include "utility/unicode.hpp"
+
+#include <climits>
+#include <vector>
+
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/inotify.h>
+#include <unistd.h>
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -309,6 +319,144 @@ namespace
 		default: return engine::hid::Input::Button::KEY_0;
 		}
 	}
+
+	bool is_event(const char * name) { return std::strncmp(name, "event", 5) == 0; }
+
+	std::vector<std::string> failed_devices;
+
+	core::async::Thread thread;
+	int interupt_pipe[2];
+
+	void device_watch()
+	{
+		const int notify_fd = inotify_init1(IN_NONBLOCK);
+		if (notify_fd < 0)
+		{
+			debug_fail("inotify failed with ", errno);
+			return;
+		}
+
+		const int dev_input_fd = inotify_add_watch(notify_fd, "/dev/input", IN_CREATE | IN_DELETE | IN_ATTRIB);
+		// IN_ATTRIB is necessary due to permissions not being set at the time we
+		// receive the create notification, see
+		// https://stackoverflow.com/questions/25381103/cant-open-dev-input-js-file-descriptor-after-inotify-event
+		if (dev_input_fd < 0)
+		{
+			debug_fail("inotify_add_watch failed with ", errno);
+			close(notify_fd);
+			return;
+		}
+
+		struct pollfd fds[2] = {
+			{interupt_pipe[0], 0, 0},
+			{notify_fd, POLLIN, 0}
+		};
+
+		while (true)
+		{
+			if (poll(fds, sizeof fds / sizeof fds[0], -1) < 0)
+			{
+				debug_assert(errno != EFAULT);
+				debug_assert(errno != EINVAL);
+				debug_assert(errno != ENOMEM);
+				debug_assert(errno == EINTR);
+				continue;
+			}
+
+			debug_assert(!(fds[0].revents & (POLLERR | POLLNVAL)));
+			if (fds[0].revents & POLLHUP)
+				break;
+
+			if (fds[1].revents & POLLIN)
+			{
+				std::aligned_storage_t<(sizeof(struct inotify_event) + NAME_MAX + 1), alignof(struct inotify_event)> buffer;
+
+				const auto size = read(fds[1].fd, &buffer, sizeof buffer);
+				if (size < 0)
+				{
+					debug_fail(errno);
+				}
+
+				for (int from = 0; from < size;)
+				{
+					const struct inotify_event * const event = reinterpret_cast<struct inotify_event*>(reinterpret_cast<char * >(&buffer) + from);
+					// todo: this does not look safe, but it is what the
+					// example in the man pages do :worried:
+					// man 7 inotify
+					from += sizeof(struct inotify_event) + event->len;
+
+					if (event->mask & IN_CREATE)
+					{
+						if (is_event(event->name))
+						{
+							debug_printline("device ", event->name, " detected");
+
+							const std::string name = utility::to_string("/dev/input/", event->name);
+							const int fd = ::open(name.c_str(), O_RDONLY);
+							if (fd < 0)
+							{
+								debug_printline("open failed with ", errno);
+								if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end())
+								{
+									failed_devices.push_back(std::move(name));
+								}
+							}
+							else
+							{
+								debug_printline("device ", event->name, ":");
+
+								::close(fd);
+							}
+						}
+					}
+					if (event->mask & IN_DELETE)
+					{
+						if (is_event(event->name))
+						{
+							debug_printline("device ", event->name, " lost");
+
+							const std::string name = utility::to_string("/dev/input/", event->name);
+							auto it = std::find(failed_devices.begin(), failed_devices.end(), name);
+							if (it != failed_devices.end())
+							{
+								failed_devices.erase(it);
+							}
+						}
+					}
+					if (event->mask & IN_ATTRIB)
+					{
+						if (is_event(event->name))
+						{
+							const std::string name = utility::to_string("/dev/input/", event->name);
+							auto it = std::find(failed_devices.begin(), failed_devices.end(), name);
+							if (it != failed_devices.end())
+							{
+								debug_printline("device ", event->name, " changed, trying again");
+
+								const int fd = ::open(name.c_str(), O_RDONLY);
+								if (fd < 0)
+								{
+									debug_printline("open failed with ", errno);
+								}
+								else
+								{
+									failed_devices.erase(it);
+
+									debug_printline("device ", event->name, ":");
+
+									::close(fd);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		close(notify_fd);
+
+		close(interupt_pipe[0]);
+	}
 }
 
 namespace engine
@@ -317,6 +465,9 @@ namespace engine
 	{
 		void create()
 		{
+			pipe(interupt_pipe);
+			thread = core::async::Thread{ device_watch };
+
 			if (XkbDescPtr const desc = engine::application::window::load_key_names())
 			{
 				for (int code = desc->min_key_code; code < desc->max_key_code; code++)
@@ -329,7 +480,10 @@ namespace engine
 		}
 
 		void destroy()
-		{}
+		{
+			close(interupt_pipe[1]);
+			thread.join();
+		}
 
 		void key_character(XKeyEvent & event, utility::code_point cp)
 		{
