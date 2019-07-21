@@ -15,6 +15,7 @@
 #include <climits>
 #include <vector>
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/inotify.h>
@@ -319,10 +320,128 @@ namespace
 		default: return engine::hid::Input::Button::KEY_0;
 		}
 	}
+}
+#include <linux/input.h>
+namespace
+{
 
 	bool is_event(const char * name) { return std::strncmp(name, "event", 5) == 0; }
 
+	void print_info(int fd)
+	{
+		int driver_version = 0;
+		::ioctl(fd, EVIOCGVERSION, &driver_version);
+		debug_printline("  driver version: ", driver_version, "(", driver_version >> 16, ".", (driver_version >> 8) & 0xff, ".", driver_version & 0xff, ")");
+
+		struct input_id device_id = {};
+		::ioctl(fd, EVIOCGID, &device_id);
+		debug_printline("  device id: bustype ", device_id.bustype, " vendor ", device_id.vendor, " product ", device_id.product, " version ", device_id.version);
+
+		char device_name[256] = "Unknown";
+		::ioctl(fd, EVIOCGNAME(sizeof device_name), device_name);
+		debug_printline("  device name: ", device_name);
+
+		char physical_location[255] = "Unknown";
+		::ioctl(fd, EVIOCGPHYS(sizeof physical_location), physical_location);
+		debug_printline("  physical location: ", physical_location);
+
+		char unique_identifier[255] = "Unknown";
+		::ioctl(fd, EVIOCGUNIQ(sizeof unique_identifier), unique_identifier);
+		debug_printline("  unique identifier: ", unique_identifier);
+
+		char device_properties[255] = "Unknown";
+		::ioctl(fd, EVIOCGPROP(sizeof device_properties), device_properties);
+		debug_printline("  device properties: ", device_properties);
+
+#define n_longs_for(m_bits) (((m_bits) - 1) / (sizeof(unsigned long) * CHAR_BIT) + 1)
+
+		unsigned long event_bits[n_longs_for(EV_CNT)] = {};
+		::ioctl(fd, EVIOCGBIT(EV_SYN, EV_CNT), event_bits);
+
+#define test_bit(bit, longs) ((longs[(bit) / (sizeof(unsigned long) * CHAR_BIT)] >> ((bit) % (sizeof(unsigned long) * CHAR_BIT))) != 0)
+
+		if (test_bit(EV_KEY, event_bits))
+		{
+			unsigned long code_bits[n_longs_for(KEY_CNT)] = {};
+			::ioctl(fd, EVIOCGBIT(EV_KEY, KEY_CNT), code_bits);
+
+			int count = 0;
+			for (int code = 0; code < KEY_CNT; code++)
+			{
+				if (test_bit(code, code_bits)) {
+					count++;
+				}
+			}
+
+			debug_printline("  event KEY: ", count, " keys");
+		}
+		if (test_bit(EV_REL, event_bits))
+		{
+			unsigned long code_bits[n_longs_for(REL_CNT)] = {};
+			::ioctl(fd, EVIOCGBIT(EV_REL, REL_CNT), code_bits);
+
+			int count = 0;
+			for (int code = 0; code < REL_CNT; code++)
+			{
+				if (test_bit(code, code_bits)) {
+					count++;
+				}
+			}
+
+			debug_printline("  event REL: ", count, " relative axes");
+		}
+		if (test_bit(EV_ABS, event_bits))
+		{
+			unsigned long code_bits[n_longs_for(ABS_CNT)] = {};
+			::ioctl(fd, EVIOCGBIT(EV_ABS, ABS_CNT), code_bits);
+
+			int count = 0;
+			for (int code = 0; code < ABS_CNT; code++)
+			{
+				if (test_bit(code, code_bits)) {
+					count++;
+				}
+			}
+			debug_printline("  event ABS: ", count, " absolute axes");
+		}
+	}
+
 	std::vector<std::string> failed_devices;
+
+	void scan_devices()
+	{
+		struct dirent ** namelist;
+		const int n = scandir("/dev/input", &namelist, [](const struct dirent * f){ return is_event(f->d_name) ? 1 : 0; }, nullptr);
+		if (n < 0)
+		{
+			debug_fail("scandir failed with ", errno);
+			return;
+		}
+
+		for (int i = 0; i < n; i++)
+		{
+			const std::string name = utility::to_string("/dev/input/", namelist[i]->d_name);
+			const int fd = ::open(name.c_str(), O_RDONLY);
+			if (fd < 0)
+			{
+				debug_printline("open failed with ", errno);
+				if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end())
+				{
+					failed_devices.push_back(std::move(name));
+				}
+			}
+			else
+			{
+				debug_printline("device ", namelist[i]->d_name, ":");
+				print_info(fd);
+
+				::close(fd);
+			}
+
+			free(namelist[i]);
+		}
+		free(namelist);
+	}
 
 	core::async::Thread thread;
 	int interupt_pipe[2];
@@ -346,6 +465,8 @@ namespace
 			close(notify_fd);
 			return;
 		}
+
+		scan_devices();
 
 		struct pollfd fds[2] = {
 			{interupt_pipe[0], 0, 0},
@@ -404,6 +525,7 @@ namespace
 							else
 							{
 								debug_printline("device ", event->name, ":");
+								print_info(fd);
 
 								::close(fd);
 							}
@@ -443,6 +565,7 @@ namespace
 									failed_devices.erase(it);
 
 									debug_printline("device ", event->name, ":");
+									print_info(fd);
 
 									::close(fd);
 								}
