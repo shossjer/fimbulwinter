@@ -5,8 +5,9 @@
 
 #include "window.hpp"
 
-#include <engine/debug.hpp>
-#include <utility/string.hpp>
+#include "engine/debug.hpp"
+#include "utility/string.hpp"
+#include "utility/unicode.hpp"
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -30,18 +31,12 @@ namespace engine
 	}
 	namespace hid
 	{
-		extern void button_press(const unsigned int buttoncode,
-		                         const unsigned int state,
-		                         const ::Time time);
-		extern void button_release(const unsigned int buttoncode,
-		                           const unsigned int state,
-		                           const ::Time time);
-		extern void key_press(const unsigned int keycode,
-		                      const unsigned int state,
-		                      const ::Time time);
-		extern void key_release(const unsigned int keycode,
-		                        const unsigned int state,
-		                        const ::Time time);
+		extern void key_character(XKeyEvent & event, utility::code_point cp);
+
+		extern void button_press(XButtonEvent & event);
+		extern void button_release(XButtonEvent & event);
+		extern void key_press(XKeyEvent & event);
+		extern void key_release(XKeyEvent & event);
 		extern void motion_notify(const int x,
 		                          const int y,
 		                          const ::Time time);
@@ -214,10 +209,40 @@ namespace
 #endif
 	/**
 	 */
+	XIM input_method = nullptr;
+	/**
+	 */
+	XIC input_context = nullptr;
+	/**
+	 */
 	Atom wm_delete_window;
 	/**
 	 */
 	std::atomic_int should_close_window(0);
+
+	utility::code_point get_unicode(XKeyEvent & event)
+	{
+		utility::code_point cp(nullptr);
+#ifdef X_HAVE_UTF8_STRING
+		if (input_context)
+		{
+			char buffer[4];
+			KeySym keysym;
+			Status status;
+			const int n = Xutf8LookupString(input_context, &event, buffer, sizeof buffer, &keysym, &status);
+			debug_assert(status != XBufferOverflow, "4 chars should be enough for any unicode code point");
+			if (n > 0)
+			{
+				cp = utility::code_point(buffer);
+			}
+			// debug_printline(cp);
+		}
+#else
+# warning "Xutf8LookupString not supported, all unicode key events will be null"
+		// try use XmbLookupString?
+#endif
+		return cp;
+	}
 
 	/**
 	 */
@@ -227,17 +252,19 @@ namespace
 
 		while (!XNextEvent(event_display, &event))
 		{
+			if (XFilterEvent(&event, None) == True)
+			{
+				debug_printline("filtererd event type: ", event.type);
+				continue;
+			}
+
 			switch (event.type)
 			{
 			case ButtonPress:
-				engine::hid::button_press(event.xbutton.button,
-				                          event.xbutton.state,
-				                          event.xbutton.time);
+				engine::hid::button_press(event.xbutton);
 				break;
 			case ButtonRelease:
-				engine::hid::button_release(event.xbutton.button,
-				                            event.xbutton.state,
-				                            event.xbutton.time);
+				engine::hid::button_release(event.xbutton);
 				break;
 			case ConfigureNotify:
 				break;
@@ -250,28 +277,11 @@ namespace
 				                               event.xexpose.height);
 				break;
 			case KeyPress:
-				engine::hid::key_press(event.xkey.keycode,
-				                       event.xkey.state,
-				                       event.xkey.time);
+				engine::hid::key_press(event.xkey);
+				engine::hid::key_character(event.xkey, get_unicode(event.xkey));
 				break;
 			case KeyRelease:
-				// http://stackoverflow.com/questions/2100654/ignore-auto-repeat-in-x11-applications
-				// ^^^ comment to this ^^^
-				// it is not perfect, every now and then I get a key release anyway, I guess the time can be different? or maybe it is not always the next event?
-				// vvv comment to that vvv
-				if (XEventsQueued(event_display, QueuedAfterReading))
-				{
-					XEvent next_event;
-					XPeekEvent(event_display, &next_event);
-
-					if (next_event.type == KeyPress &&
-					    next_event.xkey.time == event.xkey.time &&
-					    next_event.xkey.keycode == event.xkey.keycode)
-						break;
-				}
-				engine::hid::key_release(event.xkey.keycode,
-				                         event.xkey.state,
-				                         event.xkey.time);
+				engine::hid::key_release(event.xkey);
 				break;
 			case MapNotify:
 				break;
@@ -289,6 +299,101 @@ namespace
 			}
 		}
 		return -1;
+	}
+
+	void create_input_method(Display & display)
+	{
+		debug_assert(!input_method);
+
+		input_method = XOpenIM(&display, nullptr, nullptr, nullptr);
+
+		XIMStyles * styles;
+		char * const first_failed = XGetIMValues(input_method, XNQueryInputStyle, &styles, NULL);
+		if (first_failed)
+		{
+			debug_fail("Failed to get XIM styles");
+			XCloseIM(input_method);
+			input_method = nullptr;
+			return;
+		}
+		debug_assert(styles);
+
+		bool need_for_geometry_management = false;
+		for (int i = 0; i < styles->count_styles; i++)
+		{
+			if ((styles->supported_styles[i] & XIMPreeditArea) ||
+			    (styles->supported_styles[i] & XIMStatusArea))
+			{
+				need_for_geometry_management = true;
+			}
+			debug_printline("XIM style ", i, ": ", styles->supported_styles[i]);
+		}
+		if (need_for_geometry_management)
+		{
+			debug_printline("THERE IS A NEED FOR GEOMETRY MANAGEMENT");
+			// The input method indicates the need for geometry management by
+			// setting XIMPreeditArea or XIMStatusArea in its XIMStyles value
+			// returned by XGetIMValues. When a client has decided that it will
+			// provide geometry management for an input method, it indicates that
+			// decision by setting the XNInputStyle value in the XIC.
+			// :point_up:
+			// https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#Input_Method_Overview
+		}
+
+		XFree(styles);
+	}
+	void destroy_input_method()
+	{
+		if (input_method)
+		{
+			XCloseIM(input_method);
+		}
+	}
+
+	void create_input_context(Window & window)
+	{
+		debug_assert(input_method, "input method is needed");
+		if (!input_method)
+			return;
+
+		debug_assert(!input_context);
+
+		input_context = XCreateIC(input_method, XNInputStyle, XIMPreeditNothing | XIMStatusNothing, XNClientWindow, window, NULL);
+		if (!input_context)
+		{
+			debug_fail("Failed to create XIM context");
+			return;
+		}
+
+		unsigned long event_mask;
+		char * const first_failed = XGetICValues(input_context, XNFilterEvents, &event_mask, NULL);
+		if (first_failed)
+		{
+			debug_fail("Failed to get XIC masks");
+			XDestroyIC(input_context);
+			input_context = nullptr;
+			return;
+		}
+
+		if (event_mask)
+		{
+			debug_printline("THERE IS A NEED FOR EVENT FILTERING");
+			// Clients are expected to get the XIC value XNFilterEvents and augment
+			// the event mask for the client window with that event mask. This mask
+			// may be zero.
+			// :point_up:
+			// https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#Input_Method_Overview
+		}
+
+		XSetICFocus(input_context);
+	}
+	void destroy_input_context()
+	{
+		if (input_context)
+		{
+			XUnsetICFocus(input_context);
+			XDestroyIC(input_context);
+		}
 	}
 }
 
@@ -483,6 +588,9 @@ namespace engine
 					XSetWMProtocols(render_display, render_window, &wm_delete_window, 1);
 				}
 
+				create_input_method(*event_display);
+				create_input_context(render_window);
+
 				XSelectInput(event_display, render_window, ButtonPressMask | ButtonReleaseMask | ExposureMask | KeyPressMask | KeyReleaseMask | PointerMotionMask | StructureNotifyMask);
 
 				// XAutoRepeatOff(event_display); // dangerous!
@@ -501,6 +609,9 @@ namespace engine
 			}
 			void destroy()
 			{
+				destroy_input_context();
+				destroy_input_method();
+
 #ifdef GLX_VERSION_1_3
 				glXDestroyWindow(render_display, glx_window);
 				glXDestroyContext(render_display, glx_context);

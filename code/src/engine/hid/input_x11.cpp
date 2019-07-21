@@ -5,7 +5,12 @@
 
 #include "input.hpp"
 
+#include "engine/debug.hpp"
+
+#include "utility/unicode.hpp"
+
 #include <X11/X.h>
+#include <X11/Xlib.h>
 
 namespace engine
 {
@@ -24,40 +29,32 @@ namespace engine
 {
 	namespace hid
 	{
-		void button_press(const unsigned int buttoncode,
-		                  const unsigned int state,
-		                  const ::Time time)
+		void key_character(XKeyEvent & event, utility::code_point cp)
 		{
-
-			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
+			input.setKeyCharacter(0, engine::hid::Input::Button::INVALID, cp);
 			dispatch(input);
 		}
-		void button_release(const unsigned int buttoncode,
-		                    const unsigned int state,
-		                    const ::Time time)
+
+		void button_press(XButtonEvent & event)
 		{
 
-			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
+			input.setButtonDown(0, engine::hid::Input::Button::INVALID, event.x, event.y);
 			dispatch(input);
 		}
-		void key_press(const unsigned int keycode,
-		               const unsigned int state,
-		               const ::Time time)
+		void button_release(XButtonEvent & event)
 		{
 
-			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
-			dispatch(input);
-			input.setKeyDown(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
+			input.setButtonUp(0, engine::hid::Input::Button::INVALID, event.x, event.y);
 			dispatch(input);
 		}
-		void key_release(const unsigned int keycode,
-		                 const unsigned int state,
-		                 const ::Time time)
+		void key_press(XKeyEvent & event)
 		{
-
-			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
+			input.setButtonDown(0, engine::hid::Input::Button::INVALID, event.x, event.y);
 			dispatch(input);
-			input.setKeyUp(0, engine::hid::Input::Button::KEY_0, utility::code_point(nullptr));
+		}
+		void key_release(XKeyEvent & event)
+		{
+			input.setButtonUp(0, engine::hid::Input::Button::INVALID, event.x, event.y);
 			dispatch(input);
 		}
 		void motion_notify(const int x,
