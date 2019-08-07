@@ -52,7 +52,7 @@
 /**
  * Fails unconditionally.
  */
-# define debug_unreachable() do { debug_fail(); std::terminate(); } while(false)
+# define debug_unreachable(...) do { debug_fail(__VA_ARGS__); std::terminate(); } while(false)
 /**
  * Verifies that the expression is true.
  *
@@ -75,7 +75,7 @@
 /**
  * Hint to the compiler that this path will never be reached.
  */
-# define debug_unreachable() intrinsic_unreachable()
+# define debug_unreachable(...) intrinsic_unreachable()
 /**
  * Verifies that the expression is true.
  *
