@@ -6,6 +6,8 @@
 #include "engine/Entity.hpp"
 #include "engine/hid/input.hpp"
 
+#include <vector>
+
 namespace engine
 {
 namespace hid
@@ -17,47 +19,10 @@ namespace ui
 	void destroy();
 
 	void post_add_context(
-		engine::Asset context);
+		engine::Asset context,
+		std::vector<engine::Asset> states);
 	void post_remove_context(
 		engine::Asset context);
-	void post_activate_context(
-		engine::Asset context);
-
-	void post_add_contextswitch(
-		engine::Entity entity,
-		engine::hid::Input::Button button,
-		engine::Asset context);
-	void post_add_bordercontrol(
-		engine::Entity entity,
-		engine::Entity callback);
-	void post_add_flycontrol(
-		engine::Entity entity,
-		engine::Entity callback);
-	void post_add_buttoncontrol(
-		engine::Entity entity,
-		engine::hid::Input::Button button);
-	void post_add_pancontrol(
-		engine::Entity entity,
-		engine::Entity callback);
-	void post_add_renderhover(
-		engine::Entity entity,
-		engine::Entity callback);
-	void post_add_renderselect(
-		engine::Entity entity,
-		engine::Entity callback);
-	void post_add_renderswitch(
-		engine::Entity entity,
-		engine::hid::Input::Button button);
-	void post_remove(
-		engine::Entity entity);
-
-	void post_bind(
-		engine::Asset context,
-		engine::Entity entity,
-		int priority);
-	void post_unbind(
-		engine::Asset context,
-		engine::Entity entity);
 }
 }
 }
