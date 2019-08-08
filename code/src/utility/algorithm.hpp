@@ -174,6 +174,45 @@ namespace utl
 		           negator{});
 	}
 
+	struct Identity
+	{
+		template <typename P>
+		constexpr decltype(auto) operator () (P && p)
+		{
+			return std::forward<P>(p);
+		}
+	};
+
+	template <typename InputIt, typename T>
+	constexpr std::size_t index_of_impl(InputIt begin, InputIt it, InputIt end, const T & value)
+	{
+		return it == end || *it == value ? it - begin : index_of_impl(begin, ++it, end, value);
+	}
+	template <typename R, typename T>
+	constexpr std::size_t index_of(const R & range, const T & value)
+	{
+		using std::begin;
+		using std::end;
+
+		return index_of_impl(begin(range), begin(range), end(range), value);
+	}
+
+	template <typename T, typename F, std::size_t ...Is>
+	constexpr auto inverse_table_impl(const T & table, F && f, mpl::index_sequence<Is...>)
+	{
+		return std::array<mpl::remove_cvref_t<decltype(f(std::declval<std::size_t>()))>, sizeof...(Is)>{{f(index_of(table, Is))...}};
+	}
+	template <std::size_t N, typename T>
+	constexpr auto inverse_table(const T & table)
+	{
+		return inverse_table_impl(table, Identity{}, mpl::make_index_sequence<N>{});
+	}
+	template <std::size_t N, typename T, typename F>
+	constexpr auto inverse_table(const T & table, F && f)
+	{
+		return inverse_table_impl(table, std::forward<F>(f), mpl::make_index_sequence<N>{});
+	}
+
 	template <typename Array, std::size_t ...Is>
 	inline auto shuffle(Array && array,
 	                    mpl::index_sequence<Is...>) ->

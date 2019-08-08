@@ -10,6 +10,7 @@ set(CODE_TEST_SOURCE
 	src/core/maths/Vector.cpp
 	src/core/maths/util.cpp
 	src/engine/console.cpp
+   src/utility/algorithm.cpp
 	src/utility/any.cpp
 	src/utility/array.cpp
 	src/utility/array_alloc.cpp
