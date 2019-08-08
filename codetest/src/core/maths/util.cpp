@@ -252,3 +252,36 @@ TEST_CASE( "radian degree conversion", "[maths]" )
 	// 	REQUIRE(deg2.get() == Approx(quarter_deg_f));
 	// }
 }
+
+TEST_CASE( "interpolate_and_scale", "[maths]" )
+{
+	const int32_t max = (uint32_t(1) << 31) - 1;
+	const int32_t min = -max;
+
+	CHECK(core::maths::interpolate_and_scale(0, 255, 0) == min);
+	CHECK(core::maths::interpolate_and_scale(0, 255, 255) == max);
+
+	CHECK(core::maths::interpolate_and_scale(min, max, min) == min);
+	CHECK(core::maths::interpolate_and_scale(min, max, max) == max);
+	CHECK(core::maths::interpolate_and_scale(min, max, 0) == 0);
+
+	CHECK(core::maths::interpolate_and_scale(min, 0, min) == min);
+	CHECK(core::maths::interpolate_and_scale(min, 0, 0) == max);
+
+	CHECK(core::maths::interpolate_and_scale(0, max, 0) == min);
+	CHECK(core::maths::interpolate_and_scale(0, max, max) == max);
+
+	CHECK(core::maths::interpolate_and_scale(min, max, min) == min);
+	CHECK(core::maths::interpolate_and_scale(min, max, max) == max);
+	CHECK(core::maths::interpolate_and_scale(min, max, 0) == 0);
+
+	CHECK(core::maths::interpolate_and_scale(-1, 1, -1) == min);
+	CHECK(core::maths::interpolate_and_scale(-1, 1, 1) == max);
+	CHECK(core::maths::interpolate_and_scale(-1, 1, 0) == 0);
+
+	CHECK(core::maths::interpolate_and_scale(-1, 0, -1) == min);
+	CHECK(core::maths::interpolate_and_scale(-1, 0, 0) == max);
+
+	CHECK(core::maths::interpolate_and_scale(0, 1, 0) == min);
+	CHECK(core::maths::interpolate_and_scale(0, 1, 1) == max);
+}

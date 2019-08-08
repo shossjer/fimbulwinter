@@ -110,6 +110,14 @@ namespace core
 
 		using radianf = radian<float>;
 		using radiand = radian<double>;
+
+
+		inline constexpr int32_t interpolate_and_scale(int32_t min, int32_t max, int32_t x)
+		{
+			const uint32_t q = (2 * ((uint32_t(1) << 31) - 1)) / (uint32_t(max) - min);
+			const uint32_t r = (2 * ((uint32_t(1) << 31) - 1)) % (uint32_t(max) - min);
+			return (uint32_t(x) - min) * q - int32_t((uint32_t(1) << 31) - 1) + r * (uint32_t(x) - min) / (uint32_t(max) - min);
+		}
 	}
 }
 
