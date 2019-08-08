@@ -22,10 +22,11 @@ namespace engine
 			{
 				BUTTON_DOWN,
 				BUTTON_UP,
-				CURSOR_ABSOLUTE,
 				KEY_CHARACTER,
-				COUNT,
+				MOUSE_MOVE,
 			};
+
+			static constexpr int state_count = static_cast<int>(State::MOUSE_MOVE) + 1;
 
 			using Player = int8_t;
 
@@ -171,6 +172,8 @@ namespace engine
 				KEY_TAB,
 				KEY_UP,
 			};
+
+			static constexpr int button_count = static_cast<int>(Button::KEY_UP) + 1;
 
 			friend constexpr auto serialization(utility::in_place_type_t<Button>)
 			{
@@ -319,7 +322,7 @@ namespace engine
 
 			struct Position
 			{
-				int16_t x, y;
+				int32_t x, y;
 			};
 
 		private:
@@ -330,32 +333,15 @@ namespace engine
 			} common_header;
 			static_assert(std::is_trivial<CommonHeader>::value, "");
 
-			struct ButtonDown
+			struct ButtonState
 			{
 				State state;
 				Player player;
 				Button code;
-				Position position;
-			} button_down;
-			static_assert(std::is_trivial<ButtonDown>::value, "");
-
-			struct ButtonUp
-			{
-				State state;
-				Player player;
-				Button code;
-				Position position;
-			} button_up;
-			static_assert(std::is_trivial<ButtonUp>::value, "");
-
-			struct CursorAbsolute
-			{
-				State state;
-				Player player;
-				uint16_t unused;
-				Position position;
-			} cursor_absolute;
-			static_assert(std::is_trivial<CursorAbsolute>::value, "");
+				// int8_t count;
+				// int24_t unused;
+			} button_state;
+			static_assert(std::is_trivial<ButtonState>::value, "");
 
 			struct KeyCharacter
 			{
@@ -366,6 +352,22 @@ namespace engine
 			} key_character;
 			static_assert(std::is_trivial<KeyCharacter>::value, "");
 
+			struct MouseMove
+			{
+				State state;
+				Player player;
+				int64_t x : 24;
+				int64_t y : 24;
+			} mouse_move;
+			static_assert(std::is_trivial<MouseMove>::value, "");
+
+		public:
+			friend Input ButtonStateInput(int_fast8_t player, Button code, bool down);
+
+			friend Input KeyCharacterInput(int_fast8_t player, Button code, utility::code_point unicode);
+
+			friend Input MouseMoveInput(int_fast8_t player, int_fast32_t x, int_fast32_t y);
+
 		public:
 			/**
 			 * \note Valid iff state is `BUTTON_DOWN`, `BUTTON_UP`, or `KEY_CHARACTER`.
@@ -374,26 +376,24 @@ namespace engine
 			{
 				switch (common_header.state)
 				{
-				case State::BUTTON_DOWN: return button_down.code;
-				case State::BUTTON_UP: return button_up.code;
+				case State::BUTTON_DOWN: return button_state.code;
+				case State::BUTTON_UP: return button_state.code;
 				case State::KEY_CHARACTER: return key_character.code;
-				default: debug_unreachable();
+				default: debug_unreachable("invalid state");
 				}
 			}
 
-			int getPlayer() const { return common_header.player; }
+			int getDevice() const { return common_header.player; }
 
 			/**
-			 * \note Valid iff state is `BUTTON_DOWN`, `BUTTON_UP`, or `CURSOR_ABSOLUTE`.
+			 * \note Valid iff state is `MOUSE_MOVE`.
 			 */
 			Position getPosition() const
 			{
 				switch (common_header.state)
 				{
-				case State::BUTTON_DOWN: return button_down.position;
-				case State::BUTTON_UP: return button_up.position;
-				case State::CURSOR_ABSOLUTE: return cursor_absolute.position;
-				default: debug_unreachable();
+				case State::MOUSE_MOVE: return {mouse_move.x, mouse_move.y};
+				default: debug_unreachable("invalid state");
 				}
 			}
 
@@ -407,45 +407,40 @@ namespace engine
 				switch (common_header.state)
 				{
 				case State::KEY_CHARACTER: return key_character.unicode;
-				default: debug_unreachable();
+				default: debug_unreachable("invalid state");
 				}
-			}
-
-			void setButtonDown(int_fast8_t player, Button code, int_fast16_t x, int_fast16_t y)
-			{
-				button_down.state = State::BUTTON_DOWN;
-				button_down.player = player;
-				button_down.code = code;
-				button_down.position.x = x;
-				button_down.position.y = y;
-			}
-
-			void setButtonUp(int_fast8_t player, Button code, int_fast16_t x, int_fast16_t y)
-			{
-				button_up.state = State::BUTTON_UP;
-				button_up.player = player;
-				button_up.code = code;
-				button_up.position.x = x;
-				button_up.position.y = y;
-			}
-
-			void setCursorAbsolute(int_fast8_t player, int_fast16_t x, int_fast16_t y)
-			{
-				cursor_absolute.state = State::CURSOR_ABSOLUTE;
-				cursor_absolute.player = player;
-				cursor_absolute.position.x = x;
-				cursor_absolute.position.y = y;
-			}
-
-			void setKeyCharacter(int_fast8_t player, Button code, utility::code_point unicode)
-			{
-				key_character.state = State::KEY_CHARACTER;
-				key_character.player = player;
-				key_character.code = code;
-				key_character.unicode = unicode;
 			}
 		};
 		static_assert(sizeof(Input) == 8, "This is not a hard requirement but it would be nice to know if it grows.");
+
+		inline Input ButtonStateInput(int_fast8_t player, Input::Button code, bool down)
+		{
+			Input input;
+			input.button_state.state = down ? Input::State::BUTTON_DOWN : Input::State::BUTTON_UP;
+			input.button_state.player = player;
+			input.button_state.code = code;
+			return input;
+		}
+
+		inline Input KeyCharacterInput(int_fast8_t player, Input::Button code, utility::code_point unicode)
+		{
+			Input input;
+			input.key_character.state = Input::State::KEY_CHARACTER;
+			input.key_character.player = player;
+			input.key_character.code = code;
+			input.key_character.unicode = unicode;
+			return input;
+		}
+
+		inline Input MouseMoveInput(int_fast8_t player, int_fast32_t x, int_fast32_t y)
+		{
+			Input input;
+			input.mouse_move.state = Input::State::MOUSE_MOVE;
+			input.mouse_move.player = player;
+			input.mouse_move.x = x;
+			input.mouse_move.y = y;
+			return input;
+		}
 	}
 }
 

@@ -158,7 +158,7 @@ namespace
 
 		bool translate(const engine::hid::Input & input)
 		{
-			if (input.getState() != engine::hid::Input::State::CURSOR_ABSOLUTE)
+			if (input.getState() != engine::hid::Input::State::MOUSE_MOVE)
 				return false;
 
 			const auto BL = MARGIN;
@@ -533,7 +533,7 @@ namespace
 		{
 			switch (input.getState())
 			{
-			case engine::hid::Input::State::CURSOR_ABSOLUTE:
+			case engine::hid::Input::State::MOUSE_MOVE:
 				x = input.getPosition().x;
 				y = input.getPosition().y;
 				return true;
