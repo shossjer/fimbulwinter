@@ -340,8 +340,74 @@ namespace
 
 namespace
 {
+	enum class DeviceType
+	{
+		Unknown, // should never be used
+		Gamepad,
+		Keyboard,
+		Mouse,
+		Touch,
+	};
+
+	constexpr auto serialization(utility::in_place_type_t<DeviceType>)
+	{
+		return utility::make_lookup_table(
+			std::make_pair(utility::string_view("unknown"), DeviceType::Unknown),
+			std::make_pair(utility::string_view("gamepad"), DeviceType::Gamepad),
+			std::make_pair(utility::string_view("keyboard"), DeviceType::Keyboard),
+			std::make_pair(utility::string_view("mouse"), DeviceType::Mouse),
+			std::make_pair(utility::string_view("touch"), DeviceType::Touch)
+			);
+	}
+
+	struct Device
+	{
+		int fd;
+		DeviceType type;
+
+		std::string path;
+
+		Device(int fd, DeviceType type, std::string && path)
+			: fd(fd)
+			, type(type)
+			, path(std::move(path))
+		{
+			debug_assert(type != DeviceType::Unknown);
+		}
+	};
 
 	bool is_event(const char * name) { return std::strncmp(name, "event", 5) == 0; }
+
+	DeviceType find_device_type(int fd)
+	{
+		unsigned long event_bits[n_longs_for(EV_CNT)] = {};
+		::ioctl(fd, EVIOCGBIT(EV_SYN, EV_CNT), event_bits);
+
+		unsigned long key_bits[n_longs_for(KEY_CNT)] = {};
+		if (test_bit(EV_KEY, event_bits))
+		{
+			::ioctl(fd, EVIOCGBIT(EV_KEY, KEY_CNT), key_bits);
+		}
+		unsigned long abs_bits[n_longs_for(ABS_CNT)] = {};
+		if (test_bit(EV_ABS, event_bits))
+		{
+			::ioctl(fd, EVIOCGBIT(EV_ABS, ABS_CNT), abs_bits);
+		}
+
+		if (test_bit(BTN_GAMEPAD, key_bits))
+			return DeviceType::Gamepad;
+
+		if (test_bit(ABS_MT_SLOT, abs_bits))
+			return DeviceType::Touch;
+
+		if (test_bit(KEY_ESC, key_bits))
+			return DeviceType::Keyboard;
+
+		if (test_bit(BTN_MOUSE, key_bits))
+			return DeviceType::Mouse;
+
+		return DeviceType::Unknown;
+	}
 
 	void print_info(int fd)
 	{
@@ -423,7 +489,7 @@ namespace
 
 	std::vector<std::string> failed_devices;
 
-	void scan_devices()
+	void scan_devices(std::vector<Device> & devices)
 	{
 		struct dirent ** namelist;
 		const int n = scandir("/dev/input", &namelist, [](const struct dirent * f){ return is_event(f->d_name) ? 1 : 0; }, nullptr);
@@ -435,24 +501,39 @@ namespace
 
 		for (int i = 0; i < n; i++)
 		{
-			const std::string name = utility::to_string("/dev/input/", namelist[i]->d_name);
-			const int fd = ::open(name.c_str(), O_RDONLY);
-			if (fd < 0)
+			std::string name = utility::to_string("/dev/input/", namelist[i]->d_name);
+			auto it = std::find_if(devices.begin(), devices.end(), [&name](const Device & d){ return d.path == name; });
+			if (it == devices.end())
 			{
-				debug_printline("open failed with ", errno);
-				if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end())
+				const int fd = ::open(name.c_str(), O_RDONLY);
+				if (fd < 0)
 				{
-					failed_devices.push_back(std::move(name));
+					debug_printline("device ", namelist[i]->d_name, " open failed with ", errno);
+
+					if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end())
+					{
+						failed_devices.push_back(std::move(name));
+					}
+				}
+				else
+				{
+					DeviceType type = find_device_type(fd);
+					if (type != DeviceType::Unknown)
+					{
+						const auto type_name = core::value_table<DeviceType>::get_key(type);
+						debug_printline("device ", namelist[i]->d_name, "(", type_name, "):");
+						print_info(fd);
+
+						devices.emplace_back(fd, type, std::move(name));
+					}
+					else
+					{
+						debug_printline("device ", namelist[i]->d_name, " is uninteresting");
+
+						::close(fd);
+					}
 				}
 			}
-			else
-			{
-				debug_printline("device ", namelist[i]->d_name, ":");
-				print_info(fd);
-
-				::close(fd);
-			}
-
 			free(namelist[i]);
 		}
 		free(namelist);
@@ -482,16 +563,24 @@ namespace
 			return;
 		}
 
-		scan_devices();
-
-		struct pollfd fds[2] = {
-			{interupt_pipe[0], 0, 0},
-			{notify_fd, POLLIN, 0}
+		struct pollfd fds[11] = { // arbitrary
+			{interupt_pipe[0], 0, },
+			{notify_fd, POLLIN, },
 		};
+
+		std::vector<Device> devices;
+		scan_devices(devices);
 
 		while (true)
 		{
-			if (poll(fds, sizeof fds / sizeof fds[0], -1) < 0)
+			debug_assert(devices.size() <= sizeof fds / sizeof fds[0]);
+			for (int i = 0; i < devices.size(); i++)
+			{
+				fds[2 + i].fd = devices[i].fd;
+				fds[2 + i].events = POLLIN;
+			}
+
+			if (poll(fds, 2 + devices.size(), -1) < 0)
 			{
 				debug_assert(errno != EFAULT);
 				debug_assert(errno != EINVAL);
@@ -503,6 +592,20 @@ namespace
 			debug_assert(!(fds[0].revents & (POLLERR | POLLNVAL)));
 			if (fds[0].revents & POLLHUP)
 				break;
+
+			for (int i = 0; i < devices.size(); i++)
+			{
+				if (fds[2 + i].revents & POLLIN)
+				{
+					struct input_event events[20]; // arbitrary
+					const int n = ::read(fds[2 + i].fd, events, sizeof events);
+					// "[...] you’ll always get a whole number of input
+					// events on a read."
+					//
+					// https://www.kernel.org/doc/html/latest/input/input.html#event-interface
+					debug_assert(n > 0);
+				}
+			}
 
 			if (fds[1].revents & POLLIN)
 			{
@@ -524,74 +627,103 @@ namespace
 					//  man 7 inotify
 					from += sizeof(struct inotify_event) + event->len;
 
-					if (event->mask & IN_CREATE)
+					if (is_event(event->name))
 					{
-						if (is_event(event->name))
+						std::string name = utility::to_string("/dev/input/", event->name);
+
+						if (event->mask & IN_CREATE)
 						{
-							debug_printline("device ", event->name, " detected");
-
-							const std::string name = utility::to_string("/dev/input/", event->name);
-							const int fd = ::open(name.c_str(), O_RDONLY);
-							if (fd < 0)
+							auto it = std::find_if(devices.begin(), devices.end(), [&name](const Device & d){ return d.path == name; });
+							if (it == devices.end())
 							{
-								debug_printline("open failed with ", errno);
-								if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end())
-								{
-									failed_devices.push_back(std::move(name));
-								}
-							}
-							else
-							{
-								debug_printline("device ", event->name, ":");
-								print_info(fd);
-
-								::close(fd);
-							}
-						}
-					}
-					if (event->mask & IN_DELETE)
-					{
-						if (is_event(event->name))
-						{
-							debug_printline("device ", event->name, " lost");
-
-							const std::string name = utility::to_string("/dev/input/", event->name);
-							auto it = std::find(failed_devices.begin(), failed_devices.end(), name);
-							if (it != failed_devices.end())
-							{
-								failed_devices.erase(it);
-							}
-						}
-					}
-					if (event->mask & IN_ATTRIB)
-					{
-						if (is_event(event->name))
-						{
-							const std::string name = utility::to_string("/dev/input/", event->name);
-							auto it = std::find(failed_devices.begin(), failed_devices.end(), name);
-							if (it != failed_devices.end())
-							{
-								debug_printline("device ", event->name, " changed, trying again");
-
 								const int fd = ::open(name.c_str(), O_RDONLY);
 								if (fd < 0)
 								{
-									debug_printline("open failed with ", errno);
+									debug_printline("device ", event->name, " open failed with ", errno);
+
+									if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end())
+									{
+										failed_devices.push_back(std::move(name));
+									}
 								}
 								else
 								{
+									DeviceType type = find_device_type(fd);
+									if (type != DeviceType::Unknown)
+									{
+										const auto type_name = core::value_table<DeviceType>::get_key(type);
+										debug_printline("device ", event->name, "(", type_name, "):");
+										print_info(fd);
+
+										devices.emplace_back(fd, type, std::move(name));
+									}
+									else
+									{
+										debug_printline("device ", event->name, " is uninteresting");
+
+										::close(fd);
+									}
+								}
+							}
+						}
+						if (event->mask & IN_DELETE)
+						{
+							debug_printline("device ", event->name, " lost");
+							{
+								auto it = std::find_if(devices.begin(), devices.end(), [&name](const Device & d){ return d.path == name; });
+								if (it != devices.end())
+								{
+									devices.erase(it);
+								}
+							}
+							{
+								auto it = std::find(failed_devices.begin(), failed_devices.end(), name);
+								if (it != failed_devices.end())
+								{
 									failed_devices.erase(it);
+								}
+							}
+						}
+						if (event->mask & IN_ATTRIB)
+						{
+							auto it = std::find(failed_devices.begin(), failed_devices.end(), name);
+							if (it != failed_devices.end())
+							{
+								const int fd = ::open(name.c_str(), O_RDONLY);
+								if (fd < 0)
+								{
+									debug_printline("device ", event->name, " open failed with ", errno);
+								}
+								else
+								{
+									DeviceType type = find_device_type(fd);
+									if (type != DeviceType::Unknown)
+									{
+										const auto type_name = core::value_table<DeviceType>::get_key(type);
+										debug_printline("device ", event->name, "(", type_name, "):");
+										print_info(fd);
 
-									debug_printline("device ", event->name, ":");
-									print_info(fd);
+										failed_devices.erase(it);
+										devices.emplace_back(fd, type, std::move(name));
+									}
+									else
+									{
+										debug_printline("device ", event->name, " is uninteresting");
 
-									::close(fd);
+										failed_devices.erase(it);
+										::close(fd);
+									}
 								}
 							}
 						}
 					}
 				}
 			}
+		}
+
+		for (int i = 0; i < devices.size(); i++)
+		{
+			::close(devices[i].fd);
 		}
 
 		close(notify_fd);
