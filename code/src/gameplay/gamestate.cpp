@@ -3,17 +3,17 @@
 #include "gamestate_models.hpp"
 
 #include "core/JsonStructurer.hpp"
-#include <core/container/CircleQueue.hpp>
-#include <core/container/Collection.hpp>
-#include <core/container/ExchangeQueue.hpp>
-#include <core/maths/algorithm.hpp>
+#include "core/container/CircleQueue.hpp"
+#include "core/container/Collection.hpp"
+#include "core/container/ExchangeQueue.hpp"
+#include "core/maths/algorithm.hpp"
 #include "core/PngStructurer.hpp"
 
-#include <engine/animation/mixer.hpp>
-#include <engine/graphics/renderer.hpp>
-#include <engine/graphics/viewer.hpp>
+#include "engine/animation/mixer.hpp"
+#include "engine/graphics/renderer.hpp"
+#include "engine/graphics/viewer.hpp"
 #include "engine/hid/ui.hpp"
-#include <engine/physics/physics.hpp>
+#include "engine/physics/physics.hpp"
 #include "engine/replay/writer.hpp"
 #include "engine/resource/reader.hpp"
 
@@ -21,8 +21,8 @@
 #include "gameplay/component/CameraActivator.hpp"
 #include "gameplay/component/FreeCamera.hpp"
 #include "gameplay/component/OverviewCamera.hpp"
-#include <gameplay/debug.hpp>
-#include <gameplay/factory.hpp>
+#include "gameplay/debug.hpp"
+#include "gameplay/factory.hpp"
 #include "gameplay/recipes.hpp"
 #include "gameplay/roles.hpp"
 #include "gameplay/skills.hpp"
