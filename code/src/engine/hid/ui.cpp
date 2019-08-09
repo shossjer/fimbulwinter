@@ -34,13 +34,57 @@ namespace
 
 	dimension_t dimension = { 0, 0 };
 
+	using Device = int;
+	std::vector<Device> devices;
+
+	int find_device(Device device)
+	{
+		auto it = std::find(devices.begin(), devices.end(), device);
+		debug_assert(it != devices.end());
+
+		return std::distance(devices.begin(), it);
+	}
+
+	void add_device(Device device)
+	{
+		debug_assert(std::find(devices.begin(), devices.end(), device) == devices.end());
+
+		devices.push_back(device);
+	}
+
+	void remove_device(Device device)
+	{
+		const int i = find_device(device);
+		devices.erase(std::next(devices.begin(), i));
+	}
+
 	struct Context
 	{
 		std::vector<engine::Asset> states;
+
+		std::vector<Device> devices;
+
 		Context(std::vector<engine::Asset> && states)
 			: states(std::move(states))
 		{
 			debug_assert(!this->states.empty(), "a context without states is useless, and a special case we do not want to handle");
+		}
+		void add_device(Device device)
+		{
+			debug_assert(std::find(::devices.begin(), ::devices.end(), device) != ::devices.end());
+			debug_assert(std::find(devices.begin(), devices.end(), device) == devices.end());
+
+			devices.push_back(device);
+		}
+
+		void remove_device(Device device)
+		{
+			debug_assert(std::find(::devices.begin(), ::devices.end(), device) != ::devices.end());
+
+			auto it = std::find(devices.begin(), devices.end(), device);
+			debug_assert(it != devices.end());
+
+			devices.erase(it);
 		}
 	};
 
@@ -76,22 +120,64 @@ namespace
 		std::vector<engine::Asset> states;
 	};
 
+	struct AddDevice
+	{
+		engine::Asset context;
+		int id;
+	};
+
 	struct RemoveContext
 	{
 		engine::Asset context;
 	};
 
+	struct RemoveDevice
+	{
+		engine::Asset context;
+		int id;
+	};
+
 	using Message = utility::variant
 	<
 		AddContext,
+		AddDevice,
 		RemoveContext,
+		RemoveDevice,
 	>;
 
 	core::container::CircleQueueSRMW<Message, 100> queue;
 
+	void post_add_device(
+		engine::Asset context,
+		int id)
+	{
+		const auto res = queue.try_emplace(utility::in_place_type<AddDevice>, context, id);
+		debug_assert(res);
+	}
+	void post_remove_device(
+		engine::Asset context,
+		int id)
+	{
+		const auto res = queue.try_emplace(utility::in_place_type<RemoveDevice>, context, id);
+		debug_assert(res);
+	}
+
 	core::container::ExchangeQueueSRSW<dimension_t> queue_dimension;
+
+	struct DeviceFound
+	{
+		int id;
+	};
+
+	struct DeviceLost
+	{
+		int id;
+	};
+
 	using InputMessage = utility::variant
 	<
+		DeviceFound,
+		DeviceLost,
 		engine::hid::Input
 	>;
 
@@ -130,11 +216,23 @@ namespace ui
 				{
 					add_context(x.context, std::move(x.states));
 				}
+
+				void operator () (AddDevice && x)
+				{
+					const int i = find_context(x.context);
+					contexts[i].add_device(x.id);
+				}
+
 				void operator () (RemoveContext && x)
 				{
 					remove_context(x.context);
 				}
 
+				void operator () (RemoveDevice && x)
+				{
+					const int i = find_context(x.context);
+					contexts[i].remove_device(x.id);
+				}
 
 			} visitor;
 			visit(visitor, std::move(message));
@@ -145,6 +243,30 @@ namespace ui
 		{
 			struct
 			{
+
+				void operator () (DeviceFound && x)
+				{
+					add_device(x.id);
+
+					// v tmp v
+					for (auto context : context_assets)
+					{
+						post_add_device(context, x.id);
+					}
+					// ^ tmp ^
+				}
+
+				void operator () (DeviceLost && x)
+				{
+					// v tmp v
+					for (auto context : context_assets)
+					{
+						post_remove_device(context, x.id);
+					}
+					// ^ tmp ^
+
+					remove_device(x.id);
+				}
 
 				void operator () (engine::hid::Input && input)
 				{
@@ -158,6 +280,18 @@ namespace ui
 	void notify_resize(const int width, const int height)
 	{
 		queue_dimension.try_push(width, height);
+	}
+
+	void notify_device_found(int id)
+	{
+		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceFound>, id);
+		debug_assert(res);
+	}
+
+	void notify_device_lost(int id)
+	{
+		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceLost>, id);
+		debug_assert(res);
 	}
 
 	void notify_input(const engine::hid::Input & input)

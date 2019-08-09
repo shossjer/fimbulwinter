@@ -9,6 +9,9 @@ namespace engine
 	{
 		namespace ui
 		{
+			extern void notify_device_found(int id);
+			extern void notify_device_lost(int id);
+
 			extern void notify_input(const engine::hid::Input & input);
 		}
 	}
@@ -23,6 +26,15 @@ namespace engine
 {
 	namespace hid
 	{
+		void found_device(int id)
+		{
+			ui::notify_device_found(id);
+		}
+		void lost_device(int id)
+		{
+			ui::notify_device_lost(id);
+		}
+
 		void dispatch(const Input & input)
 		{
 			switch (input.getState())

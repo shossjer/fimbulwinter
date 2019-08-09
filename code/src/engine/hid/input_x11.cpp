@@ -38,6 +38,9 @@ namespace engine
 
 	namespace hid
 	{
+		extern void found_device(int id);
+		extern void lost_device(int id);
+
 		extern void dispatch(const Input & input);
 	}
 }
@@ -525,6 +528,7 @@ namespace
 						print_info(fd);
 
 						devices.emplace_back(fd, type, std::move(name));
+						engine::hid::found_device(fd);
 					}
 					else
 					{
@@ -656,6 +660,7 @@ namespace
 										print_info(fd);
 
 										devices.emplace_back(fd, type, std::move(name));
+										engine::hid::found_device(fd);
 									}
 									else
 									{
@@ -673,6 +678,7 @@ namespace
 								auto it = std::find_if(devices.begin(), devices.end(), [&name](const Device & d){ return d.path == name; });
 								if (it != devices.end())
 								{
+									engine::hid::lost_device(it->fd);
 									devices.erase(it);
 								}
 							}
@@ -705,6 +711,7 @@ namespace
 
 										failed_devices.erase(it);
 										devices.emplace_back(fd, type, std::move(name));
+										engine::hid::found_device(fd);
 									}
 									else
 									{
@@ -750,12 +757,16 @@ namespace engine
 
 				engine::application::window::free_key_names(desc);
 			}
+
+			found_device(0); // non hardware device
 		}
 
 		void destroy()
 		{
 			close(interupt_pipe[1]);
 			thread.join();
+
+			lost_device(0); // non hardware device
 		}
 
 		void key_character(XKeyEvent & event, utility::code_point cp)
@@ -763,7 +774,7 @@ namespace engine
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
 			// debug_printline("key ", button_name, " character ", cp);
-			dispatch(KeyCharacterInput(/*keyboard*/-1, button, cp));
+			dispatch(KeyCharacterInput(0, button, cp));
 		}
 
 		void button_press(XButtonEvent & event)
@@ -782,7 +793,7 @@ namespace engine
 			const engine::hid::Input::Button button = buttons[event.button];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
 			// debug_printline("mouse ", button_name, " down");
-			dispatch(ButtonStateInput(/*pointer*/-1, button, true));
+			dispatch(ButtonStateInput(0, button, true));
 		}
 		void button_release(XButtonEvent & event)
 		{
@@ -800,27 +811,27 @@ namespace engine
 			const engine::hid::Input::Button button = buttons[event.button];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
 			// debug_printline("mouse ", button_name, " down");
-			dispatch(ButtonStateInput(/*pointer*/-1, button, false));
+			dispatch(ButtonStateInput(0, button, false));
 		}
 		void key_press(XKeyEvent & event)
 		{
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
 			// debug_printline("key ", button_name, " down");
-			dispatch(ButtonStateInput(/*keyboard*/-1, button, true));
+			dispatch(ButtonStateInput(0, button, true));
 		}
 		void key_release(XKeyEvent & event)
 		{
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
 			// debug_printline("key ", button_name, " up");
-			dispatch(ButtonStateInput(/*keyboard*/-1, button, false));
+			dispatch(ButtonStateInput(0, button, false));
 		}
 		void motion_notify(const int x,
 		                   const int y,
 		                   const ::Time time)
 		{
-			dispatch(MouseMoveInput(/*pointer*/-1, x, y));
+			dispatch(MouseMoveInput(0, x, y));
 		}
 	}
 }
