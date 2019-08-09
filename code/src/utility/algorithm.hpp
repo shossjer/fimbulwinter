@@ -235,6 +235,13 @@ namespace utl
 		return shuffle(array,
 		               mpl::make_transpose_sequence<R, C>{});
 	}
+
+	template <typename T, std::size_t N, T Default>
+	struct IndexCast
+	{
+		template <typename P>
+		constexpr T operator () (P && p) const { return std::size_t(p) < N ? static_cast<T>(std::move(p)) : Default; }
+	};
 }
 
 #endif /* UTILITY_ALGORITHM_HPP */

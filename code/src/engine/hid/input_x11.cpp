@@ -10,6 +10,7 @@
 #include "engine/Asset.hpp"
 #include "engine/debug.hpp"
 
+#include "utility/algorithm.hpp"
 #include "utility/unicode.hpp"
 
 #include <climits>
@@ -336,7 +337,179 @@ namespace
 // :rage: but why should we?
 //
 // stupid problems require stupid solutions
+//
+// therefore, we make this little round-about dance where we construct
+// a mapping in the wrong direction (mapping our buttons to linux's
+// keys) thereby avoiding the need for us to list our button names and
+// then generate and inverse mapping in the correct direction
+// :ok_hand:
 #include <linux/input.h>
+
+namespace
+{
+	constexpr int button_to_code[] = {
+		KEY_RESERVED,
+
+		BTN_EXTRA,
+		BTN_LEFT,
+		BTN_MIDDLE,
+		BTN_RIGHT,
+		BTN_SIDE,
+		KEY_RESERVED,
+		KEY_RESERVED,
+
+		BTN_EAST,
+		BTN_NORTH,
+		BTN_SOUTH,
+		BTN_WEST,
+		BTN_THUMBL,
+		BTN_THUMBR,
+		BTN_TL,
+		BTN_TL2,
+		BTN_TR,
+		BTN_TR2,
+		BTN_MODE,
+		BTN_SELECT,
+		BTN_START,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+		KEY_RESERVED,
+
+		KEY_0,
+		KEY_1,
+		KEY_2,
+		KEY_3,
+		KEY_4,
+		KEY_5,
+		KEY_6,
+		KEY_7,
+		KEY_8,
+		KEY_9,
+		KEY_A,
+		KEY_B,
+		KEY_C,
+		KEY_D,
+		KEY_E,
+		KEY_F,
+		KEY_G,
+		KEY_H,
+		KEY_I,
+		KEY_J,
+		KEY_K,
+		KEY_L,
+		KEY_M,
+		KEY_N,
+		KEY_O,
+		KEY_P,
+		KEY_Q,
+		KEY_R,
+		KEY_S,
+		KEY_T,
+		KEY_U,
+		KEY_V,
+		KEY_W,
+		KEY_X,
+		KEY_Y,
+		KEY_Z,
+		KEY_102ND,
+		KEY_APOSTROPHE,
+		KEY_BACKSLASH,
+		KEY_BACKSPACE,
+		KEY_BREAK,
+		KEY_CAPSLOCK,
+		KEY_CLEAR,
+		KEY_COMMA,
+		KEY_COMPOSE,
+		KEY_DELETE,
+		KEY_DOT,
+		KEY_DOWN,
+		KEY_END,
+		KEY_ENTER,
+		KEY_ESC,
+		KEY_EQUAL,
+		KEY_F1,
+		KEY_F2,
+		KEY_F3,
+		KEY_F4,
+		KEY_F5,
+		KEY_F6,
+		KEY_F7,
+		KEY_F8,
+		KEY_F9,
+		KEY_F10,
+		KEY_F11,
+		KEY_F12,
+		KEY_F13,
+		KEY_F14,
+		KEY_F15,
+		KEY_F16,
+		KEY_F17,
+		KEY_F18,
+		KEY_F19,
+		KEY_F20,
+		KEY_F21,
+		KEY_F22,
+		KEY_F23,
+		KEY_F24,
+		KEY_GRAVE,
+		KEY_HOME,
+		KEY_INSERT,
+		KEY_KP0,
+		KEY_KP1,
+		KEY_KP2,
+		KEY_KP3,
+		KEY_KP4,
+		KEY_KP5,
+		KEY_KP6,
+		KEY_KP7,
+		KEY_KP8,
+		KEY_KP9,
+		KEY_KPASTERISK,
+		KEY_KPDOT,
+		KEY_KPENTER,
+		KEY_KPMINUS,
+		KEY_KPPLUS,
+		KEY_KPSLASH,
+		KEY_LEFT,
+		KEY_LEFTALT,
+		KEY_LEFTCTRL,
+		KEY_LEFTBRACE,
+		KEY_LEFTMETA,
+		KEY_LEFTSHIFT,
+		KEY_MINUS,
+		KEY_NUMLOCK,
+		KEY_PAGEDOWN,
+		KEY_PAGEUP,
+		KEY_PAUSE,
+		KEY_RESERVED, // printscreen missing?
+		KEY_RIGHT,
+		KEY_RIGHTALT,
+		KEY_RIGHTBRACE,
+		KEY_RIGHTCTRL,
+		KEY_RIGHTMETA,
+		KEY_RIGHTSHIFT,
+		KEY_SCROLLLOCK,
+		KEY_SEMICOLON,
+		KEY_SLASH,
+		KEY_SPACE,
+		KEY_SYSRQ,
+		KEY_TAB,
+		KEY_UP,
+	};
+
+	static_assert(sizeof button_to_code / sizeof button_to_code[0] == engine::hid::Input::button_count, "see input.hpp");
+
+	constexpr auto code_to_button = utl::inverse_table<KEY_CNT>(button_to_code, utl::IndexCast<Button, engine::hid::Input::button_count, Button::INVALID>{});
+}
 
 #define n_longs_for(m_bits) (((m_bits) - 1) / (sizeof(unsigned long) * CHAR_BIT) + 1)
 #define test_bit(bit, longs) ((longs[(bit) / (sizeof(unsigned long) * CHAR_BIT)] >> ((bit) % (sizeof(unsigned long) * CHAR_BIT))) != 0)
@@ -608,6 +781,22 @@ namespace
 					//
 					// https://www.kernel.org/doc/html/latest/input/input.html#event-interface
 					debug_assert(n > 0);
+
+					for (int j = 0; j < n / sizeof events[0]; j++)
+					{
+						switch (events[j].type)
+						{
+						case EV_KEY:
+						{
+							const auto button = code_to_button[events[j].code];
+							if (button != Button::INVALID)
+							{
+								engine::hid::dispatch(engine::hid::ButtonStateInput(devices[i].fd, button, events[j].value != 0));
+							}
+							break;
+						}
+						}
+					}
 				}
 			}
 

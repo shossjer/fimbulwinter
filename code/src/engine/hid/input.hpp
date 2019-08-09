@@ -30,6 +30,8 @@ namespace engine
 
 			using Player = int8_t;
 
+			// \note Keep in sync with:
+			// - `button_to_code` in `input_x11.cpp`
 			enum class Button : int16_t
 			{
 				INVALID = 0, // should never be used
