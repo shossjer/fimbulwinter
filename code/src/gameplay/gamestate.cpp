@@ -1218,7 +1218,26 @@ namespace gamestate
 		engine::graphics::viewer::post_bind(engine::Asset("game"), game_camera);
 
 		auto flycontrol = engine::Entity::create();
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::TURN_LEFT);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::TURN_RIGHT);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::TURN_DOWN);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::TURN_UP);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_A, gameplay::command::MOVE_LEFT);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_D, gameplay::command::MOVE_RIGHT);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_S, gameplay::command::MOVE_DOWN);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_W, gameplay::command::MOVE_UP);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_Q, gameplay::command::ROLL_LEFT);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_E, gameplay::command::ROLL_RIGHT);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_LEFTCTRL, gameplay::command::ELEVATE_DOWN);
+		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_SPACE, gameplay::command::ELEVATE_UP);
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("debug"), flycontrol, debug_camera);
+
 		auto pancontrol = engine::Entity::create();
+		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::MOVE_LEFT);
+		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::MOVE_RIGHT);
+		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::MOVE_UP);
+		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::MOVE_DOWN);
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), pancontrol, game_camera);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();

@@ -11,6 +11,7 @@
 #include "engine/graphics/renderer.hpp"
 #include "engine/hid/input.hpp"
 
+#include "utility/any.hpp"
 #include "utility/variant.hpp"
 
 #include <algorithm>
@@ -21,7 +22,7 @@ namespace gameplay
 {
 namespace gamestate
 {
-	extern void post_command(engine::Entity entity, engine::Command command);
+	extern void post_command(engine::Entity entity, engine::Command command, utility::any && data);
 }
 }
 
@@ -406,10 +407,12 @@ namespace
 
 		void operator () (const ButtonPress & x)
 		{
+			gameplay::gamestate::post_command(callback, x.command, Reversed ? 0.f : 1.f);
 		}
 
 		void operator () (const ButtonRelease & x)
 		{
+			gameplay::gamestate::post_command(callback, x.command, Reversed ? 1.f : 0.f);
 		}
 
 		template <typename T>

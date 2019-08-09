@@ -24,17 +24,20 @@ namespace gameplay
 namespace
 {
 	template <typename Structurer>
-	void parse_data(Structurer & s, utility::any & data, engine::Command command)
+	void parse_data(Structurer & s, utility::type_id_t type, utility::any & data)
 	{
-		switch (command)
+		switch (type)
 		{
-		case engine::command::RENDER_DESELECT:
-		case engine::command::RENDER_HIGHLIGHT:
-		case engine::command::RENDER_SELECT:
+		case utility::type_id<void>():
+			break;
+		case utility::type_id<float>():
+			s.read(data.emplace<float>());
+			break;
+		case utility::type_id<engine::Entity>():
 			s.read(data.emplace<engine::Entity>());
 			break;
 		default:
-			break;
+			debug_unreachable("unknown type");
 		}
 	}
 
@@ -44,7 +47,8 @@ namespace
 	{
 		std::tuple<int, engine::Entity, engine::Command, utility::any> command_args;
 		std::get<0>(command_args) = INT32_MAX;
-		s.read_as_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), [&](Structurer & s_){ parse_data(s_, std::get<3>(command_args), std::get<2>(command_args)); });
+		utility::type_id_t type;
+		s.read_as_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), type, [&](Structurer & s_){ parse_data(s_, type, std::get<3>(command_args)); });
 		return command_args;
 	}
 

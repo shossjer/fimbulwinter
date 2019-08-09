@@ -28,17 +28,19 @@ namespace
 		std::tuple<int, engine::Entity, engine::Command, utility::any> command_args;
 		while (queue_commands.try_pop(command_args))
 		{
-			switch (std::get<2>(command_args))
+			switch (std::get<3>(command_args).type_id())
 			{
-			case engine::command::RENDER_DESELECT:
-			case engine::command::RENDER_HIGHLIGHT:
-			case engine::command::RENDER_SELECT:
-				debug_assert(std::get<3>(command_args).has_value());
-				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), utility::any_cast<engine::Entity>(std::get<3>(command_args))));
+			case utility::type_id<void>():
+				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), std::get<3>(command_args).type_id()));
+				break;
+			case utility::type_id<float>():
+				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), std::get<3>(command_args).type_id(), utility::any_cast<float>(std::get<3>(command_args))));
+				break;
+			case utility::type_id<engine::Entity>():
+				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), std::get<3>(command_args).type_id(), utility::any_cast<engine::Entity>(std::get<3>(command_args))));
 				break;
 			default:
-				debug_assert(!std::get<3>(command_args).has_value());
-				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args)));
+				debug_unreachable("unknown type");
 			}
 		}
 	}
