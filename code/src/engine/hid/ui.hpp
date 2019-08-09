@@ -3,6 +3,7 @@
 #define ENGINE_HID_UI_HPP
 
 #include "engine/Asset.hpp"
+#include "engine/Command.hpp"
 #include "engine/Entity.hpp"
 #include "engine/hid/input.hpp"
 
@@ -23,6 +24,25 @@ namespace ui
 		std::vector<engine::Asset> states);
 	void post_remove_context(
 		engine::Asset context);
+
+	void post_add_button_press(
+		engine::Entity mapping,
+		engine::hid::Input::Button code,
+		engine::Command command);
+	void post_add_button_release(
+		engine::Entity mapping,
+		engine::hid::Input::Button code,
+		engine::Command command);
+
+	void post_bind(
+		engine::Asset context,
+		engine::Asset state,
+		engine::Entity mapping,
+		engine::Entity callback);
+	void post_unbind(
+		engine::Asset context,
+		engine::Asset state,
+		engine::Entity mapping);
 }
 }
 }
