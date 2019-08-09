@@ -41,8 +41,10 @@ namespace
 	struct DeviceMapping
 	{
 		Filter button_filters[engine::hid::Input::button_count] = {};
+		Filter axis_filters[engine::hid::Input::axis_count] = {};
 
 		engine::Entity button_callbacks[engine::hid::Input::button_count];
+		engine::Entity axis_callbacks[engine::hid::Input::axis_count];
 	};
 
 	std::vector<Device> devices;
@@ -72,6 +74,12 @@ namespace
 		devices.erase(std::next(devices.begin(), i));
 	}
 
+	struct AxisTilt
+	{
+		engine::Command command_min;
+		engine::Command command_max;
+	};
+
 	struct ButtonPress
 	{
 		engine::Command command;
@@ -86,6 +94,7 @@ namespace
 	<
 		Filter,
 		201,
+		utility::heap_storage<AxisTilt>,
 		utility::heap_storage<ButtonPress>,
 		utility::heap_storage<ButtonRelease>
 	>
@@ -96,6 +105,7 @@ namespace
 	struct Mapping
 	{
 		Filter buttons[engine::hid::Input::button_count] = {};
+		Filter axes[engine::hid::Input::axis_count] = {};
 	};
 
 	std::vector<engine::Entity> mapping_entities;
@@ -231,6 +241,17 @@ namespace
 							device_mapping.button_callbacks[i] = state_mapping.callbacks[j];
 						}
 					}
+
+					for (int i = 0; i < sizeof mapping.axes / sizeof mapping.axes[0]; i++)
+					{
+						if (mapping.axes[i])
+						{
+							debug_assert(device_mapping.axis_filters[i] == Filter{}, "mapping conflict");
+
+							device_mapping.axis_filters[i] = mapping.axes[i];
+							device_mapping.axis_callbacks[i] = state_mapping.callbacks[j];
+						}
+					}
 				}
 			}
 		}
@@ -257,6 +278,16 @@ namespace
 							debug_assert(device_mapping.button_filters[i] == mapping.buttons[i], "sanity check");
 
 							device_mapping.button_filters[i] = Filter{};
+						}
+					}
+
+					for (int i = 0; i < sizeof mapping.axes / sizeof mapping.axes[0]; i++)
+					{
+						if (mapping.axes[i])
+						{
+							debug_assert(device_mapping.axis_filters[i] == mapping.axes[i], "sanity check");
+
+							device_mapping.axis_filters[i] = Filter{};
 						}
 					}
 				}
@@ -289,6 +320,14 @@ namespace
 		contexts.erase(std::next(contexts.begin(), i));
 		context_assets.erase(std::next(context_assets.begin(), i));
 	}
+
+	struct AddAxisTilt
+	{
+		engine::Entity mapping;
+		engine::hid::Input::Axis code;
+		engine::Command command_min;
+		engine::Command command_max;
+	};
 
 	struct AddButtonPress
 	{
@@ -344,6 +383,7 @@ namespace
 
 	using Message = utility::variant
 	<
+		AddAxisTilt,
 		AddButtonPress,
 		AddButtonRelease,
 		AddContext,
@@ -391,6 +431,34 @@ namespace
 	>;
 
 	core::container::CircleQueueSRMW<InputMessage, 500> queue_input;
+
+	struct AxisTiltFilter
+	{
+		engine::Entity callback;
+
+		const engine::hid::Input & input;
+
+		void operator () (utility::monostate)
+		{
+			// this device axis is not bound to any filter
+			debug_printline(engine::hid_channel, "no filter for ", core::value_table<engine::hid::Input::Axis>::get_key(input.getAxis()));
+		}
+
+		void operator () (const AxisTilt & x)
+		{
+			const int value_min = -std::min(input.getTilt(), 0);
+			const int value_max =  std::max(input.getTilt(), 0);
+			gameplay::gamestate::post_command(callback, x.command_min, static_cast<float>(static_cast<double>(value_min) / static_cast<double>((uint32_t(1) << 31) - 1)));
+			gameplay::gamestate::post_command(callback, x.command_max, static_cast<float>(static_cast<double>(value_max) / static_cast<double>((uint32_t(1) << 31) - 1)));
+		}
+
+		template <typename T>
+		void operator () (const T &)
+		{
+			debug_unreachable("unknown filter");
+		}
+
+	};
 
 	template <bool Reversed>
 	struct ButtonToggleFilter
@@ -451,6 +519,16 @@ namespace ui
 		{
 			struct
 			{
+
+				void operator () (AddAxisTilt && x)
+				{
+					const Filter filter = next_available_filter++;
+					filters.emplace<AxisTilt>(filter, x.command_min, x.command_max);
+
+					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
+					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
+					mapping.axes[static_cast<int>(x.code)] = filter;
+				}
 
 				void operator () (AddButtonPress && x)
 				{
@@ -574,6 +652,9 @@ namespace ui
 
 					switch (input.getState())
 					{
+					case engine::hid::Input::State::AXIS_TILT:
+						filters.try_call(device_mapping.axis_filters[static_cast<int>(input.getAxis())], AxisTiltFilter{device_mapping.axis_callbacks[static_cast<int>(input.getAxis())], input});
+						break;
 					case engine::hid::Input::State::BUTTON_DOWN:
 						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], ButtonToggleFilter<false>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], input});
 						break;
@@ -625,6 +706,15 @@ namespace ui
 		debug_assert(res);
 	}
 
+	void post_add_axis_tilt(
+		engine::Entity mapping,
+		engine::hid::Input::Axis code,
+		engine::Command command_min,
+		engine::Command command_max)
+	{
+		const auto res = queue.try_emplace(utility::in_place_type<AddAxisTilt>, mapping, code, command_min, command_max);
+		debug_assert(res);
+	}
 	void post_add_button_press(
 		engine::Entity mapping,
 		engine::hid::Input::Button code,

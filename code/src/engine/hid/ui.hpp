@@ -25,6 +25,11 @@ namespace ui
 	void post_remove_context(
 		engine::Asset context);
 
+	void post_add_axis_tilt(
+		engine::Entity mapping,
+		engine::hid::Input::Axis code,
+		engine::Command command_min,
+		engine::Command command_max);
 	void post_add_button_press(
 		engine::Entity mapping,
 		engine::hid::Input::Button code,

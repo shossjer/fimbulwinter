@@ -1237,6 +1237,10 @@ namespace gamestate
 		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::MOVE_RIGHT);
 		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::MOVE_UP);
 		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::MOVE_DOWN);
+		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_DPAD_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
+		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_DPAD_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
+		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_STICKL_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
+		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_STICKL_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
 		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), pancontrol, game_camera);
 
 		auto debug_switch = engine::Entity::create();

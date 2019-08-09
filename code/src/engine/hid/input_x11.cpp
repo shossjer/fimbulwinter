@@ -6,6 +6,7 @@
 #include "input.hpp"
 
 #include "core/async/Thread.hpp"
+#include "core/maths/util.hpp"
 
 #include "engine/Asset.hpp"
 #include "engine/debug.hpp"
@@ -543,12 +544,28 @@ namespace
 
 		std::string path;
 
+		struct input_absinfo absinfos[ABS_CNT];
+
 		Device(int fd, DeviceType type, std::string && path)
 			: fd(fd)
 			, type(type)
 			, path(std::move(path))
 		{
 			debug_assert(type != DeviceType::Unknown);
+
+			set_absinfos();
+		}
+
+		void set_absinfos()
+		{
+			unsigned long code_bits[n_longs_for(ABS_CNT)] = {};
+			::ioctl(fd, EVIOCGBIT(EV_ABS, ABS_CNT), code_bits);
+			for (int code = 0; code < ABS_CNT; code++)
+			{
+				if (test_bit(code, code_bits)) {
+					::ioctl(fd, EVIOCGABS(code), &absinfos[code]);
+				}
+			}
 		}
 	};
 
@@ -795,6 +812,42 @@ namespace
 							}
 							break;
 						}
+						case EV_ABS:
+							switch (devices[i].type)
+							{
+							case DeviceType::Gamepad:
+							{
+								const int64_t diff = int64_t(events[j].value) - int64_t(devices[i].absinfos[events[j].code].value);
+								int value;
+								if (std::abs(diff) < devices[i].absinfos[events[j].code].flat)
+								{
+									value = 0;
+								}
+								else
+								{
+									value = events[j].value;
+									value = std::min(value, devices[i].absinfos[events[j].code].maximum);
+									value = std::max(value, devices[i].absinfos[events[j].code].minimum);
+									value = core::maths::interpolate_and_scale(devices[i].absinfos[events[j].code].minimum, devices[i].absinfos[events[j].code].maximum, value);
+								}
+
+								switch (events[j].code)
+								{
+								case ABS_X: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_STICKL_X, value)); break;
+								case ABS_Y: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_STICKL_Y, value)); break;
+								case ABS_Z: engine::hid::dispatch(engine::hid::AxisTriggerInput(devices[i].fd, engine::hid::Input::Axis::TRIGGER_TL2, value)); break;
+								case ABS_RX: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_STICKR_X, value)); break;
+								case ABS_RY: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_STICKR_Y, value)); break;
+								case ABS_RZ: engine::hid::dispatch(engine::hid::AxisTriggerInput(devices[i].fd, engine::hid::Input::Axis::TRIGGER_TR2, value)); break;
+								case ABS_HAT0X: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_DPAD_X, value)); break;
+								case ABS_HAT0Y: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_DPAD_Y, value)); break;
+								}
+								break;
+							}
+							default:
+								break;
+							}
+							break;
 						}
 					}
 				}

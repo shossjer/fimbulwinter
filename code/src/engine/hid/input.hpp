@@ -20,6 +20,8 @@ namespace engine
 		public:
 			enum class State : int8_t
 			{
+				AXIS_TILT,
+				AXIS_TRIGGER,
 				BUTTON_DOWN,
 				BUTTON_UP,
 				KEY_CHARACTER,
@@ -29,6 +31,36 @@ namespace engine
 			static constexpr int state_count = static_cast<int>(State::MOUSE_MOVE) + 1;
 
 			using Player = int8_t;
+
+			enum class Axis : int8_t
+			{
+				INVALID = 0, // should never be used
+				TILT_DPAD_X = 8,
+				TILT_DPAD_Y,
+				TILT_STICKL_X,
+				TILT_STICKL_Y,
+				TILT_STICKR_X,
+				TILT_STICKR_Y,
+				TRIGGER_TL2 = 16,
+				TRIGGER_TR2,
+			};
+
+			static constexpr int axis_count = static_cast<int>(Axis::TRIGGER_TR2) + 1;
+
+			friend constexpr auto serialization(utility::in_place_type_t<Axis>)
+			{
+				return utility::make_lookup_table(
+					std::make_pair(utility::string_view("invalid"), Axis::INVALID),
+					std::make_pair(utility::string_view("tilt-dpad-x"), Axis::TILT_DPAD_X),
+					std::make_pair(utility::string_view("tilt-dpad-y"), Axis::TILT_DPAD_Y),
+					std::make_pair(utility::string_view("tilt-stickl-x"), Axis::TILT_STICKL_X),
+					std::make_pair(utility::string_view("tilt-stickl-y"), Axis::TILT_STICKL_Y),
+					std::make_pair(utility::string_view("tilt-stickr-x"), Axis::TILT_STICKR_X),
+					std::make_pair(utility::string_view("tilt-stickr-y"), Axis::TILT_STICKR_Y),
+					std::make_pair(utility::string_view("trigger-tl2"), Axis::TRIGGER_TL2),
+					std::make_pair(utility::string_view("trigger-tr2"), Axis::TRIGGER_TR2)
+					);
+			}
 
 			// \note Keep in sync with:
 			// - `button_to_code` in `input_x11.cpp`
@@ -335,6 +367,26 @@ namespace engine
 			} common_header;
 			static_assert(std::is_trivial<CommonHeader>::value, "");
 
+			struct AxisTilt
+			{
+				State state;
+				Player player;
+				Axis code;
+				int8_t unused;
+				int32_t value; // [-0x7fffffff 0x7fffffff]
+			} axis_tilt;
+			static_assert(std::is_trivial<AxisTilt>::value, "");
+
+			struct AxisTrigger
+			{
+				State state;
+				Player player;
+				Axis code;
+				int8_t unused;
+				uint32_t value; // [0x00000000 0xffffffff]
+			}  axis_trigger;
+			static_assert(std::is_trivial<AxisTrigger>::value, "");
+
 			struct ButtonState
 			{
 				State state;
@@ -364,6 +416,9 @@ namespace engine
 			static_assert(std::is_trivial<MouseMove>::value, "");
 
 		public:
+			friend Input AxisTiltInput(int_fast8_t player, Axis code, int32_t value);
+			friend Input AxisTriggerInput(int_fast8_t player, Axis code, uint32_t value);
+
 			friend Input ButtonStateInput(int_fast8_t player, Button code, bool down);
 
 			friend Input KeyCharacterInput(int_fast8_t player, Button code, utility::code_point unicode);
@@ -371,6 +426,19 @@ namespace engine
 			friend Input MouseMoveInput(int_fast8_t player, int_fast32_t x, int_fast32_t y);
 
 		public:
+			/**
+			 * \note Valid iff state is `AXIS_TILT`, or `AXIS_TRIGGER`.
+			 */
+			Axis getAxis() const
+			{
+				switch (common_header.state)
+				{
+				case State::AXIS_TILT: return axis_tilt.code;
+				case State::AXIS_TRIGGER: return axis_trigger.code;
+				default: debug_unreachable("invalid state");
+				}
+			}
+
 			/**
 			 * \note Valid iff state is `BUTTON_DOWN`, `BUTTON_UP`, or `KEY_CHARACTER`.
 			 */
@@ -402,6 +470,30 @@ namespace engine
 			State getState() const { return common_header.state; }
 
 			/**
+			 * \note Valid iff state is `AXIS_TILT`.
+			 */
+			int32_t getTilt() const
+			{
+				switch (common_header.state)
+				{
+				case State::AXIS_TILT: return axis_tilt.value;
+				default: debug_unreachable("invalid state");
+				}
+			}
+
+			/**
+			 * \note Valid iff state is `AXIS_TRIGGER`.
+			 */
+			uint32_t getTrigger() const
+			{
+				switch (common_header.state)
+				{
+				case State::AXIS_TRIGGER: return axis_trigger.value;
+				default: debug_unreachable("invalid state");
+				}
+			}
+
+			/**
 			 * \note Valid iff state is `KEY_CHARACTER`.
 			 */
 			utility::code_point getUnicode() const
@@ -414,6 +506,25 @@ namespace engine
 			}
 		};
 		static_assert(sizeof(Input) == 8, "This is not a hard requirement but it would be nice to know if it grows.");
+
+		inline Input AxisTiltInput(int_fast8_t player, Input::Axis code, int32_t value)
+		{
+			Input input;
+			input.axis_tilt.state = Input::State::AXIS_TILT;
+			input.axis_tilt.player = player;
+			input.axis_tilt.code = code;
+			input.axis_tilt.value = value;
+			return input;
+		}
+		inline Input AxisTriggerInput(int_fast8_t player, Input::Axis code, uint32_t value)
+		{
+			Input input;
+			input.axis_trigger.state = Input::State::AXIS_TRIGGER;
+			input.axis_trigger.player = player;
+			input.axis_trigger.code = code;
+			input.axis_trigger.value = value;
+			return input;
+		}
 
 		inline Input ButtonStateInput(int_fast8_t player, Input::Button code, bool down)
 		{
