@@ -30,18 +30,23 @@ namespace utility
 				static constexpr std::array<uint32_t, 256> values = crc32_table_impl<mpl::make_index_sequence<256>>::values;
 			};
 
+			inline constexpr uint32_t crc32_accumulate(const uint32_t crc, const char c)
+			{
+				return crc32_table::values[(c ^ crc) & 0xff] ^ (crc >> 8);
+			}
+
 			inline constexpr uint32_t crc32_append(const uint32_t crc, const char *const str, const std::size_t n)
 			{
-				return n > 0 ? crc32_append(crc32_table::values[(*str ^ crc) & 0xff] ^ (crc >> 8), str + 1, n - 1) : crc;
+				return n <= 0 ? crc : crc32_append(crc32_accumulate(crc, *str), str + 1, n - 1);
 			}
 		}
 
 		template <std::size_t N>
-		inline constexpr uint32_t crc32(const char (&str)[N])
+		inline constexpr uint32_t crc32(const char (& str)[N])
 		{
 			return ~detail::crc32_append(~0, str, N - 1);
 		}
-		inline constexpr uint32_t crc32(const char *const str, const std::size_t n)
+		inline constexpr uint32_t crc32(const char * const str, const std::size_t n)
 		{
 			return ~detail::crc32_append(~0, str, n);
 		}
