@@ -18,6 +18,7 @@ set(CODE_TEST_SOURCE
 	src/utility/optional.cpp
 	src/utility/property.cpp
    src/utility/string_view.cpp
+   src/utility/type_info.cpp
    src/utility/unicode.cpp
 	src/utility/variant.cpp
 	)

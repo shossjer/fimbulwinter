@@ -143,6 +143,7 @@ set(HEADER_FILES
 	src/utility/string.hpp
    src/utility/string_view.hpp
    src/utility/tuple.hpp
+   src/utility/type_info.hpp
 	src/utility/type_traits.hpp
    src/utility/unicode.hpp
 	src/utility/utility.hpp
