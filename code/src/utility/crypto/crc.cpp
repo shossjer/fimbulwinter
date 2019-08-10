@@ -1,7 +1,7 @@
 
 #include "crc.hpp"
 
-namespace core
+namespace utility
 {
 	namespace crypto
 	{

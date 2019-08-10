@@ -1,12 +1,12 @@
 
-#ifndef CORE_CRYPTO_CRC_HPP
-#define CORE_CRYPTO_CRC_HPP
+#ifndef UTILITY_CRYPTO_CRC_HPP
+#define UTILITY_CRYPTO_CRC_HPP
 
-#include <utility/type_traits.hpp>
+#include "utility/type_traits.hpp"
 
 #include <array>
 
-namespace core
+namespace utility
 {
 	namespace crypto
 	{
@@ -48,4 +48,4 @@ namespace core
 	}
 }
 
-#endif /* CORE_CRYPTO_CRC_HPP */
+#endif /* UTILITY_CRYPTO_CRC_HPP */
