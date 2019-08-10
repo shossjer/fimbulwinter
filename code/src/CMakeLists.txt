@@ -3,7 +3,6 @@
 set(SOURCE_FILES
 	src/core/async/Thread.cpp
 	src/core/container/Buffer.cpp
-	src/core/crypto/crc.cpp
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
@@ -33,6 +32,7 @@ set(SOURCE_FILES
 	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
 	src/gameplay/looper.cpp
+   src/utility/crypto/crc.cpp
 	)
 
 # source listing
@@ -48,7 +48,6 @@ set(HEADER_FILES
 	src/core/container/Collection.hpp
 	src/core/container/ExchangeQueue.hpp
 	src/core/container/Stack.hpp
-	src/core/crypto/crc.hpp
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
    src/core/graphics/types.hpp
@@ -126,6 +125,7 @@ set(HEADER_FILES
 	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
+   src/utility/crypto/crc.hpp
    src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp

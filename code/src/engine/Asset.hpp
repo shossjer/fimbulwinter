@@ -4,10 +4,10 @@
 
 #include "config.h"
 
-#include "core/crypto/crc.hpp"
 #include "core/serialization.hpp"
 
 #include "utility/concepts.hpp"
+#include "utility/crypto/crc.hpp"
 #include "utility/string_view.hpp"
 
 #include <ostream>
