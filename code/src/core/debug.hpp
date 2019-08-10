@@ -4,10 +4,10 @@
 
 #include <config.h>
 
-#include <utility/functional.hpp>
-#include <utility/intrinsics.hpp>
-#include <utility/spinlock.hpp>
-#include <utility/stream.hpp>
+#include "utility/functional.hpp"
+#include "utility/intrinsics.hpp"
+#include "utility/spinlock.hpp"
+#include "utility/stream.hpp"
 
 #include <cstdlib>
 #include <exception>
@@ -21,22 +21,61 @@
 #endif
 
 #if MODE_DEBUG
+
 /**
  * Asserts that the condition is true.
+ *
+ * Additionally returns the evaluation of the condition.
  */
 # ifdef __GNUG__
-#  define debug_assert(expr, ...) core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, ##__VA_ARGS__)
+#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, ##__VA_ARGS__) || (debug_break(), false))
 # else
-#  define debug_assert(expr, ...) core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, __VA_ARGS__)
+#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, __VA_ARGS__) || (debug_break(), false))
 # endif
+
+/**
+ * Breaks into debugger if available.
+ */
+# if defined(__clang__) && __has_builtin(__builtin_debugtrap)
+#  define debug_break() __builtin_debugtrap()
+// probably the most portable way in clang to break into the debugger,
+// actual documentation on it seem to be scarce
+//
+// https://github.com/llvm-mirror/llvm/blob/5aa20382007f603fb5ffda182868c72532c0b4a7/include/llvm/Support/Compiler.h#L324
+# elif defined(_MSC_VER)
+#  include <intrin.h>
+#  define debug_break() __debugbreak()
+# elif defined(__i386__) || defined(__x86_64__)
+inline static void debug_break_impl() { __asm__("int3"); }
+// can we get some authoritative proof why `int3` works, and why it is
+// preferable over `raise(SIGTRAP)`? all we have to go on is rumors
+// :slightly_frowning_face:
+//
+// http://www.ouah.org/linux-anti-debugging.txt
+// https://github.com/scottt/debugbreak/blob/8b4a755e76717103adc814c0c05ceb3b91befa7d/debugbreak.h#L46
+// https://github.com/nemequ/portable-snippets/blob/db0ac507dfcc749ce601e5aa1bc93e2ba86050a2/debug-trap/debug-trap.h#L36
+#  define debug_break() debug_break_impl()
+# else
+#  include <csignal>
+#  ifdef SIGTRAP
+#   define debug_break() ::raise(SIGTRAP)
+#  else
+#   define debug_break()
+// not possible to break into debugger
+#  endif
+# endif
+
 /**
  * Fails unconditionally.
+ *
+ * Additionally returns false.
  */
 # ifdef __GNUG__
-#  define debug_fail(...) core::debug::instance().fail(__FILE__, __LINE__, ##__VA_ARGS__)
+#  define debug_fail(...) (core::debug::instance().fail(__FILE__, __LINE__, ##__VA_ARGS__) || (debug_break(), false))
 # else
-#  define debug_fail(...) core::debug::instance().fail(__FILE__, __LINE__, __VA_ARGS__)
+#  define debug_fail(...) (core::debug::instance().fail(__FILE__, __LINE__, __VA_ARGS__) || (debug_break(), false))
 # endif
+
 /**
  * Prints the arguments to the console (with a newline).
  *
@@ -49,39 +88,58 @@
 # else
 #  define debug_printline(...) core::debug::instance().printline(__FILE__, __LINE__, __VA_ARGS__)
 # endif
+
 /**
- * Fails unconditionally.
+ * Fails unconditionally and terminates execution.
  */
 # define debug_unreachable(...) do { debug_fail(__VA_ARGS__); std::terminate(); } while(false)
+// todo: change terminate to __builtin_trap if available
+
 /**
  * Verifies that the expression is true.
  *
+ * Additionally returns the evaluation of the expression.
+ *
  * \note Always evaluates the expression.
  */
-# define debug_verify(expr, ...) do { if (expr) break; else { debug_fail(__VA_ARGS__); } } while(false)
+# define debug_verify(expr, ...) (static_cast<bool>(expr) || debug_fail(__VA_ARGS__))
+
 #else
+
+/**
+ * Returns true as the condition is assumed to be true always.
+ */
+# define debug_assert(expr, ...) true
+
 /**
  * Does nothing.
  */
-# define debug_assert(expr, ...)
+# define debug_break()
+
 /**
  * Does nothing.
  */
 # define debug_fail(...)
+
 /**
  * Does nothing.
  */
 # define debug_printline(...)
+
 /**
  * Hint to the compiler that this path will never be reached.
  */
 # define debug_unreachable(...) intrinsic_unreachable()
+
 /**
  * Verifies that the expression is true.
  *
+ * Additionally returns the evaluation of the expression.
+ *
  * \note Always evaluates the expression.
  */
-# define debug_verify(expr, ...) do { expr; } while(false)
+# define debug_verify(expr, ...) static_cast<bool>(expr)
+
 #endif
 
 namespace core
@@ -179,35 +237,25 @@ namespace core
 
 	public:
 		template <std::size_t N, std::size_t M, typename C, typename ...Ps>
-		void affirm(const char (&file_name)[N], const int line_number, const char (&expr)[M], C && comp, Ps && ...ps)
+		bool affirm(const char (&file_name)[N], const int line_number, const char (&expr)[M], C && comp, Ps && ...ps)
 		{
-			if (comp()) return;
+			if (comp()) return true;
 
 			std::lock_guard<lock_t> guard{this->lock};
 			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", expr, "\n", comp, "\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
-#if defined(__GNUG__)
-			__asm__("int3");
-#elif defined(_MSC_VER)
-			__debugbreak();
-#else
-			std::terminate();
-#endif
+
+			return false;
 		}
 
 		template <std::size_t N, typename ...Ps>
-		void fail(const char (&file_name)[N], const int line_number, Ps && ...ps)
+		bool fail(const char (&file_name)[N], const int line_number, Ps && ...ps)
 		{
 			std::lock_guard<lock_t> guard{this->lock};
 			utility::to_stream(std::cerr, file_name, "@", line_number, ": failed\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
-#if defined(__GNUG__)
-			__asm__("int3");
-#elif defined(_MSC_VER)
-			__debugbreak();
-#else
-			std::terminate();
-#endif
+
+			return false;
 		}
 
 		template <std::size_t N, uint64_t Bitmask, typename ...Ps>
