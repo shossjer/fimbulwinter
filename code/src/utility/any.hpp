@@ -2,9 +2,10 @@
 #ifndef UTILITY_ANY_HPP
 #define UTILITY_ANY_HPP
 
-#include "concepts.hpp"
-#include "stream.hpp"
-#include "utility.hpp"
+#include "utility/concepts.hpp"
+#include "utility/stream.hpp"
+#include "utility/type_info.hpp"
+#include "utility/utility.hpp"
 
 #include <exception>
 #include <iostream>
@@ -23,7 +24,10 @@ namespace utility
 
 			struct base_t
 			{
+				utility::type_id_t id;
+
 				virtual ~base_t() = default;
+				base_t(uint32_t id) : id(id) {}
 
 				virtual base_t * clone() const = 0;
 				virtual const void * data() const = 0;
@@ -39,7 +43,8 @@ namespace utility
 				~dynamic_t() override = default;
 				template <typename ...Ps>
 				dynamic_t(in_place_t, Ps && ...ps)
-					: data_{std::forward<Ps>(ps)...}
+					: base_t(utility::type_id<T>())
+					, data_{std::forward<Ps>(ps)...}
 				{}
 
 				base_t * clone() const override
@@ -73,6 +78,7 @@ namespace utility
 				return *this;
 			}
 			this_type & operator = (this_type && x) noexcept = default;
+
 			void swap(this_type & x)
 			{
 				ptr.swap(x.ptr);
@@ -106,6 +112,11 @@ namespace utility
 				return *static_cast<const T *>(ptr->data());
 			}
 
+			utility::type_id_t id() const
+			{
+				return empty() ? utility::type_id<void>() : ptr->id;
+			}
+
 			std::ostream & print(std::ostream & stream) const
 			{
 				return empty() ? stream << "(empty)" : ptr->print(stream);
@@ -133,17 +144,17 @@ namespace utility
 			template <typename T, typename Any>
 			decltype(auto) any_cast_ref(Any && x)
 			{
-				if (!x.has_value())
+				if (!x.has_value() || x.type_id() != utility::type_id<T>())
 					throw bad_any_cast{};
+
 				return get_instance<T>(get_storage(std::forward<Any>(x)));
 			}
 			template <typename T, typename Any>
 			decltype(auto) any_cast_ptr(Any * x)
 			{
-				if (!x)
+				if (!x || !x->has_value() || x->type_id() != utility::type_id<T>())
 					return nullptr;
-				if (!x->has_value())
-					return nullptr;
+
 				return std::addressof(get_instance<T>(get_storage(*x)));
 			}
 		};
@@ -179,7 +190,6 @@ namespace utility
 		          REQUIRES((std::is_copy_constructible<mpl::decay_t<P>>::value))>
 		this_type & operator = (P && p)
 		{
-			// storage.destruct();
 			storage.construct<mpl::decay_t<P>>(std::forward<P>(p));
 			return *this;
 		}
@@ -194,7 +204,6 @@ namespace utility
 		          REQUIRES((std::is_copy_constructible<T>::value))>
 		T & emplace(Ps && ...ps)
 		{
-			// storage.destruct();
 			return storage.construct<T>(std::forward<Ps>(ps)...);
 		}
 		void reset()
@@ -207,6 +216,8 @@ namespace utility
 		{
 			return !storage.empty();
 		}
+
+		utility::type_id_t type_id() const { return storage.id(); }
 
 	public:
 		friend void swap(this_type & x, this_type & y)
@@ -257,6 +268,12 @@ namespace utility
 	const T * any_cast(const any * x) noexcept
 	{
 		return detail::any_cast_helper{}.any_cast_ptr<T>(x);
+	}
+
+	template <typename T>
+	bool holds_alternative(const any & x)
+	{
+		return x.type_id() == utility::type_id<T>();
 	}
 
 	template <typename T, typename ...Ps>
