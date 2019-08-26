@@ -4,10 +4,10 @@
 
 #include "config.h"
 
-#include "core/crypto/crc.hpp"
 #include "core/serialization.hpp"
 
 #include "utility/concepts.hpp"
+#include "utility/crypto/crc.hpp"
 #include "utility/string_view.hpp"
 
 #include <ostream>
@@ -39,16 +39,16 @@ namespace engine
 		Asset() = default;
 		template <std::size_t N>
 		explicit constexpr Asset(const char (&str)[N])
-			: id{core::crypto::crc32(str)}
+			: id{utility::crypto::crc32(str)}
 		{}
 		explicit constexpr Asset(const char *const str, const std::size_t n)
-			: id{core::crypto::crc32(str, n)}
+			: id{utility::crypto::crc32(str, n)}
 		{}
 		explicit constexpr Asset(utility::string_view str)
-			: id{core::crypto::crc32(str.data(), str.length())}
+			: id{utility::crypto::crc32(str.data(), str.length())}
 		{}
 		explicit Asset(const std::string & str)
-			: id{core::crypto::crc32(str.data(), str.length())}
+			: id{utility::crypto::crc32(str.data(), str.length())}
 		{
 #if MODE_DEBUG
 			std::lock_guard<utility::spinlock> lock{get_readwritelock()};
@@ -76,7 +76,7 @@ namespace engine
 		template <std::size_t N>
 		static void enumerate(const char (& str)[N])
 		{
-			get_lookup_table().emplace(core::crypto::crc32(str), str);
+			get_lookup_table().emplace(utility::crypto::crc32(str), str);
 		}
 	private:
 		static std::unordered_map<value_type, std::string> & get_lookup_table()

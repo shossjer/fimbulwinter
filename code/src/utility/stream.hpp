@@ -2,6 +2,7 @@
 #ifndef UTILITY_STREAM_HPP
 #define UTILITY_STREAM_HPP
 
+#include "type_info.hpp"
 #include "type_traits.hpp"
 
 #include <istream>
@@ -78,11 +79,13 @@ namespace utility
 			return stream << std::forward<T>(t.t);
 		}
 	};
+	template <typename T>
 	struct try_stream_no_t
 	{
-		friend std::ostream & operator << (std::ostream & stream, try_stream_no_t && t)
+		friend std::ostream & operator << (std::ostream & stream, try_stream_no_t<T> && t)
 		{
-			return stream << "???";
+			constexpr auto signature = utility::type_signature<mpl::remove_cvref_t<T>>();
+			return stream << "?(" << signature << ")";
 		}
 	};
 	template <typename T,
@@ -93,9 +96,9 @@ namespace utility
 	}
 	template <typename T,
 	          mpl::disable_if_t<mpl::is_ostreamable<T>::value, int> = 0>
-	try_stream_no_t try_stream(T && t)
+	try_stream_no_t<T> try_stream(T && t)
 	{
-		return try_stream_no_t{};
+		return try_stream_no_t<T>{};
 	}
 
 	/**

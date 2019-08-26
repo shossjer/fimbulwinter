@@ -327,7 +327,7 @@ namespace core
 			// not great
 			bucket_t hash(Key key) const
 			{
-				return (std::size_t{key} * std::size_t{key}) % Maximum;
+				return (std::size_t(key) * std::size_t(key)) % Maximum;
 			}
 			/**
 			 * Find an empty bucket where the key can be placed.
@@ -724,7 +724,7 @@ namespace core
 			// not great
 			bucket_t hash(K key) const
 			{
-				return (std::size_t{key} * std::size_t{key}) % M;
+				return (std::size_t(key) * std::size_t(key)) % M;
 			}
 			/**
 			 * Find an empty bucket where the key can be placed.
@@ -1100,7 +1100,7 @@ namespace core
 			// not great
 			bucket_t hash(K key) const
 			{
-				return (std::size_t{key} * std::size_t{key}) % M;
+				return (std::size_t(key) * std::size_t(key)) % M;
 			}
 			/**
 			 * Find an empty bucket where the key can be placed.

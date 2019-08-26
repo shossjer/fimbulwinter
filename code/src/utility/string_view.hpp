@@ -2,6 +2,7 @@
 #ifndef UTILITY_STRING_VIEW_HPP
 #define UTILITY_STRING_VIEW_HPP
 
+#include <algorithm>
 #include <cstddef>
 #include <ostream>
 
@@ -69,9 +70,42 @@ namespace utility
 		{
 			return compare_impl(that, compare_data(str, that.str, min(len, that.len)));
 		}
-		constexpr int compare(const char * str) const noexcept
+		constexpr int compare(std::size_t pos1, std::size_t count1, string_view that) const
 		{
-			return compare(string_view(str));
+			return string_view(str + pos1, count1).compare(that);
+		}
+		constexpr int compare(std::size_t pos1, std::size_t count1, string_view that, std::size_t pos2, std::size_t count2) const
+		{
+			return string_view(str + pos1, count1).compare(string_view(that.str + pos2, count2));
+		}
+		constexpr int compare(const char * cstr) const
+		{
+			return compare(string_view(cstr));
+		}
+		constexpr int compare(std::size_t pos1, std::size_t count1, const char * cstr) const
+		{
+			return string_view(str + pos1, count1).compare(string_view(cstr));
+		}
+		constexpr int compare(std::size_t pos1, std::size_t count1, const char * cstr, std::size_t count2) const
+		{
+			return string_view(str + pos1, count1).compare(string_view(cstr, count2));
+		}
+
+		constexpr std::size_t find(string_view that, std::size_t pos = 0) const
+		{
+			return find_impl(that, len < that.len ? std::size_t(-1) : pos);
+		}
+		constexpr std::size_t find(const char * str, std::size_t pos = 0) const
+		{
+			return find(string_view(str), pos);
+		}
+		constexpr std::size_t rfind(string_view that, std::size_t pos = std::size_t(-1)) const
+		{
+			return rfind_impl(that, len < that.len ? std::size_t(-1) : std::min(pos, len - that.len));
+		}
+		constexpr std::size_t rfind(const char * str, std::size_t pos = std::size_t(-1)) const
+		{
+			return rfind(string_view(str), pos);
 		}
 	private:
 		constexpr static int compare_data(const char * a, const char * b, std::size_t count)
@@ -87,6 +121,15 @@ namespace utility
 				len < that.len ? -1 :
 				that.len < len ? 1 :
 				0;
+		}
+
+		constexpr std::size_t find_impl(string_view that, std::size_t pos) const
+		{
+			return pos > len - that.len ? std::size_t(-1) : compare_data(str + pos, that.str, that.len) == 0 ? pos : find_impl(that, pos + 1);
+		}
+		constexpr std::size_t rfind_impl(string_view that, std::size_t pos) const
+		{
+			return pos > len ? std::size_t(-1) : compare_data(str + pos, that.str, that.len) == 0 ? pos : rfind_impl(that, pos - 1);
 		}
 	};
 
