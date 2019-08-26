@@ -624,6 +624,8 @@ namespace ui
 
 				void operator () (DeviceFound && x)
 				{
+					debug_printline("device ", x.id, " found");
+
 					add_device(x.id);
 
 					// v tmp v
@@ -636,6 +638,8 @@ namespace ui
 
 				void operator () (DeviceLost && x)
 				{
+					debug_printline("device ", x.id, " lost");
+
 					// v tmp v
 					for (auto context : context_assets)
 					{

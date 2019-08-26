@@ -517,7 +517,7 @@ namespace
 
 namespace
 {
-	enum class DeviceType
+	enum class EventType
 	{
 		Unknown, // should never be used
 		Gamepad,
@@ -526,32 +526,32 @@ namespace
 		Touch,
 	};
 
-	constexpr auto serialization(utility::in_place_type_t<DeviceType>)
+	constexpr auto serialization(utility::in_place_type_t<EventType>)
 	{
 		return utility::make_lookup_table(
-			std::make_pair(utility::string_view("unknown"), DeviceType::Unknown),
-			std::make_pair(utility::string_view("gamepad"), DeviceType::Gamepad),
-			std::make_pair(utility::string_view("keyboard"), DeviceType::Keyboard),
-			std::make_pair(utility::string_view("mouse"), DeviceType::Mouse),
-			std::make_pair(utility::string_view("touch"), DeviceType::Touch)
+			std::make_pair(utility::string_view("unknown"), EventType::Unknown),
+			std::make_pair(utility::string_view("gamepad"), EventType::Gamepad),
+			std::make_pair(utility::string_view("keyboard"), EventType::Keyboard),
+			std::make_pair(utility::string_view("mouse"), EventType::Mouse),
+			std::make_pair(utility::string_view("touch"), EventType::Touch)
 			);
 	}
 
-	struct Device
+	struct Event
 	{
-		int fd;
-		DeviceType type;
+		int fd; //
+		EventType type;
 
-		std::string path;
+		int16_t id;
 
 		struct input_absinfo absinfos[ABS_CNT];
 
-		Device(int fd, DeviceType type, std::string && path)
+		Event(int fd, EventType type, int16_t id)
 			: fd(fd)
 			, type(type)
-			, path(std::move(path))
+			, id(id)
 		{
-			debug_assert(type != DeviceType::Unknown);
+			debug_assert(type != EventType::Unknown);
 
 			set_absinfos();
 		}
@@ -569,9 +569,27 @@ namespace
 		}
 	};
 
+	struct Device
+	{
+		uint16_t vendor;
+		uint16_t product;
+
+		int16_t id;
+
+		int16_t event_count = 0;
+
+		Device(int vendor, int product)
+			: vendor(vendor)
+			, product(product)
+		{
+			static int16_t next_id = 1; // 0 is reserved for not hardware input
+			id = next_id++;
+		}
+	};
+
 	bool is_event(const char * name) { return std::strncmp(name, "event", 5) == 0; }
 
-	DeviceType find_device_type(int fd)
+	EventType find_event_type(int fd)
 	{
 		unsigned long event_bits[n_longs_for(EV_CNT)] = {};
 		::ioctl(fd, EVIOCGBIT(EV_SYN, EV_CNT), event_bits);
@@ -588,18 +606,18 @@ namespace
 		}
 
 		if (test_bit(BTN_GAMEPAD, key_bits))
-			return DeviceType::Gamepad;
+			return EventType::Gamepad;
 
 		if (test_bit(ABS_MT_SLOT, abs_bits))
-			return DeviceType::Touch;
+			return EventType::Touch;
 
 		if (test_bit(KEY_ESC, key_bits))
-			return DeviceType::Keyboard;
+			return EventType::Keyboard;
 
 		if (test_bit(BTN_MOUSE, key_bits))
-			return DeviceType::Mouse;
+			return EventType::Mouse;
 
-		return DeviceType::Unknown;
+		return EventType::Unknown;
 	}
 
 	void print_info(int fd)
@@ -608,13 +626,13 @@ namespace
 		::ioctl(fd, EVIOCGVERSION, &driver_version);
 		debug_printline("  driver version: ", driver_version, "(", driver_version >> 16, ".", (driver_version >> 8) & 0xff, ".", driver_version & 0xff, ")");
 
-		struct input_id device_id = {};
-		::ioctl(fd, EVIOCGID, &device_id);
-		debug_printline("  device id: bustype ", device_id.bustype, " vendor ", device_id.vendor, " product ", device_id.product, " version ", device_id.version);
+		struct input_id event_id = {};
+		::ioctl(fd, EVIOCGID, &event_id);
+		debug_printline("  event id: bustype ", event_id.bustype, " vendor ", event_id.vendor, " product ", event_id.product, " version ", event_id.version);
 
-		char device_name[256] = "Unknown";
-		::ioctl(fd, EVIOCGNAME(sizeof device_name), device_name);
-		debug_printline("  device name: ", device_name);
+		char event_name[256] = "Unknown";
+		::ioctl(fd, EVIOCGNAME(sizeof event_name), event_name);
+		debug_printline("  event name: ", event_name);
 
 		char physical_location[255] = "Unknown";
 		::ioctl(fd, EVIOCGPHYS(sizeof physical_location), physical_location);
@@ -624,9 +642,9 @@ namespace
 		::ioctl(fd, EVIOCGUNIQ(sizeof unique_identifier), unique_identifier);
 		debug_printline("  unique identifier: ", unique_identifier);
 
-		char device_properties[255] = "Unknown";
-		::ioctl(fd, EVIOCGPROP(sizeof device_properties), device_properties);
-		debug_printline("  device properties: ", device_properties);
+		char event_properties[255] = "Unknown";
+		::ioctl(fd, EVIOCGPROP(sizeof event_properties), event_properties);
+		debug_printline("  event properties: ", event_properties);
 
 		unsigned long event_bits[n_longs_for(EV_CNT)] = {};
 		::ioctl(fd, EVIOCGBIT(EV_SYN, EV_CNT), event_bits);
@@ -680,9 +698,72 @@ namespace
 		}
 	}
 
-	std::vector<std::string> failed_devices;
+	enum class EventStatus
+	{
+		Failed,
+		Open,
+		Uninteresting,
+	};
 
-	void scan_devices(std::vector<Device> & devices)
+	struct EventInfo
+	{
+		std::string path;
+		EventStatus status;
+		int16_t id;
+	};
+
+	Device & get_or_create_device(std::vector<Device> & devices, int vendor, int product)
+	{
+		for (auto & device : devices)
+		{
+			if (device.vendor == vendor &&
+			    device.product == product)
+				return device;
+		}
+		devices.emplace_back(vendor, product);
+		engine::hid::found_device(devices.back().id);
+		return devices.back();
+	}
+
+	std::pair<EventStatus, int16_t> try_open_event(const char * path, std::vector<Device> & devices, std::vector<Event> & events)
+	{
+		const int fd = ::open(path, O_RDONLY);
+		if (fd < 0)
+		{
+			debug_printline("event ", path, " open failed with ", errno);
+
+			return {EventStatus::Failed, 0};
+		}
+		else
+		{
+			EventType type = find_event_type(fd);
+			if (type != EventType::Unknown)
+			{
+				const auto type_name = core::value_table<EventType>::get_key(type);
+				debug_printline("event ", path, "(", type_name, "):");
+				print_info(fd);
+
+				struct input_id event_id = {};
+				::ioctl(fd, EVIOCGID, &event_id);
+
+				Device & device = get_or_create_device(devices, event_id.vendor, event_id.product);
+				events.emplace_back(fd, type, device.id);
+				device.event_count++;
+
+				return {EventStatus::Open, device.id};
+			}
+			else
+			{
+				debug_printline("event ", path, " is uninteresting");
+
+				::close(fd);
+
+				return {EventStatus::Uninteresting, 0};
+			}
+		}
+	}
+
+	void scan_events(std::vector<EventInfo> & event_infos, std::vector<Device> & devices, std::vector<Event> & events)
 	{
 		struct dirent ** namelist;
 		const int n = scandir("/dev/input", &namelist, [](const struct dirent * f){ return is_event(f->d_name) ? 1 : 0; }, nullptr);
@@ -695,48 +776,30 @@ namespace
 		for (int i = 0; i < n; i++)
 		{
 			std::string name = utility::to_string("/dev/input/", namelist[i]->d_name);
-			auto it = std::find_if(devices.begin(), devices.end(), [&name](const Device & d){ return d.path == name; });
-			if (it == devices.end())
+
+			auto it = std::find_if(event_infos.begin(), event_infos.end(), [& name](const EventInfo & i){ return i.path == name; });
+			if (it == event_infos.end())
 			{
-				const int fd = ::open(name.c_str(), O_RDONLY);
-				if (fd < 0)
-				{
-					debug_printline("device ", namelist[i]->d_name, " open failed with ", errno);
-
-					if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end())
-					{
-						failed_devices.push_back(std::move(name));
-					}
-				}
-				else
-				{
-					DeviceType type = find_device_type(fd);
-					if (type != DeviceType::Unknown)
-					{
-						const auto type_name = core::value_table<DeviceType>::get_key(type);
-						debug_printline("device ", namelist[i]->d_name, "(", type_name, "):");
-						print_info(fd);
-
-						devices.emplace_back(fd, type, std::move(name));
-						engine::hid::found_device(fd);
-					}
-					else
-					{
-						debug_printline("device ", namelist[i]->d_name, " is uninteresting");
-
-						::close(fd);
-					}
-				}
+				const auto state = try_open_event(name.c_str(), devices, events);
+				event_infos.push_back({std::move(name), state.first, state.second});
 			}
-			free(namelist[i]);
+			else if (it->status == EventStatus::Failed)
+			{
+				debug_assert(it->id == 0);
+
+				const auto state = try_open_event(name.c_str(), devices, events);
+				it->status = state.first;
+				it->id = state.second;
+			}
+			::free(namelist[i]);
 		}
-		free(namelist);
+		::free(namelist);
 	}
 
 	core::async::Thread thread;
 	int interupt_pipe[2];
 
-	void device_watch()
+	void event_watch()
 	{
 		const int notify_fd = inotify_init1(IN_NONBLOCK);
 		if (notify_fd < 0)
@@ -762,19 +825,21 @@ namespace
 			{notify_fd, POLLIN, },
 		};
 
+		std::vector<EventInfo> event_infos;
 		std::vector<Device> devices;
-		scan_devices(devices);
+		std::vector<Event> events;
+		scan_events(event_infos, devices, events);
 
 		while (true)
 		{
-			debug_assert(devices.size() <= sizeof fds / sizeof fds[0]);
-			for (int i = 0; i < devices.size(); i++)
+			debug_assert(events.size() <= sizeof fds / sizeof fds[0]);
+			for (int i = 0; i < events.size(); i++)
 			{
-				fds[2 + i].fd = devices[i].fd;
+				fds[2 + i].fd = events[i].fd;
 				fds[2 + i].events = POLLIN;
 			}
 
-			if (poll(fds, 2 + devices.size(), -1) < 0)
+			if (poll(fds, 2 + events.size(), -1) < 0)
 			{
 				debug_assert(errno != EFAULT);
 				debug_assert(errno != EINVAL);
@@ -787,60 +852,60 @@ namespace
 			if (fds[0].revents & POLLHUP)
 				break;
 
-			for (int i = 0; i < devices.size(); i++)
+			for (int i = 0; i < events.size(); i++)
 			{
 				if (fds[2 + i].revents & POLLIN)
 				{
-					struct input_event events[20]; // arbitrary
-					const int n = ::read(fds[2 + i].fd, events, sizeof events);
+					struct input_event input[20]; // arbitrary
+					const int n = ::read(fds[2 + i].fd, input, sizeof input);
 					// "[...] you’ll always get a whole number of input
 					// events on a read."
 					//
 					// https://www.kernel.org/doc/html/latest/input/input.html#event-interface
 					debug_assert(n > 0);
 
-					for (int j = 0; j < n / sizeof events[0]; j++)
+					for (int j = 0; j < n / sizeof input[0]; j++)
 					{
-						switch (events[j].type)
+						switch (input[j].type)
 						{
 						case EV_KEY:
 						{
-							const auto button = code_to_button[events[j].code];
+							const auto button = code_to_button[input[j].code];
 							if (button != Button::INVALID)
 							{
-								engine::hid::dispatch(engine::hid::ButtonStateInput(devices[i].fd, button, events[j].value != 0));
+								engine::hid::dispatch(engine::hid::ButtonStateInput(events[i].id, button, input[j].value != 0));
 							}
 							break;
 						}
 						case EV_ABS:
-							switch (devices[i].type)
+							switch (events[i].type)
 							{
-							case DeviceType::Gamepad:
+							case EventType::Gamepad:
 							{
-								const int64_t diff = int64_t(events[j].value) - int64_t(devices[i].absinfos[events[j].code].value);
+								const int64_t diff = int64_t(input[j].value) - int64_t(events[i].absinfos[input[j].code].value);
 								int value;
-								if (std::abs(diff) < devices[i].absinfos[events[j].code].flat)
+								if (std::abs(diff) < events[i].absinfos[input[j].code].flat)
 								{
 									value = 0;
 								}
 								else
 								{
-									value = events[j].value;
-									value = std::min(value, devices[i].absinfos[events[j].code].maximum);
-									value = std::max(value, devices[i].absinfos[events[j].code].minimum);
-									value = core::maths::interpolate_and_scale(devices[i].absinfos[events[j].code].minimum, devices[i].absinfos[events[j].code].maximum, value);
+									value = input[j].value;
+									value = std::min(value, events[i].absinfos[input[j].code].maximum);
+									value = std::max(value, events[i].absinfos[input[j].code].minimum);
+									value = core::maths::interpolate_and_scale(events[i].absinfos[input[j].code].minimum, events[i].absinfos[input[j].code].maximum, value);
 								}
 
-								switch (events[j].code)
+								switch (input[j].code)
 								{
-								case ABS_X: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_STICKL_X, value)); break;
-								case ABS_Y: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_STICKL_Y, value)); break;
-								case ABS_Z: engine::hid::dispatch(engine::hid::AxisTriggerInput(devices[i].fd, engine::hid::Input::Axis::TRIGGER_TL2, value)); break;
-								case ABS_RX: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_STICKR_X, value)); break;
-								case ABS_RY: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_STICKR_Y, value)); break;
-								case ABS_RZ: engine::hid::dispatch(engine::hid::AxisTriggerInput(devices[i].fd, engine::hid::Input::Axis::TRIGGER_TR2, value)); break;
-								case ABS_HAT0X: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_DPAD_X, value)); break;
-								case ABS_HAT0Y: engine::hid::dispatch(engine::hid::AxisTiltInput(devices[i].fd, engine::hid::Input::Axis::TILT_DPAD_Y, value)); break;
+								case ABS_X: engine::hid::dispatch(engine::hid::AxisTiltInput(events[i].id, engine::hid::Input::Axis::TILT_STICKL_X, value)); break;
+								case ABS_Y: engine::hid::dispatch(engine::hid::AxisTiltInput(events[i].id, engine::hid::Input::Axis::TILT_STICKL_Y, value)); break;
+								case ABS_Z: engine::hid::dispatch(engine::hid::AxisTriggerInput(events[i].id, engine::hid::Input::Axis::TRIGGER_TL2, value)); break;
+								case ABS_RX: engine::hid::dispatch(engine::hid::AxisTiltInput(events[i].id, engine::hid::Input::Axis::TILT_STICKR_X, value)); break;
+								case ABS_RY: engine::hid::dispatch(engine::hid::AxisTiltInput(events[i].id, engine::hid::Input::Axis::TILT_STICKR_Y, value)); break;
+								case ABS_RZ: engine::hid::dispatch(engine::hid::AxisTriggerInput(events[i].id, engine::hid::Input::Axis::TRIGGER_TR2, value)); break;
+								case ABS_HAT0X: engine::hid::dispatch(engine::hid::AxisTiltInput(events[i].id, engine::hid::Input::Axis::TILT_DPAD_X, value)); break;
+								case ABS_HAT0Y: engine::hid::dispatch(engine::hid::AxisTiltInput(events[i].id, engine::hid::Input::Axis::TILT_DPAD_Y, value)); break;
 								}
 								break;
 							}
@@ -879,90 +944,55 @@ namespace
 
 						if (event->mask & IN_CREATE)
 						{
-							auto it = std::find_if(devices.begin(), devices.end(), [&name](const Device & d){ return d.path == name; });
-							if (it == devices.end())
+							auto it = std::find_if(event_infos.begin(), event_infos.end(), [& name](const EventInfo & i){ return i.path == name; });
+							debug_assert(it == event_infos.end(), "congratulations :tada: you found a data race");
+							if (it == event_infos.end())
 							{
-								const int fd = ::open(name.c_str(), O_RDONLY);
-								if (fd < 0)
-								{
-									debug_printline("device ", event->name, " open failed with ", errno);
-
-									if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end())
-									{
-										failed_devices.push_back(std::move(name));
-									}
-								}
-								else
-								{
-									DeviceType type = find_device_type(fd);
-									if (type != DeviceType::Unknown)
-									{
-										const auto type_name = core::value_table<DeviceType>::get_key(type);
-										debug_printline("device ", event->name, "(", type_name, "):");
-										print_info(fd);
-
-										devices.emplace_back(fd, type, std::move(name));
-										engine::hid::found_device(fd);
-									}
-									else
-									{
-										debug_printline("device ", event->name, " is uninteresting");
-
-										::close(fd);
-									}
-								}
+								const auto state = try_open_event(name.c_str(), devices, events);
+								event_infos.push_back({std::move(name), state.first, state.second});
 							}
 						}
 						if (event->mask & IN_DELETE)
 						{
-							debug_printline("device ", event->name, " lost");
+							debug_printline("event ", event->name, " lost");
+
+							auto it = std::find_if(event_infos.begin(), event_infos.end(), [& name](const EventInfo & i){ return i.path == name; });
+							debug_assert(it != event_infos.end(), "congratulations :tada: you found a data race");
+							if (it != event_infos.end())
 							{
-								auto it = std::find_if(devices.begin(), devices.end(), [&name](const Device & d){ return d.path == name; });
-								if (it != devices.end())
+								if (it->status == EventStatus::Open)
 								{
-									engine::hid::lost_device(it->fd);
-									devices.erase(it);
+									auto event = std::find_if(events.begin(), events.end(), [& it](const Event & event){ return event.id == it->id; });
+									debug_assert(event != events.end());
+
+									auto device = std::find_if(devices.begin(), devices.end(), [& it](const Device & device){ return device.id == it->id; });
+									debug_assert(device != devices.end());
+
+									::close(event->fd);
+
+									device->event_count--;
+									events.erase(event);
+
+									if (device->event_count <= 0)
+									{
+										engine::hid::lost_device(device->id);
+										devices.erase(device);
+									}
 								}
-							}
-							{
-								auto it = std::find(failed_devices.begin(), failed_devices.end(), name);
-								if (it != failed_devices.end())
-								{
-									failed_devices.erase(it);
-								}
+								event_infos.erase(it);
 							}
 						}
 						if (event->mask & IN_ATTRIB)
 						{
-							auto it = std::find(failed_devices.begin(), failed_devices.end(), name);
-							if (it != failed_devices.end())
+							auto it = std::find_if(event_infos.begin(), event_infos.end(), [& name](const EventInfo & i){ return i.path == name; });
+							debug_assert(it != event_infos.end(), "congratulations :tada: you found a data race");
+							if (it != event_infos.end() && it->status == EventStatus::Failed)
 							{
-								const int fd = ::open(name.c_str(), O_RDONLY);
-								if (fd < 0)
-								{
-									debug_printline("device ", event->name, " open failed with ", errno);
-								}
-								else
-								{
-									DeviceType type = find_device_type(fd);
-									if (type != DeviceType::Unknown)
-									{
-										const auto type_name = core::value_table<DeviceType>::get_key(type);
-										debug_printline("device ", event->name, "(", type_name, "):");
-										print_info(fd);
+								debug_assert(it->id == 0);
 
-										failed_devices.erase(it);
-										devices.emplace_back(fd, type, std::move(name));
-										engine::hid::found_device(fd);
-									}
-									else
-									{
-										debug_printline("device ", event->name, " is uninteresting");
-
-										failed_devices.erase(it);
-										::close(fd);
-									}
-								}
+								const auto state = try_open_event(name.c_str(), devices, events);
+								it->status = state.first;
+								it->id = state.second;
 							}
 						}
 					}
@@ -970,9 +1000,9 @@ namespace
 			}
 		}
 
-		for (int i = 0; i < devices.size(); i++)
+		for (int i = 0; i < events.size(); i++)
 		{
-			::close(devices[i].fd);
+			::close(events[i].fd);
 		}
 
 		close(notify_fd);
@@ -988,7 +1018,7 @@ namespace engine
 		void create()
 		{
 			pipe(interupt_pipe);
-			thread = core::async::Thread{ device_watch };
+			thread = core::async::Thread{ event_watch };
 
 			if (XkbDescPtr const desc = engine::application::window::load_key_names())
 			{
