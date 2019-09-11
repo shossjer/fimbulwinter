@@ -39,6 +39,15 @@ namespace core
 			clock_nanosleep(CLOCK_REALTIME, 0, &sleep_time, NULL);
 #endif
 		}
+
+		inline void yield()
+		{
+#if THREAD_USE_KERNEL32
+			SwitchToThread();
+#elif THREAD_USE_PTHREAD
+			pthread_yield();
+#endif
+		}
 	}
 }
 
