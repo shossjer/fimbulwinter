@@ -103,7 +103,11 @@ namespace engine
 				return;
 
 			const int command_begin = 0;
-			const int command_end = line.find(' ', command_begin);
+			int command_end = line.find(' ', command_begin);
+			if (command_end == std::string::npos)
+			{
+				command_end = line.length();
+			}
 
 			const utility::string_view command_name(line.data() + command_begin, command_end - command_begin);
 			const engine::Asset command_key(command_name);
