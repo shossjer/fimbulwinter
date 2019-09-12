@@ -1,12 +1,14 @@
 
 #include "ui.hpp"
 
+#include "core/async/delay.hpp"
 #include "core/container/CircleQueue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
 
 #include "engine/Command.hpp"
 #include "engine/commands.hpp"
+#include "engine/console.hpp"
 #include "engine/debug.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/hid/input.hpp"
@@ -384,6 +386,29 @@ namespace
 		engine::Entity callback;
 	};
 
+	struct ContextInfo
+	{
+		engine::Asset asset;
+		std::vector<engine::Asset> states;
+		std::vector<int> devices;
+	};
+	struct QueryContexts
+	{
+		std::atomic_int * ready;
+		std::vector<ContextInfo> * contexts;
+	};
+
+	struct DeviceInfo
+	{
+		int id;
+		std::vector<DeviceSource> sources;
+	};
+	struct QueryDevices
+	{
+		std::atomic_int * ready;
+		std::vector<DeviceInfo> * devices;
+	};
+
 	struct RemoveContext
 	{
 		engine::Asset context;
@@ -410,6 +435,8 @@ namespace
 		AddContext,
 		AddDevice,
 		Bind,
+		QueryContexts,
+		QueryDevices,
 		RemoveContext,
 		RemoveDevice,
 		Unbind
@@ -512,6 +539,65 @@ namespace
 		}
 
 	};
+
+	void post_query_contexts(std::atomic_int & ready, std::vector<ContextInfo> & contexts)
+	{
+		const auto res = queue.try_emplace(utility::in_place_type<QueryContexts>, &ready, &contexts);
+		debug_assert(res);
+	}
+
+	void post_query_devices(std::atomic_int & ready, std::vector<DeviceInfo> & devices)
+	{
+		const auto res = queue.try_emplace(utility::in_place_type<QueryDevices>, &ready, &devices);
+		debug_assert(res);
+	}
+
+	void callback_print_devices(void *)
+	{
+		std::atomic_int ready(0);
+		std::vector<DeviceInfo> devices;
+		std::vector<ContextInfo> contexts;
+		post_query_devices(ready, devices);
+		post_query_contexts(ready, contexts);
+
+		while (ready.load(std::memory_order_acquire) < 2)
+		{
+			core::async::yield();
+		}
+
+		debug_printline("print-devices:");
+		for (const auto & device : devices)
+		{
+			std::vector<int> contexts_using_device;
+			for (int i = 0; i < contexts.size(); i++)
+			{
+				if (std::find(contexts[i].devices.begin(), contexts[i].devices.end(), device.id) != contexts[i].devices.end())
+				{
+					contexts_using_device.push_back(i);
+				}
+			}
+
+			std::string context_str;
+			if (contexts_using_device.empty())
+			{
+				context_str = " unsused";
+			}
+			else
+			{
+				context_str = " used in contexts:";
+				for (auto i : contexts_using_device)
+				{
+					context_str += utility::to_string(" ", contexts[i].asset);
+				}
+			}
+			debug_printline(" device ", device.id, context_str);
+
+			for (const auto & source : device.sources)
+			{
+				debug_printline("  source ", source.path, "(", source.type, "): ", source.name);
+			}
+		}
+	}
 }
 
 namespace engine
@@ -522,6 +608,7 @@ namespace ui
 {
 	void create()
 	{
+		engine::console::observe("print-devices", callback_print_devices, nullptr);
 	}
 
 	void destroy()
@@ -622,6 +709,33 @@ namespace ui
 					}
 
 					contexts[i].add_mapping(x.state, x.mapping, x.callback);
+				}
+
+				void operator () (QueryContexts && x)
+				{
+					x.contexts->resize(contexts.size());
+
+					for (int i = 0; i < contexts.size(); i++)
+					{
+						(*x.contexts)[i].asset = context_assets[i];
+						(*x.contexts)[i].devices = contexts[i].devices;
+						(*x.contexts)[i].states = contexts[i].states;
+					}
+
+					x.ready->fetch_add(1, std::memory_order_release);
+				}
+
+				void operator () (QueryDevices && x)
+				{
+					x.devices->resize(devices.size());
+
+					for (int i = 0; i < devices.size(); i++)
+					{
+						(*x.devices)[i].id = devices[i];
+						(*x.devices)[i].sources = device_sources[i];
+					}
+
+					x.ready->fetch_add(1, std::memory_order_release);
 				}
 
 				void operator () (RemoveContext && x)
