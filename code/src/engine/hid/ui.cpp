@@ -47,8 +47,16 @@ namespace
 		engine::Entity axis_callbacks[engine::hid::Input::axis_count];
 	};
 
+	struct DeviceSource
+	{
+		int type;
+		std::string path;
+		std::string name;
+	};
+
 	std::vector<Device> devices;
 	std::vector<DeviceMapping> device_mappings;
+	std::vector<std::vector<DeviceSource>> device_sources;
 
 	int find_device(Device device)
 	{
@@ -64,12 +72,14 @@ namespace
 
 		devices.push_back(device);
 		device_mappings.emplace_back();
+		device_sources.emplace_back();
 	}
 
 	void remove_device(Device device)
 	{
 		const int i = find_device(device);
 
+		device_sources.erase(std::next(device_sources.begin(), i));
 		device_mappings.erase(std::next(device_mappings.begin(), i));
 		devices.erase(std::next(devices.begin(), i));
 	}
@@ -423,10 +433,26 @@ namespace
 		int id;
 	};
 
+	struct AddSource
+	{
+		int id;
+		int type;
+		std::string path;
+		std::string name;
+	};
+
+	struct RemoveSource
+	{
+		int id;
+		std::string path;
+	};
+
 	using InputMessage = utility::variant
 	<
 		DeviceFound,
 		DeviceLost,
+		AddSource,
+		RemoveSource,
 		engine::hid::Input
 	>;
 
@@ -650,6 +676,25 @@ namespace ui
 					remove_device(x.id);
 				}
 
+				void operator () (AddSource && x)
+				{
+					debug_printline("device ", x.id, " found source ", x.path);
+
+					const int i = find_device(x.id);
+					debug_assert(std::find_if(device_sources[i].begin(), device_sources[i].end(), [&](const DeviceSource & source){ return source.path == x.path; }) == device_sources[i].end());
+					device_sources[i].push_back({x.type, std::move(x.path), std::move(x.name)});
+				}
+
+				void operator () (RemoveSource && x)
+				{
+					debug_printline("device ", x.id, " lost source ", x.path);
+
+					const int i = find_device(x.id);
+					auto source = std::find_if(device_sources[i].begin(), device_sources[i].end(), [&](const DeviceSource & source){ return source.path == x.path; });
+					debug_assert(source != device_sources[i].end());
+					device_sources[i].erase(source);
+				}
+
 				void operator () (engine::hid::Input && input)
 				{
 					const auto & device_mapping = device_mappings[find_device(input.getDevice())];
@@ -687,6 +732,18 @@ namespace ui
 	void notify_device_lost(int id)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceLost>, id);
+		debug_assert(res);
+	}
+
+	void notify_add_source(int id, std::string && path, int type, std::string && name)
+	{
+		const auto res = queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), std::move(name));
+		debug_assert(res);
+	}
+
+	void notify_remove_source(int id, std::string && path)
+	{
+		const auto res = queue_input.try_emplace(utility::in_place_type<RemoveSource>, id, std::move(path));
 		debug_assert(res);
 	}
 

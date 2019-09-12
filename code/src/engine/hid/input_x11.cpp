@@ -43,6 +43,9 @@ namespace engine
 		extern void found_device(int id);
 		extern void lost_device(int id);
 
+		extern void add_source(int id, const char * path, int type, const char * name);
+		extern void remove_source(int id, const char * path);
+
 		extern void dispatch(const Input & input);
 	}
 }
@@ -750,6 +753,11 @@ namespace
 				events.emplace_back(fd, type, device.id);
 				device.event_count++;
 
+				char event_name[256] = "Unknown";
+				::ioctl(fd, EVIOCGNAME(sizeof event_name), event_name);
+
+				engine::hid::add_source(device.id, path, static_cast<int>(type), event_name);
+
 				return {EventStatus::Open, device.id};
 			}
 			else
@@ -969,6 +977,8 @@ namespace
 									debug_assert(device != devices.end());
 
 									::close(event->fd);
+
+									engine::hid::remove_source(device->id, name.c_str());
 
 									device->event_count--;
 									events.erase(event);
