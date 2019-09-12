@@ -226,6 +226,13 @@ namespace
 			devices.erase(it);
 		}
 
+		bool has_device(Device device)
+		{
+			debug_assert(std::find(::devices.begin(), ::devices.end(), device) != ::devices.end());
+
+			return std::find(devices.begin(), devices.end(), device) != devices.end();
+		}
+
 		void set_device_mappings()
 		{
 			debug_assert(!has_device_mappings, "already set");
@@ -308,6 +315,8 @@ namespace
 	std::vector<engine::Asset> context_assets;
 	std::vector<Context> contexts;
 
+	engine::Asset default_context = engine::Asset::null();
+
 	int find_context(engine::Asset context)
 	{
 		auto it = std::find(context_assets.begin(), context_assets.end(), context);
@@ -326,6 +335,8 @@ namespace
 
 	void remove_context(engine::Asset context)
 	{
+		debug_assert(context != default_context);
+
 		const int i = find_context(context);
 		contexts.erase(std::next(contexts.begin(), i));
 		context_assets.erase(std::next(context_assets.begin(), i));
@@ -405,21 +416,6 @@ namespace
 	>;
 
 	core::container::CircleQueueSRMW<Message, 100> queue;
-
-	void post_add_device(
-		engine::Asset context,
-		int id)
-	{
-		const auto res = queue.try_emplace(utility::in_place_type<AddDevice>, context, id);
-		debug_assert(res);
-	}
-	void post_remove_device(
-		engine::Asset context,
-		int id)
-	{
-		const auto res = queue.try_emplace(utility::in_place_type<RemoveDevice>, context, id);
-		debug_assert(res);
-	}
 
 	core::container::ExchangeQueueSRSW<dimension_t> queue_dimension;
 
@@ -578,7 +574,32 @@ namespace ui
 
 				void operator () (AddContext && x)
 				{
+					const bool first_context = context_assets.empty();
+
 					add_context(x.context, std::move(x.states));
+
+					if (first_context)
+					{
+						// it is a bit weird that we make the first context
+						// the default context...
+						default_context = x.context;
+
+						// ... and after that add all known devices to that
+						// context, it is confusing to have multiple
+						// meanings for what a default context is, therefore
+						// we should probably replace this loop with
+						// something else, but what? :thinking:
+
+						// (the primary meaning being of course that found
+						// devices gets added to the default context if one
+						// is set, see DeviceFound)
+						const int i = find_context(default_context);
+						debug_assert(!contexts[i].has_device_mappings, "newly added context should not have device mappings");
+						for (auto device : devices)
+						{
+							contexts[i].add_device(device);
+						}
+					}
 				}
 
 				void operator () (AddDevice && x)
@@ -605,7 +626,27 @@ namespace ui
 
 				void operator () (RemoveContext && x)
 				{
+					const int i = find_context(x.context);
+					if (contexts[i].has_device_mappings)
+					{
+						contexts[i].clear_device_mappings();
+					}
+
+					const bool removing_default_context = x.context == default_context;
+					if (removing_default_context)
+					{
+						default_context = engine::Asset::null();
+					}
+
 					remove_context(x.context);
+
+					if (removing_default_context)
+					{
+						if (!context_assets.empty())
+						{
+							default_context = context_assets.front();
+						}
+					}
 				}
 
 				void operator () (RemoveDevice && x)
@@ -654,24 +695,28 @@ namespace ui
 
 					add_device(x.id);
 
-					// v tmp v
-					for (auto context : context_assets)
+					if (default_context != engine::Asset::null())
 					{
-						post_add_device(context, x.id);
+						const int i = find_context(default_context);
+						contexts[i].clear_device_mappings();
+						contexts[i].add_device(x.id);
+						contexts[i].set_device_mappings();
 					}
-					// ^ tmp ^
 				}
 
 				void operator () (DeviceLost && x)
 				{
 					debug_printline("device ", x.id, " lost");
 
-					// v tmp v
-					for (auto context : context_assets)
+					for (auto & context : contexts)
 					{
-						post_remove_device(context, x.id);
+						if (!context.has_device(x.id))
+							continue;
+
+						context.clear_device_mappings();
+						context.remove_device(x.id);
+						context.set_device_mappings();
 					}
-					// ^ tmp ^
 
 					remove_device(x.id);
 				}
