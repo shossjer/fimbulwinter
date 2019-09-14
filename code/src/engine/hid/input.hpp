@@ -410,8 +410,19 @@ namespace engine
 			{
 				State state;
 				Player player;
+#if defined(_MSC_VER) && _MSC_VER <= 1916
+				uint8_t xs[3];
+				uint8_t ys[3];
+
+				int32_t x() const { return (int32_t(xs[2]) << 24 | int32_t(xs[1]) << 16 | int32_t(xs[0]) << 8) >> 8; }
+				int32_t y() const { return (int32_t(ys[2]) << 24 | int32_t(ys[1]) << 16 | int32_t(ys[0]) << 8) >> 8; }
+
+				void x(int32_t value) { xs[0] = value & 0x000000ff; xs[1] = value >> 8 & 0x000000ff; xs[2] = value >> 16 & 0x000000ff; }
+				void y(int32_t value) { ys[0] = value & 0x000000ff; ys[1] = value >> 8 & 0x000000ff; ys[2] = value >> 16 & 0x000000ff; }
+#else
 				int64_t x : 24;
 				int64_t y : 24;
+#endif
 			} mouse_move;
 			static_assert(std::is_trivial<MouseMove>::value, "");
 
@@ -462,7 +473,11 @@ namespace engine
 			{
 				switch (common_header.state)
 				{
+#if defined(_MSC_VER) && _MSC_VER <= 1916
+				case State::MOUSE_MOVE: return {mouse_move.x(), mouse_move.y()};
+#else
 				case State::MOUSE_MOVE: return {mouse_move.x, mouse_move.y};
+#endif
 				default: debug_unreachable("invalid state");
 				}
 			}
@@ -550,8 +565,13 @@ namespace engine
 			Input input;
 			input.mouse_move.state = Input::State::MOUSE_MOVE;
 			input.mouse_move.player = player;
+#if defined(_MSC_VER) && _MSC_VER <= 1916
+			input.mouse_move.x(x);
+			input.mouse_move.y(y);
+#else
 			input.mouse_move.x = x;
 			input.mouse_move.y = y;
+#endif
 			return input;
 		}
 	}
