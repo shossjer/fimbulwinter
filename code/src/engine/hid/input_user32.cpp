@@ -781,8 +781,8 @@ namespace engine
 
 		void key_character(int scancode, const char16_t * u16)
 		{
-			input.setKeyCharacter(0, sc_to_button[scancode], utility::code_point(u16));
-			dispatch(input);
+			const engine::hid::Input::Button button = sc_to_button[scancode];
+			dispatch(KeyCharacterInput(0, button, utility::code_point(u16)));
 		}
 
 #if !INPUT_USE_RAWINPUT
