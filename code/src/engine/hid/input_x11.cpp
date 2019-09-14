@@ -41,7 +41,7 @@ namespace engine
 
 	namespace hid
 	{
-		extern void found_device(int id);
+		extern void found_device(int id, int vendor, int product);
 		extern void lost_device(int id);
 
 		extern void add_source(int id, const char * path, int type, const char * name);
@@ -725,7 +725,7 @@ namespace
 				return device;
 		}
 		devices.emplace_back(vendor, product);
-		engine::hid::found_device(devices.back().id);
+		engine::hid::found_device(devices.back().id, vendor, product);
 		return devices.back();
 	}
 
@@ -1123,7 +1123,7 @@ namespace engine
 				engine::application::window::free_key_names(desc);
 			}
 
-			found_device(0); // non hardware device
+			found_device(0, 0, 0); // non hardware device
 
 			engine::console::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
 			engine::console::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);

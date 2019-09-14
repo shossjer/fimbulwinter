@@ -36,7 +36,7 @@ namespace engine
 {
 	namespace hid
 	{
-		void found_device(int id)
+		void found_device(int id, int vendor, int product)
 		{
 			ui::notify_device_found(id);
 		}
