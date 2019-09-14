@@ -2,6 +2,7 @@
 #include "core/debug.hpp"
 
 #include "engine/application/window.hpp"
+#include "engine/graphics/renderer.hpp"
 #include "engine/hid/ui.hpp"
 #include "engine/resource/reader.hpp"
 #include "engine/resource/writer.hpp"
@@ -32,12 +33,6 @@ namespace engine
 
 	namespace graphics
 	{
-		namespace renderer
-		{
-			extern void create();
-			extern void destroy();
-		}
-
 		namespace viewer
 		{
 			extern void create();
