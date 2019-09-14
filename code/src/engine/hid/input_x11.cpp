@@ -9,6 +9,7 @@
 #include "core/maths/util.hpp"
 
 #include "engine/Asset.hpp"
+#include "engine/console.hpp"
 #include "engine/debug.hpp"
 
 #include "utility/algorithm.hpp"
@@ -1078,6 +1079,32 @@ namespace
 		}
 		hardware_input.store(1, std::memory_order_relaxed); // release?
 	}
+
+	void disable_hardware_input_callback(void *)
+	{
+		disable_hardware_input();
+	}
+
+	void enable_hardware_input_callback(void *)
+	{
+		enable_hardware_input();
+	}
+
+	void toggle_hardware_input_callback(void *)
+	{
+		int value = lock_state_variable(hardware_input);
+		if (value == 0)
+		{
+			value = 1;
+			start_hardware_input();
+		}
+		else
+		{
+			value = 0;
+			stop_hardware_input();
+		}
+		hardware_input.store(value, std::memory_order_relaxed); // release?
+	}
 }
 
 namespace engine
@@ -1097,6 +1124,10 @@ namespace engine
 			}
 
 			found_device(0); // non hardware device
+
+			engine::console::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
+			engine::console::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
+			engine::console::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
 		}
 
 		void destroy()
