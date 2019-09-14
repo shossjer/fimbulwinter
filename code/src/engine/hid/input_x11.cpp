@@ -771,6 +771,30 @@ namespace
 		}
 	}
 
+	void close_event(const EventInfo & event_info, std::vector<Device> & devices, std::vector<Event> & events)
+	{
+		debug_assert(event_info.status == EventStatus::Open);
+
+		auto event = std::find_if(events.begin(), events.end(), [& event_info](const Event & event){ return event.id == event_info.id; });
+		debug_assert(event != events.end());
+
+		auto device = std::find_if(devices.begin(), devices.end(), [& event_info](const Device & device){ return device.id == event_info.id; });
+		debug_assert(device != devices.end());
+
+		::close(event->fd);
+
+		engine::hid::remove_source(device->id, event_info.path.c_str());
+
+		device->event_count--;
+		events.erase(event);
+
+		if (device->event_count <= 0)
+		{
+			engine::hid::lost_device(device->id);
+			devices.erase(device);
+		}
+	}
+
 	void scan_events(std::vector<EventInfo> & event_infos, std::vector<Device> & devices, std::vector<Event> & events)
 	{
 		struct dirent ** namelist;
@@ -970,24 +994,7 @@ namespace
 							{
 								if (it->status == EventStatus::Open)
 								{
-									auto event = std::find_if(events.begin(), events.end(), [& it](const Event & event){ return event.id == it->id; });
-									debug_assert(event != events.end());
-
-									auto device = std::find_if(devices.begin(), devices.end(), [& it](const Device & device){ return device.id == it->id; });
-									debug_assert(device != devices.end());
-
-									::close(event->fd);
-
-									engine::hid::remove_source(device->id, name.c_str());
-
-									device->event_count--;
-									events.erase(event);
-
-									if (device->event_count <= 0)
-									{
-										engine::hid::lost_device(device->id);
-										devices.erase(device);
-									}
+									close_event(*it, devices, events);
 								}
 								event_infos.erase(it);
 							}
@@ -1010,9 +1017,12 @@ namespace
 			}
 		}
 
-		for (int i = 0; i < events.size(); i++)
+		for (int i = 0; i < event_infos.size(); i++)
 		{
-			::close(events[i].fd);
+			if (event_infos[i].status == EventStatus::Open)
+			{
+				close_event(event_infos[i], devices, events);
+			}
 		}
 
 		close(notify_fd);
