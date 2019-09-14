@@ -50,8 +50,6 @@ namespace engine
 
 namespace
 {
-	engine::hid::Input input;
-
 	using Button = engine::hid::Input::Button;
 
 	// scancodes are the primary way we use to identify keys but we only
