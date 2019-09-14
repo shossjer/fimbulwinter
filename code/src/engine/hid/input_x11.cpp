@@ -1029,6 +1029,55 @@ namespace
 
 		close(interupt_pipe[0]);
 	}
+
+	std::atomic_int hardware_input(0);
+
+	void start_hardware_input()
+	{
+		debug_assert(hardware_input.load(std::memory_order_relaxed) == -1);
+
+		pipe(interupt_pipe);
+		thread = core::async::Thread{ event_watch };
+	}
+
+	void stop_hardware_input()
+	{
+		debug_assert(hardware_input.load(std::memory_order_relaxed) == -1);
+
+		close(interupt_pipe[1]);
+		thread.join();
+	}
+
+	int lock_state_variable(std::atomic_int & state)
+	{
+		int value;
+		do
+		{
+			value = state.load(std::memory_order_relaxed); // acquire?
+			while (!state.compare_exchange_weak(value, -1, std::memory_order_relaxed)); // ??
+		}
+		while (value == -1);
+
+		return value;
+	}
+
+	void disable_hardware_input()
+	{
+		if (lock_state_variable(hardware_input) != 0)
+		{
+			stop_hardware_input();
+		}
+		hardware_input.store(0, std::memory_order_relaxed); // release?
+	}
+
+	void enable_hardware_input()
+	{
+		if (lock_state_variable(hardware_input) != 1)
+		{
+			start_hardware_input();
+		}
+		hardware_input.store(1, std::memory_order_relaxed); // release?
+	}
 }
 
 namespace engine
@@ -1037,9 +1086,6 @@ namespace engine
 	{
 		void create()
 		{
-			pipe(interupt_pipe);
-			thread = core::async::Thread{ event_watch };
-
 			if (XkbDescPtr const desc = engine::application::window::load_key_names())
 			{
 				for (int code = desc->min_key_code; code < desc->max_key_code; code++)
@@ -1055,8 +1101,7 @@ namespace engine
 
 		void destroy()
 		{
-			close(interupt_pipe[1]);
-			thread.join();
+			disable_hardware_input();
 
 			lost_device(0); // non hardware device
 		}
@@ -1071,6 +1116,9 @@ namespace engine
 
 		void button_press(XButtonEvent & event)
 		{
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+
 			debug_assert((event.button >= 1 && event.button < 6));
 			const engine::hid::Input::Button buttons[] =
 				{
@@ -1089,6 +1137,9 @@ namespace engine
 		}
 		void button_release(XButtonEvent & event)
 		{
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+
 			debug_assert((event.button >= 1 && event.button < 6));
 			const engine::hid::Input::Button buttons[] =
 				{
@@ -1107,6 +1158,9 @@ namespace engine
 		}
 		void key_press(XKeyEvent & event)
 		{
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
 			// debug_printline("key ", button_name, " down");
@@ -1114,6 +1168,9 @@ namespace engine
 		}
 		void key_release(XKeyEvent & event)
 		{
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
 			// debug_printline("key ", button_name, " up");
