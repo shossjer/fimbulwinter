@@ -48,7 +48,7 @@ namespace engine
 
 	namespace hid
 	{
-		extern void create();
+		extern void create(bool hardware_input);
 		extern void destroy();
 	}
 
@@ -190,7 +190,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	while (settings_lock < 2);
 
 	engine::application::window::create(hInstance, nCmdShow, settings.application);
-	engine::hid::create();
+	engine::hid::create(settings.hid.hardware_input);
 
 	::engine::console::create();
 	::engine::replay::create();
@@ -237,7 +237,7 @@ int main(const int argc, const char *const argv[])
 	while (settings_lock < 2);
 
 	engine::application::window::create(settings.application);
-	engine::hid::create();
+	engine::hid::create(settings.hid.hardware_input);
 
 	::engine::console::create();
 	::engine::replay::create();

@@ -1111,7 +1111,7 @@ namespace engine
 {
 	namespace hid
 	{
-		void create()
+		void create(bool hardware_input)
 		{
 			if (XkbDescPtr const desc = engine::application::window::load_key_names())
 			{
@@ -1128,6 +1128,11 @@ namespace engine
 			engine::console::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
 			engine::console::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
 			engine::console::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
+
+			if (hardware_input)
+			{
+				enable_hardware_input();
+			}
 		}
 
 		void destroy()

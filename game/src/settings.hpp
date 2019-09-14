@@ -6,6 +6,7 @@
 
 #include "engine/application/config.hpp"
 #include "engine/graphics/config.hpp"
+#include "engine/hid/config.hpp"
 #include "engine/resource/formats.hpp"
 
 struct settings_t
@@ -25,13 +26,15 @@ struct settings_t
 	general_t general;
 	engine::application::config_t application;
 	engine::graphics::config_t graphics;
+	engine::hid::config_t hid;
 
 	static constexpr auto serialization()
 	{
 		return utility::make_lookup_table(
 			std::make_pair(utility::string_view("general"), &settings_t::general),
 			std::make_pair(utility::string_view("application"), &settings_t::application),
-			std::make_pair(utility::string_view("graphics"), &settings_t::graphics)
+			std::make_pair(utility::string_view("graphics"), &settings_t::graphics),
+			std::make_pair(utility::string_view("hid"), &settings_t::hid)
 			);
 	}
 };

@@ -93,6 +93,7 @@ set(HEADER_FILES
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/viewer.hpp
+   src/engine/hid/config.hpp
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp

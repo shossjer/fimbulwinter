@@ -503,7 +503,7 @@ namespace engine
 			devices.erase(it);
 		}
 
-		void create()
+		void create(bool hardware_input)
 		{
 			// collection numbers
 			// https://docs.microsoft.com/en-us/windows-hardware/drivers/hid/top-level-collections-opened-by-windows-for-system-use
