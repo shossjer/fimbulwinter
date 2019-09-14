@@ -926,6 +926,21 @@ namespace ui
 		debug_assert(res);
 	}
 
+	void post_add_device(
+		engine::Asset context,
+		int id)
+	{
+		const auto res = queue.try_emplace(utility::in_place_type<AddDevice>, context, id);
+		debug_assert(res);
+	}
+	void post_remove_device(
+		engine::Asset context,
+		int id)
+	{
+		const auto res = queue.try_emplace(utility::in_place_type<RemoveDevice>, context, id);
+		debug_assert(res);
+	}
+
 	void post_add_axis_tilt(
 		engine::Entity mapping,
 		engine::hid::Input::Axis code,

@@ -25,6 +25,13 @@ namespace ui
 	void post_remove_context(
 		engine::Asset context);
 
+	void post_add_device(
+		engine::Asset context,
+		int id);
+	void post_remove_device(
+		engine::Asset context,
+		int id);
+
 	void post_add_axis_tilt(
 		engine::Entity mapping,
 		engine::hid::Input::Axis code,
