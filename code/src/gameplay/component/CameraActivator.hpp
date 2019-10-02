@@ -32,7 +32,7 @@ namespace gameplay
 					engine::graphics::viewer::post_bind(frame, camera);
 					break;
 				default:
-					debug_printline(gameplay::gameplay_channel, "CameraActivator: Unknown command: ", command);
+					debug_unreachable("unknown command ", command);
 				}
 			}
 		};

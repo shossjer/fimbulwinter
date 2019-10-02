@@ -978,8 +978,7 @@ namespace
 						if (event->mask & IN_CREATE)
 						{
 							auto it = std::find_if(event_infos.begin(), event_infos.end(), [& name](const EventInfo & i){ return i.path == name; });
-							debug_assert(it == event_infos.end(), "congratulations :tada: you found a data race");
-							if (it == event_infos.end())
+							if (debug_verify(it == event_infos.end(), "congratulations :tada: you found a data race"))
 							{
 								const auto state = try_open_event(name.c_str(), devices, events);
 								event_infos.push_back({std::move(name), state.first, state.second});
@@ -990,8 +989,7 @@ namespace
 							debug_printline("event ", event->name, " lost");
 
 							auto it = std::find_if(event_infos.begin(), event_infos.end(), [& name](const EventInfo & i){ return i.path == name; });
-							debug_assert(it != event_infos.end(), "congratulations :tada: you found a data race");
-							if (it != event_infos.end())
+							if (debug_verify(it != event_infos.end(), "congratulations :tada: you found a data race"))
 							{
 								if (it->status == EventStatus::Open)
 								{

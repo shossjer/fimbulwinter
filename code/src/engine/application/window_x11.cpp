@@ -353,8 +353,7 @@ namespace
 
 	void create_input_context(Window & window)
 	{
-		debug_assert(input_method, "input method is needed");
-		if (!input_method)
+		if (!debug_verify(input_method, "input method is needed"))
 			return;
 
 		debug_assert(!input_context);

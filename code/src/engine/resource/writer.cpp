@@ -157,8 +157,7 @@ namespace engine
 			void post_write(std::string name, void (* callback)(std::string name, Serializer & serializer))
 			{
 				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageWrite>, std::move(name), callback);
-				debug_assert(res);
-				if (res)
+				if (debug_verify(res, "write queue is full"))
 				{
 					event.set();
 				}

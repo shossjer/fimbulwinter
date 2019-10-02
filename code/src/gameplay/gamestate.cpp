@@ -1294,8 +1294,7 @@ namespace gamestate
 			{
 				engine::replay::post_add_command(frame_count, std::get<0>(command_args), std::get<1>(command_args), utility::any(std::get<2>(command_args)));
 
-				debug_assert(std::get<0>(command_args) != engine::Entity::null());
-				if (std::get<0>(command_args) != engine::Entity::null())
+				if (debug_verify(std::get<0>(command_args) != engine::Entity::null()))
 				{
 					components.call(std::get<0>(command_args), translate_command{std::get<1>(command_args), std::move(std::get<2>(command_args))});
 				}

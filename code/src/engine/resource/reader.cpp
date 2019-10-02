@@ -349,8 +349,7 @@ namespace engine
 			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer), FormatMask formats)
 			{
 				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRead>, std::move(name), callback, formats);
-				debug_assert(res);
-				if (res)
+				if (debug_verify(res, "read queue is full"))
 				{
 					event.set();
 				}

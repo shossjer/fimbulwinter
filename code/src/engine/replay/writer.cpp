@@ -40,7 +40,7 @@ namespace
 				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), std::get<3>(command_args).type_id(), utility::any_cast<engine::Entity>(std::get<3>(command_args))));
 				break;
 			default:
-				debug_unreachable("unknown type");
+				debug_unreachable("unknown type ", std::get<3>(command_args).type_id());
 			}
 		}
 	}
@@ -94,8 +94,7 @@ namespace engine
 			if (active.load(std::memory_order_relaxed))
 			{
 				auto res = queue_commands.try_emplace(frame_count, entity, command, std::move(data));
-				debug_assert(res);
-				if (res)
+				if (debug_verify(res, "write queue is full"))
 				{
 					event.set();
 				}
