@@ -141,12 +141,28 @@ namespace engine
 			{
 				int32_t x;
 				int32_t y;
+
+				static constexpr auto serialization()
+				{
+					return utility::make_lookup_table(
+						std::make_pair(utility::string_view("x"), &Cursor::x),
+						std::make_pair(utility::string_view("y"), &Cursor::y)
+						);
+				}
 			};
 
 			struct SelectData
 			{
 				engine::Entity entity;
 				Cursor cursor;
+
+				static constexpr auto serialization()
+				{
+					return utility::make_lookup_table(
+						std::make_pair(utility::string_view("entity"), &SelectData::entity),
+						std::make_pair(utility::string_view("cursor"), &SelectData::cursor)
+						);
+				}
 			};
 
 			struct CharacterSkinning

@@ -9,6 +9,7 @@
 #include "core/sync/Event.hpp"
 
 #include "engine/commands.hpp"
+#include "engine/graphics/renderer.hpp"
 
 #include <atomic>
 #include <fstream>
@@ -38,6 +39,9 @@ namespace
 				break;
 			case utility::type_id<engine::Entity>():
 				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), std::get<3>(command_args).type_id(), utility::any_cast<engine::Entity>(std::get<3>(command_args))));
+				break;
+			case utility::type_id<engine::graphics::renderer::SelectData>():
+				s.write(std::make_tuple(std::get<0>(command_args), std::get<1>(command_args), std::get<2>(command_args), std::get<3>(command_args).type_id(), utility::any_cast<engine::graphics::renderer::SelectData>(std::get<3>(command_args))));
 				break;
 			default:
 				debug_unreachable("unknown type ", std::get<3>(command_args).type_id());

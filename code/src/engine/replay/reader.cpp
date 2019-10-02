@@ -7,6 +7,7 @@
 
 #include "engine/commands.hpp"
 #include "engine/Entity.hpp"
+#include "engine/graphics/renderer.hpp"
 
 #include "utility/any.hpp"
 
@@ -35,6 +36,9 @@ namespace
 			break;
 		case utility::type_id<engine::Entity>():
 			s.read(data.emplace<engine::Entity>());
+			break;
+		case utility::type_id<engine::graphics::renderer::SelectData>():
+			s.read(data.emplace<engine::graphics::renderer::SelectData>());
 			break;
 		default:
 			debug_unreachable("unknown type");
