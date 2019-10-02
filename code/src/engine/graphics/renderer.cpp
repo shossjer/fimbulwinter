@@ -61,14 +61,6 @@ namespace engine
 	}
 }
 
-namespace gameplay
-{
-	namespace gamestate
-	{
-		extern void post_command(engine::Entity entity, engine::Command command, utility::any && data);
-	}
-}
-
 namespace engine
 {
 	namespace graphics
