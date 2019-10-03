@@ -25,6 +25,10 @@ namespace ui
 	void post_remove_context(
 		engine::Asset context);
 
+	void post_set_state(
+		engine::Asset context,
+		engine::Asset state);
+
 	void post_add_device(
 		engine::Asset context,
 		int id);

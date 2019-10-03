@@ -235,6 +235,14 @@ namespace
 			return std::find(devices.begin(), devices.end(), device) != devices.end();
 		}
 
+		// \note the device mappings must be cleared prior to this call
+		void set_active(engine::Asset state)
+		{
+			debug_assert(!has_device_mappings);
+
+			active = find(state);
+		}
+
 		void set_device_mappings()
 		{
 			debug_assert(!has_device_mappings, "already set");
@@ -420,6 +428,12 @@ namespace
 		int id;
 	};
 
+	struct SetState
+	{
+		engine::Asset context;
+		engine::Asset state;
+	};
+
 	struct Unbind
 	{
 		engine::Asset context;
@@ -439,6 +453,7 @@ namespace
 		QueryDevices,
 		RemoveContext,
 		RemoveDevice,
+		SetState,
 		Unbind
 	>;
 
@@ -774,6 +789,17 @@ namespace ui
 					contexts[i].remove_device(x.id);
 				}
 
+				void operator () (SetState && x)
+				{
+					const int i = find_context(x.context);
+					if (contexts[i].has_device_mappings)
+					{
+						contexts[i].clear_device_mappings();
+					}
+
+					contexts[i].set_active(x.state);
+				}
+
 				void operator () (Unbind && x)
 				{
 					const int i = find_context(x.context);
@@ -923,6 +949,14 @@ namespace ui
 		engine::Asset context)
 	{
 		const auto res = queue.try_emplace(utility::in_place_type<RemoveContext>, context);
+		debug_assert(res);
+	}
+
+	void post_set_state(
+		engine::Asset context,
+		engine::Asset state)
+	{
+		const auto res = queue.try_emplace(utility::in_place_type<SetState>, context, state);
 		debug_assert(res);
 	}
 
