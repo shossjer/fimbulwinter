@@ -2,6 +2,7 @@
 #include "input.hpp"
 
 #include <bitset>
+#include <vector>
 
 namespace engine
 {
@@ -22,14 +23,19 @@ namespace engine
 
 namespace
 {
-	union axis_value
+	struct DeviceValues
 	{
-		int32_t signed_value;
-		uint32_t unsigned_value;
+		union axis_value
+		{
+			int32_t signed_value;
+			uint32_t unsigned_value;
+		};
+
+		axis_value axis_states[engine::hid::Input::axis_count] = {};
+		std::bitset<engine::hid::Input::button_count> button_states;
 	};
 
-	axis_value axis_states[engine::hid::Input::axis_count] = {};
-	std::bitset<engine::hid::Input::button_count> button_states;
+	std::vector<DeviceValues> device_values;
 }
 
 namespace engine
@@ -38,10 +44,20 @@ namespace engine
 	{
 		void found_device(int id, int vendor, int product)
 		{
+			if (id >= device_values.size())
+			{
+				device_values.resize(id + 1);
+			}
+
 			ui::notify_device_found(id);
 		}
 		void lost_device(int id)
 		{
+			if (debug_assert(id < device_values.size()))
+			{
+				device_values[id] = DeviceValues{};
+			}
+
 			ui::notify_device_lost(id);
 		}
 
@@ -56,31 +72,33 @@ namespace engine
 
 		void dispatch(const Input & input)
 		{
+			auto & values = device_values[debug_assert(input.getDevice() < device_values.size()) ? input.getDevice() : 0];
+
 			switch (input.getState())
 			{
 			case Input::State::AXIS_TILT:
-				if (axis_states[static_cast<int>(input.getAxis())].signed_value == input.getTilt())
+				if (values.axis_states[static_cast<int>(input.getAxis())].signed_value == input.getTilt())
 					return;
 
-				axis_states[static_cast<int>(input.getAxis())].signed_value = input.getTilt();
+				values.axis_states[static_cast<int>(input.getAxis())].signed_value = input.getTilt();
 				break;
 			case Input::State::AXIS_TRIGGER:
-				if (axis_states[static_cast<int>(input.getAxis())].unsigned_value == input.getTrigger())
+				if (values.axis_states[static_cast<int>(input.getAxis())].unsigned_value == input.getTrigger())
 					return;
 
-				axis_states[static_cast<int>(input.getAxis())].unsigned_value = input.getTrigger();
+				values.axis_states[static_cast<int>(input.getAxis())].unsigned_value = input.getTrigger();
 				break;
 			case Input::State::BUTTON_DOWN:
-				if (button_states[static_cast<int>(input.getButton())])
+				if (values.button_states[static_cast<int>(input.getButton())])
 					return;
 
-				button_states.set(static_cast<int>(input.getButton()));
+				values.button_states.set(static_cast<int>(input.getButton()));
 				break;
 			case Input::State::BUTTON_UP:
-				if (!button_states[static_cast<int>(input.getButton())])
+				if (!values.button_states[static_cast<int>(input.getButton())])
 					return;
 
-				button_states.reset(static_cast<int>(input.getButton()));
+				values.button_states.reset(static_cast<int>(input.getButton()));
 				break;
 			default:
 				break;
