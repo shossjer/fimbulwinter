@@ -1214,7 +1214,7 @@ namespace engine
 		                   const int y,
 		                   const ::Time time)
 		{
-			dispatch(MouseMoveInput(0, x, y));
+			dispatch(CursorMoveInput(0, x, y));
 		}
 	}
 }

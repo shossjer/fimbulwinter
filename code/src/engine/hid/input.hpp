@@ -24,11 +24,11 @@ namespace engine
 				AXIS_TRIGGER,
 				BUTTON_DOWN,
 				BUTTON_UP,
+				CURSOR_MOVE,
 				KEY_CHARACTER,
-				MOUSE_MOVE,
 			};
 
-			static constexpr int state_count = static_cast<int>(State::MOUSE_MOVE) + 1;
+			static constexpr int state_count = static_cast<int>(State::KEY_CHARACTER) + 1;
 
 			using Player = int8_t;
 
@@ -397,6 +397,15 @@ namespace engine
 			} button_state;
 			static_assert(std::is_trivial<ButtonState>::value, "");
 
+			struct CursorMove
+			{
+				State state;
+				Player player;
+				int64_t x : 24;
+				int64_t y : 24;
+			} cursor_move;
+			static_assert(std::is_trivial<CursorMove>::value, "");
+
 			struct KeyCharacter
 			{
 				State state;
@@ -406,24 +415,15 @@ namespace engine
 			} key_character;
 			static_assert(std::is_trivial<KeyCharacter>::value, "");
 
-			struct MouseMove
-			{
-				State state;
-				Player player;
-				int64_t x : 24;
-				int64_t y : 24;
-			} mouse_move;
-			static_assert(std::is_trivial<MouseMove>::value, "");
-
 		public:
 			friend Input AxisTiltInput(int_fast8_t player, Axis code, int32_t value);
 			friend Input AxisTriggerInput(int_fast8_t player, Axis code, uint32_t value);
 
 			friend Input ButtonStateInput(int_fast8_t player, Button code, bool down);
 
-			friend Input KeyCharacterInput(int_fast8_t player, Button code, utility::code_point unicode);
+			friend Input CursorMoveInput(int_fast8_t player, int_fast32_t x, int_fast32_t y);
 
-			friend Input MouseMoveInput(int_fast8_t player, int_fast32_t x, int_fast32_t y);
+			friend Input KeyCharacterInput(int_fast8_t player, Button code, utility::code_point unicode);
 
 		public:
 			/**
@@ -456,13 +456,13 @@ namespace engine
 			int getDevice() const { return common_header.player; }
 
 			/**
-			 * \note Valid iff state is `MOUSE_MOVE`.
+			 * \note Valid iff state is `CURSOR_MOVE`.
 			 */
 			Position getPosition() const
 			{
 				switch (common_header.state)
 				{
-				case State::MOUSE_MOVE: return {mouse_move.x, mouse_move.y};
+				case State::CURSOR_MOVE: return {cursor_move.x, cursor_move.y};
 				default: debug_unreachable("invalid state");
 				}
 			}
@@ -545,13 +545,13 @@ namespace engine
 			return input;
 		}
 
-		inline Input MouseMoveInput(int_fast8_t player, int_fast32_t x, int_fast32_t y)
+		inline Input CursorMoveInput(int_fast8_t player, int_fast32_t x, int_fast32_t y)
 		{
 			Input input;
-			input.mouse_move.state = Input::State::MOUSE_MOVE;
-			input.mouse_move.player = player;
-			input.mouse_move.x = x;
-			input.mouse_move.y = y;
+			input.cursor_move.state = Input::State::CURSOR_MOVE;
+			input.cursor_move.player = player;
+			input.cursor_move.x = x;
+			input.cursor_move.y = y;
 			return input;
 		}
 	}
