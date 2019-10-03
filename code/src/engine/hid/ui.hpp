@@ -54,7 +54,8 @@ namespace ui
 		engine::Asset context,
 		engine::Asset state,
 		engine::Entity mapping,
-		engine::Entity callback);
+		void (* callback)(engine::Command command, float value, void * data),
+		void * data);
 	void post_unbind(
 		engine::Asset context,
 		engine::Asset state,

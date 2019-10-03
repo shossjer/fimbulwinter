@@ -1174,6 +1174,21 @@ namespace
 	{
 		utility::visit(data_callback_skills_handler{}, std::move(structurer));
 	}
+
+	struct MappingData
+	{
+		engine::Entity callback;
+		engine::Asset context;
+	};
+
+	std::array<MappingData, 4> mapping_data;
+
+	void post_command_callback(engine::Command command, float value, void * data)
+	{
+		const auto & mapping_data = *static_cast<MappingData *>(data);
+
+		gameplay::gamestate::post_command(mapping_data.callback, command, value);
+	}
 }
 
 namespace gameplay
@@ -1230,7 +1245,8 @@ namespace gamestate
 		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_E, gameplay::command::ROLL_RIGHT);
 		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_LEFTCTRL, gameplay::command::ELEVATE_DOWN);
 		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_SPACE, gameplay::command::ELEVATE_UP);
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("debug"), flycontrol, debug_camera);
+		mapping_data[0] = MappingData{debug_camera, engine::Asset("default")};
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("debug"), flycontrol, post_command_callback, &mapping_data[0]);
 
 		auto pancontrol = engine::Entity::create();
 		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::MOVE_LEFT);
@@ -1241,7 +1257,8 @@ namespace gamestate
 		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_DPAD_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
 		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_STICKL_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
 		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_STICKL_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), pancontrol, game_camera);
+		mapping_data[1] = MappingData{game_camera, engine::Asset("default")};
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), pancontrol, post_command_callback, &mapping_data[1]);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
@@ -1251,8 +1268,10 @@ namespace gamestate
 
 		engine::hid::ui::post_add_button_press(debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
 		engine::hid::ui::post_add_button_press(game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("debug"), game_switch, game_switch);
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), debug_switch, debug_switch);
+		mapping_data[2] = MappingData{game_switch, engine::Asset("default")};
+		mapping_data[3] = MappingData{debug_switch, engine::Asset("default")};
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("debug"), game_switch, post_command_callback, &mapping_data[2]);
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), debug_switch, post_command_callback, &mapping_data[3]);
 
 		auto selector = engine::Entity::create();
 		components.emplace<Selector>(selector);

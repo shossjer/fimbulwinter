@@ -20,14 +20,6 @@
 #include <tuple>
 #include <vector>
 
-namespace gameplay
-{
-namespace gamestate
-{
-	extern void post_command(engine::Entity entity, engine::Command command, utility::any && data);
-}
-}
-
 namespace
 {
 	struct dimension_t
@@ -45,8 +37,11 @@ namespace
 		Filter button_filters[engine::hid::Input::button_count] = {};
 		Filter axis_filters[engine::hid::Input::axis_count] = {};
 
-		engine::Entity button_callbacks[engine::hid::Input::button_count];
-		engine::Entity axis_callbacks[engine::hid::Input::axis_count];
+		void (* button_callbacks[engine::hid::Input::button_count])(engine::Command command, float value, void * data);
+		void (* axis_callbacks[engine::hid::Input::axis_count])(engine::Command command, float value, void * data);
+
+		void * button_datas[engine::hid::Input::button_count];
+		void * axis_datas[engine::hid::Input::axis_count];
 	};
 
 	struct DeviceSource
@@ -155,7 +150,8 @@ namespace
 		struct StateMapping
 		{
 			std::vector<engine::Entity> mappings;
-			std::vector<engine::Entity> callbacks;
+			std::vector<void (*)(engine::Command command, float value, void * data)> callbacks;
+			std::vector<void *> datas;
 		};
 
 		int active = 0;
@@ -182,7 +178,7 @@ namespace
 		}
 
 		// \note if `state` is the active state, the device mappings must be cleared prior to this call
-		void add_mapping(engine::Asset state, engine::Entity mapping, engine::Entity callback)
+		void add_mapping(engine::Asset state, engine::Entity mapping, void (* callback)(engine::Command command, float value, void * data), void * data)
 		{
 			debug_assert((!has_device_mappings || state != states[active]));
 
@@ -191,6 +187,7 @@ namespace
 
 			state_mappings[i].mappings.push_back(mapping);
 			state_mappings[i].callbacks.push_back(callback);
+			state_mappings[i].datas.push_back(data);
 		}
 
 		// \note if `state` is the active state, the device mappings must be cleared prior to this call
@@ -202,6 +199,7 @@ namespace
 			auto it = std::find(state_mappings[i].mappings.begin(), state_mappings[i].mappings.end(), mapping);
 			debug_assert(it != state_mappings[i].mappings.end());
 
+			state_mappings[i].datas.erase(std::next(state_mappings[i].datas.begin(), std::distance(state_mappings[i].mappings.begin(), it)));
 			state_mappings[i].callbacks.erase(std::next(state_mappings[i].callbacks.begin(), std::distance(state_mappings[i].mappings.begin(), it)));
 			state_mappings[i].mappings.erase(it);
 		}
@@ -266,6 +264,7 @@ namespace
 
 							device_mapping.button_filters[i] = mapping.buttons[i];
 							device_mapping.button_callbacks[i] = state_mapping.callbacks[j];
+							device_mapping.button_datas[i] = state_mapping.datas[j];
 						}
 					}
 
@@ -277,6 +276,7 @@ namespace
 
 							device_mapping.axis_filters[i] = mapping.axes[i];
 							device_mapping.axis_callbacks[i] = state_mapping.callbacks[j];
+							device_mapping.axis_datas[i] = state_mapping.datas[j];
 						}
 					}
 				}
@@ -391,7 +391,8 @@ namespace
 		engine::Asset context;
 		engine::Asset state;
 		engine::Entity mapping;
-		engine::Entity callback;
+		void (* callback)(engine::Command command, float value, void * data);
+		void * data;
 	};
 
 	struct ContextInfo
@@ -496,9 +497,10 @@ namespace
 
 	core::container::CircleQueueSRMW<InputMessage, 500> queue_input;
 
-	struct AxisTiltFilter
+	struct HandleAxisTilt
 	{
-		engine::Entity callback;
+		void (* callback)(engine::Command command, float value, void * data);
+		void * data;
 
 		const engine::hid::Input & input;
 
@@ -512,8 +514,10 @@ namespace
 		{
 			const int value_min = -std::min(input.getTilt(), 0);
 			const int value_max =  std::max(input.getTilt(), 0);
-			gameplay::gamestate::post_command(callback, x.command_min, static_cast<float>(static_cast<double>(value_min) / static_cast<double>((uint32_t(1) << 31) - 1)));
-			gameplay::gamestate::post_command(callback, x.command_max, static_cast<float>(static_cast<double>(value_max) / static_cast<double>((uint32_t(1) << 31) - 1)));
+			const float real_min = static_cast<float>(static_cast<double>(value_min) / static_cast<double>((uint32_t(1) << 31) - 1));
+			const float real_max = static_cast<float>(static_cast<double>(value_max) / static_cast<double>((uint32_t(1) << 31) - 1));
+			callback(x.command_min, real_min, data);
+			callback(x.command_max, real_max, data);
 		}
 
 		template <typename T>
@@ -525,9 +529,10 @@ namespace
 	};
 
 	template <bool Reversed>
-	struct ButtonToggleFilter
+	struct HandleButton
 	{
-		engine::Entity callback;
+		void (* callback)(engine::Command command, float value, void * data);
+		void * data;
 
 		const engine::hid::Input & input;
 
@@ -539,12 +544,12 @@ namespace
 
 		void operator () (const ButtonPress & x)
 		{
-			gameplay::gamestate::post_command(callback, x.command, Reversed ? 0.f : 1.f);
+			callback(x.command, Reversed ? 0.f : 1.f, data);
 		}
 
 		void operator () (const ButtonRelease & x)
 		{
-			gameplay::gamestate::post_command(callback, x.command, Reversed ? 1.f : 0.f);
+			callback(x.command, Reversed ? 1.f : 0.f, data);
 		}
 
 		template <typename T>
@@ -723,7 +728,7 @@ namespace ui
 						contexts[i].clear_device_mappings();
 					}
 
-					contexts[i].add_mapping(x.state, x.mapping, x.callback);
+					contexts[i].add_mapping(x.state, x.mapping, x.callback, x.data);
 				}
 
 				void operator () (QueryContexts && x)
@@ -887,13 +892,13 @@ namespace ui
 					switch (input.getState())
 					{
 					case engine::hid::Input::State::AXIS_TILT:
-						filters.try_call(device_mapping.axis_filters[static_cast<int>(input.getAxis())], AxisTiltFilter{device_mapping.axis_callbacks[static_cast<int>(input.getAxis())], input});
+						filters.try_call(device_mapping.axis_filters[static_cast<int>(input.getAxis())], HandleAxisTilt{device_mapping.axis_callbacks[static_cast<int>(input.getAxis())], device_mapping.axis_datas[static_cast<int>(input.getAxis())], input});
 						break;
 					case engine::hid::Input::State::BUTTON_DOWN:
-						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], ButtonToggleFilter<false>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], input});
+						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], HandleButton<false>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], device_mapping.button_datas[static_cast<int>(input.getButton())], input});
 						break;
 					case engine::hid::Input::State::BUTTON_UP:
-						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], ButtonToggleFilter<true>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], input});
+						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], HandleButton<true>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], device_mapping.button_datas[static_cast<int>(input.getButton())], input});
 						break;
 					}
 				}
@@ -1005,9 +1010,10 @@ namespace ui
 		engine::Asset context,
 		engine::Asset state,
 		engine::Entity mapping,
-		engine::Entity callback)
+		void (* callback)(engine::Command command, float value, void * data),
+		void * data)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<Bind>, context, state, mapping, callback);
+		const auto res = queue.try_emplace(utility::in_place_type<Bind>, context, state, mapping, callback, data);
 		debug_assert(res);
 	}
 	void post_unbind(
