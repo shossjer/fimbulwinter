@@ -3,10 +3,11 @@
 #define GAMEPLAY_COMPONENT_CAMERAACTIVATOR_HPP
 
 #include "engine/Asset.hpp"
-#include "engine/Command.hpp"
 #include "engine/Entity.hpp"
 #include "engine/graphics/viewer.hpp"
+#include "engine/hid/ui.hpp"
 
+#include "gameplay/commands.hpp"
 #include "gameplay/debug.hpp"
 
 #include "utility/any.hpp"
@@ -17,19 +18,26 @@ namespace gameplay
 	{
 		struct CameraActivator
 		{
+			engine::Asset context;
+			engine::Asset state;
+
 			engine::Asset frame;
 			engine::Entity camera;
 
-			CameraActivator(engine::Asset frame, engine::Entity camera) : frame(frame), camera(camera) {}
+			CameraActivator(engine::Asset context, engine::Asset state, engine::Asset frame, engine::Entity camera) : context(context), state(state), frame(frame), camera(camera) {}
 
 			void translate(engine::Command command, utility::any && data)
 			{
 				switch (command)
 				{
-				case engine::command::CONTEXT_CHANGED:
-					debug_assert(!data.has_value());
-					debug_printline(gameplay::gameplay_channel, "Switching to camera: ", camera);
-					engine::graphics::viewer::post_bind(frame, camera);
+				case gameplay::command::ACTIVATE_CAMERA:
+					debug_assert(data.has_value());
+					if (utility::any_cast<float>(data) <= 0.f)
+					{
+						engine::hid::ui::post_set_state(context, state);
+
+						engine::graphics::viewer::post_bind(frame, camera);
+					}
 					break;
 				default:
 					debug_unreachable("unknown command ", command);

@@ -1246,8 +1246,13 @@ namespace gamestate
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
-		components.emplace<CameraActivator>(debug_switch, engine::Asset("game"), debug_camera);
-		components.emplace<CameraActivator>(game_switch, engine::Asset("game"), game_camera);
+		components.emplace<CameraActivator>(debug_switch, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera);
+		components.emplace<CameraActivator>(game_switch, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera);
+
+		engine::hid::ui::post_add_button_press(debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
+		engine::hid::ui::post_add_button_press(game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("debug"), game_switch, game_switch);
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), debug_switch, debug_switch);
 
 		auto selector = engine::Entity::create();
 		components.emplace<Selector>(selector);
