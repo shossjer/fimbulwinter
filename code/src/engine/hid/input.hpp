@@ -367,25 +367,19 @@ namespace engine
 			} common_header;
 			static_assert(std::is_trivial<CommonHeader>::value, "");
 
-			struct AxisTilt
+			struct AxisValue
 			{
 				State state;
 				Player player;
 				Axis code;
-				int8_t unused;
-				int32_t value; // [-0x7fffffff 0x7fffffff]
-			} axis_tilt;
-			static_assert(std::is_trivial<AxisTilt>::value, "");
-
-			struct AxisTrigger
-			{
-				State state;
-				Player player;
-				Axis code;
-				int8_t unused;
-				uint32_t value; // [0x00000000 0xffffffff]
-			}  axis_trigger;
-			static_assert(std::is_trivial<AxisTrigger>::value, "");
+				int8_t data;
+				union
+				{
+					int32_t ivalue;
+					uint32_t uvalue;
+				};
+			}  axis_value;
+			static_assert(std::is_trivial<AxisValue>::value, "");
 
 			struct ButtonState
 			{
@@ -433,8 +427,8 @@ namespace engine
 			{
 				switch (common_header.state)
 				{
-				case State::AXIS_TILT: return axis_tilt.code;
-				case State::AXIS_TRIGGER: return axis_trigger.code;
+				case State::AXIS_TILT: return axis_value.code;
+				case State::AXIS_TRIGGER: return axis_value.code;
 				default: debug_unreachable("invalid state");
 				}
 			}
@@ -476,7 +470,7 @@ namespace engine
 			{
 				switch (common_header.state)
 				{
-				case State::AXIS_TILT: return axis_tilt.value;
+				case State::AXIS_TILT: return axis_value.ivalue;
 				default: debug_unreachable("invalid state");
 				}
 			}
@@ -488,7 +482,7 @@ namespace engine
 			{
 				switch (common_header.state)
 				{
-				case State::AXIS_TRIGGER: return axis_trigger.value;
+				case State::AXIS_TRIGGER: return axis_value.uvalue;
 				default: debug_unreachable("invalid state");
 				}
 			}
@@ -504,25 +498,49 @@ namespace engine
 				default: debug_unreachable("invalid state");
 				}
 			}
+
+			/**
+			 * \note Valid iff state is `AXIS_TILT`.
+			 */
+			int32_t getValueSigned() const
+			{
+				switch (common_header.state)
+				{
+				case State::AXIS_TILT: return axis_value.ivalue;
+				default: debug_unreachable("invalid state");
+				}
+			}
+
+			/**
+			 * \note Valid iff state is `AXIS_TRIGGER`.
+			 */
+			uint32_t getValueUnsigned() const
+			{
+				switch (common_header.state)
+				{
+				case State::AXIS_TRIGGER: return axis_value.uvalue;
+				default: debug_unreachable("invalid state");
+				}
+			}
 		};
 		static_assert(sizeof(Input) == 8, "This is not a hard requirement but it would be nice to know if it grows.");
 
 		inline Input AxisTiltInput(int_fast8_t player, Input::Axis code, int32_t value)
 		{
 			Input input;
-			input.axis_tilt.state = Input::State::AXIS_TILT;
-			input.axis_tilt.player = player;
-			input.axis_tilt.code = code;
-			input.axis_tilt.value = value;
+			input.axis_value.state = Input::State::AXIS_TILT;
+			input.axis_value.player = player;
+			input.axis_value.code = code;
+			input.axis_value.ivalue = value;
 			return input;
 		}
 		inline Input AxisTriggerInput(int_fast8_t player, Input::Axis code, uint32_t value)
 		{
 			Input input;
-			input.axis_trigger.state = Input::State::AXIS_TRIGGER;
-			input.axis_trigger.player = player;
-			input.axis_trigger.code = code;
-			input.axis_trigger.value = value;
+			input.axis_value.state = Input::State::AXIS_TRIGGER;
+			input.axis_value.player = player;
+			input.axis_value.code = code;
+			input.axis_value.uvalue = value;
 			return input;
 		}
 
