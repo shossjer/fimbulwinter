@@ -35,6 +35,7 @@ namespace engine
 			enum class Axis : int8_t
 			{
 				INVALID = 0, // should never be used
+				MOUSE_MOVE = 1, // not really an axis but hey :shrug:
 				TILT_DPAD_X = 8,
 				TILT_DPAD_Y,
 				TILT_STICKL_X,
@@ -51,6 +52,7 @@ namespace engine
 			{
 				return utility::make_lookup_table(
 					std::make_pair(utility::string_view("invalid"), Axis::INVALID),
+					std::make_pair(utility::string_view("mouse-move"), Axis::MOUSE_MOVE),
 					std::make_pair(utility::string_view("tilt-dpad-x"), Axis::TILT_DPAD_X),
 					std::make_pair(utility::string_view("tilt-dpad-y"), Axis::TILT_DPAD_Y),
 					std::make_pair(utility::string_view("tilt-stickl-x"), Axis::TILT_STICKL_X),

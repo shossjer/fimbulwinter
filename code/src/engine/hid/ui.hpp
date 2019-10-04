@@ -36,6 +36,11 @@ namespace ui
 		engine::Asset context,
 		int id);
 
+	void post_add_axis_move(
+		engine::Entity mapping,
+		engine::hid::Input::Axis code,
+		engine::Command command_x,
+		engine::Command command_y);
 	void post_add_axis_tilt(
 		engine::Entity mapping,
 		engine::hid::Input::Axis code,

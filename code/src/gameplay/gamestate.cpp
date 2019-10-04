@@ -1005,7 +1005,7 @@ namespace
 	{
 		switch (command)
 		{
-		case engine::command::RENDER_HIGHLIGHT:
+		case gameplay::command::RENDER_HIGHLIGHT:
 		{
 			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
@@ -1041,14 +1041,14 @@ namespace
 			tooltip.display(select_data.entity, select_data.cursor.x, select_data.cursor.y);
 			break;
 		}
-		case engine::command::RENDER_SELECT:
+		case gameplay::command::RENDER_SELECT:
 		{
 			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
 			pressed_entity = select_data.entity;
 			break;
 		}
-		case engine::command::RENDER_DESELECT:
+		case gameplay::command::RENDER_DESELECT:
 		{
 			const engine::graphics::renderer::SelectData select_data = utility::any_cast<engine::graphics::renderer::SelectData>(data);
 
@@ -1181,13 +1181,38 @@ namespace
 		engine::Asset context;
 	};
 
-	std::array<MappingData, 4> mapping_data;
+	std::array<MappingData, 5> mapping_data;
 
 	void post_command_callback(engine::Command command, float value, void * data)
 	{
 		const auto & mapping_data = *static_cast<MappingData *>(data);
 
 		gameplay::gamestate::post_command(mapping_data.callback, command, value);
+	}
+
+	void cursor_callback(engine::Command command, float value, void * data)
+	{
+		const auto & mapping_data = *static_cast<MappingData *>(data);
+
+		static int x = -1;
+		static int y = -1;
+
+		switch (command)
+		{
+		case gameplay::command::MOUSE_CLICK:
+			engine::graphics::renderer::post_select(x, y, mapping_data.callback, value == 1.f ? gameplay::command::RENDER_SELECT : gameplay::command::RENDER_DESELECT);
+			break;
+		case gameplay::command::MOUSE_MOVE_X:
+			x = static_cast<int>(value);
+			break;
+		case gameplay::command::MOUSE_MOVE_Y:
+			y = static_cast<int>(value);
+			// first command_x is called and then command_y
+			engine::graphics::renderer::post_select(x, y, mapping_data.callback, gameplay::command::RENDER_HIGHLIGHT);
+			break;
+		default:
+			debug_unreachable("unknown command");
+		}
 	}
 }
 
@@ -1275,6 +1300,12 @@ namespace gamestate
 
 		auto selector = engine::Entity::create();
 		components.emplace<Selector>(selector);
+
+		auto cursor = engine::Entity::create();
+		engine::hid::ui::post_add_axis_move(cursor, engine::hid::Input::Axis::MOUSE_MOVE, gameplay::command::MOUSE_MOVE_X, gameplay::command::MOUSE_MOVE_Y);
+		engine::hid::ui::post_add_button_press(cursor, engine::hid::Input::Button::MOUSE_LEFT, gameplay::command::MOUSE_CLICK);
+		mapping_data[4] = MappingData{selector, engine::Asset("default")};
+		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), cursor, cursor_callback, &mapping_data[4]);
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");
