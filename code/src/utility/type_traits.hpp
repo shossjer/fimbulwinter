@@ -231,6 +231,31 @@ namespace mpl
 	template <typename ...List>
 	using concat = typename concat_impl<type_list<>, List...>::type;
 
+	template <typename ...Ts>
+	struct make_type_list_impl : type_is<type_list<Ts...>> {};
+	template <typename ...Ts>
+	struct make_type_list_impl<type_list<Ts...>> : type_is<type_list<Ts...>> {};
+	template <typename ...List>
+	using make_type_list = typename make_type_list_impl<List...>::type;
+
+	template <typename L>
+	struct last_impl;
+	template <typename T>
+	struct last_impl<type_list<T>> : type_is<T> {};
+	template <typename T, typename ...Ts>
+	struct last_impl<type_list<T, Ts...>> : last_impl<type_list<Ts...>> {};
+	template <typename ...List>
+	using last = typename last_impl<make_type_list<List...>>::type;
+
+	template <std::size_t N, typename L1, typename L2, bool = (N == 0)>
+	struct take_impl;
+	template <typename L1, typename L2>
+	struct take_impl<0, L1, L2, true> : type_is<L2> {};
+	template <std::size_t N, typename T, typename ...Ts, typename ...Us>
+	struct take_impl<N, type_list<T, Ts...>, type_list<Us...>, false> : take_impl<(N - 1), type_list<Ts...>, type_list<Us..., T>, (N - 1 == 0)> {};
+	template <std::size_t N, typename ...List>
+	using take = typename take_impl<N, make_type_list<List...>, type_list<>>::type;
+
 	template <template <typename> class F, typename List>
 	struct transform_impl;
 	template <template <typename> class F, typename ...Ts>
