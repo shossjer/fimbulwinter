@@ -2,7 +2,7 @@
 #ifndef UTILITY_HEAP_ALLOCATOR_HPP
 #define UTILITY_HEAP_ALLOCATOR_HPP
 
-#include "utility.hpp"
+#include "utility/utility.hpp"
 
 namespace utility
 {
@@ -18,7 +18,7 @@ namespace utility
 		using const_reference = const T &;
 		using value_type = T;
 
-		template<typename U>
+		template <typename U>
 		struct rebind { using other = heap_allocator<U>; };
 
 		using propagate_on_container_move_assignment = std::true_type;
@@ -31,7 +31,7 @@ namespace utility
 			if (n > max_size())
 				return nullptr;
 
-			static_assert(alignof(T) <= alignof(long double), "operator new only guarantees correct alignment for fundamental types");
+			static_assert(alignof(T) <= alignof(std::max_align_t), "operator new only guarantees correct alignment for fundamental types");
 			return static_cast<T *>(::operator new(n * sizeof(T), std::nothrow));
 		}
 		void deallocate(pointer p, size_type)
@@ -41,9 +41,10 @@ namespace utility
 
 		constexpr size_type max_size() const { return size_t(-1) / sizeof(T); }
 
-		template<typename ...Ps>
-		void construct(T * p, Ps && ...ps) { utility::construct_at<T>(p, std::forward<Ps>(ps)...); }
-		void destroy(T * p) { p->T::~T(); }
+		template <typename U, typename ...Ps>
+		void construct(U * p, Ps && ...ps) { utility::construct_at<U>(p, std::forward<Ps>(ps)...); }
+		template <typename U>
+		void destroy(U * p) { p->U::~U(); }
 	};
 }
 
