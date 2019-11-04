@@ -3,97 +3,75 @@
 #define UTILITY_ARRAY_ALLOC_HPP
 
 #include "storage.hpp"
-#include "tuple.hpp"
 #include "utility.hpp"
 
 #include <cassert>
 
 namespace utility
 {
-	template <typename StorageTraits, typename Types, bool = StorageTraits::static_capacity::value>
+	template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
 	struct array_data_impl;
-	template <typename StorageTraits, typename ...Ts>
-	struct array_data_impl<StorageTraits, mpl::type_list<Ts...>, true /*static capacity*/>
+	template <typename Storage>
+	struct array_data_impl<Storage, true /*static capacity*/>
 	{
-		using is_trivially_destructible = storage_traits_is_trivially_destructible<StorageTraits, Ts...>;
-		using is_trivially_copy_constructible = storage_traits_is_copy_constructible<StorageTraits, Ts...>;
-		using is_trivially_copy_assignable = storage_traits_is_copy_assignable<StorageTraits, Ts...>;
-		using is_trivially_move_constructible = storage_traits_is_trivially_move_constructible<StorageTraits, Ts...>;
-		using is_trivially_move_assignable = storage_traits_is_trivially_move_assignable<StorageTraits, Ts...>;
+		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
+		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
+		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
+		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
+		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
 
-		using this_type = array_data_impl<StorageTraits, mpl::type_list<Ts...>>;
+		using this_type = array_data_impl<Storage, true>;
 
 		using size_type = std::size_t;
-		using storage_traits = StorageTraits;
-
-		template <typename T>
-		using storage_type = typename StorageTraits::template storage_type<T>;
+		using storage_traits = utility::storage_traits<Storage>;
+		using storage_type = Storage;
 
 		size_type size_ = 0;
-		tuple<storage_type<Ts>...> storages_;
+		Storage storage_;
 
 		bool allocate_storage(std::size_t capacity)
 		{
-			return allocate_storages(mpl::make_index_sequence_for<Ts...>{}, storages_, capacity);
+			return storage_.allocate(capacity);
 		}
-		template <typename Tuple>
-		static bool allocate_storages(mpl::index_sequence<>, Tuple & dest, std::size_t capacity) { return true; }
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static bool allocate_storages(mpl::index_sequence<I, Is...>, Tuple & dest, std::size_t capacity)
-		{
-			if (!utility::get<I>(dest).allocate(capacity))
-			{
-				deallocate_storages(mpl::make_index_sequence<I>{}, dest, capacity);
-			}
-			return allocate_storages(mpl::index_sequence<Is...>{}, dest, capacity);
-		}
+
 		void deallocate_storage(std::size_t capacity)
 		{
-			deallocate_storages(mpl::make_index_sequence_for<Ts...>{}, storages_, capacity);
-		}
-		template <typename Tuple>
-		static void deallocate_storages(mpl::index_sequence<>, Tuple & dest, std::size_t capacity) {}
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static void deallocate_storages(mpl::index_sequence<I, Is...>, Tuple & dest, std::size_t capacity)
-		{
-			utility::get<I>(dest).deallocate(capacity);
-			deallocate_storages(mpl::index_sequence<Is...>{}, dest, capacity);
+			storage_.deallocate(capacity);
 		}
 
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			copy_construct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, index, other.storages_, from, to);
+			copy_construct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, index, other.storage_, from, to);
 		}
-		template <typename Tuple>
-		static void copy_construct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static void copy_construct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to)
+		static void copy_construct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is>
+		static void copy_construct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			utility::get<I>(dest).construct_range(index, utility::get<I>(src).data() + from, utility::get<I>(src).data() + to);
+			dest.section(mpl::index_constant<I>{}).construct_range(index, src.section(mpl::index_constant<I>{}).data() + from, src.section(mpl::index_constant<I>{}).data() + to);
 			copy_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
 		}
+
 		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			move_construct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, index, other.storages_, from, to);
+			move_construct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, index, other.storage_, from, to);
 		}
-		template <typename Tuple>
-		static void move_construct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static void move_construct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to)
+		static void move_construct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is>
+		static void move_construct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			utility::get<I>(dest).construct_range(index, std::make_move_iterator(utility::get<I>(src).data() + from), std::make_move_iterator(utility::get<I>(src).data() + to));
+			dest.section(mpl::index_constant<I>{}).construct_range(index, std::make_move_iterator(src.section(mpl::index_constant<I>{}).data() + from), std::make_move_iterator(src.section(mpl::index_constant<I>{}).data() + to));
 			move_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
 		}
+
 		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			destruct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, from, to);
+			destruct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, from, to);
 		}
-		template <typename Tuple>
-		static void destruct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static void destruct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t from, std::ptrdiff_t to)
+		static void destruct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is>
+		static void destruct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			utility::get<I>(dest).destruct_range(from, to);
+			dest.section(mpl::index_constant<I>{}).destruct_range(from, to);
 			destruct_ranges(mpl::index_sequence<Is...>{}, dest, from, to);
 		}
 
@@ -104,109 +82,79 @@ namespace utility
 		}
 		void set_capacity(size_type capacity)
 		{
-			assert(capacity == StorageTraits::capacity_value);
+			assert(capacity == storage_traits::capacity_value);
 		}
 		void set_size(size_type size)
 		{
 			size_ = size;
 		}
 
-		constexpr size_type capacity() const { return StorageTraits::capacity_value; }
+		constexpr size_type capacity() const { return storage_traits::capacity_value; }
 		size_type size() const { return size_; }
-
-		template <typename T>
-		decltype(auto) get() { return utility::get<T>(storages_); }
-		template <typename T>
-		decltype(auto) get() const { return utility::get<T>(storages_); }
-		template <std::size_t I>
-		decltype(auto) get() { return utility::get<I>(storages_); }
-		template <std::size_t I>
-		decltype(auto) get() const { return utility::get<I>(storages_); }
 	};
-	template <typename StorageTraits, typename ...Ts>
-	struct array_data_impl<StorageTraits, mpl::type_list<Ts...>, false /*static capacity*/>
+	template <typename Storage>
+	struct array_data_impl<Storage, false /*static capacity*/>
 	{
-		using is_trivially_destructible = storage_traits_is_trivially_destructible<StorageTraits, Ts...>;
-		using is_trivially_copy_constructible = storage_traits_is_copy_constructible<StorageTraits, Ts...>;
-		using is_trivially_copy_assignable = storage_traits_is_copy_assignable<StorageTraits, Ts...>;
-		using is_trivially_move_constructible = storage_traits_is_trivially_move_constructible<StorageTraits, Ts...>;
-		using is_trivially_move_assignable = storage_traits_is_trivially_move_assignable<StorageTraits, Ts...>;
+		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
+		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
+		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
+		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
+		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
 
-		using this_type = array_data_impl<StorageTraits, mpl::type_list<Ts...>>;
+		using this_type = array_data_impl<Storage, false>;
 
 		using size_type = std::size_t;
-		using storage_traits = StorageTraits;
-
-		template <typename T>
-		using storage_type = typename StorageTraits::template storage_type<T>;
+		using storage_traits = utility::storage_traits<Storage>;
+		using storage_type = Storage;
 
 		size_type size_ = 0;
 		size_type capacity_ = 0;
-		tuple<storage_type<Ts>...> storages_;
+		Storage storage_;
 
 		bool allocate_storage(std::size_t capacity)
 		{
-			return allocate_storages(mpl::make_index_sequence_for<Ts...>{}, storages_, capacity);
+			return storage_.allocate(capacity);
 		}
-		template <typename Tuple>
-		static bool allocate_storages(mpl::index_sequence<>, Tuple & dest, std::size_t capacity) { return true; }
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static bool allocate_storages(mpl::index_sequence<I, Is...>, Tuple & dest, std::size_t capacity)
-		{
-			if (!utility::get<I>(dest).allocate(capacity))
-			{
-				deallocate_storages(mpl::make_index_sequence<I>{}, dest, capacity);
-			}
-			return allocate_storages(mpl::index_sequence<Is...>{}, dest, capacity);
-		}
+
 		void deallocate_storage(std::size_t capacity)
 		{
-			deallocate_storages(mpl::make_index_sequence_for<Ts...>{}, storages_, capacity);
-		}
-		template <typename Tuple>
-		static void deallocate_storages(mpl::index_sequence<>, Tuple & dest, std::size_t capacity) {}
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static void deallocate_storages(mpl::index_sequence<I, Is...>, Tuple & dest, std::size_t capacity)
-		{
-			utility::get<I>(dest).deallocate(capacity);
-			deallocate_storages(mpl::index_sequence<Is...>{}, dest, capacity);
+			storage_.deallocate(capacity);
 		}
 
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			copy_construct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, index, other.storages_, from, to);
+			copy_construct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, capacity_, index, other.storage_, other.capacity_, from, to);
 		}
-		template <typename Tuple>
-		static void copy_construct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static void copy_construct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to)
+		static void copy_construct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is>
+		static void copy_construct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			utility::get<I>(dest).construct_range(index, utility::get<I>(src).data() + from, utility::get<I>(src).data() + to);
-			copy_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
+			dest.section(mpl::index_constant<I>{}, destcap).construct_range(index, src.section(mpl::index_constant<I>{}, srccap).data() + from, src.section(mpl::index_constant<I>{}, srccap).data() + to);
+			copy_construct_ranges(mpl::index_sequence<Is...>{}, dest, destcap, index, src, srccap, from, to);
 		}
+
 		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			move_construct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, index, other.storages_, from, to);
+			move_construct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, capacity_, index, other.storage_, other.capacity_, from, to);
 		}
-		template <typename Tuple>
-		static void move_construct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static void move_construct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t index, Tuple & src, std::ptrdiff_t from, std::ptrdiff_t to)
+		static void move_construct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is>
+		static void move_construct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			utility::get<I>(dest).construct_range(index, std::make_move_iterator(utility::get<I>(src).data() + from), std::make_move_iterator(utility::get<I>(src).data() + to));
-			move_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
+			dest.section(mpl::index_constant<I>{}, destcap).construct_range(index, std::make_move_iterator(src.section(mpl::index_constant<I>{}, srccap).data() + from), std::make_move_iterator(src.section(mpl::index_constant<I>{}, srccap).data() + to));
+			move_construct_ranges(mpl::index_sequence<Is...>{}, dest, destcap, index, src, srccap, from, to);
 		}
+
 		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			destruct_ranges(mpl::make_index_sequence_for<Ts...>{}, storages_, from, to);
+			destruct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, capacity_, from, to);
 		}
-		template <typename Tuple>
-		static void destruct_ranges(mpl::index_sequence<>, Tuple & dest, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is, typename Tuple>
-		static void destruct_ranges(mpl::index_sequence<I, Is...>, Tuple & dest, std::ptrdiff_t from, std::ptrdiff_t to)
+		static void destruct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t from, std::ptrdiff_t to) {}
+		template <std::size_t I, std::size_t ...Is>
+		static void destruct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::size_t destcap, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			utility::get<I>(dest).destruct_range(from, to);
-			destruct_ranges(mpl::index_sequence<Is...>{}, dest, from, to);
+			dest.section(mpl::index_constant<I>{}, destcap).destruct_range(from, to);
+			destruct_ranges(mpl::index_sequence<Is...>{}, dest, destcap, from, to);
 		}
 
 		void initialize()
@@ -225,19 +173,10 @@ namespace utility
 
 		size_type capacity() const { return capacity_; }
 		size_type size() const { return size_; }
-
-		template <typename T>
-		decltype(auto) get() { return utility::get<T>(storages_); }
-		template <typename T>
-		decltype(auto) get() const { return utility::get<T>(storages_); }
-		template <std::size_t I>
-		decltype(auto) get() { return utility::get<I>(storages_); }
-		template <std::size_t I>
-		decltype(auto) get() const { return utility::get<I>(storages_); }
 	};
 
-	template <typename StorageTraits, typename ...Ts>
-	using array_data = array_data_impl<StorageTraits, mpl::type_list<Ts...>>;
+	template <typename Storage>
+	using array_data = array_data_impl<Storage>;
 
 	template <typename StorageData, bool = StorageData::is_trivially_destructible::value>
 	struct array_wrapper_trivially_destructible
@@ -529,11 +468,6 @@ namespace utility
 
 		bool try_grow(std::size_t amount = 1)
 		{
-			return try_grow_impl<typename StorageData::storage_traits>(amount, 0);
-		}
-		template <typename StorageTraits>
-		auto try_grow_impl(std::size_t amount, int) -> decltype(StorageTraits::grow(std::declval<std::size_t>(), std::declval<std::size_t>()), bool())
-		{
 			if (this->size() + amount <= this->capacity())
 				return true;
 
@@ -542,11 +476,6 @@ namespace utility
 				return false;
 
 			return try_reallocate(capacity);
-		}
-		template <typename StorageTraits>
-		bool try_grow_impl(std::size_t amount, ...)
-		{
-			return this->size() + amount <= this->capacity();
 		}
 		void grow(std::size_t amount = 1)
 		{

@@ -296,7 +296,7 @@ namespace
 	<
 		engine::Entity,
 		41,
-		utility::static_storage<Camera, 20>
+		utility::static_storage<20, Camera>
 	>
 	cameras;
 

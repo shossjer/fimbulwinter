@@ -640,25 +640,24 @@ namespace utility
 		mpl::conditional_t<(N < 0x10000), std::uint16_t,
 		mpl::conditional_t<(N < 0x100000000), std::uint32_t, std::uint64_t>>>;
 
-	template <typename StorageTraits, bool = StorageTraits::static_capacity::value>
+	template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
 	struct Utf8StringStorageStaticCapacity
 	{
-		using is_trivially_destructible = storage_traits_is_trivially_destructible<StorageTraits, code_unit_utf8>;
-		using is_trivially_copy_constructible = storage_traits_is_copy_constructible<StorageTraits, code_unit_utf8>;
-		using is_trivially_copy_assignable = storage_traits_is_copy_assignable<StorageTraits, code_unit_utf8>;
-		using is_trivially_move_constructible = storage_traits_is_trivially_move_constructible<StorageTraits, code_unit_utf8>;
-		using is_trivially_move_assignable = storage_traits_is_trivially_move_assignable<StorageTraits, code_unit_utf8>;
+		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
+		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
+		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
+		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
+		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
 
-		using this_type = Utf8StringStorageStaticCapacity<StorageTraits>;
+		using this_type = Utf8StringStorageStaticCapacity<Storage>;
 
-		using size_type = size_type_for<StorageTraits::capacity_value>;
-		using storage_traits = StorageTraits;
+		using storage_traits = utility::storage_traits<Storage>;
+		using storage_type = Storage;
 
-		template <typename T>
-		using storage_type = typename StorageTraits::template storage_type<T>;
+		using size_type = size_type_for<storage_traits::capacity_value>;
 
-		storage_type<code_unit_utf8> chars_;
 		size_type size_ = 0;
+		Storage chars_;
 
 		bool allocate_storage(std::size_t capacity)
 		{
@@ -684,7 +683,7 @@ namespace utility
 
 		void initialize()
 		{
-			set_capacity(StorageTraits::capacity_for(1));
+			set_capacity(storage_traits::capacity_for(1));
 			allocate_storage(capacity());
 
 			set_size(1);
@@ -692,33 +691,32 @@ namespace utility
 		}
 		void set_capacity(size_type capacity)
 		{
-			assert(capacity == StorageTraits::capacity_value);
+			assert(capacity == storage_traits::capacity_value);
 		}
 		void set_size(size_type size)
 		{
 			size_ = size;
 		}
 
-		constexpr size_type capacity() const { return StorageTraits::capacity_value; }
+		constexpr size_type capacity() const { return storage_traits::capacity_value; }
 		size_type size() const { return size_; }
 		size_type size_without_null() const { return size_ - 1; }
 	};
-	template <typename StorageTraits>
-	struct Utf8StringStorageStaticCapacity<StorageTraits, false /*static capacity*/>
+	template <typename Storage>
+	struct Utf8StringStorageStaticCapacity<Storage, false /*static capacity*/>
 	{
-		using is_trivially_destructible = storage_traits_is_trivially_destructible<StorageTraits, code_unit_utf8>;
-		using is_trivially_copy_constructible = storage_traits_is_copy_constructible<StorageTraits, code_unit_utf8>;
-		using is_trivially_copy_assignable = storage_traits_is_copy_assignable<StorageTraits, code_unit_utf8>;
-		using is_trivially_move_constructible = storage_traits_is_trivially_move_constructible<StorageTraits, code_unit_utf8>;
-		using is_trivially_move_assignable = storage_traits_is_trivially_move_assignable<StorageTraits, code_unit_utf8>;
+		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
+		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
+		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
+		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
+		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
 
-		using this_type = Utf8StringStorageStaticCapacity<StorageTraits>;
+		using this_type = Utf8StringStorageStaticCapacity<Storage>;
+
+		using storage_traits = utility::storage_traits<Storage>;
+		using storage_type = Storage;
 
 		using size_type = std::size_t;
-		using storage_traits = StorageTraits;
-
-		template <typename T>
-		using storage_type = typename StorageTraits::template storage_type<T>;
 
 		// private:
 		// struct Big
@@ -742,7 +740,7 @@ namespace utility
 
 		size_type capacity_ = 0;
 		size_type size_ = 0;
-		storage_type<code_unit_utf8> chars_;
+		Storage chars_;
 
 		bool allocate_storage(std::size_t capacity)
 		{
@@ -768,7 +766,7 @@ namespace utility
 
 		void initialize()
 		{
-			set_capacity(StorageTraits::capacity_for(1));
+			set_capacity(storage_traits::capacity_for(1));
 			allocate_storage(capacity());
 
 			set_size(1);
@@ -803,7 +801,7 @@ namespace utility
 		using reverse_iterator = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 	private:
-		using StorageData = Utf8StringStorageStaticCapacity<StorageTraits>;
+		using StorageData = Utf8StringStorageStaticCapacity<typename StorageTraits::template storage_type<value_type>>;
 		using Utf8StringStorage = array_wrapper<StorageData>;
 
 	private:

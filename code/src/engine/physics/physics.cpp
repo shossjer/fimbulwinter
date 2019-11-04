@@ -61,7 +61,7 @@ namespace
 	<
 		engine::Entity,
 		21,
-		utility::static_storage<Camera, 10>
+		utility::static_storage<10, Camera>
 	>
 	components;
 }

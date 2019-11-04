@@ -3,9 +3,9 @@
 
 #include "utility/array_alloc.hpp"
 
-TEST_CASE( "static_storage<int, 5>", "[utility]" )
+TEST_CASE( "static_storage<5, int>", "[utility]" )
 {
-	using static_storage = utility::static_storage<int, 5>;
+	using static_storage = utility::static_storage<5, int>;
 	static_assert(std::is_standard_layout<static_storage>::value, "");
 	static_assert(std::is_trivially_destructible<static_storage>::value, "");
 	static_assert(static_storage::storing_trivially_copyable::value, "");
@@ -69,9 +69,9 @@ TEST_CASE( "static_storage<int, 5>", "[utility]" )
 	// aa1.deallocate(5); // static array has trivial deallocate
 }
 
-TEST_CASE( "static_storage<unique_ptr, 5>", "[utility]" )
+TEST_CASE( "static_storage<5, unique_ptr>", "[utility]" )
 {
-	using static_storage = utility::static_storage<std::unique_ptr<int>, 5>;
+	using static_storage = utility::static_storage<5, std::unique_ptr<int>>;
 	static_assert(std::is_standard_layout<static_storage>::value, "");
 	static_assert(!std::is_trivially_destructible<static_storage>::value, "");
 	static_assert(!static_storage::storing_trivially_copyable::value, "");
@@ -97,7 +97,7 @@ TEST_CASE( "static_storage<unique_ptr, 5>", "[utility]" )
 	// aa1.deallocate(5); // static array has trivial deallocate
 }
 
-TEST_CASE( "heap_storage<int, dynamic_alloc>", "[utility]" )
+TEST_CASE( "heap_storage<int>", "[utility]" )
 {
 	using heap_storage = utility::heap_storage<int>;
 	static_assert(std::is_standard_layout<heap_storage>::value, "");
@@ -144,7 +144,7 @@ TEST_CASE( "heap_storage<int, dynamic_alloc>", "[utility]" )
 	aa1.deallocate(5);
 }
 
-TEST_CASE( "heap_storage<unique_ptr, dynamic_alloc>", "[utility]" )
+TEST_CASE( "heap_storage<unique_ptr>", "[utility]" )
 {
 	using heap_storage = utility::heap_storage<std::unique_ptr<int>>;
 	static_assert(std::is_standard_layout<heap_storage>::value, "");
@@ -191,7 +191,7 @@ TEST_CASE( "heap_storage<unique_ptr, dynamic_alloc>", "[utility]" )
 
 TEST_CASE("", "")
 {
-	using static_int_array = utility::array_wrapper<utility::array_data<utility::static_storage_traits<5>, int>>;
+	using static_int_array = utility::array_wrapper<utility::array_data<utility::static_storage<5, int>>>;
 	static_assert(std::is_trivially_destructible<static_int_array>::value, "");
 	static_assert(!std::is_trivially_default_constructible<static_int_array>::value, "");
 	static_assert(std::is_default_constructible<static_int_array>::value, "");
@@ -200,7 +200,7 @@ TEST_CASE("", "")
 	static_assert(std::is_trivially_copy_assignable<static_int_array>::value, "");
 	static_assert(std::is_trivially_move_assignable<static_int_array>::value, "");
 
-	using static_unique_ptr_array = utility::array_wrapper<utility::array_data<utility::static_storage_traits<5>, std::unique_ptr<int>>>;
+	using static_unique_ptr_array = utility::array_wrapper<utility::array_data<utility::static_storage<5, std::unique_ptr<int>>>>;
 	static_assert(!std::is_trivially_destructible<static_unique_ptr_array>::value, "");
 	static_assert(std::is_destructible<static_unique_ptr_array>::value, "");
 	static_assert(!std::is_trivially_default_constructible<static_unique_ptr_array>::value, "");
@@ -214,7 +214,7 @@ TEST_CASE("", "")
 	static_assert(!std::is_trivially_move_assignable<static_unique_ptr_array>::value, "");
 	static_assert(std::is_move_assignable<static_unique_ptr_array>::value, "");
 
-	using heap_int_array = utility::array_wrapper<utility::array_data<utility::heap_storage_traits, int>>;
+	using heap_int_array = utility::array_wrapper<utility::array_data<utility::heap_storage<int>>>;
 	static_assert(!std::is_trivially_destructible<heap_int_array>::value, "");
 	static_assert(std::is_destructible<heap_int_array>::value, "");
 	static_assert(!std::is_trivially_default_constructible<heap_int_array>::value, "");
@@ -228,7 +228,7 @@ TEST_CASE("", "")
 	static_assert(!std::is_trivially_move_assignable<heap_int_array>::value, "");
 	static_assert(std::is_move_assignable<heap_int_array>::value, "");
 
-	using heap_unique_ptr_array = utility::array_wrapper<utility::array_data<utility::heap_storage_traits, std::unique_ptr<int>>>;
+	using heap_unique_ptr_array = utility::array_wrapper<utility::array_data<utility::heap_storage<std::unique_ptr<int>>>>;
 	static_assert(!std::is_trivially_destructible<heap_unique_ptr_array>::value, "");
 	static_assert(std::is_destructible<heap_unique_ptr_array>::value, "");
 	static_assert(!std::is_trivially_default_constructible<heap_unique_ptr_array>::value, "");
@@ -242,7 +242,7 @@ TEST_CASE("", "")
 	static_assert(!std::is_trivially_move_assignable<heap_unique_ptr_array>::value, "");
 	static_assert(std::is_move_assignable<heap_unique_ptr_array>::value, "");
 
-	using heap_int_unique_ptr_int_array = utility::array_wrapper<utility::array_data<utility::heap_storage_traits, int ,std::unique_ptr<int>, int>>;
+	using heap_int_unique_ptr_int_array = utility::array_wrapper<utility::array_data<utility::heap_storage<int ,std::unique_ptr<int>, int>>>;
 	static_assert(!std::is_trivially_destructible<heap_int_unique_ptr_int_array>::value, "");
 	static_assert(std::is_destructible<heap_int_unique_ptr_int_array>::value, "");
 	static_assert(!std::is_trivially_default_constructible<heap_int_unique_ptr_int_array>::value, "");

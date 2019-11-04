@@ -612,7 +612,7 @@ TEST_CASE("static strings can be memcpy-ed", "[utility][unicode][storage]")
 {
 	const utility::static_string_utf8<(three_snowmen_size + 1)> three_snowmen_strings[3] = { three_snowmen, three_snowmen, three_snowmen };
 
-	using storage_type = utility::static_storage<utility::static_string_utf8<(three_snowmen_size + 1)>, 3>;
+	using storage_type = utility::static_storage<3, utility::static_string_utf8<(three_snowmen_size + 1)>>;
 	storage_type storage;
 
 	static_assert(utility::storage_traits<storage_type>::trivial_allocate::value, "");

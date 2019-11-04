@@ -54,7 +54,7 @@ namespace core
 			class bucket_array_t
 			{
 			private:
-				utility::array_wrapper<utility::array_data<StorageTraits, C, bucket_t>> data_;
+				utility::array_wrapper<utility::array_data<typename StorageTraits::template storage_type<C, bucket_t>>> data_;
 
 			public:
 				C * begin() { return components().data(); }
@@ -98,11 +98,11 @@ namespace core
 					data_.set_size(last);
 				}
 			private:
-				decltype(auto) components() { return data_.template get<0>(); }
-				decltype(auto) components() const { return data_.template get<0>(); }
+				decltype(auto) components() { return data_.storage_.section(mpl::index_constant<0>{}, data_.capacity()); }
+				decltype(auto) components() const { return data_.storage_.section(mpl::index_constant<0>{}, data_.capacity()); }
 
-				decltype(auto) buckets() { return data_.template get<1>(); }
-				decltype(auto) buckets() const { return data_.template get<1>(); }
+				decltype(auto) buckets() { return data_.storage_.section(mpl::index_constant<1>{}, data_.capacity()); }
+				decltype(auto) buckets() const { return data_.storage_.section(mpl::index_constant<1>{}, data_.capacity()); }
 			};
 		}
 
@@ -115,7 +115,7 @@ namespace core
 		class Collection
 		{
 		private:
-			using component_types = mpl::type_list<typename Storages::value_type...>;
+			using component_types = mpl::type_list<typename Storages::template value_type<0>...>;
 			template <typename Storage>
 			using storage_traits = utility::storage_traits<Storage>;
 
@@ -161,7 +161,7 @@ namespace core
 			};
 
 		private:
-			std::tuple<detail::bucket_array_t<storage_traits<Storages>, typename Storages::value_type>...> arrays;
+			std::tuple<detail::bucket_array_t<storage_traits<Storages>, typename Storages::template value_type<0>>...> arrays;
 			slot_t slots[Maximum];
 			Key keys[Maximum];
 
@@ -457,7 +457,7 @@ namespace core
 				static constexpr std::size_t capacity = N;
 
 				std::size_t size = 0;
-				utility::static_storage<C, N> components;
+				utility::static_storage<N, C> components;
 				bucket_t buckets[N];
 
 				C * begin() { return components.data(); }
@@ -886,7 +886,7 @@ namespace core
 				static constexpr std::size_t capacity = N;
 
 				std::size_t size = 0;
-				utility::static_storage<C, N> components;
+				utility::static_storage<N, C> components;
 				uint24_t free_indices[N];
 
 				array_t()

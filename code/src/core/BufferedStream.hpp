@@ -20,7 +20,7 @@ namespace core
 
 		ReadStream read_stream_;
 
-		utility::static_storage<char, 0x10000> buffer_;
+		utility::static_storage<0x10000, char> buffer_;
 
 	public:
 		BufferedStream(ReadStream && stream)

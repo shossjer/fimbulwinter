@@ -351,7 +351,7 @@ namespace
 	<
 		engine::Asset,
 		21,
-		utility::static_storage<display_t, 10>
+		utility::static_storage<10, display_t>
 	>
 	displays;
 

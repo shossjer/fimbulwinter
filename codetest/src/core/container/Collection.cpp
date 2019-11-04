@@ -143,7 +143,7 @@ TEST_CASE( "collection static_storage", "[core][container]" )
 	<
 		unsigned int,
 		10,
-		utility::static_storage<int, 5>
+		utility::static_storage<5, int>
 	>
 	collection;
 

@@ -84,7 +84,7 @@ namespace
 		<
 			engine::Entity,
 			200,
-			utility::static_storage<Preparation, 100>
+			utility::static_storage<100, Preparation>
 		>
 		tables;
 
@@ -460,14 +460,14 @@ namespace
 	<
 		engine::Entity,
 		401,
-		utility::static_storage<CameraActivator, 2>,
-		utility::static_storage<FreeCamera, 1>,
-		utility::static_storage<OverviewCamera, 1>,
-		utility::static_storage<Selector, 1>,
+		utility::static_storage<2, CameraActivator>,
+		utility::static_storage<1, FreeCamera>,
+		utility::static_storage<1, OverviewCamera>,
+		utility::static_storage<1, Selector>,
 		utility::heap_storage<Worker>,
 		utility::heap_storage<Workstation>,
 		utility::heap_storage<Option>,
-		utility::static_storage<Loader, 1>
+		utility::static_storage<1, Loader>
 	>
 	components;
 
