@@ -292,6 +292,18 @@ namespace mpl
 	template <std::size_t ...Ns>
 	using index_sequence = integral_sequence<std::size_t, Ns...>;
 
+	template <typename T, T ...Ns>
+	struct integral_max;
+	template <typename T, T N>
+	struct integral_max<T, N> : integral_constant<T, N> {};
+	template <typename T, T N1, T N2, T ...Ns>
+	struct integral_max<T, N1, N2, Ns...> : integral_max<T, (N2 < N1 ? N1 : N2), Ns...> {};
+
+	template <typename T>
+	struct size_of : index_constant<sizeof(T)> {};
+	template <>
+	struct size_of<void> : index_constant<0> {};
+
 	//
 	template <typename S, typename U>
 	struct integral_convert_impl;

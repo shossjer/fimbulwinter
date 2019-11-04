@@ -120,6 +120,7 @@ set(HEADER_FILES
 	src/gameplay/gamestate_models.hpp
 	src/gameplay/recipes.hpp
 	src/gameplay/skills.hpp
+   src/utility/aggregation_allocator.hpp
 	src/utility/algorithm.hpp
 	src/utility/any.hpp
 	src/utility/array.hpp
