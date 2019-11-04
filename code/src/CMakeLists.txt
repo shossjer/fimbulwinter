@@ -133,6 +133,7 @@ set(HEADER_FILES
 	src/utility/iterator.hpp
 	src/utility/json.hpp
 	src/utility/lookup_table.hpp
+   src/utility/null_allocator.hpp
 	src/utility/optional.hpp
 	src/utility/preprocessor.hpp
 	src/utility/property.hpp

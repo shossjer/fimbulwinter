@@ -16,6 +16,7 @@ set(CODE_TEST_SOURCE
 	src/utility/array_alloc.cpp
    src/utility/crypto/crc.cpp
 	src/utility/iterator.cpp
+   src/utility/null_allocator.cpp
 	src/utility/optional.cpp
 	src/utility/property.cpp
    src/utility/string_view.cpp
