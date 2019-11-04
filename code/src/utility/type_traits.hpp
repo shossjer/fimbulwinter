@@ -125,7 +125,7 @@ namespace mpl
 	struct is_brace_constructible_impl
 	{
 		template <typename T>
-		static true_type helper(T);
+		static true_type helper(T &&);
 
 		template <typename T, typename ...Ps>
 		static auto test(int) -> decltype(helper(T{std::declval<Ps>()...}));
@@ -138,7 +138,7 @@ namespace mpl
 	struct is_paren_constructible_impl
 	{
 		template <typename T>
-		static true_type helper(T);
+		static true_type helper(T &&);
 
 		template <typename T, typename ...Ps>
 		static auto test(int) -> decltype(helper(T(std::declval<Ps>()...)));

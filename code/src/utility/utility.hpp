@@ -85,6 +85,13 @@ namespace utility
 	{
 		return T{std::forward<Ps>(ps)...};
 	}
+	template <typename T, typename U = typename T::value_type, typename ...Ps,
+	          REQUIRES((!mpl::is_paren_constructible<T, Ps...>::value)),
+	          REQUIRES((!mpl::is_brace_constructible<T, Ps...>::value))>
+	T construct(Ps && ...ps)
+	{
+		return T{static_cast<U>(std::forward<Ps>(ps))...};
+	}
 
 	template <typename T, typename ...Ps,
 	          REQUIRES((mpl::is_paren_constructible<T, Ps...>::value))>
@@ -98,6 +105,13 @@ namespace utility
 	T & construct_at(void * ptr, Ps && ...ps)
 	{
 		return *new (ptr) T{std::forward<Ps>(ps)...};
+	}
+	template <typename T, typename U = typename T::value_type, typename ...Ps,
+	          REQUIRES((!mpl::is_paren_constructible<T, Ps...>::value)),
+	          REQUIRES((!mpl::is_brace_constructible<T, Ps...>::value))>
+	T & construct_at(void * ptr, Ps && ...ps)
+	{
+		return *new (ptr) T{static_cast<U>(std::forward<Ps>(ps))...};
 	}
 #endif
 
