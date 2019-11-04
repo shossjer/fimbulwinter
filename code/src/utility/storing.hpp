@@ -75,12 +75,16 @@ namespace utility
 		template <typename T, bool = std::is_trivial<T>::value>
 		struct storing_trivial : storing_destructible<T>
 		{
+			using value_type = T;
+
 			using storing_destructible<T>::storing_destructible;
 		};
 		template <typename T>
 		struct storing_trivial<T, false>
 			: storing_destructible<T>
 		{
+			using value_type = T;
+
 			storing_trivial() noexcept
 				: storing_destructible<T>(null_place)
 			{}
