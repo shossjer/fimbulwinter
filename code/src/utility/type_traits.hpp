@@ -277,6 +277,13 @@ namespace mpl
 		return generate_array_impl(concat<List...>{});
 	}
 
+	template <template <typename ...> class T, typename L>
+	struct apply_impl;
+	template <template <typename ...> class T, typename ...Ts>
+	struct apply_impl<T, type_list<Ts...>> : type_is<T<Ts...>> {};
+	template <template <typename ...> class T, typename ...List>
+	using apply = typename apply_impl<T, make_type_list<List...>>::type;
+
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  sequences
