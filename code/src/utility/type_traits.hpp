@@ -496,6 +496,16 @@ namespace mpl
 	struct fits_in<float, double> : std::true_type {};
 	template <>
 	struct fits_in<double, double> : std::true_type {};
+
+	/////////////////////
+	//
+	//  stuff
+	//
+	////////////////
+	template <typename T, typename Tuple, typename Indices = mpl::make_tuple_sequence<mpl::remove_cvref_t<Tuple>>>
+	struct is_constructible_from_tuple;
+	template <typename T, typename Tuple, std::size_t ...Is>
+	struct is_constructible_from_tuple<T, Tuple, mpl::index_sequence<Is...>> : std::is_constructible<T, decltype(std::get<Is>(std::declval<Tuple>()))...> {};
 }
 
 #endif /* UTILITY_TYPETRAITS_HPP */
