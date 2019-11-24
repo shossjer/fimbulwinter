@@ -38,10 +38,18 @@ namespace utility
 	decltype(auto) get(tuple<Ts...> & x) { return x.get(mpl::index_constant<I>{}); }
 	template <std::size_t I, typename ...Ts>
 	decltype(auto) get(const tuple<Ts...> & x) { return x.get(mpl::index_constant<I>{}); }
+	template <std::size_t I, typename ...Ts>
+	decltype(auto) get(tuple<Ts...> && x) { return std::move(x.get(mpl::index_constant<I>{})); }
+	template <std::size_t I, typename ...Ts>
+	decltype(auto) get(const tuple<Ts...> && x) { return std::move(x.get(mpl::index_constant<I>{})); }
 	template <typename T, typename ...Ts>
 	decltype(auto) get(tuple<Ts...> & x) { return x.get(typename mpl::index_of<T, Ts...>::type{}); }
 	template <typename T, typename ...Ts>
 	decltype(auto) get(const tuple<Ts...> & x) { return x.get(typename mpl::index_of<T, Ts...>::type{}); }
+	template <typename T, typename ...Ts>
+	decltype(auto) get(tuple<Ts...> && x) { return std::move(x.get(typename mpl::index_of<T, Ts...>::type{})); }
+	template <typename T, typename ...Ts>
+	decltype(auto) get(const tuple<Ts...> && x) { return std::move(x.get(typename mpl::index_of<T, Ts...>::type{})); }
 }
 
 #endif /* UTILITY_TUPLE_HPP */
