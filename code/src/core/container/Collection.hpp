@@ -115,7 +115,7 @@ namespace core
 		class Collection
 		{
 		private:
-			using component_types = mpl::type_list<typename Storages::template value_type<0>...>;
+			using component_types = mpl::type_list<typename Storages::template value_type_at<0>...>;
 			template <typename Storage>
 			using storage_traits = utility::storage_traits<Storage>;
 
@@ -161,7 +161,7 @@ namespace core
 			};
 
 		private:
-			std::tuple<detail::bucket_array_t<storage_traits<Storages>, typename Storages::template value_type<0>>...> arrays;
+			std::tuple<detail::bucket_array_t<storage_traits<Storages>, typename Storages::template value_type_at<0>>...> arrays;
 			slot_t slots[Maximum];
 			Key keys[Maximum];
 

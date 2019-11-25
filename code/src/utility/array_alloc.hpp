@@ -41,7 +41,7 @@ namespace utility
 
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			copy_construct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, index, other.storage_, from, to);
+			copy_construct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, index, other.storage_, from, to);
 		}
 		static void copy_construct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
 		template <std::size_t I, std::size_t ...Is>
@@ -53,7 +53,7 @@ namespace utility
 
 		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			move_construct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, index, other.storage_, from, to);
+			move_construct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, index, other.storage_, from, to);
 		}
 		static void move_construct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
 		template <std::size_t I, std::size_t ...Is>
@@ -65,7 +65,7 @@ namespace utility
 
 		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			destruct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, from, to);
+			destruct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, from, to);
 		}
 		static void destruct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t from, std::ptrdiff_t to) {}
 		template <std::size_t I, std::size_t ...Is>
@@ -123,7 +123,7 @@ namespace utility
 
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			copy_construct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, capacity_, index, other.storage_, other.capacity_, from, to);
+			copy_construct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, capacity_, index, other.storage_, other.capacity_, from, to);
 		}
 		static void copy_construct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to) {}
 		template <std::size_t I, std::size_t ...Is>
@@ -135,7 +135,7 @@ namespace utility
 
 		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			move_construct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, capacity_, index, other.storage_, other.capacity_, from, to);
+			move_construct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, capacity_, index, other.storage_, other.capacity_, from, to);
 		}
 		static void move_construct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to) {}
 		template <std::size_t I, std::size_t ...Is>
@@ -147,7 +147,7 @@ namespace utility
 
 		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			destruct_ranges(mpl::make_index_sequence<Storage::rank>{}, storage_, capacity_, from, to);
+			destruct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, capacity_, from, to);
 		}
 		static void destruct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t from, std::ptrdiff_t to) {}
 		template <std::size_t I, std::size_t ...Is>
