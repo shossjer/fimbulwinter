@@ -46,9 +46,9 @@ namespace utl
 	inline auto unpack_for(Array && array,
 	                       mpl::index_sequence<Is...>,
 	                       F && f) ->
-		decltype(std::forward<F>(f)(std::get<Is>(array)...))
+		decltype(std::forward<F>(f)(std::get<Is>(std::forward<Array>(array))...))
 	{
-		return std::forward<F>(f)(std::get<Is>(array)...);
+		return std::forward<F>(f)(std::get<Is>(std::forward<Array>(array))...);
 	}
 	template <typename Array, typename F>
 	inline auto unpack(Array && array,
