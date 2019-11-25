@@ -2,6 +2,7 @@
 #ifndef UTILITY_ITERATOR_HPP
 #define UTILITY_ITERATOR_HPP
 
+#include "utility/algorithm.hpp"
 #include "utility/concepts.hpp"
 #include "utility/intrinsics.hpp"
 #include "utility/type_traits.hpp"
@@ -416,6 +417,141 @@ namespace utility
 	auto make_proxy_reference(Ps && ...ps)
 	{
 		return utility::proxy_reference<Ps &&...>(std::forward<Ps>(ps)...);
+	}
+
+
+	// eric niebler is a god :pray:
+	//
+	// http://ericniebler.com/2015/02/03/iterators-plus-plus-part-1/
+
+	template <typename It,
+	          typename R = typename std::iterator_traits<It>::reference>
+	mpl::conditional_t<std::is_reference<R>::value,
+	                   mpl::remove_reference_t<R> &&,
+	                   R>
+	iter_move(It it)
+	{
+		return std::move(*it);
+	}
+
+	template <typename ...Its>
+	class zip_iterator;
+
+	template <typename T>
+	struct is_zip_iterator : mpl::false_type {};
+	template <typename ...Its>
+	struct is_zip_iterator<zip_iterator<Its...>> : mpl::true_type {};
+
+	template <typename T>
+	struct zip_iterator_size;
+	template <typename ...Its>
+	struct zip_iterator_size<zip_iterator<Its...>> : mpl::index_constant<sizeof...(Its)> {};
+
+	template <typename ...Its>
+	class zip_iterator
+		: public std::tuple<Its...>
+	{
+		template <typename ...Jts>
+		friend class zip_iterator;
+
+	private:
+		using this_type = zip_iterator<Its...>;
+		using base_type = std::tuple<Its...>;
+
+	public:
+		using value_type = std::tuple<typename std::iterator_traits<Its>::value_type...>;
+		using difference_type = typename std::iterator_traits<mpl::car<Its...>>::difference_type;
+		using reference = utility::proxy_reference<typename std::iterator_traits<Its>::reference...>;
+
+		using underlying_type = base_type;
+
+	public:
+		template <typename ...Ps,
+		          REQUIRES((std::is_constructible<std::tuple<Its...>, Ps...>::value))>
+		zip_iterator(Ps && ...ps)
+			: base_type(std::forward<Ps>(ps)...)
+		{}
+		template <typename Other,
+		          typename OtherT = mpl::remove_cvref_t<Other>,
+		          REQUIRES((is_zip_iterator<OtherT>::value)),
+		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
+		          REQUIRES((std::is_constructible<std::tuple<Its...>, Other>::value))>
+		zip_iterator(Other && other)
+			: base_type(std::forward<Other>(other))
+		{}
+		template <typename Other,
+		          typename OtherT = mpl::remove_cvref_t<Other>,
+		          REQUIRES((is_zip_iterator<OtherT>::value)),
+		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
+		          REQUIRES((std::is_assignable<std::tuple<Its...>, Other>::value))>
+		this_type & operator = (Other && other)
+		{
+			static_cast<base_type &>(*this) = std::forward<Other>(other);
+			return *this;
+		}
+
+	public:
+		reference operator * () const
+		{
+			return utl::unpack(static_cast<const base_type &>(*this), [](auto & ...ps){ return reference(*ps...); });
+		}
+
+		reference operator [] (difference_type n) const { return utl::unpack(static_cast<const base_type &>(*this), [n](auto & ...ps){ return reference(ps[n]...); }); }
+
+		this_type & operator ++ () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(++ps, 0)...}; }); return *this; }
+		this_type & operator -- () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(--ps, 0)...}; }); return *this; }
+		this_type operator ++ (int) { return utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ return this_type(ps++...); }); }
+		this_type operator -- (int) { return utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ return this_type(ps--...); }); }
+		this_type operator + (difference_type n) { return utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ return this_type(ps + n...); }); }
+		this_type operator - (difference_type n) { return utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ return this_type(ps - n...); }); }
+		this_type & operator += (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps += n, 0)...}; }); return *this; }
+		this_type & operator -= (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps -= n, 0)...}; }); return *this; }
+
+		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
+
+	private:
+		friend auto iter_move(this_type x)
+		{
+			using utility::iter_move;
+			return utl::unpack(static_cast<base_type &>(x), [](auto & ...ps){ return utility::make_proxy_reference(iter_move(ps)...); });
+		}
+	};
+
+	template <typename ...Its, typename ...Jts>
+	bool operator == (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
+	{
+		return static_cast<const std::tuple<Its...> &>(i1) == static_cast<const std::tuple<Its...> &>(i2);
+	}
+	template <typename ...Its, typename ...Jts>
+	bool operator != (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
+	{
+		return static_cast<const std::tuple<Its...> &>(i1) != static_cast<const std::tuple<Its...> &>(i2);
+	}
+	template <typename ...Its, typename ...Jts>
+	bool operator < (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
+	{
+		return static_cast<const std::tuple<Its...> &>(i1) < static_cast<const std::tuple<Its...> &>(i2);
+	}
+	template <typename ...Its, typename ...Jts>
+	bool operator <= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
+	{
+		return static_cast<const std::tuple<Its...> &>(i1) <= static_cast<const std::tuple<Its...> &>(i2);
+	}
+	template <typename ...Its, typename ...Jts>
+	bool operator > (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
+	{
+		return static_cast<const std::tuple<Its...> &>(i1) > static_cast<const std::tuple<Its...> &>(i2);
+	}
+	template <typename ...Its, typename ...Jts>
+	bool operator >= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
+	{
+		return static_cast<const std::tuple<Its...> &>(i1) >= static_cast<const std::tuple<Its...> &>(i2);
+	}
+
+	template <typename ...Its, typename ...Jts>
+	auto operator - (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
+	{
+		return std::get<0>(i1) - std::get<0>(i2);
 	}
 }
 
