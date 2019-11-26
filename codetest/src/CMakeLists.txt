@@ -4,6 +4,7 @@ set(CODE_TEST_SOURCE
 	src/main.cpp
 	src/core/async/delayTest.cpp
 	src/core/container/Collection.cpp
+   src/core/container/Queue.cpp
 	src/core/debug.cpp
 	src/core/maths/Matrix.cpp
 	src/core/maths/Quaternion.cpp

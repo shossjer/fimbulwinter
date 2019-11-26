@@ -48,6 +48,7 @@ set(HEADER_FILES
 	src/core/container/Collection.hpp
 	src/core/container/ExchangeQueue.hpp
 	src/core/container/Stack.hpp
+   src/core/container/Queue.hpp
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
 	src/core/graphics/types.hpp
