@@ -1,14 +1,14 @@
 
 #include "reader.hpp"
 
-#include <core/async/Thread.hpp>
-#include <core/container/CircleQueue.hpp>
-#include <core/sync/Event.hpp>
+#include "core/async/Thread.hpp"
+#include "core/container/CircleQueue.hpp"
+#include "core/sync/Event.hpp"
 
-#include <engine/debug.hpp>
+#include "engine/debug.hpp"
 
-#include <utility/string.hpp>
-#include <utility/variant.hpp>
+#include "utility/string.hpp"
+#include "utility/variant.hpp"
 
 #include <fstream>
 

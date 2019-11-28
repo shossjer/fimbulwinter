@@ -8,7 +8,7 @@
 #endif
 #include "opengl/Matrix.hpp"
 
-#include <config.h>
+#include "config.h"
 
 #include "core/color.hpp"
 #include "core/async/Thread.hpp"
