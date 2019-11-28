@@ -10,7 +10,7 @@
 
 #include "core/color.hpp"
 #include "core/async/Thread.hpp"
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
 #include "core/container/Stack.hpp"
@@ -54,11 +54,11 @@ namespace engine
 			extern std::atomic_int active;
 			extern core::sync::Event<true> event;
 
-			extern core::container::CircleQueueSRMW<DisplayMessage, 100> queue_displays;
-			extern core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
-			extern core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
+			extern core::container::PageQueue<utility::heap_storage<DisplayMessage>> queue_displays;
+			extern core::container::PageQueue<utility::heap_storage<AssetMessage>> queue_assets;
+			extern core::container::PageQueue<utility::heap_storage<EntityMessage>> queue_entities;
 
-			extern core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity, engine::Command>, 50> queue_select;
+			extern core::container::PageQueue<utility::heap_storage<int, int, engine::Entity, engine::Command>> queue_select;
 
 			extern std::atomic<int> entitytoggle;
 		}

@@ -44,7 +44,6 @@ set(HEADER_FILES
 	src/core/BytesStructurer.hpp
 	src/core/color.hpp
 	src/core/container/Buffer.hpp
-	src/core/container/CircleQueue.hpp
 	src/core/container/Collection.hpp
 	src/core/container/ExchangeQueue.hpp
 	src/core/container/Stack.hpp

@@ -1,7 +1,7 @@
 
 #include "viewer.hpp"
 
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
 #include "core/debug.hpp"
@@ -571,7 +571,7 @@ namespace
 
 	core::container::ExchangeQueueSRSW<std::pair<int, int>> queue_resize;
 
-	core::container::CircleQueueSRMW<Message, 50> queue_messages;
+	core::container::PageQueue<utility::heap_storage<Message>> queue_messages;
 }
 
 namespace engine

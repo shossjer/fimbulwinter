@@ -4,7 +4,7 @@
 #include "Armature.hpp"
 #include "Callbacks.hpp"
 
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/maths/Matrix.hpp"
 #include "core/maths/Quaternion.hpp"
@@ -492,8 +492,8 @@ namespace
 		MessageRemove
 	>;
 
-	core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
-	core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
+	core::container::PageQueue<utility::heap_storage<AssetMessage>> queue_assets;
+	core::container::PageQueue<utility::heap_storage<EntityMessage>> queue_entities;
 }
 
 namespace engine

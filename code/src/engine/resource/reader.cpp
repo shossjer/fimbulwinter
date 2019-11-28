@@ -2,7 +2,7 @@
 #include "reader.hpp"
 
 #include "core/async/Thread.hpp"
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/sync/Event.hpp"
 
 #include "engine/debug.hpp"
@@ -86,7 +86,7 @@ namespace
 		MessageRead
 	>;
 
-	core::container::CircleQueueSRMW<Message, 100> queue_messages;
+	core::container::PageQueue<utility::heap_storage<Message>> queue_messages;
 }
 
 namespace

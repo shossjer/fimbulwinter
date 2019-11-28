@@ -10,7 +10,7 @@
 
 #include "core/color.hpp"
 #include "core/async/Thread.hpp"
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
 #include "core/container/Stack.hpp"
@@ -67,11 +67,11 @@ namespace engine
 	{
 		namespace renderer
 		{
-			core::container::CircleQueueSRMW<DisplayMessage, 100> queue_displays;
-			core::container::CircleQueueSRMW<AssetMessage, 100> queue_assets;
-			core::container::CircleQueueSRMW<EntityMessage, 1000> queue_entities;
+			core::container::PageQueue<utility::heap_storage<DisplayMessage>> queue_displays;
+			core::container::PageQueue<utility::heap_storage<AssetMessage>> queue_assets;
+			core::container::PageQueue<utility::heap_storage<EntityMessage>> queue_entities;
 
-			core::container::CircleQueueSRMW<std::tuple<int, int, engine::Entity, engine::Command>, 50> queue_select;
+			core::container::PageQueue<utility::heap_storage<int, int, engine::Entity, engine::Command>> queue_select;
 
 			std::atomic<int> entitytoggle;
 		}

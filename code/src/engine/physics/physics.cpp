@@ -1,7 +1,7 @@
 
 #include "physics.hpp"
 
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/debug.hpp"
 #include "core/maths/algorithm.hpp"
@@ -204,7 +204,7 @@ namespace
 		MessageUpdateTransform
 	>;
 
-	core::container::CircleQueueSRMW<EntityMessage, 100> queue_entities;
+	core::container::PageQueue<utility::heap_storage<EntityMessage>> queue_entities;
 }
 
 namespace engine

@@ -2,7 +2,7 @@
 #include "writer.hpp"
 
 #include "core/async/Thread.hpp"
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
 #include "core/StringSerializer.hpp"
@@ -17,7 +17,7 @@
 
 namespace
 {
-	core::container::CircleQueue<std::tuple<int, engine::Entity, engine::Command, utility::any>, 100> queue_commands;
+	core::container::PageQueue<utility::heap_storage<int, engine::Entity, engine::Command, utility::any>> queue_commands;
 
 	core::async::Thread thread;
 	std::atomic_int active(0);

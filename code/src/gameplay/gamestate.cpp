@@ -3,7 +3,7 @@
 #include "gamestate_models.hpp"
 
 #include "core/JsonStructurer.hpp"
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
 #include "core/maths/algorithm.hpp"
@@ -761,19 +761,11 @@ namespace
 		}
 	};
 
-	core::container::CircleQueueSRMW<std::tuple<engine::Entity, engine::Command, utility::any>, 100> queue_commands;
+	core::container::PageQueue<utility::heap_storage<engine::Entity, engine::Command, utility::any>> queue_commands;
 
-	core::container::CircleQueueSRMW<
-		std::tuple
-		<
-			engine::Entity,
-			gameplay::gamestate::WorkstationType,
-			core::maths::Matrix4x4f,
-			core::maths::Matrix4x4f
-		>,
-		100> queue_workstations;
+	core::container::PageQueue<utility::heap_storage<engine::Entity, gameplay::gamestate::WorkstationType, core::maths::Matrix4x4f, core::maths::Matrix4x4f>> queue_workstations;
 
-	core::container::CircleQueueSRMW<engine::Entity, 100> queue_workers;
+	core::container::PageQueue<utility::heap_storage<engine::Entity>> queue_workers;
 
 	template<typename T>
 	T & access_component(const engine::Entity entity)

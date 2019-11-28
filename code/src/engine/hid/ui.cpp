@@ -2,7 +2,7 @@
 #include "ui.hpp"
 
 #include "core/async/delay.hpp"
-#include "core/container/CircleQueue.hpp"
+#include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
 
@@ -474,7 +474,7 @@ namespace
 		Unbind
 	>;
 
-	core::container::CircleQueueSRMW<Message, 100> queue;
+	core::container::PageQueue<utility::heap_storage<Message>> queue;
 
 	core::container::ExchangeQueueSRSW<dimension_t> queue_dimension;
 
@@ -511,7 +511,7 @@ namespace
 		engine::hid::Input
 	>;
 
-	core::container::CircleQueueSRMW<InputMessage, 500> queue_input;
+	core::container::PageQueue<utility::heap_storage<InputMessage>> queue_input;
 
 	struct HandleAxisMove
 	{
