@@ -82,7 +82,7 @@ namespace core
 					data_.grow();
 
 					components().construct_at(data_.size(), std::forward<Ps>(ps)...);
-					buckets()[data_.size()] = bucket;
+					buckets().construct_at(data_.size(), bucket);
 					data_.set_size(data_.size() + 1);
 				}
 
