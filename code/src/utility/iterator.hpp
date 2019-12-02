@@ -117,6 +117,23 @@ namespace utility
 		return contiguous_iterator<Iter>(i);
 	}
 
+	template <typename T>
+	constexpr std::pair<T *, T *> raw_range(T * begin, T * end)
+	{
+		return std::make_pair(begin, end);
+	}
+	template <typename It>
+	decltype(auto) raw_range(std::reverse_iterator<It> begin, std::reverse_iterator<It> end)
+	{
+		return raw_range(++end.base(), ++begin.base());
+	}
+	template <typename It>
+	decltype(auto) raw_range(It begin, It end)
+	{
+		// this might be fine to have as a default :shrug:
+		return raw_range(begin.base(), end.base());
+	}
+
 	template <typename It>
 	struct is_contiguous_iterator_impl
 	{
