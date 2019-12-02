@@ -19,6 +19,202 @@
 namespace utility
 {
 	template <typename Storage, typename T>
+	class section_iterator
+	{
+	private:
+		using this_type = section_iterator<Storage, T>;
+
+		using storing_type = typename Storage::template storing_type_for<T>;
+
+	public:
+		using difference_type = std::ptrdiff_t;
+		using value_type = T;
+		using pointer = T *;
+		using reference = T &;
+		using iterator_category = std::random_access_iterator_tag;
+
+		using rvalue_reference = T &&;
+
+	private:
+		Storage * storage_;
+		storing_type * ptr_;
+
+	public:
+		section_iterator(Storage & storage_, storing_type * ptr_)
+			: storage_(&storage_)
+			, ptr_(ptr_)
+		{}
+
+	public:
+		Storage & storage() { return *storage_; }
+		const Storage & storage() const { return *storage_; }
+
+		storing_type * base() { return ptr_; }
+		const storing_type * base() const { return ptr_; }
+
+		reference operator * () const
+		{
+			return storage_->value_at(ptr_);
+		}
+
+		reference operator [] (difference_type n) const
+		{
+			return storage_->value_at(ptr_ + n);
+		}
+
+		this_type & operator ++ () { ++ptr_; return *this; }
+		this_type & operator -- () { --ptr_; return *this; }
+		this_type operator ++ (int) { return this_type(*storage_, ptr_++); }
+		this_type operator -- (int) { return this_type(*storage_, ptr_--); }
+		this_type operator + (difference_type n) { return this_type(*storage_, ptr_ + n); }
+		this_type operator - (difference_type n) { return this_type(*storage_, ptr_ - n); }
+		this_type & operator += (difference_type n) { ptr_ += n; return *this; }
+		this_type & operator -= (difference_type n) { ptr_ -= n; return *this; }
+
+		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
+
+	private:
+		friend std::pair<T *, T *> raw_range(this_type begin, this_type end)
+		{
+			return std::make_pair(begin.storage_->data(begin.ptr_), end.storage_->data(end.ptr_));
+		}
+	};
+
+	template <typename Storage, typename T>
+	bool operator == (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	{
+		return i1.base() == i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator != (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	{
+		return i1.base() != i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator < (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	{
+		return i1.base() < i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator <= (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	{
+		return i1.base() <= i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator > (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	{
+		return i1.base() > i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator >= (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	{
+		return i1.base() >= i2.base();
+	}
+
+	template <typename Storage, typename T>
+	auto operator - (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	{
+		return i1.base() - i2.base();
+	}
+
+	template <typename Storage, typename T>
+	class const_section_iterator
+	{
+	private:
+		using this_type = const_section_iterator<Storage, T>;
+
+		using storing_type = typename Storage::template storing_type_for<T>;
+
+	public:
+		using difference_type = std::ptrdiff_t;
+		using value_type = T;
+		using pointer = const T *;
+		using reference = const T &;
+		using iterator_category = std::random_access_iterator_tag;
+
+		using rvalue_reference = const T &&;
+
+	private:
+		const Storage * storage_;
+		const storing_type * ptr_;
+
+	public:
+		const_section_iterator(const Storage & storage_, const storing_type * ptr_)
+			: storage_(&storage_)
+			, ptr_(ptr_)
+		{}
+
+	public:
+		const Storage & storage() const { return *storage_; }
+
+		const storing_type * base() const { return ptr_; }
+
+		reference operator * () const
+		{
+			return storage_->value_at(ptr_);
+		}
+
+		reference operator [] (difference_type n) const
+		{
+			return storage_->value_at(ptr_ + n);
+		}
+
+		this_type & operator ++ () { ++ptr_; return *this; }
+		this_type & operator -- () { --ptr_; return *this; }
+		this_type operator ++ (int) { return this_type(*storage_, ptr_++); }
+		this_type operator -- (int) { return this_type(*storage_, ptr_--); }
+		this_type operator + (difference_type n) { return this_type(*storage_, ptr_ + n); }
+		this_type operator - (difference_type n) { return this_type(*storage_, ptr_ - n); }
+		this_type & operator += (difference_type n) { ptr_ += n; return *this; }
+		this_type & operator -= (difference_type n) { ptr_ -= n; return *this; }
+
+		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
+
+	private:
+		friend std::pair<const T *, const T *> raw_range(this_type begin, this_type end)
+		{
+			return std::make_pair(begin.storage_->data(begin.ptr_), end.storage_->data(end.ptr_));
+		}
+	};
+
+	template <typename Storage, typename T>
+	bool operator == (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
+	{
+		return i1.base() == i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator != (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
+	{
+		return i1.base() != i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator < (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
+	{
+		return i1.base() < i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator <= (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
+	{
+		return i1.base() <= i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator > (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
+	{
+		return i1.base() > i2.base();
+	}
+	template <typename Storage, typename T>
+	bool operator >= (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
+	{
+		return i1.base() >= i2.base();
+	}
+
+	template <typename Storage, typename T>
+	auto operator - (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
+	{
+		return i1.base() - i2.base();
+	}
+
+	template <typename Storage, typename T>
 	class section
 	{
 	public:
