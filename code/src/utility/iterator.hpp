@@ -534,6 +534,13 @@ namespace utility
 		}
 	};
 
+	template <std::size_t I, typename That,
+	          REQUIRES((is_zip_iterator<mpl::remove_cvref_t<That>>::value))>
+	decltype(auto) get(That && that) { return std::get<I>(std::forward<That>(that)); }
+	template <typename T, typename That,
+	          REQUIRES((is_zip_iterator<mpl::remove_cvref_t<That>>::value))>
+	decltype(auto) get(That && that) { return std::get<T>(std::forward<That>(that)); }
+
 	template <typename ...Its, typename ...Jts>
 	bool operator == (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
