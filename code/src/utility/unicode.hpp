@@ -641,54 +641,24 @@ namespace utility
 		mpl::conditional_t<(N < 0x100000000), std::uint32_t, std::uint64_t>>>;
 
 	template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
-	struct Utf8StringStorageStaticCapacity
+	struct Utf8StringStorageDataImpl
 	{
-		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
-		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
-		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
-		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
-		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
-
-		using this_type = Utf8StringStorageStaticCapacity<Storage>;
-
 		using storage_traits = utility::storage_traits<Storage>;
-		using storage_type = Storage;
 
 		using size_type = size_type_for<storage_traits::capacity_value>;
 
 		size_type size_ = 0;
 		Storage chars_;
 
-		bool allocate_storage(std::size_t capacity)
-		{
-			return chars_.allocate(capacity);
-		}
-		void deallocate_storage(std::size_t capacity)
-		{
-			chars_.deallocate(capacity);
-		}
-
-		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			chars_.construct_range(index, other.chars_.data() + from, other.chars_.data() + to);
-		}
-		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			chars_.construct_range(index, std::make_move_iterator(other.chars_.data() + from), std::make_move_iterator(other.chars_.data() + to));
-		}
-		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			chars_.destruct_range(from, to);
-		}
-
 		void initialize()
 		{
 			set_capacity(storage_traits::capacity_for(1));
-			allocate_storage(capacity());
+			chars_.allocate(capacity());
 
 			set_size(1);
 			chars_.construct_at(0, '\0');
 		}
+
 		void set_capacity(size_type capacity)
 		{
 			assert(capacity == storage_traits::capacity_value);
@@ -703,20 +673,10 @@ namespace utility
 		size_type size_without_null() const { return size_ - 1; }
 	};
 	template <typename Storage>
-	struct Utf8StringStorageStaticCapacity<Storage, false /*static capacity*/>
+	struct Utf8StringStorageDataImpl<Storage, false /*static capacity*/>
 	{
-		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
-		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
-		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
-		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
-		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
-
-		using this_type = Utf8StringStorageStaticCapacity<Storage>;
-
-		using storage_traits = utility::storage_traits<Storage>;
-		using storage_type = Storage;
-
 		using size_type = std::size_t;
+		using storage_traits = utility::storage_traits<Storage>;
 
 		// private:
 		// struct Big
@@ -742,36 +702,15 @@ namespace utility
 		size_type size_ = 0;
 		Storage chars_;
 
-		bool allocate_storage(std::size_t capacity)
-		{
-			return chars_.allocate(capacity);
-		}
-		void deallocate_storage(std::size_t capacity)
-		{
-			chars_.deallocate(capacity);
-		}
-
-		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			chars_.construct_range(index, other.chars_.data() + from, other.chars_.data() + to);
-		}
-		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			chars_.construct_range(0, std::make_move_iterator(other.chars_.data()), std::make_move_iterator(other.chars_.data() + other.size()));
-		}
-		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			chars_.destruct_range(from, to);
-		}
-
 		void initialize()
 		{
 			set_capacity(storage_traits::capacity_for(1));
-			allocate_storage(capacity());
+			chars_.allocate(capacity());
 
 			set_size(1);
 			chars_.construct_at(0, '\0');
 		}
+
 		void set_capacity(size_type capacity)
 		{
 			capacity_ = capacity;
@@ -784,6 +723,44 @@ namespace utility
 		size_type capacity() const { return capacity_; }
 		size_type size() const { return size_; }
 		size_type size_without_null() const { return size_ - 1; }
+	};
+
+	template <typename Storage>
+	struct Utf8StringStorageData
+		: Utf8StringStorageDataImpl<Storage>
+	{
+		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
+		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
+		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
+		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
+		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
+
+		using this_type = Utf8StringStorageData<Storage>;
+
+		bool allocate_storage(std::size_t capacity)
+		{
+			return this->chars_.allocate(capacity);
+		}
+
+		void deallocate_storage(std::size_t capacity)
+		{
+			this->chars_.deallocate(capacity);
+		}
+
+		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			this->chars_.construct_range(index, other.chars_.data() + from, other.chars_.data() + to);
+		}
+
+		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			this->chars_.construct_range(index, std::make_move_iterator(other.chars_.data() + from), std::make_move_iterator(other.chars_.data() + to));
+		}
+
+		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			this->chars_.destruct_range(from, to);
+		}
 	};
 
 	template <typename StorageTraits>
@@ -801,7 +778,7 @@ namespace utility
 		using reverse_iterator = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 	private:
-		using StorageData = Utf8StringStorageStaticCapacity<typename StorageTraits::template storage_type<value_type>>;
+		using StorageData = Utf8StringStorageData<typename StorageTraits::template storage_type<value_type>>;
 		using Utf8StringStorage = array_wrapper<StorageData>;
 
 	private:

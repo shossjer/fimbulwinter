@@ -14,72 +14,18 @@ namespace utility
 	template <typename Storage>
 	struct array_data_impl<Storage, true /*static capacity*/>
 	{
-		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
-		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
-		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
-		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
-		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
-
-		using this_type = array_data_impl<Storage, true>;
-
 		using size_type = std::size_t;
 		using storage_traits = utility::storage_traits<Storage>;
-		using storage_type = Storage;
 
 		size_type size_ = 0;
 		Storage storage_;
-
-		bool allocate_storage(std::size_t capacity)
-		{
-			return storage_.allocate(capacity);
-		}
-
-		void deallocate_storage(std::size_t capacity)
-		{
-			storage_.deallocate(capacity);
-		}
-
-		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			copy_construct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, index, other.storage_, from, to);
-		}
-		static void copy_construct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is>
-		static void copy_construct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			dest.section(mpl::index_constant<I>{}).construct_range(index, src.section(mpl::index_constant<I>{}).data() + from, src.section(mpl::index_constant<I>{}).data() + to);
-			copy_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
-		}
-
-		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			move_construct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, index, other.storage_, from, to);
-		}
-		static void move_construct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is>
-		static void move_construct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::ptrdiff_t index, Storage & src, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			dest.section(mpl::index_constant<I>{}).construct_range(index, std::make_move_iterator(src.section(mpl::index_constant<I>{}).data() + from), std::make_move_iterator(src.section(mpl::index_constant<I>{}).data() + to));
-			move_construct_ranges(mpl::index_sequence<Is...>{}, dest, index, src, from, to);
-		}
-
-		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			destruct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, from, to);
-		}
-		static void destruct_ranges(mpl::index_sequence<>, Storage & dest, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is>
-		static void destruct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			dest.section(mpl::index_constant<I>{}).destruct_range(from, to);
-			destruct_ranges(mpl::index_sequence<Is...>{}, dest, from, to);
-		}
 
 		void initialize()
 		{
 			set_capacity(0);
 			set_size(0);
 		}
+
 		void set_capacity(size_type capacity)
 		{
 			assert(capacity == storage_traits::capacity_value);
@@ -95,73 +41,19 @@ namespace utility
 	template <typename Storage>
 	struct array_data_impl<Storage, false /*static capacity*/>
 	{
-		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
-		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
-		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
-		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
-		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
-
-		using this_type = array_data_impl<Storage, false>;
-
 		using size_type = std::size_t;
 		using storage_traits = utility::storage_traits<Storage>;
-		using storage_type = Storage;
 
 		size_type size_ = 0;
 		size_type capacity_ = 0;
 		Storage storage_;
-
-		bool allocate_storage(std::size_t capacity)
-		{
-			return storage_.allocate(capacity);
-		}
-
-		void deallocate_storage(std::size_t capacity)
-		{
-			storage_.deallocate(capacity);
-		}
-
-		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			copy_construct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, capacity_, index, other.storage_, other.capacity_, from, to);
-		}
-		static void copy_construct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is>
-		static void copy_construct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			dest.section(mpl::index_constant<I>{}, destcap).construct_range(index, src.section(mpl::index_constant<I>{}, srccap).data() + from, src.section(mpl::index_constant<I>{}, srccap).data() + to);
-			copy_construct_ranges(mpl::index_sequence<Is...>{}, dest, destcap, index, src, srccap, from, to);
-		}
-
-		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			move_construct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, capacity_, index, other.storage_, other.capacity_, from, to);
-		}
-		static void move_construct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is>
-		static void move_construct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::size_t destcap, std::ptrdiff_t index, Storage & src, std::size_t srccap, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			dest.section(mpl::index_constant<I>{}, destcap).construct_range(index, std::make_move_iterator(src.section(mpl::index_constant<I>{}, srccap).data() + from), std::make_move_iterator(src.section(mpl::index_constant<I>{}, srccap).data() + to));
-			move_construct_ranges(mpl::index_sequence<Is...>{}, dest, destcap, index, src, srccap, from, to);
-		}
-
-		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			destruct_ranges(mpl::make_index_sequence<Storage::value_types::size>{}, storage_, capacity_, from, to);
-		}
-		static void destruct_ranges(mpl::index_sequence<>, Storage & dest, std::size_t destcap, std::ptrdiff_t from, std::ptrdiff_t to) {}
-		template <std::size_t I, std::size_t ...Is>
-		static void destruct_ranges(mpl::index_sequence<I, Is...>, Storage & dest, std::size_t destcap, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			dest.section(mpl::index_constant<I>{}, destcap).destruct_range(from, to);
-			destruct_ranges(mpl::index_sequence<Is...>{}, dest, destcap, from, to);
-		}
 
 		void initialize()
 		{
 			set_capacity(0);
 			set_size(0);
 		}
+
 		void set_capacity(size_type capacity)
 		{
 			capacity_ = capacity;
@@ -176,7 +68,44 @@ namespace utility
 	};
 
 	template <typename Storage>
-	using array_data = array_data_impl<Storage>;
+	struct array_data
+		: array_data_impl<Storage>
+	{
+		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
+		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
+		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
+		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
+		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
+
+		using this_type = array_data<Storage>;
+
+		bool allocate_storage(std::size_t capacity)
+		{
+			return this->storage_.allocate(capacity);
+		}
+
+		void deallocate_storage(std::size_t capacity)
+		{
+			this->storage_.deallocate(capacity);
+		}
+
+		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			auto other_sections = other.storage_.sections(other.capacity());
+			this->storage_.sections(this->capacity()).construct_range(0, other_sections.data() + 0, other_sections.data() + other.size());
+		}
+
+		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			auto other_sections = other.storage_.sections(other.capacity());
+			this->storage_.sections(this->capacity()).construct_range(0, std::make_move_iterator(other_sections.data() + 0), std::make_move_iterator(other_sections.data() + other.size()));
+		}
+
+		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
+		{
+			this->storage_.sections(this->capacity()).destruct_range(0, this->size());
+		}
+	};
 
 	template <typename StorageData, bool = StorageData::is_trivially_destructible::value>
 	struct array_wrapper_trivially_destructible
