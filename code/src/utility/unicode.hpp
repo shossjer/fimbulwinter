@@ -640,94 +640,97 @@ namespace utility
 		mpl::conditional_t<(N < 0x10000), std::uint16_t,
 		mpl::conditional_t<(N < 0x100000000), std::uint32_t, std::uint64_t>>>;
 
-	template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
-	struct Utf8StringStorageDataImpl
+	namespace detail
 	{
-		using storage_traits = utility::storage_traits<Storage>;
-
-		using size_type = size_type_for<storage_traits::capacity_value>;
-
-		size_type size_ = 0;
-		Storage chars_;
-
-		void initialize()
+		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
+		struct Utf8StringStorageDataImpl
 		{
-			set_capacity(storage_traits::capacity_for(1));
-			chars_.allocate(capacity());
+			using storage_traits = utility::storage_traits<Storage>;
 
-			set_size(1);
-			chars_.construct_at(0, '\0');
-		}
+			using size_type = size_type_for<storage_traits::capacity_value>;
 
-		void set_capacity(size_type capacity)
+			size_type size_ = 0;
+			Storage chars_;
+
+			void initialize()
+			{
+				set_capacity(storage_traits::capacity_for(1));
+				chars_.allocate(capacity());
+
+				set_size(1);
+				chars_.construct_at(0, '\0');
+			}
+
+			void set_capacity(size_type capacity)
+			{
+				assert(capacity == storage_traits::capacity_value);
+			}
+			void set_size(size_type size)
+			{
+				size_ = size;
+			}
+
+			constexpr size_type capacity() const { return storage_traits::capacity_value; }
+			size_type size() const { return size_; }
+			size_type size_without_null() const { return size_ - 1; }
+		};
+		template <typename Storage>
+		struct Utf8StringStorageDataImpl<Storage, false /*static capacity*/>
 		{
-			assert(capacity == storage_traits::capacity_value);
-		}
-		void set_size(size_type size)
-		{
-			size_ = size;
-		}
+			using size_type = std::size_t;
+			using storage_traits = utility::storage_traits<Storage>;
 
-		constexpr size_type capacity() const { return storage_traits::capacity_value; }
-		size_type size() const { return size_; }
-		size_type size_without_null() const { return size_ - 1; }
-	};
-	template <typename Storage>
-	struct Utf8StringStorageDataImpl<Storage, false /*static capacity*/>
-	{
-		using size_type = std::size_t;
-		using storage_traits = utility::storage_traits<Storage>;
+			// private:
+			// struct Big
+			// {
+			// 	size_type capacity_1 : CHAR_BITS;
+			// 	size_type capacity_2 : (sizeof(size_type) - 1) * CHAR_BITS;
+			// 	array_alloc<code_unit, dynamic_alloc> alloc_;
+			// 	size_type size_;
+			// };
+			// struct Small
+			// {
+			// 	size_type size_ : CHAR_BITS;
+			// 	code_unit buffer[sizeof(Big) - 1];
+			// };
 
-		// private:
-		// struct Big
-		// {
-		// 	size_type capacity_1 : CHAR_BITS;
-		// 	size_type capacity_2 : (sizeof(size_type) - 1) * CHAR_BITS;
-		// 	array_alloc<code_unit, dynamic_alloc> alloc_;
-		// 	size_type size_;
-		// };
-		// struct Small
-		// {
-		// 	size_type size_ : CHAR_BITS;
-		// 	code_unit buffer[sizeof(Big) - 1];
-		// };
+			// union
+			// {
+			// 	Small small;
+			// 	Big big;
+			// };
 
-		// union
-		// {
-		// 	Small small;
-		// 	Big big;
-		// };
+			size_type capacity_ = 0;
+			size_type size_ = 0;
+			Storage chars_;
 
-		size_type capacity_ = 0;
-		size_type size_ = 0;
-		Storage chars_;
+			void initialize()
+			{
+				set_capacity(storage_traits::capacity_for(1));
+				chars_.allocate(capacity());
 
-		void initialize()
-		{
-			set_capacity(storage_traits::capacity_for(1));
-			chars_.allocate(capacity());
+				set_size(1);
+				chars_.construct_at(0, '\0');
+			}
 
-			set_size(1);
-			chars_.construct_at(0, '\0');
-		}
+			void set_capacity(size_type capacity)
+			{
+				capacity_ = capacity;
+			}
+			void set_size(size_type size)
+			{
+				size_ = size;
+			}
 
-		void set_capacity(size_type capacity)
-		{
-			capacity_ = capacity;
-		}
-		void set_size(size_type size)
-		{
-			size_ = size;
-		}
-
-		size_type capacity() const { return capacity_; }
-		size_type size() const { return size_; }
-		size_type size_without_null() const { return size_ - 1; }
-	};
+			size_type capacity() const { return capacity_; }
+			size_type size() const { return size_; }
+			size_type size_without_null() const { return size_ - 1; }
+		};
+	}
 
 	template <typename Storage>
 	struct Utf8StringStorageData
-		: Utf8StringStorageDataImpl<Storage>
+		: detail::Utf8StringStorageDataImpl<Storage>
 	{
 		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
 		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
