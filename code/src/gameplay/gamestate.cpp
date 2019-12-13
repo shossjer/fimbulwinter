@@ -249,7 +249,7 @@ namespace
 					}
 				}
 			}
-			return tables.emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50, recipe.amount.value_or(1));
+			return *tables.try_emplace<Preparation>(table, &recipe, recipe.time.value_or(0) * 50, recipe.amount.value_or(1));
 		}
 	} kitchen;
 
@@ -517,14 +517,14 @@ namespace
 
 				const engine::Entity entity = engine::Entity::create();
 				recipe_entities.push_back(entity);
-				components.emplace<Option>(entity);
+				debug_verify(components.try_emplace<Option>(entity));
 			}
 
 			for (int i = 0; i < 2; i++)
 			{
 				const engine::Entity entity = engine::Entity::create();
 				other_entities.push_back(entity);
-				components.emplace<Option>(entity);
+				debug_verify(components.try_emplace<Option>(entity));
 			}
 		}
 
@@ -1222,8 +1222,8 @@ namespace gamestate
 		core::maths::Vector3f debug_camera_pos{ 0.f, 4.f, 0.f };
 		core::maths::Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
 
-		components.emplace<FreeCamera>(debug_camera, debug_camera);
-		components.emplace<OverviewCamera>(game_camera, game_camera);
+		debug_verify(components.try_emplace<FreeCamera>(debug_camera, debug_camera));
+		debug_verify(components.try_emplace<OverviewCamera>(game_camera, game_camera));
 
 		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
 		engine::physics::camera::add(game_camera, game_camera_pos, true);
@@ -1280,8 +1280,8 @@ namespace gamestate
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
-		components.emplace<CameraActivator>(debug_switch, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera);
-		components.emplace<CameraActivator>(game_switch, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera);
+		debug_verify(components.try_emplace<CameraActivator>(debug_switch, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera));
+		debug_verify(components.try_emplace<CameraActivator>(game_switch, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera));
 
 		engine::hid::ui::post_add_button_press(debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
 		engine::hid::ui::post_add_button_press(game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
@@ -1291,7 +1291,7 @@ namespace gamestate
 		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), debug_switch, post_command_callback, &mapping_data[3]);
 
 		auto selector = engine::Entity::create();
-		components.emplace<Selector>(selector);
+		debug_verify(components.try_emplace<Selector>(selector));
 
 		auto cursor = engine::Entity::create();
 		engine::hid::ui::post_add_axis_move(cursor, engine::hid::Input::Axis::MOUSE_MOVE, gameplay::command::MOUSE_MOVE_X, gameplay::command::MOUSE_MOVE_Y);
@@ -1319,18 +1319,18 @@ namespace gamestate
 			engine::Entity worker_args;
 			while (queue_workers.try_pop(worker_args))
 			{
-				Worker& worker = components.emplace<Worker>(worker_args);
+				Worker& worker = *components.try_emplace<Worker>(worker_args);
 				worker.clear_skills(kitchen.skills);
 			}
 
 			std::tuple<engine::Entity, WorkstationType, core::maths::Matrix4x4f, core::maths::Matrix4x4f> workstation_args;
 			while (queue_workstations.try_pop(workstation_args))
 			{
-				components.emplace<Workstation>(
+				debug_verify(components.try_emplace<Workstation>(
 					std::get<0>(workstation_args),
 					std::get<1>(workstation_args),
 					std::get<2>(workstation_args),
-					std::get<3>(workstation_args));
+					std::get<3>(workstation_args)));
 			}
 		}
 

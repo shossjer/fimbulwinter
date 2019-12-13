@@ -130,11 +130,11 @@ TEST_CASE( "collection heap_storage", "[core][container]" )
 	>
 	collection;
 
-	collection.emplace<int>(1u, 1);
-	collection.emplace<int>(2u, 2);
-	collection.emplace<int>(3u, 3);
-	collection.emplace<int>(4u, 4);
-	collection.emplace<int>(5u, 5);
+	CHECK(collection.try_emplace<int>(1u, 1));
+	CHECK(collection.try_emplace<int>(2u, 2));
+	CHECK(collection.try_emplace<int>(3u, 3));
+	CHECK(collection.try_emplace<int>(4u, 4));
+	CHECK(collection.try_emplace<int>(5u, 5));
 }
 
 TEST_CASE( "collection static_storage", "[core][container]" )
@@ -147,9 +147,9 @@ TEST_CASE( "collection static_storage", "[core][container]" )
 	>
 	collection;
 
-	collection.emplace<int>(1u, 1);
-	collection.emplace<int>(2u, 2);
-	collection.emplace<int>(3u, 3);
-	collection.emplace<int>(4u, 4);
-	collection.emplace<int>(5u, 5);
+	CHECK(collection.try_emplace<int>(1u, 1));
+	CHECK(collection.try_emplace<int>(2u, 2));
+	CHECK(collection.try_emplace<int>(3u, 3));
+	CHECK(collection.try_emplace<int>(4u, 4));
+	CHECK(collection.try_emplace<int>(5u, 5));
 }

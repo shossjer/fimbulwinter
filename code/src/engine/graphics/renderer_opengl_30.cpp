@@ -978,23 +978,23 @@ namespace
 			{
 				meshes.push_back(asset.mesh);
 			}
-			selectable_components.emplace<selectable_comp_c>(entity, meshes, x.object, color);
+			debug_verify(selectable_components.try_emplace<selectable_comp_c>(entity, meshes, x.object, color));
 		}
 		void operator () (engine::Entity entity, comp_t & x)
 		{
-			selectable_components.emplace<selectable_comp_t>(entity, x.mesh, x.object, color);
+			debug_verify(selectable_components.try_emplace<selectable_comp_t>(entity, x.mesh, x.object, color));
 		}
 		void operator () (engine::Entity entity, Character & x)
 		{
-			selectable_components.emplace<selectable_character_t>(entity, x.mesh, x.object, color);
+			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity, x.mesh, x.object, color));
 		}
 		void operator () (engine::Entity entity, ui::PanelC & x)
 		{
-			selectable_components.emplace<selectable_panel>(entity, x.object, x.size, color);
+			debug_verify(selectable_components.try_emplace<selectable_panel>(entity, x.object, x.size, color));
 		}
 		void operator () (engine::Entity entity, ui::PanelT & x)
 		{
-			selectable_components.emplace<selectable_panel>(entity, x.object, x.size, color);
+			debug_verify(selectable_components.try_emplace<selectable_panel>(entity, x.object, x.size, color));
 		}
 
 		template <typename T>
@@ -1113,10 +1113,10 @@ namespace
 
 				void operator () (MessageAddDisplay && x)
 				{
-					displays.emplace<display_t>(x.asset,
-					                            x.display.viewport.x, x.display.viewport.y, x.display.viewport.width, x.display.viewport.height,
-					                            x.display.camera_3d.projection, x.display.camera_3d.frame, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_frame, x.display.camera_3d.inv_view,
-					                            x.display.camera_2d.projection, x.display.camera_2d.view);
+					debug_verify(displays.try_emplace<display_t>(x.asset,
+					                                             x.display.viewport.x, x.display.viewport.y, x.display.viewport.width, x.display.viewport.height,
+					                                             x.display.camera_3d.projection, x.display.camera_3d.frame, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_frame, x.display.camera_3d.inv_view,
+					                                             x.display.camera_2d.projection, x.display.camera_2d.view));
 					should_maybe_resize_framebuffer = true;
 				}
 				void operator () (MessageRemoveDisplay && x)
@@ -1185,7 +1185,7 @@ namespace
 					}
 					else
 					{
-						components.emplace<Bar>(x.entity, std::move(x.bar));
+						debug_verify(components.try_emplace<Bar>(x.entity, std::move(x.bar)));
 					}
 				}
 				void operator () (MessageAddCharacterT && x)
@@ -1194,14 +1194,14 @@ namespace
 					const auto & mesh = resources.get<mesh_t>(x.component.mesh);
 					const auto & texture = materials.get<texture_t>(x.component.texture);
 					auto & object = objects.emplace<object_modelview_vertices>(x.entity, mesh, std::move(x.component.modelview));
-					components.emplace<Character>(x.entity, mesh, texture, object);
-					updateable_components.emplace<updateable_character_t>(x.entity, mesh, object);
+					debug_verify(components.try_emplace<Character>(x.entity, mesh, texture, object));
+					debug_verify(updateable_components.try_emplace<updateable_character_t>(x.entity, mesh, object));
 				}
 				void operator () (MessageAddComponentC && x)
 				{
 					debug_assert(!components.contains(x.entity));
 					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.component.modelview));
-					components.emplace<comp_c>(x.entity, object, std::move(x.component.assets));
+					debug_verify(components.try_emplace<comp_c>(x.entity, object, std::move(x.component.assets)));
 				}
 				void operator () (MessageAddComponentT && x)
 				{
@@ -1209,31 +1209,31 @@ namespace
 					const auto & mesh = resources.get<mesh_t>(x.component.mesh);
 					const auto & texture = materials.get<texture_t>(x.component.texture);
 					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.component.modelview));
-					components.emplace<comp_t>(x.entity, mesh, texture, object);
+					debug_verify(components.try_emplace<comp_t>(x.entity, mesh, texture, object));
 				}
 				void operator () (MessageAddLineC && x)
 				{
 					debug_assert(!components.contains(x.entity));
-					components.emplace<linec_t>(x.entity, std::move(x.line));
+					debug_verify(components.try_emplace<linec_t>(x.entity, std::move(x.line)));
 				}
 				void operator () (MessageAddPanelC && x)
 				{
 					debug_assert(!components.contains(x.entity));
 					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.panel.matrix));
-					components.emplace<::ui::PanelC>(x.entity, object, std::move(x.panel.size), std::move(x.panel.color));
+					debug_verify(components.try_emplace<::ui::PanelC>(x.entity, object, std::move(x.panel.size), std::move(x.panel.color)));
 				}
 				void operator () (MessageAddPanelT && x)
 				{
 					debug_assert(!components.contains(x.entity));
 					const auto & texture = materials.get<texture_t>(x.panel.texture);
 					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.panel.matrix));
-					components.emplace<::ui::PanelT>(x.entity, texture, object, std::move(x.panel.size));
+					debug_verify(components.try_emplace<::ui::PanelT>(x.entity, texture, object, std::move(x.panel.size)));
 				}
 				void operator () (MessageAddText && x)
 				{
 					debug_assert(!components.contains(x.entity));
 					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.text.matrix));
-					components.emplace<::ui::Text>(x.entity, object, std::move(x.text.display), std::move(x.text.color));
+					debug_verify(components.try_emplace<::ui::Text>(x.entity, object, std::move(x.text.display), std::move(x.text.color)));
 				}
 				void operator () (MessageMakeObstruction && x)
 				{

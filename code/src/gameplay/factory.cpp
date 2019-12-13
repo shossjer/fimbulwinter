@@ -1267,18 +1267,18 @@ namespace
 			auto & resource = resources.get<Resource>(asset);
 			if (resource.is_loading())
 			{
-				entities.emplace<Entity>(entity, std::forward<Ps>(ps)...);
+				debug_verify(entities.try_emplace<Entity>(entity, std::forward<Ps>(ps)...));
 				resource.add(entity);
 			}
 			else
 			{
-				entities.emplace<Entity>(entity, entity, resource.get_loaded(), std::forward<Ps>(ps)...);
+				debug_verify(entities.try_emplace<Entity>(entity, entity, resource.get_loaded(), std::forward<Ps>(ps)...));
 				// resource.add(entity);
 			}
 		}
 		else
 		{
-			entities.emplace<Entity>(entity, std::forward<Ps>(ps)...);
+			debug_verify(entities.try_emplace<Entity>(entity, std::forward<Ps>(ps)...));
 			auto & resource = resources.emplace<Resource>(asset);
 			resource.add(entity);
 			engine::resource::reader::post_read(name, read_callback);
@@ -1320,18 +1320,18 @@ namespace
 			auto & resource = resources.get<ResourceCharacter>(asset);
 			if (resource.is_loading())
 			{
-				entities.emplace<EntityWorker>(entity, modelview);
+				debug_verify(entities.try_emplace<EntityWorker>(entity, modelview));
 				resource.add(entity);
 			}
 			else
 			{
-				entities.emplace<EntityWorker>(entity, entity, resource.get_loaded(), modelview);
+				debug_verify(entities.try_emplace<EntityWorker>(entity, entity, resource.get_loaded(), modelview));
 				// resource.add(entity);
 			}
 		}
 		else
 		{
-			entities.emplace<EntityWorker>(entity, modelview);
+			debug_verify(entities.try_emplace<EntityWorker>(entity, modelview));
 			auto & resource = resources.emplace<ResourceCharacter>(asset);
 			resource.add(entity);
 			engine::resource::reader::post_read(name, read_character_callback, engine::resource::Format::Placeholder);

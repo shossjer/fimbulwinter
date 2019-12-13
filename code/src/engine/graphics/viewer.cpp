@@ -622,7 +622,7 @@ namespace engine
 
 						void operator () (MessageAddCamera && data)
 						{
-							cameras.emplace<Camera>(data.entity, std::move(data.data));
+							debug_verify(cameras.try_emplace<Camera>(data.entity, std::move(data.data)));
 						}
 						void operator () (MessageAddFrameDynamic && data)
 						{

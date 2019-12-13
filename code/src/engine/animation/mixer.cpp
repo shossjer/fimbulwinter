@@ -406,7 +406,7 @@ namespace
 		void operator () (Character & x)
 		{
 			const Mixer mixer = next_mixer_key++;
-			auto & playback = mixers.emplace<Playback>(mixer, *x.armature, data.repetative);
+			auto & playback = *mixers.try_emplace<Playback>(mixer, *x.armature, data.repetative);
 			{
 				auto action = std::find(x.armature->actions.begin(),
 				                        x.armature->actions.end(),
@@ -428,7 +428,7 @@ namespace
 		void operator () (Model & x)
 		{
 			const Mixer mixer = next_mixer_key++;
-			auto & objectplayback = mixers.emplace<ObjectPlayback>(mixer, *x.object, data.repetative);
+			auto & objectplayback = *mixers.try_emplace<ObjectPlayback>(mixer, *x.object, data.repetative);
 			{
 				auto action = std::find(x.object->actions.begin(),
 				                        x.object->actions.end(),
@@ -553,14 +553,14 @@ namespace engine
 						debug_assert(sources.contains<Armature>(x.data.armature));
 						const auto & armature = sources.get<Armature>(x.data.armature);
 
-						components.emplace<Character>(x.entity, x.entity, armature);
+						debug_verify(components.try_emplace<Character>(x.entity, x.entity, armature));
 					}
 					void operator () (MessageAddModel && x)
 					{
 						debug_assert(sources.contains<engine::animation::object>(x.data.object));
 						const auto & object = sources.get<engine::animation::object>(x.data.object);
 
-						components.emplace<Model>(x.entity, x.entity, object);
+						debug_verify(components.try_emplace<Model>(x.entity, x.entity, object));
 					}
 					void operator () (MessageUpdateAction && x)
 					{

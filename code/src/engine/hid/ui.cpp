@@ -695,7 +695,7 @@ namespace ui
 				void operator () (AddAxisMove && x)
 				{
 					const Filter filter = next_available_filter++;
-					filters.emplace<AxisMove>(filter, x.command_x, x.command_y);
+					debug_verify(filters.try_emplace<AxisMove>(filter, x.command_x, x.command_y));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -705,7 +705,7 @@ namespace ui
 				void operator () (AddAxisTilt && x)
 				{
 					const Filter filter = next_available_filter++;
-					filters.emplace<AxisTilt>(filter, x.command_min, x.command_max);
+					debug_verify(filters.try_emplace<AxisTilt>(filter, x.command_min, x.command_max));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -715,7 +715,7 @@ namespace ui
 				void operator () (AddButtonPress && x)
 				{
 					const Filter filter = next_available_filter++;
-					filters.emplace<ButtonPress>(filter, x.command);
+					debug_verify(filters.try_emplace<ButtonPress>(filter, x.command));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -725,7 +725,7 @@ namespace ui
 				void operator () (AddButtonRelease && x)
 				{
 					const Filter filter = next_available_filter++;
-					filters.emplace<ButtonRelease>(filter, x.command);
+					debug_verify(filters.try_emplace<ButtonRelease>(filter, x.command));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");

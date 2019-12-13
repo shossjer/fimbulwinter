@@ -96,7 +96,7 @@ namespace camera
 	// TODO: make thread safe when needed
 	void add(engine::Entity id, core::maths::Vector3f position, bool bounded)
 	{
-		components.emplace<Camera>(id, Camera{ bounded, position });
+		debug_verify(components.try_emplace<Camera>(id, Camera{ bounded, position }));
 
 		// snap new camera to bounds
 		update(id, core::maths::Vector3f{ 0.f, 0.f, 0.f });
@@ -231,7 +231,7 @@ namespace physics
 				void operator () (MessageAddObject && x)
 				{
 					debug_assert(!objects.contains(x.entity));
-					objects.emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat));
+					debug_verify(objects.try_emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat)));
 				}
 				void operator () (MessageRemove && x)
 				{

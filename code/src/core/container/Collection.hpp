@@ -77,13 +77,16 @@ namespace core
 				}
 
 				template <typename ...Ps>
-				void emplace_back(bucket_t bucket, Ps && ...ps)
+				bool try_emplace_back(bucket_t bucket, Ps && ...ps)
 				{
-					data_.grow();
+					if (!data_.try_grow())
+						return false;
 
 					components().construct_at(data_.size(), std::forward<Ps>(ps)...);
 					buckets().construct_at(data_.size(), bucket);
 					data_.set_size(data_.size() + 1);
+
+					return true;
 				}
 
 				void remove_at(std::ptrdiff_t index)
@@ -231,7 +234,7 @@ namespace core
 				clear_all_impl(mpl::make_index_sequence<component_types::size>{});
 			}
 			template <typename Component, typename ...Ps>
-			Component & emplace(Key key, Ps && ...ps)
+			Component * try_emplace(Key key, Ps && ...ps)
 			{
 				constexpr auto type = mpl::index_of<Component, component_types>::value;
 
@@ -242,14 +245,13 @@ namespace core
 
 				const auto index = array.size();
 
-				// todo: if we can fail gracefully from
-				// array.emplace_back, we should not leave slots and keys
-				// modified
+				if (!array.try_emplace_back(bucket, std::forward<Ps>(ps)...))
+					return nullptr;
+
 				slots[bucket].set(type, index);
 				keys[bucket] = key;
-				array.emplace_back(bucket, std::forward<Ps>(ps)...);
 
-				return array.get(index);
+				return &array.get(index);
 			}
 			void remove(Key key)
 			{
