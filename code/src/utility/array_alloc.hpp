@@ -150,12 +150,14 @@ namespace utility
 			array_wrapper_trivially_copy_constructible() = default;
 			array_wrapper_trivially_copy_constructible(const this_type & other)
 			{
-				this->set_capacity(StorageData::storage_traits::capacity_for(other.size())); // x
-				const auto ret = this->allocate_storage(this->capacity());
-				assert(ret);
+				const auto capacity = StorageData::storage_traits::capacity_for(other.size());
+				if (this->allocate_storage(capacity))
+				{
+					this->set_capacity(capacity);
 
-				this->set_size(other.size()); // x
-				this->copy_construct_range(0, other, 0, other.size());
+					this->set_size(other.size());
+					this->copy_construct_range(0, other, 0, other.size());
+				}
 			}
 			array_wrapper_trivially_copy_constructible(this_type &&) = default;
 			this_type & operator = (const this_type &) = default;
@@ -187,15 +189,21 @@ namespace utility
 						this->destruct_range(0, this->size());
 						this->deallocate_storage(this->capacity());
 					}
-					this->set_capacity(StorageData::storage_traits::capacity_for(other.size())); // x
-					const auto ret = this->allocate_storage(this->capacity());
-					assert(ret);
+					const auto capacity = StorageData::storage_traits::capacity_for(other.size());
+					if (!this->allocate_storage(capacity))
+					{
+						this->set_capacity(0);
+						this->set_size(0);
+
+						return *this;
+					}
+					this->set_capacity(capacity);
 				}
 				else if (this->capacity() > 0)
 				{
 					this->destruct_range(0, this->size());
 				}
-				this->set_size(other.size()); // x
+				this->set_size(other.size());
 				this->copy_construct_range(0, other, 0, other.size());
 
 				return *this;
@@ -239,12 +247,14 @@ namespace utility
 			array_wrapper_trivially_move_constructible(const this_type &) = default;
 			array_wrapper_trivially_move_constructible(this_type && other)
 			{
-				this->set_capacity(StorageData::storage_traits::capacity_for(other.size())); // x
-				const auto ret = this->allocate_storage(this->capacity());
-				assert(ret);
+				const auto capacity = StorageData::storage_traits::capacity_for(other.size());
+				if (this->allocate_storage(capacity))
+				{
+					this->set_capacity(capacity);
 
-				this->set_size(other.size()); // x
-				this->move_construct_range(0, other, 0, other.size());
+					this->set_size(other.size());
+					this->move_construct_range(0, other, 0, other.size());
+				}
 			}
 			this_type & operator = (const this_type &) = default;
 			this_type & operator = (this_type &&) = default;
@@ -303,9 +313,15 @@ namespace utility
 						this->destruct_range(0, this->size());
 						this->deallocate_storage(this->capacity());
 					}
-					this->set_capacity(StorageData::storage_traits::capacity_for(other.size())); // x
-					const auto ret = this->allocate_storage(this->capacity());
-					assert(ret);
+					const auto capacity = StorageData::storage_traits::capacity_for(other.size());
+					if (!this->allocate_storage(capacity))
+					{
+						this->set_capacity(0);
+						this->set_size(0);
+
+						return *this;
+					}
+					this->set_capacity(capacity);
 				}
 				else if (this->capacity() > 0)
 				{
@@ -326,9 +342,10 @@ namespace utility
 		array_wrapper(std::size_t capacity)
 		{
 			capacity = StorageData::storage_traits::capacity_for(capacity);
-			this->set_capacity(capacity);
-			const auto ret = this->allocate_storage(capacity);
-			assert(ret);
+			if (this->allocate_storage(capacity))
+			{
+				this->set_capacity(capacity);
+			}
 		}
 
 		template <typename Callback>
