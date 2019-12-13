@@ -22,12 +22,6 @@ namespace utility
 			size_type size_ = 0;
 			Storage storage_;
 
-			void initialize()
-			{
-				set_capacity(0);
-				set_size(0);
-			}
-
 			void set_capacity(size_type capacity)
 			{
 				assert(capacity == storage_traits::capacity_value);
@@ -49,12 +43,6 @@ namespace utility
 			size_type size_ = 0;
 			size_type capacity_ = 0;
 			Storage storage_;
-
-			void initialize()
-			{
-				set_capacity(0);
-				set_size(0);
-			}
 
 			void set_capacity(size_type capacity)
 			{
@@ -90,6 +78,12 @@ namespace utility
 		void deallocate_storage(std::size_t capacity)
 		{
 			this->storage_.deallocate(capacity);
+		}
+
+		void initialize()
+		{
+			this->set_capacity(0);
+			this->set_size(0);
 		}
 
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
