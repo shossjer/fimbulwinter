@@ -226,16 +226,6 @@ namespace core
 				return keys[array.bucket_at(std::distance(array.begin(), &component))];
 			}
 
-			template <typename D>
-			void add(Key key, D && data)
-			{
-				using Components = mpl::type_filter<std::is_constructible,
-				                                    component_types,
-				                                    D &&>;
-				static_assert(Components::size == 1, "Exactly one type needs to be constructible with the argument.");
-
-				emplace<mpl::car<Components>>(key, std::forward<D>(data));
-			}
 			void clear()
 			{
 				clear_all_impl(mpl::make_index_sequence<component_types::size>{});
