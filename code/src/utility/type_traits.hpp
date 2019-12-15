@@ -27,21 +27,25 @@ namespace mpl
 
 	// C++11 enable_if
 	using std::enable_if;
+	// C++14 enable if type
 	template <bool Cond, typename T = void>
 	using enable_if_t = typename enable_if<Cond, T>::type;
 
 	// C++11 conditional
 	using std::conditional;
+	// C++14 conditional type
 	template <bool Cond, typename TrueType, typename FalseType>
 	using conditional_t = typename conditional<Cond, TrueType, FalseType>::type;
 
 	// C++11 remove reference
 	using std::remove_reference;
+	// C++14 remove reference type
 	template <typename T>
 	using remove_reference_t = typename remove_reference<T>::type;
 
 	// C++11 remove const volatile
 	using std::remove_cv;
+	// C++14 remove const volatile type
 	template <typename T>
 	using remove_cv_t = typename remove_cv<T>::type;
 
@@ -56,6 +60,7 @@ namespace mpl
 
 	// C++11 decay
 	using std::decay;
+	// C++14 decay type
 	template <typename T>
 	using decay_t = typename decay<T>::type;
 
@@ -81,6 +86,20 @@ namespace mpl
 	};
 	template <typename ...Ts>
 	using void_t = typename void_impl<Ts...>::type;
+
+	// C++17 add_const
+	template <typename T>
+	struct add_const
+	{
+		using type = const T;
+	};
+	template <typename T>
+	struct add_const<const T>
+	{
+		using type = const T;
+	};
+	template <typename T>
+	using add_const_t = typename add_const<T>::type;
 
 	////////////////////////////////////////////////////////////////////////////
 	//
@@ -160,6 +179,9 @@ namespace mpl
 	}
 	template <typename T>
 	using is_range = decltype(is_range_impl::test<T>(0));
+
+	template <bool Cond, typename T>
+	using add_const_if = conditional_t<Cond, add_const_t<T>, T>;
 
 	////////////////////////////////////////////////////////////////////////////
 	//
