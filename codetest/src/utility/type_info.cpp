@@ -17,6 +17,9 @@ namespace
 	} anonymous;
 	using anonymous_type = decltype(anonymous);
 
+	auto lambda = [](){};
+	using lambda_type = decltype(lambda);
+
 	auto function() { struct type {}; return type{}; }
 	using in_function_type = decltype(function());
 }
@@ -1205,6 +1208,18 @@ TEST_CASE("type signature", "[utility][type info]")
 #endif
 	}
 
+	SECTION("of lambda_type")
+	{
+		constexpr auto signature = utility::type_signature<lambda_type>();
+		// we do not promise any name in particular for a lambda type, but
+		// everything up to the point of its name must be correct
+#if defined(__GNUG__)
+		CHECK(signature.compare(0, 23, "(anonymous namespace)::") == 0);
+#elif defined(_MSC_VER)
+		CHECK(signature.compare(0, 29, "class `anonymous-namespace'::") == 0);
+#endif
+	}
+
 	SECTION("of type in function")
 	{
 		constexpr auto signature = utility::type_signature<in_function_type>();
@@ -1270,6 +1285,14 @@ TEST_CASE("type name", "[utility][type info]")
 		CHECK(name.compare(0, 21, "anonymous-namespace::") == 0);
 	}
 
+	SECTION("of lambda_type")
+	{
+		constexpr auto name = utility::type_name<lambda_type>();
+		// we do not promise any name in particular for a lambda type, but
+		// everything up to the point of its name must be correct
+		CHECK(name.compare(0, 21, "anonymous-namespace::") == 0);
+	}
+
 	SECTION("of type in function")
 	{
 		constexpr auto name = utility::type_name<in_function_type>();
@@ -1327,6 +1350,13 @@ TEST_CASE("type id", "[utility][type info]")
 		constexpr auto id = utility::type_id<anonymous_type>();
 		// we do not promise any name in particular for an anonymous type,
 		// which means its id can be anything :shrug:
+	}
+
+	SECTION("of lambda_type")
+	{
+		constexpr auto id = utility::type_id<lambda_type>();
+		// we do not promise any name in particular for a lambda type, which
+		// means its id can be anything :shrug:
 	}
 
 	SECTION("of type in function")
