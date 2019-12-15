@@ -1099,10 +1099,6 @@ namespace utility
 		using storing_trivially_destructible = std::is_trivially_destructible<storing_type>;
 
 		using allocator_type = typename StorageImpl::allocator_type;
-	private:
-		template <typename InputIt>
-		using can_memcpy = mpl::conjunction<storing_trivially_copyable,
-		                                    utility::is_contiguous_iterator<InputIt>>;
 
 	public:
 		value_type & operator [] (std::ptrdiff_t index)
@@ -1133,9 +1129,8 @@ namespace utility
 			return single_section().construct_at(index, std::forward<Ps>(ps)...);
 		}
 
-		template <typename InputIt,
-		          REQUIRES((can_memcpy<InputIt>::value))>
-		void memcpy_range(std::ptrdiff_t index, InputIt begin, InputIt end)
+		template <typename InputIt>
+		auto memcpy_range(std::ptrdiff_t index, InputIt begin, InputIt end) -> decltype(std::declval<utility::section<StorageImpl, value_type>>().memcpy_range(index, begin, end))
 		{
 			single_section().memcpy_range(index, begin, end);
 		}
