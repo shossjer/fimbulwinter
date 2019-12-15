@@ -1023,7 +1023,7 @@ namespace engine
 		                const int_fast16_t y,
 		                LONG time)
 		{
-			dispatch(MouseMoveInput(0, x, y));
+			dispatch(CursorMoveInput(0, x, y));
 		}
 		void mouse_wheel(const int_fast16_t delta,
 		                 LONG time)
