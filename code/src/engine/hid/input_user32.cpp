@@ -533,6 +533,8 @@ namespace engine
 
 		void create(bool hardware_input)
 		{
+			found_device(0, 0, 0); // non hardware device
+
 			// collection numbers
 			// https://docs.microsoft.com/en-us/windows-hardware/drivers/hid/top-level-collections-opened-by-windows-for-system-use
 			// awsome document that explains the numbers
@@ -550,7 +552,9 @@ namespace engine
 		}
 
 		void destroy()
-		{}
+		{
+			lost_device(0); // non hardware device
+		}
 
 		void process_input(HRAWINPUT input)
 		{
