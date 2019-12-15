@@ -7,12 +7,12 @@
 
 #include "utility/string.hpp"
 
-#if INPUT_USE_RAWINPUT
+#if INPUT_HAS_USER32_RAWINPUT
 # include <vector>
 #endif
 
 #include <Windows.h>
-#if INPUT_USE_HID
+#if INPUT_HAS_USER32_RAWINPUT && INPUT_HAS_USER32_HID
 # include <Hidsdi.h>
 #endif
 
@@ -32,7 +32,7 @@
 
 namespace engine
 {
-#if INPUT_USE_RAWINPUT
+#if INPUT_HAS_USER32_RAWINPUT
 	namespace application
 	{
 		namespace window
@@ -173,7 +173,7 @@ namespace
 		Button::INVALID      , Button::INVALID       , Button::INVALID       , Button::INVALID     , Button::INVALID        , Button::INVALID    , Button::INVALID   , Button::INVALID    ,
 	};
 
-#if INPUT_USE_RAWINPUT
+#if INPUT_HAS_USER32_RAWINPUT
 	struct Device
 	{
 		HANDLE handle;
@@ -190,7 +190,7 @@ namespace
 
 	std::vector<Device> devices;
 
-# if INPUT_USE_HID
+# if INPUT_HAS_USER32_HID
 	struct Format
 	{
 		struct Field
@@ -252,7 +252,7 @@ namespace engine
 {
 	namespace hid
 	{
-#if INPUT_USE_RAWINPUT
+#if INPUT_HAS_USER32_RAWINPUT
 		void add_device(HANDLE handle)
 		{
 			debug_assert(std::find_if(devices.begin(), devices.end(), [&handle](const Device & device){ return device.handle == handle; }) == devices.end(), "device has already been added!");
@@ -271,7 +271,7 @@ namespace engine
 
 			devices.emplace_back(handle);
 			Device & device = devices.back();
-# if INPUT_USE_HID
+# if INPUT_HAS_USER32_HID
 			formats.emplace_back();
 # endif
 
@@ -287,7 +287,7 @@ namespace engine
 				found_device(device.id, 0, 0);
 				add_source(device.id, "", 2, name);
 				break;
-# if INPUT_USE_HID
+# if INPUT_HAS_USER32_HID
 			case RIM_TYPEHID:
 			{
 				debug_printline("device ", devices.size() - 1, "(hid) added: \"", name, "\" vendor id ", rdi.hid.dwVendorId, " product id ", rdi.hid.dwProductId, " version ", rdi.hid.dwVersionNumber, " usage page ", rdi.hid.usUsagePage, " usage ", rdi.hid.usUsage);
@@ -525,7 +525,7 @@ namespace engine
 
 			lost_device(it->id);
 
-# if INPUT_USE_HID
+# if INPUT_HAS_USER32_HID
 			formats.erase(std::next(formats.begin(), std::distance(devices.begin(), it)));
 # endif
 			devices.erase(it);
@@ -543,7 +543,7 @@ namespace engine
 				0x00010002, // mouse
 				0x00010006, // keyboard
 				0x000c0001, // consumer audio control - for things like volume buttons
-# if INPUT_USE_HID
+# if INPUT_HAS_USER32_HID
 				0x00010004, // joystick
 				0x00010005, // gamepad
 # endif
@@ -700,7 +700,7 @@ namespace engine
 				dispatch(ButtonStateInput(it->id, button, ri.data.keyboard.Flags & RI_KEY_BREAK ? false : true));
 				break;
 			}
-# if INPUT_USE_HID
+# if INPUT_HAS_USER32_HID
 			case RIM_TYPEHID:
 			{
 				// ds4 specific stuff
@@ -816,71 +816,58 @@ namespace engine
 			dispatch(KeyCharacterInput(0, button, utility::code_point(u16)));
 		}
 
-#if !INPUT_USE_RAWINPUT
 		void key_down(WPARAM wParam, LPARAM lParam, LONG time)
 		{
-			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, true));
 		}
 		void key_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
-			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, false));
 		}
 		void syskey_down(WPARAM wParam, LPARAM lParam, LONG time)
 		{
-			input.setButtonDown(0, engine::hid::Input::Button::KEY_0, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, true));
 		}
 		void syskey_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
-			input.setButtonUp(0, engine::hid::Input::Button::KEY_0, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, false));
 		}
 
 		void lbutton_down(LONG time)
 		{
-			input.setButtonDown(0, engine::hid::Input::Button::MOUSE_LEFT, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_LEFT, true));
 		}
 		void lbutton_up(LONG time)
 		{
-			input.setButtonUp(0, engine::hid::Input::Button::MOUSE_LEFT, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_LEFT, false));
 		}
 		void mbutton_down(LONG time)
 		{
-			input.setButtonDown(0, engine::hid::Input::Button::MOUSE_MIDDLE, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_MIDDLE, true));
 		}
 		void mbutton_up(LONG time)
 		{
-			input.setButtonUp(0, engine::hid::Input::Button::MOUSE_MIDDLE, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_MIDDLE, false));
 		}
 		void rbutton_down(LONG time)
 		{
-			input.setButtonDown(0, engine::hid::Input::Button::MOUSE_RIGHT, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_RIGHT, true));
 		}
 		void rbutton_up(LONG time)
 		{
-			input.setButtonUp(0, engine::hid::Input::Button::MOUSE_RIGHT, 0, 0);
-			dispatch(input);
+			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_RIGHT, false));
 		}
 		void mouse_move(const int_fast16_t x,
 		                const int_fast16_t y,
 		                LONG time)
 		{
-			input.setCursorAbsolute(0, x, y);
-			dispatch(input);
+			dispatch(MouseMoveInput(0, x, y));
 		}
 		void mouse_wheel(const int_fast16_t delta,
 		                 LONG time)
 		{
 			// TODO:
 		}
-#endif
 	}
 }
 

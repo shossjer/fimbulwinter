@@ -24,7 +24,7 @@ namespace engine
 	}
 	namespace hid
 	{
-#if INPUT_USE_RAWINPUT
+#if INPUT_HAS_USER32_RAWINPUT
 		extern void add_device(HANDLE device);
 		extern void remove_device(HANDLE device);
 		extern void process_input(HRAWINPUT input);
@@ -32,7 +32,6 @@ namespace engine
 
 		extern void key_character(int scancode, const char16_t * character);
 
-#if !INPUT_USE_RAWINPUT
 		extern void key_down(WPARAM wParam, LPARAM lParam, LONG time);
 		extern void key_up(WPARAM wParam, LPARAM lParam, LONG time);
 		extern void syskey_down(WPARAM wParam, LPARAM lParam, LONG time);
@@ -49,7 +48,6 @@ namespace engine
 		                       LONG time);
 		extern void mouse_wheel(const int_fast16_t delta,
 		                        LONG time);
-#endif
 
 		namespace ui
 		{
@@ -76,7 +74,7 @@ namespace
 	{
 		switch (msg)
 		{
-#if INPUT_USE_RAWINPUT
+#if INPUT_HAS_USER32_RAWINPUT
 		case WM_INPUT:
 			if (GET_RAWINPUT_CODE_WPARAM(wParam) == RIM_INPUT)
 			{
@@ -97,7 +95,6 @@ namespace
 			engine::hid::key_character(uint32_t(lParam & 0xff0000) >> 16, reinterpret_cast<const char16_t *>(&wParam));
 			break;
 
-#if !INPUT_USE_RAWINPUT
 		case WM_KEYDOWN:
 			engine::hid::key_down(wParam, lParam, GetMessageTime());
 			break;
@@ -135,7 +132,6 @@ namespace
 		case WM_MOUSEWHEEL:
 			engine::hid::mouse_wheel((int_fast16_t)HIWORD(wParam), GetMessageTime());
 			break;
-#endif
 
 		case WM_CLOSE:
 			PostQuitMessage(0);
@@ -271,7 +267,7 @@ namespace engine
 				SwapBuffers(hDC);
 			}
 
-#if INPUT_USE_RAWINPUT
+#if INPUT_HAS_USER32_RAWINPUT
 			void RegisterRawInputDevices(const uint32_t * collections, int count)
 			{
 				RAWINPUTDEVICE rids[10]; // arbitrary

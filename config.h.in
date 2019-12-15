@@ -25,16 +25,15 @@
 
 /**
  */
-#cmakedefine INPUT_USE_HID 1
+#cmakedefine INPUT_HAS_USER32_HID 1
 /**
+ * Enable raw input by default
+ *
+ * This assumes that RawInput is always supported whenever the User32
+ * window manager is targeted. The minimum requirement for RawInput
+ * is Windows XP.
  */
-#cmakedefine INPUT_USE_USER32 1
-/**
- * Enable raw input by default if possible
- */
-#if INPUT_USE_HID || INPUT_USE_USER32
-# define INPUT_USE_RAWINPUT 1
-#endif
+#define INPUT_HAS_USER32_RAWINPUT WINDOW_USE_USER32
 
 /**
  */
