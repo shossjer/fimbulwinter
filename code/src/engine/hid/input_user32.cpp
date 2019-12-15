@@ -22,12 +22,12 @@
 // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/_hid/
 
 // #define PRINT_HID_INFO
-// #define PRINT_KEYBOARD_INPUT
-// #define PRINT_MOUSE_INPUT
-// #define PRINT_HID_INPUT
+// #define PRINT_KEYBOARD_INFO
+// #define PRINT_MOUSE_INFO
+// #define PRINT_HID_INFO
 
-#if defined(PRINT_KEYBOARD_INPUT) || defined(PRINT_MOUSE_INPUT) || defined(PRINT_HID_INPUT)
-# define PRINT_ANY_INPUT
+#if defined(PRINT_KEYBOARD_INFO) || defined(PRINT_MOUSE_INFO) || defined(PRINT_HID_INFO)
+# define PRINT_ANY_INFO
 #endif
 
 namespace engine
@@ -535,7 +535,7 @@ namespace engine
 			auto it = std::find(devices.begin(), devices.end(), ri.header.hDevice);
 			// debug_assert(it != devices.end(), "received input from unknown device!");
 
-# ifdef PRINT_ANY_INPUT
+# ifdef PRINT_ANY_INFO
 			std::string info = "device ";
 			info += it == devices.end() ? "x" : utility::to_string(it - devices.begin());
 
