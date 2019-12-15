@@ -782,7 +782,29 @@ namespace engine
 			switch (ri.header.dwType)
 			{
 			case RIM_TYPEMOUSE:
+			{
+				const engine::hid::Input::Button buttons[] =
+				{
+					engine::hid::Input::Button::MOUSE_LEFT,
+					engine::hid::Input::Button::MOUSE_RIGHT,
+					engine::hid::Input::Button::MOUSE_MIDDLE,
+					engine::hid::Input::Button::MOUSE_SIDE,
+					engine::hid::Input::Button::MOUSE_EXTRA,
+				};
+
+				for (int i = 0; i < sizeof buttons / sizeof buttons[0]; i++)
+				{
+					if (ri.data.mouse.usButtonFlags & 1 << i * 2)
+					{
+						dispatch(ButtonStateInput(it->id, buttons[i], true));
+					}
+					if (ri.data.mouse.usButtonFlags & 2 << i * 2)
+					{
+						dispatch(ButtonStateInput(it->id, buttons[i], false));
+					}
+				}
 				break;
+			}
 			case RIM_TYPEKEYBOARD:
 			{
 				static_assert(RI_KEY_E0 == 2, "");
