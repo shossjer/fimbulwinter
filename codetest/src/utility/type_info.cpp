@@ -1208,7 +1208,13 @@ TEST_CASE("type signature", "[utility][type info]")
 	SECTION("of type in function")
 	{
 		constexpr auto signature = utility::type_signature<in_function_type>();
+		// we do not promise any name in particular for a type in a function,
+		// simply because the compilers do very differently for this case
+#if defined(__GNUG__)
 		CHECK(signature == "type");
+#elif defined(_MSC_VER)
+		CHECK(signature == "struct `anonymous-namespace'::function::type");
+#endif
 	}
 }
 
@@ -1267,7 +1273,8 @@ TEST_CASE("type name", "[utility][type info]")
 	SECTION("of type in function")
 	{
 		constexpr auto name = utility::type_name<in_function_type>();
-		CHECK(name == "type");
+		// we do not promise any name in particular for a type in a function,
+		// which means its name can be anything :shrug:
 	}
 }
 
@@ -1325,6 +1332,7 @@ TEST_CASE("type id", "[utility][type info]")
 	SECTION("of type in function")
 	{
 		constexpr auto id = utility::type_id<in_function_type>();
-		CHECK(id == utility::crypto::crc32("type"));
+		// we do not promise any name in particular for a type in a function,
+		// which means its name can be anything :shrug:
 	}
 }
