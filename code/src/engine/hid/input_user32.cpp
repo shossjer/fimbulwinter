@@ -44,6 +44,12 @@ namespace engine
 
 	namespace hid
 	{
+		extern void found_device(int id, int vendor, int product);
+		extern void lost_device(int id);
+
+		extern void add_source(int id, const char * path, int type, const char * name);
+		extern void remove_source(int id, const char * path);
+
 		extern void dispatch(const Input & input);
 	}
 }
@@ -168,7 +174,21 @@ namespace
 	};
 
 #if INPUT_USE_RAWINPUT
-	std::vector<HANDLE> devices;
+	struct Device
+	{
+		HANDLE handle;
+
+		int16_t id;
+
+		Device(HANDLE handle)
+			: handle(handle)
+		{
+			static int16_t next_id = 1; // 0 is reserved for not hardware input
+			id = next_id++;
+		}
+	};
+
+	std::vector<Device> devices;
 
 # if INPUT_USE_HID
 	struct Format
@@ -233,23 +253,24 @@ namespace engine
 	namespace hid
 	{
 #if INPUT_USE_RAWINPUT
-		void add_device(HANDLE device)
+		void add_device(HANDLE handle)
 		{
-			debug_assert(std::find(devices.begin(), devices.end(), device) == devices.end(), "device has already been added!");
+			debug_assert(std::find_if(devices.begin(), devices.end(), [&handle](const Device & device){ return device.handle == handle; }) == devices.end(), "device has already been added!");
 
 			char name[256] = "Unknown";
 			{
 				UINT len = sizeof name;
-				const auto ret = GetRawInputDeviceInfo(device, RIDI_DEVICENAME, name, &len);
+				const auto ret = GetRawInputDeviceInfo(handle, RIDI_DEVICENAME, name, &len);
 				debug_assert(ret >= 0, "buffer too small, expected ", len);
 			}
 
 			RID_DEVICE_INFO rdi;
 			rdi.cbSize = sizeof rdi;
 			UINT len = sizeof rdi;
-			debug_verify(GetRawInputDeviceInfo(device, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
+			debug_verify(GetRawInputDeviceInfo(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
 
-			devices.push_back(device);
+			devices.emplace_back(handle);
+			Device & device = devices.back();
 # if INPUT_USE_HID
 			formats.emplace_back();
 # endif
@@ -258,20 +279,26 @@ namespace engine
 			{
 			case RIM_TYPEMOUSE:
 				debug_printline("device ", devices.size() - 1, "(mouse) added: \"", name, "\" id ", rdi.mouse.dwId, " buttons ", rdi.mouse.dwNumberOfButtons, " sample rate ", rdi.mouse.dwSampleRate, rdi.mouse.fHasHorizontalWheel ? " has horizontal wheel" : "");
+				found_device(device.id, 0, 0);
+				add_source(device.id, "", 3, name);
 				break;
 			case RIM_TYPEKEYBOARD:
 				debug_printline("device ", devices.size() - 1, "(keyboard) added: \"", name, "\" type ", rdi.keyboard.dwType, " sub type ", rdi.keyboard.dwSubType, " mode ", rdi.keyboard.dwKeyboardMode, " function keys ", rdi.keyboard.dwNumberOfFunctionKeys, " indicators ", rdi.keyboard.dwNumberOfIndicators, " keys ", rdi.keyboard.dwNumberOfKeysTotal);
+				found_device(device.id, 0, 0);
+				add_source(device.id, "", 2, name);
 				break;
 # if INPUT_USE_HID
 			case RIM_TYPEHID:
 			{
 				debug_printline("device ", devices.size() - 1, "(hid) added: \"", name, "\" vendor id ", rdi.hid.dwVendorId, " product id ", rdi.hid.dwProductId, " version ", rdi.hid.dwVersionNumber, " usage page ", rdi.hid.usUsagePage, " usage ", rdi.hid.usUsage);
+				found_device(device.id, rdi.hid.dwVendorId, rdi.hid.dwProductId);
+				add_source(device.id, "", 0, name);
 
 				PHIDP_PREPARSED_DATA preparsed_data = nullptr;
 				UINT len;
-				debug_verify(GetRawInputDeviceInfo(device, RIDI_PREPARSEDDATA, nullptr, &len) == 0);
-				std::vector<BYTE> bytes(len); // alignment?
-				debug_verify(GetRawInputDeviceInfo(device, RIDI_PREPARSEDDATA, bytes.data(), &len) == bytes.size());
+				debug_verify(GetRawInputDeviceInfo(handle, RIDI_PREPARSEDDATA, nullptr, &len) == 0);
+				std::vector<BYTE> bytes(len); // todo alignment
+				debug_verify(GetRawInputDeviceInfo(handle, RIDI_PREPARSEDDATA, bytes.data(), &len) == bytes.size());
 				preparsed_data = reinterpret_cast<PHIDP_PREPARSED_DATA>(bytes.data());
 
 				HIDP_CAPS caps;
@@ -491,10 +518,13 @@ namespace engine
 			}
 		}
 
-		void remove_device(HANDLE device)
+		void remove_device(HANDLE handle)
 		{
-			auto it = std::find(devices.begin(), devices.end(), device);
+			auto it = std::find_if(devices.begin(), devices.end(), [&handle](const Device & device){ return device.handle == handle; });
 			debug_assert(it != devices.end(), "device was never added before removal!");
+
+			lost_device(it->id);
+
 # if INPUT_USE_HID
 			formats.erase(std::next(formats.begin(), std::distance(devices.begin(), it)));
 # endif
@@ -532,7 +562,7 @@ namespace engine
 			debug_verify(GetRawInputData(input, RID_INPUT, bytes.data(), &len, sizeof(RAWINPUTHEADER)) == len);
 
 			const RAWINPUT & ri = *reinterpret_cast<const RAWINPUT *>(bytes.data());
-			auto it = std::find(devices.begin(), devices.end(), ri.header.hDevice);
+			auto it = std::find_if(devices.begin(), devices.end(), [&ri](const Device & device){ return device.handle == ri.header.hDevice; });
 			// debug_assert(it != devices.end(), "received input from unknown device!");
 
 # ifdef PRINT_ANY_INFO
