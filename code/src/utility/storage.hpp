@@ -1173,8 +1173,8 @@ namespace utility
 		StorageImpl & base() { return static_cast<StorageImpl &>(*this); }
 		const StorageImpl & base() const { return static_cast<const StorageImpl &>(*this); }
 
-		section<StorageImpl, value_type> single_section() { return base().section(mpl::index_constant<0>{}); }
-		const_section<StorageImpl, value_type> single_section() const { return base().section(mpl::index_constant<0>{}); }
+		utility::section<StorageImpl, value_type> single_section() { return base().section(mpl::index_constant<0>{}); }
+		utility::const_section<StorageImpl, value_type> single_section() const { return base().section(mpl::index_constant<0>{}); }
 	};
 
 	template <template <typename> class Allocator, typename ...Ts>
