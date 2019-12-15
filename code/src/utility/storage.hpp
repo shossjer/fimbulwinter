@@ -434,6 +434,9 @@ namespace utility
 	private:
 		friend rvalue_reference iter_move(this_type x)
 		{
+#if defined(_MSC_VER) && _MSC_VER <= 1916
+			using rvalue_reference = rvalue_reference;
+#endif
 			return utl::unpack(x.tuple(), [&x](auto & ...ps){ return rvalue_reference(std::move(x.storage_->value_at(ps))...); });
 		}
 	};
