@@ -4,6 +4,7 @@
 #include "utility/type_traits.hpp"
 
 #include <cassert>
+#include <cstddef>
 #include <utility>
 
 namespace utility
