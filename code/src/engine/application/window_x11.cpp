@@ -32,7 +32,7 @@ namespace engine
 	}
 	namespace hid
 	{
-		extern void key_character(XKeyEvent & event, utility::code_point cp);
+		extern void key_character(XKeyEvent & event, utility::unicode_code_point cp);
 
 		extern void button_press(XButtonEvent & event);
 		extern void button_release(XButtonEvent & event);
@@ -221,9 +221,9 @@ namespace
 	 */
 	std::atomic_int should_close_window(0);
 
-	utility::code_point get_unicode(XKeyEvent & event)
+	utility::unicode_code_point get_unicode(XKeyEvent & event)
 	{
-		utility::code_point cp(nullptr);
+		utility::unicode_code_point cp(0);
 #ifdef X_HAVE_UTF8_STRING
 		if (input_context)
 		{
@@ -234,7 +234,7 @@ namespace
 			debug_assert(status != XBufferOverflow, "4 chars should be enough for any unicode code point");
 			if (n > 0)
 			{
-				cp = utility::code_point(buffer);
+				cp = utility::unicode_code_point(buffer);
 			}
 			// debug_printline(cp);
 		}

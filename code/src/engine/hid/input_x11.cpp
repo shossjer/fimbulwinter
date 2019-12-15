@@ -1140,7 +1140,7 @@ namespace engine
 			lost_device(0); // non hardware device
 		}
 
-		void key_character(XKeyEvent & event, utility::code_point cp)
+		void key_character(XKeyEvent & event, utility::unicode_code_point cp)
 		{
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);

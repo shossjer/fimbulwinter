@@ -407,7 +407,7 @@ namespace engine
 				State state;
 				Player player;
 				Button code;
-				utility::code_point unicode;
+				utility::unicode_code_point unicode;
 			} key_character;
 			static_assert(std::is_trivial<KeyCharacter>::value, "");
 
@@ -419,7 +419,7 @@ namespace engine
 
 			friend Input CursorMoveInput(int_fast8_t player, int_fast32_t x, int_fast32_t y);
 
-			friend Input KeyCharacterInput(int_fast8_t player, Button code, utility::code_point unicode);
+			friend Input KeyCharacterInput(int_fast8_t player, Button code, utility::unicode_code_point unicode);
 
 		public:
 			/**
@@ -492,7 +492,7 @@ namespace engine
 			/**
 			 * \note Valid iff state is `KEY_CHARACTER`.
 			 */
-			utility::code_point getUnicode() const
+			utility::unicode_code_point getUnicode() const
 			{
 				switch (common_header.state)
 				{
@@ -555,7 +555,7 @@ namespace engine
 			return input;
 		}
 
-		inline Input KeyCharacterInput(int_fast8_t player, Input::Button code, utility::code_point unicode)
+		inline Input KeyCharacterInput(int_fast8_t player, Input::Button code, utility::unicode_code_point unicode)
 		{
 			Input input;
 			input.key_character.state = Input::State::KEY_CHARACTER;

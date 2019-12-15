@@ -557,7 +557,7 @@ namespace
 
 			const FontInfo & info = infos[index];
 
-			const int len = text.length().get();
+			const int len = utility::point_difference(text.length()).get();
 			vertices.resize<float>(4 * len * 2);
 			texcoords.resize<float>(4 * len * 2);
 
@@ -572,8 +572,8 @@ namespace
 			for (auto cp : text)
 			{
 				// the null glyph is stored at the end
-				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp.get());
-				const int slot = (maybe == info.allowed_unicodes.end() || *maybe != cp.get() ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin();
+				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp.value());
+				const int slot = (maybe == info.allowed_unicodes.end() || *maybe != cp.value() ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin();
 				const int slot_y = slot / slots_in_width;
 				const int slot_x = slot % slots_in_width;
 

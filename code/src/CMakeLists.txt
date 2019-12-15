@@ -129,6 +129,7 @@ set(HEADER_FILES
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
 	src/utility/crypto/crc.hpp
+   src/utility/encoding_traits.hpp
 	src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
