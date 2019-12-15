@@ -5,6 +5,8 @@
 
 #include "input.hpp"
 
+#include "engine/console.hpp"
+
 #include "utility/string.hpp"
 
 #if INPUT_HAS_USER32_RAWINPUT
@@ -275,18 +277,63 @@ namespace
 		engine::application::window::UnregisterRawInputDevices(collections, sizeof collections / sizeof collections[0]);
 	}
 
+	int lock_state_variable(std::atomic_int & state)
+	{
+		int value;
+		do
+		{
+			value = state.load(std::memory_order_relaxed);
+			while (!state.compare_exchange_weak(value, -1, std::memory_order_relaxed));
+		} while (value == -1);
+
+		return value;
+	}
+
 	void disable_hardware_input()
 	{
-		stop_hardware_input();
-
+		if (lock_state_variable(hardware_input) != 0)
+		{
+			stop_hardware_input();
+		}
 		hardware_input.store(0, std::memory_order_relaxed);
 	}
 
 	void enable_hardware_input()
 	{
-		start_hardware_input();
-
+		if (lock_state_variable(hardware_input) != 1)
+		{
+			start_hardware_input();
+		}
 		hardware_input.store(1, std::memory_order_relaxed);
+	}
+
+	void disable_hardware_input_callback(void * /*data*/)
+	{
+		disable_hardware_input();
+	}
+
+	void enable_hardware_input_callback(void * /*data*/)
+	{
+		enable_hardware_input();
+	}
+
+	void toggle_hardware_input_callback(void * /*data*/)
+	{
+		int value = lock_state_variable(hardware_input);
+		switch (value)
+		{
+		case 0:
+			value = 1;
+			start_hardware_input();
+			break;
+		case 1:
+			value = 0;
+			stop_hardware_input();
+			break;
+		default:
+			debug_unreachable();
+		}
+		hardware_input.store(value, std::memory_order_relaxed);
 	}
 #endif
 }
@@ -579,6 +626,10 @@ namespace engine
 			found_device(0, 0, 0); // non hardware device
 
 #if INPUT_HAS_USER32_RAWINPUT
+			engine::console::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
+			engine::console::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
+			engine::console::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
+
 			if (hardware_input)
 			{
 				enable_hardware_input();
