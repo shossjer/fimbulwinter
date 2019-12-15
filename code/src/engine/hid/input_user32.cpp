@@ -250,6 +250,14 @@ namespace
 		"D-PAD",
 	};
 
+	engine::hid::Input::Button get_button(int scan_code, int virtual_key)
+	{
+		const Button sc_button = sc_to_button[scan_code];
+		const Button vk_button = vk_to_button[virtual_key];
+
+		return sc_button != Button::INVALID ? sc_button : vk_button;
+	}
+
 #if INPUT_HAS_USER32_RAWINPUT
 	std::atomic_int hardware_input(0);
 
@@ -782,7 +790,6 @@ namespace engine
 				// set the most significant bit if e0 is set, and the second
 				// most significant bit if e1 is set
 				const int sc = ri.data.keyboard.MakeCode | ((ri.data.keyboard.Flags & RI_KEY_E0) << 6) | ((ri.data.keyboard.Flags & RI_KEY_E1) << 4);
-				const Button sc_button = sc_to_button[sc];
 				// note: pause is the only button with the e1 prefix (as far as
 				// I can tell) so in order for it to not collide with ctrl (as
 				// it has the same scancode as ctrl :facepalm:) we set the
@@ -790,12 +797,7 @@ namespace engine
 				// `1d` to `5d` which is unused! for completness, right ctrl
 				// `e0 1d` transforms to `9d`, and left ctrl remains as `1d`
 
-				const int vk = ri.data.keyboard.VKey;
-				const Button vk_button = vk_to_button[vk];
-
-				const Button button = sc_button != Button::INVALID ? sc_button : vk_button;
-
-				dispatch(ButtonStateInput(it->id, button, ri.data.keyboard.Flags & RI_KEY_BREAK ? false : true));
+				dispatch(ButtonStateInput(it->id, get_button(sc, ri.data.keyboard.VKey), ri.data.keyboard.Flags & RI_KEY_BREAK ? false : true));
 				break;
 			}
 # if INPUT_HAS_USER32_HID
@@ -920,7 +922,7 @@ namespace engine
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
 #endif
-			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, true));
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
 		}
 		void key_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
@@ -928,7 +930,7 @@ namespace engine
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
 #endif
-			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, false));
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
 		}
 		void syskey_down(WPARAM wParam, LPARAM lParam, LONG time)
 		{
@@ -936,7 +938,7 @@ namespace engine
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
 #endif
-			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, true));
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
 		}
 		void syskey_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
@@ -944,7 +946,7 @@ namespace engine
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
 #endif
-			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, false));
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
 		}
 
 		void lbutton_down(LONG time)
