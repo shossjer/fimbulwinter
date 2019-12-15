@@ -38,6 +38,7 @@ namespace engine
 		namespace window
 		{
 			void RegisterRawInputDevices(const uint32_t * collections, int count);
+			void UnregisterRawInputDevices(const uint32_t * collections, int count);
 		}
 	}
 #endif
@@ -246,6 +247,48 @@ namespace
 		"unused",
 		"D-PAD",
 	};
+
+#if INPUT_HAS_USER32_RAWINPUT
+	std::atomic_int hardware_input(0);
+
+	// collection numbers
+	// https://docs.microsoft.com/en-us/windows-hardware/drivers/hid/top-level-collections-opened-by-windows-for-system-use
+	// awsome document that explains the numbers
+	// https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
+	const uint32_t collections[] = {
+		0x00010002, // mouse
+		0x00010006, // keyboard
+		0x000c0001, // consumer audio control - for things like volume buttons
+# if INPUT_HAS_USER32_HID
+		0x00010004, // joystick
+		0x00010005, // gamepad
+# endif
+	};
+
+	void start_hardware_input()
+	{
+		engine::application::window::RegisterRawInputDevices(collections, sizeof collections / sizeof collections[0]);
+	}
+
+	void stop_hardware_input()
+	{
+		engine::application::window::UnregisterRawInputDevices(collections, sizeof collections / sizeof collections[0]);
+	}
+
+	void disable_hardware_input()
+	{
+		stop_hardware_input();
+
+		hardware_input.store(0, std::memory_order_relaxed);
+	}
+
+	void enable_hardware_input()
+	{
+		start_hardware_input();
+
+		hardware_input.store(1, std::memory_order_relaxed);
+	}
+#endif
 }
 
 namespace engine
@@ -535,24 +578,20 @@ namespace engine
 		{
 			found_device(0, 0, 0); // non hardware device
 
-			// collection numbers
-			// https://docs.microsoft.com/en-us/windows-hardware/drivers/hid/top-level-collections-opened-by-windows-for-system-use
-			// awsome document that explains the numbers
-			// https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf
-			uint32_t collections[] = {
-				0x00010002, // mouse
-				0x00010006, // keyboard
-				0x000c0001, // consumer audio control - for things like volume buttons
-# if INPUT_HAS_USER32_HID
-				0x00010004, // joystick
-				0x00010005, // gamepad
-# endif
-			};
-			engine::application::window::RegisterRawInputDevices(collections, sizeof collections / sizeof collections[0]);
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input)
+			{
+				enable_hardware_input();
+			}
+#endif
 		}
 
 		void destroy()
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			disable_hardware_input();
+#endif
+
 			lost_device(0); // non hardware device
 		}
 
@@ -818,43 +857,83 @@ namespace engine
 
 		void key_down(WPARAM wParam, LPARAM lParam, LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, true));
 		}
 		void key_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, false));
 		}
 		void syskey_down(WPARAM wParam, LPARAM lParam, LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, true));
 		}
 		void syskey_up(WPARAM wParam, LPARAM lParam, LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::KEY_0, false));
 		}
 
 		void lbutton_down(LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_LEFT, true));
 		}
 		void lbutton_up(LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_LEFT, false));
 		}
 		void mbutton_down(LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_MIDDLE, true));
 		}
 		void mbutton_up(LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_MIDDLE, false));
 		}
 		void rbutton_down(LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_RIGHT, true));
 		}
 		void rbutton_up(LONG time)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_RIGHT, false));
 		}
 		void mouse_move(const int_fast16_t x,

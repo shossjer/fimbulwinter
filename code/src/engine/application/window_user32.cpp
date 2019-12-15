@@ -161,6 +161,26 @@ namespace
 		}
 		return (int)msg.wParam;
 	}
+
+	void RegisterRawInputDevicesWithFlags(const uint32_t * collections, int count, DWORD dwFlags, HWND hWnd)
+	{
+		RAWINPUTDEVICE rids[10]; // arbitrary
+		debug_assert(count < sizeof rids / sizeof rids[0]);
+
+		for (int i = 0; i < count; i++)
+		{
+			rids[i].usUsagePage = collections[i] >> 16;
+			rids[i].usUsage = collections[i] & 0x0000ffff;
+			rids[i].dwFlags = dwFlags;
+			rids[i].hwndTarget = hWnd;
+		}
+
+		if (RegisterRawInputDevices(rids, count, sizeof rids[0]) == FALSE)
+		{
+			const auto err = GetLastError();
+			debug_fail("RegisterRawInputDevices failed: ", err);
+		}
+	}
 }
 
 namespace engine
@@ -270,22 +290,11 @@ namespace engine
 #if INPUT_HAS_USER32_RAWINPUT
 			void RegisterRawInputDevices(const uint32_t * collections, int count)
 			{
-				RAWINPUTDEVICE rids[10]; // arbitrary
-				debug_assert(count < sizeof rids / sizeof rids[0]);
-
-				for (int i = 0; i < count; i++)
-				{
-					rids[i].usUsagePage = collections[i] >> 16;
-					rids[i].usUsage = collections[i] & 0x0000ffff;
-					rids[i].dwFlags = RIDEV_DEVNOTIFY;
-					rids[i].hwndTarget = hWnd;
-				}
-
-				if (RegisterRawInputDevices(rids, count, sizeof rids[0]) == FALSE)
-				{
-					const auto err = GetLastError();
-					debug_fail("RegisterRawInputDevices failed: ", err);
-				}
+				RegisterRawInputDevicesWithFlags(collections, count, RIDEV_DEVNOTIFY, hWnd);
+			}
+			void UnregisterRawInputDevices(const uint32_t * collections, int count)
+			{
+				RegisterRawInputDevicesWithFlags(collections, count, RIDEV_REMOVE, nullptr);
 			}
 #endif
 
