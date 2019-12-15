@@ -275,6 +275,14 @@ namespace
 	void stop_hardware_input()
 	{
 		engine::application::window::UnregisterRawInputDevices(collections, sizeof collections / sizeof collections[0]);
+
+		// todo which thread are we executing this in? it should be
+		// the same one as for add/remove_device
+		for (int i = devices.size() - 1; i >= 0; i--)
+		{
+			engine::hid::lost_device(devices[i].id);
+		}
+		devices.clear();
 	}
 
 	int lock_state_variable(std::atomic_int & state)
