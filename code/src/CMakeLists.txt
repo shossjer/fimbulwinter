@@ -146,6 +146,7 @@ set(HEADER_FILES
 	src/utility/storing.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
+   src/utility/string_iterator.hpp
 	src/utility/string_view.hpp
 	src/utility/tuple.hpp
 	src/utility/type_info.hpp
