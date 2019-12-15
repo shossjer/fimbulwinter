@@ -89,18 +89,18 @@ namespace utility
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
 			auto other_sections = other.storage_.sections(other.capacity());
-			this->storage_.sections(this->capacity()).construct_range(0, other_sections.data() + 0, other_sections.data() + other.size());
+			this->storage_.sections(this->capacity()).construct_range(index, other_sections.data() + from, other_sections.data() + to);
 		}
 
 		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
 			auto other_sections = other.storage_.sections(other.capacity());
-			this->storage_.sections(this->capacity()).construct_range(0, std::make_move_iterator(other_sections.data() + 0), std::make_move_iterator(other_sections.data() + other.size()));
+			this->storage_.sections(this->capacity()).construct_range(index, std::make_move_iterator(other_sections.data() + from), std::make_move_iterator(other_sections.data() + to));
 		}
 
 		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			this->storage_.sections(this->capacity()).destruct_range(0, this->size());
+			this->storage_.sections(this->capacity()).destruct_range(from, to);
 		}
 	};
 

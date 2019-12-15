@@ -434,6 +434,9 @@ namespace utility
 	private:
 		friend rvalue_reference iter_move(this_type x)
 		{
+#if defined(_MSC_VER) && _MSC_VER <= 1916
+			using rvalue_reference = rvalue_reference;
+#endif
 			return utl::unpack(x.tuple(), [&x](auto & ...ps){ return rvalue_reference(std::move(x.storage_->value_at(ps))...); });
 		}
 	};
@@ -1096,10 +1099,6 @@ namespace utility
 		using storing_trivially_destructible = std::is_trivially_destructible<storing_type>;
 
 		using allocator_type = typename StorageImpl::allocator_type;
-	private:
-		template <typename InputIt>
-		using can_memcpy = mpl::conjunction<storing_trivially_copyable,
-		                                    utility::is_contiguous_iterator<InputIt>>;
 
 	public:
 		value_type & operator [] (std::ptrdiff_t index)
@@ -1130,9 +1129,8 @@ namespace utility
 			return single_section().construct_at(index, std::forward<Ps>(ps)...);
 		}
 
-		template <typename InputIt,
-		          REQUIRES((can_memcpy<InputIt>::value))>
-		void memcpy_range(std::ptrdiff_t index, InputIt begin, InputIt end)
+		template <typename InputIt>
+		auto memcpy_range(std::ptrdiff_t index, InputIt begin, InputIt end) -> decltype(std::declval<utility::section<StorageImpl, value_type>>().memcpy_range(index, begin, end))
 		{
 			single_section().memcpy_range(index, begin, end);
 		}
@@ -1170,8 +1168,8 @@ namespace utility
 		StorageImpl & base() { return static_cast<StorageImpl &>(*this); }
 		const StorageImpl & base() const { return static_cast<const StorageImpl &>(*this); }
 
-		section<StorageImpl, value_type> single_section() { return base().section(mpl::index_constant<0>{}); }
-		const_section<StorageImpl, value_type> single_section() const { return base().section(mpl::index_constant<0>{}); }
+		utility::section<StorageImpl, value_type> single_section() { return base().section(mpl::index_constant<0>{}); }
+		utility::const_section<StorageImpl, value_type> single_section() const { return base().section(mpl::index_constant<0>{}); }
 	};
 
 	template <template <typename> class Allocator, typename ...Ts>
