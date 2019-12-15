@@ -697,8 +697,7 @@ namespace engine
 
 				const Button button = sc_button != Button::INVALID ? sc_button : vk_button;
 
-				const auto button_name = core::value_table<Button>::get_key(button);
-				debug_printline(button_name);
+				dispatch(ButtonStateInput(it->id, button, ri.data.keyboard.Flags & RI_KEY_BREAK ? false : true));
 				break;
 			}
 # if INPUT_USE_HID
