@@ -123,6 +123,7 @@ set(HEADER_FILES
    src/utility/aggregation_allocator.hpp
 	src/utility/algorithm.hpp
 	src/utility/any.hpp
+   src/utility/arithmetics.hpp
 	src/utility/array.hpp
 	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
