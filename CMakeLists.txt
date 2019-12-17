@@ -346,5 +346,3 @@ target_include_directories(generated INTERFACE "${PROJECT_BINARY_DIR}/generated"
 
 add_subdirectory(code)
 add_subdirectory(game)
-
-add_subdirectory(codetest)

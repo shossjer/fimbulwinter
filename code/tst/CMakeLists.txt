@@ -1,40 +1,40 @@
 
 set(FILES_CORE
-	src/main.cpp
-	src/core/async/delayTest.cpp
-	src/core/container/Collection.cpp
-   src/core/container/Queue.cpp
-	src/core/debug.cpp
-	src/core/maths/Matrix.cpp
-	src/core/maths/Quaternion.cpp
-	src/core/maths/Vector.cpp
-	src/core/maths/util.cpp
+	tst/main.cpp
+	tst/core/async/delayTest.cpp
+	tst/core/container/Collection.cpp
+   tst/core/container/Queue.cpp
+	tst/core/debug.cpp
+	tst/core/maths/Matrix.cpp
+	tst/core/maths/Quaternion.cpp
+	tst/core/maths/Vector.cpp
+	tst/core/maths/util.cpp
 	)
 
 set(FILES_ENGINE
-	src/main.cpp
-	src/engine/console.cpp
-	src/engine/gui/gui_access.hpp
+	tst/main.cpp
+	tst/engine/console.cpp
+	tst/engine/gui/gui_access.hpp
 	)
 
 set(FILES_GAMEPLAY
-	src/main.cpp
+	tst/main.cpp
 	)
 
 set(FILES_UTILITY
-	src/main.cpp
-   src/utility/aggregation_allocator.cpp
-   src/utility/algorithm.cpp
-	src/utility/any.cpp
-	src/utility/array.cpp
-	src/utility/array_alloc.cpp
-   src/utility/crypto/crc.cpp
-	src/utility/iterator.cpp
-   src/utility/null_allocator.cpp
-	src/utility/optional.cpp
-	src/utility/property.cpp
-   src/utility/string_view.cpp
-   src/utility/type_info.cpp
-   src/utility/unicode.cpp
-	src/utility/variant.cpp
+	tst/main.cpp
+   tst/utility/aggregation_allocator.cpp
+   tst/utility/algorithm.cpp
+	tst/utility/any.cpp
+	tst/utility/array.cpp
+	tst/utility/array_alloc.cpp
+   tst/utility/crypto/crc.cpp
+	tst/utility/iterator.cpp
+   tst/utility/null_allocator.cpp
+	tst/utility/optional.cpp
+	tst/utility/property.cpp
+   tst/utility/string_view.cpp
+   tst/utility/type_info.cpp
+   tst/utility/unicode.cpp
+	tst/utility/variant.cpp
 	)
