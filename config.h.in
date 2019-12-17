@@ -120,10 +120,12 @@
 #cmakedefine PHYSICS_USE_PHYSX 1
 
 /**
- * Hack that defines _DEBUG if NDEBUG is not defined, needed by PhysX
+ * Hack that defines `_DEBUG` for PhysX
+ *
+ * PhysX needs the non standard `_DEBUG` :facepalm:
  */
 #if PHYSICS_USE_PHYSX
-# ifndef NDEBUG
+# if MODE_DEBUG
 #  ifndef _DEBUG
 #   define _DEBUG 1
 #  endif
