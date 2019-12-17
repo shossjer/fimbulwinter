@@ -1,31 +1,22 @@
 
 include (src/CMakeLists.txt)
 
-set(ALL_FILES ${SOURCE_FILES} ${HEADER_FILES})
+add_library(utility "")
+target_sources(utility PRIVATE ${SOURCES_UTILITY} ${HEADERS_UTILITY})
+target_include_directories(utility PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
+target_link_libraries(utility PRIVATE generated)
 
-foreach(FILE ${ALL_FILES})
-	get_filename_component(PARENT_DIR "${FILE}" PATH)
+add_library(core "")
+target_sources(core PRIVATE ${SOURCES_CORE} ${HEADERS_CORE})
+target_include_directories(core PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
+target_link_libraries(core PRIVATE generated utility)
 
-	# skip src or include and changes /'s to \\'s
-	string(REGEX REPLACE "(\\./)?(src|include)/?" "" GROUP "${PARENT_DIR}")
-	string(REPLACE "/" "\\" GROUP "${GROUP}")
+add_library(engine "")
+target_sources(engine PRIVATE ${SOURCES_ENGINE} ${HEADERS_ENGINE})
+target_include_directories(engine PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
+target_link_libraries(engine PRIVATE generated utility core)
 
-	# group into "Source Files" and "Header Files"
-	if ("${FILE}" MATCHES ".*\\.cpp")
-		set(GROUP "Source Files\\${GROUP}")
-	elseif("${FILE}" MATCHES ".*\\.h")
-		set(GROUP "Header Files\\${GROUP}")
-	else()
-		set(GROUP "Other Files\\${GROUP}")
-	endif()
-
-	source_group("${GROUP}" FILES "${FILE}")
-endforeach()
-
-include_directories("${PROJECT_BINARY_DIR}")
-include_directories("src")
-if (GENERAL_INCLUDES)
-	include_directories("${GENERAL_INCLUDES}")
-endif()
-
-add_library(Code ${ALL_FILES})
+add_library(gameplay "")
+target_sources(gameplay PRIVATE ${SOURCES_GAMEPLAY} ${HEADERS_GAMEPLAY})
+target_include_directories(gameplay PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
+target_link_libraries(gameplay PRIVATE generated utility core engine)

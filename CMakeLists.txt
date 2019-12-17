@@ -14,7 +14,7 @@ if (MSVC)
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MT")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
   add_definitions(-DNOMINMAX)
-  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT HellsKitchen)
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hellskitchen)
 else ()
   set(CMAKE_CXX_FLAGS "-std=c++14")
 endif ()
@@ -335,13 +335,17 @@ if (WINDOW_USE_USER32)
   endif()
 endif()
 
+configure_file(
+  "${PROJECT_SOURCE_DIR}/config.h.in"
+  "${PROJECT_BINARY_DIR}/generated/config.h"
+  @ONLY
+  )
+
+add_library(generated INTERFACE)
+target_include_directories(generated INTERFACE "${PROJECT_BINARY_DIR}/generated")
+
 add_subdirectory(code)
 add_subdirectory(game)
 
 enable_testing(false)
 add_subdirectory(codetest)
-
-# write config
-configure_file(
-  "${PROJECT_SOURCE_DIR}/config.h.in"
-  "${PROJECT_BINARY_DIR}/config.h")

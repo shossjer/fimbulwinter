@@ -2,50 +2,18 @@
 option(ENABLE_TEST "Enable Catch tests" ON)
 
 if(ENABLE_TEST)
-
 	message(STATUS "Catch tests are enabled")
-	cmake_minimum_required(VERSION 2.8)
 
 	include (src/CMakeLists.txt)
 
-	set(CODE_TEST_FILES ${CODE_TEST_SOURCE} ${CODE_TEST_HEADER})
+	add_executable(codetest "")
+	target_sources(codetest PRIVATE ${CODE_TEST_SOURCE} ${CODE_TEST_HEADER})
+	target_include_directories(codetest PRIVATE "src" "${GENERAL_INCLUDES}")
+	target_link_libraries(codetest PRIVATE generated utility core engine gameplay ${GENERAL_LIBRARIES} ${DEBUG_LIBRARIES} ${OPTIMIZED_LIBRARIES})
 
-	foreach(FILE ${CODE_TEST_FILES})
-		get_filename_component(PARENT_DIR "${FILE}" PATH)
-
-		# skip src or include and changes /'s to \\'s
-		string(REGEX REPLACE "(\\./)?(src|include)/?" "" GROUP "${PARENT_DIR}")
-		string(REPLACE "/" "\\" GROUP "${GROUP}")
-
-		# group into "Source Files" and "Header Files"
-		if ("${FILE}" MATCHES ".*\\.cpp")
-			set(GROUP "Source Files\\${GROUP}")
-		elseif("${FILE}" MATCHES ".*\\.h")
-			set(GROUP "Header Files\\${GROUP}")
-		else()
-			set(GROUP "Other Files\\${GROUP}")
-		endif()
-
-		source_group("${GROUP}" FILES "${FILE}")
-	endforeach()
-
-	# include catch headers
-	include_directories("${PROJECT_BINARY_DIR}")
-	include_directories("src")
-	include_directories("../code/src")
-	if (GENERAL_INCLUDES)
-		include_directories("${GENERAL_INCLUDES}")
+	if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
+		set_target_properties(codetest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 	endif()
-
-	add_executable(CodeTest ${CODE_TEST_FILES})
-
-	add_dependencies(CodeTest Code)
-
-	target_link_libraries(CodeTest Code)
-	target_link_libraries(CodeTest ${GENERAL_LIBRARIES})
-	target_link_libraries(CodeTest ${DEBUG_LIBRARIES})
-	target_link_libraries(CodeTest ${OPTIMIZED_LIBRARIES})
-
 else()
 	message(STATUS "Catch tests are disabled")
 endif(ENABLE_TEST)
