@@ -5,12 +5,53 @@
  */
 #define TRIBUNAL_VERSION_MINOR @TRIBUNAL_VERSION_MINOR@
 
+#if defined(_MSC_VER)
+// The microsoft compiler sets _DEBUG appropriately when targeting a
+// debug build.
+//
+// https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=vs-2019
+# if _DEBUG
 /**
+ * Our cross platform way to detect debug builds. Use this instead of
+ * `_DEBUG`, `NDEBUG` or any other macros.
+ */
+#  define MODE_DEBUG 1
+# else
+/**
+ * Our cross platform way to detect release builds. Use this instead
+ * of `_DEBUG`, `NDEBUG` or any other macros.
+ */
+#  define MODE_RELEASE 1
+# endif
+#elif defined(__apple_build_version__)
+// Xcode does apparently set DEBUG when targeting debug, maybe.
+//
+// https://stackoverflow.com/a/9063682
+# if DEBUG
+/**
+ * Our cross platform way to detect debug builds. Use this instead of
+ * `DEBUG`, `NDEBUG` or any other macros.
+ */
+#  define MODE_DEBUG 1
+# else
+/**
+ * Our cross platform way to detect release builds. Use this instead
+ * of `DEBUG`, `NDEBUG` or any other macros.
+ */
+#  define MODE_RELEASE 1
+# endif
+#else
+/**
+ * Our cross platform way to detect debug builds. Use this instead of
+ * `NDEBUG` or any other macros.
  */
 #cmakedefine MODE_DEBUG 1
 /**
+ * Our cross platform way to detect release builds. Use this instead
+ * of `NDEBUG` or any other macros.
  */
 #cmakedefine MODE_RELEASE 1
+#endif
 
 /**
  */

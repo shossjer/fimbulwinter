@@ -1,6 +1,16 @@
 
 cmake_minimum_required(VERSION 3.5.1)
+
 project(hellskitchen C CXX)
+
+# https://stackoverflow.com/a/31662300
+if(CMAKE_CONFIGURATION_TYPES)
+	unset(CMAKE_BUILD_TYPE CACHE)
+	set(CMAKE_CONFIGURATION_TYPES Debug Release)
+elseif(NOT CMAKE_BUILD_TYPE)
+	message(FATAL_ERROR "Single configurations need to specify CMAKE_BUILD_TYPE! Run cmake with something like:\n-DCMAKE_BUILD_TYPE=Debug|Release")
+endif()
+set_property(GLOBAL PROPERTY DEBUG_CONFIGURATIONS Debug)
 
 include_directories("${PROJECT_SOURCE_DIR}/dep/include")
 set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/include")
@@ -29,21 +39,6 @@ if (CUSTOM_INCLUDE)
 endif()
 if (CUSTOM_LIBRARY)
 	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CUSTOM_LIBRARY}")
-endif()
-
-# make debug build default
-if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Debug)
-endif()
-
-if (CMAKE_BUILD_TYPE STREQUAL Debug)
-  set(MODE_DEBUG 1)
-elseif(CMAKE_BUILD_TYPE STREQUAL Release)
-  set(MODE_RELEASE 1)
-elseif(CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
-  set(MODE_RELEASE 1)
-else()
-  message(FATAL_ERROR "Build type ${CMAKE_BUILD_TYPE} not supported")
 endif()
 
 # project information
@@ -335,6 +330,11 @@ if (WINDOW_USE_USER32)
   if (FILE_VERSIONHELPERS_H)
     set(HAVE_VERSIONHELPERS_H 1)
   endif()
+endif()
+
+if(CMAKE_BUILD_TYPE)
+	string(TOUPPER "${CMAKE_BUILD_TYPE}" _upper_build_type)
+	set(MODE_${_upper_build_type} 1)
 endif()
 
 configure_file(
