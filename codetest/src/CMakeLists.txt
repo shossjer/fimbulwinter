@@ -1,6 +1,5 @@
 
-# test source listing
-set(CODE_TEST_SOURCE
+set(FILES_CORE
 	src/main.cpp
 	src/core/async/delayTest.cpp
 	src/core/container/Collection.cpp
@@ -10,7 +9,20 @@ set(CODE_TEST_SOURCE
 	src/core/maths/Quaternion.cpp
 	src/core/maths/Vector.cpp
 	src/core/maths/util.cpp
+	)
+
+set(FILES_ENGINE
+	src/main.cpp
 	src/engine/console.cpp
+	src/engine/gui/gui_access.hpp
+	)
+
+set(FILES_GAMEPLAY
+	src/main.cpp
+	)
+
+set(FILES_UTILITY
+	src/main.cpp
    src/utility/aggregation_allocator.cpp
    src/utility/algorithm.cpp
 	src/utility/any.cpp
@@ -25,9 +37,4 @@ set(CODE_TEST_SOURCE
    src/utility/type_info.cpp
    src/utility/unicode.cpp
 	src/utility/variant.cpp
-	)
-
-# test source listing
-set(CODE_TEST_HEADER
-	src/engine/gui/gui_access.hpp
 	)
