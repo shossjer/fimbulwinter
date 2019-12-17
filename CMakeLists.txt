@@ -224,7 +224,7 @@ elseif(FILE_AL_AL_H AND
   set(SOUND_USE_OPENAL 1)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENAL32}")
 else()
-  message(WARNING "Sound - Disabled")
+  message(STATUS "Sound - Disabled")
 endif()
 
 # test
