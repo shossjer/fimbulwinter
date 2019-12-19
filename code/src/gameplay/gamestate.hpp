@@ -2,6 +2,7 @@
 #ifndef GAMEPLAY_GAMESTATE_HPP
 #define GAMEPLAY_GAMESTATE_HPP
 
+#include "engine/audio/system.hpp"
 #include "engine/Command.hpp"
 #include "engine/Entity.hpp"
 #include "engine/common.hpp"
@@ -13,7 +14,7 @@ namespace gameplay
 {
 namespace gamestate
 {
-	void create();
+	void create(engine::audio::System & audio);
 
 	void destroy();
 

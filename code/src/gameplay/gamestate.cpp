@@ -43,6 +43,8 @@ namespace
 
 	using namespace gameplay::gamestate;
 
+	engine::audio::System * audio = nullptr;
+
 	template<typename T>
 	T & access_component(const engine::Entity entity);
 
@@ -378,6 +380,7 @@ namespace
 			debug_assert(preparation.time_remaining > 0);
 
 			engine::animation::post_update_action(worker, engine::animation::action{"work", true});
+			audio->play();
 
 			const int remaining_time = preparation.time_remaining;
 			const int total_time = preparation.recipe->time.value_or(0) * 50;
@@ -1212,8 +1215,10 @@ namespace gameplay
 {
 namespace gamestate
 {
-	void create()
+	void create(engine::audio::System & audio)
 	{
+		::audio = &audio;
+
 		std::vector<engine::Asset> states = {engine::Asset("game"), engine::Asset("debug")};
 		engine::hid::ui::post_add_context(engine::Asset("default"), std::move(states));
 
