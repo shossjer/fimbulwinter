@@ -184,6 +184,7 @@ if(FILE_FMOD_HPP AND LIBRARY_FMOD)
 	set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FMOD}")
 else()
 	message(WARNING "Audio - Disabled")
+	set(AUDIO_USE_DUMMY 1)
 endif()
 
 # console

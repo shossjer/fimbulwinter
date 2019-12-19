@@ -59,6 +59,9 @@
 
 /**
  */
+#cmakedefine AUDIO_USE_DUMMY 1
+/**
+ */
 #cmakedefine AUDIO_USE_FMOD 1
 
 /**

@@ -48,6 +48,7 @@ set(SOURCES_ENGINE
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
+	src/engine/audio/system_dummy.cpp
 	src/engine/audio/system_fmod.cpp
 	src/engine/console.cpp
 	src/engine/console_kernel32.cpp
