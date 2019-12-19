@@ -67,6 +67,12 @@ find_file(FILE_CATCH_HPP catch.hpp)
 find_file(FILE_CATCH_CATCH_HPP catch/catch.hpp)
 message(STATUS "Looking for catch - ${FILE_CATCH_HPP}")
 message(STATUS "Looking for catch - ${FILE_CATCH_CATCH_HPP}")
+# FMOD
+message(STATUS "Looking for FMOD")
+find_file(FILE_FMOD_HPP fmod.hpp)
+message(STATUS "Looking for FMOD header - ${FILE_FMOD_HPP}")
+find_library(LIBRARY_FMOD fmod)
+message(STATUS "Looking for FMOD library - ${LIBRARY_FMOD}")
 # Freetype
 message(STATUS "Looking for freetype")
 find_file(FILE_FT2BUILD_H ft2build.h)
@@ -91,16 +97,6 @@ message(STATUS "Looking for Hid - ${LIBRARY_HID}")
 message(STATUS "Looking for Kernel32")
 find_library(LIBRARY_KERNEL32 kernel32)
 message(STATUS "Looking for Kernel32 - ${LIBRARY_KERNEL32}")
-# OpenAL
-message(STATUS "Looking for OpenAL")
-find_file(FILE_AL_AL_H AL/al.h)
-find_file(FILE_AL_ALC_H AL/alc.h)
-message(STATUS "Looking for OpenAL - ${FILE_AL_AL_H}")
-message(STATUS "Looking for OpenAL - ${FILE_AL_ALC_H}")
-find_library(LIBRARY_OPENAL openal)
-find_library(LIBRARY_OPENAL32 openal32)
-message(STATUS "Looking for OpenAL - ${LIBRARY_OPENAL}")
-message(STATUS "Looking for OpenAL - ${LIBRARY_OPENAL32}")
 # OpenGL
 message(STATUS "Looking for OpenGL")
 find_file(FILE_GL_GL_H GL/gl.h)
@@ -181,6 +177,15 @@ else()
 endif()
 
 # select libraries
+# audio
+if(FILE_FMOD_HPP AND LIBRARY_FMOD)
+	message(STATUS "Audio - FMOD")
+	set(AUDIO_USE_FMOD 1)
+	set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FMOD}")
+else()
+	message(WARNING "Audio - Disabled")
+endif()
+
 # console
 if (FILE_POLL_H AND
 	 FILE_UNISTD_H)
@@ -208,23 +213,6 @@ elseif (FILE_GL_GL_H AND
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENGL32}")
 else()
   message(FATAL_ERROR "Graphics - Disabled")
-endif()
-
-# sound
-if (FILE_AL_AL_H AND
-	FILE_AL_ALC_H AND
-	LIBRARY_OPENAL)
-  message(STATUS "Sound - OpenAL")
-  set(SOUND_USE_OPENAL 1)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENAL}")
-elseif(FILE_AL_AL_H AND
-	FILE_AL_ALC_H AND
-	LIBRARY_OPENAL32)
-  message(STATUS "Sound - OpenAL")
-  set(SOUND_USE_OPENAL 1)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENAL32}")
-else()
-  message(STATUS "Sound - Disabled")
 endif()
 
 # test
