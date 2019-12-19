@@ -13,6 +13,7 @@ set(FILES_CORE
 
 set(FILES_ENGINE
 	tst/main_core.cpp
+	tst/engine/audio/system.cpp
 	tst/engine/console.cpp
 	tst/engine/gui/gui_access.hpp
 	)
