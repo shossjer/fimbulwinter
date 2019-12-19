@@ -1,6 +1,6 @@
 
 set(FILES_CORE
-	tst/main.cpp
+	tst/main_core.cpp
 	tst/core/async/delayTest.cpp
 	tst/core/container/Collection.cpp
    tst/core/container/Queue.cpp
@@ -12,13 +12,13 @@ set(FILES_CORE
 	)
 
 set(FILES_ENGINE
-	tst/main.cpp
+	tst/main_core.cpp
 	tst/engine/console.cpp
 	tst/engine/gui/gui_access.hpp
 	)
 
 set(FILES_GAMEPLAY
-	tst/main.cpp
+	tst/main_core.cpp
 	)
 
 set(FILES_UTILITY
