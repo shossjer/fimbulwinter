@@ -2,46 +2,52 @@
 #ifndef ENGINE_APPLICATION_WINDOW_HPP
 #define ENGINE_APPLICATION_WINDOW_HPP
 
-#include "config.hpp"
-
 #include "config.h"
-
-#if WINDOW_USE_USER32
-# include <windows.h>
-#endif
 
 namespace engine
 {
 	namespace application
 	{
-		namespace window
+		struct config_t;
+	}
+
+	namespace graphics
+	{
+		class viewer;
+	}
+
+	namespace hid
+	{
+		class devices;
+		class ui;
+	}
+}
+
+namespace engine
+{
+	namespace application
+	{
+		class window
 		{
 #if WINDOW_USE_USER32
-			/**
-			 */
-			void create(HINSTANCE hInstance, int nCmdShow, const config_t & config);
-			/**
-			 */
-			void destroy(HINSTANCE hInstance);
-#elif WINDOW_USE_X11
-			/**
-			 */
-			void create(const config_t & config);
-			/**
-			 */
-			void destroy();
-#endif
-			/**
-			 */
-			int execute();
+			// hack around the problem of having to include WinDef.h
+			using HINSTANCE = void *;
 
-			/**
-			 * Closes the application.
-			 *
-			 * This shuts down everything by posting a quit message onto the window's event queue.
-			 */
-			void close();
-		}
+		private:
+			HINSTANCE hInstance_;
+#endif
+
+		public:
+			~window();
+#if WINDOW_USE_USER32
+			window(HINSTANCE hInstance, int nCmdShow, const config_t & config);
+#elif WINDOW_USE_X11
+			window(const config_t & config);
+#endif
+
+		public:
+			void set_dependencies(engine::graphics::viewer & viewer, engine::hid::devices & devices, engine::hid::ui & ui);
+		};
 	}
 }
 

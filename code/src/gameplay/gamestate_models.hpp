@@ -10,7 +10,7 @@
 
 namespace gameplay
 {
-	namespace gamestate
+	namespace models
 	{
 		struct Player
 		{

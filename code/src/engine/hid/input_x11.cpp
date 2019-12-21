@@ -1,8 +1,8 @@
-
-#include <config.h>
+#include "config.h"
 
 #if WINDOW_USE_X11
 
+#include "devices.hpp"
 #include "input.hpp"
 
 #include "core/async/Thread.hpp"
@@ -32,11 +32,8 @@ namespace engine
 {
 	namespace application
 	{
-		namespace window
-		{
-			extern XkbDescPtr load_key_names();
-			extern void free_key_names(XkbDescPtr desc);
-		}
+		extern XkbDescPtr load_key_names(window & window);
+		extern void free_key_names(window & window, XkbDescPtr desc);
 	}
 
 	namespace hid
@@ -1109,23 +1106,30 @@ namespace engine
 {
 	namespace hid
 	{
-		void create(bool hardware_input)
+		void destroy_subsystem(devices & devices)
 		{
-			if (XkbDescPtr const desc = engine::application::window::load_key_names())
+			disable_hardware_input();
+
+			lost_device(0); // non hardware device
+		}
+
+		void create_subsystem(devices & devices, engine::application::window & window, engine::console & console, bool hardware_input)
+		{
+			if (XkbDescPtr const desc = load_key_names(window))
 			{
 				for (int code = desc->min_key_code; code < desc->max_key_code; code++)
 				{
 					keycode_to_button[code] = get_button(desc->names->keys[code].name);
 				}
 
-				engine::application::window::free_key_names(desc);
+				free_key_names(window, desc);
 			}
 
 			found_device(0, 0, 0); // non hardware device
 
-			engine::console::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
-			engine::console::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
-			engine::console::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
+			observe(console, "disable-hardware-input", disable_hardware_input_callback, nullptr);
+			observe(console, "enable-hardware-input", enable_hardware_input_callback, nullptr);
+			observe(console, "toggle-hardware-input", toggle_hardware_input_callback, nullptr);
 
 			if (hardware_input)
 			{
@@ -1133,14 +1137,7 @@ namespace engine
 			}
 		}
 
-		void destroy()
-		{
-			disable_hardware_input();
-
-			lost_device(0); // non hardware device
-		}
-
-		void key_character(XKeyEvent & event, utility::unicode_code_point cp)
+		void key_character(devices & devices, XKeyEvent & event, utility::unicode_code_point cp)
 		{
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
@@ -1148,7 +1145,7 @@ namespace engine
 			dispatch(KeyCharacterInput(0, button, cp));
 		}
 
-		void button_press(XButtonEvent & event)
+		void button_press(devices & devices, XButtonEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1169,7 +1166,8 @@ namespace engine
 			// debug_printline("mouse ", button_name, " down");
 			dispatch(ButtonStateInput(0, button, true));
 		}
-		void button_release(XButtonEvent & event)
+
+		void button_release(devices & devices, XButtonEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1190,7 +1188,8 @@ namespace engine
 			// debug_printline("mouse ", button_name, " down");
 			dispatch(ButtonStateInput(0, button, false));
 		}
-		void key_press(XKeyEvent & event)
+
+		void key_press(devices & devices, XKeyEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1200,7 +1199,8 @@ namespace engine
 			// debug_printline("key ", button_name, " down");
 			dispatch(ButtonStateInput(0, button, true));
 		}
-		void key_release(XKeyEvent & event)
+
+		void key_release(devices & devices, XKeyEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1210,9 +1210,8 @@ namespace engine
 			// debug_printline("key ", button_name, " up");
 			dispatch(ButtonStateInput(0, button, false));
 		}
-		void motion_notify(const int x,
-		                   const int y,
-		                   const ::Time time)
+
+		void motion_notify(devices & devices, int x, int y, ::Time time)
 		{
 			dispatch(CursorMoveInput(0, x, y));
 		}

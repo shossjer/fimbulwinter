@@ -15,15 +15,21 @@ namespace engine
 {
 	namespace resource
 	{
-		namespace writer
+		class writer
 		{
+		public:
 			using Serializer = utility::variant<
 				core::IniSerializer,
 				core::JsonSerializer
 			>;
 
+		public:
+			~writer();
+			writer();
+
+		public:
 			void post_write(std::string name, void (* callback)(std::string name, Serializer & serializer));
-		}
+		};
 	}
 }
 

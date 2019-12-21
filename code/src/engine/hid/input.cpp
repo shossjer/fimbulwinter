@@ -1,4 +1,5 @@
 
+#include "devices.hpp"
 #include "input.hpp"
 
 #include <bitset>
@@ -8,21 +9,23 @@ namespace engine
 {
 	namespace hid
 	{
-		namespace ui
-		{
-			extern void notify_device_found(int id);
-			extern void notify_device_lost(int id);
+		extern void notify_device_found(ui & ui, int id);
+		extern void notify_device_lost(ui & ui, int id);
 
-			extern void notify_add_source(int id, std::string && path, int type, std::string && name);
-			extern void notify_remove_source(int id, std::string && path);
+		extern void notify_add_source(ui & ui, int id, std::string && path, int type, std::string && name);
+		extern void notify_remove_source(ui & ui, int id, std::string && path);
 
-			extern void notify_input(const engine::hid::Input & input);
-		}
+		extern void notify_input(ui & ui, const engine::hid::Input & input);
+
+		extern void destroy_subsystem(devices & devices);
+		extern void create_subsystem(devices & devices, engine::application::window & window, engine::console & console, bool hardware_input);
 	}
 }
 
 namespace
 {
+	engine::hid::ui * ui = nullptr;
+
 	struct DeviceValues
 	{
 		union axis_value
@@ -42,6 +45,20 @@ namespace engine
 {
 	namespace hid
 	{
+		devices::~devices()
+		{
+			destroy_subsystem(*this);
+
+			::ui = nullptr;
+		}
+
+		devices::devices(engine::application::window & window, engine::console & console, engine::hid::ui & ui, bool hardware_input)
+		{
+			::ui = &ui;
+
+			create_subsystem(*this, window, console, hardware_input);
+		}
+
 		void found_device(int id, int vendor, int product)
 		{
 			if (id >= device_values.size())
@@ -49,7 +66,7 @@ namespace engine
 				device_values.resize(id + 1);
 			}
 
-			ui::notify_device_found(id);
+			notify_device_found(*::ui, id);
 		}
 		void lost_device(int id)
 		{
@@ -58,16 +75,16 @@ namespace engine
 				device_values[id] = DeviceValues{};
 			}
 
-			ui::notify_device_lost(id);
+			notify_device_lost(*::ui, id);
 		}
 
 		void add_source(int id, const char * path, int type, const char * name)
 		{
-			ui::notify_add_source(id, path, type, name);
+			notify_add_source(*::ui, id, path, type, name);
 		}
 		void remove_source(int id, const char * path)
 		{
-			ui::notify_remove_source(id, path);
+			notify_remove_source(*::ui, id, path);
 		}
 
 		void dispatch(const Input & input)
@@ -104,7 +121,7 @@ namespace engine
 				break;
 			}
 
-			ui::notify_input(input);
+			notify_input(*::ui, input);
 		}
 	}
 }

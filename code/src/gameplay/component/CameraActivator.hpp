@@ -18,13 +18,16 @@ namespace gameplay
 	{
 		struct CameraActivator
 		{
+			engine::graphics::viewer * viewer;
+			engine::hid::ui * ui;
+
 			engine::Asset context;
 			engine::Asset state;
 
 			engine::Asset frame;
 			engine::Entity camera;
 
-			CameraActivator(engine::Asset context, engine::Asset state, engine::Asset frame, engine::Entity camera) : context(context), state(state), frame(frame), camera(camera) {}
+			CameraActivator(engine::graphics::viewer & viewer, engine::hid::ui & ui, engine::Asset context, engine::Asset state, engine::Asset frame, engine::Entity camera) : viewer(&viewer), ui(&ui), context(context), state(state), frame(frame), camera(camera) {}
 
 			void translate(engine::Command command, utility::any && data)
 			{
@@ -34,9 +37,9 @@ namespace gameplay
 					debug_assert(data.has_value());
 					if (utility::any_cast<float>(data) <= 0.f)
 					{
-						engine::hid::ui::post_set_state(context, state);
+						post_set_state(*ui, context, state);
 
-						engine::graphics::viewer::post_bind(frame, camera);
+						post_bind(*viewer, frame, camera);
 					}
 					break;
 				default:

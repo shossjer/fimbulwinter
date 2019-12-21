@@ -1,20 +1,20 @@
-
-#include "Font.hpp"
+#include "config.h"
 
 #if TEXT_USE_USER32
 
-#include <core/debug.hpp>
+#include "Font.hpp"
+
+#include "core/debug.hpp"
+
+#include <utility>
 
 namespace engine
 {
 	namespace application
 	{
-		namespace window
-		{
-			extern void buildFont(HFONT hFont, DWORD count, DWORD listBase);
-			extern void freeFont(HFONT hFont);
-			extern HFONT loadFont(const char *const name, const int height);
-		}
+		extern void buildFont(window & window, HFONT hFont, DWORD count, DWORD listBase);
+		extern void freeFont(window & window, HFONT hFont);
+		extern HFONT loadFont(window & window, const char * name, int height);
 	}
 }
 
@@ -31,19 +31,18 @@ namespace engine
 					this->free();
 				}
 			}
-			Font::Data::Data() :
-				hFont(nullptr)
-			{
-			}
-			Font::Data::Data(Data && data) :
-				hFont(data.hFont)
-			{
-				data.hFont = nullptr;
-			}
+			Font::Data::Data()
+				: hFont(nullptr)
+			{}
+			Font::Data::Data(Data && data)
+				: window_(data.window_)
+				, hFont(std::exchange(data.hFont, nullptr))
+			{}
 			Font::Data & Font::Data::operator = (Data && data)
 			{
-				this->hFont = data.hFont;
-				data.hFont = nullptr;
+				this->window_ = data.window_;
+				this->hFont = std::exchange(data.hFont, nullptr);
+
 				return *this;
 			}
 
@@ -51,14 +50,17 @@ namespace engine
 			{
 				debug_assert(this->hFont != nullptr);
 
-				engine::application::window::freeFont(this->hFont);
+				freeFont(*this->window_, this->hFont);
 				this->hFont = nullptr;
 			}
-			bool Font::Data::load(const char *const name, const int height)
+			bool Font::Data::load(engine::application::window & window, const char * name, int height)
 			{
 				debug_assert(this->hFont == nullptr);
 
-				return (this->hFont = engine::application::window::loadFont(name, height)) != nullptr;
+				this->window_ = &window;
+				this->hFont = loadFont(window, name, height);
+
+				return this->hFont != nullptr;
 			}
 
 			Font::~Font()
@@ -90,7 +92,7 @@ namespace engine
 				debug_assert(this->base == GLuint(-1));
 
 				this->base = glGenLists(256);
-				engine::application::window::buildFont(data.hFont, 256, this->base);
+				buildFont(*data.window_, data.hFont, 256, this->base);
 			}
 			void Font::decompile()
 			{
@@ -107,7 +109,7 @@ namespace engine
 				glRasterPos2i(x, y);
 				glCallList(this->base + c);
 			}
-			void Font::draw(int x, int y, const char *text) const
+			void Font::draw(int x, int y, const char * text) const
 			{
 				debug_assert(this->base != GLuint(-1));
 

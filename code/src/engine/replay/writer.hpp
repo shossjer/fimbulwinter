@@ -9,10 +9,14 @@
 
 namespace engine
 {
-	namespace replay
+	class record
 	{
-		void post_add_command(int frame_count, engine::Entity entity, engine::Command command, utility::any && data);
-	}
+	public:
+		~record();
+		record();
+	};
+
+	void post_add_command(record & record, int frame_count, engine::Entity entity, engine::Command command, utility::any && data);
 }
 
 #endif /* ENGINE_REPLAY_WRITER_HPP */

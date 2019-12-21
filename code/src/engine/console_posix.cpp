@@ -1,4 +1,3 @@
-
 #include "config.h"
 
 #if CONSOLE_USE_POSIX
@@ -18,7 +17,12 @@
 
 namespace engine
 {
-	namespace console
+	namespace application
+	{
+		extern void close(window & window);
+	}
+
+	namespace detail
 	{
 		void read_input(std::string line);
 	}
@@ -29,6 +33,8 @@ namespace
 	core::async::Thread thread;
 
 	int interupt_pipe[2];
+
+	engine::application::window * window = nullptr;
 }
 
 namespace
@@ -52,11 +58,11 @@ namespace
 				std::string line;
 				if (!std::getline(std::cin, line))
 				{
-					engine::application::window::close();
+					close(*window);
 					break;
 				}
 
-				engine::console::read_input(line);
+				engine::detail::read_input(line);
 			}
 		}
 		close(interupt_pipe[0]);
@@ -67,21 +73,22 @@ namespace
 
 namespace engine
 {
-	namespace console
+	console::~console()
 	{
-		void create()
-		{
-			pipe(interupt_pipe);
+		close(interupt_pipe[1]);
 
-			thread = core::async::Thread{ ::read_input };
-		}
+		thread.join();
 
-		void destroy()
-		{
-			close(interupt_pipe[1]);
+		::window = nullptr;
+	}
 
-			thread.join();
-		}
+	console::console(engine::application::window & window)
+	{
+		::window = &window;
+
+		pipe(interupt_pipe);
+
+		thread = core::async::Thread(::read_input);
 	}
 }
 

@@ -10,6 +10,15 @@
 
 #include "engine/Entity.hpp"
 
+namespace engine
+{
+	namespace graphics
+	{
+		class renderer;
+		class viewer;
+	}
+}
+
 /**
  *	\note Declare and call from creation context (main)
  *		  extern void setup()
@@ -19,6 +28,13 @@ namespace engine
 {
 namespace physics
 {
+	class simulation
+	{
+	public:
+		~simulation();
+		simulation(engine::graphics::renderer & renderer, engine::graphics::viewer & viewer);
+	};
+
 	namespace camera
 	{
 		struct Bounds
@@ -32,18 +48,18 @@ namespace physics
 		 *
 		 *	Should be based on the game level.
 		 */
-		void set(Bounds && bounds);
+		void set(simulation & simulation, Bounds && bounds);
 		/**
 		 *	Register a Camera with an axis aligned bounding box
 		 *
 		 *	The bounding volume is set using the coordinate of the "min" corner
 		 *	of the volume and the coordinate of the "max" corner of the volume.
 		 */
-		void add(engine::Entity camera, core::maths::Vector3f position, bool bounded = true);
+		void add(simulation & simulation, engine::Entity camera, core::maths::Vector3f position, bool bounded = true);
 		/**
 		 *	Update movement of the camera within its bounds.
 		 */
-		void update(engine::Entity camera, core::maths::Vector3f movement);
+		void update(simulation & simulation, engine::Entity camera, core::maths::Vector3f movement);
 	}
 
 	struct orientation_movement
@@ -54,13 +70,13 @@ namespace physics
 	/**
 	 *	\note manages creation and removal of actors
 	 */
-	void update_start();
+	void update_start(simulation & simulation);
 
-	void update_joints();
+	void update_joints(simulation & simulation);
 	/**
 	 *	\note steps physics engine forward
 	 */
-	void update_finish();
+	void update_finish(simulation & simulation);
 
 	// TODO: make possible to add "definitions" and just directly create objects
 	struct asset_definition_t
@@ -70,7 +86,7 @@ namespace physics
 		std::vector<ShapeData> shapes;
 	};
 
-	void add(const engine::Entity id, const asset_definition_t & data);
+	void add(simulation & simulation, const engine::Entity id, const asset_definition_t & data);
 
 	struct asset_instance_t
 	{
@@ -79,15 +95,15 @@ namespace physics
 		ActorData::Type type;
 	};
 
-	void add(const engine::Entity id, const asset_instance_t & data);
+	void add(simulation & simulation, const engine::Entity id, const asset_instance_t & data);
 
-	void post_add_object(engine::Entity entity, engine::transform_t && data);
+	void post_add_object(simulation & simulation, engine::Entity entity, engine::transform_t && data);
 
-	void post_create(const engine::Entity id, const ActorData & data);
+	void post_create(simulation & simulation, const engine::Entity id, const ActorData & data);
 
-	void post_create(const engine::Entity id, const PlaneData & data);
+	void post_create(simulation & simulation, const engine::Entity id, const PlaneData & data);
 
-	void post_remove(engine::Entity entity);
+	void post_remove(simulation & simulation, engine::Entity entity);
 
 	struct joint_t
 	{
@@ -115,7 +131,7 @@ namespace physics
 		float forceMax;
 	};
 
-	void post_joint(const joint_t & joint);
+	void post_joint(simulation & simulation, const joint_t & joint);
 
 	struct movement_data
 	{
@@ -134,15 +150,15 @@ namespace physics
 	/**
 	 *	\note update Character or Dynamic object with delta movement or force.
 	 */
-	void post_update_movement(engine::Entity entity, movement_data && data);
+	void post_update_movement(simulation & simulation, engine::Entity entity, movement_data && data);
 
 	/**
 	 *	\note update Kinematic object with position and rotation
 	 */
-	void post_update_movement(const engine::Entity id, const transform_t translation);
+	void post_update_movement(simulation & simulation, const engine::Entity id, const transform_t translation);
 
-	void post_update_orientation_movement(engine::Entity entity, orientation_movement && data);
-	void post_update_transform(engine::Entity entity, engine::transform_t && data);
+	void post_update_orientation_movement(simulation & simulation, engine::Entity entity, orientation_movement && data);
+	void post_update_transform(simulation & simulation, engine::Entity entity, engine::transform_t && data);
 }
 }
 

@@ -1,4 +1,3 @@
-
 #include "config.h"
 
 #if CONSOLE_USE_KERNEL32
@@ -8,8 +7,6 @@
 #include "core/async/Thread.hpp"
 #include "core/debug.hpp"
 
-#include "engine/application/window.hpp"
-
 #include <iostream>
 #include <string>
 
@@ -17,7 +14,12 @@
 
 namespace engine
 {
-	namespace console
+	namespace application
+	{
+		extern void close(window & window);
+	}
+
+	namespace detail
 	{
 		void read_input(std::string line);
 	}
@@ -29,6 +31,8 @@ namespace
 	core::async::Thread thread;
 
 	HANDLE handle = nullptr;
+
+	engine::application::window * window = nullptr;
 }
 
 namespace
@@ -40,11 +44,11 @@ namespace
 			std::string line;
 			if (!std::getline(std::cin, line))
 			{
-				engine::application::window::close();
+				close(*::window);
 				break;
 			}
 
-			engine::console::read_input(line);
+			engine::detail::read_input(line);
 		}
 
 		debug_printline("console thread stopping");
@@ -53,23 +57,24 @@ namespace
 
 namespace engine
 {
-	namespace console
+	console::~console()
 	{
-		void create()
-		{
-			active = true;
-			handle = GetStdHandle(STD_INPUT_HANDLE);
+		active = false;
+		CancelIoEx(handle, NULL);
 
-			thread = core::async::Thread{ ::read_input };
-		}
+		thread.join();
 
-		void destroy()
-		{
-			active = false;
-			CancelIoEx(handle, NULL);
+		::window = nullptr;
+	}
 
-			thread.join();
-		}
+	console::console(engine::application::window & window)
+	{
+		::window = &window;
+
+		active = true;
+		handle = GetStdHandle(STD_INPUT_HANDLE);
+
+		thread = core::async::Thread(::read_input);
 	}
 }
 

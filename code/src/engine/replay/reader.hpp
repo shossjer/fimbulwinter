@@ -6,7 +6,7 @@ namespace engine
 {
 	namespace replay
 	{
-		void start();
+		void start(void * gamestate);
 
 		void update(int frame_count);
 	}

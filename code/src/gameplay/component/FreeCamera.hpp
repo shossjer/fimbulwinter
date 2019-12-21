@@ -22,6 +22,9 @@ namespace gameplay
 	{
 		struct FreeCamera
 		{
+			engine::graphics::viewer * viewer;
+			engine::physics::simulation * simulation;
+
 			engine::Entity camera;
 
 			float move_left = 0.f;
@@ -39,7 +42,7 @@ namespace gameplay
 
 			core::maths::Quaternionf rotation = {1.f, 0.f, 0.f, 0.f};
 
-			FreeCamera(engine::Entity camera) : camera(camera) {}
+			FreeCamera(engine::graphics::viewer & viewer, engine::physics::simulation & simulation, engine::Entity camera) : viewer(&viewer), simulation(&simulation), camera(camera) {}
 
 			void translate(engine::Command command, utility::any && data)
 			{
@@ -117,30 +120,36 @@ namespace gameplay
 				const float movement_speed = .5f;
 				if (move_left)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						-rotation.axis_x() * (move_left * movement_speed));
 				if (move_right)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						rotation.axis_x() * (move_right * movement_speed));
 				if (move_up)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						-rotation.axis_z() * (move_up * movement_speed));
 				if (move_down)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						rotation.axis_z() * (move_down * movement_speed));
 				if (elevate_down)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						-rotation.axis_y() * (elevate_down * movement_speed));
 				if (elevate_up)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						rotation.axis_y() * (elevate_up * movement_speed));
 
-				engine::graphics::viewer::post_update_camera(camera, engine::graphics::viewer::rotation{rotation});
+				post_update_camera(*viewer, camera, engine::graphics::viewer::rotation{rotation});
 			}
 		};
 	}

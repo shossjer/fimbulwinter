@@ -97,6 +97,7 @@ set(HEADERS_ENGINE
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/viewer.hpp
    src/engine/hid/config.hpp
+	src/engine/hid/devices.hpp
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
@@ -171,6 +172,7 @@ set(HEADERS_GAMEPLAY
 	src/gameplay/factory.hpp
 	src/gameplay/gamestate.hpp
 	src/gameplay/gamestate_models.hpp
+	src/gameplay/looper.hpp
 	src/gameplay/recipes.hpp
 	src/gameplay/skills.hpp
 	)

@@ -20,6 +20,12 @@
 
 namespace
 {
+	engine::animation::mixer * mixer = nullptr;
+	engine::graphics::renderer * renderer = nullptr;
+	engine::physics::simulation * simulation = nullptr;
+	engine::resource::reader * reader = nullptr;
+	gameplay::gamestate * gamestate = nullptr;
+
 	struct LevelData
 	{
 		struct Mesh
@@ -284,7 +290,7 @@ namespace
 				mesh = asset;
 
 				debug_printline("registering character \"", name, "\"");
-				engine::graphics::renderer::post_register_character(asset, std::move(data));
+				post_register_character(*::renderer, asset, std::move(data));
 
 				return armature != engine::Asset::null();
 			}
@@ -293,7 +299,7 @@ namespace
 				debug_assert(armature == engine::Asset::null());
 				armature = asset;
 
-				engine::animation::post_register_armature(asset, std::move(data));
+				post_register_armature(*::mixer, asset, std::move(data));
 
 				return mesh != engine::Asset::null();
 			}
@@ -374,7 +380,8 @@ namespace
 					const auto & mesh = part.render.shapes[i];
 					const engine::Asset meshId(name + part.name + std::to_string(i));
 
-					engine::graphics::renderer::post_register_mesh(
+					post_register_mesh(
+						*::renderer,
 						meshId,
 						engine::graphics::data::Mesh{
 							mesh.vertices,
@@ -468,7 +475,8 @@ namespace
 			Loaded(engine::Asset && asset, std::string && name, LevelData && data)
 			{
 				// tmp
-				engine::physics::camera::set(
+				set(
+					*::simulation,
 					engine::physics::camera::Bounds{
 						core::maths::Vector3f{-6.f, 0.f, -4.f},
 						core::maths::Vector3f{6.f, 10.f, 12.f}});
@@ -477,7 +485,8 @@ namespace
 				{
 					const engine::Asset asset(mesh.name);
 
-					engine::graphics::renderer::post_register_mesh(
+					post_register_mesh(
+						*renderer,
 						asset,
 						engine::graphics::data::Mesh{
 							mesh.vertices,
@@ -577,7 +586,8 @@ namespace
 					const auto & mesh = part.render.shapes[i];
 					const engine::Asset meshId(name + part.name + std::to_string(i));
 
-					engine::graphics::renderer::post_register_mesh(
+					post_register_mesh(
+						*renderer,
 						meshId,
 						engine::graphics::data::Mesh{
 							mesh.vertices,
@@ -668,7 +678,7 @@ namespace
 				if (entity != engine::Entity::null())
 				{
 					// gameplay::gamestate::post_remove(entity);
-					engine::graphics::renderer::post_remove(entity);
+					post_remove(*::renderer, entity);
 				}
 			}
 			Created(
@@ -677,15 +687,17 @@ namespace
 				const core::maths::Matrix4x4f & modelview)
 				: entity(entity)
 			{
-				engine::graphics::renderer::post_add_component(
+				post_add_component(
+					*::renderer,
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
 						core::maths::Vector3f{ 1.f, 1.f, 1.f },
 						resource.assets });
-				engine::graphics::renderer::post_make_selectable(entity);
+				post_make_selectable(*::renderer, entity);
 
-				gameplay::gamestate::post_add_workstation(
+				post_add_workstation(
+					*::gamestate,
 					entity,
 					gameplay::gamestate::WorkstationType::BENCH,
 					modelview * resource.front,
@@ -737,7 +749,7 @@ namespace
 			{
 				if (entity != engine::Entity::null())
 				{
-					engine::graphics::renderer::post_remove(entity);
+					post_remove(*::renderer, entity);
 				}
 			}
 			Created(
@@ -746,7 +758,8 @@ namespace
 				const core::maths::Matrix4x4f & modelview)
 				: entity(entity)
 			{
-				engine::graphics::renderer::post_add_component(
+				post_add_component(
+					*::renderer,
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
@@ -803,7 +816,7 @@ namespace
 				{
 					for (engine::Entity entity : meshes)
 					{
-						engine::graphics::renderer::post_remove(entity);
+						post_remove(*::renderer, entity);
 					}
 				}
 			}
@@ -820,13 +833,14 @@ namespace
 
 					const auto entity = engine::Entity::create();
 
-					engine::graphics::renderer::post_add_component(
+					post_add_component(
+						*::renderer,
 						entity,
 						engine::graphics::data::CompC{
 							mesh.matrix,
 							core::maths::Vector3f{1.f, 1.f, 1.f},
 							assets});
-					engine::graphics::renderer::post_make_obstruction(entity);
+					post_make_obstruction(*::renderer, entity);
 
 					meshes.push_back(entity);
 				}
@@ -881,7 +895,7 @@ namespace
 				if (entity != engine::Entity::null())
 				{
 					// gameplay::gamestate::post_remove(entity);
-					engine::graphics::renderer::post_remove(entity);
+					post_remove(*::renderer, entity);
 				}
 			}
 			Created(
@@ -890,15 +904,17 @@ namespace
 				const core::maths::Matrix4x4f & modelview)
 				: entity(entity)
 			{
-				engine::graphics::renderer::post_add_component(
+				post_add_component(
+					*::renderer,
 					entity,
 					engine::graphics::data::CompC{
 						modelview,
 						core::maths::Vector3f{ 1.f, 1.f, 1.f },
 						resource.assets });
-				engine::graphics::renderer::post_make_selectable(entity);
+				post_make_selectable(*::renderer, entity);
 
-				gameplay::gamestate::post_add_workstation(
+				post_add_workstation(
+					*::gamestate,
 					entity,
 					gameplay::gamestate::WorkstationType::OVEN,
 					modelview * resource.front,
@@ -952,8 +968,8 @@ namespace
 				{
 					// gameplay::gamestate::post_remove(entity);
 					// engine::animation::post_remove(entity);
-					engine::physics::post_remove(entity);
-					engine::graphics::renderer::post_remove(entity);
+					post_remove(*::simulation, entity);
+					post_remove(*::renderer, entity);
 				}
 			}
 			Created(
@@ -962,24 +978,25 @@ namespace
 				const core::maths::Matrix4x4f & modelview)
 				: entity(entity)
 			{
-				engine::graphics::renderer::post_add_character(
+				post_add_character(
+					*::renderer,
 					entity,
 					engine::graphics::data::CompT{
 						modelview,
 						core::maths::Vector3f { 1.f, 1.f, 1.f },
 						resource.mesh,
 						engine::Asset{ "dude" }});
-				engine::graphics::renderer::post_make_selectable(entity);
+				post_make_selectable(*::renderer, entity);
 
 				core::maths::Vector3f translation;
 				core::maths::Quaternionf rotation;
 				core::maths::Vector3f scale;
 				decompose(modelview, translation, rotation, scale);
-				engine::physics::post_add_object(entity, engine::transform_t{translation, rotation});
-				engine::animation::post_add_character(entity, engine::animation::character{resource.armature});
-				engine::animation::post_update_action(entity, engine::animation::action{"turn-left", true});
+				post_add_object(*::simulation, entity, engine::transform_t{translation, rotation});
+				post_add_character(*::mixer, entity, engine::animation::character{resource.armature});
+				post_update_action(*::mixer, entity, engine::animation::action{"turn-left", true});
 
-				gameplay::gamestate::post_add_worker(entity);
+				post_add_worker(*::gamestate, entity);
 			}
 			Created(Created && x)
 				: entity(x.entity)
@@ -1281,7 +1298,7 @@ namespace
 			debug_verify(entities.try_emplace<Entity>(entity, std::forward<Ps>(ps)...));
 			auto & resource = resources.emplace<Resource>(asset);
 			resource.add(entity);
-			engine::resource::reader::post_read(name, read_callback);
+			reader->post_read(name, read_callback);
 		}
 	}
 
@@ -1334,8 +1351,8 @@ namespace
 			debug_verify(entities.try_emplace<EntityWorker>(entity, modelview));
 			auto & resource = resources.emplace<ResourceCharacter>(asset);
 			resource.add(entity);
-			engine::resource::reader::post_read(name, read_character_callback, engine::resource::Format::Placeholder);
-			engine::resource::reader::post_read(name, read_armature_callback, engine::resource::Format::Armature);
+			reader->post_read(name, read_character_callback, engine::resource::Format::Placeholder);
+			reader->post_read(name, read_armature_callback, engine::resource::Format::Armature);
 		}
 	}
 
@@ -1362,6 +1379,15 @@ namespace
 
 namespace gameplay
 {
+	void set_dependencies(engine::animation::mixer & mixer, engine::graphics::renderer & renderer, engine::physics::simulation & simulation, engine::resource::reader & reader, gameplay::gamestate & gamestate)
+	{
+		::mixer = &mixer;
+		::renderer = &renderer;
+		::simulation = &simulation;
+		::reader = &reader;
+		::gamestate = &gamestate;
+	}
+
 	void create_level(engine::Entity entity, const std::string & name)
 	{
 		std::lock_guard<core::sync::CriticalSection> lock(resources_cs);
@@ -1370,7 +1396,7 @@ namespace gameplay
 		// tmp
 		debug_assert(!resources.contains(engine::Asset("board")));
 		resources.emplace<ResourceDecoration>(engine::Asset("board"));
-		engine::resource::reader::post_read("board", read_decoration_callback);
+		reader->post_read("board", read_decoration_callback);
 	}
 
 	void create_bench(engine::Entity entity, const core::maths::Matrix4x4f & modelview)

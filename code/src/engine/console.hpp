@@ -12,7 +12,22 @@
 
 namespace engine
 {
-	namespace console
+	namespace application
+	{
+		class window;
+	}
+}
+
+namespace engine
+{
+	class console
+	{
+	public:
+		~console();
+		console(engine::application::window & window);
+	};
+
+	namespace detail
 	{
 		using Argument = utility::variant
 		<
@@ -69,13 +84,13 @@ namespace engine
 			}
 		};
 
-		void observe_impl(const std::string & keyword, std::unique_ptr<CallbackBase> && callback);
+		void observe_impl(console & console, const std::string & keyword, std::unique_ptr<CallbackBase> && callback);
+	}
 
-		template <typename ...Parameters>
-		void observe(const std::string & keyword, void (* fun)(void * data, Parameters...), void * data)
-		{
-			observe_impl(keyword, std::make_unique<Callback<Parameters...>>(fun, data));
-		}
+	template <typename ...Parameters>
+	void observe(console & console, const std::string & keyword, void (* fun)(void * data, Parameters...), void * data)
+	{
+		detail::observe_impl(console, keyword, std::make_unique<detail::Callback<Parameters...>>(fun, data));
 	}
 }
 

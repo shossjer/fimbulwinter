@@ -22,19 +22,11 @@
 #include <utility>
 #include <vector>
 
-namespace engine
-{
-	namespace graphics
-	{
-		namespace renderer
-		{
-			void post_update_characterskinning(engine::Entity entity, CharacterSkinning && data);
-		}
-	}
-}
-
 namespace
 {
+	engine::graphics::renderer * renderer = nullptr;
+	engine::physics::simulation * simulation = nullptr;
+
 	using Action = engine::animation::Armature::Action;
 	using Armature = engine::animation::Armature;
 	using Joint = engine::animation::Armature::Joint;
@@ -346,15 +338,16 @@ namespace
 			mixers.call(mixer, extract_pallet{matrix_pallet});
 			const bool has_position_movement = mixers.call(mixer, extract_position_movement{position_movement});
 			const bool has_orientation_movement = mixers.call(mixer, extract_orientation_movement{orientation_movement});
-			engine::graphics::renderer::post_update_characterskinning(me,
-			                                   engine::graphics::renderer::CharacterSkinning{matrix_pallet});
+			post_update_characterskinning(*renderer,
+			                              me,
+			                              engine::graphics::renderer::CharacterSkinning{matrix_pallet});
 			if (has_position_movement)
 			{
-				engine::physics::post_update_movement(me, engine::physics::movement_data{engine::physics::movement_data::Type::CHARACTER, position_movement});
+				post_update_movement(*::simulation, me, engine::physics::movement_data{engine::physics::movement_data::Type::CHARACTER, position_movement});
 			}
 			if (has_orientation_movement)
 			{
-				engine::physics::post_update_orientation_movement(me, engine::physics::orientation_movement{orientation_movement});
+				post_update_orientation_movement(*::simulation, me, engine::physics::orientation_movement{orientation_movement});
 			}
 		}
 	};
@@ -378,7 +371,7 @@ namespace
 			if (this->mixer == Mixer(-1))
 				return;
 
-			engine::physics::post_update_movement(me, mixers.call(mixer, extract_translation {}));
+			post_update_movement(*::simulation, me, mixers.call(mixer, extract_translation {}));
 
 			if (mixers.call(mixer, is_finished{}))
 			{
@@ -500,10 +493,7 @@ namespace engine
 {
 	namespace animation
 	{
-		void create()
-		{}
-
-		void destroy()
+		mixer::~mixer()
 		{
 			engine::Asset sources_not_unregistered[sources.max_size()];
 			const int source_count = sources.get_all_keys(sources_not_unregistered, sources.max_size());
@@ -512,17 +502,26 @@ namespace engine
 			{
 				debug_printline(sources_not_unregistered[i]);
 			}
+
+			::simulation = nullptr;
+			::renderer = nullptr;
+		}
+
+		mixer::mixer(engine::graphics::renderer & renderer, engine::physics::simulation & simulation)
+		{
+			::renderer = &renderer;
+			::simulation = &simulation;
 		}
 
 		/**
 		 * Sets callback instance, called from looper during setup
 		 */
-		void initialize(const Callbacks & callbacks)
+		void initialize(mixer & mixer, const Callbacks & callbacks)
 		{
 			pCallbacks = &callbacks;
 		}
 
-		void update()
+		void update(mixer & mixer)
 		{
 			AssetMessage asset_message;
 			while (queue_assets.try_pop(asset_message))
@@ -595,37 +594,37 @@ namespace engine
 			}
 		}
 
-		void post_register_armature(engine::Asset asset, engine::animation::Armature && data)
+		void post_register_armature(mixer & mixer, engine::Asset asset, engine::animation::Armature && data)
 		{
 			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterArmature>, asset, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_register_object(engine::Asset asset, engine::animation::object && data)
+		void post_register_object(mixer & mixer, engine::Asset asset, engine::animation::object && data)
 		{
 			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterObject>, asset, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_add_character(engine::Entity entity, engine::animation::character && data)
+		void post_add_character(mixer & mixer, engine::Entity entity, engine::animation::character && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddCharacter>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_add_model(engine::Entity entity, engine::animation::model && data)
+		void post_add_model(mixer & mixer, engine::Entity entity, engine::animation::model && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddModel>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_update_action(engine::Entity entity, engine::animation::action && data)
+		void post_update_action(mixer & mixer, engine::Entity entity, engine::animation::action && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateAction>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_remove(engine::Entity entity)
+		void post_remove(mixer & mixer, engine::Entity entity)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
 			debug_assert(res);

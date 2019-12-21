@@ -77,31 +77,28 @@ namespace
 
 namespace engine
 {
-	namespace replay
+	record::~record()
 	{
-		void create()
-		{
-			active.store(1, std::memory_order_relaxed);
-			event.reset();
-			thread = core::async::Thread(run);
-		}
+		active.store(0, std::memory_order_relaxed);
+		event.set();
+		thread.join();
+	}
 
-		void destroy()
-		{
-			active.store(0, std::memory_order_relaxed);
-			event.set();
-			thread.join();
-		}
+	record::record()
+	{
+		active.store(1, std::memory_order_relaxed);
+		event.reset();
+		thread = core::async::Thread(run);
+	}
 
-		void post_add_command(int frame_count, engine::Entity entity, engine::Command command, utility::any && data)
+	void post_add_command(record & record, int frame_count, engine::Entity entity, engine::Command command, utility::any && data)
+	{
+		if (active.load(std::memory_order_relaxed))
 		{
-			if (active.load(std::memory_order_relaxed))
+			auto res = queue_commands.try_emplace(frame_count, entity, command, std::move(data));
+			if (debug_verify(res, "write queue is full"))
 			{
-				auto res = queue_commands.try_emplace(frame_count, entity, command, std::move(data));
-				if (debug_verify(res, "write queue is full"))
-				{
-					event.set();
-				}
+				event.set();
 			}
 		}
 	}

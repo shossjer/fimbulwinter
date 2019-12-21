@@ -8,22 +8,19 @@
 #include "utility/string_view.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdio>
 #include <iostream>
 #include <vector>
 
-#include <cctype>
-#include <cstdio>
-
 namespace
 {
-	using namespace engine::console;
-
-	std::vector < std::pair<engine::Asset, std::unique_ptr<CallbackBase>> > observers;
+	std::vector<std::pair<engine::Asset, std::unique_ptr<engine::detail::CallbackBase>>> observers;
 }
 
 namespace engine
 {
-	namespace console
+	namespace detail
 	{
 		std::vector<Argument> parse_params(const std::string & line, int from)
 		{
@@ -90,7 +87,7 @@ namespace engine
 			return params;
 		}
 
-		void observe_impl(const std::string & keyword, std::unique_ptr<CallbackBase> && callback)
+		void observe_impl(console & console, const std::string & keyword, std::unique_ptr<CallbackBase> && callback)
 		{
 			const auto key = engine::Asset(keyword);
 
