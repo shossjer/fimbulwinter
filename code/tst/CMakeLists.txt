@@ -34,6 +34,7 @@ set(FILES_UTILITY
    tst/utility/null_allocator.cpp
 	tst/utility/optional.cpp
 	tst/utility/property.cpp
+	tst/utility/storing.cpp
    tst/utility/string_view.cpp
    tst/utility/type_info.cpp
    tst/utility/unicode.cpp

@@ -72,7 +72,7 @@ namespace utility
 			}
 		};
 
-		template <typename T, bool = std::is_trivial<T>::value>
+		template <typename T, bool = std::is_trivially_default_constructible<T>::value>
 		struct storing_trivial : storing_destructible<T>
 		{
 			using value_type = T;
