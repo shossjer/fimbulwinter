@@ -30,6 +30,8 @@ set(FILES_ENGINE
 
 set(FILES_GAMEPLAY
 	tst/main_core.cpp
+	tst/gameplay/gamestate.cpp
+	tst/gameplay/looper.cpp
 	)
 
 set(FILES_UTILITY

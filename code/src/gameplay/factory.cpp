@@ -1394,9 +1394,11 @@ namespace gameplay
 		create_level_lockfree(entity, name);
 
 		// tmp
-		debug_assert(!resources.contains(engine::Asset("board")));
-		resources.emplace<ResourceDecoration>(engine::Asset("board"));
-		reader->post_read("board", read_decoration_callback);
+		if (!resources.contains(engine::Asset("board")))
+		{
+			resources.emplace<ResourceDecoration>(engine::Asset("board"));
+			reader->post_read("board", read_decoration_callback);
+		}
 	}
 
 	void create_bench(engine::Entity entity, const core::maths::Matrix4x4f & modelview)

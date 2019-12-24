@@ -1230,6 +1230,8 @@ namespace gameplay
 {
 	gamestate::~gamestate()
 	{
+		components.clear();
+
 		post_remove_context(*::ui, engine::Asset("default"));
 
 		::reader = nullptr;
