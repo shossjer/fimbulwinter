@@ -668,7 +668,9 @@ namespace engine
 namespace hid
 {
 	ui::~ui()
-	{}
+	{
+		engine::abandon("print-devices");
+	}
 
 	ui::ui()
 	{

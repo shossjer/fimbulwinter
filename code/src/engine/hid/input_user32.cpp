@@ -642,6 +642,10 @@ namespace engine
 			disable_hardware_input();
 #endif
 
+			engine::abandon("toggle-hardware-input");
+			engine::abandon("enable-hardware-input");
+			engine::abandon("disable-hardware-input");
+
 			lost_device(0); // non hardware device
 
 			::window = nullptr;
