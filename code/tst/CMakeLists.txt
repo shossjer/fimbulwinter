@@ -21,6 +21,7 @@ set(FILES_ENGINE
 	tst/engine/gui/gui_access.hpp
 	tst/engine/hid/devices.cpp
 	tst/engine/hid/ui.cpp
+	tst/engine/physics/simulation.cpp
 	tst/engine/record.cpp
 	tst/engine/resource/reader.cpp
 	tst/engine/resource/writer.cpp
