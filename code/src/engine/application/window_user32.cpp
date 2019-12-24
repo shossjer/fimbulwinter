@@ -349,7 +349,7 @@ namespace engine
 			return messageLoop();
 		}
 
-		void close(window & window)
+		void close()
 		{
 			PostMessage(hWnd, WM_CLOSE, 0, 0);
 		}

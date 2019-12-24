@@ -48,6 +48,8 @@ namespace engine
 		public:
 			void set_dependencies(engine::graphics::viewer & viewer, engine::hid::devices & devices, engine::hid::ui & ui);
 		};
+
+		void close();
 	}
 }
 

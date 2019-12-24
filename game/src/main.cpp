@@ -133,12 +133,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	writer.post_write(std::string("settings") + get_settings_extension(), write_settings_callback);
 	while (settings_lock < 2);
 
+	engine::console console(engine::application::close);
+
 	engine::record record;
 	engine::audio::System audio;
 
 	engine::application::window window(hInstance, nCmdShow, settings.application);
 
-	engine::console console(window);
 	engine::hid::ui ui;
 	engine::hid::devices devices(window, ui, settings.hid.hardware_input);
 
@@ -167,12 +168,13 @@ int main(const int argc, const char *const argv[])
 	writer.post_write(std::string("settings") + get_settings_extension(), write_settings_callback);
 	while (settings_lock < 2);
 
+	engine::console console(engine::application::close);
+
 	engine::record record;
 	engine::audio::System audio;
 
 	engine::application::window window(settings.application);
 
-	engine::console console(window);
 	engine::hid::ui ui;
 	engine::hid::devices devices(window, ui, settings.hid.hardware_input);
 

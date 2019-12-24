@@ -766,7 +766,7 @@ namespace engine
 			return messageLoop();
 		}
 
-		void close(window & window)
+		void close()
 		{
 			should_close_window.store(1, std::memory_order_relaxed);
 		}

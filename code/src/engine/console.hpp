@@ -11,19 +11,11 @@
 
 namespace engine
 {
-	namespace application
-	{
-		class window;
-	}
-}
-
-namespace engine
-{
 	class console
 	{
 	public:
 		~console();
-		console(engine::application::window & window);
+		console(void (* callback_exit)());
 	};
 
 	namespace detail

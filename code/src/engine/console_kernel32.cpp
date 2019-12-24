@@ -14,11 +14,6 @@
 
 namespace engine
 {
-	namespace application
-	{
-		extern void close(window & window);
-	}
-
 	namespace detail
 	{
 		void read_input(std::string line);
@@ -32,7 +27,7 @@ namespace
 
 	HANDLE handle = nullptr;
 
-	engine::application::window * window = nullptr;
+	void (* callback_exit)() = nullptr;
 }
 
 namespace
@@ -44,7 +39,7 @@ namespace
 			std::string line;
 			if (!std::getline(std::cin, line))
 			{
-				close(*::window);
+				callback_exit();
 				break;
 			}
 
@@ -64,12 +59,12 @@ namespace engine
 
 		thread.join();
 
-		::window = nullptr;
+		::callback_exit = nullptr;
 	}
 
-	console::console(engine::application::window & window)
+	console::console(void (* callback_exit)())
 	{
-		::window = &window;
+		::callback_exit = callback_exit;
 
 		active = true;
 		handle = GetStdHandle(STD_INPUT_HANDLE);
