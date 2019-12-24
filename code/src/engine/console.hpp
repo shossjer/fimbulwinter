@@ -86,6 +86,8 @@ namespace engine
 		void observe_impl(utility::string_view keyword, std::unique_ptr<CallbackBase> && callback);
 	}
 
+	void abandon(utility::string_view keyword);
+
 	template <typename ...Parameters>
 	void observe(utility::string_view keyword, void (* fun)(void * data, Parameters...), void * data)
 	{

@@ -124,4 +124,13 @@ namespace engine
 			std::cout << "no matching observer found to \"" << command_name << "\"\n";
 		}
 	}
+
+	void abandon(utility::string_view keyword)
+	{
+		const auto key = engine::Asset(keyword);
+		const auto it = std::find_if(observers.begin(), observers.end(), [key](const auto & p){ return p.first == key; });
+		debug_assert(it != observers.end(), "\"", keyword, "\" is not being observed");
+
+		observers.erase(it);
+	}
 }
