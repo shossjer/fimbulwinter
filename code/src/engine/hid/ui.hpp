@@ -11,18 +11,13 @@
 
 namespace engine
 {
-	class console;
-}
-
-namespace engine
-{
 namespace hid
 {
 	class ui
 	{
 	public:
 		~ui();
-		ui(engine::console & console);
+		ui();
 	};
 
 	void post_add_context(

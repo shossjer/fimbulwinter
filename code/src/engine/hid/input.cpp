@@ -18,7 +18,7 @@ namespace engine
 		extern void notify_input(ui & ui, const engine::hid::Input & input);
 
 		extern void destroy_subsystem(devices & devices);
-		extern void create_subsystem(devices & devices, engine::application::window & window, engine::console & console, bool hardware_input);
+		extern void create_subsystem(devices & devices, engine::application::window & window, bool hardware_input);
 	}
 }
 
@@ -52,11 +52,11 @@ namespace engine
 			::ui = nullptr;
 		}
 
-		devices::devices(engine::application::window & window, engine::console & console, engine::hid::ui & ui, bool hardware_input)
+		devices::devices(engine::application::window & window, engine::hid::ui & ui, bool hardware_input)
 		{
 			::ui = &ui;
 
-			create_subsystem(*this, window, console, hardware_input);
+			create_subsystem(*this, window, hardware_input);
 		}
 
 		void found_device(int id, int vendor, int product)

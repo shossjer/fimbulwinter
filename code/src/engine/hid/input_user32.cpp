@@ -647,16 +647,16 @@ namespace engine
 			::window = nullptr;
 		}
 
-		void create_subsystem(devices & devices, engine::application::window & window, engine::console & console, bool hardware_input)
+		void create_subsystem(devices & devices, engine::application::window & window, bool hardware_input)
 		{
 			::window = &window;
 
 			found_device(0, 0, 0); // non hardware device
 
 #if INPUT_HAS_USER32_RAWINPUT
-			observe(console, "disable-hardware-input", disable_hardware_input_callback, nullptr);
-			observe(console, "enable-hardware-input", enable_hardware_input_callback, nullptr);
-			observe(console, "toggle-hardware-input", toggle_hardware_input_callback, nullptr);
+			engine::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
+			engine::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
+			engine::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
 
 			if (hardware_input)
 			{

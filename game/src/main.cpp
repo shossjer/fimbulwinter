@@ -139,8 +139,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	engine::application::window window(hInstance, nCmdShow, settings.application);
 
 	engine::console console(window);
-	engine::hid::ui ui(console);
-	engine::hid::devices devices(window, console, ui, settings.hid.hardware_input);
+	engine::hid::ui ui;
+	engine::hid::devices devices(window, ui, settings.hid.hardware_input);
 
 	engine::graphics::renderer renderer(window, reader, settings.graphics.renderer_type);
 	engine::graphics::viewer viewer(renderer);
@@ -173,8 +173,8 @@ int main(const int argc, const char *const argv[])
 	engine::application::window window(settings.application);
 
 	engine::console console(window);
-	engine::hid::ui ui(console);
-	engine::hid::devices devices(window, console, ui, settings.hid.hardware_input);
+	engine::hid::ui ui;
+	engine::hid::devices devices(window, ui, settings.hid.hardware_input);
 
 	engine::graphics::renderer renderer(window, reader, settings.graphics.renderer_type);
 	engine::graphics::viewer viewer(renderer);

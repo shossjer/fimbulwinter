@@ -7,8 +7,6 @@ namespace engine
 		class window;
 	}
 
-	class console;
-
 	namespace hid
 	{
 		class ui;
@@ -23,7 +21,7 @@ namespace engine
 		{
 		public:
 			~devices();
-			devices(engine::application::window & window, engine::console & console, engine::hid::ui & ui, bool hardware_input);
+			devices(engine::application::window & window, engine::hid::ui & ui, bool hardware_input);
 		};
 	}
 }

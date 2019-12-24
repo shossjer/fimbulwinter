@@ -1113,7 +1113,7 @@ namespace engine
 			lost_device(0); // non hardware device
 		}
 
-		void create_subsystem(devices & devices, engine::application::window & window, engine::console & console, bool hardware_input)
+		void create_subsystem(devices & devices, engine::application::window & window, bool hardware_input)
 		{
 			if (XkbDescPtr const desc = load_key_names(window))
 			{
@@ -1127,9 +1127,9 @@ namespace engine
 
 			found_device(0, 0, 0); // non hardware device
 
-			observe(console, "disable-hardware-input", disable_hardware_input_callback, nullptr);
-			observe(console, "enable-hardware-input", enable_hardware_input_callback, nullptr);
-			observe(console, "toggle-hardware-input", toggle_hardware_input_callback, nullptr);
+			engine::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
+			engine::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
+			engine::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
 
 			if (hardware_input)
 			{

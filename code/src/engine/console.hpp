@@ -7,7 +7,6 @@
 #include "utility/variant.hpp"
 
 #include <memory>
-#include <string>
 #include <vector>
 
 namespace engine
@@ -84,13 +83,13 @@ namespace engine
 			}
 		};
 
-		void observe_impl(console & console, const std::string & keyword, std::unique_ptr<CallbackBase> && callback);
+		void observe_impl(utility::string_view keyword, std::unique_ptr<CallbackBase> && callback);
 	}
 
 	template <typename ...Parameters>
-	void observe(console & console, const std::string & keyword, void (* fun)(void * data, Parameters...), void * data)
+	void observe(utility::string_view keyword, void (* fun)(void * data, Parameters...), void * data)
 	{
-		detail::observe_impl(console, keyword, std::make_unique<detail::Callback<Parameters...>>(fun, data));
+		detail::observe_impl(keyword, std::make_unique<detail::Callback<Parameters...>>(fun, data));
 	}
 }
 

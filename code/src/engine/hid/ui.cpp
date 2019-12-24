@@ -670,9 +670,9 @@ namespace hid
 	ui::~ui()
 	{}
 
-	ui::ui(engine::console & console)
+	ui::ui()
 	{
-		observe(console, "print-devices", callback_print_devices, nullptr);
+		engine::observe("print-devices", callback_print_devices, nullptr);
 	}
 
 	void update(ui & ui)
