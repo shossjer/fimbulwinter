@@ -192,3 +192,11 @@ TEST_CASE("Verify variadic parsing")
 		REQUIRE(callback.call(params));
 	}
 }
+
+TEST_CASE("Console can be created and destroyed", "[engine]")
+{
+	for (int i = 0; i < 2; i++)
+	{
+		engine::console console(nullptr);
+	}
+}
