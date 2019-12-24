@@ -5,25 +5,15 @@
 #include "core/serialization.hpp"
 #include "core/StringStructurer.hpp"
 
-#include "engine/commands.hpp"
-#include "engine/Entity.hpp"
+#include "engine/Command.hpp"
 #include "engine/graphics/renderer.hpp"
-
-#include "utility/any.hpp"
 
 #include <fstream>
 #include <vector>
 
-namespace gameplay
-{
-	class gamestate;
-
-	void post_command(gamestate & gamestate, engine::Entity entity, engine::Command command, utility::any && data);
-}
-
 namespace
 {
-	void * gamestate = nullptr;
+	void (* callback_command)(engine::Entity entity, engine::Command command, utility::any && data);
 
 	template <typename Structurer>
 	void parse_data(Structurer & s, utility::type_id_t type, utility::any & data)
@@ -91,9 +81,9 @@ namespace engine
 {
 	namespace replay
 	{
-		void start(void * gamestate)
+		void start(void (* callback_command)(engine::Entity entity, engine::Command command, utility::any && data))
 		{
-			::gamestate = gamestate;
+			::callback_command = callback_command;
 
 			load();
 		}
@@ -102,7 +92,7 @@ namespace engine
 		{
 			while (std::get<0>(next_command) <= frame_count)
 			{
-				post_command(*reinterpret_cast<gameplay::gamestate *>(::gamestate), std::get<1>(next_command), std::get<2>(next_command), std::move(std::get<3>(next_command)));
+				callback_command(std::get<1>(next_command), std::get<2>(next_command), std::move(std::get<3>(next_command)));
 
 				next_command = parse_next_command(structurer);
 			}

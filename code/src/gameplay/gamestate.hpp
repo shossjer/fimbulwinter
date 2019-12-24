@@ -60,8 +60,8 @@ namespace gameplay
 		gamestate(engine::animation::mixer & mixer, engine::audio::System & audio, engine::graphics::renderer & renderer, engine::graphics::viewer & viewer, engine::hid::ui & ui, engine::physics::simulation & simulation, engine::record & record, engine::resource::reader & reader);
 	};
 
-	void post_command(gamestate & gamestate, engine::Entity entity, engine::Command command);
-	void post_command(gamestate & gamestate, engine::Entity entity, engine::Command command, utility::any && data);
+	void post_command(engine::Entity entity, engine::Command command);
+	void post_command(engine::Entity entity, engine::Command command, utility::any && data);
 
 	void post_add_workstation(
 		gamestate & gamestate,

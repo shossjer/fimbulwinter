@@ -24,7 +24,6 @@
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/viewer.hpp"
 
-#include "utility/any.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>
@@ -69,7 +68,7 @@ namespace engine
 			engine::graphics::renderer * self = nullptr; // todo seems unnecessary
 			engine::application::window * window = nullptr;
 			engine::resource::reader * reader = nullptr;
-			void * gamestate = nullptr;
+			void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data) = nullptr;
 
 			core::async::Thread renderThread;
 			std::atomic_int active(0);
@@ -91,17 +90,18 @@ namespace engine
 
 			renderThread.join();
 
-			detail::gamestate = nullptr;
+			detail::callback_select = nullptr;
 			detail::reader = nullptr;
 			detail::window = nullptr;
 			detail::self = nullptr;
 		}
 
-		renderer::renderer(engine::application::window & window, engine::resource::reader & reader, Type type)
+		renderer::renderer(engine::application::window & window, engine::resource::reader & reader, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type)
 		{
 			detail::self = this;
 			detail::window = &window;
 			detail::reader = &reader;
+			detail::callback_select = callback_select;
 
 			switch (type)
 			{
@@ -114,11 +114,6 @@ namespace engine
 				renderThread = core::async::Thread{ opengl_30::run };
 				break;
 			}
-		}
-
-		void renderer::set_dependencies(void * gamestate)
-		{
-			detail::gamestate = gamestate;
 		}
 
 		void update(renderer & renderer)

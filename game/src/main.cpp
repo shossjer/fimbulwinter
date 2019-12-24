@@ -143,7 +143,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	engine::hid::ui ui;
 	engine::hid::devices devices(window, ui, settings.hid.hardware_input);
 
-	engine::graphics::renderer renderer(window, reader, settings.graphics.renderer_type);
+	engine::graphics::renderer renderer(window, reader, gameplay::post_command, settings.graphics.renderer_type);
 	engine::graphics::viewer viewer(renderer);
 	engine::physics::simulation simulation(renderer, viewer);
 	engine::animation::mixer mixer(renderer, simulation);
@@ -151,7 +151,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	gameplay::gamestate gamestate(mixer, audio, renderer, viewer, ui, simulation, record, reader);
 	gameplay::looper looper(mixer, renderer, viewer, ui, simulation, gamestate);
 
-	renderer.set_dependencies(&gamestate);
 	window.set_dependencies(viewer, devices, ui);
 
 	return execute(window);
@@ -178,7 +177,7 @@ int main(const int argc, const char *const argv[])
 	engine::hid::ui ui;
 	engine::hid::devices devices(window, ui, settings.hid.hardware_input);
 
-	engine::graphics::renderer renderer(window, reader, settings.graphics.renderer_type);
+	engine::graphics::renderer renderer(window, reader, gameplay::post_command, settings.graphics.renderer_type);
 	engine::graphics::viewer viewer(renderer);
 	engine::physics::simulation simulation(renderer, viewer);
 	engine::animation::mixer mixer(renderer, simulation);
@@ -186,7 +185,6 @@ int main(const int argc, const char *const argv[])
 	gameplay::gamestate gamestate(mixer, audio, renderer, viewer, ui, simulation, record, reader);
 	gameplay::looper looper(mixer, renderer, viewer, ui, simulation, gamestate);
 
-	renderer.set_dependencies(&gamestate);
 	window.set_dependencies(viewer, devices, ui);
 
 	return execute(window);

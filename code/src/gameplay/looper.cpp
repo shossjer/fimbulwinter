@@ -6,6 +6,8 @@
 #include "engine/physics/Callback.hpp"
 #include "engine/replay/reader.hpp"
 
+#include "gameplay/gamestate.hpp"
+
 namespace engine
 {
 	namespace animation
@@ -61,7 +63,7 @@ namespace
 	{
 		int frame_count = 0;
 
-		engine::replay::start(::gamestate);
+		engine::replay::start(gameplay::post_command);
 
 		while (active)
 		{

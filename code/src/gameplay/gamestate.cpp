@@ -49,7 +49,6 @@ namespace
 
 	using namespace gameplay::models;
 
-	gameplay::gamestate * gamestate = nullptr; // todo seems unnecessary
 	engine::animation::mixer * mixer = nullptr;
 	engine::audio::System * audio = nullptr;
 	engine::graphics::renderer * renderer = nullptr;
@@ -1198,7 +1197,7 @@ namespace
 	{
 		const auto & mapping_data = *static_cast<MappingData *>(data);
 
-		post_command(*::gamestate, mapping_data.callback, command, value);
+		gameplay::post_command(mapping_data.callback, command, value);
 	}
 
 	void cursor_callback(engine::Command command, float value, void * data)
@@ -1241,12 +1240,10 @@ namespace gameplay
 		::renderer = nullptr;
 		::audio = nullptr;
 		::mixer = nullptr;
-		::gamestate = nullptr;
 	}
 
 	gamestate::gamestate(engine::animation::mixer & mixer, engine::audio::System & audio, engine::graphics::renderer & renderer, engine::graphics::viewer & viewer, engine::hid::ui & ui, engine::physics::simulation & simulation, engine::record & record, engine::resource::reader & reader)
 	{
-		::gamestate = this;
 		::mixer = &mixer;
 		::audio = &audio;
 		::renderer = &renderer;
@@ -1410,12 +1407,12 @@ namespace gameplay
 		}
 	}
 
-	void post_command(gamestate & gamestate, engine::Entity entity, engine::Command command)
+	void post_command(engine::Entity entity, engine::Command command)
 	{
-		post_command(gamestate, entity, command, utility::any{});
+		post_command(entity, command, utility::any{});
 	}
 
-	void post_command(gamestate & gamestate, engine::Entity entity, engine::Command command, utility::any && data)
+	void post_command(engine::Entity entity, engine::Command command, utility::any && data)
 	{
 		const auto res = queue_commands.try_emplace(entity, command, std::move(data));
 		debug_assert(res);

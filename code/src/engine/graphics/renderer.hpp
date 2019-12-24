@@ -2,15 +2,17 @@
 #ifndef ENGINE_GRAPHICS_RENDERER_HPP
 #define ENGINE_GRAPHICS_RENDERER_HPP
 
+#include "core/container/Buffer.hpp"
+#include "core/graphics/Image.hpp"
+#include "core/maths/Matrix.hpp"
+#include "core/serialization.hpp"
+
 #include "engine/Command.hpp"
 #include "engine/Entity.hpp"
 #include "engine/common.hpp"
 #include "engine/model/data.hpp"
 
-#include "core/container/Buffer.hpp"
-#include "core/graphics/Image.hpp"
-#include "core/maths/Matrix.hpp"
-#include "core/serialization.hpp"
+#include "utility/any.hpp"
 
 #include <vector>
 
@@ -192,10 +194,7 @@ namespace engine
 
 		public:
 			~renderer();
-			renderer(engine::application::window & window, engine::resource::reader & reader, Type type);
-
-		public:
-			void set_dependencies(void * gamestate);
+			renderer(engine::application::window & window, engine::resource::reader & reader, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type);
 		};
 
 		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)

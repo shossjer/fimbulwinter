@@ -26,7 +26,6 @@
 #include "engine/graphics/viewer.hpp"
 #include "engine/resource/reader.hpp"
 
-#include "utility/any.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>
@@ -62,16 +61,9 @@ namespace engine
 			extern engine::graphics::renderer * self;
 			extern engine::application::window * window;
 			extern engine::resource::reader * reader;
-			extern void * gamestate;
+			extern void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data);
 		}
 	}
-}
-
-namespace gameplay
-{
-	class gamestate;
-
-	extern void post_command(gamestate & gamestate, engine::Entity entity, engine::Command command, utility::any && data);
 }
 
 debug_assets("box", "cuboid", "dude", "my_png", "photo");
@@ -1568,7 +1560,7 @@ namespace
 			while (queue_select.try_pop(select_args))
 			{
 				engine::graphics::renderer::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
-				post_command(*reinterpret_cast<gameplay::gamestate *>(::gamestate), std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
+				callback_select(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
 			}
 		}
 
