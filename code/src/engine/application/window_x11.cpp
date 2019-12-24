@@ -382,6 +382,8 @@ namespace
 		if (input_method)
 		{
 			XCloseIM(input_method);
+
+			input_method = nullptr;
 		}
 	}
 
@@ -427,6 +429,8 @@ namespace
 		{
 			XUnsetICFocus(input_context);
 			XDestroyIC(input_context);
+
+			input_context = nullptr;
 		}
 	}
 }
@@ -438,6 +442,8 @@ namespace engine
 	{
 		window::~window()
 		{
+			debug_assert(::display);
+
 			destroy_input_context();
 			destroy_input_method();
 
@@ -452,6 +458,8 @@ namespace engine
 			XCloseDisplay(::display);
 #endif
 
+			::display = nullptr;
+
 			::ui = nullptr;
 			::devices = nullptr;
 			::viewer = nullptr;
@@ -459,6 +467,8 @@ namespace engine
 
 		window::window(const config_t & config)
 		{
+			debug_assert(!::display);
+
 			// XOpenDisplay
 			Display_guard display(nullptr);
 
