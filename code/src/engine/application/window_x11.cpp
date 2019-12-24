@@ -7,6 +7,7 @@
 #include "engine/application/config.hpp"
 #include "engine/debug.hpp"
 
+#include "utility/spinlock.hpp"
 #include "utility/string.hpp"
 #include "utility/unicode.hpp"
 
@@ -20,7 +21,6 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include <atomic>
 #include <stdexcept>
 
 namespace engine
@@ -199,8 +199,7 @@ namespace
 
 	Atom wm_delete_window;
 
-	int render_pipe[2];
-	std::atomic_bool render_thread_may_use_x(false);
+	utility::spinlock x_lock;
 
 	utility::unicode_code_point get_unicode(XKeyEvent & event)
 	{
@@ -286,44 +285,25 @@ namespace
 	inline int message_loop()
 	{
 		struct pollfd fds[2] = {
-			{render_pipe[0], POLLIN, 0},
 			{ConnectionNumber(::display), POLLIN, 0}
 		};
 
 		while (true)
 		{
-			if (poll(fds, 2, -1) == -1)
+			if (poll(fds, sizeof fds / sizeof fds[0], -1) == -1)
 			{
-				const auto err = errno;
-
-				close(render_pipe[0]); // might already have been closed
-
-				debug_fail("poll(fds, 2, -1) failed with ", err);
+				debug_fail("poll(fds, 2, -1) failed with ", errno);
 				return -1;
-			}
-
-			if (fds[0].revents & POLLHUP)
-			{
-				XUnmapWindow(::display, ::window);
-			}
-
-			if (fds[0].revents & POLLIN)
-			{
-				render_thread_may_use_x.store(true, std::memory_order_relaxed);
-
-				char data;
-				debug_verify(read(fds[0].fd, &data, 1) == 1);
-
-				while (render_thread_may_use_x.load(std::memory_order_relaxed));
 			}
 
 			if (fds[1].revents & POLLIN)
 			{
+				std::lock_guard<utility::spinlock> lock(x_lock);
+
 				if (handle_event())
 					break;
 			}
 		}
-		close(render_pipe[0]); // might already have been closed
 
 		return 0;
 	}
@@ -430,8 +410,6 @@ namespace engine
 	{
 		window::~window()
 		{
-			close(render_pipe[1]);
-			render_thread_may_use_x.store(false, std::memory_order_relaxed);
 
 			destroy_input_context();
 			destroy_input_method();
@@ -644,8 +622,6 @@ namespace engine
 
 			XMapWindow(display, window);
 
-			pipe(render_pipe);
-
 			::display = display.detach();
 			::window = window;
 #ifdef GLX_VERSION_1_3
@@ -663,40 +639,30 @@ namespace engine
 
 		void make_current(window & window)
 		{
-			char data = 0;
-			if (!debug_verify(write(render_pipe[1], &data, 1) == 1))
-				return;
-
-			while (!render_thread_may_use_x.load(std::memory_order_relaxed));
+			std::lock_guard<utility::spinlock> lock(x_lock);
 
 #ifdef GLX_VERSION_1_3
 			glXMakeContextCurrent(display, glx_window, glx_window, glx_context);
 #else
 			glXMakeCurrent(display, window, glx_context);
 #endif
-
-			render_thread_may_use_x.store(false, std::memory_order_relaxed);
 		}
 
 		void swap_buffers(window & window)
 		{
-			char data = 0;
-			if (!debug_verify(write(render_pipe[1], &data, 1) == 1))
-				return;
-
-			while (!render_thread_may_use_x.load(std::memory_order_relaxed));
+			std::lock_guard<utility::spinlock> lock(x_lock);
 
 #ifdef GLX_VERSION_1_3
 			glXSwapBuffers(display, glx_window);
 #else
 			glXSwapBuffers(display, window);
 #endif
-
-			render_thread_may_use_x.store(false, std::memory_order_relaxed);
 		}
 
 		XkbDescPtr load_key_names(window & window)
 		{
+			std::lock_guard<utility::spinlock> lock(x_lock);
+
 			int lib_major = XkbMajorVersion;
 			int lib_minor = XkbMinorVersion;
 
@@ -736,6 +702,8 @@ namespace engine
 
 		void free_key_names(window & window, XkbDescPtr desc)
 		{
+			std::lock_guard<utility::spinlock> lock(x_lock);
+
 			XkbFreeNames(desc, XkbKeyNamesMask, True);
 			XkbFreeClientMap(desc, 0, True);
 		}
@@ -743,16 +711,22 @@ namespace engine
 #if TEXT_USE_X11
 		void buildFont(window & window, XFontStruct * font_struct, unsigned int first, unsigned int last, int base)
 		{
+			std::lock_guard<utility::spinlock> lock(x_lock);
+
 			glXUseXFont(font_struct->fid, first, last - first + 1, base + first);
 		}
 
 		void freeFont(window & window, XFontStruct * font_struct)
 		{
+			std::lock_guard<utility::spinlock> lock(x_lock);
+
 			XFreeFont(display, font_struct);
 		}
 
 		XFontStruct * loadFont(window & window, const char * name, int height)
 		{
+			std::lock_guard<utility::spinlock> lock(x_lock);
+
 			int n_old_paths;
 			char ** const old_paths = XGetFontPath(display, &n_old_paths);
 
@@ -785,7 +759,9 @@ namespace engine
 
 		void close(window & window)
 		{
-			::close(render_pipe[1]);
+			std::lock_guard<utility::spinlock> lock(x_lock);
+
+			XUnmapWindow(::display, ::window);
 		}
 	}
 }
