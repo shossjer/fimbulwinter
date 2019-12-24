@@ -546,7 +546,7 @@ namespace
 		void compile(engine::Asset asset, utility::string_view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
 			const int index = find(asset);
-			debug_assert(index < count);
+			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			const FontInfo & info = infos[index];
 
@@ -611,7 +611,7 @@ namespace
 		{
 			const engine::Asset asset(name);
 			const int index = find(asset);
-			debug_assert(index >= count);
+			debug_assert(index >= count, "font asset ", asset, " already exists");
 
 			assets[index] = asset;
 
@@ -626,6 +626,16 @@ namespace
 			info.size = 0; // ?
 
 			count++;
+		}
+
+		void destroy(engine::Asset asset)
+		{
+			const int index = find(asset);
+			debug_assert(index < count, "font asset ", asset, " does not exist");
+
+			assets[index] = std::move(assets[count - 1]);
+			infos[index] = std::move(infos[count - 1]);
+			count--;
 		}
 	};
 
@@ -1593,7 +1603,7 @@ namespace
 			vertices, triangles, normals, coords });
 	}
 
-	std::atomic_int texture_lock(0);
+	std::atomic_int read_lock;
 
 	struct TryReadImage
 	{
@@ -1626,7 +1636,7 @@ namespace
 		}
 
 		post_register_texture(*self, asset, std::move(image));
-		texture_lock++;
+		read_lock++;
 	}
 
 	struct TryReadShader
@@ -1650,6 +1660,7 @@ namespace
 		visit(TryReadShader{shader_data}, std::move(structurer));
 
 		queue_shaders.try_push(std::make_pair(std::move(name), std::move(shader_data)));
+		read_lock++;
 	}
 
 #if TEXT_USE_FREETYPE
@@ -1857,6 +1868,7 @@ namespace
 		FT_Done_FreeType(library);
 
 		debug_printline("<<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>");
+		read_lock++;
 	}
 #endif
 
@@ -1886,6 +1898,7 @@ namespace
 
 		// TODO: move to loader/level
 		// vvvvvvvv tmp vvvvvvvv
+		read_lock = 0;
 #if TEXT_USE_FREETYPE
 		reader->post_read("res/font/consolas.ttf", data_callback_ttf);
 #else
@@ -1908,7 +1921,6 @@ namespace
 		reader->post_read("res/box.png", data_callback_image);
 		reader->post_read("res/dude.png", data_callback_image);
 		reader->post_read("res/photo.png", data_callback_image);
-		while (texture_lock < 3);
 
 		post_add_component(
 			*self,
@@ -1923,6 +1935,12 @@ namespace
 		reader->post_read("res/gfx/entity.130.glsl", data_callback_shader);
 		reader->post_read("res/gfx/text.130.glsl", data_callback_shader);
 		reader->post_read("res/gfx/texture.130.glsl", data_callback_shader);
+
+#if TEXT_USE_FREETYPE
+		while (read_lock < 8);
+#else
+		while (read_lock < 7);
+#endif
 		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 
@@ -2898,7 +2916,9 @@ namespace
 	void render_teardown()
 	{
 		debug_printline(engine::graphics_channel, "render_callback stopping");
-#if !TEXT_USE_FREETYPE
+#if TEXT_USE_FREETYPE
+		font_manager.destroy(engine::Asset("res/font/consolas.ttf"));
+#else
 		// vvvvvvvv tmp vvvvvvvv
 		{
 			normal_font.decompile();

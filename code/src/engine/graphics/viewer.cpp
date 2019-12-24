@@ -582,6 +582,8 @@ namespace engine
 	{
 		viewer::~viewer()
 		{
+			nodes.remove(engine::Asset("root"));
+
 			engine::Asset projections_not_unregistered[projections.max_size()];
 			const int projection_count = projections.get_all_keys(projections_not_unregistered, projections.max_size());
 			debug_printline(engine::asset_channel, projection_count, " projections not unregistered:");
