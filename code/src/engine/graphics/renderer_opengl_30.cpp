@@ -1954,6 +1954,9 @@ namespace
 			component.update();
 		}
 
+		if (framebuffer_width == 0 || framebuffer_height == 0)
+			return;
+
 		const GLint p_color = shader_manager.get(engine::Asset("res/gfx/color.130.glsl"));
 		const GLint p_entity = shader_manager.get(engine::Asset("res/gfx/entity.130.glsl"));
 		const GLint p_tex = shader_manager.get(engine::Asset("res/gfx/texture.130.glsl"));

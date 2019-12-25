@@ -1419,6 +1419,8 @@ namespace
 			component.update();
 		}
 
+		if (framebuffer_width == 0 || framebuffer_height == 0)
+			return;
 
 		glStencilMask(0x000000ff);
 		// setup frame
