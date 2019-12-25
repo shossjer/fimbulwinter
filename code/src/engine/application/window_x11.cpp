@@ -18,7 +18,7 @@
 #include <GL/glx.h>
 #include <GL/glxext.h>
 
-#include <poll.h>
+#include <sys/select.h>
 #include <unistd.h>
 
 #include <stdexcept>
@@ -191,8 +191,10 @@ namespace
 	Window window;
 #ifdef GLX_VERSION_1_3
 	GLXWindow glx_window;
-#endif
 	GLXContext glx_context;
+#else
+	GLXContext glx_context;
+#endif
 
 	XIM input_method = nullptr;
 	XIC input_context = nullptr;
@@ -225,17 +227,8 @@ namespace
 		return cp;
 	}
 
-	inline bool handle_event()
+	inline bool handle_event(XEvent & event)
 	{
-		XEvent event;
-
-		if (!XNextEvent(display, &event))
-		{
-			// what does `XNextEvent` even return?
-			debug_printline("XNextEvent(display, &event) failed unexpectedly, errno was ", errno);
-			return true;
-		}
-
 		switch (event.type)
 		{
 		case ButtonPress:
@@ -248,6 +241,8 @@ namespace
 			if ((Atom)event.xclient.data.l[0] == wm_delete_window)
 			{
 				debug_printline(engine::application_channel, "wm_delete_window");
+
+				std::lock_guard<utility::spinlock> lock(x_lock);
 
 				XUnmapWindow(display, event.xclient.window);
 			}
@@ -284,25 +279,41 @@ namespace
 
 	inline int message_loop()
 	{
-		struct pollfd fds[2] = {
-			{ConnectionNumber(::display), POLLIN, 0}
-		};
+		const auto x_fd = ConnectionNumber(::display);
 
 		while (true)
 		{
-			if (poll(fds, sizeof fds / sizeof fds[0], -1) == -1)
+			fd_set fds;
+			FD_ZERO(&fds);
+			FD_SET(x_fd, &fds);
+
+			const auto ret = select(x_fd + 1, &fds, nullptr, nullptr, nullptr);
+			if (ret == -1)
 			{
-				debug_fail("poll(fds, 2, -1) failed with ", errno);
+				if (errno == EINTR)
+					continue;
+
+				debug_assert(errno != EBADF);
+				debug_assert(errno != EINVAL);
+
+				debug_assert(errno == ENOMEM);
 				return -1;
 			}
 
-			if (fds[1].revents & POLLIN)
+			debug_assert(ret == 1);
+			debug_assert(FD_ISSET(x_fd, &fds));
+
+			XEvent event;
 			{
 				std::lock_guard<utility::spinlock> lock(x_lock);
 
-				if (handle_event())
-					break;
+				if (XPending(display) == 0) // without this, `XNextEvent` will block, but why?
+					continue;
+
+				XNextEvent(display, &event);
 			}
+			if (handle_event(event))
+				break;
 		}
 
 		return 0;
@@ -410,7 +421,6 @@ namespace engine
 	{
 		window::~window()
 		{
-
 			destroy_input_context();
 			destroy_input_method();
 
@@ -432,6 +442,8 @@ namespace engine
 
 		window::window(const config_t & config)
 		{
+			XInitThreads(); // `XPending` crashes without this, but why?
+
 			// XOpenDisplay
 			Display_guard display(nullptr);
 
