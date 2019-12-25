@@ -17,13 +17,14 @@ namespace
 		return false;
 	}
 
-	struct setup_fail_hook
+	struct setup_debug
 	{
-		setup_fail_hook()
+		setup_debug()
 		{
+			core::debug::instance().set_mask(0); // turn off printlines
 			core::debug::instance().set_fail_hook(test_fail_hook);
 		}
-	} setup_fail_hook_hack;
+	} setup_debug_hack;
 }
 
 TEST_CASE( "Important test", "Make sure logic works" )
