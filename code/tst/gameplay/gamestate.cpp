@@ -19,7 +19,7 @@
 # include <Windows.h>
 #endif
 
-TEST_CASE("Gameplay Gamestate can be created and destroyed", "[engine][gameplay]")
+TEST_CASE("Gameplay Gamestate can be created and destroyed", "[.engine][.gameplay]")
 {
 	engine::resource::reader reader;
 	engine::record record;

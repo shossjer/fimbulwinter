@@ -9,7 +9,7 @@
 # include <Windows.h>
 #endif
 
-TEST_CASE("Application window can be created and destroyed", "[engine][application]")
+TEST_CASE("Application window can be created and destroyed", "[.engine][.application]")
 {
 	engine::application::config_t config;
 

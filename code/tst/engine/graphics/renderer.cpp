@@ -11,7 +11,7 @@
 # include <Windows.h>
 #endif
 
-TEST_CASE("Graphics Renderer can be created and destroyed", "[engine][graphics]")
+TEST_CASE("Graphics Renderer can be created and destroyed", "[.engine][.graphics]")
 {
 	engine::resource::reader reader;
 	engine::application::config_t config;

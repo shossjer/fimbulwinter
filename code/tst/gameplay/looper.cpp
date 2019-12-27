@@ -20,7 +20,7 @@
 # include <Windows.h>
 #endif
 
-TEST_CASE("Gameplay Looper can be created and destroyed", "[engine][gameplay]")
+TEST_CASE("Gameplay Looper can be created and destroyed", "[.engine][.gameplay]")
 {
 	engine::resource::reader reader;
 	engine::record record;

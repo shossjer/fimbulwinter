@@ -13,7 +13,7 @@
 # include <Windows.h>
 #endif
 
-TEST_CASE("Physics Simulation can be created and destroyed", "[engine][physics]")
+TEST_CASE("Physics Simulation can be created and destroyed", "[.engine][.physics]")
 {
 	engine::resource::reader reader;
 	engine::application::config_t config;

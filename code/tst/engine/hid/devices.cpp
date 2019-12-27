@@ -11,7 +11,7 @@
 # include <Windows.h>
 #endif
 
-TEST_CASE("Human input device Devices can be created and destroyed", "[engine][hid]")
+TEST_CASE("Human input device Devices can be created and destroyed", "[.engine][.hid]")
 {
 	engine::application::config_t config;
 #if WINDOW_USE_USER32

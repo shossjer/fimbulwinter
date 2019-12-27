@@ -14,7 +14,7 @@
 # include <Windows.h>
 #endif
 
-TEST_CASE("Animation Mixer can be created and destroyed", "[engine][animation]")
+TEST_CASE("Animation Mixer can be created and destroyed", "[.engine][.animation]")
 {
 	engine::resource::reader reader;
 	engine::application::config_t config;
