@@ -281,7 +281,7 @@ namespace
 			fragments[count] = fs;
 			count++;
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			return p;
 		}
@@ -438,7 +438,7 @@ namespace
 		{
 			glDeleteTextures(1, &id);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 		texture_t(core::graphics::Image && image)
 		{
@@ -472,11 +472,11 @@ namespace
 				debug_unreachable();
 			}
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			glDisable(GL_TEXTURE_2D);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 
 		void enable() const
@@ -485,13 +485,13 @@ namespace
 			glBindTexture(GL_TEXTURE_2D, id);
 			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 		void disable() const
 		{
 			glDisable(GL_TEXTURE_2D);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 	};
 
@@ -1411,7 +1411,7 @@ namespace
 
 		entitypixels.resize(framebuffer_width * framebuffer_height);
 
-		debug_verify(glGetError() == GL_NO_ERROR);
+		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 	void maybe_resize_framebuffer()
 	{
@@ -1469,7 +1469,7 @@ namespace
 
 		glEnable(GL_LIGHT0);
 
-		debug_verify(glGetError() == GL_NO_ERROR);
+		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 
 	template <typename T, std::size_t N>
@@ -1969,6 +1969,8 @@ namespace
 		//glClearStencil(0x00000000);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+		debug_assert(glGetError() == GL_NO_ERROR);
+
 		////////////////////////////////////////////////////////
 		//
 		//  entity buffer
@@ -1978,6 +1980,7 @@ namespace
 		glViewport(0, 0, framebuffer_width, framebuffer_height);
 		glClearColor(0.f, 0.f, 0.f, 0.f); // null entity
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		debug_assert(glGetError() == GL_NO_ERROR);
 
 		glDisable(GL_LIGHTING);
 		glEnable(GL_DEPTH_TEST);
@@ -2021,7 +2024,7 @@ namespace
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2053,7 +2056,7 @@ namespace
 			}
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2082,7 +2085,7 @@ namespace
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2136,7 +2139,7 @@ namespace
 				indices);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2270,7 +2273,7 @@ namespace
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2329,7 +2332,7 @@ namespace
 
 			glLineWidth(1.f);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2406,7 +2409,7 @@ namespace
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2476,7 +2479,7 @@ namespace
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2593,7 +2596,7 @@ namespace
 			glDisableVertexAttribArray(color_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2622,7 +2625,7 @@ namespace
 
 			const auto & texture = materials.get<texture_t>(engine::Asset("res/font/consolas.ttf"));
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.push();
 			modelview_matrix.rotate(core::maths::degreef(10.f), 0.f, 0.f, -1.f);
@@ -2659,7 +2662,7 @@ namespace
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2736,7 +2739,7 @@ namespace
 				indices);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2824,7 +2827,7 @@ namespace
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
