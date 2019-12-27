@@ -7,7 +7,6 @@
 #include "engine/application/config.hpp"
 #include "engine/debug.hpp"
 
-#include "utility/spinlock.hpp"
 #include "utility/string.hpp"
 #include "utility/unicode.hpp"
 
@@ -18,7 +17,7 @@
 #include <GL/glx.h>
 #include <GL/glxext.h>
 
-#include <sys/select.h>
+#include <poll.h>
 #include <unistd.h>
 
 #include <stdexcept>
@@ -46,6 +45,14 @@ namespace engine
 
 namespace
 {
+	struct init_x11_threads_t
+	{
+		init_x11_threads_t()
+		{
+			XInitThreads();
+		}
+	} init_x11_threads;
+
 	engine::graphics::viewer * viewer = nullptr;
 	engine::hid::devices * devices = nullptr;
 	engine::hid::ui * ui = nullptr;
@@ -201,8 +208,6 @@ namespace
 
 	Atom wm_delete_window;
 
-	utility::spinlock x_lock;
-
 	utility::unicode_code_point get_unicode(XKeyEvent & event)
 	{
 		utility::unicode_code_point cp(0);
@@ -227,96 +232,108 @@ namespace
 		return cp;
 	}
 
-	inline bool handle_event(XEvent & event)
-	{
-		switch (event.type)
-		{
-		case ButtonPress:
-			button_press(*devices, event.xbutton);
-			break;
-		case ButtonRelease:
-			button_release(*devices, event.xbutton);
-			break;
-		case ClientMessage:
-			if ((Atom)event.xclient.data.l[0] == wm_delete_window)
-			{
-				debug_printline(engine::application_channel, "wm_delete_window");
-
-				std::lock_guard<utility::spinlock> lock(x_lock);
-
-				XUnmapWindow(display, event.xclient.window);
-			}
-			break;
-		case ConfigureNotify:
-			break;
-			// case DestroyNotify:
-			// 	break;
-		case Expose:
-			notify_resize(*::viewer, event.xexpose.width, event.xexpose.height);
-			notify_resize(*::ui, event.xexpose.width, event.xexpose.height);
-			break;
-		case KeyPress:
-			key_press(*devices, event.xkey);
-			key_character(*devices, event.xkey, get_unicode(event.xkey));
-			break;
-		case KeyRelease:
-			key_release(*devices, event.xkey);
-			break;
-		case MapNotify:
-			break;
-		case MotionNotify:
-			motion_notify(*::devices, event.xmotion.x, event.xmotion.y, event.xmotion.time);
-			break;
-		case ReparentNotify:
-			break;
-		case UnmapNotify:
-			return true;
-		default:
-			debug_printline(engine::application_channel, "unhandled event type ", event.type);
-		}
-		return false;
-	}
-
 	inline int message_loop()
 	{
-		const auto x_fd = ConnectionNumber(::display);
+		// inspired by the works of the glfw peeps, they seem to know
+		// their stuff :sunglasses:
+		//
+		// https://github.com/glfw/glfw/blob/a3d28ef52cec2fb69941bbce8a7ed7a2a22a8c41/src/x11_window.c#L2736
+		//
+		// after a lot of rewrites on how to separate the graphics from
+		// the event loop, it seemed like the best approach might be the
+		// simplest one of using `XInitThreads` and pray that it makes
+		// X11 "thread safe" (there seem to be a lot of confusion about
+		// this on the internet and the X11 documentation is rather thin
+		// on the subject). The function `_glfwPlatformWaitEvents` was
+		// the final piece of the puzzle, because without the insight of
+		// why `XNextEvent` is no good there was this annoying block in
+		// the graphics thread where the graphics would freeze unless
+		// you constantly moved the mouse or window :joy:
+		//
+		// at one point in time there was a comment in the glfw source
+		// code that explained this perfectly:
+		//
+		// select(1) is used instead of an X function like XNextEvent, as the
+		// wait inside those are guarded by the mutex protecting the display
+		// struct, locking out other threads from using X (including GLX)
+
+		struct pollfd fds[1] = {
+			{ConnectionNumber(::display), POLLIN, 0}
+		};
 
 		while (true)
 		{
-			fd_set fds;
-			FD_ZERO(&fds);
-			FD_SET(x_fd, &fds);
-
-			const auto ret = select(x_fd + 1, &fds, nullptr, nullptr, nullptr);
+			const auto ret = poll(fds, 1, -1);
 			if (ret == -1)
 			{
-				if (errno == EINTR)
-					continue;
+				if (!debug_verify(errno == EINTR, "poll failed with ", errno))
+					return -1;
 
-				debug_assert(errno != EBADF);
-				debug_assert(errno != EINVAL);
-
-				debug_assert(errno == ENOMEM);
-				return -1;
+				continue;
 			}
 
-			debug_assert(ret == 1);
-			debug_assert(FD_ISSET(x_fd, &fds));
+			// removes any event we do not care about, maybe :thinking:
+			if (XPending(::display) == 0)
+				continue;
 
-			XEvent event;
+			while (XQLength(::display) != 0)
 			{
-				std::lock_guard<utility::spinlock> lock(x_lock);
+				XEvent event;
+				if (!debug_verify(XNextEvent(::display, &event) == 0, "XNextEvent failed"))
+					return -1;
 
-				if (XPending(display) == 0) // without this, `XNextEvent` will block, but why?
+				if (XFilterEvent(&event, None) == True)
+				{
+					debug_printline(engine::application_channel, "filtererd event type ", event.type);
+
 					continue;
+				}
 
-				XNextEvent(display, &event);
+				switch (event.type)
+				{
+				case ButtonPress:
+					button_press(*devices, event.xbutton);
+					break;
+				case ButtonRelease:
+					button_release(*devices, event.xbutton);
+					break;
+				case ClientMessage:
+					if ((Atom)event.xclient.data.l[0] == wm_delete_window)
+					{
+						debug_printline(engine::application_channel, "wm_delete_window");
+
+						XUnmapWindow(display, event.xclient.window);
+					}
+					break;
+				case ConfigureNotify:
+					break;
+					// case DestroyNotify:
+					// 	break;
+				case Expose:
+					notify_resize(*::viewer, event.xexpose.width, event.xexpose.height);
+					notify_resize(*::ui, event.xexpose.width, event.xexpose.height);
+					break;
+				case KeyPress:
+					key_press(*devices, event.xkey);
+					key_character(*devices, event.xkey, get_unicode(event.xkey));
+					break;
+				case KeyRelease:
+					key_release(*devices, event.xkey);
+					break;
+				case MapNotify:
+					break;
+				case MotionNotify:
+					motion_notify(*::devices, event.xmotion.x, event.xmotion.y, event.xmotion.time);
+					break;
+				case ReparentNotify:
+					break;
+				case UnmapNotify:
+					return 0;
+				default:
+					debug_printline(engine::application_channel, "unhandled event type ", event.type);
+				}
 			}
-			if (handle_event(event))
-				break;
 		}
-
-		return 0;
 	}
 
 	void create_input_method(Display & display)
@@ -442,8 +459,6 @@ namespace engine
 
 		window::window(const config_t & config)
 		{
-			XInitThreads(); // `XPending` crashes without this, but why?
-
 			// XOpenDisplay
 			Display_guard display(nullptr);
 
@@ -651,19 +666,15 @@ namespace engine
 
 		void make_current(window & window)
 		{
-			std::lock_guard<utility::spinlock> lock(x_lock);
-
 #ifdef GLX_VERSION_1_3
-			glXMakeContextCurrent(display, glx_window, glx_window, glx_context);
+			debug_verify(glXMakeContextCurrent(display, glx_window, glx_window, glx_context) == True);
 #else
-			glXMakeCurrent(display, window, glx_context);
+			debug_verify(glXMakeCurrent(display, window, glx_context) == True);
 #endif
 		}
 
 		void swap_buffers(window & window)
 		{
-			std::lock_guard<utility::spinlock> lock(x_lock);
-
 #ifdef GLX_VERSION_1_3
 			glXSwapBuffers(display, glx_window);
 #else
@@ -673,8 +684,6 @@ namespace engine
 
 		XkbDescPtr load_key_names(window & window)
 		{
-			std::lock_guard<utility::spinlock> lock(x_lock);
-
 			int lib_major = XkbMajorVersion;
 			int lib_minor = XkbMinorVersion;
 
@@ -714,8 +723,6 @@ namespace engine
 
 		void free_key_names(window & window, XkbDescPtr desc)
 		{
-			std::lock_guard<utility::spinlock> lock(x_lock);
-
 			XkbFreeNames(desc, XkbKeyNamesMask, True);
 			XkbFreeClientMap(desc, 0, True);
 		}
@@ -723,22 +730,16 @@ namespace engine
 #if TEXT_USE_X11
 		void buildFont(window & window, XFontStruct * font_struct, unsigned int first, unsigned int last, int base)
 		{
-			std::lock_guard<utility::spinlock> lock(x_lock);
-
 			glXUseXFont(font_struct->fid, first, last - first + 1, base + first);
 		}
 
 		void freeFont(window & window, XFontStruct * font_struct)
 		{
-			std::lock_guard<utility::spinlock> lock(x_lock);
-
 			XFreeFont(display, font_struct);
 		}
 
 		XFontStruct * loadFont(window & window, const char * name, int height)
 		{
-			std::lock_guard<utility::spinlock> lock(x_lock);
-
 			int n_old_paths;
 			char ** const old_paths = XGetFontPath(display, &n_old_paths);
 
@@ -771,8 +772,6 @@ namespace engine
 
 		void close(window & window)
 		{
-			std::lock_guard<utility::spinlock> lock(x_lock);
-
 			XUnmapWindow(::display, ::window);
 		}
 	}
