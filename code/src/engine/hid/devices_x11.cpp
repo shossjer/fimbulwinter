@@ -352,8 +352,11 @@ namespace
 		std::make_pair(BTN_SIDE, core::value_table<Button>::get("mouse-side")),
 
 		std::make_pair(BTN_A, core::value_table<Button>::get("gamepad-a")),
+		std::make_pair(BTN_THUMB2, core::value_table<Button>::get("gamepad-a")),
 		std::make_pair(BTN_B, core::value_table<Button>::get("gamepad-b")),
+		std::make_pair(BTN_THUMB, core::value_table<Button>::get("gamepad-b")),
 		std::make_pair(BTN_C, core::value_table<Button>::get("gamepad-c")),
+		std::make_pair(BTN_PINKIE, core::value_table<Button>::get("gamepad-c")),
 		std::make_pair(BTN_X, core::value_table<Button>::get("gamepad-x")),
 		std::make_pair(BTN_Y, core::value_table<Button>::get("gamepad-y")),
 		std::make_pair(BTN_Z, core::value_table<Button>::get("gamepad-z")),
@@ -366,6 +369,7 @@ namespace
 		std::make_pair(BTN_MODE, core::value_table<Button>::get("gamepad-mode")),
 		std::make_pair(BTN_SELECT, core::value_table<Button>::get("gamepad-select")),
 		std::make_pair(BTN_START, core::value_table<Button>::get("gamepad-start")),
+		std::make_pair(BTN_BASE4, core::value_table<Button>::get("gamepad-start")),
 
 		std::make_pair(KEY_0, core::value_table<Button>::get("key-0")),
 		std::make_pair(KEY_1, core::value_table<Button>::get("key-1")),
@@ -582,6 +586,9 @@ namespace
 		{
 			::ioctl(fd, EVIOCGBIT(EV_ABS, ABS_CNT), abs_bits);
 		}
+
+		if (test_bit(BTN_JOYSTICK, key_bits))
+			return EventType::Gamepad; // what is the difference between a joystick and a gamepad?
 
 		if (test_bit(BTN_GAMEPAD, key_bits))
 			return EventType::Gamepad;
