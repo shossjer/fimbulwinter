@@ -44,4 +44,6 @@ TEST_CASE( "debug_assert", "[utility]" )
 	debug_assert(b <= 7);
 	debug_assert(a > 3);
 	debug_assert(8 >= 7);
+
+	debug_assert(3 == 7 >> 1, "it should be three!");
 }

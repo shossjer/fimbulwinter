@@ -4,6 +4,7 @@
 
 #include <config.h>
 
+#include "utility/concepts.hpp"
 #include "utility/functional.hpp"
 #include "utility/intrinsics.hpp"
 #include "utility/spinlock.hpp"
@@ -28,9 +29,9 @@
  * Additionally returns the evaluation of the condition.
  */
 # ifdef __GNUG__
-#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, ##__VA_ARGS__) || (debug_break(), false))
+#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} < expr, ##__VA_ARGS__) || (debug_break(), false))
 # else
-#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, __VA_ARGS__) || (debug_break(), false))
+#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} < expr, __VA_ARGS__) || (debug_break(), false))
 # endif
 
 /**
@@ -156,74 +157,53 @@ namespace core
 	{
 	public:
 		struct empty_t {};
+
 		template <typename T>
 		struct value_t
 		{
+			using this_type = value_t<T>;
+
 			T value;
 
-			value_t(T value) :
-				value(std::forward<T>(value))
-			{}
-		};
-
-		template <typename L>
-		struct compare_unary_t
-		{
-			using this_type = compare_unary_t<L>;
-
-			L left;
-
-			compare_unary_t(L left) :
-				left(std::move(left))
+			value_t(T value)
+				: value(std::forward<T>(value))
 			{}
 
-			auto operator () () ->
-				decltype(left.value)
+			bool operator () ()
 			{
-				return left.value;
+				return static_cast<bool>(value);
 			}
 
 			friend std::ostream & operator << (std::ostream & stream, const this_type & comp)
 			{
-				return stream << "failed with value: " << utility::try_stream(comp.left.value);
+				return stream << "failed with value: " << utility::try_stream(comp.value);
 			}
 		};
+
 		template <typename L, typename R, typename F>
 		struct compare_binary_t
 		{
+			using this_type = compare_binary_t<L, R, F>;
+
 			L left;
 			R right;
 
-			compare_binary_t(L left, R right) :
-				left(std::move(left)),
-				right(std::move(right))
+			compare_binary_t(L left, R right)
+				: left(std::forward<L>(left))
+				, right(std::forward<R>(right))
 			{}
 
-			auto operator () () ->
-				decltype(F{}(left.value, right.value))
+			decltype(auto) operator () ()
 			{
-				return F{}(left.value, right.value);
+				return F{}(std::forward<L>(left), std::forward<R>(right));
 			}
 
-			friend std::ostream & operator << (std::ostream & stream, const compare_binary_t<L, R, F> & comp)
+			friend std::ostream & operator << (std::ostream & stream, const this_type & comp)
 			{
-				return stream << "failed with lhs: " << utility::try_stream(comp.left.value) << "\n"
-				              << "            rhs: " << utility::try_stream(comp.right.value);
+				return stream << "failed with lhs: " << utility::try_stream(comp.left) << "\n"
+				              << "            rhs: " << utility::try_stream(comp.right);
 			}
 		};
-
-		template <typename L, typename R>
-		using compare_eq_t = compare_binary_t<L, R, utility::equal_to<>>;
-		template <typename L, typename R>
-		using compare_ne_t = compare_binary_t<L, R, utility::not_equal_to<>>;
-		template <typename L, typename R>
-		using compare_lt_t = compare_binary_t<L, R, utility::less<>>;
-		template <typename L, typename R>
-		using compare_le_t = compare_binary_t<L, R, utility::less_equal<>>;
-		template <typename L, typename R>
-		using compare_gt_t = compare_binary_t<L, R, utility::greater<>>;
-		template <typename L, typename R>
-		using compare_ge_t = compare_binary_t<L, R, utility::greater_equal<>>;
 	private:
 		using lock_t = utility::spinlock;
 
@@ -306,64 +286,94 @@ namespace core
 	};
 
 	template <typename T,
-	          typename = mpl::disable_if_t<std::is_scalar<mpl::decay_t<T>>::value>>
-	debug::value_t<T &&> operator >> (debug::empty_t &&, T && value)
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<T>>::value))>
+	debug::value_t<T &&> operator < (debug::empty_t &&, T && value)
 	{
-		return debug::value_t<T &&>{std::forward<T>(value)};
+		return debug::value_t<T &&>(std::forward<T>(value));
 	}
 	template <typename T,
-	          typename = mpl::enable_if_t<std::is_scalar<T>::value>>
-	debug::value_t<T> operator >> (debug::empty_t &&, T value)
+	          REQUIRES((std::is_scalar<T>::value))>
+	debug::value_t<T> operator < (debug::empty_t &&, T value)
 	{
-		return debug::value_t<T>{value};
-	}
-	template <typename T,
-	          typename = mpl::disable_if_t<std::is_scalar<mpl::decay_t<T>>::value>>
-	debug::value_t<T &&> operator << (T && value, debug::empty_t &&)
-	{
-		return debug::value_t<T &&>{std::forward<T>(value)};
-	}
-	template <typename T,
-	          typename = mpl::enable_if_t<std::is_scalar<T>::value>>
-	debug::value_t<T> operator << (T value, debug::empty_t &&)
-	{
-		return debug::value_t<T>{value};
+		return debug::value_t<T>(std::forward<T>(value));
 	}
 
-	template <typename L>
-	debug::compare_unary_t<debug::value_t<L>> operator << (debug::value_t<L> && v, debug::empty_t &&)
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator == (debug::value_t<L> && left, R && right)
 	{
-		return debug::compare_unary_t<debug::value_t<L>>{std::move(v)};
+		return debug::compare_binary_t<L, R &&, utility::equal_to<>>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>> operator == (debug::value_t<L> && left, debug::value_t<R> && right)
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator == (debug::value_t<L> && left, R right)
 	{
-		return debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_binary_t<L, R, utility::equal_to<>>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>> operator != (debug::value_t<L> && left, debug::value_t<R> && right)
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator != (debug::value_t<L> && left, R && right)
 	{
-		return debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_binary_t<L, R &&, utility::not_equal_to<>>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>> operator < (debug::value_t<L> && left, debug::value_t<R> && right)
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator != (debug::value_t<L> && left, R right)
 	{
-		return debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_binary_t<L, R, utility::not_equal_to<>>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_le_t<debug::value_t<L>, debug::value_t<R>> operator <= (debug::value_t<L> && left, debug::value_t<R> && right)
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator < (debug::value_t<L> && left, R && right)
 	{
-		return debug::compare_le_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_binary_t<L, R &&, utility::less<>>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>> operator > (debug::value_t<L> && left, debug::value_t<R> && right)
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator < (debug::value_t<L> && left, R right)
 	{
-		return debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_binary_t<L, R, utility::less<>>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>> operator >= (debug::value_t<L> && left, debug::value_t<R> && right)
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator <= (debug::value_t<L> && left, R && right)
 	{
-		return debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_binary_t<L, R &&, utility::less_equal<>>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator <= (debug::value_t<L> && left, R right)
+	{
+		return debug::compare_binary_t<L, R, utility::less_equal<>>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator > (debug::value_t<L> && left, R && right)
+	{
+		return debug::compare_binary_t<L, R &&, utility::greater<>>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator > (debug::value_t<L> && left, R right)
+	{
+		return debug::compare_binary_t<L, R, utility::greater<>>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator >= (debug::value_t<L> && left, R && right)
+	{
+		return debug::compare_binary_t<L, R &&, utility::greater_equal<>>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator >= (debug::value_t<L> && left, R right)
+	{
+		return debug::compare_binary_t<L, R, utility::greater_equal<>>(std::forward<L>(left.value), std::forward<R>(right));
 	}
 }
 
