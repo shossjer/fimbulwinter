@@ -3,7 +3,6 @@
 #if WINDOW_USE_X11
 
 #include "devices.hpp"
-#include "input.hpp"
 
 #include "core/async/Thread.hpp"
 #include "core/maths/util.hpp"
@@ -11,6 +10,7 @@
 #include "engine/Asset.hpp"
 #include "engine/console.hpp"
 #include "engine/debug.hpp"
+#include "engine/hid/input.hpp"
 
 #include "utility/algorithm.hpp"
 #include "utility/unicode.hpp"

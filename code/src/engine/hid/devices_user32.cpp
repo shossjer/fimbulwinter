@@ -3,9 +3,9 @@
 #if WINDOW_USE_USER32
 
 #include "devices.hpp"
-#include "input.hpp"
 
 #include "engine/console.hpp"
+#include "engine/hid/input.hpp"
 
 #include "utility/string.hpp"
 
