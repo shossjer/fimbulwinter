@@ -46,7 +46,7 @@
 #  include <intrin.h>
 #  define debug_break() __debugbreak()
 # elif defined(__i386__) || defined(__x86_64__)
-inline static void debug_break_impl() { __asm__("int3"); }
+#  define debug_break() [](){ __asm__("int3"); }()
 // can we get some authoritative proof why `int3` works, and why it is
 // preferable over `raise(SIGTRAP)`? all we have to go on is rumors
 // :slightly_frowning_face:
@@ -54,7 +54,6 @@ inline static void debug_break_impl() { __asm__("int3"); }
 // http://www.ouah.org/linux-anti-debugging.txt
 // https://github.com/scottt/debugbreak/blob/8b4a755e76717103adc814c0c05ceb3b91befa7d/debugbreak.h#L46
 // https://github.com/nemequ/portable-snippets/blob/db0ac507dfcc749ce601e5aa1bc93e2ba86050a2/debug-trap/debug-trap.h#L36
-#  define debug_break() debug_break_impl()
 # else
 #  include <csignal>
 #  ifdef SIGTRAP
