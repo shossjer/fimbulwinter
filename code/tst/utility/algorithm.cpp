@@ -112,3 +112,23 @@ TEST_CASE("inverse table", "[utility][algorithm]")
 		}
 	}
 }
+
+TEST_CASE("make_table", "[utility][algorithm]")
+{
+	SECTION("handles ints")
+	{
+		const auto result = utl::make_table<10>(std::make_pair(2, 1),
+		                                        std::make_pair(3, 2),
+		                                        std::make_pair(5, 3),
+		                                        std::make_pair(7, 4));
+
+		const std::array<int, 10> expected = {
+			0, 0, 1, 2, 0, 3, 0, 4, 0, 0
+		};
+		CHECK(result == expected);
+		for (int i = 0; i < expected.size(); i++)
+		{
+			REQUIRE(result[i] == expected[i]);
+		}
+	}
+}

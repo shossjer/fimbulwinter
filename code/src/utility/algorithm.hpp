@@ -282,6 +282,18 @@ namespace utl
 		template <typename P>
 		constexpr T operator () (P && p) const { return std::size_t(p) < N ? static_cast<T>(std::move(p)) : Default; }
 	};
+
+	template <std::size_t N, typename T = void, typename ...Pairs>
+	constexpr decltype(auto) make_table(Pairs && ...pairs)
+	{
+		using value_type = mpl::common_type_unless_nonvoid<T, mpl::remove_cv_t<typename mpl::remove_cvref_t<Pairs>::second_type>...>;
+
+		value_type values[N] = {};
+
+		int expansion_hack[] = {(values[pairs.first] = std::move(pairs.second), 0)...};
+
+		return utl::to_array(std::move(values));
+	}
 }
 
 #endif /* UTILITY_ALGORITHM_HPP */
