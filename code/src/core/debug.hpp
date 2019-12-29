@@ -68,7 +68,7 @@ inline static void debug_break_impl() { __asm__("int3"); }
 /**
  * Fails unconditionally.
  *
- * Additionally returns false.
+ * \note Always returns false.
  */
 # ifdef __GNUG__
 #  define debug_fail(...) (core::debug::instance().fail(__FILE__, __LINE__, ##__VA_ARGS__) || (debug_break(), false))
@@ -117,9 +117,11 @@ inline static void debug_break_impl() { __asm__("int3"); }
 # define debug_break()
 
 /**
- * Does nothing.
+ * Fails unconditionally.
+ *
+ * \note Always returns false.
  */
-# define debug_fail(...)
+# define debug_fail(...) false
 
 /**
  * Does nothing.
