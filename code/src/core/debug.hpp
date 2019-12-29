@@ -98,11 +98,13 @@ inline static void debug_break_impl() { __asm__("int3"); }
 /**
  * Verifies that the expression is true.
  *
- * Additionally returns the evaluation of the expression.
- *
  * \note Always evaluates the expression.
  */
-# define debug_verify(expr, ...) (static_cast<bool>(expr) || debug_fail(__VA_ARGS__))
+# ifdef __GNUG__
+#  define debug_verify(expr, ...) debug_assert(expr, ##__VA_ARGS__)
+# else
+#  define debug_verify(expr, ...) debug_assert(expr, __VA_ARGS__)
+# endif
 
 #else
 
@@ -135,8 +137,6 @@ inline static void debug_break_impl() { __asm__("int3"); }
 
 /**
  * Verifies that the expression is true.
- *
- * Additionally returns the evaluation of the expression.
  *
  * \note Always evaluates the expression.
  */
