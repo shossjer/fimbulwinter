@@ -2,7 +2,8 @@
 #ifndef UTILITY_ALGORITHM_HPP
 #define UTILITY_ALGORITHM_HPP
 
-#include "type_traits.hpp"
+#include "utility/concepts.hpp"
+#include "utility/type_traits.hpp"
 
 #include <algorithm>
 #include <array>
@@ -10,6 +11,45 @@
 
 namespace utl
 {
+	template <typename T, std::size_t N, std::size_t ...Is,
+	          REQUIRES((std::is_constructible<T, T &>::value))>
+	constexpr auto to_array_for(T (& a)[N], mpl::index_sequence<Is...>)
+	{
+		return std::array<mpl::remove_cv_t<T>, sizeof...(Is)>{{a[Is]...}};
+	}
+
+	template <typename T, std::size_t N, std::size_t ...Is,
+	          REQUIRES((std::is_move_constructible<T>::value))>
+	constexpr auto to_array_for(T (&& a)[N], mpl::index_sequence<Is...>)
+	{
+		return std::array<mpl::remove_cv_t<T>, sizeof...(Is)>{{std::move(a[Is])...}};
+	}
+
+	// c++20
+	template <typename T, std::size_t N,
+	          REQUIRES((std::is_constructible<T, T &>::value))>
+	constexpr auto to_array(T (& a)[N])
+	{
+		return to_array_for(a, mpl::make_index_sequence<N>{});
+	}
+
+	// c++20
+	template <typename T, std::size_t N,
+	          REQUIRES((std::is_move_constructible<T>::value))>
+	constexpr auto to_array(T (&& a)[N])
+	{
+		return to_array_for(std::move(a), mpl::make_index_sequence<N>{});
+	}
+
+	// c++??
+	template <typename T = void, typename ...Ps>
+	constexpr auto make_array(Ps && ...ps)
+	{
+		using value_type = mpl::common_type_unless_nonvoid<T, mpl::remove_cv_t<Ps>...>;
+
+		return std::array<value_type, sizeof...(Ps)>{{std::forward<Ps>(ps)...}};
+	}
+
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  fundamental functions or something
