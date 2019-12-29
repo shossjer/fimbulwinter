@@ -305,25 +305,25 @@ namespace core
 	};
 
 	template <typename T,
-	          typename = mpl::disable_if_t<std::is_fundamental<mpl::decay_t<T>>::value>>
+	          typename = mpl::disable_if_t<std::is_scalar<mpl::decay_t<T>>::value>>
 	debug::value_t<T &&> operator >> (debug::empty_t &&, T && value)
 	{
 		return debug::value_t<T &&>{std::forward<T>(value)};
 	}
 	template <typename T,
-	          typename = mpl::enable_if_t<std::is_fundamental<T>::value>>
+	          typename = mpl::enable_if_t<std::is_scalar<T>::value>>
 	debug::value_t<T> operator >> (debug::empty_t &&, T value)
 	{
 		return debug::value_t<T>{value};
 	}
 	template <typename T,
-	          typename = mpl::disable_if_t<std::is_fundamental<mpl::decay_t<T>>::value>>
+	          typename = mpl::disable_if_t<std::is_scalar<mpl::decay_t<T>>::value>>
 	debug::value_t<T &&> operator << (T && value, debug::empty_t &&)
 	{
 		return debug::value_t<T &&>{std::forward<T>(value)};
 	}
 	template <typename T,
-	          typename = mpl::enable_if_t<std::is_fundamental<T>::value>>
+	          typename = mpl::enable_if_t<std::is_scalar<T>::value>>
 	debug::value_t<T> operator << (T value, debug::empty_t &&)
 	{
 		return debug::value_t<T>{value};
