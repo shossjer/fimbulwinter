@@ -15,7 +15,7 @@ set(HEADERS_CORE
 	src/core/container/Collection.hpp
 	src/core/container/ExchangeQueue.hpp
 	src/core/container/Stack.hpp
-   src/core/container/Queue.hpp
+	src/core/container/Queue.hpp
 	src/core/debug.hpp
 	src/core/graphics/Image.hpp
 	src/core/graphics/types.hpp
@@ -96,7 +96,7 @@ set(HEADERS_ENGINE
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/viewer.hpp
-   src/engine/hid/config.hpp
+	src/engine/hid/config.hpp
 	src/engine/hid/devices.hpp
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
@@ -124,30 +124,31 @@ set(HEADERS_UTILITY
 	src/utility/aggregation_allocator.hpp
 	src/utility/algorithm.hpp
 	src/utility/any.hpp
-   src/utility/arithmetics.hpp
+	src/utility/arithmetics.hpp
 	src/utility/array.hpp
 	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
 	src/utility/crypto/crc.hpp
-   src/utility/encoding_traits.hpp
+	src/utility/encoding_traits.hpp
 	src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
 	src/utility/iterator.hpp
 	src/utility/json.hpp
 	src/utility/lookup_table.hpp
-   src/utility/null_allocator.hpp
+	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
 	src/utility/preprocessor.hpp
 	src/utility/property.hpp
+	src/utility/ranges.hpp
 	src/utility/scalar_alloc.hpp
 	src/utility/spinlock.hpp
 	src/utility/storage.hpp
 	src/utility/storing.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
-   src/utility/string_iterator.hpp
+	src/utility/string_iterator.hpp
 	src/utility/string_view.hpp
 	src/utility/tuple.hpp
 	src/utility/type_info.hpp
