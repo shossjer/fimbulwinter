@@ -389,9 +389,9 @@ namespace
 							mesh.normals,
 							core::container::Buffer{} });
 
-					const uint32_t r = mesh.color.red() * 255;
-					const uint32_t g = mesh.color.green() * 255;
-					const uint32_t b = mesh.color.blue() * 255;
+					const uint32_t r = static_cast<uint8_t>(mesh.color.red() * 255);
+					const uint32_t g = static_cast<uint8_t>(mesh.color.green() * 255);
+					const uint32_t b = static_cast<uint8_t>(mesh.color.blue() * 255);
 					const auto color = r + (g << 8) + (b << 16) + (0xff << 24);
 
 					assets.push_back({meshId, color});
@@ -494,9 +494,9 @@ namespace
 							mesh.normals,
 							core::container::Buffer{}});
 
-					const uint32_t r = mesh.color[0] * 255;
-					const uint32_t g = mesh.color[1] * 255;
-					const uint32_t b = mesh.color[2] * 255;
+					const uint32_t r = static_cast<uint8_t>(mesh.color[0] * 255);
+					const uint32_t g = static_cast<uint8_t>(mesh.color[1] * 255);
+					const uint32_t b = static_cast<uint8_t>(mesh.color[2] * 255);
 					const auto color = r + (g << 8) + (b << 16) + (0xff << 24);
 
 					meshes.push_back({mesh.name, mesh.matrix, color});
@@ -595,9 +595,9 @@ namespace
 							mesh.normals,
 							core::container::Buffer{} });
 
-					const uint32_t r = mesh.color.red() * 255;
-					const uint32_t g = mesh.color.green() * 255;
-					const uint32_t b = mesh.color.blue() * 255;
+					const uint32_t r = static_cast<uint8_t>(mesh.color.red() * 255);
+					const uint32_t g = static_cast<uint8_t>(mesh.color.green() * 255);
+					const uint32_t b = static_cast<uint8_t>(mesh.color.blue() * 255);
 					const auto color = r + (g << 8) + (b << 16) + (0xff << 24);
 
 					assets.push_back({meshId, color});
