@@ -159,7 +159,7 @@ namespace
 	void RegisterRawInputDevicesWithFlags(const uint32_t * collections, int count, DWORD dwFlags, HWND hWnd)
 	{
 		RAWINPUTDEVICE rids[10]; // arbitrary
-		debug_assert(count < sizeof rids / sizeof rids[0]);
+		debug_assert(std::size_t(count) < sizeof rids / sizeof rids[0]);
 
 		for (int i = 0; i < count; i++)
 		{

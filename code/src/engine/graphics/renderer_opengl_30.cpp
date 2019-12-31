@@ -1810,8 +1810,8 @@ namespace
 					[&](int x, int y)
 					{
 						return
-							(x >= border_size && x < border_size + face->glyph->bitmap.width) &&
-							(y >= border_size && y < border_size + face->glyph->bitmap.rows) ?
+							(x >= border_size && static_cast<unsigned int>(x) < border_size + face->glyph->bitmap.width) &&
+							(y >= border_size && static_cast<unsigned int>(y) < border_size + face->glyph->bitmap.rows) ?
 							bitmap_buffer[(x - border_size) - (y - border_size) * face->glyph->bitmap.pitch] >= 128 : 0;
 					};
 				std::fill(distance_field.begin(), distance_field.end(), static_cast<float>(furthest_d));

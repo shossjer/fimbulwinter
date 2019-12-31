@@ -26,12 +26,12 @@ namespace engine
 		{
 			std::vector<Argument> params;
 
-			while (from < line.length())
+			while (std::size_t(from) < line.length())
 			{
 				if (line[from] == '"')
 				{
 					const std::ptrdiff_t to = line.find('"', from + 1);
-					if (to == std::string::npos)
+					if (std::size_t(to) == std::string::npos)
 						throw std::runtime_error("missing ending quote (\") on string argument");
 
 					params.emplace_back(utility::in_place_type<utility::string_view>, line.data() + from + 1, to - from - 1);
@@ -45,7 +45,7 @@ namespace engine
 					from++;
 					continue;
 				}
-				if (to == std::string::npos)
+				if (std::size_t(to) == std::string::npos)
 				{
 					to = line.length();
 				}
@@ -59,7 +59,7 @@ namespace engine
 				{
 					params.emplace_back(utility::in_place_type<bool>, false);
 				}
-				else if (line.find('.', from) < to)
+				else if (line.find('.', from) < std::size_t(to))
 				{
 					try
 					{
@@ -103,7 +103,7 @@ namespace engine
 
 			const std::ptrdiff_t command_begin = 0;
 			std::ptrdiff_t command_end = line.find(' ', command_begin);
-			if (command_end == std::string::npos)
+			if (std::size_t(command_end) == std::string::npos)
 			{
 				command_end = line.length();
 			}

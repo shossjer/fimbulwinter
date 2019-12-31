@@ -122,7 +122,7 @@ namespace core
 		void read_actions(std::vector<T> & actions, int njoints, int nactions)
 		{
 			actions.reserve(nactions);
-			while (actions.size() < nactions)
+			while (actions.size() < std::size_t(nactions))
 			{
 				actions.emplace_back();
 				read_action(actions.back(), njoints);
@@ -252,7 +252,7 @@ namespace core
 		void read_joints(std::vector<T> & x, int count)
 		{
 			x.reserve(count);
-			while (x.size() < count)
+			while (x.size() < std::size_t(count))
 			{
 				read_joint_chain(x, -1);
 			}

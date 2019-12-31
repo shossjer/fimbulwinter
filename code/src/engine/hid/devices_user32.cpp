@@ -367,7 +367,7 @@ namespace engine
 			{
 				UINT len = sizeof name;
 				const auto ret = GetRawInputDeviceInfo(handle, RIDI_DEVICENAME, name, &len);
-				debug_assert(ret >= 0, "buffer too small, expected ", len);
+				debug_assert(ret >= UINT(0), "buffer too small, expected ", len);
 			}
 
 			RID_DEVICE_INFO rdi;
@@ -914,7 +914,7 @@ namespace engine
 				{
 					const int from = bit_offset / CHAR_BIT;
 					const int to = (bit_offset + field.nbits + (CHAR_BIT - 1)) / CHAR_BIT;
-					debug_assert(to - from <= sizeof(uint64_t));
+					debug_assert(std::size_t(to - from) <= sizeof(uint64_t));
 
 					uint64_t value = 0;
 					for (int i = 0; i < to - from; i++)

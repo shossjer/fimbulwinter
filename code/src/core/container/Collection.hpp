@@ -91,7 +91,7 @@ namespace core
 
 				void remove_at(std::ptrdiff_t index)
 				{
-					debug_assert((0 <= index && index < data_.size()));
+					debug_assert(std::size_t(index) < data_.size());
 
 					const auto last = data_.size() - 1;
 
