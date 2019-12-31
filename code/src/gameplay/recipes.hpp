@@ -7,6 +7,7 @@
 #include "engine/Asset.hpp"
 
 #include "utility/optional.hpp"
+#include "utility/ranges.hpp"
 
 #include <string>
 #include <vector>
@@ -82,7 +83,7 @@ namespace gameplay
 	public:
 		int find(const std::string & name) const
 		{
-			for (int i = 0; i < recipes.size(); i++)
+			for (int i : ranges::index_sequence_for(recipes))
 			{
 				if (recipes[i].name == name)
 					return i;

@@ -14,6 +14,7 @@
 #include "gameplay/debug.hpp"
 #include "gameplay/gamestate.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/string.hpp"
 
 #include <unordered_map>
@@ -375,7 +376,7 @@ namespace
 			{
 				const auto & part = data.part("all");
 
-				for (int i = 0; i < part.render.shapes.size(); i++)
+				for (int i : ranges::index_sequence_for(part.render.shapes))
 				{
 					const auto & mesh = part.render.shapes[i];
 					const engine::Asset meshId(name + part.name + std::to_string(i));
@@ -581,7 +582,7 @@ namespace
 			{
 				const auto & part = data.part(name);
 
-				for (int i = 0; i < part.render.shapes.size(); i++)
+				for (int i : ranges::index_sequence_for(part.render.shapes))
 				{
 					const auto & mesh = part.render.shapes[i];
 					const engine::Asset meshId(name + part.name + std::to_string(i));

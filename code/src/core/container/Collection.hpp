@@ -2,13 +2,14 @@
 #ifndef CORE_CONTAINER_COLLECTION_HPP
 #define CORE_CONTAINER_COLLECTION_HPP
 
-#include <core/debug.hpp>
+#include "core/debug.hpp"
 
-#include <utility/array_alloc.hpp>
-#include <utility/bitmanip.hpp>
-#include <utility/preprocessor.hpp>
-#include <utility/type_traits.hpp>
-#include <utility/utility.hpp>
+#include "utility/array_alloc.hpp"
+#include "utility/bitmanip.hpp"
+#include "utility/preprocessor.hpp"
+#include "utility/ranges.hpp"
+#include "utility/type_traits.hpp"
+#include "utility/utility.hpp"
 
 #include <array>
 #include <numeric>
@@ -380,7 +381,7 @@ namespace core
 			void clear_all_impl(mpl::index_sequence<type, types...>)
 			{
 				auto & array = std::get<type>(arrays);
-				for (int i = 0; i < array.size(); i++)
+				for (int i : ranges::index_sequence_for(array))
 				{
 					slots[array.bucket_at(i)].clear();
 				}
@@ -979,7 +980,7 @@ namespace core
 				if (size <= 0)
 					return count;
 
-				for (int bucket = 0; bucket < M; bucket++)
+				for (int bucket : ranges::index_sequence(M))
 				{
 					if (slots[bucket].empty())
 						continue;

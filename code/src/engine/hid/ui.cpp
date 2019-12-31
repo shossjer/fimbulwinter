@@ -14,6 +14,7 @@
 #include "engine/hid/input.hpp"
 
 #include "utility/any.hpp"
+#include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
 #include <algorithm>
@@ -259,11 +260,11 @@ namespace
 			{
 				auto & device_mapping = device_mappings[find_device(device)];
 
-				for (int j = 0; j < state_mapping.mappings.size(); j++)
+				for (int j : ranges::index_sequence_for(state_mapping.mappings))
 				{
 					const auto & mapping = ::mappings[find_mapping(state_mapping.mappings[j])];
 
-					for (int i = 0; i < sizeof mapping.buttons / sizeof mapping.buttons[0]; i++)
+					for (int i : ranges::index_sequence(sizeof mapping.buttons / sizeof mapping.buttons[0]))
 					{
 						if (mapping.buttons[i])
 						{
@@ -275,7 +276,7 @@ namespace
 						}
 					}
 
-					for (int i = 0; i < sizeof mapping.axes / sizeof mapping.axes[0]; i++)
+					for (int i : ranges::index_sequence(sizeof mapping.axes / sizeof mapping.axes[0]))
 					{
 						if (mapping.axes[i])
 						{
@@ -301,11 +302,11 @@ namespace
 			{
 				auto & device_mapping = device_mappings[find_device(device)];
 
-				for (int j = 0; j < state_mapping.mappings.size(); j++)
+				for (int j : ranges::index_sequence_for(state_mapping.mappings))
 				{
 					const auto & mapping = ::mappings[find_mapping(state_mapping.mappings[j])];
 
-					for (int i = 0; i < sizeof mapping.buttons / sizeof mapping.buttons[0]; i++)
+					for (int i : ranges::index_sequence(sizeof mapping.buttons / sizeof mapping.buttons[0]))
 					{
 						if (mapping.buttons[i])
 						{
@@ -315,7 +316,7 @@ namespace
 						}
 					}
 
-					for (int i = 0; i < sizeof mapping.axes / sizeof mapping.axes[0]; i++)
+					for (int i : ranges::index_sequence(sizeof mapping.axes / sizeof mapping.axes[0]))
 					{
 						if (mapping.axes[i])
 						{
@@ -632,7 +633,7 @@ namespace
 		for (const auto & device : devices)
 		{
 			std::vector<int> contexts_using_device;
-			for (int i = 0; i < contexts.size(); i++)
+			for (int i : ranges::index_sequence_for(contexts))
 			{
 				if (std::find(contexts[i].devices.begin(), contexts[i].devices.end(), device.id) != contexts[i].devices.end())
 				{
@@ -787,7 +788,7 @@ namespace hid
 				{
 					x.contexts->resize(contexts.size());
 
-					for (int i = 0; i < contexts.size(); i++)
+					for (int i : ranges::index_sequence_for(contexts))
 					{
 						(*x.contexts)[i].asset = context_assets[i];
 						(*x.contexts)[i].devices = contexts[i].devices;
@@ -801,7 +802,7 @@ namespace hid
 				{
 					x.devices->resize(devices.size());
 
-					for (int i = 0; i < devices.size(); i++)
+					for (int i : ranges::index_sequence_for(devices))
 					{
 						(*x.devices)[i].id = devices[i];
 						(*x.devices)[i].sources = device_sources[i];

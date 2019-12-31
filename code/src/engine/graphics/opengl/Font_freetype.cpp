@@ -7,6 +7,7 @@
 #include "core/debug.hpp"
 
 #include "utility/bitmanip.hpp"
+#include "utility/ranges.hpp"
 
 #include <cmath>
 #include <numeric>
@@ -137,9 +138,13 @@ namespace engine
 					const int bitmap_slot_x = i % max_number_of_bitmaps_in_x;
 					const int bitmap_slot_y = i / max_number_of_bitmaps_in_x;
 					const int pixel_offset = bitmap_slot_x * max_bitmap_width + bitmap_slot_y * max_bitmap_height * texture_size;
-					for (int y = 0; y < face->glyph->bitmap.rows; y++)
-						for (int x = 0; x < face->glyph->bitmap.width; x++)
+					for (int y : ranges::index_sequence(face->glyph->bitmap.rows))
+					{
+						for (int x : ranges::index_sequence(face->glyph->bitmap.width))
+						{
 							pixels[pixel_offset + x + y * texture_size] = face->glyph->bitmap.buffer[x + y * face->glyph->bitmap.width];
+						}
+					}
 
 					params[i].bitmap_left = face->glyph->bitmap_left;
 					params[i].bitmap_top = face->glyph->bitmap_top;

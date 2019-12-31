@@ -12,6 +12,7 @@
 
 #include "utility/json.hpp"
 #include "utility/optional.hpp"
+#include "utility/ranges.hpp"
 
 #include <cfloat>
 #include <cstdint>
@@ -180,14 +181,14 @@ namespace core
 			const json & first = *j.begin();
 			if (first.is_array())
 			{
-				for (int i = 0; i < j.size(); i++)
+				for (int i : ranges::index_sequence_for(j))
 				{
 					read_array(j[i], buffer[i]);
 				}
 			}
 			else if (first.is_object())
 			{
-				for (int i = 0; i < j.size(); i++)
+				for (int i : ranges::index_sequence_for(j))
 				{
 					read_object(j[i], buffer[i]);
 				}

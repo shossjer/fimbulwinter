@@ -4,6 +4,7 @@
 
 #include "utility/array_alloc.hpp"
 #include "utility/encoding_traits.hpp"
+#include "utility/ranges.hpp"
 #include "utility/stream.hpp"
 #include "utility/string_iterator.hpp"
 #include "utility/type_info.hpp"
@@ -562,7 +563,7 @@ namespace utility
 
 			const auto len = repeat * count;
 			data_.array_.set_size(len + 1);
-			for (int i = 0; i < len; i++)
+			for (int i : ranges::index_sequence(len))
 			{
 				data_.array_.chars_.construct_at(i, s[i % count]);
 			}

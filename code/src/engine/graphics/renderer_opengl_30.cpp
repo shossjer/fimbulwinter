@@ -30,6 +30,7 @@
 #include "engine/resource/reader.hpp"
 
 #include "utility/lookup_table.hpp"
+#include "utility/ranges.hpp"
 #include "utility/unicode.hpp"
 #include "utility/variant.hpp"
 
@@ -1816,19 +1817,19 @@ namespace
 					};
 				std::fill(distance_field.begin(), distance_field.end(), static_cast<float>(furthest_d));
 				// for (int y = 0; y < slot_size_y; y++)
-				for (int y = 0; y < face->glyph->bitmap.rows + 2 * border_size; y++)
+				for (int y : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
 				{
 					// for (int x = 0; x < slot_size_x; x++)
-					for (int x = 0; x < face->glyph->bitmap.width + 2 * border_size; x++)
+					for (int x : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
 					{
 						const auto sample = sample_at(x, y);
 
 						double closest_dsq = slot_size_x * slot_size_x + slot_size_y * slot_size_y;
 						// for (int t = 0; t < slot_size_y; t++)
-						for (int t = 0; t < face->glyph->bitmap.rows + 2 * border_size; t++)
+						for (int t : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
 						{
 							// for (int s = 0; s < slot_size_x; s++)
-							for (int s = 0; s < face->glyph->bitmap.width + 2 * border_size; s++)
+							for (int s : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
 							{
 								if (sample_at(s, t) == sample)
 									continue;

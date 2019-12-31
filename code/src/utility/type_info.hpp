@@ -3,6 +3,9 @@
 #define UTILITY_TYPE_INFO_HPP
 
 #include "utility/crypto/crc.hpp"
+#if !(defined(_MSC_VER) && _MSC_VER <= 1916)
+# include "utility/ranges.hpp"
+#endif
 #include "utility/string_view.hpp"
 
 #include <cstdint>
@@ -144,10 +147,19 @@ namespace utility
 			{
 				const TypePattern pattern = find_type_pattern(str.data() + i);
 
-				for (int j = 0; j < pattern.with.size(); j++)
+#if defined(_MSC_VER) && _MSC_VER <= 1916
+				// the microsoft compiler does not support constexpr
+				// range for :facepalm:
+				//
+				// https://developercommunity.visualstudio.com/content/problem/227884/constexpr-foreach-doesnt-compile.html
+				for (std::size_t j = 0; j < pattern.with.size(); j++)
+#else
+				for (int j : ranges::index_sequence_for(pattern.with))
+#endif
 				{
 					name.values[length + j] = pattern.with.data()[j];
 				}
+
 				length += pattern.with.size();
 				i += pattern.replace;
 			}

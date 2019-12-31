@@ -13,6 +13,7 @@
 #include "engine/debug.hpp"
 
 #include "utility/algorithm.hpp"
+#include "utility/ranges.hpp"
 #include "utility/unicode.hpp"
 
 #include <climits>
@@ -863,7 +864,7 @@ namespace
 		while (true)
 		{
 			debug_assert(events.size() <= sizeof fds / sizeof fds[0]);
-			for (int i = 0; i < events.size(); i++)
+			for (int i : ranges::index_sequence_for(events))
 			{
 				fds[2 + i].fd = events[i].fd;
 				fds[2 + i].events = POLLIN;
@@ -882,7 +883,7 @@ namespace
 			if (fds[0].revents & POLLHUP)
 				break;
 
-			for (int i = 0; i < events.size(); i++)
+			for (int i : ranges::index_sequence_for(events))
 			{
 				if (fds[2 + i].revents & POLLIN)
 				{
@@ -894,7 +895,7 @@ namespace
 					// https://www.kernel.org/doc/html/latest/input/input.html#event-interface
 					debug_assert(n > 0);
 
-					for (int j = 0; j < n / sizeof input[0]; j++)
+					for (int j : ranges::index_sequence(n / sizeof input[0]))
 					{
 						switch (input[j].type)
 						{
@@ -1013,7 +1014,7 @@ namespace
 			}
 		}
 
-		for (int i = 0; i < event_infos.size(); i++)
+		for (int i : ranges::index_sequence_for(event_infos))
 		{
 			if (event_infos[i].status == EventStatus::Open)
 			{

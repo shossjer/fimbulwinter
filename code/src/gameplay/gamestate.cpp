@@ -28,6 +28,7 @@
 #include "gameplay/roles.hpp"
 #include "gameplay/skills.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/string.hpp"
 
 #include <algorithm>
@@ -113,7 +114,7 @@ namespace
 				debug_printline("name = \"", recipes.get(i).name, "\"");
 				if (!recipes.get(i).ingredients.empty())
 				{
-					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
+					for (int j : ranges::index_sequence_for(recipes.get(i).ingredients))
 					{
 						debug_printline(recipes.get(i).ingredients[j].quantity, "x ", recipes.get(i).ingredients[j].name);
 					}
@@ -180,7 +181,7 @@ namespace
 				if (!recipes.get(i).ingredients.empty())
 				{
 					bool is_available = true;
-					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
+					for (int j : ranges::index_sequence_for(recipes.get(i).ingredients))
 					{
 						const int index = recipes.find(recipes.get(i).ingredients[j].name);
 						debug_assert(index >= 0);
@@ -233,7 +234,7 @@ namespace
 		{
 			debug_assert(is_empty(table));
 
-			for (int j = 0; j < recipe.ingredients.size(); j++)
+			for (int j : ranges::index_sequence_for(recipe.ingredients))
 			{
 				const int index = recipes.find(recipe.ingredients[j].name);
 				if (recipes.get(index).ingredients.empty())
@@ -292,7 +293,7 @@ namespace
 			const double my_sum = std::accumulate(begin(my_normalized_skills), end(my_normalized_skills), 0.);
 			if (my_sum != 0.)
 			{
-				for (int i = 0; i < my_normalized_skills.size(); i++)
+				for (int i : ranges::index_sequence_for(my_normalized_skills))
 				{
 					my_normalized_skills[i] /= my_sum;
 				}
@@ -308,14 +309,14 @@ namespace
 			const double role_sum = std::accumulate(begin(role_normalized_skills), end(role_normalized_skills), 0.);
 			if (role_sum != 0.)
 			{
-				for (int i = 0; i < role_normalized_skills.size(); i++)
+				for (int i : ranges::index_sequence_for(role_normalized_skills))
 				{
 					role_normalized_skills[i] /= role_sum;
 				}
 			}
 
 			double diff = 0.;
-			for (int i = 0; i < my_normalized_skills.size(); i++)
+			for (int i : ranges::index_sequence_for(my_normalized_skills))
 			{
 				diff += std::abs(my_normalized_skills[i] - role_normalized_skills[i]);
 			}
@@ -576,7 +577,7 @@ namespace
 
 			hide();
 
-			for (int i = 0; i < shown_recipes.size(); i++)
+			for (int i : ranges::index_sequence_for(shown_recipes))
 			{
 				const int recipe_index = recipes.index(*shown_recipes[i]);
 				const auto entity = recipe_entities[recipe_index];

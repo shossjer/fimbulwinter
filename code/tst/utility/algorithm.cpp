@@ -1,11 +1,11 @@
-
-#include "catch.hpp"
+#include <catch.hpp>
 
 #include "utility/algorithm.hpp"
+#include "utility/ranges.hpp"
 
 TEST_CASE("inverse table", "[utility][algorithm]")
 {
-	SECTION("handels integers")
+	SECTION("handles integers")
 	{
 		const int table[] = {17, 5, 13, 23, 3, 2, 11, 7};
 		const auto inverse_table = utl::inverse_table<24>(table);
@@ -14,7 +14,7 @@ TEST_CASE("inverse table", "[utility][algorithm]")
 			8, 8, 5, 4, 8, 1, 8, 7, 8, 8, 8, 6, 8, 2, 8, 8, 8, 0, 8, 8, 8, 8, 8, 3
 		};
 		CHECK(inverse_table == expected);
-		for (int i = 0; i < expected.size(); i++)
+		for (int i : ranges::index_sequence(expected.size()))
 		{
 			REQUIRE(inverse_table[i] == expected[i]);
 		}
@@ -29,7 +29,7 @@ TEST_CASE("inverse table", "[utility][algorithm]")
 			8, 8, 5, 4, 8, 1, 8, 8, 8, 8, 8, 6, 8, 8, 8, 8, 8, 0, 8, 8, 8, 8, 8, 8
 		};
 		CHECK(inverse_table == expected);
-		for (int i = 0; i < expected.size(); i++)
+		for (int i : ranges::index_sequence(expected.size()))
 		{
 			REQUIRE(inverse_table[i] == expected[i]);
 		}
@@ -44,7 +44,7 @@ TEST_CASE("inverse table", "[utility][algorithm]")
 			8, 8, 5, 4
 		};
 		CHECK(inverse_table == expected);
-		for (int i = 0; i < expected.size(); i++)
+		for (int i : ranges::index_sequence(expected.size()))
 		{
 			REQUIRE(inverse_table[i] == expected[i]);
 		}

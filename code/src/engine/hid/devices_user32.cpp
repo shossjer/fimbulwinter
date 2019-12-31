@@ -7,6 +7,7 @@
 
 #include "engine/console.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/string.hpp"
 
 #if INPUT_HAS_USER32_RAWINPUT
@@ -455,7 +456,7 @@ namespace engine
 				HidP_GetButtonCaps(HidP_Output, button_caps.data() + caps.NumberInputButtonCaps, &nbutton_caps, preparsed_data);
 				HidP_GetButtonCaps(HidP_Feature, button_caps.data() + caps.NumberInputButtonCaps + caps.NumberOutputButtonCaps, &nbutton_caps, preparsed_data);
 
-				for (int i = 0; i < button_caps.size(); i++)
+				for (int i : ranges::index_sequence_for(button_caps))
 				{
 					const auto & button_cap = button_caps[i];
 					const int offsets[] = { 0, caps.NumberInputButtonCaps, caps.NumberInputButtonCaps + caps.NumberOutputButtonCaps };
@@ -536,7 +537,7 @@ namespace engine
 				HidP_GetValueCaps(HidP_Output, value_caps.data() + caps.NumberInputValueCaps, &nvalue_caps, preparsed_data);
 				HidP_GetValueCaps(HidP_Feature, value_caps.data() + caps.NumberInputValueCaps + caps.NumberOutputValueCaps, &nvalue_caps, preparsed_data);
 
-				for (int i = 0; i < value_caps.size(); i++)
+				for (int i : ranges::index_sequence_for(value_caps))
 				{
 					const auto & value_cap = value_caps[i];
 					const int offsets[] = { 0, caps.NumberInputValueCaps, caps.NumberInputValueCaps + caps.NumberOutputValueCaps };
@@ -572,7 +573,7 @@ namespace engine
 				fields.resize(field_offsets[1]);
 
 				int bit_offset = 0;
-				for (int i = 0; i < fields.size(); i++)
+				for (int i : ranges::index_sequence_for(fields))
 				{
 					const auto & field = fields[i];
 					const HIDP_REPORT_TYPE type = i < field_offsets[1] ? HidP_Input : i < field_offsets[2] ? HidP_Output : HidP_Feature;
