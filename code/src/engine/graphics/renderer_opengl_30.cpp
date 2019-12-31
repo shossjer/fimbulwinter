@@ -517,7 +517,7 @@ namespace
 
 		struct FontInfo
 		{
-			std::vector<int> allowed_unicodes;
+			std::vector<utility::unicode_code_point> allowed_unicodes;
 			std::vector<SymbolData> symbol_data;
 
 			int symbol_width;
@@ -565,8 +565,8 @@ namespace
 			for (auto cp : text)
 			{
 				// the null glyph is stored at the end
-				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp.value());
-				const int slot = (maybe == info.allowed_unicodes.end() || *maybe != cp.value() ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin();
+				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp);
+				const int slot = (maybe == info.allowed_unicodes.end() || *maybe != cp ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin();
 				const int slot_y = slot / slots_in_width;
 				const int slot_x = slot % slots_in_width;
 
@@ -607,7 +607,7 @@ namespace
 			}
 		}
 
-		void create(std::string && name, std::vector<int> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
+		void create(std::string && name, std::vector<utility::unicode_code_point> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
 		{
 			const engine::Asset asset(name);
 			const int index = find(asset);
@@ -1712,7 +1712,7 @@ namespace
 		}
 
 		{
-			std::vector<int> unicode_indices;
+			std::vector<utility::unicode_code_point> unicode_indices;
 			unicode_indices.reserve(face->num_glyphs);
 			std::vector<int> glyph_indices;
 			glyph_indices.reserve(face->num_glyphs);
@@ -1721,7 +1721,7 @@ namespace
 			FT_UInt unicode_index = FT_Get_First_Char(face, &glyph_index);
 			while (glyph_index != 0)
 			{
-				unicode_indices.push_back(unicode_index);
+				unicode_indices.emplace_back(unicode_index);
 				glyph_indices.push_back(glyph_index);
 
 				unicode_index = FT_Get_Next_Char(face, unicode_index, &glyph_index);
