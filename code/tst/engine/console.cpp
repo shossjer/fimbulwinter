@@ -11,17 +11,16 @@ namespace engine
 	}
 }
 
-namespace
-{
-	template<typename T>
-	void test(std::string line, T expected)
-	{
-		const auto params = engine::detail::parse_params(line, 0);
-		REQUIRE(params.size() == 1);
-		REQUIRE(utility::holds_alternative<T>(params[0]));
-		REQUIRE(utility::get<T>(params[0]) == expected);
-	}
-}
+#define test(line, expected) \
+	do \
+	{ \
+		const std::string str = (line); \
+		const auto params = engine::detail::parse_params(str, 0); \
+		REQUIRE(params.size() == 1); \
+		REQUIRE(utility::holds_alternative<decltype(expected)>(params[0])); \
+		REQUIRE(utility::get<decltype(expected)>(params[0]) == (expected)); \
+	} \
+	while (false)
 
 TEST_CASE("Verify boolean parsing")
 {
