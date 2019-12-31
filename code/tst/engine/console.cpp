@@ -7,7 +7,7 @@ namespace engine
 {
 	namespace detail
 	{
-		extern std::vector<Argument> parse_params(const std::string & line, int from);
+		extern std::vector<Argument> parse_params(const std::string & line, std::ptrdiff_t from);
 	}
 }
 
