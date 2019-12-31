@@ -68,7 +68,7 @@ namespace engine
 				FT_Done_Face(face);
 				face = nullptr;
 			}
-			bool Font::Data::load(const char *const name, const int height)
+			bool Font::Data::load(const char * name, int height)
 			{
 				debug_assert(face == nullptr);
 
@@ -209,7 +209,7 @@ namespace engine
 				id = GLuint(-1);
 			}
 
-			void Font::draw(int x, int y, const char c) const
+			void Font::draw(int x, int y, char c) const
 			{
 				debug_assert(id != GLuint(-1));
 

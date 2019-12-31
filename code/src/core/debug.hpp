@@ -228,15 +228,20 @@ namespace core
 
 	private:
 		lock_t lock;
-		uint64_t mask;
+		uint64_t mask_;
 		bool (* fail_hook_)() = nullptr;
 
 	private:
 		debug()
-			: mask(0xffffffffffffffffull)
+			: mask_(0xffffffffffffffffull)
 		{}
 
 	public:
+		void set_mask(uint64_t mask)
+		{
+			mask_ = mask;
+		}
+
 		void set_fail_hook(bool (* fail_hook)())
 		{
 			fail_hook_ = fail_hook;
@@ -267,7 +272,7 @@ namespace core
 		template <std::size_t N, uint64_t Bitmask, typename ...Ps>
 		void printline(const char (& file_name)[N], int line_number, channel_t<Bitmask>, Ps && ...ps)
 		{
-			if ((mask & Bitmask) == 0)
+			if ((mask_ & Bitmask) == 0)
 				return;
 
 			printline_all(file_name, line_number, std::forward<Ps>(ps)...);
@@ -276,6 +281,9 @@ namespace core
 		template <std::size_t N, typename ...Ps>
 		void printline(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
+			if (mask_ == 0)
+				return;
+
 			printline_all(file_name, line_number, std::forward<Ps>(ps)...);
 		}
 

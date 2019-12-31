@@ -134,33 +134,32 @@ namespace engine
 {
 	namespace resource
 	{
-		namespace writer
+		writer::~writer()
 		{
-			void create()
+			debug_assert(active.load(std::memory_order_relaxed));
+
+			active.store(0, std::memory_order_relaxed);
+			event.set();
+
+			renderThread.join();
+		}
+
+		writer::writer()
+		{
+			debug_assert(!active.load(std::memory_order_relaxed));
+
+			active.store(1, std::memory_order_relaxed);
+			renderThread = core::async::Thread{ run };
+		}
+
+		void writer::post_write(std::string name, void (* callback)(std::string name, Serializer & serializer))
+		{
+			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageWrite>,
+			                                            std::move(name),
+			                                            callback);
+			if (debug_verify(res, "write queue is full"))
 			{
-				debug_assert(!active);
-
-				active.store(1, std::memory_order_relaxed);
-				renderThread = core::async::Thread{ run };
-			}
-
-			void destroy()
-			{
-				debug_assert(active);
-
-				active.store(0, std::memory_order_relaxed);
 				event.set();
-
-				renderThread.join();
-			}
-
-			void post_write(std::string name, void (* callback)(std::string name, Serializer & serializer))
-			{
-				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageWrite>, std::move(name), callback);
-				if (debug_verify(res, "write queue is full"))
-				{
-					event.set();
-				}
 			}
 		}
 	}

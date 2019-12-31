@@ -15,9 +15,29 @@
 
 namespace engine
 {
+	namespace graphics
+	{
+		class renderer;
+	}
+
+	namespace physics
+	{
+		class simulation;
+	}
+}
+
+namespace engine
+{
 	namespace animation
 	{
-		void update();
+		class mixer
+		{
+		public:
+			~mixer();
+			mixer(engine::graphics::renderer & renderer, engine::physics::simulation & simulation);
+		};
+
+		void update(mixer & mixer);
 
 		struct object
 		{
@@ -58,15 +78,15 @@ namespace engine
 			bool repetative;
 		};
 
-		void post_register_armature(engine::Asset asset, engine::animation::Armature && data);
-		void post_register_object(engine::Asset asset, object && data);
+		void post_register_armature(mixer & mixer, engine::Asset asset, engine::animation::Armature && data);
+		void post_register_object(mixer & mixer, engine::Asset asset, object && data);
 
-		void post_add_character(engine::Entity entity, character && data);
-		void post_add_model(engine::Entity entity, model && data);
+		void post_add_character(mixer & mixer, engine::Entity entity, character && data);
+		void post_add_model(mixer & mixer, engine::Entity entity, model && data);
 
-		void post_update_action(engine::Entity entity, action && data);
+		void post_update_action(mixer & mixer, engine::Entity entity, action && data);
 
-		void post_remove(engine::Entity entity);
+		void post_remove(mixer & mixer, engine::Entity entity);
 	}
 }
 

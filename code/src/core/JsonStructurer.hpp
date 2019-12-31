@@ -204,6 +204,7 @@ namespace core
 		void read_array(const json & j, std::vector<T> & x)
 		{
 			debug_assert(j.is_array());
+			x.clear();
 			x.reserve(j.size());
 			for (const json & v : j)
 			{

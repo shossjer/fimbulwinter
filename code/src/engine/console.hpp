@@ -7,12 +7,18 @@
 #include "utility/variant.hpp"
 
 #include <memory>
-#include <string>
 #include <vector>
 
 namespace engine
 {
-	namespace console
+	class console
+	{
+	public:
+		~console();
+		console(void (* callback_exit)());
+	};
+
+	namespace detail
 	{
 		using Argument = utility::variant
 		<
@@ -69,13 +75,15 @@ namespace engine
 			}
 		};
 
-		void observe_impl(const std::string & keyword, std::unique_ptr<CallbackBase> && callback);
+		void observe_impl(utility::string_view keyword, std::unique_ptr<CallbackBase> && callback);
+	}
 
-		template <typename ...Parameters>
-		void observe(const std::string & keyword, void (* fun)(void * data, Parameters...), void * data)
-		{
-			observe_impl(keyword, std::make_unique<Callback<Parameters...>>(fun, data));
-		}
+	void abandon(utility::string_view keyword);
+
+	template <typename ...Parameters>
+	void observe(utility::string_view keyword, void (* fun)(void * data, Parameters...), void * data)
+	{
+		detail::observe_impl(keyword, std::make_unique<detail::Callback<Parameters...>>(fun, data));
 	}
 }
 

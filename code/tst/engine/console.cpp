@@ -5,20 +5,18 @@
 
 namespace engine
 {
-	namespace console
+	namespace detail
 	{
 		extern std::vector<Argument> parse_params(const std::string & line, int from);
 	}
 }
-
-using namespace engine::console;
 
 namespace
 {
 	template<typename T>
 	void test(std::string line, T expected)
 	{
-		const auto params = parse_params(line, 0);
+		const auto params = engine::detail::parse_params(line, 0);
 		REQUIRE(params.size() == 1);
 		REQUIRE(utility::holds_alternative<T>(params[0]));
 		REQUIRE(utility::get<T>(params[0]) == expected);
@@ -87,7 +85,7 @@ TEST_CASE("Verify multiple args")
 	SECTION("Parse strings")
 	{
 		const std::string line = "\"String with spaces\" \"hey_how_are_you\" \"Another string\" \"true\"";
-		const auto params = parse_params(line, 0);
+		const auto params = engine::detail::parse_params(line, 0);
 
 		REQUIRE(params.size() == 4);
 		REQUIRE(utility::holds_alternative<utility::string_view>(params[0]));
@@ -103,7 +101,7 @@ TEST_CASE("Verify multiple args")
 	SECTION("Parse mix")
 	{
 		const std::string line = "\"String with spaces\" \"a_string\" true 1234 0.5";
-		const auto params = parse_params(line, 0);
+		const auto params = engine::detail::parse_params(line, 0);
 
 		REQUIRE(params.size() == 5);
 		REQUIRE(utility::holds_alternative<utility::string_view>(params[0]));
@@ -130,7 +128,7 @@ namespace
 	template <typename ...Parameters>
 	auto create_callback(void (* fun)(void * data, Parameters...), void * data)
 	{
-		return Callback<Parameters...>(fun, data);
+		return engine::detail::Callback<Parameters...>(fun, data);
 	}
 }
 
@@ -140,7 +138,7 @@ TEST_CASE("Verify variadic parsing")
 	SECTION("Lookup no args")
 	{
 		auto callback = create_callback(f_empty, nullptr);
-		std::vector<Argument> params;
+		std::vector<engine::detail::Argument> params;
 		REQUIRE(callback.call(params));
 		params.emplace_back(utility::in_place_type<utility::string_view>, "");
 		REQUIRE(!callback.call(params));
@@ -151,7 +149,7 @@ TEST_CASE("Verify variadic parsing")
 		auto c_empty = create_callback(f_empty, nullptr);
 		auto c_single = create_callback(f_single, nullptr);
 
-		std::vector<Argument> params;
+		std::vector<engine::detail::Argument> params;
 		REQUIRE(c_empty.call(params));		// match
 		REQUIRE(!c_single.call(params));	// too few args
 
@@ -165,14 +163,14 @@ TEST_CASE("Verify variadic parsing")
 	{
 		auto c_single = create_callback(f_single, nullptr);
 
-		std::vector<Argument> params;
+		std::vector<engine::detail::Argument> params;
 		params.emplace_back(utility::in_place_type<bool>, false);
 
 		REQUIRE(!c_single.call(params));	// missmatch
 	}
 	SECTION("Lookup multi args match")
 	{
-		std::vector<Argument> params;
+		std::vector<engine::detail::Argument> params;
 
 		auto call_match = create_callback(f_dual1, nullptr);
 		auto call_inval = create_callback(f_dual2, nullptr);
@@ -190,7 +188,15 @@ TEST_CASE("Verify variadic parsing")
 		void (*const fun)(void * data) = [](void * data){ REQUIRE(reinterpret_cast<std::intptr_t>(data) == 4711); };
 		auto callback = create_callback(fun, reinterpret_cast<void *>(4711));
 
-		std::vector<Argument> params;
+		std::vector<engine::detail::Argument> params;
 		REQUIRE(callback.call(params));
+	}
+}
+
+TEST_CASE("Console can be created and destroyed", "[engine]")
+{
+	for (int i = 0; i < 2; i++)
+	{
+		engine::console console(nullptr);
 	}
 }

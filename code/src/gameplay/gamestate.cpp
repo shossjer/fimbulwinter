@@ -10,6 +10,7 @@
 #include "core/PngStructurer.hpp"
 
 #include "engine/animation/mixer.hpp"
+#include "engine/audio/system.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
 #include "engine/hid/ui.hpp"
@@ -35,15 +36,27 @@
 
 debug_assets("debug", "default", "game", "my-perspective-2d", "my-perspective-3d");
 
+namespace gameplay
+{
+	extern void set_dependencies(engine::animation::mixer & mixer, engine::graphics::renderer & renderer, engine::physics::simulation & simulation, engine::resource::reader & reader, gamestate & gamestate);
+}
+
 namespace
 {
 	using CameraActivator = gameplay::component::CameraActivator;
 	using FreeCamera = gameplay::component::FreeCamera;
 	using OverviewCamera = gameplay::component::OverviewCamera;
 
-	using namespace gameplay::gamestate;
+	using namespace gameplay::models;
 
+	engine::animation::mixer * mixer = nullptr;
 	engine::audio::System * audio = nullptr;
+	engine::graphics::renderer * renderer = nullptr;
+	engine::graphics::viewer * viewer = nullptr;
+	engine::hid::ui * ui = nullptr;
+	engine::physics::simulation * simulation = nullptr;
+	engine::record * record = nullptr;
+	engine::resource::reader * reader = nullptr;
 
 	template<typename T>
 	T & access_component(const engine::Entity entity);
@@ -379,7 +392,7 @@ namespace
 		{
 			debug_assert(preparation.time_remaining > 0);
 
-			engine::animation::post_update_action(worker, engine::animation::action{"work", true});
+			post_update_action(*::mixer, worker, engine::animation::action{"work", true});
 			audio->play();
 
 			const int remaining_time = preparation.time_remaining;
@@ -431,17 +444,17 @@ namespace
 
 		void cleanup(const Preparation & preparation)
 		{
-			engine::animation::post_update_action(worker, engine::animation::action{"idle", true});
+			post_update_action(*::mixer, worker, engine::animation::action{"idle", true});
 
 			gameplay::destroy(boardModel);
 
-			engine::graphics::renderer::post_remove(bar);
+			post_remove(*::renderer, bar);
 		}
 
 	private:
 		void barUpdate(float normalized_progress)
 		{
-			engine::graphics::renderer::post_add_bar(bar, engine::graphics::data::Bar{
+			post_add_bar(*::renderer, bar, engine::graphics::data::Bar{
 					to_xyz(top.get_column<3>()) + core::maths::Vector3f{ 0.f, .5f, 0.f }, normalized_progress});
 		}
 	};
@@ -498,7 +511,7 @@ namespace
 		debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
 		const engine::Asset asset(name.substr(4, name.length() - 4 - 4));
 
-		engine::graphics::renderer::post_register_texture(asset, std::move(image));
+		post_register_texture(*::renderer, asset, std::move(image));
 	}
 
 	struct
@@ -516,7 +529,7 @@ namespace
 
 			for (int i = 0; i < recipes.size(); i++)
 			{
-				engine::resource::reader::post_read(utility::to_string("res/", recipes.get(i).name, ".png"), data_callback_image);
+				reader->post_read(utility::to_string("res/", recipes.get(i).name, ".png"), data_callback_image);
 
 				const engine::Entity entity = engine::Entity::create();
 				recipe_entities.push_back(entity);
@@ -552,7 +565,7 @@ namespace
 		{
 			for (auto entity : shown_entities)
 			{
-				engine::graphics::renderer::post_remove(entity);
+				post_remove(*::renderer, entity);
 			}
 			shown_entities.clear();
 		}
@@ -579,13 +592,14 @@ namespace
 						0.f));
 				core::maths::Vector2f size(64.f, 64.f);
 
-				engine::graphics::renderer::post_add_panel(
+				post_add_panel(
+					*::renderer,
 					entity,
 					engine::graphics::data::ui::PanelT{
 						matrix,
 						size,
 						engine::Asset(shown_recipes[i]->name)});
-				engine::graphics::renderer::post_make_selectable(entity);
+				post_make_selectable(*::renderer, entity);
 				shown_entities.push_back(entity);
 			}
 		}
@@ -628,13 +642,14 @@ namespace
 						0.f));
 				core::maths::Vector2f size(64.f, 64.f);
 
-				engine::graphics::renderer::post_add_panel(
+				post_add_panel(
+					*::renderer,
 					entity,
 					engine::graphics::data::ui::PanelC{
 						matrix,
 						size,
 						other_index == 0 ? 0xff00ffff : other_index == 1 ? 0xff00ff00 : other_index == 2 ? 0xff0000ff : 0xffcccccc});
-				engine::graphics::renderer::post_make_selectable(entity);
+				post_make_selectable(*::renderer, entity);
 				shown_entities.push_back(entity);
 			}
 		}
@@ -717,16 +732,16 @@ namespace
 			{
 				if (target != engine::Entity::null())
 				{
-					engine::graphics::renderer::post_update_panel(frame, build_frame());
-					engine::graphics::renderer::post_update_text(label, build_label());
+					post_update_panel(*::renderer, frame, build_frame());
+					post_update_text(*::renderer, label, build_label());
 				}
 				return;
 			}
 
 			if (target != engine::Entity::null())
 			{
-				engine::graphics::renderer::post_remove(label);
-				engine::graphics::renderer::post_remove(frame);
+				post_remove(*::renderer, label);
+				post_remove(*::renderer, frame);
 			}
 			target = entity;
 			this->x = x;
@@ -734,8 +749,8 @@ namespace
 
 			if (target != engine::Entity::null())
 			{
-				engine::graphics::renderer::post_add_panel(frame, build_frame());
-				engine::graphics::renderer::post_add_text(label, build_label());
+				post_add_panel(*::renderer, frame, build_frame());
+				post_add_text(*::renderer, label, build_label());
 			}
 		}
 	} tooltip;
@@ -793,7 +808,7 @@ namespace
 		core::maths::Quaternionf rotation;
 		core::maths::Vector3f scale;
 		decompose(s.front, translation, rotation, scale);
-		engine::physics::post_update_transform(we, engine::transform_t{translation, rotation});
+		post_update_transform(*::simulation, we, engine::transform_t{translation, rotation});
 	}
 
 	struct can_be_interacted_with
@@ -978,22 +993,22 @@ namespace
 
 	void Selector::highlight(engine::Entity entity)
 	{
-		engine::graphics::renderer::post_make_highlight(entity);
+		post_make_highlight(*::renderer, entity);
 	}
 
 	void Selector::lowlight(engine::Entity entity)
 	{
-		engine::graphics::renderer::post_make_dehighlight(entity);
+		post_make_dehighlight(*::renderer, entity);
 	}
 
 	void Selector::select(engine::Entity entity)
 	{
-		engine::graphics::renderer::post_make_select(entity);
+		post_make_select(*::renderer, entity);
 	}
 
 	void Selector::deselect(engine::Entity entity)
 	{
-		engine::graphics::renderer::post_make_deselect(entity);
+		post_make_deselect(*::renderer, entity);
 	}
 
 	void Selector::translate(engine::Command command, utility::any && data)
@@ -1182,7 +1197,7 @@ namespace
 	{
 		const auto & mapping_data = *static_cast<MappingData *>(data);
 
-		gameplay::gamestate::post_command(mapping_data.callback, command, value);
+		gameplay::post_command(mapping_data.callback, command, value);
 	}
 
 	void cursor_callback(engine::Command command, float value, void * data)
@@ -1195,7 +1210,7 @@ namespace
 		switch (command)
 		{
 		case gameplay::command::MOUSE_CLICK:
-			engine::graphics::renderer::post_select(x, y, mapping_data.callback, value == 1.f ? gameplay::command::RENDER_SELECT : gameplay::command::RENDER_DESELECT);
+			post_select(*::renderer, x, y, mapping_data.callback, value == 1.f ? gameplay::command::RENDER_SELECT : gameplay::command::RENDER_DESELECT);
 			break;
 		case gameplay::command::MOUSE_MOVE_X:
 			x = static_cast<int>(value);
@@ -1203,7 +1218,7 @@ namespace
 		case gameplay::command::MOUSE_MOVE_Y:
 			y = static_cast<int>(value);
 			// first command_x is called and then command_y
-			engine::graphics::renderer::post_select(x, y, mapping_data.callback, gameplay::command::RENDER_HIGHLIGHT);
+			post_select(*::renderer, x, y, mapping_data.callback, gameplay::command::RENDER_HIGHLIGHT);
 			break;
 		default:
 			debug_unreachable("unknown command");
@@ -1213,111 +1228,131 @@ namespace
 
 namespace gameplay
 {
-namespace gamestate
-{
-	void create(engine::audio::System & audio)
+	gamestate::~gamestate()
 	{
+		components.clear();
+
+		post_remove_context(*::ui, engine::Asset("default"));
+
+		::reader = nullptr;
+		::record = nullptr;
+		::simulation = nullptr;
+		::ui = nullptr;
+		::viewer = nullptr;
+		::renderer = nullptr;
+		::audio = nullptr;
+		::mixer = nullptr;
+	}
+
+	gamestate::gamestate(engine::animation::mixer & mixer, engine::audio::System & audio, engine::graphics::renderer & renderer, engine::graphics::viewer & viewer, engine::hid::ui & ui, engine::physics::simulation & simulation, engine::record & record, engine::resource::reader & reader)
+	{
+		::mixer = &mixer;
 		::audio = &audio;
+		::renderer = &renderer;
+		::viewer = &viewer;
+		::ui = &ui;
+		::simulation = &simulation;
+		::record = &record;
+		::reader = &reader;
+
+		set_dependencies(mixer, renderer, simulation, reader, *this);
 
 		std::vector<engine::Asset> states = {engine::Asset("game"), engine::Asset("debug")};
-		engine::hid::ui::post_add_context(engine::Asset("default"), std::move(states));
+		post_add_context(ui, engine::Asset("default"), std::move(states));
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
 		core::maths::Vector3f debug_camera_pos{ 0.f, 4.f, 0.f };
 		core::maths::Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
 
-		debug_verify(components.try_emplace<FreeCamera>(debug_camera, debug_camera));
-		debug_verify(components.try_emplace<OverviewCamera>(game_camera, game_camera));
+		debug_verify(components.try_emplace<FreeCamera>(debug_camera, viewer, simulation, debug_camera));
+		debug_verify(components.try_emplace<OverviewCamera>(game_camera, simulation, game_camera));
 
-		engine::physics::camera::add(debug_camera, debug_camera_pos, false);
-		engine::physics::camera::add(game_camera, game_camera_pos, true);
+		engine::physics::camera::add(simulation, debug_camera, debug_camera_pos, false);
+		engine::physics::camera::add(simulation, game_camera, game_camera_pos, true);
 
-		engine::graphics::viewer::post_add_frame(engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root")});
+		post_add_frame(*::viewer, engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root")});
 
-		engine::graphics::viewer::post_add_projection(engine::Asset("my-perspective-3d"), engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
-		engine::graphics::viewer::post_add_projection(engine::Asset("my-perspective-2d"), engine::graphics::viewer::orthographic{-100., 100});
+		post_add_projection(*::viewer, engine::Asset("my-perspective-3d"), engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
+		post_add_projection(*::viewer, engine::Asset("my-perspective-2d"), engine::graphics::viewer::orthographic{-100., 100});
 
-		engine::graphics::viewer::post_add_camera(
-				debug_camera,
-				engine::graphics::viewer::camera{
-					engine::Asset("my-perspective-3d"),
-					engine::Asset("my-perspective-2d"),
-					core::maths::Quaternionf{ 1.f, 0.f, 0.f, 0.f },
-					debug_camera_pos});
-		engine::graphics::viewer::post_add_camera(
-				game_camera,
-				engine::graphics::viewer::camera{
-					engine::Asset("my-perspective-3d"),
-					engine::Asset("my-perspective-2d"),
-					core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{-40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{-40.f/2.f}).get()), 0.f, 0.f },
-					game_camera_pos});
-		engine::graphics::viewer::post_bind(engine::Asset("game"), game_camera);
+		post_add_camera(
+			*::viewer,
+			debug_camera,
+			engine::graphics::viewer::camera{
+			                engine::Asset("my-perspective-3d"),
+			                engine::Asset("my-perspective-2d"),
+			                core::maths::Quaternionf{ 1.f, 0.f, 0.f, 0.f },
+			                debug_camera_pos});
+		post_add_camera(
+			*::viewer,
+			game_camera,
+			engine::graphics::viewer::camera{
+			                engine::Asset("my-perspective-3d"),
+			                engine::Asset("my-perspective-2d"),
+			                core::maths::Quaternionf{ std::cos(make_radian(core::maths::degreef{-40.f/2.f}).get()), std::sin(make_radian(core::maths::degreef{-40.f/2.f}).get()), 0.f, 0.f },
+			                game_camera_pos});
+		post_bind(*::viewer, engine::Asset("game"), game_camera);
 
 		auto flycontrol = engine::Entity::create();
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::TURN_LEFT);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::TURN_RIGHT);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::TURN_DOWN);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::TURN_UP);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_A, gameplay::command::MOVE_LEFT);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_D, gameplay::command::MOVE_RIGHT);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_S, gameplay::command::MOVE_DOWN);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_W, gameplay::command::MOVE_UP);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_Q, gameplay::command::ROLL_LEFT);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_E, gameplay::command::ROLL_RIGHT);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_LEFTCTRL, gameplay::command::ELEVATE_DOWN);
-		engine::hid::ui::post_add_button_press(flycontrol, engine::hid::Input::Button::KEY_SPACE, gameplay::command::ELEVATE_UP);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::TURN_LEFT);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::TURN_RIGHT);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::TURN_DOWN);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::TURN_UP);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_A, gameplay::command::MOVE_LEFT);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_D, gameplay::command::MOVE_RIGHT);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_S, gameplay::command::MOVE_DOWN);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_W, gameplay::command::MOVE_UP);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_Q, gameplay::command::ROLL_LEFT);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_E, gameplay::command::ROLL_RIGHT);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_LEFTCTRL, gameplay::command::ELEVATE_DOWN);
+		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_SPACE, gameplay::command::ELEVATE_UP);
 		mapping_data[0] = MappingData{debug_camera, engine::Asset("default")};
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("debug"), flycontrol, post_command_callback, &mapping_data[0]);
+		post_bind(ui, engine::Asset("default"), engine::Asset("debug"), flycontrol, post_command_callback, &mapping_data[0]);
 
 		auto pancontrol = engine::Entity::create();
-		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::MOVE_LEFT);
-		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::MOVE_RIGHT);
-		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::MOVE_UP);
-		engine::hid::ui::post_add_button_press(pancontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::MOVE_DOWN);
-		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_DPAD_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
-		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_DPAD_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
-		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_STICKL_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
-		engine::hid::ui::post_add_axis_tilt(pancontrol, engine::hid::Input::Axis::TILT_STICKL_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
+		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::MOVE_LEFT);
+		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::MOVE_RIGHT);
+		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::MOVE_UP);
+		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::MOVE_DOWN);
+		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
+		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
+		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
+		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
 		mapping_data[1] = MappingData{game_camera, engine::Asset("default")};
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), pancontrol, post_command_callback, &mapping_data[1]);
+		post_bind(ui, engine::Asset("default"), engine::Asset("game"), pancontrol, post_command_callback, &mapping_data[1]);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
-		debug_verify(components.try_emplace<CameraActivator>(debug_switch, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera));
-		debug_verify(components.try_emplace<CameraActivator>(game_switch, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera));
+		debug_verify(components.try_emplace<CameraActivator>(debug_switch, viewer, ui, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera));
+		debug_verify(components.try_emplace<CameraActivator>(game_switch, viewer, ui, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera));
 
-		engine::hid::ui::post_add_button_press(debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
-		engine::hid::ui::post_add_button_press(game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
+		post_add_button_press(ui, debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
+		post_add_button_press(ui, game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
 		mapping_data[2] = MappingData{game_switch, engine::Asset("default")};
 		mapping_data[3] = MappingData{debug_switch, engine::Asset("default")};
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("debug"), game_switch, post_command_callback, &mapping_data[2]);
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), debug_switch, post_command_callback, &mapping_data[3]);
+		post_bind(ui, engine::Asset("default"), engine::Asset("debug"), game_switch, post_command_callback, &mapping_data[2]);
+		post_bind(ui, engine::Asset("default"), engine::Asset("game"), debug_switch, post_command_callback, &mapping_data[3]);
 
 		auto selector = engine::Entity::create();
 		debug_verify(components.try_emplace<Selector>(selector));
 
 		auto cursor = engine::Entity::create();
-		engine::hid::ui::post_add_axis_move(cursor, engine::hid::Input::Axis::MOUSE_MOVE, gameplay::command::MOUSE_MOVE_X, gameplay::command::MOUSE_MOVE_Y);
-		engine::hid::ui::post_add_button_press(cursor, engine::hid::Input::Button::MOUSE_LEFT, gameplay::command::MOUSE_CLICK);
+		post_add_axis_move(ui, cursor, engine::hid::Input::Axis::MOUSE_MOVE, gameplay::command::MOUSE_MOVE_X, gameplay::command::MOUSE_MOVE_Y);
+		post_add_button_press(ui, cursor, engine::hid::Input::Button::MOUSE_LEFT, gameplay::command::MOUSE_CLICK);
 		mapping_data[4] = MappingData{selector, engine::Asset("default")};
-		engine::hid::ui::post_bind(engine::Asset("default"), engine::Asset("game"), cursor, cursor_callback, &mapping_data[4]);
+		post_bind(ui, engine::Asset("default"), engine::Asset("game"), cursor, cursor_callback, &mapping_data[4]);
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");
 
-		engine::resource::reader::post_read("recipes", data_callback_recipes);
-		engine::resource::reader::post_read("classes", data_callback_roles);
-		engine::resource::reader::post_read("skills", data_callback_skills);
+		::reader->post_read("recipes", data_callback_recipes);
+		::reader->post_read("classes", data_callback_roles);
+		::reader->post_read("skills", data_callback_skills);
 	}
 
-	void destroy()
-	{
-		engine::hid::ui::post_remove_context(engine::Asset("default"));
-	}
-
-	void update(int frame_count)
+	void update(gamestate & gamestate, int frame_count)
 	{
 		// adding workstuff
 		{
@@ -1328,7 +1363,7 @@ namespace gamestate
 				worker.clear_skills(kitchen.skills);
 			}
 
-			std::tuple<engine::Entity, WorkstationType, core::maths::Matrix4x4f, core::maths::Matrix4x4f> workstation_args;
+			std::tuple<engine::Entity, gameplay::gamestate::WorkstationType, core::maths::Matrix4x4f, core::maths::Matrix4x4f> workstation_args;
 			while (queue_workstations.try_pop(workstation_args))
 			{
 				debug_verify(components.try_emplace<Workstation>(
@@ -1344,7 +1379,7 @@ namespace gamestate
 			std::tuple<engine::Entity, engine::Command, utility::any> command_args;
 			while (queue_commands.try_pop(command_args))
 			{
-				engine::replay::post_add_command(frame_count, std::get<0>(command_args), std::get<1>(command_args), utility::any(std::get<2>(command_args)));
+				post_add_command(*record, frame_count, std::get<0>(command_args), std::get<1>(command_args), utility::any(std::get<2>(command_args)));
 
 				if (debug_verify(std::get<0>(command_args) != engine::Entity::null()))
 				{
@@ -1386,18 +1421,19 @@ namespace gamestate
 	}
 
 	void post_add_workstation(
-			engine::Entity entity,
-			WorkstationType type,
-			core::maths::Matrix4x4f front,
-			core::maths::Matrix4x4f top)
+		gamestate & gamestate,
+		engine::Entity entity,
+		gamestate::WorkstationType type,
+		core::maths::Matrix4x4f front,
+		core::maths::Matrix4x4f top)
 	{
 		const auto res = queue_workstations.try_emplace(entity, type, front, top);
 		debug_assert(res);
 	}
-	void post_add_worker(engine::Entity entity)
+
+	void post_add_worker(gamestate & gamestate, engine::Entity entity)
 	{
 		const auto res = queue_workers.try_emplace(entity);
 		debug_assert(res);
 	}
-}
 }

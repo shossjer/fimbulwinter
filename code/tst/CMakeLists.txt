@@ -13,13 +13,25 @@ set(FILES_CORE
 
 set(FILES_ENGINE
 	tst/main_core.cpp
+	tst/engine/animation/mixer.cpp
+	tst/engine/application/window.cpp
 	tst/engine/audio/system.cpp
 	tst/engine/console.cpp
+	tst/engine/graphics/renderer.cpp
+	tst/engine/graphics/viewer.cpp
 	tst/engine/gui/gui_access.hpp
+	tst/engine/hid/devices.cpp
+	tst/engine/hid/ui.cpp
+	tst/engine/physics/simulation.cpp
+	tst/engine/record.cpp
+	tst/engine/resource/reader.cpp
+	tst/engine/resource/writer.cpp
 	)
 
 set(FILES_GAMEPLAY
 	tst/main_core.cpp
+	tst/gameplay/gamestate.cpp
+	tst/gameplay/looper.cpp
 	)
 
 set(FILES_UTILITY
@@ -34,6 +46,7 @@ set(FILES_UTILITY
    tst/utility/null_allocator.cpp
 	tst/utility/optional.cpp
 	tst/utility/property.cpp
+	tst/utility/storing.cpp
    tst/utility/string_view.cpp
    tst/utility/type_info.cpp
    tst/utility/unicode.cpp

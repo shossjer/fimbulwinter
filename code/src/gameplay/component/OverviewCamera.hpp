@@ -18,6 +18,8 @@ namespace gameplay
 	{
 		struct OverviewCamera
 		{
+			engine::physics::simulation * simulation;
+
 			engine::Entity camera;
 
 			float move_left = 0.f;
@@ -25,7 +27,7 @@ namespace gameplay
 			float move_down = 0.f;
 			float move_up = 0.f;
 
-			OverviewCamera(engine::Entity camera) : camera(camera) {}
+			OverviewCamera(engine::physics::simulation & simulation, engine::Entity camera) : simulation(&simulation), camera(camera) {}
 
 			void translate(engine::Command command, utility::any && data)
 			{
@@ -57,18 +59,22 @@ namespace gameplay
 				const float movement_speed = 1.f;
 				if (move_left)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						core::maths::Vector3f{-(move_left * movement_speed), 0.f, 0.f});
 				if (move_right)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						core::maths::Vector3f{move_right * movement_speed, 0.f, 0.f});
 				if (move_up)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						core::maths::Vector3f{0.f, 0.f, -(move_up * movement_speed)});
 				if (move_down)
 					engine::physics::camera::update(
+						*simulation,
 						camera,
 						core::maths::Vector3f{0.f, 0.f, move_down * movement_speed});
 			}

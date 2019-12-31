@@ -26,7 +26,6 @@
 #include "engine/graphics/viewer.hpp"
 #include "engine/resource/reader.hpp"
 
-#include "utility/any.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>
@@ -39,16 +38,13 @@ namespace engine
 {
 	namespace application
 	{
-		namespace window
-		{
-			extern void make_current();
-			extern void swap_buffers();
-		}
+		extern void make_current(window & window);
+		extern void swap_buffers(window & window);
 	}
 
 	namespace graphics
 	{
-		namespace renderer
+		namespace detail
 		{
 			extern core::async::Thread renderThread;
 			extern std::atomic_int active;
@@ -61,15 +57,12 @@ namespace engine
 			extern core::container::PageQueue<utility::heap_storage<int, int, engine::Entity, engine::Command>> queue_select;
 
 			extern std::atomic<int> entitytoggle;
-		}
-	}
-}
 
-namespace gameplay
-{
-	namespace gamestate
-	{
-		extern void post_command(engine::Entity entity, engine::Command command, utility::any && data);
+			extern engine::graphics::renderer * self;
+			extern engine::application::window * window;
+			extern engine::resource::reader * reader;
+			extern void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data);
+		}
 	}
 }
 
@@ -838,7 +831,7 @@ namespace
 
 namespace
 {
-	using namespace engine::graphics::renderer;
+	using namespace engine::graphics::detail;
 
 	void maybe_resize_framebuffer();
 	void poll_queues()
@@ -1347,14 +1340,14 @@ namespace
 			asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
 		}
 
-		engine::graphics::renderer::post_register_texture(asset, std::move(image));
+		post_register_texture(*self, asset, std::move(image));
 		texture_lock++;
 	}
 
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
-		engine::application::window::make_current();
+		make_current(*engine::graphics::detail::window);
 
 		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
 		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
@@ -1382,7 +1375,7 @@ namespace
 #if TEXT_USE_FREETYPE
 			if (!data.load("res/font/consolas.ttf", 14))
 #else
-			if (!data.load("consolas", 14))
+			if (!data.load(*engine::graphics::detail::window, "consolas", 14))
 #endif
 			{
 				debug_fail();
@@ -1393,16 +1386,15 @@ namespace
 		}
 
 		// add cuboid mesh as an asset
-		engine::graphics::renderer::post_register_mesh(
-			engine::Asset{ "cuboid" },
-			createCuboid());
+		post_register_mesh(*self, engine::Asset{"cuboid"}, createCuboid());
 
-		engine::resource::reader::post_read("res/box.png", data_callback_image);
-		engine::resource::reader::post_read("res/dude.png", data_callback_image);
-		engine::resource::reader::post_read("res/photo.png", data_callback_image);
+		reader->post_read("res/box.png", data_callback_image);
+		reader->post_read("res/dude.png", data_callback_image);
+		reader->post_read("res/photo.png", data_callback_image);
 		while (texture_lock < 3);
 
-		engine::graphics::renderer::post_add_component(
+		post_add_component(
+			*self,
 			engine::Entity::create(),
 			engine::graphics::data::CompT{
 				core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f),
@@ -1427,6 +1419,8 @@ namespace
 			component.update();
 		}
 
+		if (framebuffer_width == 0 || framebuffer_height == 0)
+			return;
 
 		glStencilMask(0x000000ff);
 		// setup frame
@@ -1568,7 +1562,7 @@ namespace
 			while (queue_select.try_pop(select_args))
 			{
 				engine::graphics::renderer::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
-				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
+				callback_select(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
 			}
 		}
 
@@ -1915,7 +1909,7 @@ namespace
 		}
 
 		// swap buffers
-		engine::application::window::swap_buffers();
+		swap_buffers(*engine::graphics::detail::window);
 	}
 
 	void render_teardown()
@@ -1951,7 +1945,7 @@ namespace engine
 {
 	namespace graphics
 	{
-		namespace renderer
+		namespace detail
 		{
 			namespace opengl_12
 			{

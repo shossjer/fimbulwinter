@@ -1,16 +1,21 @@
 
 #include "core/debug.hpp"
 
+#include "engine/animation/mixer.hpp"
 #include "engine/application/window.hpp"
 #include "engine/audio/system.hpp"
+#include "engine/console.hpp"
 #include "engine/graphics/renderer.hpp"
+#include "engine/graphics/viewer.hpp"
+#include "engine/hid/devices.hpp"
 #include "engine/hid/ui.hpp"
+#include "engine/physics/physics.hpp"
+#include "engine/replay/writer.hpp"
 #include "engine/resource/reader.hpp"
 #include "engine/resource/writer.hpp"
 
 #include "gameplay/gamestate.hpp"
-
-#include "utility/storing.hpp"
+#include "gameplay/looper.hpp"
 
 #include "settings.hpp"
 
@@ -22,73 +27,9 @@
 
 namespace engine
 {
-	namespace animation
+	namespace application
 	{
-		extern void create();
-		extern void destroy();
-	}
-
-	namespace console
-	{
-		extern void create();
-		extern void destroy();
-	}
-
-	namespace graphics
-	{
-		namespace viewer
-		{
-			extern void create();
-			extern void destroy();
-		}
-	}
-
-	namespace gui
-	{
-		extern void create();
-		extern void destroy();
-	}
-
-	namespace hid
-	{
-		extern void create(bool hardware_input);
-		extern void destroy();
-	}
-
-	namespace physics
-	{
-		extern void create();
-		extern void destroy();
-	}
-
-	namespace replay
-	{
-		extern void create();
-		extern void destroy();
-	}
-
-	namespace resource
-	{
-		namespace reader
-		{
-			extern void create();
-			extern void destroy();
-		}
-
-		namespace writer
-		{
-			extern void create();
-			extern void destroy();
-		}
-	}
-}
-
-namespace gameplay
-{
-	namespace looper
-	{
-		extern void create();
-		extern void destroy();
+		extern int execute(window & window);
 	}
 }
 
@@ -183,99 +124,69 @@ int main(const int argc, const char *const argv[])
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 # endif
-	::engine::resource::reader::create();
-	::engine::resource::writer::create();
+	engine::resource::reader reader;
+	engine::resource::writer writer;
 
-	::engine::resource::reader::post_read("settings", read_settings_callback, ::engine::resource::Format::Ini | ::engine::resource::Format::Json | ::engine::resource::Format::None);
+	reader.post_read("settings", read_settings_callback, ::engine::resource::Format::Ini | ::engine::resource::Format::Json | ::engine::resource::Format::None);
 	while (settings_lock < 1);
 
-	::engine::resource::writer::post_write(std::string("settings") + get_settings_extension(), write_settings_callback);
+	writer.post_write(std::string("settings") + get_settings_extension(), write_settings_callback);
 	while (settings_lock < 2);
 
-	engine::application::window::create(hInstance, nCmdShow, settings.application);
-	engine::hid::create(settings.hid.hardware_input);
+	engine::console console(engine::application::close);
 
-	::engine::console::create();
-	::engine::replay::create();
-	utility::storing<engine::audio::System> audio(utility::in_place);
-	::engine::physics::create();
-	::engine::graphics::renderer::create(settings.graphics.renderer_type);
-	::engine::graphics::viewer::create();
-	::engine::animation::create();
-	::engine::hid::ui::create();
-	::gameplay::gamestate::create(audio.value);
-	::gameplay::looper::create();
+	engine::record record;
+	engine::audio::System audio;
 
-	const int ret = engine::application::window::execute();
+	engine::application::window window(hInstance, nCmdShow, settings.application);
 
-	debug_printline("loop is no more");
+	engine::hid::ui ui;
+	engine::hid::devices devices(window, ui, settings.hid.hardware_input);
 
-	::gameplay::looper::destroy();
-	::gameplay::gamestate::destroy();
-	::engine::hid::ui::destroy();
-	::engine::animation::destroy();
-	::engine::graphics::viewer::destroy();
-	::engine::graphics::renderer::destroy();
-	::engine::physics::destroy();
-	audio.destruct();
-	::engine::replay::destroy();
-	::engine::console::destroy();
+	engine::graphics::renderer renderer(window, reader, gameplay::post_command, settings.graphics.renderer_type);
+	engine::graphics::viewer viewer(renderer);
+	engine::physics::simulation simulation(renderer, viewer);
+	engine::animation::mixer mixer(renderer, simulation);
 
-	engine::hid::destroy();
-	engine::application::window::destroy(hInstance);
+	gameplay::gamestate gamestate(mixer, audio, renderer, viewer, ui, simulation, record, reader);
+	gameplay::looper looper(mixer, renderer, viewer, ui, simulation, gamestate);
 
-	::engine::resource::writer::destroy();
-	::engine::resource::reader::destroy();
+	window.set_dependencies(viewer, devices, ui);
 
-	return ret;
+	return execute(window);
 }
 #elif WINDOW_USE_X11
 int main(const int argc, const char *const argv[])
 {
-	::engine::resource::reader::create();
-	::engine::resource::writer::create();
+	engine::resource::reader reader;
+	engine::resource::writer writer;
 
-	::engine::resource::reader::post_read("settings", read_settings_callback, ::engine::resource::Format::Ini | ::engine::resource::Format::Json | ::engine::resource::Format::None);
+	reader.post_read("settings", read_settings_callback, ::engine::resource::Format::Ini | ::engine::resource::Format::Json | ::engine::resource::Format::None);
 	while (settings_lock < 1);
 
-	::engine::resource::writer::post_write(std::string("settings") + get_settings_extension(), write_settings_callback);
+	writer.post_write(std::string("settings") + get_settings_extension(), write_settings_callback);
 	while (settings_lock < 2);
 
-	engine::application::window::create(settings.application);
-	engine::hid::create(settings.hid.hardware_input);
+	engine::console console(engine::application::close);
 
-	::engine::console::create();
-	::engine::replay::create();
-	utility::storing<engine::audio::System> audio(utility::in_place);
-	::engine::physics::create();
-	::engine::graphics::renderer::create(settings.graphics.renderer_type);
-	::engine::graphics::viewer::create();
-	::engine::animation::create();
-	::engine::hid::ui::create();
-	::gameplay::gamestate::create(audio.value);
-	::gameplay::looper::create();
+	engine::record record;
+	engine::audio::System audio;
 
-	const int ret = engine::application::window::execute();
+	engine::application::window window(settings.application);
 
-	debug_printline("loop is no more");
+	engine::hid::ui ui;
+	engine::hid::devices devices(window, ui, settings.hid.hardware_input);
 
-	::gameplay::looper::destroy();
-	::gameplay::gamestate::destroy();
-	::engine::hid::ui::destroy();
-	::engine::animation::destroy();
-	::engine::graphics::viewer::destroy();
-	::engine::graphics::renderer::destroy();
-	::engine::physics::destroy();
-	audio.destruct();
-	::engine::replay::destroy();
-	::engine::console::destroy();
+	engine::graphics::renderer renderer(window, reader, gameplay::post_command, settings.graphics.renderer_type);
+	engine::graphics::viewer viewer(renderer);
+	engine::physics::simulation simulation(renderer, viewer);
+	engine::animation::mixer mixer(renderer, simulation);
 
-	engine::hid::destroy();
-	engine::application::window::destroy();
+	gameplay::gamestate gamestate(mixer, audio, renderer, viewer, ui, simulation, record, reader);
+	gameplay::looper looper(mixer, renderer, viewer, ui, simulation, gamestate);
 
-	::engine::resource::writer::destroy();
-	::engine::resource::reader::destroy();
+	window.set_dependencies(viewer, devices, ui);
 
-	return ret;
+	return execute(window);
 }
 #endif

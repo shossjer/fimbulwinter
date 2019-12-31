@@ -1,5 +1,25 @@
 option(RUN_TESTS "Run tests as part of the build process." ON)
 
+function(run_tests name executable)
+	# inspired by the works of stack overflow user 1178599
+	#
+	# https://stackoverflow.com/a/53673873
+	set(_test_state "${PROJECT_BINARY_DIR}/run_tests/${executable}.passed")
+	add_custom_command(
+		OUTPUT ${_test_state}
+		COMMAND $<TARGET_FILE:${executable}>
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/run_tests"
+		COMMAND ${CMAKE_COMMAND} -E touch ${_test_state}
+		DEPENDS ${executable}
+		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+		)
+	add_custom_target(
+		${name}
+		ALL
+		DEPENDS ${_test_state}
+		)
+endfunction()
+
 include (src/CMakeLists.txt)
 include (tst/CMakeLists.txt)
 
@@ -18,17 +38,12 @@ if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
 endif()
 
 if(RUN_TESTS)
-	add_custom_command(
-		TARGET utilitytest
-		POST_BUILD
-		COMMAND $<TARGET_FILE:utilitytest>
-		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-		)
+	run_tests(runutilitytest utilitytest)
 endif()
 
 add_library(core "")
 if(RUN_TESTS)
-	add_dependencies(core utilitytest)
+	add_dependencies(core runutilitytest)
 endif()
 target_sources(core PRIVATE ${SOURCES_CORE} ${HEADERS_CORE})
 target_include_directories(core PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
@@ -44,17 +59,12 @@ if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
 endif()
 
 if(RUN_TESTS)
-	add_custom_command(
-		TARGET coretest
-		POST_BUILD
-		COMMAND $<TARGET_FILE:coretest>
-		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-		)
+	run_tests(runcoretest coretest)
 endif()
 
 add_library(engine "")
 if(RUN_TESTS)
-	add_dependencies(engine coretest)
+	add_dependencies(engine runcoretest)
 endif()
 target_sources(engine PRIVATE ${SOURCES_ENGINE} ${HEADERS_ENGINE})
 target_include_directories(engine PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
@@ -70,17 +80,12 @@ if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
 endif()
 
 if(RUN_TESTS)
-	add_custom_command(
-		TARGET enginetest
-		POST_BUILD
-		COMMAND $<TARGET_FILE:enginetest>
-		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-		)
+	run_tests(runenginetest enginetest)
 endif()
 
 add_library(gameplay "")
 if(RUN_TESTS)
-	add_dependencies(gameplay enginetest)
+	add_dependencies(gameplay runenginetest)
 endif()
 target_sources(gameplay PRIVATE ${SOURCES_GAMEPLAY} ${HEADERS_GAMEPLAY})
 target_include_directories(gameplay PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
@@ -96,10 +101,5 @@ if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
 endif()
 
 if(RUN_TESTS)
-	add_custom_command(
-		TARGET gameplaytest
-		POST_BUILD
-		COMMAND $<TARGET_FILE:gameplaytest>
-		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-		)
+	run_tests(rungameplaytest gameplaytest)
 endif()

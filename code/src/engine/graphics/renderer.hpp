@@ -2,17 +2,32 @@
 #ifndef ENGINE_GRAPHICS_RENDERER_HPP
 #define ENGINE_GRAPHICS_RENDERER_HPP
 
-#include "engine/Command.hpp"
-#include "engine/Entity.hpp"
-#include "engine/common.hpp"
-#include "engine/model/data.hpp"
-
 #include "core/container/Buffer.hpp"
 #include "core/graphics/Image.hpp"
 #include "core/maths/Matrix.hpp"
 #include "core/serialization.hpp"
 
+#include "engine/Command.hpp"
+#include "engine/Entity.hpp"
+#include "engine/common.hpp"
+#include "engine/model/data.hpp"
+
+#include "utility/any.hpp"
+
 #include <vector>
+
+namespace engine
+{
+	namespace application
+	{
+		class window;
+	}
+
+	namespace resource
+	{
+		class reader;
+	}
+}
 
 namespace engine
 {
@@ -107,8 +122,9 @@ namespace engine
 			};
 		}
 
-		namespace renderer
+		class renderer
 		{
+		public:
 			struct camera_2d
 			{
 				core::maths::Matrix4x4f projection;
@@ -176,62 +192,63 @@ namespace engine
 				OPENGL_3_0
 			};
 
-			constexpr auto serialization(utility::in_place_type_t<Type>)
-			{
-				return utility::make_lookup_table(
-					std::make_pair(utility::string_view("opengl1.2"), Type::OPENGL_1_2),
-					std::make_pair(utility::string_view("opengl3.0"), Type::OPENGL_3_0)
-					);
-			}
+		public:
+			~renderer();
+			renderer(engine::application::window & window, engine::resource::reader & reader, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type);
+		};
 
-			void create(Type type);
-			void destroy();
-
-			// void notify(Camera2D && data);
-			// void notify(Camera3D && data);
-			// void notify(Viewport && data);
-			void post_add_display(engine::Asset asset, display && data);
-			void post_remove_display(engine::Asset asset);
-			void post_update_display(engine::Asset asset, camera_2d && data);
-			void post_update_display(engine::Asset asset, camera_3d && data);
-			void post_update_display(engine::Asset asset, viewport && data);
-
-			void post_register_character(engine::Asset asset, engine::model::mesh_t && data);
-			void post_register_mesh(engine::Asset asset, data::Mesh && data);
-			void post_register_texture(engine::Asset asset, core::graphics::Image && image);
-
-			void post_add_bar(engine::Entity entity, data::Bar && bar);
-			void post_add_character(engine::Entity entity, data::CompT && data);
-			void post_add_component(engine::Entity entity, data::CompC && data);
-			void post_add_component(engine::Entity entity, data::CompT && data);
-			void post_add_line(engine::Entity entity, data::LineC && data);
-			void post_add_panel(engine::Entity entity, data::ui::PanelC && data);
-			void post_add_panel(engine::Entity entity, data::ui::PanelT && data);
-			void post_add_text(engine::Entity entity, data::ui::Text && data);
-
-			void post_make_selectable(engine::Entity entity);
-			void post_make_obstruction(engine::Entity entity);
-			void post_make_transparent(engine::Entity entity);
-
-			void post_make_clear_selection();
-			void post_make_dehighlight(engine::Entity entity);
-			void post_make_deselect(engine::Entity entity);
-			void post_make_highlight(engine::Entity entity);
-			void post_make_select(engine::Entity entity);
-
-			void post_remove(engine::Entity entity);
-
-			// void post_update_characterskinning(engine::Entity entity, CharacterSkinning && data);
-			void post_update_modelviewmatrix(engine::Entity entity, data::ModelviewMatrix && data);
-			void post_update_panel(engine::Entity entity, data::ui::PanelC && data);
-			void post_update_panel(engine::Entity entity, data::ui::PanelT && data);
-			void post_update_text(engine::Entity entity, data::ui::Text && data);
-
-			void post_select(int x, int y, engine::Entity entity, engine::Command command);
-
-			void toggle_down();
-			void toggle_up();
+		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)
+		{
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_view("opengl1.2"), renderer::Type::OPENGL_1_2),
+				std::make_pair(utility::string_view("opengl3.0"), renderer::Type::OPENGL_3_0)
+				);
 		}
+
+		// void notify(renderer & renderer, renderer::Camera2D && data);
+		// void notify(renderer & renderer, renderer::Camera3D && data);
+		// void notify(renderer & renderer, renderer::Viewport && data);
+		void post_add_display(renderer & renderer, engine::Asset asset, renderer::display && data);
+		void post_remove_display(renderer & renderer, engine::Asset asset);
+		void post_update_display(renderer & renderer, engine::Asset asset, renderer::camera_2d && data);
+		void post_update_display(renderer & renderer, engine::Asset asset, renderer::camera_3d && data);
+		void post_update_display(renderer & renderer, engine::Asset asset, renderer::viewport && data);
+
+		void post_register_character(renderer & renderer, engine::Asset asset, engine::model::mesh_t && data);
+		void post_register_mesh(renderer & renderer, engine::Asset asset, data::Mesh && data);
+		void post_register_texture(renderer & renderer, engine::Asset asset, core::graphics::Image && image);
+
+		void post_add_bar(renderer & renderer, engine::Entity entity, data::Bar && bar);
+		void post_add_character(renderer & renderer, engine::Entity entity, data::CompT && data);
+		void post_add_component(renderer & renderer, engine::Entity entity, data::CompC && data);
+		void post_add_component(renderer & renderer, engine::Entity entity, data::CompT && data);
+		void post_add_line(renderer & renderer, engine::Entity entity, data::LineC && data);
+		void post_add_panel(renderer & renderer, engine::Entity entity, data::ui::PanelC && data);
+		void post_add_panel(renderer & renderer, engine::Entity entity, data::ui::PanelT && data);
+		void post_add_text(renderer & renderer, engine::Entity entity, data::ui::Text && data);
+
+		void post_make_selectable(renderer & renderer, engine::Entity entity);
+		void post_make_obstruction(renderer & renderer, engine::Entity entity);
+		void post_make_transparent(renderer & renderer, engine::Entity entity);
+
+		void post_make_clear_selection(renderer & renderer);
+		void post_make_dehighlight(renderer & renderer, engine::Entity entity);
+		void post_make_deselect(renderer & renderer, engine::Entity entity);
+		void post_make_highlight(renderer & renderer, engine::Entity entity);
+		void post_make_select(renderer & renderer, engine::Entity entity);
+
+		void post_remove(renderer & renderer, engine::Entity entity);
+
+		void post_update_characterskinning(renderer & renderer, engine::Entity entity, renderer::CharacterSkinning && data);
+		void post_update_modelviewmatrix(renderer & renderer, engine::Entity entity, data::ModelviewMatrix && data);
+		void post_update_panel(renderer & renderer, engine::Entity entity, data::ui::PanelC && data);
+		void post_update_panel(renderer & renderer, engine::Entity entity, data::ui::PanelT && data);
+		void post_update_text(renderer & renderer, engine::Entity entity, data::ui::Text && data);
+
+		void post_select(renderer & renderer, int x, int y, engine::Entity entity, engine::Command command);
+
+		void toggle_down(renderer & renderer);
+		void toggle_up(renderer & renderer);
 	}
 }
 

@@ -22,8 +22,9 @@ namespace engine
 {
 	namespace resource
 	{
-		namespace reader
+		class reader
 		{
+		public:
 			using Structurer = utility::variant<
 				core::ArmatureStructurer,
 				core::BytesStructurer,
@@ -36,13 +37,19 @@ namespace engine
 				core::NoSerializer
 				>;
 
-			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer), FormatMask formats);
+		public:
+			~reader();
+			reader();
 
-			inline void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer))
+		public:
+			void post_read(std::string name,
+			               void (* callback)(std::string name, Structurer && structurer),
+			               FormatMask formats);
+			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer))
 			{
-				return post_read(std::move(name), callback, FormatMask::all());
+				post_read(std::move(name), callback, FormatMask::all());
 			}
-		}
+		};
 	}
 }
 

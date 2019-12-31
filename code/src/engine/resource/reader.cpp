@@ -326,33 +326,35 @@ namespace engine
 {
 	namespace resource
 	{
-		namespace reader
+		reader::~reader()
 		{
-			void create()
+			debug_assert(active.load(std::memory_order_relaxed));
+
+			active.store(0, std::memory_order_relaxed);
+			event.set();
+
+			readerThread.join();
+		}
+
+		reader::reader()
+		{
+			debug_assert(!active.load(std::memory_order_relaxed));
+
+			active.store(1, std::memory_order_relaxed);
+			readerThread = core::async::Thread{ run };
+		}
+
+		void reader::post_read(std::string name,
+		                       void (* callback)(std::string name, Structurer && structurer),
+		                       FormatMask formats)
+		{
+			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRead>,
+			                                            std::move(name),
+			                                            callback,
+			                                            formats);
+			if (debug_verify(res, "read queue is full"))
 			{
-				debug_assert(!active.load(std::memory_order_relaxed));
-
-				active.store(1, std::memory_order_relaxed);
-				readerThread = core::async::Thread{ run };
-			}
-
-			void destroy()
-			{
-				debug_assert(active.load(std::memory_order_relaxed));
-
-				active.store(0, std::memory_order_relaxed);
 				event.set();
-
-				readerThread.join();
-			}
-
-			void post_read(std::string name, void (* callback)(std::string name, Structurer && structurer), FormatMask formats)
-			{
-				const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRead>, std::move(name), callback, formats);
-				if (debug_verify(res, "read queue is full"))
-				{
-					event.set();
-				}
 			}
 		}
 	}

@@ -1,11 +1,12 @@
-
-#include <config.h>
+#include "config.h"
 
 #if WINDOW_USE_X11
 
 #include "window.hpp"
 
+#include "engine/application/config.hpp"
 #include "engine/debug.hpp"
+
 #include "utility/string.hpp"
 #include "utility/unicode.hpp"
 
@@ -16,41 +17,46 @@
 #include <GL/glx.h>
 #include <GL/glxext.h>
 
+#include <poll.h>
 #include <unistd.h>
 
-#include <atomic>
 #include <stdexcept>
 
 namespace engine
 {
 	namespace graphics
 	{
-		namespace viewer
-		{
-			extern void notify_resize(const int width, const int height);
-		}
+		extern void notify_resize(viewer & viewer, int width, int height);
 	}
+
 	namespace hid
 	{
-		extern void key_character(XKeyEvent & event, utility::unicode_code_point cp);
+		extern void key_character(devices & devices, XKeyEvent & event, utility::unicode_code_point cp);
 
-		extern void button_press(XButtonEvent & event);
-		extern void button_release(XButtonEvent & event);
-		extern void key_press(XKeyEvent & event);
-		extern void key_release(XKeyEvent & event);
-		extern void motion_notify(const int x,
-		                          const int y,
-		                          const ::Time time);
+		extern void button_press(devices & devices, XButtonEvent & event);
+		extern void button_release(devices & devices, XButtonEvent & event);
+		extern void key_press(devices & devices, XKeyEvent & event);
+		extern void key_release(devices & devices, XKeyEvent & event);
+		extern void motion_notify(devices & devices, int x, int y, ::Time time);
 
-		namespace ui
-		{
-			extern void notify_resize(const int width, const int height);
-		}
+		extern void notify_resize(ui & ui, int width, int height);
 	}
 }
 
 namespace
 {
+	struct init_x11_threads_t
+	{
+		init_x11_threads_t()
+		{
+			XInitThreads();
+		}
+	} init_x11_threads;
+
+	engine::graphics::viewer * viewer = nullptr;
+	engine::hid::devices * devices = nullptr;
+	engine::hid::ui * ui = nullptr;
+
 	struct Display_guard
 	{
 		using resource_t = Display;
@@ -187,39 +193,20 @@ namespace
 	};
 #endif
 
-	/**
-	 */
-	Display *event_display;
-	/**
-	 */
-	Display *render_display;
-	/**
-	 */
-	Window render_window;
+	Display * display = nullptr;
+
+	Window window;
 #ifdef GLX_VERSION_1_3
-	/**
-	 */
 	GLXWindow glx_window;
-	/**
-	 */
 	GLXContext glx_context;
 #else
-	/**
-	 */
-	GLXContext render_context;
+	GLXContext glx_context;
 #endif
-	/**
-	 */
+
 	XIM input_method = nullptr;
-	/**
-	 */
 	XIC input_context = nullptr;
-	/**
-	 */
+
 	Atom wm_delete_window;
-	/**
-	 */
-	std::atomic_int should_close_window(0);
 
 	utility::unicode_code_point get_unicode(XKeyEvent & event)
 	{
@@ -245,61 +232,108 @@ namespace
 		return cp;
 	}
 
-	/**
-	 */
-	inline int messageLoop()
+	inline int message_loop()
 	{
-		XEvent event;
+		// inspired by the works of the glfw peeps, they seem to know
+		// their stuff :sunglasses:
+		//
+		// https://github.com/glfw/glfw/blob/a3d28ef52cec2fb69941bbce8a7ed7a2a22a8c41/src/x11_window.c#L2736
+		//
+		// after a lot of rewrites on how to separate the graphics from
+		// the event loop, it seemed like the best approach might be the
+		// simplest one of using `XInitThreads` and pray that it makes
+		// X11 "thread safe" (there seem to be a lot of confusion about
+		// this on the internet and the X11 documentation is rather thin
+		// on the subject). The function `_glfwPlatformWaitEvents` was
+		// the final piece of the puzzle, because without the insight of
+		// why `XNextEvent` is no good there was this annoying block in
+		// the graphics thread where the graphics would freeze unless
+		// you constantly moved the mouse or window :joy:
+		//
+		// at one point in time there was a comment in the glfw source
+		// code that explained this perfectly:
+		//
+		// select(1) is used instead of an X function like XNextEvent, as the
+		// wait inside those are guarded by the mutex protecting the display
+		// struct, locking out other threads from using X (including GLX)
 
-		while (!XNextEvent(event_display, &event))
+		struct pollfd fds[1] = {
+			{ConnectionNumber(::display), POLLIN, 0}
+		};
+
+		while (true)
 		{
-			if (XFilterEvent(&event, None) == True)
+			const auto ret = poll(fds, 1, -1);
+			if (ret == -1)
 			{
-				debug_printline("filtererd event type: ", event.type);
+				if (!debug_verify(errno == EINTR, "poll failed with ", errno))
+					return -1;
+
 				continue;
 			}
 
-			switch (event.type)
+			// removes any event we do not care about, maybe :thinking:
+			if (XPending(::display) == 0)
+				continue;
+
+			while (XQLength(::display) != 0)
 			{
-			case ButtonPress:
-				engine::hid::button_press(event.xbutton);
-				break;
-			case ButtonRelease:
-				engine::hid::button_release(event.xbutton);
-				break;
-			case ConfigureNotify:
-				break;
-			// case DestroyNotify:
-			// 	break;
-			case Expose:
-				engine::graphics::viewer::notify_resize(event.xexpose.width,
-				                                        event.xexpose.height);
-				engine::hid::ui::notify_resize(event.xexpose.width,
-				                               event.xexpose.height);
-				break;
-			case KeyPress:
-				engine::hid::key_press(event.xkey);
-				engine::hid::key_character(event.xkey, get_unicode(event.xkey));
-				break;
-			case KeyRelease:
-				engine::hid::key_release(event.xkey);
-				break;
-			case MapNotify:
-				break;
-			case MotionNotify:
-				engine::hid::motion_notify(event.xmotion.x,
-				                           event.xmotion.y,
-				                           event.xmotion.time);
-				break;
-			case ReparentNotify:
-				break;
-			case UnmapNotify:
-				return 0;
-			default:
-				debug_printline(engine::application_channel, "Event type(event_display): ", event.type);
+				XEvent event;
+				if (!debug_verify(XNextEvent(::display, &event) == 0, "XNextEvent failed"))
+					return -1;
+
+				if (XFilterEvent(&event, None) == True)
+				{
+					debug_printline(engine::application_channel, "filtererd event type ", event.type);
+
+					continue;
+				}
+
+				switch (event.type)
+				{
+				case ButtonPress:
+					button_press(*devices, event.xbutton);
+					break;
+				case ButtonRelease:
+					button_release(*devices, event.xbutton);
+					break;
+				case ClientMessage:
+					if ((Atom)event.xclient.data.l[0] == wm_delete_window)
+					{
+						debug_printline(engine::application_channel, "wm_delete_window");
+
+						XUnmapWindow(display, event.xclient.window);
+					}
+					break;
+				case ConfigureNotify:
+					break;
+					// case DestroyNotify:
+					// 	break;
+				case Expose:
+					notify_resize(*::viewer, event.xexpose.width, event.xexpose.height);
+					notify_resize(*::ui, event.xexpose.width, event.xexpose.height);
+					break;
+				case KeyPress:
+					key_press(*devices, event.xkey);
+					key_character(*devices, event.xkey, get_unicode(event.xkey));
+					break;
+				case KeyRelease:
+					key_release(*devices, event.xkey);
+					break;
+				case MapNotify:
+					break;
+				case MotionNotify:
+					motion_notify(*::devices, event.xmotion.x, event.xmotion.y, event.xmotion.time);
+					break;
+				case ReparentNotify:
+					break;
+				case UnmapNotify:
+					return 0;
+				default:
+					debug_printline(engine::application_channel, "unhandled event type ", event.type);
+				}
 			}
 		}
-		return -1;
 	}
 
 	void create_input_method(Display & display)
@@ -348,6 +382,8 @@ namespace
 		if (input_method)
 		{
 			XCloseIM(input_method);
+
+			input_method = nullptr;
 		}
 	}
 
@@ -393,6 +429,8 @@ namespace
 		{
 			XUnsetICFocus(input_context);
 			XDestroyIC(input_context);
+
+			input_context = nullptr;
 		}
 	}
 }
@@ -402,366 +440,349 @@ namespace engine
 {
 	namespace application
 	{
-		namespace window
+		window::~window()
 		{
-			void create(const config_t & config)
+			debug_assert(::display);
+
+			destroy_input_context();
+			destroy_input_method();
+
+#ifdef GLX_VERSION_1_3
+			glXDestroyWindow(::display, ::glx_window);
+			glXDestroyContext(::display, ::glx_context);
+			XDestroyWindow(::display, ::window);
+			XCloseDisplay(::display);
+#else
+			glXDestroyContext(::display, ::glx_context);
+			XDestroyWindow(::display, ::window);
+			XCloseDisplay(::display);
+#endif
+
+			::display = nullptr;
+
+			::ui = nullptr;
+			::devices = nullptr;
+			::viewer = nullptr;
+		}
+
+		window::window(const config_t & config)
+		{
+			debug_assert(!::display);
+
+			// XOpenDisplay
+			Display_guard display(nullptr);
+
+			// glXQueryExtension
 			{
-				// XOpenDisplay
-				Display_guard event_display(nullptr);
-				Display_guard render_display(nullptr);
+				int errorBase;
+				int eventBase;
 
-				// glXQueryExtension
+				if (!glXQueryExtension(display, &errorBase, &eventBase))
 				{
-					int errorBase;
-					int eventBase;
-
-					if (!glXQueryExtension(render_display, &errorBase, &eventBase))
-					{
-						throw std::runtime_error("glXQueryExtension: failed");
-					}
-					debug_printline(engine::application_channel, "glXQueryExtension: ", errorBase, " ", eventBase);
+					throw std::runtime_error("glXQueryExtension: failed");
 				}
-				// glXQueryVersion
+				debug_printline(engine::application_channel, "glXQueryExtension: ", errorBase, " ", eventBase);
+			}
+			// glXQueryVersion
+			{
+				int major;
+				int minor;
+
+				if (!glXQueryVersion(display, &major, &minor))
 				{
-					int major;
-					int minor;
-
-					if (!glXQueryVersion(render_display, &major, &minor))
-					{
-						throw std::runtime_error("glXQueryVersion: failed");
-					}
-					debug_printline(engine::application_channel, "glXQueryVersion: ", major, " ", minor);
+					throw std::runtime_error("glXQueryVersion: failed");
 				}
-				// XDefaultScreen
-				const int screen = XDefaultScreen(render_display);
+				debug_printline(engine::application_channel, "glXQueryVersion: ", major, " ", minor);
+			}
+			// XDefaultScreen
+			const int screen = XDefaultScreen(display);
 #ifdef GLX_VERSION_1_1
-				// glXGetClientString
-				{
-					debug_printline(engine::application_channel, "glXGetClientString GLX_VENDOR: ", glXGetClientString(render_display, GLX_VENDOR));
-					debug_printline(engine::application_channel, "glXGetClientString GLX_VERSION: ", glXGetClientString(render_display, GLX_VERSION));
-					// debug_printline(engine::application_channel, "glXGetClientString GLX_EXTENSIONS: ", glXGetClientString(render_display, GLX_EXTENSIONS));
-				}
-				// glXQueryServerString
-				{
-					debug_printline(engine::application_channel, "glXQueryServerString GLX_VENDOR: ", glXQueryServerString(render_display, screen, GLX_VENDOR));
-					debug_printline(engine::application_channel, "glXQueryServerString GLX_VERSION: ", glXQueryServerString(render_display, screen, GLX_VERSION));
-					// debug_printline(engine::application_channel, "glXQueryServerString GLX_EXTENSIONS: ", glXQueryServerString(render_display, screen, GLX_EXTENSIONS));
-				}
-				// glXQueryExtensionsString
-				{
-					// debug_printline(engine::application_channel, "glXQueryExtensionsString: ", glXQueryExtensionsString(render_display, screen));
-				}
+			// glXGetClientString
+			{
+				debug_printline(engine::application_channel, "glXGetClientString GLX_VENDOR: ", glXGetClientString(display, GLX_VENDOR));
+				debug_printline(engine::application_channel, "glXGetClientString GLX_VERSION: ", glXGetClientString(display, GLX_VERSION));
+				// debug_printline(engine::application_channel, "glXGetClientString GLX_EXTENSIONS: ", glXGetClientString(display, GLX_EXTENSIONS));
+			}
+			// glXQueryServerString
+			{
+				debug_printline(engine::application_channel, "glXQueryServerString GLX_VENDOR: ", glXQueryServerString(display, screen, GLX_VENDOR));
+				debug_printline(engine::application_channel, "glXQueryServerString GLX_VERSION: ", glXQueryServerString(display, screen, GLX_VERSION));
+				// debug_printline(engine::application_channel, "glXQueryServerString GLX_EXTENSIONS: ", glXQueryServerString(display, screen, GLX_EXTENSIONS));
+			}
+			// glXQueryExtensionsString
+			{
+				// debug_printline(engine::application_channel, "glXQueryExtensionsString: ", glXQueryExtensionsString(display, screen));
+			}
 #endif
 
 #ifdef GLX_VERSION_1_3
-				std::vector<std::string> glx_extensions = utility::split(glXQueryExtensionsString(render_display, screen), ' ', true);
+			std::vector<std::string> glx_extensions = utility::split(glXQueryExtensionsString(display, screen), ' ', true);
 
-				// visual
-				int fb_attributes[] = {
-					GLX_X_RENDERABLE,  True,
-					GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR, // default
-					GLX_DOUBLEBUFFER,  True,
-					GLX_RED_SIZE,      8,
-					GLX_GREEN_SIZE,    8,
-					GLX_BLUE_SIZE,     8,
-					GLX_ALPHA_SIZE,    8,
-					GLX_DEPTH_SIZE,    24,
-					GLX_STENCIL_SIZE,  8,
-					GLX_RENDER_TYPE,   GLX_RGBA_BIT, // default
-					GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT, // default
-					None
-				};
-				int n_buffers;
+			// visual
+			int fb_attributes[] = {
+				GLX_X_RENDERABLE,  True,
+				GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR, // default
+				GLX_DOUBLEBUFFER,  True,
+				GLX_RED_SIZE,      8,
+				GLX_GREEN_SIZE,    8,
+				GLX_BLUE_SIZE,     8,
+				GLX_ALPHA_SIZE,    8,
+				GLX_DEPTH_SIZE,    24,
+				GLX_STENCIL_SIZE,  8,
+				GLX_RENDER_TYPE,   GLX_RGBA_BIT, // default
+				GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT, // default
+				None
+			};
+			int n_buffers;
 
-				GLXFBConfig_guard fb_configs(render_display, screen, fb_attributes, &n_buffers);
-				XVisualInfo_guard visual_info(render_display, fb_configs[0]);
-				// root
-				Window root = XRootWindow(render_display, visual_info->screen);
+			GLXFBConfig_guard fb_configs(display, screen, fb_attributes, &n_buffers);
+			XVisualInfo_guard visual_info(display, fb_configs[0]);
+			// root
+			Window root = XRootWindow(display, visual_info->screen);
 
-				XSetWindowAttributes window_attributes;
-				{
-					window_attributes.colormap = XCreateColormap(render_display,
-					                                             root,
-					                                             visual_info->visual,
-					                                             AllocNone);
-					window_attributes.event_mask = NoEventMask;
-				}
-				Window render_window = XCreateWindow(render_display,
-				                                     root,
-				                                     0,
-				                                     0,
-				                                     config.window_width,
-				                                     config.window_height,
-				                                     0,
-				                                     visual_info->depth,
-				                                     InputOutput,
-				                                     visual_info->visual,
-				                                     CWColormap | CWEventMask,
-				                                     &window_attributes);
+			XSetWindowAttributes window_attributes;
+			{
+				window_attributes.colormap = XCreateColormap(display,
+				                                             root,
+				                                             visual_info->visual,
+				                                             AllocNone);
+				window_attributes.event_mask = NoEventMask;
+			}
+			Window window = XCreateWindow(display,
+			                              root,
+			                              0,
+			                              0,
+			                              config.window_width,
+			                              config.window_height,
+			                              0,
+			                              visual_info->depth,
+			                              InputOutput,
+			                              visual_info->visual,
+			                              CWColormap | CWEventMask,
+			                              &window_attributes);
 
-				PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = nullptr;
-				if (std::count(std::begin(glx_extensions), std::end(glx_extensions), "GLX_ARB_create_context"))
-				{
+			PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = nullptr;
+			if (std::count(std::begin(glx_extensions), std::end(glx_extensions), "GLX_ARB_create_context"))
+			{
 #ifdef GLX_VERSION_1_4
-					glXCreateContextAttribsARB = reinterpret_cast<PFNGLXCREATECONTEXTATTRIBSARBPROC>(glXGetProcAddress(reinterpret_cast<const GLubyte *>("glXCreateContextAttribsARB")));
+				glXCreateContextAttribsARB = reinterpret_cast<PFNGLXCREATECONTEXTATTRIBSARBPROC>(glXGetProcAddress(reinterpret_cast<const GLubyte *>("glXCreateContextAttribsARB")));
 #else
-					// TODO: check GLX_ARB_get_proc_address?
-					glXCreateContextAttribsARB = reinterpret_cast<PFNGLXCREATECONTEXTATTRIBSARBPROC>(glXGetProcAddressARB(reinterpret_cast<const GLubyte *>("glXCreateContextAttribsARB")));
+				// TODO: check GLX_ARB_get_proc_address?
+				glXCreateContextAttribsARB = reinterpret_cast<PFNGLXCREATECONTEXTATTRIBSARBPROC>(glXGetProcAddressARB(reinterpret_cast<const GLubyte *>("glXCreateContextAttribsARB")));
 #endif
-				}
-				GLXContext glx_context;
-				if (glXCreateContextAttribsARB)
-				{
-					// glXUseXFont needs compatibility profile since 3.1
-					const int attriblist[] = {
-						GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
-						GLX_CONTEXT_MINOR_VERSION_ARB, 0,
-						// GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
-						// GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-						0
-					};
-					glx_context = glXCreateContextAttribsARB(render_display,
-					                                         fb_configs[0],
-					                                         nullptr,
-					                                         True,
-					                                         attriblist);
-				}
-				else
-				{
-					glx_context = glXCreateNewContext(render_display,
-					                                  fb_configs[0],
-					                                  GLX_RGBA_TYPE,
-					                                  nullptr,
-					                                  True);
-				}
-
-				GLXWindow glx_window = glXCreateWindow(render_display,
-				                                       fb_configs[0],
-				                                       render_window,
-				                                       nullptr);
-#else
-				// visual
-				GLint visual_attributes[] = {
-					GLX_RGBA,
-					GLX_DOUBLEBUFFER,
-					GLX_RED_SIZE, 8,
-					GLX_GREEN_SIZE, 8,
-					GLX_BLUE_SIZE, 8,
-					GLX_ALPHA_SIZE, 8,
-					GLX_DEPTH_SIZE, 24,
-					GLX_STENCIL_SIZE, 8,
-					None
+			}
+			GLXContext glx_context;
+			if (glXCreateContextAttribsARB)
+			{
+				// glXUseXFont needs compatibility profile since 3.1
+				const int attriblist[] = {
+					GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+					GLX_CONTEXT_MINOR_VERSION_ARB, 0,
+					// GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+					// GLX_CONTEXT_PROFILE_MASK_ARB,  GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+					0
 				};
+				glx_context = glXCreateContextAttribsARB(display,
+				                                         fb_configs[0],
+				                                         nullptr,
+				                                         True,
+				                                         attriblist);
+			}
+			else
+			{
+				glx_context = glXCreateNewContext(display,
+				                                  fb_configs[0],
+				                                  GLX_RGBA_TYPE,
+				                                  nullptr,
+				                                  True);
+			}
 
-				XVisualInfo_guard visual_info(render_display, 0, visual_attributes);
-				// root
-				Window root = XRootWindow(render_display, screen);
-
-				XSetWindowAttributes window_attributes;
-				{
-					window_attributes.colormap = XCreateColormap(render_display,
-					                                             root,
-					                                             visual_info->visual,
-					                                             AllocNone);
-					window_attributes.event_mask = NoEventMask;
-				}
-				Window render_window = XCreateWindow(render_display,
-				                                     root,
-				                                     0,
-				                                     0,
-				                                     800,
-				                                     400,
-				                                     0,
-				                                     visual_info->depth,
-				                                     InputOutput,
-				                                     visual_info->visual,
-				                                     CWColormap | CWEventMask,
-				                                     &window_attributes);
-
-				GLXContext render_context = glXCreateContext(render_display,
-				                                             visual_info,
-				                                             nullptr,
-				                                             True);
-#endif
-				wm_delete_window = XInternAtom(render_display, "WM_DELETE_WINDOW", False);
-				{
-					XSetWMProtocols(render_display, render_window, &wm_delete_window, 1);
-				}
-
-				create_input_method(*event_display);
-				create_input_context(render_window);
-
-				XSelectInput(event_display, render_window, ButtonPressMask | ButtonReleaseMask | ExposureMask | KeyPressMask | KeyReleaseMask | PointerMotionMask | StructureNotifyMask);
-
-				// XAutoRepeatOff(event_display); // dangerous!
-
-				XMapWindow(render_display, render_window);
-				//
-				::event_display = event_display.detach();
-				::render_display = render_display.detach();
-				::render_window = render_window;
-#ifdef GLX_VERSION_1_3
-				::glx_window = glx_window;
-				::glx_context = glx_context;
+			GLXWindow glx_window = glXCreateWindow(display,
+			                                       fb_configs[0],
+			                                       window,
+			                                       nullptr);
 #else
-				::render_context = render_context;
-#endif
-			}
-			void destroy()
-			{
-				destroy_input_context();
-				destroy_input_method();
+			// visual
+			GLint visual_attributes[] = {
+				GLX_RGBA,
+				GLX_DOUBLEBUFFER,
+				GLX_RED_SIZE, 8,
+				GLX_GREEN_SIZE, 8,
+				GLX_BLUE_SIZE, 8,
+				GLX_ALPHA_SIZE, 8,
+				GLX_DEPTH_SIZE, 24,
+				GLX_STENCIL_SIZE, 8,
+				None
+			};
 
+			XVisualInfo_guard visual_info(display, 0, visual_attributes);
+			// root
+			Window root = XRootWindow(display, screen);
+
+			XSetWindowAttributes window_attributes;
+			{
+				window_attributes.colormap = XCreateColormap(display,
+				                                             root,
+				                                             visual_info->visual,
+				                                             AllocNone);
+				window_attributes.event_mask = NoEventMask;
+			}
+			Window window = XCreateWindow(display,
+			                              root,
+			                              0,
+			                              0,
+			                              config.window_width,
+			                              config.window_height,
+			                              0,
+			                              visual_info->depth,
+			                              InputOutput,
+			                              visual_info->visual,
+			                              CWColormap | CWEventMask,
+			                              &window_attributes);
+
+			GLXContext glx_context = glXCreateContext(display,
+			                                          visual_info,
+			                                          nullptr,
+			                                          True);
+#endif
+			wm_delete_window = XInternAtom(display, "WM_DELETE_WINDOW", False);
+			{
+				XSetWMProtocols(display, window, &wm_delete_window, 1);
+			}
+
+			create_input_method(*display);
+			create_input_context(window);
+
+			XSelectInput(display, window, ButtonPressMask | ButtonReleaseMask | ExposureMask | KeyPressMask | KeyReleaseMask | PointerMotionMask | StructureNotifyMask);
+
+			// XAutoRepeatOff(display); // dangerous!
+
+			XMapWindow(display, window);
+
+			::display = display.detach();
+			::window = window;
 #ifdef GLX_VERSION_1_3
-				glXDestroyWindow(render_display, glx_window);
-				glXDestroyContext(render_display, glx_context);
-				XDestroyWindow(render_display, render_window);
-				XCloseDisplay(render_display);
-				XCloseDisplay(event_display);
-#else
-				glXDestroyContext(render_display, render_context);
-				XDestroyWindow(render_display, render_window);
-				XCloseDisplay(render_display);
-				XCloseDisplay(event_display);
+			::glx_window = glx_window;
 #endif
-			}
+			::glx_context = glx_context;
+		}
 
-			void make_current()
-			{
+		void window::set_dependencies(engine::graphics::viewer & viewer, engine::hid::devices & devices, engine::hid::ui & ui)
+		{
+			::viewer = &viewer;
+			::devices = &devices;
+			::ui = &ui;
+		}
+
+		void make_current(window & window)
+		{
 #ifdef GLX_VERSION_1_3
-				glXMakeContextCurrent(render_display, glx_window, glx_window, glx_context);
+			debug_verify(glXMakeContextCurrent(display, glx_window, glx_window, glx_context) == True);
 #else
-				glXMakeCurrent(render_display, render_window, render_context);
+			debug_verify(glXMakeCurrent(display, window, glx_context) == True);
 #endif
-			}
-			void swap_buffers()
-			{
-				// check if we are supposed to close down the application
-				{
-					XEvent event;
+		}
 
-					while (XEventsQueued(render_display, 0))
-					{
-						XNextEvent(render_display, &event);
-
-						switch (event.type)
-						{
-						case ClientMessage:
-							if ((Atom)event.xclient.data.l[0] == wm_delete_window)
-							{
-								debug_printline(engine::application_channel, "wm_delete_window");
-
-								XUnmapWindow(render_display, event.xclient.window);
-							}
-							break;
-						default:
-							debug_printline(engine::application_channel, "Event type(render_display): ", event.type);
-						}
-					}
-				}
-				{
-					if (should_close_window.load(std::memory_order_relaxed))
-					{
-						XUnmapWindow(render_display, render_window);
-					}
-				}
-				// swap buffers
+		void swap_buffers(window & window)
+		{
 #ifdef GLX_VERSION_1_3
-				glXSwapBuffers(render_display, glx_window);
+			glXSwapBuffers(display, glx_window);
 #else
-				glXSwapBuffers(render_display, render_window);
+			glXSwapBuffers(display, window);
 #endif
+		}
+
+		XkbDescPtr load_key_names(window & window)
+		{
+			int lib_major = XkbMajorVersion;
+			int lib_minor = XkbMinorVersion;
+
+			if (XkbLibraryVersion(&lib_major, &lib_minor) == False)
+			{
+				debug_fail("Not compatible with runtime version of XKB");
+				return nullptr;
 			}
 
-			XkbDescPtr load_key_names()
+			int opcode;
+			int event;
+			int error;
+			int major = XkbMajorVersion;
+			int minor = XkbMinorVersion;
+
+			if (XkbQueryExtension(display, &opcode, &event, &error, &major, &minor) == False)
 			{
-				int lib_major = XkbMajorVersion;
-				int lib_minor = XkbMinorVersion;
-
-				if (XkbLibraryVersion(&lib_major, &lib_minor) == False)
-				{
-					debug_fail("Not compatible with runtime version of XKB");
-					return nullptr;
-				}
-
-				int opcode;
-				int event;
-				int error;
-				int major = XkbMajorVersion;
-				int minor = XkbMinorVersion;
-
-				if (XkbQueryExtension(event_display, &opcode, &event, &error, &major, &minor) == False)
-				{
-					debug_fail("Not compatible with server version of XKB");
-					return nullptr;
-				}
-
-				XkbDescPtr const desc = XkbGetMap(event_display, 0, XkbUseCoreKbd);
-				if (!desc)
-				{
-					debug_fail("Failed to get XKB map");
-					return nullptr;
-				}
-				if (XkbGetNames(event_display, XkbKeyNamesMask, desc) != Success)
-				{
-					debug_fail("Failed to get XKB names");
-					XkbFreeClientMap(desc, 0, True);
-					return nullptr;
-				}
-
-				return desc;
+				debug_fail("Not compatible with server version of XKB");
+				return nullptr;
 			}
-			void free_key_names(XkbDescPtr desc)
+
+			XkbDescPtr const desc = XkbGetMap(display, 0, XkbUseCoreKbd);
+			if (!desc)
 			{
-				XkbFreeNames(desc, XkbKeyNamesMask, True);
+				debug_fail("Failed to get XKB map");
+				return nullptr;
+			}
+			if (XkbGetNames(display, XkbKeyNamesMask, desc) != Success)
+			{
+				debug_fail("Failed to get XKB names");
 				XkbFreeClientMap(desc, 0, True);
+				return nullptr;
 			}
+
+			return desc;
+		}
+
+		void free_key_names(window & window, XkbDescPtr desc)
+		{
+			XkbFreeNames(desc, XkbKeyNamesMask, True);
+			XkbFreeClientMap(desc, 0, True);
+		}
 
 #if TEXT_USE_X11
-			void buildFont(XFontStruct *const font_struct, const unsigned int first, const unsigned int last ,const int base)
+		void buildFont(window & window, XFontStruct * font_struct, unsigned int first, unsigned int last, int base)
+		{
+			glXUseXFont(font_struct->fid, first, last - first + 1, base + first);
+		}
+
+		void freeFont(window & window, XFontStruct * font_struct)
+		{
+			XFreeFont(display, font_struct);
+		}
+
+		XFontStruct * loadFont(window & window, const char * name, int height)
+		{
+			int n_old_paths;
+			char ** const old_paths = XGetFontPath(display, &n_old_paths);
+
+			char * const pwd = get_current_dir_name();
 			{
-				glXUseXFont(font_struct->fid, first, last - first + 1, base + first);
+				const auto directory = utility::concat(pwd, "/res/font");
+
+				const char * const new_paths[] = {directory.c_str()};
+				int n_new_paths = 1;
+				XSetFontPath(display, const_cast<char **>(new_paths), n_new_paths);
 			}
-			void freeFont(XFontStruct *const font_struct)
-			{
-				XFreeFont(render_display, font_struct);
-			}
-			XFontStruct *loadFont(const char *const name, const int height)
-			{
-				int n_old_paths;
-				char **const old_paths = XGetFontPath(render_display, &n_old_paths);
+			free(pwd);
 
-				char *const pwd = get_current_dir_name();
-				{
-					const auto directory = utility::concat(pwd, "/res/font");
+			const auto format = utility::concat("-*-", name, "-*-*-*-*-*-*-*-", height * 6, "-*-*-iso8859-1");
 
-					const char *const new_paths[] = {directory.c_str()};
-					int n_new_paths = 1;
-					XSetFontPath(render_display, const_cast<char **>(new_paths), n_new_paths);
-				}
-				free(pwd);
+			XFontStruct * const font_struct = XLoadQueryFont(display, format.c_str());
 
-				const auto format = utility::concat("-*-", name, "-*-*-*-*-*-*-*-", height * 6, "-*-*-iso8859-1");
+			XSetFontPath(display, old_paths, n_old_paths);
 
-				XFontStruct *const font_struct = XLoadQueryFont(render_display, format.c_str());
+			XFreeFontPath(old_paths);
 
-				XSetFontPath(render_display, old_paths, n_old_paths);
-
-				XFreeFontPath(old_paths);
-
-				return font_struct;
-			}
+			return font_struct;
+		}
 #endif
 
-			int execute()
-			{
-				return messageLoop();
-			}
+		int execute(window & window)
+		{
+			return message_loop();
+		}
 
-			void close()
-			{
-				should_close_window.store(1, std::memory_order_relaxed);
-			}
+		void close()
+		{
+			XUnmapWindow(::display, ::window);
 		}
 	}
 }

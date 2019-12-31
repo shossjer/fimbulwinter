@@ -29,7 +29,6 @@
 #include "engine/graphics/viewer.hpp"
 #include "engine/resource/reader.hpp"
 
-#include "utility/any.hpp"
 #include "utility/lookup_table.hpp"
 #include "utility/unicode.hpp"
 #include "utility/variant.hpp"
@@ -50,16 +49,13 @@ namespace engine
 {
 	namespace application
 	{
-		namespace window
-		{
-			extern void make_current();
-			extern void swap_buffers();
-		}
+		extern void make_current(window & window);
+		extern void swap_buffers(window & window);
 	}
 
 	namespace graphics
 	{
-		namespace renderer
+		namespace detail
 		{
 			extern core::async::Thread renderThread;
 			extern std::atomic_int active;
@@ -72,15 +68,12 @@ namespace engine
 			extern core::container::PageQueue<utility::heap_storage<int, int, engine::Entity, engine::Command>> queue_select;
 
 			extern std::atomic<int> entitytoggle;
-		}
-	}
-}
 
-namespace gameplay
-{
-	namespace gamestate
-	{
-		extern void post_command(engine::Entity entity, engine::Command command, utility::any && data);
+			extern engine::graphics::renderer * self;
+			extern engine::application::window * window;
+			extern engine::resource::reader * reader;
+			extern void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data);
+		}
 	}
 }
 
@@ -288,7 +281,7 @@ namespace
 			fragments[count] = fs;
 			count++;
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			return p;
 		}
@@ -445,7 +438,7 @@ namespace
 		{
 			glDeleteTextures(1, &id);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 		texture_t(core::graphics::Image && image)
 		{
@@ -479,11 +472,11 @@ namespace
 				debug_unreachable();
 			}
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			glDisable(GL_TEXTURE_2D);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 
 		void enable() const
@@ -492,13 +485,13 @@ namespace
 			glBindTexture(GL_TEXTURE_2D, id);
 			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 		void disable() const
 		{
 			glDisable(GL_TEXTURE_2D);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 	};
 
@@ -553,7 +546,7 @@ namespace
 		void compile(engine::Asset asset, utility::string_view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
 			const int index = find(asset);
-			debug_assert(index < count);
+			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			const FontInfo & info = infos[index];
 
@@ -618,7 +611,7 @@ namespace
 		{
 			const engine::Asset asset(name);
 			const int index = find(asset);
-			debug_assert(index >= count);
+			debug_assert(index >= count, "font asset ", asset, " already exists");
 
 			assets[index] = asset;
 
@@ -633,6 +626,16 @@ namespace
 			info.size = 0; // ?
 
 			count++;
+		}
+
+		void destroy(engine::Asset asset)
+		{
+			const int index = find(asset);
+			debug_assert(index < count, "font asset ", asset, " does not exist");
+
+			assets[index] = std::move(assets[count - 1]);
+			infos[index] = std::move(infos[count - 1]);
+			count--;
 		}
 	};
 
@@ -1093,7 +1096,7 @@ namespace
 
 namespace
 {
-	using namespace engine::graphics::renderer;
+	using namespace engine::graphics::detail;
 
 	core::container::PageQueue<utility::heap_storage<std::string, ShaderData>> queue_shaders;
 
@@ -1408,7 +1411,7 @@ namespace
 
 		entitypixels.resize(framebuffer_width * framebuffer_height);
 
-		debug_verify(glGetError() == GL_NO_ERROR);
+		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 	void maybe_resize_framebuffer()
 	{
@@ -1466,7 +1469,7 @@ namespace
 
 		glEnable(GL_LIGHT0);
 
-		debug_verify(glGetError() == GL_NO_ERROR);
+		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 
 	template <typename T, std::size_t N>
@@ -1600,7 +1603,7 @@ namespace
 			vertices, triangles, normals, coords });
 	}
 
-	std::atomic_int texture_lock(0);
+	std::atomic_int read_lock;
 
 	struct TryReadImage
 	{
@@ -1632,8 +1635,8 @@ namespace
 			asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
 		}
 
-		engine::graphics::renderer::post_register_texture(asset, std::move(image));
-		texture_lock++;
+		post_register_texture(*self, asset, std::move(image));
+		read_lock++;
 	}
 
 	struct TryReadShader
@@ -1657,6 +1660,7 @@ namespace
 		visit(TryReadShader{shader_data}, std::move(structurer));
 
 		queue_shaders.try_push(std::make_pair(std::move(name), std::move(shader_data)));
+		read_lock++;
 	}
 
 #if TEXT_USE_FREETYPE
@@ -1853,7 +1857,7 @@ namespace
 
 
 			const auto asset = engine::Asset(name);
-			engine::graphics::renderer::post_register_texture(asset, core::graphics::Image(texture_width, texture_height, 8, 1, core::graphics::ColorType::R, std::move(pixels)));
+			post_register_texture(*self, asset, core::graphics::Image(texture_width, texture_height, 8, 1, core::graphics::ColorType::R, std::move(pixels)));
 
 			font_manager.create(std::move(name), std::move(unicode_indices), std::move(symbol_data), slot_size_x, slot_size_y, texture_width, texture_height);
 		}
@@ -1864,13 +1868,14 @@ namespace
 		FT_Done_FreeType(library);
 
 		debug_printline("<<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>");
+		read_lock++;
 	}
 #endif
 
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
-		engine::application::window::make_current();
+		make_current(*engine::graphics::detail::window);
 
 		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
 		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
@@ -1893,13 +1898,14 @@ namespace
 
 		// TODO: move to loader/level
 		// vvvvvvvv tmp vvvvvvvv
+		read_lock = 0;
 #if TEXT_USE_FREETYPE
-		engine::resource::reader::post_read("res/font/consolas.ttf", data_callback_ttf);
+		reader->post_read("res/font/consolas.ttf", data_callback_ttf);
 #else
 		{
 			engine::graphics::opengl::Font::Data data;
 
-			if (!data.load("consolas", 14))
+			if (!data.load(*engine::graphics::renderer::window, "consolas", 14))
 			{
 				debug_fail();
 			}
@@ -1910,16 +1916,14 @@ namespace
 #endif
 
 		// add cuboid mesh as an asset
-		engine::graphics::renderer::post_register_mesh(
-			engine::Asset{ "cuboid" },
-			createCuboid());
+		post_register_mesh(*self, engine::Asset{"cuboid"}, createCuboid());
 
-		engine::resource::reader::post_read("res/box.png", data_callback_image);
-		engine::resource::reader::post_read("res/dude.png", data_callback_image);
-		engine::resource::reader::post_read("res/photo.png", data_callback_image);
-		while (texture_lock < 3);
+		reader->post_read("res/box.png", data_callback_image);
+		reader->post_read("res/dude.png", data_callback_image);
+		reader->post_read("res/photo.png", data_callback_image);
 
-		engine::graphics::renderer::post_add_component(
+		post_add_component(
+			*self,
 			engine::Entity::create(),
 			engine::graphics::data::CompT{
 				core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f),
@@ -1927,10 +1931,16 @@ namespace
 				engine::Asset{ "cuboid" },
 				engine::Asset{ "my_png" } });
 
-		engine::resource::reader::post_read("res/gfx/color.130.glsl", data_callback_shader);
-		engine::resource::reader::post_read("res/gfx/entity.130.glsl", data_callback_shader);
-		engine::resource::reader::post_read("res/gfx/text.130.glsl", data_callback_shader);
-		engine::resource::reader::post_read("res/gfx/texture.130.glsl", data_callback_shader);
+		reader->post_read("res/gfx/color.130.glsl", data_callback_shader);
+		reader->post_read("res/gfx/entity.130.glsl", data_callback_shader);
+		reader->post_read("res/gfx/text.130.glsl", data_callback_shader);
+		reader->post_read("res/gfx/texture.130.glsl", data_callback_shader);
+
+#if TEXT_USE_FREETYPE
+		while (read_lock < 8);
+#else
+		while (read_lock < 7);
+#endif
 		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 
@@ -1944,6 +1954,9 @@ namespace
 			component.update();
 		}
 
+		if (framebuffer_width == 0 || framebuffer_height == 0)
+			return;
+
 		const GLint p_color = shader_manager.get(engine::Asset("res/gfx/color.130.glsl"));
 		const GLint p_entity = shader_manager.get(engine::Asset("res/gfx/entity.130.glsl"));
 		const GLint p_tex = shader_manager.get(engine::Asset("res/gfx/texture.130.glsl"));
@@ -1956,6 +1969,8 @@ namespace
 		//glClearStencil(0x00000000);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+		debug_assert(glGetError() == GL_NO_ERROR);
+
 		////////////////////////////////////////////////////////
 		//
 		//  entity buffer
@@ -1965,6 +1980,7 @@ namespace
 		glViewport(0, 0, framebuffer_width, framebuffer_height);
 		glClearColor(0.f, 0.f, 0.f, 0.f); // null entity
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		debug_assert(glGetError() == GL_NO_ERROR);
 
 		glDisable(GL_LIGHTING);
 		glEnable(GL_DEPTH_TEST);
@@ -2008,7 +2024,7 @@ namespace
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2040,7 +2056,7 @@ namespace
 			}
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2069,7 +2085,7 @@ namespace
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2123,7 +2139,7 @@ namespace
 				indices);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2146,7 +2162,7 @@ namespace
 			while (queue_select.try_pop(select_args))
 			{
 				engine::graphics::renderer::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
-				gameplay::gamestate::post_command(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
+				callback_select(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
 			}
 		}
 
@@ -2257,7 +2273,7 @@ namespace
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2316,7 +2332,7 @@ namespace
 
 			glLineWidth(1.f);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2393,7 +2409,7 @@ namespace
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2463,7 +2479,7 @@ namespace
 			glDisableVertexAttribArray(normal_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2580,7 +2596,7 @@ namespace
 			glDisableVertexAttribArray(color_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2609,7 +2625,7 @@ namespace
 
 			const auto & texture = materials.get<texture_t>(engine::Asset("res/font/consolas.ttf"));
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.push();
 			modelview_matrix.rotate(core::maths::degreef(10.f), 0.f, 0.f, -1.f);
@@ -2646,7 +2662,7 @@ namespace
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2723,7 +2739,7 @@ namespace
 				indices);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2811,7 +2827,7 @@ namespace
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
-			debug_verify(glGetError() == GL_NO_ERROR);
+			debug_assert(glGetError() == GL_NO_ERROR);
 
 			modelview_matrix.pop();
 		}
@@ -2900,13 +2916,15 @@ namespace
 		}
 
 		// swap buffers
-		engine::application::window::swap_buffers();
+		swap_buffers(*engine::graphics::detail::window);
 	}
 
 	void render_teardown()
 	{
 		debug_printline(engine::graphics_channel, "render_callback stopping");
-#if !TEXT_USE_FREETYPE
+#if TEXT_USE_FREETYPE
+		font_manager.destroy(engine::Asset("res/font/consolas.ttf"));
+#else
 		// vvvvvvvv tmp vvvvvvvv
 		{
 			normal_font.decompile();
@@ -2938,7 +2956,7 @@ namespace engine
 {
 	namespace graphics
 	{
-		namespace renderer
+		namespace detail
 		{
 			namespace opengl_30
 			{

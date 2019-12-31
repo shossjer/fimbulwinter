@@ -1,8 +1,8 @@
-
-#include <config.h>
+#include "config.h"
 
 #if WINDOW_USE_USER32
 
+#include "devices.hpp"
 #include "input.hpp"
 
 #include "engine/console.hpp"
@@ -37,11 +37,8 @@ namespace engine
 #if INPUT_HAS_USER32_RAWINPUT
 	namespace application
 	{
-		namespace window
-		{
-			void RegisterRawInputDevices(const uint32_t * collections, int count);
-			void UnregisterRawInputDevices(const uint32_t * collections, int count);
-		}
+		extern void RegisterRawInputDevices(window & window, const uint32_t * collections, int count);
+		extern void UnregisterRawInputDevices(window & window, const uint32_t * collections, int count);
 	}
 #endif
 
@@ -59,6 +56,8 @@ namespace engine
 
 namespace
 {
+	engine::application::window * window = nullptr;
+
 	using Button = engine::hid::Input::Button;
 
 	// scancodes are the primary way we use to identify keys but we only
@@ -277,12 +276,12 @@ namespace
 
 	void start_hardware_input()
 	{
-		engine::application::window::RegisterRawInputDevices(collections, sizeof collections / sizeof collections[0]);
+		RegisterRawInputDevices(*::window, collections, sizeof collections / sizeof collections[0]);
 	}
 
 	void stop_hardware_input()
 	{
-		engine::application::window::UnregisterRawInputDevices(collections, sizeof collections / sizeof collections[0]);
+		UnregisterRawInputDevices(*::window, collections, sizeof collections / sizeof collections[0]);
 
 		// todo which thread are we executing this in? it should be
 		// the same one as for add/remove_device
@@ -359,9 +358,9 @@ namespace engine
 	namespace hid
 	{
 #if INPUT_HAS_USER32_RAWINPUT
-		void add_device(HANDLE handle)
+		void add_device(devices &devices, HANDLE handle)
 		{
-			debug_assert(std::find_if(devices.begin(), devices.end(), [&handle](const Device & device){ return device.handle == handle; }) == devices.end(), "device has already been added!");
+			debug_assert(std::find_if(::devices.begin(), ::devices.end(), [&handle](const Device & device){ return device.handle == handle; }) == ::devices.end(), "device has already been added!");
 
 			char name[256] = "Unknown";
 			{
@@ -375,8 +374,8 @@ namespace engine
 			UINT len = sizeof rdi;
 			debug_verify(GetRawInputDeviceInfo(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
 
-			devices.emplace_back(handle);
-			Device & device = devices.back();
+			::devices.emplace_back(handle);
+			Device & device = ::devices.back();
 # if INPUT_HAS_USER32_HID
 			formats.emplace_back();
 # endif
@@ -384,19 +383,19 @@ namespace engine
 			switch (rdi.dwType)
 			{
 			case RIM_TYPEMOUSE:
-				debug_printline("device ", devices.size() - 1, "(mouse) added: \"", name, "\" id ", rdi.mouse.dwId, " buttons ", rdi.mouse.dwNumberOfButtons, " sample rate ", rdi.mouse.dwSampleRate, rdi.mouse.fHasHorizontalWheel ? " has horizontal wheel" : "");
+				debug_printline("device ", ::devices.size() - 1, "(mouse) added: \"", name, "\" id ", rdi.mouse.dwId, " buttons ", rdi.mouse.dwNumberOfButtons, " sample rate ", rdi.mouse.dwSampleRate, rdi.mouse.fHasHorizontalWheel ? " has horizontal wheel" : "");
 				found_device(device.id, 0, 0);
 				add_source(device.id, "", 3, name);
 				break;
 			case RIM_TYPEKEYBOARD:
-				debug_printline("device ", devices.size() - 1, "(keyboard) added: \"", name, "\" type ", rdi.keyboard.dwType, " sub type ", rdi.keyboard.dwSubType, " mode ", rdi.keyboard.dwKeyboardMode, " function keys ", rdi.keyboard.dwNumberOfFunctionKeys, " indicators ", rdi.keyboard.dwNumberOfIndicators, " keys ", rdi.keyboard.dwNumberOfKeysTotal);
+				debug_printline("device ", ::devices.size() - 1, "(keyboard) added: \"", name, "\" type ", rdi.keyboard.dwType, " sub type ", rdi.keyboard.dwSubType, " mode ", rdi.keyboard.dwKeyboardMode, " function keys ", rdi.keyboard.dwNumberOfFunctionKeys, " indicators ", rdi.keyboard.dwNumberOfIndicators, " keys ", rdi.keyboard.dwNumberOfKeysTotal);
 				found_device(device.id, 0, 0);
 				add_source(device.id, "", 2, name);
 				break;
 # if INPUT_HAS_USER32_HID
 			case RIM_TYPEHID:
 			{
-				debug_printline("device ", devices.size() - 1, "(hid) added: \"", name, "\" vendor id ", rdi.hid.dwVendorId, " product id ", rdi.hid.dwProductId, " version ", rdi.hid.dwVersionNumber, " usage page ", rdi.hid.usUsagePage, " usage ", rdi.hid.usUsage);
+				debug_printline("device ", ::devices.size() - 1, "(hid) added: \"", name, "\" vendor id ", rdi.hid.dwVendorId, " product id ", rdi.hid.dwProductId, " version ", rdi.hid.dwVersionNumber, " usage page ", rdi.hid.usUsagePage, " usage ", rdi.hid.usUsage);
 				found_device(device.id, rdi.hid.dwVendorId, rdi.hid.dwProductId);
 				add_source(device.id, "", 0, name);
 
@@ -624,27 +623,44 @@ namespace engine
 			}
 		}
 
-		void remove_device(HANDLE handle)
+		void remove_device(devices &devices, HANDLE handle)
 		{
-			auto it = std::find_if(devices.begin(), devices.end(), [&handle](const Device & device){ return device.handle == handle; });
-			debug_assert(it != devices.end(), "device was never added before removal!");
+			auto it = std::find_if(::devices.begin(), ::devices.end(), [&handle](const Device & device){ return device.handle == handle; });
+			debug_assert(it != ::devices.end(), "device was never added before removal!");
 
 			lost_device(it->id);
 
 # if INPUT_HAS_USER32_HID
-			formats.erase(std::next(formats.begin(), std::distance(devices.begin(), it)));
+			formats.erase(std::next(formats.begin(), std::distance(::devices.begin(), it)));
 # endif
-			devices.erase(it);
+			::devices.erase(it);
 		}
 
-		void create(bool hardware_input)
+		void destroy_subsystem(devices &devices)
 		{
+#if INPUT_HAS_USER32_RAWINPUT
+			disable_hardware_input();
+#endif
+
+			engine::abandon("toggle-hardware-input");
+			engine::abandon("enable-hardware-input");
+			engine::abandon("disable-hardware-input");
+
+			lost_device(0); // non hardware device
+
+			::window = nullptr;
+		}
+
+		void create_subsystem(devices & devices, engine::application::window & window, bool hardware_input)
+		{
+			::window = &window;
+
 			found_device(0, 0, 0); // non hardware device
 
 #if INPUT_HAS_USER32_RAWINPUT
-			engine::console::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
-			engine::console::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
-			engine::console::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
+			engine::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
+			engine::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
+			engine::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
 
 			if (hardware_input)
 			{
@@ -653,16 +669,7 @@ namespace engine
 #endif
 		}
 
-		void destroy()
-		{
-#if INPUT_HAS_USER32_RAWINPUT
-			disable_hardware_input();
-#endif
-
-			lost_device(0); // non hardware device
-		}
-
-		void process_input(HRAWINPUT input)
+		void process_input(devices & devices, HRAWINPUT input)
 		{
 			UINT len = 0;
 			debug_verify(GetRawInputData(input, RID_INPUT, nullptr, &len, sizeof(RAWINPUTHEADER)) == 0);
@@ -672,7 +679,7 @@ namespace engine
 			debug_verify(GetRawInputData(input, RID_INPUT, bytes.data(), &len, sizeof(RAWINPUTHEADER)) == len);
 
 			const RAWINPUT & ri = *reinterpret_cast<const RAWINPUT *>(bytes.data());
-			auto it = std::find_if(devices.begin(), devices.end(), [&ri](const Device & device){ return device.handle == ri.header.hDevice; });
+			auto it = std::find_if(::devices.begin(), ::devices.end(), [&ri](const Device & device){ return device.handle == ri.header.hDevice; });
 			// debug_assert(it != devices.end(), "received input from unknown device!");
 
 # ifdef PRINT_ANY_INFO
@@ -776,7 +783,7 @@ namespace engine
 			}
 # endif
 
-			if (it == devices.end())
+			if (it == ::devices.end())
 				return;
 
 			switch (ri.header.dwType)
@@ -834,7 +841,7 @@ namespace engine
 					// based on dualshock4_parse_report
 					// https://github.com/torvalds/linux/blob/9637d517347e80ee2fe1c5d8ce45ba1b88d8b5cd/drivers/hid/hid-sony.c#L919
 
-					std::string data = utility::to_string("device ", it - devices.begin(), " ds4 specifics:");
+					std::string data = utility::to_string("device ", it - ::devices.begin(), " ds4 specifics:");
 
 					const int time_offset = 10;
 					const uint16_t timestamp = (uint16_t(ri.data.hid.bRawData[time_offset + 1]) << 8) | uint16_t(ri.data.hid.bRawData[time_offset]);
@@ -899,10 +906,10 @@ namespace engine
 					debug_printline(data);
 				}
 
-				std::string data = utility::to_string("device ", it - devices.begin(), " fields:");
+				std::string data = utility::to_string("device ", it - ::devices.begin(), " fields:");
 
 				int bit_offset = CHAR_BIT; // skip the first byte
-				for (const auto & field : formats[it - devices.begin()].fields)
+				for (const auto & field : formats[it - ::devices.begin()].fields)
 				{
 					const int from = bit_offset / CHAR_BIT;
 					const int to = (bit_offset + field.nbits + (CHAR_BIT - 1)) / CHAR_BIT;
@@ -932,13 +939,13 @@ namespace engine
 		}
 #endif
 
-		void key_character(int scancode, const char16_t * u16)
+		void key_character(devices & devices, int scancode, const char16_t * u16)
 		{
 			const engine::hid::Input::Button button = sc_to_button[scancode];
 			dispatch(KeyCharacterInput(0, button, utility::unicode_code_point(u16)));
 		}
 
-		void key_down(WPARAM wParam, LPARAM lParam, LONG time)
+		void key_down(devices & devices, WPARAM wParam, LPARAM lParam, LONG time)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -946,23 +953,8 @@ namespace engine
 #endif
 			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
 		}
-		void key_up(WPARAM wParam, LPARAM lParam, LONG time)
-		{
-#if INPUT_HAS_USER32_RAWINPUT
-			if (hardware_input.load(std::memory_order_relaxed))
-				return;
-#endif
-			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
-		}
-		void syskey_down(WPARAM wParam, LPARAM lParam, LONG time)
-		{
-#if INPUT_HAS_USER32_RAWINPUT
-			if (hardware_input.load(std::memory_order_relaxed))
-				return;
-#endif
-			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
-		}
-		void syskey_up(WPARAM wParam, LPARAM lParam, LONG time)
+
+		void key_up(devices & devices, WPARAM wParam, LPARAM lParam, LONG time)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -971,7 +963,25 @@ namespace engine
 			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
 		}
 
-		void lbutton_down(LONG time)
+		void syskey_down(devices & devices, WPARAM wParam, LPARAM lParam, LONG time)
+		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
+		}
+
+		void syskey_up(devices & devices, WPARAM wParam, LPARAM lParam, LONG time)
+		{
+#if INPUT_HAS_USER32_RAWINPUT
+			if (hardware_input.load(std::memory_order_relaxed))
+				return;
+#endif
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
+		}
+
+		void lbutton_down(devices & devices, LONG time)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -979,7 +989,8 @@ namespace engine
 #endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_LEFT, true));
 		}
-		void lbutton_up(LONG time)
+
+		void lbutton_up(devices & devices, LONG time)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -987,7 +998,8 @@ namespace engine
 #endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_LEFT, false));
 		}
-		void mbutton_down(LONG time)
+
+		void mbutton_down(devices & devices, LONG time)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -995,7 +1007,8 @@ namespace engine
 #endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_MIDDLE, true));
 		}
-		void mbutton_up(LONG time)
+
+		void mbutton_up(devices & devices, LONG time)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -1003,7 +1016,8 @@ namespace engine
 #endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_MIDDLE, false));
 		}
-		void rbutton_down(LONG time)
+
+		void rbutton_down(devices & devices, LONG time)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -1011,7 +1025,8 @@ namespace engine
 #endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_RIGHT, true));
 		}
-		void rbutton_up(LONG time)
+
+		void rbutton_up(devices & devices, LONG time)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -1019,14 +1034,13 @@ namespace engine
 #endif
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_RIGHT, false));
 		}
-		void mouse_move(const int_fast16_t x,
-		                const int_fast16_t y,
-		                LONG time)
+
+		void mouse_move(devices & devices, int_fast16_t x, int_fast16_t y, LONG time)
 		{
 			dispatch(CursorMoveInput(0, x, y));
 		}
-		void mouse_wheel(const int_fast16_t delta,
-		                 LONG time)
+
+		void mouse_wheel(devices & devices, int_fast16_t delta, LONG time)
 		{
 			// TODO:
 		}

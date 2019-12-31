@@ -15,7 +15,7 @@ namespace engine
 {
 	namespace graphics
 	{
-		namespace renderer
+		namespace detail
 		{
 			struct MessageAddDisplay
 			{
