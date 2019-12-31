@@ -49,8 +49,8 @@ namespace engine
 {
 	namespace application
 	{
-		void make_current(window & window);
-		void swap_buffers(window & window);
+		extern void make_current(window & window);
+		extern void swap_buffers(window & window);
 	}
 
 	namespace graphics
