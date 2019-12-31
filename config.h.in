@@ -59,6 +59,13 @@
 
 /**
  */
+#cmakedefine AUDIO_USE_DUMMY 1
+/**
+ */
+#cmakedefine AUDIO_USE_FMOD 1
+
+/**
+ */
 #cmakedefine CONSOLE_USE_KERNEL32 1
 /**
  */
@@ -75,10 +82,6 @@
  * is Windows XP.
  */
 #define INPUT_HAS_USER32_RAWINPUT WINDOW_USE_USER32
-
-/**
- */
-#cmakedefine SOUND_USE_OPENAL 1
 
 /**
  */

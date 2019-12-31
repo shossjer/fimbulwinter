@@ -229,6 +229,7 @@ namespace core
 	private:
 		lock_t lock;
 		uint64_t mask;
+		bool (* fail_hook_)() = nullptr;
 
 	private:
 		debug()
@@ -236,26 +237,31 @@ namespace core
 		{}
 
 	public:
+		void set_fail_hook(bool (* fail_hook)())
+		{
+			fail_hook_ = fail_hook;
+		}
+
 		template <std::size_t N, std::size_t M, typename C, typename ...Ps>
-		bool affirm(const char (&file_name)[N], const int line_number, const char (&expr)[M], C && comp, Ps && ...ps)
+		bool affirm(const char (& file_name)[N], int line_number, const char (& expr)[M], C && comp, Ps && ...ps)
 		{
 			if (comp()) return true;
 
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, "@", line_number, ": ", expr, "\n", comp, "\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
+			utility::to_stream(std::cerr, file_name, ":", line_number, ": ", expr, "\n", comp, "\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
 
-			return false;
+			return fail_hook_ ? fail_hook_() : false;
 		}
 
 		template <std::size_t N, typename ...Ps>
-		bool fail(const char (&file_name)[N], const int line_number, Ps && ...ps)
+		bool fail(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, "@", line_number, ": failed\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
+			utility::to_stream(std::cerr, file_name, ":", line_number, ": failed\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
 
-			return false;
+			return fail_hook_ ? fail_hook_() : false;
 		}
 
 		template <std::size_t N, uint64_t Bitmask, typename ...Ps>
@@ -277,7 +283,7 @@ namespace core
 		void printline_all(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cout, file_name, "@", line_number, ": ", std::forward<Ps>(ps)..., "\n");
+			utility::to_stream(std::cout, file_name, ":", line_number, ": ", std::forward<Ps>(ps)..., "\n");
 			std::cout.flush();
 		}
 

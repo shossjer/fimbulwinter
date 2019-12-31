@@ -2,12 +2,15 @@
 #include "core/debug.hpp"
 
 #include "engine/application/window.hpp"
+#include "engine/audio/system.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/hid/ui.hpp"
 #include "engine/resource/reader.hpp"
 #include "engine/resource/writer.hpp"
 
 #include "gameplay/gamestate.hpp"
+
+#include "utility/storing.hpp"
 
 #include "settings.hpp"
 
@@ -194,12 +197,13 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	::engine::console::create();
 	::engine::replay::create();
+	utility::storing<engine::audio::System> audio(utility::in_place);
 	::engine::physics::create();
 	::engine::graphics::renderer::create(settings.graphics.renderer_type);
 	::engine::graphics::viewer::create();
 	::engine::animation::create();
 	::engine::hid::ui::create();
-	::gameplay::gamestate::create();
+	::gameplay::gamestate::create(audio.value);
 	::gameplay::looper::create();
 
 	const int ret = engine::application::window::execute();
@@ -213,6 +217,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
+	audio.destruct();
 	::engine::replay::destroy();
 	::engine::console::destroy();
 
@@ -241,12 +246,13 @@ int main(const int argc, const char *const argv[])
 
 	::engine::console::create();
 	::engine::replay::create();
+	utility::storing<engine::audio::System> audio(utility::in_place);
 	::engine::physics::create();
 	::engine::graphics::renderer::create(settings.graphics.renderer_type);
 	::engine::graphics::viewer::create();
 	::engine::animation::create();
 	::engine::hid::ui::create();
-	::gameplay::gamestate::create();
+	::gameplay::gamestate::create(audio.value);
 	::gameplay::looper::create();
 
 	const int ret = engine::application::window::execute();
@@ -260,6 +266,7 @@ int main(const int argc, const char *const argv[])
 	::engine::graphics::viewer::destroy();
 	::engine::graphics::renderer::destroy();
 	::engine::physics::destroy();
+	audio.destruct();
 	::engine::replay::destroy();
 	::engine::console::destroy();
 
