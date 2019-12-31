@@ -116,7 +116,8 @@ namespace engine
 			}
 			static constexpr FormatMask fill(bool value)
 			{
-				return FormatMask(-static_cast<value_type>(value)) & all();
+				// return value ? all() : none();
+				return FormatMask(-static_cast<int>(value)) & all();
 			}
 		private:
 			static constexpr value_type to_mask(Format format)
