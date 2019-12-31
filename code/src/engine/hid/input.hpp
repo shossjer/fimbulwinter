@@ -32,6 +32,8 @@ namespace engine
 
 			using Player = int8_t;
 
+			static constexpr int max_player = 127;
+
 			enum class Axis : int8_t
 			{
 				INVALID = 0, // should never be used

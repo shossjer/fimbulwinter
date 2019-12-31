@@ -180,12 +180,13 @@ namespace
 	{
 		HANDLE handle;
 
-		int16_t id;
+		engine::hid::Input::Player id;
 
 		Device(HANDLE handle)
 			: handle(handle)
 		{
-			static int16_t next_id = 1; // 0 is reserved for not hardware input
+			static engine::hid::Input::Player next_id = 1; // 0 is reserved for not hardware input
+			debug_assert(next_id <= engine::hid::Input::max_player, "too many devices has been added, maybe we need to recycle some ids?");
 			id = next_id++;
 		}
 	};
