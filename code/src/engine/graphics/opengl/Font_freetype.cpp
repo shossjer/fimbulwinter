@@ -1,13 +1,12 @@
-
-#include <config.h>
+#include "config.h"
 
 #if TEXT_USE_FREETYPE
 
 #include "Font.hpp"
 
-#include <core/debug.hpp>
+#include "core/debug.hpp"
 
-#include <utility/bitmanip.hpp>
+#include "utility/bitmanip.hpp"
 
 #include <cmath>
 #include <numeric>
@@ -37,12 +36,14 @@ namespace engine
 					FT_Done_FreeType(library);
 				}
 			}
+
 			Font::Data::Data()
 				: face(nullptr)
 			{
 				if (FT_Init_FreeType(&library))
 					debug_fail();
 			}
+
 			Font::Data::Data(Data && data)
 				: library(data.library)
 				, face(data.face)
@@ -50,6 +51,7 @@ namespace engine
 				data.library = nullptr;
 				data.face = nullptr;
 			}
+
 			Font::Data & Font::Data::operator = (Data && data)
 			{
 				library = data.library;
@@ -68,6 +70,7 @@ namespace engine
 				FT_Done_Face(face);
 				face = nullptr;
 			}
+
 			bool Font::Data::load(const char * name, int height)
 			{
 				debug_assert(face == nullptr);
@@ -106,7 +109,8 @@ namespace engine
 					max_bitmap_height = std::max(int(face->glyph->bitmap.rows), int(max_bitmap_height));
 				}
 
-				texture_size = smallest_power_of_two(std::sqrt(max_bitmap_width * max_bitmap_height * 256)); // starting guess
+				const int estimated_area = max_bitmap_width * max_bitmap_height * 256;
+				texture_size = smallest_power_of_two(static_cast<int>(std::sqrt(estimated_area)));
 				do
 				{
 					const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
@@ -139,8 +143,10 @@ namespace engine
 
 					params[i].bitmap_left = face->glyph->bitmap_left;
 					params[i].bitmap_top = face->glyph->bitmap_top;
-					params[i].advance_x = face->glyph->advance.x / 64;
-					params[i].advance_y = face->glyph->advance.y / 64;
+					params[i].advance_x = static_cast<int16_t>(face->glyph->advance.x >> 6);
+					debug_assert(params[i].advance_x == face->glyph->advance.x >> 6, "16 bits are not enough for advancement, should we use 26?");
+					params[i].advance_y = static_cast<int16_t>(face->glyph->advance.y >> 6);
+					debug_assert(params[i].advance_y == face->glyph->advance.y >> 6, "16 bits are not enough for advancement, should we use 26?");
 				}
 				return true;
 			}
@@ -152,10 +158,11 @@ namespace engine
 					decompile();
 				}
 			}
+
 			Font::Font()
 				: id(-1)
-			{
-			}
+			{}
+
 			Font::Font(Font && font)
 				: id(font.id)
 				, max_bitmap_width(font.max_bitmap_width)
@@ -165,6 +172,7 @@ namespace engine
 			{
 				font.id = -1;
 			}
+
 			Font & Font::operator = (Font && font)
 			{
 				id = font.id;
@@ -201,6 +209,7 @@ namespace engine
 				texture_size = data.texture_size;
 				params = data.params;
 			}
+
 			void Font::decompile()
 			{
 				debug_assert(id != GLuint(-1));
@@ -244,6 +253,7 @@ namespace engine
 				glDisable(GL_TEXTURE_2D);
 				glDisable(GL_BLEND);
 			}
+
 			void Font::draw(int x, int y, const char * text) const
 			{
 				debug_assert(id != GLuint(-1));
@@ -284,6 +294,7 @@ namespace engine
 				glDisable(GL_TEXTURE_2D);
 				glDisable(GL_BLEND);
 			}
+
 			void Font::draw(int x, int y, const std::string & string) const
 			{
 				draw(x, y, string.c_str(), string.length());

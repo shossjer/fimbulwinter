@@ -1749,8 +1749,10 @@ namespace
 
 				symbol_data[i].offset_x = face->glyph->bitmap_left;
 				symbol_data[i].offset_y = face->glyph->bitmap.rows - face->glyph->bitmap_top;
-				symbol_data[i].advance_x = face->glyph->advance.x >> 6;
-				symbol_data[i].advance_y = face->glyph->advance.y >> 6;
+				symbol_data[i].advance_x = static_cast<int16_t>(face->glyph->advance.x >> 6);
+				debug_assert(symbol_data[i].advance_x == face->glyph->advance.x >> 6, "16 bits are not enough for advancement, should we use 26?");
+				symbol_data[i].advance_y = static_cast<int16_t>(face->glyph->advance.y >> 6);
+				debug_assert(symbol_data[i].advance_y == face->glyph->advance.y >> 6, "16 bits are not enough for advancement, should we use 26?");
 			}
 			debug_printline(name, ": face max = {", maxx, ", ", maxy, "}");
 			debug_assert(maxx > 0);
@@ -1812,7 +1814,7 @@ namespace
 							(y >= border_size && y < border_size + face->glyph->bitmap.rows) ?
 							bitmap_buffer[(x - border_size) - (y - border_size) * face->glyph->bitmap.pitch] >= 128 : 0;
 					};
-				std::fill(distance_field.begin(), distance_field.end(), furthest_d);
+				std::fill(distance_field.begin(), distance_field.end(), static_cast<float>(furthest_d));
 				// for (int y = 0; y < slot_size_y; y++)
 				for (int y = 0; y < face->glyph->bitmap.rows + 2 * border_size; y++)
 				{
@@ -1837,7 +1839,7 @@ namespace
 								closest_dsq = std::min(dsq, closest_dsq);
 							}
 						}
-						distance_field[x + y * slot_size_x] = ((sample == 0 ? 1 : -1) * std::sqrt(closest_dsq) + furthest_d) / (2. * furthest_d);
+						distance_field[x + y * slot_size_x] = static_cast<float>(((sample == 0 ? 1 : -1) * std::sqrt(closest_dsq) + furthest_d) / (2. * furthest_d));
 					}
 				}
 
