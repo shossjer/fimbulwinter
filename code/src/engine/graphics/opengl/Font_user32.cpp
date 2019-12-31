@@ -127,7 +127,8 @@ namespace engine
 				glListBase(this->base);
 				glCallLists(string.length(), GL_UNSIGNED_BYTE, string.c_str());
 			}
-			void Font::draw(int x, int y, const char * text, unsigned int length) const
+
+			void Font::draw(int x, int y, const char * text, std::ptrdiff_t length) const
 			{
 				debug_assert(this->base != GLuint(-1));
 

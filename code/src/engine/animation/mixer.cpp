@@ -191,12 +191,12 @@ namespace
 			if (action == nullptr)
 				return;
 
-			const auto framei_prev = framei;
-			const auto framei_next = framei + 1;
+			// const int framei_prev = framei;
+			const int framei_next = framei + 1;
 
 			// movement = action->keys[framei_next].translation - action->keys[framei_prev].translation;
 
-			const auto action_length = action->keys.size() - 1;
+			const int action_length = action->keys.size() - 1;
 			if (framei_next < action_length)
 			{
 				framei = framei_next;

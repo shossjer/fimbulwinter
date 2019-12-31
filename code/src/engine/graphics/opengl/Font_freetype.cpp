@@ -288,7 +288,8 @@ namespace engine
 			{
 				draw(x, y, string.c_str(), string.length());
 			}
-			void Font::draw(int x, int y, const char * text, unsigned int length) const
+
+			void Font::draw(int x, int y, const char * text, std::ptrdiff_t length) const
 			{
 				debug_assert(id != GLuint(-1));
 

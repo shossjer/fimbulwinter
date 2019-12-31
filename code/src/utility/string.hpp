@@ -283,7 +283,7 @@ namespace utility
 		}
 	};
 
-		template <std::size_t N>
+	template <std::size_t N>
 	using size_type_for =
 		mpl::conditional_t<(N < 0x100), std::uint8_t,
 		mpl::conditional_t<(N < 0x10000), std::uint16_t,
@@ -301,12 +301,19 @@ namespace utility
 			size_type size_ = 0;
 			Storage chars_;
 
-			void set_capacity(size_type capacity)
+			void set_capacity(std::size_t capacity)
 			{
 				assert(capacity == storage_traits::capacity_value);
 			}
 
-			constexpr size_type capacity() const { return storage_traits::capacity_value; }
+			void set_size(std::size_t size)
+			{
+				assert(size <= size_type(-1));
+
+				this->size_ = static_cast<size_type>(size);
+			}
+
+			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
 		};
 		template <typename Storage>
 		struct StringStorageDataImpl<Storage, false /*static capacity*/>
@@ -338,12 +345,17 @@ namespace utility
 			size_type size_ = 0;
 			Storage chars_;
 
-			void set_capacity(size_type capacity)
+			void set_capacity(std::size_t capacity)
 			{
 				capacity_ = capacity;
 			}
 
-			size_type capacity() const { return capacity_; }
+			void set_size(std::size_t size)
+			{
+				this->size_ = size;
+			}
+
+			std::size_t capacity() const { return capacity_; }
 		};
 	}
 
@@ -406,13 +418,8 @@ namespace utility
 			this->chars_.destruct_range(from, to);
 		}
 
-		void set_size(size_type size)
-		{
-			this->size_ = size;
-		}
-
-		size_type size() const { return this->size_; }
-		size_type size_without_null() const { return this->size_ - 1; }
+		std::size_t size() const { return this->size_; }
+		std::size_t size_without_null() const { return this->size_ - 1; }
 	};
 
 	namespace detail
@@ -548,7 +555,7 @@ namespace utility
 		basic_string(repeat_char, size_type repeat, code_point cp, std::array<code_unit, encoding_traits::max_size()> chars, ...)
 			: basic_string(repeat_str{}, repeat, chars.data(), encoding_traits::get(cp, chars.data()))
 		{}
-		basic_string(repeat_str, size_type repeat, const code_unit * s, size_type count)
+		basic_string(repeat_str, size_type repeat, const code_unit * s, std::size_t count)
 			: data_(repeat * count + 1)
 		{
 			// assert(count != 1); // more efficient to call basic_string(repeat, c)
@@ -561,7 +568,7 @@ namespace utility
 			}
 			data_.array_.chars_.construct_at(len, '\0');
 		}
-		basic_string(copy_str, const code_unit * s, size_type count)
+		basic_string(copy_str, const code_unit * s, std::size_t count)
 			: data_(count + 1)
 		{
 			data_.array_.set_size(count + 1);
@@ -610,8 +617,8 @@ namespace utility
 		const value_type * data() const { return data_.array_.chars_.data(); }
 
 		constexpr utility::type_id_t encoding() const { return data_.encoding(); }
-		constexpr size_type capacity() const { return data_.array_.capacity(); }
-		size_type size() const { return data_.array_.size_without_null(); }
+		constexpr std::size_t capacity() const { return data_.array_.capacity(); }
+		std::size_t size() const { return data_.array_.size_without_null(); }
 		decltype(auto) length() const { return end() - begin(); }
 		bool empty() const { return data_.array_.size() <= 1; }
 
