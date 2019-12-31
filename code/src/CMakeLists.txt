@@ -1,42 +1,10 @@
 
-# source listing
-set(SOURCE_FILES
+set(SOURCES_CORE
 	src/core/async/Thread.cpp
 	src/core/container/Buffer.cpp
-	src/engine/animation/mixer.cpp
-	src/engine/application/window_user32.cpp
-	src/engine/application/window_x11.cpp
-	src/engine/console.cpp
-	src/engine/console_kernel32.cpp
-	src/engine/console_posix.cpp
-	src/engine/graphics/opengl.cpp
-	src/engine/graphics/opengl/Font_freetype.cpp
-	src/engine/graphics/opengl/Font_user32.cpp
-	src/engine/graphics/opengl/Font_x11.cpp
-	src/engine/graphics/renderer.cpp
-	src/engine/graphics/renderer_opengl_12.cpp
-	src/engine/graphics/renderer_opengl_30.cpp
-	src/engine/graphics/viewer.cpp
-	src/engine/hid/input.cpp
-	src/engine/hid/input_user32.cpp
-	src/engine/hid/input_x11.cpp
-	src/engine/hid/ui.cpp
-	src/engine/physics/physics.cpp
-	src/engine/physics/creation_physx.cpp
-	src/engine/physics/joint_physx.cpp
-	src/engine/physics/physics_physx.cpp
-	src/engine/replay/reader.cpp
-	src/engine/replay/writer.cpp
-	src/engine/resource/reader.cpp
-	src/engine/resource/writer.cpp
-	src/gameplay/factory.cpp
-	src/gameplay/gamestate.cpp
-	src/gameplay/looper.cpp
-   src/utility/crypto/crc.cpp
 	)
 
-# source listing
-set(HEADER_FILES
+set(HEADERS_CORE
 	src/core/ArmatureStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
@@ -74,6 +42,38 @@ set(HEADER_FILES
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
+	)
+
+set(SOURCES_ENGINE
+	src/engine/animation/mixer.cpp
+	src/engine/application/window_user32.cpp
+	src/engine/application/window_x11.cpp
+	src/engine/console.cpp
+	src/engine/console_kernel32.cpp
+	src/engine/console_posix.cpp
+	src/engine/graphics/opengl.cpp
+	src/engine/graphics/opengl/Font_freetype.cpp
+	src/engine/graphics/opengl/Font_user32.cpp
+	src/engine/graphics/opengl/Font_x11.cpp
+	src/engine/graphics/renderer.cpp
+	src/engine/graphics/renderer_opengl_12.cpp
+	src/engine/graphics/renderer_opengl_30.cpp
+	src/engine/graphics/viewer.cpp
+	src/engine/hid/input.cpp
+	src/engine/hid/input_user32.cpp
+	src/engine/hid/input_x11.cpp
+	src/engine/hid/ui.cpp
+	src/engine/physics/physics.cpp
+	src/engine/physics/creation_physx.cpp
+	src/engine/physics/joint_physx.cpp
+	src/engine/physics/physics_physx.cpp
+	src/engine/replay/reader.cpp
+	src/engine/replay/writer.cpp
+	src/engine/resource/reader.cpp
+	src/engine/resource/writer.cpp
+	)
+
+set(HEADERS_ENGINE
 	src/engine/Asset.hpp
 	src/engine/Command.hpp
 	src/engine/commands.hpp
@@ -110,17 +110,14 @@ set(HEADER_FILES
 	src/engine/resource/formats.hpp
 	src/engine/resource/reader.hpp
 	src/engine/resource/writer.hpp
-	src/gameplay/commands.hpp
-	src/gameplay/component/CameraActivator.hpp
-	src/gameplay/component/FreeCamera.hpp
-	src/gameplay/component/OverviewCamera.hpp
-	src/gameplay/debug.hpp
-	src/gameplay/factory.hpp
-	src/gameplay/gamestate.hpp
-	src/gameplay/gamestate_models.hpp
-	src/gameplay/recipes.hpp
-	src/gameplay/skills.hpp
-   src/utility/aggregation_allocator.hpp
+	)
+
+set(SOURCES_UTILITY
+	src/utility/crypto/crc.cpp
+	)
+
+set(HEADERS_UTILITY
+	src/utility/aggregation_allocator.hpp
 	src/utility/algorithm.hpp
 	src/utility/any.hpp
    src/utility/arithmetics.hpp
@@ -154,4 +151,23 @@ set(HEADER_FILES
 	src/utility/unicode.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
+	)
+
+set(SOURCES_GAMEPLAY
+	src/gameplay/factory.cpp
+	src/gameplay/gamestate.cpp
+	src/gameplay/looper.cpp
+	)
+
+set(HEADERS_GAMEPLAY
+	src/gameplay/commands.hpp
+	src/gameplay/component/CameraActivator.hpp
+	src/gameplay/component/FreeCamera.hpp
+	src/gameplay/component/OverviewCamera.hpp
+	src/gameplay/debug.hpp
+	src/gameplay/factory.hpp
+	src/gameplay/gamestate.hpp
+	src/gameplay/gamestate_models.hpp
+	src/gameplay/recipes.hpp
+	src/gameplay/skills.hpp
 	)

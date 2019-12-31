@@ -1,10 +1,24 @@
-#
+
 cmake_minimum_required(VERSION 3.5.1)
+
 project(hellskitchen C CXX)
+
+# https://stackoverflow.com/a/31662300
+if(CMAKE_CONFIGURATION_TYPES)
+	unset(CMAKE_BUILD_TYPE CACHE)
+	set(CMAKE_CONFIGURATION_TYPES Debug Release)
+elseif(NOT CMAKE_BUILD_TYPE)
+	message(FATAL_ERROR "Single configurations need to specify CMAKE_BUILD_TYPE! Run cmake with something like:\n-DCMAKE_BUILD_TYPE=Debug|Release")
+endif()
+set_property(GLOBAL PROPERTY DEBUG_CONFIGURATIONS Debug)
 
 include_directories("${PROJECT_SOURCE_DIR}/dep/include")
 set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/include")
 set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/dep/lib")
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (MSVC)
   set(CMAKE_CXX_FLAGS_DEBUG
@@ -14,9 +28,7 @@ if (MSVC)
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MT")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
   add_definitions(-DNOMINMAX)
-  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT HellsKitchen)
-else ()
-  set(CMAKE_CXX_FLAGS "-std=c++14")
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hellskitchen)
 endif ()
 
 include(settings.cmake)
@@ -27,21 +39,6 @@ if (CUSTOM_INCLUDE)
 endif()
 if (CUSTOM_LIBRARY)
 	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CUSTOM_LIBRARY}")
-endif()
-
-# make debug build default
-if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Debug)
-endif()
-
-if (CMAKE_BUILD_TYPE STREQUAL Debug)
-  set(MODE_DEBUG 1)
-elseif(CMAKE_BUILD_TYPE STREQUAL Release)
-  set(MODE_RELEASE 1)
-elseif(CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
-  set(MODE_RELEASE 1)
-else()
-  message(FATAL_ERROR "Build type ${CMAKE_BUILD_TYPE} not supported")
 endif()
 
 # project information
@@ -63,33 +60,7 @@ if (ENDIANESS)
   set(BIG_WORDS 1)
 endif ()
 
-# flags to control physics library linking
-set(PHYSICS_USE_BOX2D 0)
-set(PHYSICS_USE_PHYSX 0)
-
 # lookup dependencies
-if (PHYSICS_USE_BOX2D)
-	find_file(FILE_PHYSICS_BOX_HEADERS Box2D/Box2D.h)
-	message(STATUS "Looking for Physics Box header files - ${FILE_PHYSICS_BOX_HEADERS}")
-
-	if (MODE_DEBUG)
-	  add_definitions(-D_DEBUG)
-	elseif (MODE_RELEASE)
-	  add_definitions(-DNDEBUG)
-	endif()
-
-	find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
-	if (NOT LIBRARY_PHYSICS_BOX_CORE_D)
-	  find_library(LIBRARY_PHYSICS_BOX_CORE_D Box2D)
-	endif()
-
-	find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
-	if (NOT LIBRARY_PHYSICS_BOX_CORE)
-	  find_library(LIBRARY_PHYSICS_BOX_CORE Box2D)
-	endif()
-
-	message(STATUS "Looking for Physics Box core - ${LIBRARY_PHYSICS_BOX_CORE}")
-endif()
 # Catch
 message(STATUS "Looking for catch")
 find_file(FILE_CATCH_HPP catch.hpp)
@@ -140,63 +111,6 @@ find_library(LIBRARY_GL GL)
 find_library(LIBRARY_OPENGL32 opengl32)
 message(STATUS "Looking for OpenGL - ${LIBRARY_GL}")
 message(STATUS "Looking for OpenGL - ${LIBRARY_OPENGL32}")
-# physics PHYSX
-if (PHYSICS_USE_PHYSX)
-	find_file(FILE_PHYSX_HEADERS physx/PxPhysicsAPI.h)
-	message(STATUS "Looking for Physx header files - ${FILE_PHYSX_HEADERS}")
-	# release
-	find_library(LIBRARY_PHYSX_CORE PhysX3_x64)
-	if (NOT LIBRARY_PHYSX_CORE)
-	  find_library(LIBRARY_PHYSX_CORE PhysX3_x86)
-	endif()
-	find_library(LIBRARY_PHYSX_COMMON PhysX3Common_x64)
-	if (NOT LIBRARY_PHYSX_COMMON)
-	  find_library(LIBRARY_PHYSX_COMMON PhysX3Common_x86)
-	endif()
-	find_library(LIBRARY_PHYSX_EXTENSIONS PhysX3Extensions)
-	find_library(LIBRARY_PHYSX_PROFILE PhysXProfileSDK)
-	find_library(LIBRARY_PHYSX_CHARACTER PhysX3CharacterKinematic_x64)
-	if (NOT LIBRARY_PHYSX_CHARACTER)
-	  find_library(LIBRARY_PHYSX_CHARACTER PhysX3CharacterKinematic_x86)
-	endif()
-	find_library(LIBRARY_PHYSX_COOKING PhysX3Cooking_x64)
-	if (NOT LIBRARY_PHYSX_COOKING)
-	  find_library(LIBRARY_PHYSX_COOKING PhysX3Cooking_x86)
-	endif()
-	# debug
-	find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x64)
-	if (NOT LIBRARY_PHYSX_CORE_D)
-	  find_library(LIBRARY_PHYSX_CORE_D PhysX3DEBUG_x86)
-	endif()
-	find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x64)
-	if (NOT LIBRARY_PHYSX_COMMON_D)
-	  find_library(LIBRARY_PHYSX_COMMON_D PhysX3CommonDEBUG_x86)
-	endif()
-	find_library(LIBRARY_PHYSX_EXTENSIONS_D PhysX3ExtensionsDEBUG)
-	find_library(LIBRARY_PHYSX_PROFILE_D PhysXProfileSDKDEBUG)
-	find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x64)
-	if (NOT LIBRARY_PHYSX_CHARACTER_D)
-	  find_library(LIBRARY_PHYSX_CHARACTER_D PhysX3CharacterKinematicDEBUG_x86)
-	endif()
-	find_library(LIBRARY_PHYSX_COOKING_D PhysX3CookingDEBUG_x64)
-	if (NOT LIBRARY_PHYSX_COOKING_D)
-	  find_library(LIBRARY_PHYSX_COOKING_D PhysX3CookingDEBUG_x86)
-	endif()
-
-	message(STATUS "Looking for Physx core - ${LIBRARY_PHYSX_CORE}")
-	message(STATUS "Looking for Physx commons - ${LIBRARY_PHYSX_COMMON}")
-	message(STATUS "Looking for Physx extensions - ${LIBRARY_PHYSX_EXTENSIONS}")
-	message(STATUS "Looking for Physx profile - ${LIBRARY_PHYSX_PROFILE}")
-	message(STATUS "Looking for Physx character - ${LIBRARY_PHYSX_CHARACTER}")
-	message(STATUS "Looking for Physx cooking - ${LIBRARY_PHYSX_COOKING}")
-
-	message(STATUS "Looking for Physx core debug - ${LIBRARY_PHYSX_CORE_D}")
-	message(STATUS "Looking for Physx commons debug - ${LIBRARY_PHYSX_COMMON_D}")
-	message(STATUS "Looking for Physx extensions debug - ${LIBRARY_PHYSX_EXTENSIONS_D}")
-	message(STATUS "Looking for Physx profile debug - ${LIBRARY_PHYSX_PROFILE_D}")
-	message(STATUS "Looking for Physx character debug - ${LIBRARY_PHYSX_CHARACTER_D}")
-	message(STATUS "Looking for Physx cooking debug - ${LIBRARY_PHYSX_COOKING_D}")
-endif()
 # POSIX
 message(STATUS "Looking for POSIX")
 find_file(FILE_POLL_H poll.h)
@@ -266,43 +180,6 @@ else()
   message(FATAL_ERROR "Needs zlib")
 endif()
 
-# physics PHYSX
-if (PHYSICS_USE_PHYSX)
-	get_filename_component(DIRECTORY_OF_PHYSX "${FILE_PHYSX_HEADERS}" DIRECTORY)
-	set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${DIRECTORY_OF_PHYSX}")
-
-	# graphics libraries
-	if (LIBRARY_PHYSX_CORE)
-	  # debug sets lib for "debug" in VS and optimized sets lib for "release" mode in VS
-	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_CORE_D}")
-	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_CORE}")
-
-	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_COMMON_D}")
-	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_COMMON}")
-
-	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_EXTENSIONS_D}")
-	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_EXTENSIONS}")
-
-	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_PROFILE_D}")
-	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_PROFILE}")
-
-	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_CHARACTER_D}")
-	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_CHARACTER}")
-
-	  set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSX_COOKING_D}")
-	  set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSX_COOKING}")
-	endif()
-endif()
-
-# physics BOX2D
-if (PHYSICS_USE_BOX2D)
-	get_filename_component(DIRECTORY_OF_PHYSICS_BOX "${FILE_PHYSICS_BOX_HEADERS}" DIRECTORY)
-	set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${DIRECTORY_OF_PHYSICS_BOX}")
-
-	set(DEBUG_LIBRARIES "${DEBUG_LIBRARIES};${LIBRARY_PHYSICS_BOX_CORE_D}")
-	set(OPTIMIZED_LIBRARIES "${OPTIMIZED_LIBRARIES};${LIBRARY_PHYSICS_BOX_CORE}")
-endif()
-
 # select libraries
 # console
 if (FILE_POLL_H AND
@@ -347,7 +224,7 @@ elseif(FILE_AL_AL_H AND
   set(SOUND_USE_OPENAL 1)
   set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENAL32}")
 else()
-  message(WARNING "Sound - Disabled")
+  message(STATUS "Sound - Disabled")
 endif()
 
 # test
@@ -455,13 +332,19 @@ if (WINDOW_USE_USER32)
   endif()
 endif()
 
-add_subdirectory(code)
-add_subdirectory(game)
+if(CMAKE_BUILD_TYPE)
+	string(TOUPPER "${CMAKE_BUILD_TYPE}" _upper_build_type)
+	set(MODE_${_upper_build_type} 1)
+endif()
 
-enable_testing(false)
-add_subdirectory(codetest)
-
-# write config
 configure_file(
   "${PROJECT_SOURCE_DIR}/config.h.in"
-  "${PROJECT_BINARY_DIR}/config.h")
+  "${PROJECT_BINARY_DIR}/generated/config.h"
+  @ONLY
+  )
+
+add_library(generated INTERFACE)
+target_include_directories(generated INTERFACE "${PROJECT_BINARY_DIR}/generated")
+
+add_subdirectory(code)
+add_subdirectory(game)
