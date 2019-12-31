@@ -75,11 +75,11 @@ namespace core
 			return 0;
 		}
 
-		void read_bytes(char * ptr, int size)
+		void read_bytes(char * ptr, int64_t size)
 		{
 			if (!stream.valid())
 				throw std::runtime_error("unexpected eol");
-			const auto amount_read = stream.read_block(ptr, size);
+			const int64_t amount_read = stream.read_block(ptr, size);
 			if (amount_read < size)
 				throw std::runtime_error("unexpected eol");
 		}
