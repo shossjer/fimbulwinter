@@ -18,6 +18,8 @@ namespace
 	{
 		return utility::clp2(minimum);
 	}
+
+	constexpr auto invalid_id = GLuint(-1);
 }
 
 namespace engine
@@ -162,42 +164,38 @@ namespace engine
 
 			Font::~Font()
 			{
-				if (id != GLuint(-1))
+				if (id != invalid_id)
 				{
 					decompile();
 				}
 			}
 
 			Font::Font()
-				: id(-1)
+				: id(invalid_id)
 			{}
 
 			Font::Font(Font && font)
-				: id(font.id)
+				: id(std::exchange(font.id, invalid_id))
 				, max_bitmap_width(font.max_bitmap_width)
 				, max_bitmap_height(font.max_bitmap_height)
 				, texture_size(font.texture_size)
 				, params(std::move(font.params))
-			{
-				font.id = -1;
-			}
+			{}
 
 			Font & Font::operator = (Font && font)
 			{
-				id = font.id;
+				id = std::exchange(font.id, invalid_id);
 				max_bitmap_width = font.max_bitmap_width;
 				max_bitmap_height = font.max_bitmap_height;
 				texture_size = font.texture_size;
 				params = std::move(font.params);
-
-				font.id = -1;
 
 				return *this;
 			}
 
 			void Font::compile(const Data & data)
 			{
-				debug_assert(id == GLuint(-1));
+				debug_assert(id == invalid_id);
 
 				glEnable(GL_TEXTURE_2D);
 
@@ -221,15 +219,15 @@ namespace engine
 
 			void Font::decompile()
 			{
-				debug_assert(id != GLuint(-1));
+				debug_assert(id != invalid_id);
 
 				glDeleteTextures(1, &id);
-				id = GLuint(-1);
+				id = invalid_id;
 			}
 
 			void Font::draw(int x, int y, char c) const
 			{
-				debug_assert(id != GLuint(-1));
+				debug_assert(id != invalid_id);
 
 				glEnable(GL_BLEND);
 				glEnable(GL_TEXTURE_2D);
@@ -265,7 +263,7 @@ namespace engine
 
 			void Font::draw(int x, int y, const char * text) const
 			{
-				debug_assert(id != GLuint(-1));
+				debug_assert(id != invalid_id);
 
 				glEnable(GL_BLEND);
 				glEnable(GL_TEXTURE_2D);
@@ -311,7 +309,7 @@ namespace engine
 
 			void Font::draw(int x, int y, const char * text, std::ptrdiff_t length) const
 			{
-				debug_assert(id != GLuint(-1));
+				debug_assert(id != invalid_id);
 
 				glEnable(GL_BLEND);
 				glEnable(GL_TEXTURE_2D);

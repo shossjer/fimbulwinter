@@ -32,6 +32,8 @@ namespace
 	using Joint = engine::animation::Armature::Joint;
 	using Mixer = unsigned int;
 
+	constexpr auto invalid_mixer = Mixer(-1);
+
 	const engine::animation::Callbacks * pCallbacks;
 
 	core::container::UnorderedCollection
@@ -328,16 +330,16 @@ namespace
 		core::maths::Vector3f position_movement;
 		core::maths::Quaternionf orientation_movement;
 
-		Character(engine::Entity me, const Armature & armature) :
-			me(me),
-			armature(&armature),
-			mixer(-1),
-			matrix_pallet(armature.joints.size())
+		Character(engine::Entity me, const Armature & armature)
+			: me(me)
+			, armature(&armature)
+			, mixer(invalid_mixer)
+			, matrix_pallet(armature.joints.size())
 		{}
 
 		void finalize()
 		{
-			if (this->mixer == Mixer(-1))
+			if (this->mixer == invalid_mixer)
 				return;
 
 			if (mixers.call(mixer, is_finished{}))
@@ -369,16 +371,15 @@ namespace
 
 		Mixer mixer;
 
-		Model(engine::Entity me, const engine::animation::object & object) :
-			me(me),
-			object(& object),
-			mixer(-1)
-		{
-		}
+		Model(engine::Entity me, const engine::animation::object & object)
+			: me(me)
+			, object(&object)
+			, mixer(invalid_mixer)
+		{}
 
 		void finalize()
 		{
-			if (this->mixer == Mixer(-1))
+			if (this->mixer == invalid_mixer)
 				return;
 
 			post_update_movement(*::simulation, me, mixers.call(mixer, extract_translation {}));
@@ -388,7 +389,7 @@ namespace
 				//pCallbacks->onFinish(this->me);
 				// TODO: this needs to be changed when we start animation blending
 				mixers.remove(mixer);
-				mixer = Mixer(-1);
+				mixer = invalid_mixer;
 			}
 		}
 	};
@@ -424,7 +425,7 @@ namespace
 				}
 			}
 			// set mixer
-			if (x.mixer != Mixer(-1))
+			if (x.mixer != invalid_mixer)
 				mixers.remove(x.mixer);
 			x.mixer = mixer;
 		}
@@ -446,7 +447,7 @@ namespace
 				}
 			}
 			// set mixer
-			if (x.mixer != Mixer(-1))
+			if (x.mixer != invalid_mixer)
 				mixers.remove(x.mixer);
 			x.mixer = mixer;
 		}
