@@ -205,7 +205,18 @@ namespace core
 			auto operator () () ->
 				decltype(F{}(left.value, right.value))
 			{
+				// we make an exception to allow the following
+				// warnings to make it easier to use the debug
+				// library
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4389 )
+				// C4389 - 'operator' : signed/unsigned mismatch
+#endif
 				return F{}(left.value, right.value);
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 			}
 
 			friend std::ostream & operator << (std::ostream & stream, const compare_binary_t<L, R, F> & comp)
