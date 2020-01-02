@@ -1269,7 +1269,7 @@ namespace gameplay
 		engine::physics::camera::add(*::simulation, debug_camera, debug_camera_pos, false);
 		engine::physics::camera::add(*::simulation, game_camera, game_camera_pos, true);
 
-		post_add_frame(*::viewer, engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root")});
+		post_add_frame(*::viewer, engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root"), -1});
 
 		post_add_projection(*::viewer, engine::Asset("my-perspective-3d"), engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
 		post_add_projection(*::viewer, engine::Asset("my-perspective-2d"), engine::graphics::viewer::orthographic{-100., 100});

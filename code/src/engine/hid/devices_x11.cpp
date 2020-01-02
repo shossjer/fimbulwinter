@@ -850,8 +850,8 @@ namespace
 		}
 
 		struct pollfd fds[11] = { // arbitrary
-			{interupt_pipe[0], 0, },
-			{notify_fd, POLLIN, },
+			{interupt_pipe[0], 0, 0},
+			{notify_fd, POLLIN, 0},
 		};
 
 		std::vector<EventInfo> event_infos;
