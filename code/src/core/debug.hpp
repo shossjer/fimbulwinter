@@ -4,7 +4,6 @@
 
 #include <config.h>
 
-#include "utility/functional.hpp"
 #include "utility/intrinsics.hpp"
 #include "utility/spinlock.hpp"
 #include "utility/stream.hpp"
@@ -205,18 +204,7 @@ namespace core
 			auto operator () () ->
 				decltype(F{}(left.value, right.value))
 			{
-				// we make an exception to allow the following
-				// warnings to make it easier to use the debug
-				// library
-#if defined(_MSC_VER)
-# pragma warning( push )
-# pragma warning( disable : 4389 )
-				// C4389 - 'operator' : signed/unsigned mismatch
-#endif
 				return F{}(left.value, right.value);
-#if defined(_MSC_VER)
-# pragma warning( pop )
-#endif
 			}
 
 			friend std::ostream & operator << (std::ostream & stream, const compare_binary_t<L, R, F> & comp)
@@ -226,18 +214,54 @@ namespace core
 			}
 		};
 
+		// we make an exception to allow the following
+		// warnings to make it easier to use the debug
+		// library
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4018 4389 )
+		// C4018 - 'expression' : signed/unsigned mismatch
+		// C4389 - 'operator' : signed/unsigned mismatch
+#elif defined(__GNUG__)
+# if defined(__clang__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wsign-compare"
+# else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wsign-compare"
+# endif
+		// -Wsign-compare - Warn when a comparison between signed and
+		// unsigned values could produce an incorrect result when the
+		// signed value is converted to unsigned.
+#endif
+		struct eq_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x == y; }};
+		struct ne_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x != y; }};
+		struct lt_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x < y; }};
+		struct le_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x <= y; }};
+		struct gt_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x > y; }};
+		struct ge_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x >= y; }};
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#elif defined(__GNUG__)
+# if defined(__clang__)
+#  pragma clang diagnostic pop
+# else
+#  pragma GCC diagnostic pop
+# endif
+#endif
+
 		template <typename L, typename R>
-		using compare_eq_t = compare_binary_t<L, R, utility::equal_to<>>;
+		using compare_eq_t = compare_binary_t<L, R, eq_t>;
 		template <typename L, typename R>
-		using compare_ne_t = compare_binary_t<L, R, utility::not_equal_to<>>;
+		using compare_ne_t = compare_binary_t<L, R, ne_t>;
 		template <typename L, typename R>
-		using compare_lt_t = compare_binary_t<L, R, utility::less<>>;
+		using compare_lt_t = compare_binary_t<L, R, lt_t>;
 		template <typename L, typename R>
-		using compare_le_t = compare_binary_t<L, R, utility::less_equal<>>;
+		using compare_le_t = compare_binary_t<L, R, le_t>;
 		template <typename L, typename R>
-		using compare_gt_t = compare_binary_t<L, R, utility::greater<>>;
+		using compare_gt_t = compare_binary_t<L, R, gt_t>;
 		template <typename L, typename R>
-		using compare_ge_t = compare_binary_t<L, R, utility::greater_equal<>>;
+		using compare_ge_t = compare_binary_t<L, R, ge_t>;
 	private:
 		using lock_t = utility::spinlock;
 
