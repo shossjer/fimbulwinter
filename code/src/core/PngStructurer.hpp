@@ -59,7 +59,21 @@ namespace core
 				return;
 			}
 
+			// all objects with a non-trivial destructor have to be
+			// put before the setjmp
+			core::container::Buffer pixels;
+			std::vector<png_bytep> rows;
+
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4611 )
+			// the microsoft compiler complains about setjmp and
+			// object destruction
+#endif
 			if (setjmp(png_jmpbuf(png_ptr)))
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 			{
 				debug_fail("png is borked");
 				png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
@@ -97,9 +111,10 @@ namespace core
 			debug_printline(core::core_channel, "image_width: ", image_width);
 			debug_printline(core::core_channel, "image_height: ", image_height);
 			debug_printline(core::core_channel, "bit_depth: ", bit_depth);
-			core::container::Buffer pixels(core::container::Buffer::Format::uint8, row_size * image_height);
+
+			pixels.resize<uint8_t>(row_size * image_height);
+			rows.resize(image_height);
 			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
-			std::vector<png_bytep> rows(image_height);
 			for (int i = 0; i < image_height; i++)
 			{
 				rows[i] = reinterpret_cast<png_bytep>(pixels.data() + (image_height - 1 - i) * row_size);
