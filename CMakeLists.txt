@@ -23,6 +23,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(private_compile_options
 	$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
 		-Wall -Wextra -Wconversion>
+	$<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:CXX_COMPILER_VERSION,6.0>>:
+		-Wno-missing-braces>
+	# missing-braces - Warn if an aggregate or union initializer is not
+	# fully bracketed.
 	$<$<CXX_COMPILER_ID:MSVC>:
 		/W4>
 	)
