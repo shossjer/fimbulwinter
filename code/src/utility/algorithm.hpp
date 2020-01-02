@@ -197,20 +197,24 @@ namespace utl
 		return index_of_impl(begin(range), begin(range), end(range), value);
 	}
 
-	template <typename T, typename F, std::size_t ...Is>
-	constexpr auto inverse_table_impl(const T & table, F && f, mpl::index_sequence<Is...>)
+	template <typename T, typename F, typename I, I ...Is>
+	constexpr auto inverse_table_impl(const T & table, F && f, mpl::integral_sequence<I, Is...>)
 	{
 		return std::array<mpl::remove_cvref_t<decltype(f(std::declval<std::size_t>()))>, sizeof...(Is)>{{f(index_of(table, Is))...}};
 	}
 	template <std::size_t N, typename T>
 	constexpr auto inverse_table(const T & table)
 	{
-		return inverse_table_impl(table, Identity{}, mpl::make_index_sequence<N>{});
+		using value_type = mpl::remove_cvref_t<decltype(table[0])>;
+
+		return inverse_table_impl(table, Identity{}, mpl::make_integral_sequence<value_type, N>{});
 	}
 	template <std::size_t N, typename T, typename F>
 	constexpr auto inverse_table(const T & table, F && f)
 	{
-		return inverse_table_impl(table, std::forward<F>(f), mpl::make_index_sequence<N>{});
+		using value_type = mpl::remove_cvref_t<decltype(table[0])>;
+
+		return inverse_table_impl(table, std::forward<F>(f), mpl::make_integral_sequence<value_type, N>{});
 	}
 
 	template <typename Array, std::size_t ...Is>
