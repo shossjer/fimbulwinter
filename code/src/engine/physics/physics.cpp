@@ -76,18 +76,18 @@ namespace physics
 namespace camera
 {
 	// TODO: make thread safe when needed
-	void set(simulation & simulation, Bounds && bounds)
+	void set(simulation & simulation, Bounds && bounds_)
 	{
 		core::maths::Vector3f::array_type bmin;
-		bounds.min.get_aligned(bmin);
+		bounds_.min.get_aligned(bmin);
 		core::maths::Vector3f::array_type bmax;
-		bounds.max.get_aligned(bmax);
+		bounds_.max.get_aligned(bmax);
 
 		debug_assert(bmin[0] <= bmax[0]);
 		debug_assert(bmin[1] <= bmax[1]);
 		debug_assert(bmin[2] <= bmax[2]);
 
-		::bounds = bounds;
+		::bounds = bounds_;
 
 		// snap existing cameras to new bound
 		for (Camera & camera : components.get<Camera>())
@@ -221,10 +221,10 @@ namespace physics
 		::renderer = nullptr;
 	}
 
-	simulation::simulation(engine::graphics::renderer & renderer, engine::graphics::viewer & viewer)
+	simulation::simulation(engine::graphics::renderer & renderer_, engine::graphics::viewer & viewer_)
 	{
-		::renderer = &renderer;
-		::viewer = &viewer;
+		::renderer = &renderer_;
+		::viewer = &viewer_;
 	}
 
 	void update_start(simulation & simulation)

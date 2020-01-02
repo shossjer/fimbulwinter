@@ -604,25 +604,25 @@ namespace
 
 	};
 
-	void post_query_contexts(std::atomic_int & ready, std::vector<ContextInfo> & contexts)
+	void post_query_contexts(std::atomic_int & ready, std::vector<ContextInfo> & contexts_)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<QueryContexts>, &ready, &contexts);
+		const auto res = queue.try_emplace(utility::in_place_type<QueryContexts>, &ready, &contexts_);
 		debug_assert(res);
 	}
 
-	void post_query_devices(std::atomic_int & ready, std::vector<DeviceInfo> & devices)
+	void post_query_devices(std::atomic_int & ready, std::vector<DeviceInfo> & devices_)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<QueryDevices>, &ready, &devices);
+		const auto res = queue.try_emplace(utility::in_place_type<QueryDevices>, &ready, &devices_);
 		debug_assert(res);
 	}
 
 	void callback_print_devices(void *)
 	{
 		std::atomic_int ready(0);
-		std::vector<DeviceInfo> devices;
-		std::vector<ContextInfo> contexts;
-		post_query_devices(ready, devices);
-		post_query_contexts(ready, contexts);
+		std::vector<DeviceInfo> devices_;
+		std::vector<ContextInfo> contexts_;
+		post_query_devices(ready, devices_);
+		post_query_contexts(ready, contexts_);
 
 		while (ready.load(std::memory_order_acquire) < 2)
 		{
@@ -630,12 +630,12 @@ namespace
 		}
 
 		debug_printline("print-devices:");
-		for (const auto & device : devices)
+		for (const auto & device : devices_)
 		{
 			std::vector<int> contexts_using_device;
-			for (int i : ranges::index_sequence_for(contexts))
+			for (int i : ranges::index_sequence_for(contexts_))
 			{
-				if (std::find(contexts[i].devices.begin(), contexts[i].devices.end(), device.id) != contexts[i].devices.end())
+				if (std::find(contexts_[i].devices.begin(), contexts_[i].devices.end(), device.id) != contexts_[i].devices.end())
 				{
 					contexts_using_device.push_back(i);
 				}
@@ -651,7 +651,7 @@ namespace
 				context_str = " used in contexts:";
 				for (auto i : contexts_using_device)
 				{
-					context_str += utility::to_string(" ", contexts[i].asset);
+					context_str += utility::to_string(" ", contexts_[i].asset);
 				}
 			}
 			debug_printline(" device ", device.id, context_str);

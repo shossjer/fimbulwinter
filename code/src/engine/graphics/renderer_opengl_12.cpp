@@ -451,22 +451,19 @@ namespace
 
 	struct Character
 	{
-		const mesh_t * mesh;
-		const texture_t * texture;
-		object_modelview_vertices * object;
+		const mesh_t * mesh_;
+		const texture_t * texture_;
+		object_modelview_vertices * object_;
 
-		Character(
-			const mesh_t & mesh,
-			const texture_t & texture,
-			object_modelview_vertices & object)
-			: mesh(&mesh)
-			, texture(&texture)
-			, object(&object)
+		Character(const mesh_t & mesh, const texture_t & texture, object_modelview_vertices & object)
+			: mesh_(&mesh)
+			, texture_(&texture)
+			, object_(&object)
 		{}
 
 		void draw(const bool highlighted)
 		{
-			const mesh_t & mesh = *this->mesh;
+			const mesh_t & mesh = *mesh_;
 
 			if (highlighted)
 			{
@@ -476,7 +473,7 @@ namespace
 					3, // TODO
 				    GL_FLOAT, // TODO
 				    0,
-				    object->vertices.data());
+				    object_->vertices.data());
 				glNormalPointer(
 					GL_FLOAT, // TODO
 				    0,
@@ -491,7 +488,7 @@ namespace
 			}
 			else
 			{
-				this->texture->enable();
+				texture_->enable();
 
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glEnableClientState(GL_NORMAL_ARRAY);
@@ -500,7 +497,7 @@ namespace
 					3, // TODO
 					GL_FLOAT, // TODO
 					0,
-					object->vertices.data());
+					object_->vertices.data());
 				glNormalPointer(
 					GL_FLOAT, // TODO
 					0,
@@ -518,7 +515,7 @@ namespace
 				glDisableClientState(GL_NORMAL_ARRAY);
 				glDisableClientState(GL_VERTEX_ARRAY);
 
-				this->texture->disable();
+				texture_->disable();
 			}
 		}
 	};
@@ -724,7 +721,7 @@ namespace
 		}
 		void operator () (engine::Entity entity, Character & x)
 		{
-			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity, x.mesh, x.object, color));
+			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity, x.mesh_, x.object_, color));
 		}
 		void operator () (engine::Entity entity, ui::PanelC & x)
 		{
@@ -1606,8 +1603,8 @@ namespace
 		for (auto & component : components.get<Character>())
 		{
 			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			modelview_matrix.mult(component.mesh->modelview);
+			modelview_matrix.mult(component.object_->modelview);
+			modelview_matrix.mult(component.mesh_->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);

@@ -82,9 +82,9 @@ namespace engine
 {
 	namespace replay
 	{
-		void start(void (* callback_command)(engine::Entity entity, engine::Command command, utility::any && data))
+		void start(void (* callback_command_)(engine::Entity entity, engine::Command command, utility::any && data))
 		{
-			::callback_command = callback_command;
+			::callback_command = callback_command_;
 
 			load();
 		}

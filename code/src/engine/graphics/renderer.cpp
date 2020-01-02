@@ -96,12 +96,12 @@ namespace engine
 			detail::self = nullptr;
 		}
 
-		renderer::renderer(engine::application::window & window, engine::resource::reader & reader, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type)
+		renderer::renderer(engine::application::window & window_, engine::resource::reader & reader_, void (* callback_select_)(engine::Entity entity, engine::Command command, utility::any && data), Type type)
 		{
 			detail::self = this;
-			detail::window = &window;
-			detail::reader = &reader;
-			detail::callback_select = callback_select;
+			detail::window = &window_;
+			detail::reader = &reader_;
+			detail::callback_select = callback_select_;
 
 			switch (type)
 			{

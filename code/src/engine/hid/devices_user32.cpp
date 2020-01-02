@@ -372,9 +372,11 @@ namespace engine
 			}
 
 			RID_DEVICE_INFO rdi;
-			rdi.cbSize = sizeof rdi;
-			UINT len = sizeof rdi;
-			debug_verify(GetRawInputDeviceInfo(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
+			{
+				rdi.cbSize = sizeof rdi;
+				UINT len = sizeof rdi;
+				debug_verify(GetRawInputDeviceInfo(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
+			}
 
 			::devices.emplace_back(handle);
 			Device & device = ::devices.back();
@@ -578,8 +580,8 @@ namespace engine
 					const auto & field = fields[i];
 					const HIDP_REPORT_TYPE type = i < field_offsets[1] ? HidP_Input : i < field_offsets[2] ? HidP_Output : HidP_Feature;
 					const char * const type_names[] = { "input", "output", "feature" };
-					const char * const name = field.type ? "value" : "button";
-					debug_printline("field ", i, "(", type_names[type], " ", name, ") ", field.nbits, " bits, starting at bit ", bit_offset);
+					const char * const field_name = field.type ? "value" : "button";
+					debug_printline("field ", i, "(", type_names[type], " ", field_name, ") ", field.nbits, " bits, starting at bit ", bit_offset);
 
 					if (field.type)
 					{
@@ -653,9 +655,9 @@ namespace engine
 			::window = nullptr;
 		}
 
-		void create_subsystem(devices & devices, engine::application::window & window, bool hardware_input)
+		void create_subsystem(devices & devices, engine::application::window & window_, bool hardware_input_)
 		{
-			::window = &window;
+			::window = &window_;
 
 			found_device(0, 0, 0); // non hardware device
 
@@ -664,7 +666,7 @@ namespace engine
 			engine::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
 			engine::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
 
-			if (hardware_input)
+			if (hardware_input_)
 			{
 				enable_hardware_input();
 			}

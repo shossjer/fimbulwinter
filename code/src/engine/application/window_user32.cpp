@@ -66,7 +66,7 @@ namespace
 
 	/**
 	 */
-	LRESULT CALLBACK WinProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK WinProc(HWND hWnd_, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		switch (msg)
 		{
@@ -76,7 +76,7 @@ namespace
 			{
 				process_input(*::devices, reinterpret_cast<HRAWINPUT>(lParam));
 			}
-			return DefWindowProc(hWnd, msg, wParam, lParam);
+			return DefWindowProc(hWnd_, msg, wParam, lParam);
 		case WM_INPUT_DEVICE_CHANGE:
 			switch (wParam)
 			{
@@ -138,7 +138,7 @@ namespace
 			break;
 
 		default:
-			return DefWindowProc(hWnd, msg, wParam, lParam);
+			return DefWindowProc(hWnd_, msg, wParam, lParam);
 		}
 		return 0;
 	}
@@ -156,7 +156,7 @@ namespace
 		return (int)msg.wParam;
 	}
 
-	void RegisterRawInputDevicesWithFlags(const uint32_t * collections, int count, DWORD dwFlags, HWND hWnd)
+	void RegisterRawInputDevicesWithFlags(const uint32_t * collections, int count, DWORD dwFlags, HWND hWnd_)
 	{
 		RAWINPUTDEVICE rids[10]; // arbitrary
 		debug_assert(std::size_t(count) < sizeof rids / sizeof rids[0]);
@@ -166,7 +166,7 @@ namespace
 			rids[i].usUsagePage = collections[i] >> 16;
 			rids[i].usUsage = collections[i] & 0x0000ffff;
 			rids[i].dwFlags = dwFlags;
-			rids[i].hwndTarget = hWnd;
+			rids[i].hwndTarget = hWnd_;
 		}
 
 		if (RegisterRawInputDevices(rids, count, sizeof rids[0]) == FALSE)
@@ -227,20 +227,20 @@ namespace engine
 			                             LoadIcon(cast(hInstance), IDI_APPLICATION)};
 			RegisterClassEx(&WndClass);
 			// create window
-			HWND hWnd = CreateWindowEx(WS_EX_CLIENTEDGE,
-			                           "Tribunal Window Class Name",
-			                           "Tribunal",
-			                           WS_OVERLAPPEDWINDOW,
-			                           CW_USEDEFAULT,
-			                           CW_USEDEFAULT,
-			                           config.window_width,
-			                           config.window_height,
-			                           0,
-			                           0,
-			                           cast(hInstance),
-			                           0);
+			::hWnd = CreateWindowEx(WS_EX_CLIENTEDGE,
+			                        "Tribunal Window Class Name",
+			                        "Tribunal",
+			                        WS_OVERLAPPEDWINDOW,
+			                        CW_USEDEFAULT,
+			                        CW_USEDEFAULT,
+			                        config.window_width,
+			                        config.window_height,
+			                        0,
+			                        0,
+			                        cast(hInstance),
+			                        0);
 			// create window graphics
-			HDC hDC = GetDC(hWnd);
+			::hDC = GetDC(::hWnd);
 
 			const PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR),
 			                                   0,
@@ -268,24 +268,20 @@ namespace engine
 			                                   0,
 			                                   0,
 			                                   0};
-			const int pf = ChoosePixelFormat(hDC, &pfd);
+			const int pf = ChoosePixelFormat(::hDC, &pfd);
 
-			SetPixelFormat(hDC, pf, &pfd);
+			SetPixelFormat(::hDC, pf, &pfd);
 
-			HGLRC hGLRC = wglCreateContext(hDC);
+			::hGLRC = wglCreateContext(::hDC);
 
-			ShowWindow(hWnd, nCmdShow);
-
-			::hWnd = hWnd;
-			::hDC = hDC;
-			::hGLRC = hGLRC;
+			ShowWindow(::hWnd, nCmdShow);
 		}
 
-		void window::set_dependencies(engine::graphics::viewer & viewer, engine::hid::devices & devices, engine::hid::ui & ui)
+		void window::set_dependencies(engine::graphics::viewer & viewer_, engine::hid::devices & devices_, engine::hid::ui & ui_)
 		{
-			::viewer = &viewer;
-			::devices = &devices;
-			::ui = &ui;
+			::viewer = &viewer_;
+			::devices = &devices_;
+			::ui = &ui_;
 		}
 
 		void make_current(window & window)

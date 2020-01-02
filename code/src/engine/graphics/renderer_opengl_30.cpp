@@ -1717,19 +1717,20 @@ namespace
 			unicode_indices.reserve(face->num_glyphs);
 			std::vector<int> glyph_indices;
 			glyph_indices.reserve(face->num_glyphs);
-
-			FT_UInt glyph_index;
-			FT_UInt unicode_index = FT_Get_First_Char(face, &glyph_index);
-			while (glyph_index != 0)
 			{
-				unicode_indices.emplace_back(unicode_index);
-				glyph_indices.push_back(glyph_index);
+				FT_UInt glyph_index;
+				FT_UInt unicode_index = FT_Get_First_Char(face, &glyph_index);
+				while (glyph_index != 0)
+				{
+					unicode_indices.emplace_back(unicode_index);
+					glyph_indices.push_back(glyph_index);
 
-				unicode_index = FT_Get_Next_Char(face, unicode_index, &glyph_index);
+					unicode_index = FT_Get_Next_Char(face, unicode_index, &glyph_index);
+				}
+				glyph_indices.push_back(0);
+				debug_assert(unicode_indices.size() + 1 == glyph_indices.size());
+				debug_printline(name, ": face charmap size = ", unicode_indices.size());
 			}
-			glyph_indices.push_back(0);
-			debug_assert(unicode_indices.size() + 1 == glyph_indices.size());
-			debug_printline(name, ": face charmap size = ", unicode_indices.size());
 
 			const int total_slots = glyph_indices.size();
 

@@ -62,9 +62,9 @@ namespace engine
 		::callback_exit = nullptr;
 	}
 
-	console::console(void (* callback_exit)())
+	console::console(void (* callback_exit_)())
 	{
-		::callback_exit = callback_exit;
+		::callback_exit = callback_exit_;
 
 		active = true;
 		handle = GetStdHandle(STD_INPUT_HANDLE);

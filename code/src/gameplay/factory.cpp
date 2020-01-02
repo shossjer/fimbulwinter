@@ -484,11 +484,11 @@ namespace
 
 				for (const auto & mesh : data.meshes)
 				{
-					const engine::Asset asset(mesh.name);
+					const engine::Asset mesh_asset(mesh.name);
 
 					post_register_mesh(
 						*renderer,
-						asset,
+						mesh_asset,
 						engine::graphics::data::Mesh{
 							mesh.vertices,
 							mesh.triangles,
@@ -815,9 +815,9 @@ namespace
 			{
 				if (entity != engine::Entity::null())
 				{
-					for (engine::Entity entity : meshes)
+					for (engine::Entity mesh_entity : meshes)
 					{
-						post_remove(*::renderer, entity);
+						post_remove(*::renderer, mesh_entity);
 					}
 				}
 			}
@@ -832,18 +832,18 @@ namespace
 					std::vector<engine::graphics::data::CompC::asset> assets;
 					assets.push_back({asset, mesh.color});
 
-					const auto entity = engine::Entity::create();
+					const auto mesh_entity = engine::Entity::create();
 
 					post_add_component(
 						*::renderer,
-						entity,
+						mesh_entity,
 						engine::graphics::data::CompC{
 							mesh.matrix,
 							core::maths::Vector3f{1.f, 1.f, 1.f},
 							assets});
-					post_make_obstruction(*::renderer, entity);
+					post_make_obstruction(*::renderer, mesh_entity);
 
-					meshes.push_back(entity);
+					meshes.push_back(mesh_entity);
 				}
 			}
 			Created(Created && x)
@@ -1380,13 +1380,13 @@ namespace
 
 namespace gameplay
 {
-	void set_dependencies(engine::animation::mixer & mixer, engine::graphics::renderer & renderer, engine::physics::simulation & simulation, engine::resource::reader & reader, gameplay::gamestate & gamestate)
+	void set_dependencies(engine::animation::mixer & mixer_, engine::graphics::renderer & renderer_, engine::physics::simulation & simulation_, engine::resource::reader & reader_, gameplay::gamestate & gamestate_)
 	{
-		::mixer = &mixer;
-		::renderer = &renderer;
-		::simulation = &simulation;
-		::reader = &reader;
-		::gamestate = &gamestate;
+		::mixer = &mixer_;
+		::renderer = &renderer_;
+		::simulation = &simulation_;
+		::reader = &reader_;
+		::gamestate = &gamestate_;
 	}
 
 	void create_level(engine::Entity entity, const std::string & name)

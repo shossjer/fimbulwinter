@@ -275,9 +275,9 @@ namespace
 
 		std::vector<double> skills;
 
-		void clear_skills(const gameplay::Skills & skills)
+		void clear_skills(const gameplay::Skills & skills_)
 		{
-			this->skills.resize(skills.size(), 0.);
+			skills.resize(skills_.size(), 0.);
 		}
 		void add_skill(int index, double amount)
 		{
@@ -727,7 +727,7 @@ namespace
 			        components.call(target, get_tooltip{})};
 		}
 
-		void display(engine::Entity entity, int x, int y)
+		void display(engine::Entity entity, int x_, int y_)
 		{
 			if (target == entity)
 			{
@@ -745,8 +745,8 @@ namespace
 				post_remove(*::renderer, frame);
 			}
 			target = entity;
-			this->x = x;
-			this->y = y;
+			x = x_;
+			y = y_;
 
 			if (target != engine::Entity::null())
 			{
@@ -1196,14 +1196,14 @@ namespace
 
 	void post_command_callback(engine::Command command, float value, void * data)
 	{
-		const auto & mapping_data = *static_cast<MappingData *>(data);
+		const auto & mapping_data_ = *static_cast<MappingData *>(data);
 
-		gameplay::post_command(mapping_data.callback, command, value);
+		gameplay::post_command(mapping_data_.callback, command, value);
 	}
 
 	void cursor_callback(engine::Command command, float value, void * data)
 	{
-		const auto & mapping_data = *static_cast<MappingData *>(data);
+		const auto & mapping_data_ = *static_cast<MappingData *>(data);
 
 		static int x = -1;
 		static int y = -1;
@@ -1211,7 +1211,7 @@ namespace
 		switch (command)
 		{
 		case gameplay::command::MOUSE_CLICK:
-			post_select(*::renderer, x, y, mapping_data.callback, value == 1.f ? gameplay::command::RENDER_SELECT : gameplay::command::RENDER_DESELECT);
+			post_select(*::renderer, x, y, mapping_data_.callback, value == 1.f ? gameplay::command::RENDER_SELECT : gameplay::command::RENDER_DESELECT);
 			break;
 		case gameplay::command::MOUSE_MOVE_X:
 			x = static_cast<int>(value);
@@ -1219,7 +1219,7 @@ namespace
 		case gameplay::command::MOUSE_MOVE_Y:
 			y = static_cast<int>(value);
 			// first command_x is called and then command_y
-			post_select(*::renderer, x, y, mapping_data.callback, gameplay::command::RENDER_HIGHLIGHT);
+			post_select(*::renderer, x, y, mapping_data_.callback, gameplay::command::RENDER_HIGHLIGHT);
 			break;
 		default:
 			debug_unreachable("unknown command");
@@ -1245,32 +1245,32 @@ namespace gameplay
 		::mixer = nullptr;
 	}
 
-	gamestate::gamestate(engine::animation::mixer & mixer, engine::audio::System & audio, engine::graphics::renderer & renderer, engine::graphics::viewer & viewer, engine::hid::ui & ui, engine::physics::simulation & simulation, engine::record & record, engine::resource::reader & reader)
+	gamestate::gamestate(engine::animation::mixer & mixer_, engine::audio::System & audio_, engine::graphics::renderer & renderer_, engine::graphics::viewer & viewer_, engine::hid::ui & ui_, engine::physics::simulation & simulation_, engine::record & record_, engine::resource::reader & reader_)
 	{
-		::mixer = &mixer;
-		::audio = &audio;
-		::renderer = &renderer;
-		::viewer = &viewer;
-		::ui = &ui;
-		::simulation = &simulation;
-		::record = &record;
-		::reader = &reader;
+		::mixer = &mixer_;
+		::audio = &audio_;
+		::renderer = &renderer_;
+		::viewer = &viewer_;
+		::ui = &ui_;
+		::simulation = &simulation_;
+		::record = &record_;
+		::reader = &reader_;
 
-		set_dependencies(mixer, renderer, simulation, reader, *this);
+		set_dependencies(mixer_, renderer_, simulation_, reader_, *this);
 
 		std::vector<engine::Asset> states = {engine::Asset("game"), engine::Asset("debug")};
-		post_add_context(ui, engine::Asset("default"), std::move(states));
+		post_add_context(*::ui, engine::Asset("default"), std::move(states));
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
 		core::maths::Vector3f debug_camera_pos{ 0.f, 4.f, 0.f };
 		core::maths::Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
 
-		debug_verify(components.try_emplace<FreeCamera>(debug_camera, viewer, simulation, debug_camera));
-		debug_verify(components.try_emplace<OverviewCamera>(game_camera, simulation, game_camera));
+		debug_verify(components.try_emplace<FreeCamera>(debug_camera, *::viewer, *::simulation, debug_camera));
+		debug_verify(components.try_emplace<OverviewCamera>(game_camera, *::simulation, game_camera));
 
-		engine::physics::camera::add(simulation, debug_camera, debug_camera_pos, false);
-		engine::physics::camera::add(simulation, game_camera, game_camera_pos, true);
+		engine::physics::camera::add(*::simulation, debug_camera, debug_camera_pos, false);
+		engine::physics::camera::add(*::simulation, game_camera, game_camera_pos, true);
 
 		post_add_frame(*::viewer, engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root")});
 
@@ -1296,54 +1296,54 @@ namespace gameplay
 		post_bind(*::viewer, engine::Asset("game"), game_camera);
 
 		auto flycontrol = engine::Entity::create();
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::TURN_LEFT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::TURN_RIGHT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::TURN_DOWN);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::TURN_UP);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_A, gameplay::command::MOVE_LEFT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_D, gameplay::command::MOVE_RIGHT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_S, gameplay::command::MOVE_DOWN);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_W, gameplay::command::MOVE_UP);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_Q, gameplay::command::ROLL_LEFT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_E, gameplay::command::ROLL_RIGHT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_LEFTCTRL, gameplay::command::ELEVATE_DOWN);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_SPACE, gameplay::command::ELEVATE_UP);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::TURN_LEFT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::TURN_RIGHT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::TURN_DOWN);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::TURN_UP);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_A, gameplay::command::MOVE_LEFT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_D, gameplay::command::MOVE_RIGHT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_S, gameplay::command::MOVE_DOWN);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_W, gameplay::command::MOVE_UP);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_Q, gameplay::command::ROLL_LEFT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_E, gameplay::command::ROLL_RIGHT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_LEFTCTRL, gameplay::command::ELEVATE_DOWN);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_SPACE, gameplay::command::ELEVATE_UP);
 		mapping_data[0] = MappingData{debug_camera, engine::Asset("default")};
-		post_bind(ui, engine::Asset("default"), engine::Asset("debug"), flycontrol, post_command_callback, &mapping_data[0]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("debug"), flycontrol, post_command_callback, &mapping_data[0]);
 
 		auto pancontrol = engine::Entity::create();
-		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::MOVE_LEFT);
-		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::MOVE_RIGHT);
-		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::MOVE_UP);
-		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::MOVE_DOWN);
-		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
-		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
-		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
-		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
+		post_add_button_press(*::ui, pancontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::MOVE_LEFT);
+		post_add_button_press(*::ui, pancontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::MOVE_RIGHT);
+		post_add_button_press(*::ui, pancontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::MOVE_UP);
+		post_add_button_press(*::ui, pancontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::MOVE_DOWN);
+		post_add_axis_tilt(*::ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
+		post_add_axis_tilt(*::ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
+		post_add_axis_tilt(*::ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
+		post_add_axis_tilt(*::ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
 		mapping_data[1] = MappingData{game_camera, engine::Asset("default")};
-		post_bind(ui, engine::Asset("default"), engine::Asset("game"), pancontrol, post_command_callback, &mapping_data[1]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("game"), pancontrol, post_command_callback, &mapping_data[1]);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
-		debug_verify(components.try_emplace<CameraActivator>(debug_switch, viewer, ui, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera));
-		debug_verify(components.try_emplace<CameraActivator>(game_switch, viewer, ui, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera));
+		debug_verify(components.try_emplace<CameraActivator>(debug_switch, *::viewer, *::ui, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera));
+		debug_verify(components.try_emplace<CameraActivator>(game_switch, *::viewer, *::ui, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera));
 
-		post_add_button_press(ui, debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
-		post_add_button_press(ui, game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
+		post_add_button_press(*::ui, debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
+		post_add_button_press(*::ui, game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
 		mapping_data[2] = MappingData{game_switch, engine::Asset("default")};
 		mapping_data[3] = MappingData{debug_switch, engine::Asset("default")};
-		post_bind(ui, engine::Asset("default"), engine::Asset("debug"), game_switch, post_command_callback, &mapping_data[2]);
-		post_bind(ui, engine::Asset("default"), engine::Asset("game"), debug_switch, post_command_callback, &mapping_data[3]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("debug"), game_switch, post_command_callback, &mapping_data[2]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("game"), debug_switch, post_command_callback, &mapping_data[3]);
 
 		auto selector = engine::Entity::create();
 		debug_verify(components.try_emplace<Selector>(selector));
 
 		auto cursor = engine::Entity::create();
-		post_add_axis_move(ui, cursor, engine::hid::Input::Axis::MOUSE_MOVE, gameplay::command::MOUSE_MOVE_X, gameplay::command::MOUSE_MOVE_Y);
-		post_add_button_press(ui, cursor, engine::hid::Input::Button::MOUSE_LEFT, gameplay::command::MOUSE_CLICK);
+		post_add_axis_move(*::ui, cursor, engine::hid::Input::Axis::MOUSE_MOVE, gameplay::command::MOUSE_MOVE_X, gameplay::command::MOUSE_MOVE_Y);
+		post_add_button_press(*::ui, cursor, engine::hid::Input::Button::MOUSE_LEFT, gameplay::command::MOUSE_CLICK);
 		mapping_data[4] = MappingData{selector, engine::Asset("default")};
-		post_bind(ui, engine::Asset("default"), engine::Asset("game"), cursor, cursor_callback, &mapping_data[4]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("game"), cursor, cursor_callback, &mapping_data[4]);
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");
@@ -1380,7 +1380,7 @@ namespace gameplay
 			std::tuple<engine::Entity, engine::Command, utility::any> command_args;
 			while (queue_commands.try_pop(command_args))
 			{
-				post_add_command(*record, frame_count, std::get<0>(command_args), std::get<1>(command_args), utility::any(std::get<2>(command_args)));
+				post_add_command(*::record, frame_count, std::get<0>(command_args), std::get<1>(command_args), utility::any(std::get<2>(command_args)));
 
 				if (debug_verify(std::get<0>(command_args) != engine::Entity::null()))
 				{

@@ -67,7 +67,7 @@ namespace
 	struct Playback
 	{
 		const Armature * armature;
-		const Action * action;
+		const Action * action_;
 
 		float elapsed;
 		float stepsize;
@@ -76,14 +76,21 @@ namespace
 
 		bool repeat;
 		bool finished;
-		int framei;
+		int framei_;
 
 		// vvvvvvvv tmp
 		std::vector<core::maths::Matrix4x4f> matrices;
 		core::maths::Vector3f position_movement;
 		core::maths::Quaternionf orientation_movement;
 
-		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), repeat(repeat), finished(false), framei(0), matrices(armature.joints.size()) {}
+		Playback(const Armature & armature, bool repeat)
+			: armature(&armature)
+			, action_(nullptr)
+			, repeat(repeat)
+			, finished(false)
+			, framei_(0)
+			, matrices(armature.joints.size())
+		{}
 		// ^^^"^^^^ tmp
 
 		bool isFinished() const
@@ -93,34 +100,35 @@ namespace
 
 		void update()
 		{
-			if (action == nullptr)
+			if (action_ == nullptr)
 				return;
 
-			framei += 1;
-			if (framei >= action->length)
+			framei_ += 1;
+			if (framei_ >= action_->length)
 			{
 				if (!repeat)
 				{
 					finished = true;
 				}
 
-				framei %= action->length;
+				framei_ %= action_->length;
 			}
 
 			int rooti = 0;
 			while (rooti < static_cast<int>(armature->joints.size()))
-				rooti = update(*action, rooti, core::maths::Matrix4x4f::identity(), framei);
+				rooti = update(*action_, rooti, core::maths::Matrix4x4f::identity(), framei_);
 
-			if (!action->positions.empty())
+			if (!action_->positions.empty())
 			{
-				position_movement = action->positions[framei + 1] - action->positions[framei];
+				position_movement = action_->positions[framei_ + 1] - action_->positions[framei_];
 			}
-			if (!action->orientations.empty())
+			if (!action_->orientations.empty())
 			{
-				orientation_movement = inverse(action->orientations[framei]) * action->orientations[framei + 1];
+				orientation_movement = inverse(action_->orientations[framei_]) * action_->orientations[framei_ + 1];
 			}
 		}
-		int update(const Action & action, const int mei, const core::maths::Matrix4x4f & parent_matrix, const int framei)
+
+		int update(const Action & action, int mei, const core::maths::Matrix4x4f & parent_matrix, int framei)
 		{
 			const auto pos = action.frames[framei].channels[mei].translation;
 			const auto rot = action.frames[framei].channels[mei].rotation;
@@ -149,18 +157,20 @@ namespace
 				matrix_pallet[i] = matrices[i] * armature->joints[i].inv_matrix;
 			// ^^^"^^^^ tmp
 		}
+
 		bool extract_position_movement(core::maths::Vector3f & movement) const
 		{
-			if (!action->positions.empty())
+			if (!action_->positions.empty())
 			{
 				movement = position_movement;
 				return true;
 			}
 			return false;
 		}
+
 		bool extract_orientation_movement(core::maths::Quaternionf & movement) const
 		{
-			if (!action->orientations.empty())
+			if (!action_->orientations.empty())
 			{
 				movement = orientation_movement;
 				return true;
@@ -410,7 +420,7 @@ namespace
 				}
 				else
 				{
-					playback.action = &*action;
+					playback.action_ = &*action;
 				}
 			}
 			// set mixer
@@ -507,10 +517,10 @@ namespace engine
 			::renderer = nullptr;
 		}
 
-		mixer::mixer(engine::graphics::renderer & renderer, engine::physics::simulation & simulation)
+		mixer::mixer(engine::graphics::renderer & renderer_, engine::physics::simulation & simulation_)
 		{
-			::renderer = &renderer;
-			::simulation = &simulation;
+			::renderer = &renderer_;
+			::simulation = &simulation_;
 		}
 
 		/**
