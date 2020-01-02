@@ -82,8 +82,7 @@ namespace core
 			read_length(length);
 			debug_printline(length);
 
-			static_assert(member_table<T>::has("length"), "");
-			member_table<T>::call("length", x, TryAssign<int32_t>(length));
+			core::assign<member_table<T>::find("length")>(x, [length](){ return length; });
 
 			static_assert(member_table<T>::has("frames"), "");
 			member_table<T>::call("frames", x, [&](auto & y){ read_frames(y, njoints, length); });
@@ -227,13 +226,11 @@ namespace core
 				read_matrix(unused);
 			}
 
-			static_assert(member_table<T>::has("parent"), "");
-			member_table<T>::call("parent", me, TryAssign<int>(parenti));
+			core::assign<member_table<T>::find("parent")>(me, [parenti]() { debug_assert(parenti < 0x10000); return uint16_t(parenti); });
 
 			uint16_t nchildren;
 			read_count(nchildren);
-			static_assert(member_table<T>::has("children"), "");
-			member_table<T>::call("children", me, TryAssign<uint16_t>(nchildren));
+			core::assign<member_table<T>::find("children")>(me, [nchildren]() { return nchildren; });
 			for (int i = 0; i < static_cast<int>(nchildren); i++)
 			{
 				read_joint_chain(joints, mei);

@@ -63,6 +63,11 @@ namespace core
 			return lookup_table.contains(name);
 		}
 
+		static constexpr std::size_t find(utility::string_view name)
+		{
+			return lookup_table.find(name);
+		}
+
 		template <typename X, typename F>
 		static decltype(auto) call(utility::string_view name, X && x, F && f)
 		{
@@ -76,6 +81,12 @@ namespace core
 			default:
 				return call_impl(mpl::index_constant<std::size_t(-1)>{}, std::forward<X>(x), std::forward<F>(f));
 			}
+		}
+
+		template <std::size_t I, typename X>
+		static decltype(auto) get(X && x)
+		{
+			return x.* lookup_table.template get_value<I>();
 		}
 
 		template <typename X, typename F>
@@ -148,35 +159,26 @@ namespace core
 	template <typename T>
 	using has_lookup_table = typename has_lookup_table_impl<T>::type;
 
-	template <typename T>
-	class TryAssign
+	template <std::size_t I, typename T, typename F>
+	void assign(T & x, F && f)
 	{
-	private:
-		T v;
+		member_table<T>::template get<I>(x) = std::forward<F>(f)();
+	}
 
-	public:
-		TryAssign(T value)
-			: v(std::forward<T>(value))
-		{}
+	namespace detail
+	{
+		template <typename T, typename F>
+		bool try_assign_impl(mpl::index_constant<std::size_t(-1)>, T &, F &&) { return false; }
+		template <std::size_t I, typename T, typename F>
+		bool try_assign_impl(mpl::index_constant<I>, T & x, F && f)
+		{
+			assign<I>(x, std::forward<F>(f));
 
-	public:
-		template <typename U>
-		void operator () (U & object)
-		{
-			impl(object, 0);
+			return true;
 		}
-	private:
-		template <typename U>
-		auto impl(U & object, int) -> decltype(object = std::declval<T>(), void())
-		{
-			object = std::forward<T>(v);
-		}
-		template <typename U>
-		void impl(U & object, ...)
-		{
-			debug_fail("incompatible types");
-		}
-	};
+	}
+	template <std::size_t I, typename T, typename F>
+	bool try_assign(T & x, F && f) { return detail::try_assign_impl(mpl::index_constant<I>{}, x, std::forward<F>(f)); }
 }
 
 #endif /* CORE_SERIALIZATION_HPP */

@@ -125,52 +125,26 @@ namespace core
 
 			png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
 
-			if (member_table<T>::has("width"))
-			{
-				member_table<T>::call("width", x, TryAssign<int>(image_width));
-			}
-			if (member_table<T>::has("height"))
-			{
-				member_table<T>::call("height", x, TryAssign<int>(image_height));
-			}
+			core::try_assign<member_table<T>::find("width")>(x, [image_width](){ return image_width; });
+			core::try_assign<member_table<T>::find("height")>(x, [image_height](){ return image_height; });
 
-			if (member_table<T>::has("bit_depth"))
-			{
-				member_table<T>::call("bit_depth", x, TryAssign<int>(bit_depth));
-			}
-			if (member_table<T>::has("channel_count"))
-			{
-				member_table<T>::call("channel_count", x, TryAssign<int>(channels));
-			}
-			if (member_table<T>::has("color_type"))
-			{
-				member_table<T>::call("color_type", x, [&](auto & y){ read_color_type(color_type, y); });
-			}
+			core::try_assign<member_table<T>::find("bit_depth")>(x, [bit_depth](){ return bit_depth; });
+			core::try_assign<member_table<T>::find("channel_count")>(x, [channels](){ return channels; });
 
-			if (member_table<T>::has("pixel_data"))
+			core::try_assign<member_table<T>::find("color_type")>(x, [color_type]()
 			{
-				member_table<T>::call("pixel_data", x, TryAssign<core::container::Buffer &&>(std::move(pixels)));
-			}
-		}
-	private:
-		void read_color_type(int color_type, graphics::ColorType & x)
-		{
-			switch (color_type)
-			{
-			case PNG_COLOR_TYPE_RGB:
-				x = graphics::ColorType::RGB;
-				break;
-			case PNG_COLOR_TYPE_RGBA:
-				x = graphics::ColorType::RGBA;
-				break;
-			default:
-				debug_fail("unknown color type");
-			}
-		}
-		template <typename T>
-		void read_color_type(int, T &)
-		{
-			debug_fail("unknown type for color type");
+				switch (color_type)
+				{
+				case PNG_COLOR_TYPE_RGB:
+					return graphics::ColorType::RGB;
+				case PNG_COLOR_TYPE_RGBA:
+					return graphics::ColorType::RGBA;
+				default:
+					debug_unreachable("unknown color type");
+				}
+			});
+
+			core::try_assign<member_table<T>::find("pixel_data")>(x, [&pixels]() { return std::move(pixels); });
 		}
 	};
 }
