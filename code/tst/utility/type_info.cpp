@@ -12,6 +12,10 @@ namespace
 
 	using alias_type = int;
 
+#if defined(__clang__)
+# pragma clang diagnostic push
+# pragma clang diagnostic ignored "-Wunneeded-internal-declaration"
+#endif
 	struct
 	{
 	} anonymous;
@@ -22,6 +26,9 @@ namespace
 
 	auto function() { struct type {}; return type{}; }
 	using in_function_type = decltype(function());
+#if defined(__clang__)
+# pragma clang diagnostic pop
+#endif
 }
 
 TEST_CASE("fundamental type signature", "[utility][type info]")
