@@ -128,8 +128,34 @@ namespace core
 			core::try_assign<member_table<T>::find("width")>(x, [image_width](){ return image_width; });
 			core::try_assign<member_table<T>::find("height")>(x, [image_height](){ return image_height; });
 
-			core::try_assign<member_table<T>::find("bit_depth")>(x, [bit_depth](){ return bit_depth; });
-			core::try_assign<member_table<T>::find("channel_count")>(x, [channels](){ return channels; });
+			core::try_assign<member_table<T>::find("bit_depth")>(x, [bit_depth]()
+			{
+				switch (bit_depth)
+				{
+				case 1:
+				case 2:
+				case 4:
+				case 8:
+				case 16:
+					return static_cast<graphics::BitDepth>(bit_depth);
+				default:
+					debug_unreachable("unknown bit depth");
+				}
+			});
+
+			core::try_assign<member_table<T>::find("channel_count")>(x, [channels]()
+			{
+				switch (channels)
+				{
+				case 1:
+				case 2:
+				case 3:
+				case 4:
+					return static_cast<graphics::ChannelCount>(channels);
+				default:
+					debug_unreachable("unknown number of channels");
+				}
+			});
 
 			core::try_assign<member_table<T>::find("color_type")>(x, [color_type]()
 			{

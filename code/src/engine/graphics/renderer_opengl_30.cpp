@@ -1861,9 +1861,8 @@ namespace
 				}
 			}
 
-
 			const auto asset = engine::Asset(name);
-			post_register_texture(*self, asset, core::graphics::Image(texture_width, texture_height, 8, 1, core::graphics::ColorType::R, std::move(pixels)));
+			post_register_texture(*self, asset, core::graphics::Image(texture_width, texture_height, core::graphics::BitDepth::eight, core::graphics::ChannelCount::one, core::graphics::ColorType::R, std::move(pixels)));
 
 			font_manager.create(std::move(name), std::move(unicode_indices), std::move(symbol_data), slot_size_x, slot_size_y, texture_width, texture_height);
 		}

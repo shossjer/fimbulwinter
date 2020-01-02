@@ -19,15 +19,15 @@ namespace core
 			int width_;
 			int height_;
 
-			int8_t bit_depth_;
-			int8_t channel_count_;
+			BitDepth bit_depth_;
+			ChannelCount channel_count_;
 			ColorType color_;
 
 			core::container::Buffer pixels_;
 
 		public:
 			Image() = default;
-			Image(int width, int height, int8_t bit_depth, int8_t channel_count, ColorType color, core::container::Buffer && pixels)
+			Image(int width, int height, BitDepth bit_depth, ChannelCount channel_count, ColorType color, core::container::Buffer && pixels)
 				: width_(width)
 				, height_(height)
 				, bit_depth_(bit_depth)
@@ -40,8 +40,8 @@ namespace core
 			int width() const { return width_; }
 			int height() const { return height_; }
 
-			int bit_depth() const { return bit_depth_; }
-			int channel_count() const { return channel_count_; }
+			BitDepth bit_depth() const { return bit_depth_; }
+			ChannelCount channel_count() const { return channel_count_; }
 			ColorType color() const { return color_; }
 
 			const void * data() const { return pixels_.data(); }
