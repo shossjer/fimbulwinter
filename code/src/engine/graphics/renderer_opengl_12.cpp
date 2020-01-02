@@ -1292,8 +1292,7 @@ namespace
 				0.f, 1.f,
 				1.f, 1.f}});
 
-		return std::move(engine::graphics::data::Mesh{
-			vertices, triangles, normals, coords });
+		return engine::graphics::data::Mesh{vertices, triangles, normals, coords};
 	}
 
 	std::atomic_int texture_lock(0);
