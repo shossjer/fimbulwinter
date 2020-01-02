@@ -772,14 +772,14 @@ namespace utility
 			template <typename StoringType, typename ...Ps>
 			typename StoringType::value_type & construct_at(StoringType * data_, std::ptrdiff_t index, Ps && ...ps)
 			{
-				assert((0 <= index && index < Capacity));
+				assert(std::size_t(index) < Capacity);
 				return data_[index].construct(std::forward<Ps>(ps)...);
 			}
 
 			template <typename StoringType>
 			void destruct_at(StoringType * data_, std::ptrdiff_t index)
 			{
-				assert((0 <= index && index < Capacity));
+				assert(std::size_t(index) < Capacity);
 				data_[index].destruct();
 			}
 

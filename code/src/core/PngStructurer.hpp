@@ -88,7 +88,7 @@ namespace core
 					{
 						png_error(png_ptr, "unexpected eol");
 					}
-					const auto amount_read = read_stream.read_block(reinterpret_cast<char * >(data), size);
+					const uint64_t amount_read = read_stream.read_block(reinterpret_cast<char * >(data), size);
 					if (amount_read < size)
 					{
 						png_error(png_ptr, "unexpected eol");
