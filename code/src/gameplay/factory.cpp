@@ -880,7 +880,6 @@ namespace
 		{
 			debug_assert(utility::holds_alternative<Creating>(state));
 
-			Creating creating = utility::get<Creating>(std::move(state));
 			state.emplace<Created>(entity, resource);
 		}
 	};

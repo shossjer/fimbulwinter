@@ -672,7 +672,6 @@ namespace
 			unsigned long code_bits[n_longs_for(REL_CNT)] = {};
 			::ioctl(fd, EVIOCGBIT(EV_REL, REL_CNT), code_bits);
 
-			int count = 0;
 			for (int code = 0; code < REL_CNT; code++)
 			{
 				if (test_bit(code, code_bits)) {
@@ -688,7 +687,6 @@ namespace
 			unsigned long code_bits[n_longs_for(ABS_CNT)] = {};
 			::ioctl(fd, EVIOCGBIT(EV_ABS, ABS_CNT), code_bits);
 
-			int count = 0;
 			for (int code = 0; code < ABS_CNT; code++)
 			{
 				if (test_bit(code, code_bits)) {

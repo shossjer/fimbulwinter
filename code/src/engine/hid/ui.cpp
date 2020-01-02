@@ -146,13 +146,6 @@ namespace
 		return i;
 	}
 
-	void remove_mapping(engine::Entity mapping)
-	{
-		const int i = find_mapping(mapping);
-		mappings.erase(std::next(mappings.begin(), i));
-		mapping_entities.erase(std::next(mapping_entities.begin(), i));
-	}
-
 	struct Context
 	{
 		struct StateMapping

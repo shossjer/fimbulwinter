@@ -242,15 +242,6 @@ namespace
 		}
 	};
 
-	engine::graphics::opengl::Color4ub color_from(const engine::Entity entity)
-	{
-		return engine::graphics::opengl::Color4ub{
-			(entity & 0x000000ff) >> 0,
-			(entity & 0x0000ff00) >> 8,
-			(entity & 0x00ff0000) >> 16,
-			(entity & 0xff000000) >> 24 };
-	}
-
 	engine::graphics::opengl::Color4ub color_from(const engine::graphics::data::Color color)
 	{
 		return engine::graphics::opengl::Color4ub{

@@ -16,12 +16,6 @@
 
 namespace
 {
-	bool file_exists(const std::string & filename)
-	{
-		std::ifstream stream(filename, std::ifstream::binary);
-		return !!stream;
-	}
-
 	bool has_extension(const std::string & filename, const std::string & extension)
 	{
 		if (extension.size() > filename.size())

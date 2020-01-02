@@ -151,12 +151,6 @@ namespace
 		{
 			this->stack.top() *= value_type::translation(x, y, z);
 		}
-
-	public:
-		friend void glLoadMatrix(const Stack & stack)
-		{
-			glLoadMatrix(stack.stack.top());
-		}
 	};
 
 	struct ShaderData
@@ -409,15 +403,6 @@ namespace
 		{
 		}
 	};
-
-	engine::graphics::opengl::Color4ub color_from(const engine::Entity entity)
-	{
-		return engine::graphics::opengl::Color4ub{
-			(entity & 0x000000ff) >> 0,
-			(entity & 0x0000ff00) >> 8,
-			(entity & 0x00ff0000) >> 16,
-			(entity & 0xff000000) >> 24 };
-	}
 
 	engine::graphics::opengl::Color4ub color_from(const engine::graphics::data::Color color)
 	{
@@ -1794,7 +1779,6 @@ namespace
 			const int texture_width = std::get<2>(texture_dimensions.front());
 			const int texture_height = std::get<3>(texture_dimensions.front());
 			const int slots_in_x = texture_width / slot_size_x;
-			const int slots_in_y = texture_height / slot_size_y;
 
 
 			core::container::Buffer pixels(core::container::Buffer::Format::float32, texture_width * texture_height);

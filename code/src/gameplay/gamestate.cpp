@@ -62,9 +62,6 @@ namespace
 	template<typename T>
 	T & access_component(const engine::Entity entity);
 
-	// update "profile" of entity if it is currently shown (will not set entity as selected).
-	void profile_update(const engine::Entity entity);
-
 	std::unordered_map<engine::Asset, RecipeIngredient> ingredient_graph;
 
 	struct Selector
