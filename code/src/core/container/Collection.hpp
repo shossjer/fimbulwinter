@@ -776,7 +776,7 @@ namespace core
 			}
 
 			template <size_t type>
-			void remove_at_impl(bucket_t bucket, uint32_t index)
+			void remove_at_impl(bucket_t bucket, uint16_t index)
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);

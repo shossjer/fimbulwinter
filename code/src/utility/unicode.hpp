@@ -37,7 +37,7 @@ namespace utility
 		{
 			if (value_ < 0x80)
 			{
-				s[0] = value_;
+				s[0] = static_cast<char>(value_);
 				return 1;
 			}
 			if (value_ < 0x800)
@@ -45,8 +45,8 @@ namespace utility
 				// 0x3f = 0011 1111
 				// 0x80 = 1000 0000
 				// 0xc0 = 1100 0000
-				s[0] = (value_ >> 6) | 0xc0;
-				s[1] = (value_ & 0x3f) | 0x80;
+				s[0] = static_cast<char>((value_ >> 6) | 0xc0);
+				s[1] = static_cast<char>((value_ & 0x3f) | 0x80);
 				return 2;
 			}
 			if (value_ < 0x10000)
@@ -54,9 +54,9 @@ namespace utility
 				// 0x3f = 0011 1111
 				// 0x80 = 1000 0000
 				// 0xe0 = 1110 0000
-				s[0] = (value_ >> 12) | 0xe0;
-				s[1] = ((value_ >> 6) & 0x3f) | 0x80;
-				s[2] = (value_ & 0x3f) | 0x80;
+				s[0] = static_cast<char>((value_ >> 12) | 0xe0);
+				s[1] = static_cast<char>(((value_ >> 6) & 0x3f) | 0x80);
+				s[2] = static_cast<char>((value_ & 0x3f) | 0x80);
 				return 3;
 			}
 			// else
@@ -64,10 +64,10 @@ namespace utility
 				// 0x3f = 0011 1111
 				// 0x80 = 1000 0000
 				// 0xf0 = 1111 0000
-				s[0] = (value_ >> 18) | 0xf0;
-				s[1] = ((value_ >> 12) & 0x3f) | 0x80;
-				s[2] = ((value_ >> 6) & 0x3f) | 0x80;
-				s[3] = (value_ & 0x3f) | 0x80;
+				s[0] = static_cast<char>((value_ >> 18) | 0xf0);
+				s[1] = static_cast<char>(((value_ >> 12) & 0x3f) | 0x80);
+				s[2] = static_cast<char>(((value_ >> 6) & 0x3f) | 0x80);
+				s[3] = static_cast<char>((value_ & 0x3f) | 0x80);
 				return 4;
 			// }
 		}
@@ -75,7 +75,7 @@ namespace utility
 		{
 			if (value_ < 0x10000)
 			{
-				s[0] = value_;
+				s[0] = static_cast<char16_t>(value_);
 				return 1;
 			}
 			// else
@@ -84,8 +84,8 @@ namespace utility
 				// 0x03ff = 0000 0011 1111 1111
 				// 0xd800 = 1101 1000 0000 0000
 				// 0xdc00 = 1101 1100 0000 0000
-				s[0] = (value >> 10) | 0xd800;
-				s[1] = (value_ & 0x03ff) | 0xdc00;
+				s[0] = static_cast<char16_t>((value >> 10) | 0xd800);
+				s[1] = static_cast<char16_t>((value_ & 0x03ff) | 0xdc00);
 				return 2;
 			// }
 		}

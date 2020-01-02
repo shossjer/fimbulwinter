@@ -1749,8 +1749,10 @@ namespace
 				maxx = std::max(maxx, static_cast<int>(face->glyph->bitmap.width));
 				maxy = std::max(maxy, static_cast<int>(face->glyph->bitmap.rows));
 
-				symbol_data[i].offset_x = face->glyph->bitmap_left;
-				symbol_data[i].offset_y = face->glyph->bitmap.rows - face->glyph->bitmap_top;
+				symbol_data[i].offset_x = static_cast<int16_t>(face->glyph->bitmap_left);
+				debug_assert(symbol_data[i].offset_x == face->glyph->bitmap_left, "16 bits are not enough for offset, should we use 32?");
+				symbol_data[i].offset_y = static_cast<int16_t>(face->glyph->bitmap.rows - face->glyph->bitmap_top);
+				debug_assert(symbol_data[i].offset_y == face->glyph->bitmap.rows - face->glyph->bitmap_top, "16 bits are not enough for offset, should we use 32?");
 				symbol_data[i].advance_x = static_cast<int16_t>(face->glyph->advance.x >> 6);
 				debug_assert(symbol_data[i].advance_x == face->glyph->advance.x >> 6, "16 bits are not enough for advancement, should we use 26?");
 				symbol_data[i].advance_y = static_cast<int16_t>(face->glyph->advance.y >> 6);

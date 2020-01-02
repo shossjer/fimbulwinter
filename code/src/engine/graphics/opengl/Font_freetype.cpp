@@ -106,8 +106,10 @@ namespace engine
 						return false;
 					}
 
-					max_bitmap_width = std::max(int(face->glyph->bitmap.width), int(max_bitmap_width));
-					max_bitmap_height = std::max(int(face->glyph->bitmap.rows), int(max_bitmap_height));
+					debug_assert(static_cast<int16_t>(face->glyph->bitmap.width) == face->glyph->bitmap.width, "16 bits are not enough for size, should we use 32?");
+					max_bitmap_width = std::max(int16_t(face->glyph->bitmap.width), max_bitmap_width);
+					debug_assert(static_cast<int16_t>(face->glyph->bitmap.width) == face->glyph->bitmap.width, "16 bits are not enough for size, should we use 32?");
+					max_bitmap_height = std::max(int16_t(face->glyph->bitmap.rows), max_bitmap_height);
 				}
 
 				const int estimated_area = max_bitmap_width * max_bitmap_height * 256;
@@ -146,8 +148,10 @@ namespace engine
 						}
 					}
 
-					params[i].bitmap_left = face->glyph->bitmap_left;
-					params[i].bitmap_top = face->glyph->bitmap_top;
+					params[i].bitmap_left = static_cast<int16_t>(face->glyph->bitmap_left);
+					debug_assert(params[i].bitmap_left == face->glyph->bitmap_left, "16 bits are not enough for size, should we use 32?");
+					params[i].bitmap_top = static_cast<int16_t>(face->glyph->bitmap_top);
+					debug_assert(params[i].bitmap_top == face->glyph->bitmap_top, "16 bits are not enough for size, should we use 32?");
 					params[i].advance_x = static_cast<int16_t>(face->glyph->advance.x >> 6);
 					debug_assert(params[i].advance_x == face->glyph->advance.x >> 6, "16 bits are not enough for advancement, should we use 26?");
 					params[i].advance_y = static_cast<int16_t>(face->glyph->advance.y >> 6);

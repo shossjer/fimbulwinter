@@ -17,7 +17,7 @@ namespace utility
 	class bad_variant_access : public std::exception
 	{};
 
-	constexpr size_t variant_npos = -1;
+	constexpr auto variant_npos = std::size_t(-1);
 
 	template <typename ...Ts>
 	class variant;

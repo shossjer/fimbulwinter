@@ -44,11 +44,11 @@ namespace utility
 		template <std::size_t N>
 		inline constexpr uint32_t crc32(const char (& str)[N])
 		{
-			return ~detail::crc32_append(~0, str, N - 1);
+			return ~detail::crc32_append(~0u, str, N - 1);
 		}
 		inline constexpr uint32_t crc32(const char * const str, const std::size_t n)
 		{
-			return ~detail::crc32_append(~0, str, n);
+			return ~detail::crc32_append(~0u, str, n);
 		}
 	}
 }

@@ -51,7 +51,7 @@ TEST_CASE("aggregation allocator (heap, void, char, short, int) can allocate non
 	CHECK(static_cast<void *>(aa.address<0>(p, 1)) != static_cast<void *>(aa.address<2>(p, 1)));
 
 	aa.construct(aa.address<0>(p, 1), '0');
-	aa.construct(aa.address<1>(p, 1), 1);
+	aa.construct(aa.address<1>(p, 1), short(1));
 	aa.construct(aa.address<2>(p, 1), 2);
 	CHECK(aa.address<0>(p, 1)[0] == '0');
 	CHECK(aa.address<1>(p, 1)[0] == 1);
@@ -89,7 +89,7 @@ TEST_CASE("aggregation allocator (heap, char, char, short, int) can allocate non
 
 	aa.construct(p, 'a');
 	aa.construct(aa.address<0>(p, 1), '0');
-	aa.construct(aa.address<1>(p, 1), 1);
+	aa.construct(aa.address<1>(p, 1), short(1));
 	aa.construct(aa.address<2>(p, 1), 2);
 	CHECK(*p == 'a');
 	CHECK(aa.address<0>(p, 1)[0] == '0');
