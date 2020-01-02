@@ -205,7 +205,7 @@ namespace core
 			T & me = joints.back();
 
 			static_assert(member_table<T>::has("name"), "");
-			member_table<T>::call("name", me, [&](auto & y){ read_string(me.name); });
+			member_table<T>::call("name", me, [&](auto & y){ read_string(y); });
 
 			if (member_table<T>::has("matrix"))
 			{
