@@ -940,6 +940,8 @@ namespace hid
 					case engine::hid::Input::State::AXIS_TILT:
 						filters.try_call(device_mapping.axis_filters[static_cast<int>(input.getAxis())], HandleAxisTilt{device_mapping.axis_callbacks[static_cast<int>(input.getAxis())], device_mapping.axis_datas[static_cast<int>(input.getAxis())], input});
 						break;
+					case engine::hid::Input::State::AXIS_TRIGGER:
+						break;
 					case engine::hid::Input::State::BUTTON_DOWN:
 						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], HandleButton<false>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], device_mapping.button_datas[static_cast<int>(input.getButton())], input});
 						break;
@@ -948,6 +950,8 @@ namespace hid
 						break;
 					case engine::hid::Input::State::CURSOR_MOVE:
 						filters.try_call(device_mapping.axis_filters[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], HandleAxisMove{device_mapping.axis_callbacks[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], device_mapping.axis_datas[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], input});
+						break;
+					case engine::hid::Input::State::KEY_CHARACTER:
 						break;
 					}
 				}
