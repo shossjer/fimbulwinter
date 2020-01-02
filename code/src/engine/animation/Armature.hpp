@@ -79,11 +79,6 @@ namespace engine
 				std::vector<core::maths::Vector3f> positions;
 				std::vector<core::maths::Quaternionf> orientations;
 
-				bool operator == (const std::string & name) const
-				{
-					return name == this->name;
-				}
-
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table(

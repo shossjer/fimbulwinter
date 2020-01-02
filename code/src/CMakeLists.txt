@@ -139,6 +139,7 @@ set(HEADERS_UTILITY
 	src/utility/lookup_table.hpp
 	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
+	src/utility/predicates.hpp
 	src/utility/preprocessor.hpp
 	src/utility/property.hpp
 	src/utility/ranges.hpp

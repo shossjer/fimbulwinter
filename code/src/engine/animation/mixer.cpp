@@ -18,6 +18,8 @@
 #include "engine/physics/physics.hpp"
 #include "engine/resource/reader.hpp"
 
+#include "utility/predicates.hpp"
+
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -414,7 +416,7 @@ namespace
 			{
 				auto action = std::find(x.armature->actions.begin(),
 				                        x.armature->actions.end(),
-				                        data.name);
+				                        utility::if_name_is(data.name));
 				if (action == x.armature->actions.end())
 				{
 					debug_printline(engine::animation_channel, "Could not find action ", data.name, " in armature ", x.armature->name);
@@ -436,7 +438,7 @@ namespace
 			{
 				auto action = std::find(x.object->actions.begin(),
 				                        x.object->actions.end(),
-				                        data.name);
+				                        utility::if_name_is(data.name));
 				if (action == x.object->actions.end())
 				{
 					debug_printline(engine::animation_channel, "Could not find action ", data.name, " in object ", x.object->name);

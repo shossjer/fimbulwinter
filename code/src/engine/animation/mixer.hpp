@@ -51,11 +51,6 @@ namespace engine
 
 				std::string name;
 				std::vector<key> keys;
-
-				bool operator == (const std::string & name) const
-				{
-					return this->name == name;
-				}
 			};
 
 			std::string name; // debug purpose
