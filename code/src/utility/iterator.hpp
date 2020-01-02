@@ -403,6 +403,7 @@ namespace utility
 		this_type & operator_equal(mpl::index_sequence<Is...>, Tuple && tuple)
 		{
 			int expansion_hack[] = {(std::get<Is>(*this) = std::get<Is>(std::forward<Tuple>(tuple)), 0)...};
+			static_cast<void>(expansion_hack);
 			return *this;
 		}
 
@@ -515,14 +516,14 @@ namespace utility
 
 		reference operator [] (difference_type n) const { return utl::unpack(static_cast<const base_type &>(*this), [n](auto & ...ps){ return reference(ps[n]...); }); }
 
-		this_type & operator ++ () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(++ps, 0)...}; }); return *this; }
-		this_type & operator -- () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(--ps, 0)...}; }); return *this; }
+		this_type & operator ++ () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(++ps, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
+		this_type & operator -- () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(--ps, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
 		this_type operator ++ (int) { return utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ return this_type(ps++...); }); }
 		this_type operator -- (int) { return utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ return this_type(ps--...); }); }
 		this_type operator + (difference_type n) { return utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ return this_type(ps + n...); }); }
 		this_type operator - (difference_type n) { return utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ return this_type(ps - n...); }); }
-		this_type & operator += (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps += n, 0)...}; }); return *this; }
-		this_type & operator -= (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps -= n, 0)...}; }); return *this; }
+		this_type & operator += (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps += n, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
+		this_type & operator -= (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps -= n, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
 
 		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
 

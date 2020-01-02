@@ -85,7 +85,7 @@ namespace utility
 		}
 		void destroy(const utility::zip_iterator<Ts *...> & p)
 		{
-			utl::unpack(static_cast<const std::tuple<Ts *...> &>(p), [this](auto ...ps){ int expansion_hack[] = {(base().destroy(ps), 0)...}; });
+			utl::unpack(static_cast<const std::tuple<Ts *...> &>(p), [this](auto ...ps){ int expansion_hack[] = {(base().destroy(ps), 0)...}; static_cast<void>(expansion_hack); });
 		}
 
 	private:
@@ -103,12 +103,14 @@ namespace utility
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, P && p)
 		{
 			int expansion_hack[] = {(construct(std::get<Is>(ptrs), utility::get<Is>(std::forward<P>(p))), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 		template <std::size_t ...Is, typename ...Ps,
 		          REQUIRES((sizeof...(Ps) != 1 || !utility::is_proxy_reference<mpl::remove_cvref_t<mpl::car<Ps...>>>::value))>
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, Ps && ...ps)
 		{
 			int expansion_hack[] = {(construct(std::get<Is>(ptrs), std::forward<Ps>(ps)), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 		// crashes clang 4.0
 		// template <std::size_t ...Is, typename ...Ps>
