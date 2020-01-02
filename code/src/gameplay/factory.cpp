@@ -295,7 +295,7 @@ namespace
 
 				return armature != engine::Asset::null();
 			}
-			bool set(engine::Asset && asset, std::string && name, engine::animation::Armature && data)
+			bool set(engine::Asset && asset, std::string && /*name*/, engine::animation::Armature && data)
 			{
 				debug_assert(armature == engine::Asset::null());
 				armature = asset;
@@ -372,7 +372,7 @@ namespace
 				// 	engine::graphics::renderer::post_unregister(asset.mesh);
 				// }
 			}
-			Loaded(engine::Asset && asset, std::string && name, ModelData && data)
+			Loaded(engine::Asset && /*asset*/, std::string && name, ModelData && data)
 			{
 				const auto & part = data.part("all");
 
@@ -473,7 +473,7 @@ namespace
 				// 	engine::graphics::renderer::post_unregister(asset);
 				// }
 			}
-			Loaded(engine::Asset && asset, std::string && name, LevelData && data)
+			Loaded(engine::Asset && /*asset*/, std::string && /*name*/, LevelData && data)
 			{
 				// tmp
 				set(
@@ -578,7 +578,7 @@ namespace
 				// 	engine::graphics::renderer::post_unregister(asset.mesh);
 				// }
 			}
-			Loaded(engine::Asset && asset, std::string && name, ModelData && data)
+			Loaded(engine::Asset && /*asset*/, std::string && name, ModelData && data)
 			{
 				const auto & part = data.part(name);
 
@@ -1057,10 +1057,10 @@ namespace
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityBench & x) { debug_unreachable(); }
-			void operator () (EntityBoard & x) { debug_unreachable(); }
-			void operator () (EntityLevel & x) { debug_unreachable(); }
-			void operator () (EntityOven & x) { debug_unreachable(); }
+			void operator () (EntityBench &) { debug_unreachable(); }
+			void operator () (EntityBoard &) { debug_unreachable(); }
+			void operator () (EntityLevel &) { debug_unreachable(); }
+			void operator () (EntityOven &) { debug_unreachable(); }
 		};
 		entities.call(entity, CreateEntity{resource});
 	}
@@ -1075,10 +1075,10 @@ namespace
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityBench & x) { debug_unreachable(); }
-			void operator () (EntityLevel & x) { debug_unreachable(); }
-			void operator () (EntityOven & x) { debug_unreachable(); }
-			void operator () (EntityWorker & x) { debug_unreachable(); }
+			void operator () (EntityBench &) { debug_unreachable(); }
+			void operator () (EntityLevel &) { debug_unreachable(); }
+			void operator () (EntityOven &) { debug_unreachable(); }
+			void operator () (EntityWorker &) { debug_unreachable(); }
 		};
 		entities.call(entity, CreateEntity{resource});
 	}
@@ -1093,10 +1093,10 @@ namespace
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityBench & x) { debug_unreachable(); }
-			void operator () (EntityBoard & x) { debug_unreachable(); }
-			void operator () (EntityOven & x) { debug_unreachable(); }
-			void operator () (EntityWorker & x) { debug_unreachable(); }
+			void operator () (EntityBench &) { debug_unreachable(); }
+			void operator () (EntityBoard &) { debug_unreachable(); }
+			void operator () (EntityOven &) { debug_unreachable(); }
+			void operator () (EntityWorker &) { debug_unreachable(); }
 		};
 		entities.call(entity, CreateEntity{resource});
 	}
@@ -1115,9 +1115,9 @@ namespace
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityBoard & x) { debug_unreachable(); }
-			void operator () (EntityLevel & x) { debug_unreachable(); }
-			void operator () (EntityWorker & x) { debug_unreachable(); }
+			void operator () (EntityBoard &) { debug_unreachable(); }
+			void operator () (EntityLevel &) { debug_unreachable(); }
+			void operator () (EntityWorker &) { debug_unreachable(); }
 		};
 		entities.call(entity, CreateEntity{resource});
 	}
@@ -1144,7 +1144,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1174,7 +1174,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1204,7 +1204,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1225,7 +1225,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1264,7 +1264,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}

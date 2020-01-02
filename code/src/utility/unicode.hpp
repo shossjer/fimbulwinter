@@ -155,7 +155,7 @@ namespace utility
 		{
 			return extract_size(s);
 		}
-		static constexpr int next(const char32_t * s)
+		static constexpr int next(const char32_t *)
 		{
 			return 1;
 		}
@@ -175,7 +175,7 @@ namespace utility
 		{
 			return length <= 0 ? from - s : previous_impl(s - previous(s), length - 1, from);
 		}
-		static constexpr int previous(const char * s, utility::unit_difference length) { return length.get(); }
+		static constexpr int previous(const char *, utility::unit_difference length) { return length.get(); }
 		static constexpr int previous(const char * s, utility::point_difference length)
 		{
 			return previous_impl(s, length.get(), s);
@@ -190,7 +190,7 @@ namespace utility
 		{
 			return length <= 0 ? s - from : next_impl(s + next(s), length - 1, from);
 		}
-		static constexpr int next(const char * s, utility::unit_difference length) { return length.get(); }
+		static constexpr int next(const char *, utility::unit_difference length) { return length.get(); }
 		static constexpr int next(const char * s, utility::point_difference length)
 		{
 			return next_impl(s, length.get(), s);

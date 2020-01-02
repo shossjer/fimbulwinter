@@ -647,7 +647,7 @@ namespace utility
 		          size_t number_of_storages = std::tuple_size<mpl::decay_t<St>>::value,
 		          size_t number_of_alternatives = sizeof...(As),
 		          REQUIRES((number_of_storages == number_of_alternatives))>
-		decltype(auto) query_impl(F && f, St && storages, As && ...alternatives)
+		decltype(auto) query_impl(F && f, St && /*storages*/, As && ...alternatives)
 		{
 			return f(std::forward<As>(alternatives)...);
 		}
@@ -923,7 +923,7 @@ namespace utility
 	}
 	template <typename T, typename ...Ts,
 	          REQUIRES((!mpl::member_of<T, Ts...>::value))>
-	bool holds_alternative(const variant<Ts...> & v) noexcept
+	bool holds_alternative(const variant<Ts...> &) noexcept
 	{
 		return false;
 	}

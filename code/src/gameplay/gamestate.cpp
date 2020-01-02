@@ -443,7 +443,7 @@ namespace
 			}
 		}
 
-		void cleanup(const Preparation & preparation)
+		void cleanup(const Preparation & /*preparation*/)
 		{
 			post_update_action(*::mixer, worker, engine::animation::action{"idle", true});
 
@@ -466,7 +466,7 @@ namespace
 
 	struct Loader
 	{
-		void translate(engine::Command command, utility::any && data)
+		void translate(engine::Command command, utility::any &&)
 		{
 			debug_assert(command == engine::command::LOADER_FINISHED);
 			debug_printline(gameplay::gameplay_channel, "WOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOW");
@@ -497,7 +497,7 @@ namespace
 			x.read(image);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}
@@ -671,13 +671,13 @@ namespace
 			}
 		}
 
-		std::string operator () (engine::Entity entity, const Worker & x)
+		std::string operator () (engine::Entity /*entity*/, const Worker & x)
 		{
 			const auto & role = x.compute_role(kitchen.roles);
 			return role.name;
 		}
 
-		std::string operator () (engine::Entity entity, const Workstation & x)
+		std::string operator () (engine::Entity entity, const Workstation &)
 		{
 			if (kitchen.is_empty(entity))
 				return "empty";
@@ -768,7 +768,7 @@ namespace
 			x.translate(command, std::move(data));
 		}
 		template <typename T>
-		void impl(T & x, ...)
+		void impl(T &, ...)
 		{
 			debug_unreachable();
 		}
@@ -1137,7 +1137,7 @@ namespace
 			kitchen.init_recipes(std::move(s));
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("unknown format");
 		}
@@ -1150,7 +1150,7 @@ namespace
 			kitchen.init_roles(std::move(s));
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("unknown format");
 		}
@@ -1163,25 +1163,25 @@ namespace
 			kitchen.init_skills(std::move(s));
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("unknown format");
 		}
 	};
 
-	void data_callback_recipes(std::string name, engine::resource::reader::Structurer && structurer)
+	void data_callback_recipes(std::string /*name*/, engine::resource::reader::Structurer && structurer)
 	{
 		utility::visit(data_callback_recipes_handler{}, std::move(structurer));
 
 		recipes_ring.init(kitchen.recipes);
 	}
 
-	void data_callback_roles(std::string name, engine::resource::reader::Structurer && structurer)
+	void data_callback_roles(std::string /*name*/, engine::resource::reader::Structurer && structurer)
 	{
 		utility::visit(data_callback_roles_handler{}, std::move(structurer));
 	}
 
-	void data_callback_skills(std::string name, engine::resource::reader::Structurer && structurer)
+	void data_callback_skills(std::string /*name*/, engine::resource::reader::Structurer && structurer)
 	{
 		utility::visit(data_callback_skills_handler{}, std::move(structurer));
 	}
@@ -1353,7 +1353,7 @@ namespace gameplay
 		::reader->post_read("skills", data_callback_skills);
 	}
 
-	void update(gamestate & gamestate, int frame_count)
+	void update(gamestate &, int frame_count)
 	{
 		// adding workstuff
 		{
@@ -1422,7 +1422,7 @@ namespace gameplay
 	}
 
 	void post_add_workstation(
-		gamestate & gamestate,
+		gamestate &,
 		engine::Entity entity,
 		gamestate::WorkstationType type,
 		core::maths::Matrix4x4f front,
@@ -1432,7 +1432,7 @@ namespace gameplay
 		debug_assert(res);
 	}
 
-	void post_add_worker(gamestate & gamestate, engine::Entity entity)
+	void post_add_worker(gamestate &, engine::Entity entity)
 	{
 		const auto res = queue_workers.try_emplace(entity);
 		debug_assert(res);

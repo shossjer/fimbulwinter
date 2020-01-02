@@ -38,7 +38,7 @@ namespace utility
 
 			constexpr const Key & get_key(std::ptrdiff_t index) const { return keys[index]; }
 		private:
-			constexpr std::size_t find_impl(const Key & key, mpl::index_constant<N>) const
+			constexpr std::size_t find_impl(const Key & /*key*/, mpl::index_constant<N>) const
 			{
 				return std::size_t(-1);
 			}
@@ -75,7 +75,7 @@ namespace utility
 
 			constexpr const Value & get_value(std::ptrdiff_t index) const { return values[index]; }
 		private:
-			constexpr std::size_t find_value_impl(const Value & value, mpl::index_constant<N>) const
+			constexpr std::size_t find_value_impl(const Value & /*value*/, mpl::index_constant<N>) const
 			{
 				return std::size_t(-1);
 			}

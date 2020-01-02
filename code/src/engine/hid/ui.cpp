@@ -678,7 +678,7 @@ namespace hid
 		engine::observe("print-devices", callback_print_devices, nullptr);
 	}
 
-	void update(ui & ui)
+	void update(ui &)
 	{
 		dimension_t notification_dimension;
 		if (queue_dimension.try_pop(notification_dimension))
@@ -964,43 +964,43 @@ namespace hid
 		}
 	}
 
-	void notify_resize(ui & ui, const int width, const int height)
+	void notify_resize(ui &, const int width, const int height)
 	{
 		queue_dimension.try_push(width, height);
 	}
 
-	void notify_device_found(ui & ui, int id)
+	void notify_device_found(ui &, int id)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceFound>, id);
 		debug_assert(res);
 	}
 
-	void notify_device_lost(ui & ui, int id)
+	void notify_device_lost(ui &, int id)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceLost>, id);
 		debug_assert(res);
 	}
 
-	void notify_add_source(ui & ui, int id, std::string && path, int type, std::string && name)
+	void notify_add_source(ui &, int id, std::string && path, int type, std::string && name)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), std::move(name));
 		debug_assert(res);
 	}
 
-	void notify_remove_source(ui & ui, int id, std::string && path)
+	void notify_remove_source(ui &, int id, std::string && path)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<RemoveSource>, id, std::move(path));
 		debug_assert(res);
 	}
 
-	void notify_input(ui & ui, const engine::hid::Input & input)
+	void notify_input(ui &, const engine::hid::Input & input)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<engine::hid::Input>, input);
 		debug_assert(res);
 	}
 
 	void post_add_context(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		std::vector<engine::Asset> states)
 	{
@@ -1008,7 +1008,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_remove_context(
-		ui & ui,
+		ui &,
 		engine::Asset context)
 	{
 		const auto res = queue.try_emplace(utility::in_place_type<RemoveContext>, context);
@@ -1016,7 +1016,7 @@ namespace hid
 	}
 
 	void post_set_state(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		engine::Asset state)
 	{
@@ -1025,7 +1025,7 @@ namespace hid
 	}
 
 	void post_add_device(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		int id)
 	{
@@ -1033,7 +1033,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_remove_device(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		int id)
 	{
@@ -1042,7 +1042,7 @@ namespace hid
 	}
 
 	void post_add_axis_move(
-		ui & ui,
+		ui &,
 		engine::Entity mapping,
 		engine::hid::Input::Axis code,
 		engine::Command command_x,
@@ -1052,7 +1052,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_add_axis_tilt(
-		ui & ui,
+		ui &,
 		engine::Entity mapping,
 		engine::hid::Input::Axis code,
 		engine::Command command_min,
@@ -1062,7 +1062,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_add_button_press(
-		ui & ui,
+		ui &,
 		engine::Entity mapping,
 		engine::hid::Input::Button code,
 		engine::Command command)
@@ -1071,7 +1071,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_add_button_release(
-		ui & ui,
+		ui &,
 		engine::Entity mapping,
 		engine::hid::Input::Button code,
 		engine::Command command)
@@ -1081,7 +1081,7 @@ namespace hid
 	}
 
 	void post_bind(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		engine::Asset state,
 		engine::Entity mapping,
@@ -1092,7 +1092,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_unbind(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		engine::Asset state,
 		engine::Entity mapping)

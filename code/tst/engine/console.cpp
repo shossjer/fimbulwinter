@@ -119,10 +119,10 @@ TEST_CASE("Verify multiple args")
 
 namespace
 {
-	void f_empty(void * data) {}
-	void f_single(void * data, utility::string_view) {}
-	void f_dual1(void * data, bool, int64_t) {}
-	void f_dual2(void * data, bool, bool) {}
+	void f_empty(void *) {}
+	void f_single(void *, utility::string_view) {}
+	void f_dual1(void *, bool, int64_t) {}
+	void f_dual2(void *, bool, bool) {}
 
 	template <typename ...Parameters>
 	auto create_callback(void (* fun)(void * data, Parameters...), void * data)

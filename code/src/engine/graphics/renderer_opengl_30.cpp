@@ -1002,7 +1002,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (engine::Entity entity, T & x)
+		void operator () (engine::Entity /*entity*/, T &)
 		{
 			debug_unreachable();
 		}
@@ -1273,7 +1273,7 @@ namespace
 						selectable_components.remove(x.entity);
 					}
 				}
-				void operator () (MessageMakeClearSelection && x)
+				void operator () (MessageMakeClearSelection &&)
 				{
 					debug_fail(); // not implemented yet
 				}
@@ -1615,7 +1615,7 @@ namespace
 			x.read(image);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}
@@ -1649,7 +1649,7 @@ namespace
 			x.read(image);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}
@@ -1674,7 +1674,7 @@ namespace
 			x.read(data);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}

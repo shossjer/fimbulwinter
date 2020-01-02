@@ -142,7 +142,7 @@ namespace core
 		}
 		template <typename T,
 		          REQUIRES((std::is_class<T>::value))>
-		void parse_value(T & x, utility::string_view value_string)
+		void parse_value(T &, utility::string_view /*value_string*/)
 		{
 			debug_fail("this is a strange type");
 		}

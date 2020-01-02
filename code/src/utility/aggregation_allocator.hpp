@@ -136,7 +136,7 @@ namespace utility
 		}
 
 		template <typename U1>
-		static std::size_t offset_of_impl(std::size_t capacity, std::size_t acc, mpl::type_list<U1>)
+		static std::size_t offset_of_impl(std::size_t /*capacity*/, std::size_t acc, mpl::type_list<U1>)
 		{
 			return acc;
 		}

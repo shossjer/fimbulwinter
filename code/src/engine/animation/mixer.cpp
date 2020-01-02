@@ -256,10 +256,9 @@ namespace
 			return x.extract_position_movement(movement);
 		}
 		template <typename X>
-		bool operator () (X & x)
+		bool operator () (X &)
 		{
 			debug_unreachable();
-			return false;
 		}
 	};
 	struct extract_orientation_movement
@@ -271,10 +270,9 @@ namespace
 			return x.extract_orientation_movement(movement);
 		}
 		template <typename X>
-		bool operator () (X & x)
+		bool operator () (X &)
 		{
 			debug_unreachable();
-			return false;
 		}
 	};
 	struct extract_pallet
@@ -286,7 +284,7 @@ namespace
 			x.extract(matrix_pallet);
 		}
 		template <typename X>
-		void operator () (X & x)
+		void operator () (X &)
 		{
 			debug_unreachable();
 		}
@@ -298,7 +296,7 @@ namespace
 			return x.extract_translation();
 		}
 		template <typename X>
-		engine::transform_t operator () (const X & x)
+		engine::transform_t operator () (const X &)
 		{
 			debug_unreachable();
 		}
@@ -314,7 +312,7 @@ namespace
 			return x.finished;
 		}
 		template <typename X>
-		bool operator () (X & x)
+		bool operator () (X &)
 		{
 			debug_unreachable();
 		}
@@ -529,12 +527,12 @@ namespace engine
 		/**
 		 * Sets callback instance, called from looper during setup
 		 */
-		void initialize(mixer & mixer, const Callbacks & callbacks)
+		void initialize(mixer &, const Callbacks & callbacks)
 		{
 			pCallbacks = &callbacks;
 		}
 
-		void update(mixer & mixer)
+		void update(mixer &)
 		{
 			AssetMessage asset_message;
 			while (queue_assets.try_pop(asset_message))
@@ -607,37 +605,37 @@ namespace engine
 			}
 		}
 
-		void post_register_armature(mixer & mixer, engine::Asset asset, engine::animation::Armature && data)
+		void post_register_armature(mixer &, engine::Asset asset, engine::animation::Armature && data)
 		{
 			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterArmature>, asset, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_register_object(mixer & mixer, engine::Asset asset, engine::animation::object && data)
+		void post_register_object(mixer &, engine::Asset asset, engine::animation::object && data)
 		{
 			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterObject>, asset, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_add_character(mixer & mixer, engine::Entity entity, engine::animation::character && data)
+		void post_add_character(mixer &, engine::Entity entity, engine::animation::character && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddCharacter>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_add_model(mixer & mixer, engine::Entity entity, engine::animation::model && data)
+		void post_add_model(mixer &, engine::Entity entity, engine::animation::model && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddModel>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_update_action(mixer & mixer, engine::Entity entity, engine::animation::action && data)
+		void post_update_action(mixer &, engine::Entity entity, engine::animation::action && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateAction>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_remove(mixer & mixer, engine::Entity entity)
+		void post_remove(mixer &, engine::Entity entity)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
 			debug_assert(res);

@@ -31,10 +31,10 @@ namespace
 
 		~counter() { destructions++; }
 		counter() { default_constructions++; }
-		counter(const counter & c) { copy_constructions++; }
-		counter(counter && c) { move_constructions++; }
-		counter & operator = (const counter & c) { copy_assignments++; return *this; }
-		counter & operator = (counter && c) { move_assignments++; return *this; }
+		counter(const counter &) { copy_constructions++; }
+		counter(counter &&) { move_constructions++; }
+		counter & operator = (const counter &) { copy_assignments++; return *this; }
+		counter & operator = (counter &&) { move_assignments++; return *this; }
 	};
 
 	int counter::destructions;
@@ -288,13 +288,13 @@ namespace
 	{
 		void operator () (std::string & x) { x = "a"; }
 		template <typename X>
-		void operator () (X & x) { throw 1; }
+		void operator () (X &) { throw 1; }
 	};
 	struct getter
 	{
 		const std::string & operator () (const std::string & x) { return x; }
 		template <typename X>
-		const std::string & operator () (const X & x) { throw 1; }
+		const std::string & operator () (const X &) { throw 1; }
 	};
 }
 TEST_CASE( "variant visitation", "[utility][variant]" )

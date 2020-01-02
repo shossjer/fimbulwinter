@@ -59,7 +59,7 @@ namespace engine
 			create_subsystem(*this, window, hardware_input);
 		}
 
-		void found_device(int id, int vendor, int product)
+		void found_device(int id, int /*vendor*/, int /*product*/)
 		{
 			if (std::size_t(id) >= device_values.size())
 			{

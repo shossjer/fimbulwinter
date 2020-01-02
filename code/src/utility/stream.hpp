@@ -82,7 +82,7 @@ namespace utility
 	template <typename T>
 	struct try_stream_no_t
 	{
-		friend std::ostream & operator << (std::ostream & stream, try_stream_no_t<T> && t)
+		friend std::ostream & operator << (std::ostream & stream, try_stream_no_t<T> &&)
 		{
 			constexpr auto signature = utility::type_signature<mpl::remove_cvref_t<T>>();
 			return stream << "?(" << signature << ")";
@@ -96,14 +96,14 @@ namespace utility
 	}
 	template <typename T,
 	          mpl::disable_if_t<mpl::is_ostreamable<T>::value, int> = 0>
-	try_stream_no_t<T> try_stream(T && t)
+	try_stream_no_t<T> try_stream(T &&)
 	{
 		return try_stream_no_t<T>{};
 	}
 
 	/**
 	 */
-	inline std::vector<std::string> &split(std::istream &stream, const char delimiter, std::vector<std::string> &words, const bool remove_whitespaces = false)
+	inline std::vector<std::string> &split(std::istream &stream, const char delimiter, std::vector<std::string> &words, const bool /*remove_whitespaces*/ = false)
 	{
 		words.emplace_back();
 		do

@@ -548,7 +548,7 @@ namespace utility
 		{
 			return a.storage._has_value;
 		}
-		friend constexpr bool operator < (const this_type & a, nullopt_t) noexcept
+		friend constexpr bool operator < (const this_type &, nullopt_t) noexcept
 		{
 			return false;
 		}
@@ -560,7 +560,7 @@ namespace utility
 		{
 			return !a.storage._has_value;
 		}
-		friend constexpr bool operator <= (nullopt_t, const this_type & a) noexcept
+		friend constexpr bool operator <= (nullopt_t, const this_type &) noexcept
 		{
 			return true;
 		}
@@ -568,11 +568,11 @@ namespace utility
 		{
 			return a.storage._has_value;
 		}
-		friend constexpr bool operator > (nullopt_t, const this_type & a) noexcept
+		friend constexpr bool operator > (nullopt_t, const this_type &) noexcept
 		{
 			return false;
 		}
-		friend constexpr bool operator >= (const this_type & a, nullopt_t) noexcept
+		friend constexpr bool operator >= (const this_type &, nullopt_t) noexcept
 		{
 			return true;
 		}

@@ -1107,7 +1107,7 @@ namespace engine
 {
 	namespace hid
 	{
-		void destroy_subsystem(devices & devices)
+		void destroy_subsystem(devices &)
 		{
 			disable_hardware_input();
 
@@ -1118,7 +1118,7 @@ namespace engine
 			lost_device(0); // non hardware device
 		}
 
-		void create_subsystem(devices & devices, engine::application::window & window, bool hardware_input)
+		void create_subsystem(devices &, engine::application::window & window, bool hardware_input)
 		{
 			if (XkbDescPtr const desc = load_key_names(window))
 			{
@@ -1142,7 +1142,7 @@ namespace engine
 			}
 		}
 
-		void key_character(devices & devices, XKeyEvent & event, utility::unicode_code_point cp)
+		void key_character(devices &, XKeyEvent & event, utility::unicode_code_point cp)
 		{
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
@@ -1150,7 +1150,7 @@ namespace engine
 			dispatch(KeyCharacterInput(0, button, cp));
 		}
 
-		void button_press(devices & devices, XButtonEvent & event)
+		void button_press(devices &, XButtonEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1172,7 +1172,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, button, true));
 		}
 
-		void button_release(devices & devices, XButtonEvent & event)
+		void button_release(devices &, XButtonEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1194,7 +1194,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, button, false));
 		}
 
-		void key_press(devices & devices, XKeyEvent & event)
+		void key_press(devices &, XKeyEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1205,7 +1205,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, button, true));
 		}
 
-		void key_release(devices & devices, XKeyEvent & event)
+		void key_release(devices &, XKeyEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1216,7 +1216,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, button, false));
 		}
 
-		void motion_notify(devices & devices, int x, int y, ::Time time)
+		void motion_notify(devices &, int x, int y, ::Time)
 		{
 			dispatch(CursorMoveInput(0, x, y));
 		}

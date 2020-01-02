@@ -106,7 +106,7 @@ namespace camera
 	}
 
 	// TODO: make thread safe when needed
-	void update(simulation & simulation, engine::Entity id, core::maths::Vector3f movement)
+	void update(simulation &, engine::Entity id, core::maths::Vector3f movement)
 	{
 		Camera & camera = components.get<Camera>(id);
 
@@ -227,7 +227,7 @@ namespace physics
 		::viewer = &viewer_;
 	}
 
-	void update_start(simulation & simulation)
+	void update_start(simulation &)
 	{
 		EntityMessage entity_message;
 		while (queue_entities.try_pop(entity_message))
@@ -264,10 +264,10 @@ namespace physics
 		}
 	}
 
-	void update_joints(simulation & simulation)
+	void update_joints(simulation &)
 	{}
 
-	void update_finish(simulation & simulation)
+	void update_finish(simulation &)
 	{
 		for (const auto & object : objects.get<object_t>())
 		{
@@ -276,36 +276,34 @@ namespace physics
 		}
 	}
 
-	void post_add_object(simulation & simulation, engine::Entity entity, engine::transform_t && data)
+	void post_add_object(simulation &, engine::Entity entity, engine::transform_t && data)
 	{
 		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddObject>, entity, std::move(data));
 		debug_assert(res);
 	}
 
-	void post_remove(simulation & simulation, engine::Entity entity)
+	void post_remove(simulation &, engine::Entity entity)
 	{
 		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
 		debug_assert(res);
 	}
 
-	void post_update_movement(simulation & simulation, engine::Entity entity, movement_data && data)
+	void post_update_movement(simulation &, engine::Entity entity, movement_data && data)
 	{
 		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateMovement>, entity, std::move(data));
 		debug_assert(res);
 	}
 
-	void post_update_movement(simulation & simulation, const engine::Entity id, const transform_t translation)
-	{
+	void post_update_movement(simulation &, const engine::Entity /*id*/, const transform_t /*translation*/)
+	{}
 
-	}
-
-	void post_update_orientation_movement(simulation & simulation, engine::Entity entity, orientation_movement && data)
+	void post_update_orientation_movement(simulation &, engine::Entity entity, orientation_movement && data)
 	{
 		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateOrientationMovement>, entity, std::move(data));
 		debug_assert(res);
 	}
 
-	void post_update_transform(simulation & simulation, engine::Entity entity, engine::transform_t && data)
+	void post_update_transform(simulation &, engine::Entity entity, engine::transform_t && data)
 	{
 		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateTransform>, entity, std::move(data));
 		debug_assert(res);
