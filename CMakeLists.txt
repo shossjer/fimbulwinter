@@ -20,6 +20,13 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(private_compile_options
+	$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+		-Wall -Wextra -Wconversion>
+	$<$<CXX_COMPILER_ID:MSVC>:
+		/W4>
+	)
+
 if (MSVC)
   set(CMAKE_CXX_FLAGS_DEBUG
 	 "${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
