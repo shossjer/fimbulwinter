@@ -1,7 +1,69 @@
-
-#include "catch.hpp"
+#include <catch.hpp>
 
 #include "utility/algorithm.hpp"
+
+TEST_CASE("to_array", "[utility][algorithm]")
+{
+	SECTION("handles lvalue non-const int values")
+	{
+		int values[] = {2, 3, 5, 7, 11};
+		const auto result = utl::to_array(values);
+
+		const std::array<int, 5> expected = {
+			2, 3, 5, 7, 11
+		};
+		CHECK(result == expected);
+		for (int i = 0; i < expected.size(); i++)
+		{
+			REQUIRE(result[i] == expected[i]);
+		}
+	}
+
+	SECTION("handles lvalue const int values")
+	{
+		const int values[] = {2, 3, 5, 7, 11};
+		const auto result = utl::to_array(values);
+
+		const std::array<int, 5> expected = {
+			2, 3, 5, 7, 11
+		};
+		CHECK(result == expected);
+		for (int i = 0; i < expected.size(); i++)
+		{
+			REQUIRE(result[i] == expected[i]);
+		}
+	}
+
+	SECTION("handles rvalue non-const int values")
+	{
+		int values[] = {2, 3, 5, 7, 11};
+		const auto result = utl::to_array(std::move(values));
+
+		const std::array<int, 5> expected = {
+			2, 3, 5, 7, 11
+		};
+		CHECK(result == expected);
+		for (int i = 0; i < expected.size(); i++)
+		{
+			REQUIRE(result[i] == expected[i]);
+		}
+	}
+
+	SECTION("handles rvalue const int values")
+	{
+		const int values[] = {2, 3, 5, 7, 11};
+		const auto result = utl::to_array(std::move(values));
+
+		const std::array<int, 5> expected = {
+			2, 3, 5, 7, 11
+		};
+		CHECK(result == expected);
+		for (int i = 0; i < expected.size(); i++)
+		{
+			REQUIRE(result[i] == expected[i]);
+		}
+	}
+}
 
 TEST_CASE("inverse table", "[utility][algorithm]")
 {
@@ -47,6 +109,26 @@ TEST_CASE("inverse table", "[utility][algorithm]")
 		for (int i = 0; i < expected.size(); i++)
 		{
 			REQUIRE(inverse_table[i] == expected[i]);
+		}
+	}
+}
+
+TEST_CASE("make_table", "[utility][algorithm]")
+{
+	SECTION("handles ints")
+	{
+		const auto result = utl::make_table<10>(std::make_pair(2, 1),
+		                                        std::make_pair(3, 2),
+		                                        std::make_pair(5, 3),
+		                                        std::make_pair(7, 4));
+
+		const std::array<int, 10> expected = {
+			0, 0, 1, 2, 0, 3, 0, 4, 0, 0
+		};
+		CHECK(result == expected);
+		for (int i = 0; i < expected.size(); i++)
+		{
+			REQUIRE(result[i] == expected[i]);
 		}
 	}
 }

@@ -64,8 +64,6 @@ namespace engine
 					);
 			}
 
-			// \note Keep in sync with:
-			// - `button_to_code` in `input_x11.cpp`
 			enum class Button : int16_t
 			{
 				INVALID = 0, // should never be used
@@ -74,10 +72,12 @@ namespace engine
 				MOUSE_MIDDLE,
 				MOUSE_RIGHT,
 				MOUSE_SIDE,
-				GAMEPAD_EAST = 8,
-				GAMEPAD_NORTH,
-				GAMEPAD_SOUTH,
-				GAMEPAD_WEST,
+				GAMEPAD_A = 8,
+				GAMEPAD_B,
+				GAMEPAD_C,
+				GAMEPAD_X,
+				GAMEPAD_Y,
+				GAMEPAD_Z,
 				GAMEPAD_THUMBL,
 				GAMEPAD_THUMBR,
 				GAMEPAD_TL,
@@ -87,6 +87,10 @@ namespace engine
 				GAMEPAD_MODE,
 				GAMEPAD_SELECT,
 				GAMEPAD_START,
+				GAMEPAD_EAST = GAMEPAD_B,
+				GAMEPAD_NORTH = GAMEPAD_X,
+				GAMEPAD_SOUTH = GAMEPAD_A,
+				GAMEPAD_WEST = GAMEPAD_Y,
 				KEY_0 = 32,
 				KEY_1,
 				KEY_2,
@@ -220,10 +224,12 @@ namespace engine
 					std::make_pair(utility::string_view("mouse-middle"), Button::MOUSE_MIDDLE),
 					std::make_pair(utility::string_view("mouse-right"), Button::MOUSE_RIGHT),
 					std::make_pair(utility::string_view("mouse-side"), Button::MOUSE_SIDE),
-					std::make_pair(utility::string_view("gamepad-east"), Button::GAMEPAD_EAST),
-					std::make_pair(utility::string_view("gamepad-north"), Button::GAMEPAD_NORTH),
-					std::make_pair(utility::string_view("gamepad-south"), Button::GAMEPAD_SOUTH),
-					std::make_pair(utility::string_view("gamepad-west"), Button::GAMEPAD_WEST),
+					std::make_pair(utility::string_view("gamepad-a"), /*utility::string_view("gamepad-south"), */Button::GAMEPAD_A),
+					std::make_pair(utility::string_view("gamepad-b"), /*utility::string_view("gamepad-east"), */Button::GAMEPAD_B),
+					std::make_pair(utility::string_view("gamepad-c"), Button::GAMEPAD_C),
+					std::make_pair(utility::string_view("gamepad-x"), /*utility::string_view("gamepad-north"), */Button::GAMEPAD_X),
+					std::make_pair(utility::string_view("gamepad-y"), /*utility::string_view("gamepad-west"), */Button::GAMEPAD_Y),
+					std::make_pair(utility::string_view("gamepad-z"), Button::GAMEPAD_Z),
 					std::make_pair(utility::string_view("gamepad-thumbl"), Button::GAMEPAD_THUMBL),
 					std::make_pair(utility::string_view("gamepad-thumbr"), Button::GAMEPAD_THUMBR),
 					std::make_pair(utility::string_view("gamepad-tl"), Button::GAMEPAD_TL),
