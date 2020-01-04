@@ -22,7 +22,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(private_compile_options
 	$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
-		-Wall -Wextra -Wconversion>
+		-Wall -Wextra -Wconversion -Wno-sign-conversion>
+	# sign-conversion - Warn for implicit conversions that may change
+	# the sign of an integer value, like assigning a signed integer
+	# expression to an unsigned integer variable.
 	$<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:CXX_COMPILER_VERSION,6.0>>:
 		-Wno-missing-braces>
 	# missing-braces - Warn if an aggregate or union initializer is not
