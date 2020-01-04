@@ -65,6 +65,49 @@
 #  endif
 # endif
 
+namespace core
+{
+	namespace detail
+	{
+		template <typename F>
+		struct delay_cast
+		{
+			F callback;
+
+			delay_cast(F callback)
+				: callback(std::forward<F>(callback))
+			{}
+
+			template <typename U, typename T>
+			decltype(auto) call(T && t)
+			{
+				return std::forward<F>(callback)(mpl::type_is<U>{}, std::forward<T>(t));
+			}
+		};
+
+		template <typename F>
+		auto make_delay_cast(F && callback)
+		{
+			return delay_cast<F &&>(std::forward<F>(callback));
+		}
+	}
+}
+
+/**
+ * Performs a `static_cast` and asserts that no data is lost.
+ *
+ * Returns the resulting value, even if data was lost.
+ */
+# define debug_cast \
+	core::detail::make_delay_cast([](auto type, auto && value) \
+	                              { \
+		                              auto result = static_cast<typename decltype(type)::type>(std::forward<decltype(value)>(value)); \
+		                              constexpr auto value_name = utility::type_name<mpl::remove_cvref_t<decltype(value)>>(); \
+		                              constexpr auto type_name = utility::type_name<typename decltype(type)::type>(); \
+		                              debug_assert(value == result, "data lost after static_cast from \"", value_name, "\" to \"", type_name, "\""); \
+		                              return result; \
+	                              }).template call
+
 /**
  * Fails unconditionally.
  *
@@ -117,6 +160,13 @@
  * Does nothing.
  */
 # define debug_break()
+
+/**
+ * Performs a `static_cast`.
+ *
+ * Returns the resulting value.
+ */
+# define debug_cast static_cast
 
 /**
  * Fails unconditionally.
