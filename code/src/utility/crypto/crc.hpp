@@ -32,7 +32,7 @@ namespace utility
 
 			inline constexpr uint32_t crc32_accumulate(const uint32_t crc, const char c)
 			{
-				return crc32_table::values[(c ^ crc) & 0xff] ^ (crc >> 8);
+				return crc32_table::values[(uint32_t(c) ^ crc) & 0xff] ^ (crc >> 8);
 			}
 
 			inline constexpr uint32_t crc32_append(const uint32_t crc, const char *const str, const std::size_t n)
@@ -44,11 +44,11 @@ namespace utility
 		template <std::size_t N>
 		inline constexpr uint32_t crc32(const char (& str)[N])
 		{
-			return ~detail::crc32_append(~0, str, N - 1);
+			return ~detail::crc32_append(~0u, str, N - 1);
 		}
 		inline constexpr uint32_t crc32(const char * const str, const std::size_t n)
 		{
-			return ~detail::crc32_append(~0, str, n);
+			return ~detail::crc32_append(~0u, str, n);
 		}
 	}
 }

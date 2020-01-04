@@ -147,7 +147,7 @@ namespace engine
 				void draw(int x, int y, const std::string & string) const;
 				/**
 				 */
-				void draw(int x, int y, const char * text, unsigned int length) const;
+				void draw(int x, int y, const char * text, std::ptrdiff_t length) const;
 				/**
 				 */
 				template <class ...Args>

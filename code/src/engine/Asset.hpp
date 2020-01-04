@@ -151,7 +151,8 @@ namespace std
 			template <typename ...Ps> \
 			void enumerate(Ps && ...ps) \
 			{ \
-				int enumeration[] = {(engine::Asset::enumerate(std::forward<Ps>(ps)), 0)...}; \
+				int expansion_hack[] = {(engine::Asset::enumerate(std::forward<Ps>(ps)), 0)...}; \
+				static_cast<void>(expansion_hack); \
 			} \
 		}; \
 	} \

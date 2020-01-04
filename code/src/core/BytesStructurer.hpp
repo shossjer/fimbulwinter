@@ -21,15 +21,16 @@ namespace core
 	public:
 		void read(std::vector<char> & x)
 		{
-			constexpr std::ptrdiff_t chunk_size = 0x10000; // arbitrary
+			constexpr auto chunk_size = 0x10000; // arbitrary
 
-			std::ptrdiff_t end = x.size();
+			std::size_t end = x.size();
 
 			do
 			{
-				x.resize(end + chunk_size);
+				x.resize(end + chunk_size); // might throw
 
-				end += stream.read(x.data() + end, chunk_size);
+				const int64_t amount_read = stream.read(x.data() + end, chunk_size);
+				end += static_cast<std::size_t>(amount_read);
 			}
 			while (stream.valid());
 

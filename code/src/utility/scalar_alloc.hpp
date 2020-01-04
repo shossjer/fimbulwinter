@@ -21,7 +21,7 @@ namespace utility
 		scalar_alloc()
 			: storage(nullptr)
 		{}
-		scalar_alloc(int size)
+		scalar_alloc(std::size_t size)
 			: storage(std::malloc(size))
 		{}
 		scalar_alloc(scalar_alloc && x)
@@ -62,7 +62,7 @@ namespace utility
 			return static_cast<const T *>(storage);
 		}
 
-		void resize(int size)
+		void resize(std::size_t size)
 		{
 			storage = std::realloc(storage, size);
 		}

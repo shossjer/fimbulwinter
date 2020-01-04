@@ -674,7 +674,7 @@ namespace engine
 			::ui = &ui;
 		}
 
-		void make_current(window & window)
+		void make_current(window &)
 		{
 #ifdef GLX_VERSION_1_3
 			debug_verify(glXMakeContextCurrent(display, glx_window, glx_window, glx_context) == True);
@@ -683,7 +683,7 @@ namespace engine
 #endif
 		}
 
-		void swap_buffers(window & window)
+		void swap_buffers(window &)
 		{
 #ifdef GLX_VERSION_1_3
 			glXSwapBuffers(display, glx_window);
@@ -692,7 +692,7 @@ namespace engine
 #endif
 		}
 
-		XkbDescPtr load_key_names(window & window)
+		XkbDescPtr load_key_names(window &)
 		{
 			int lib_major = XkbMajorVersion;
 			int lib_minor = XkbMinorVersion;
@@ -731,7 +731,7 @@ namespace engine
 			return desc;
 		}
 
-		void free_key_names(window & window, XkbDescPtr desc)
+		void free_key_names(window &, XkbDescPtr desc)
 		{
 			XkbFreeNames(desc, XkbKeyNamesMask, True);
 			XkbFreeClientMap(desc, 0, True);
@@ -775,7 +775,7 @@ namespace engine
 		}
 #endif
 
-		int execute(window & window)
+		int execute(window &)
 		{
 			return message_loop();
 		}

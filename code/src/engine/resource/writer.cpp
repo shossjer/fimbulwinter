@@ -7,6 +7,7 @@
 
 #include "engine/debug.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/string.hpp"
 #include "utility/variant.hpp"
 
@@ -15,18 +16,12 @@
 
 namespace
 {
-	bool file_exists(const std::string & filename)
-	{
-		std::ifstream stream(filename, std::ifstream::binary);
-		return !!stream;
-	}
-
 	bool has_extension(const std::string & filename, const std::string & extension)
 	{
 		if (extension.size() > filename.size())
 			return false;
 
-		for (int i = 0; i < extension.size(); i++)
+		for (std::ptrdiff_t i : ranges::index_sequence_for(extension))
 		{
 			if (filename.data()[filename.size() - i - 1] != extension.data()[extension.size() - i - 1])
 				return false;

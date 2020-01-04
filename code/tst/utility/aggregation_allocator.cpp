@@ -1,5 +1,4 @@
-
-#include "catch.hpp"
+#include <catch.hpp>
 
 #include "utility/aggregation_allocator.hpp"
 #include "utility/heap_allocator.hpp"
@@ -8,6 +7,7 @@
 TEST_CASE("aggregation allocator (null, void, char, short, int) has default constructor", "[allocator][utility]")
 {
 	utility::aggregation_allocator<utility::null_allocator, void, char, short, int> aa;
+	static_cast<void>(aa);
 }
 
 TEST_CASE("aggregation allocator (null, void, char, short, int) fails to allocate", "[allocator][utility]")
@@ -20,6 +20,7 @@ TEST_CASE("aggregation allocator (null, void, char, short, int) fails to allocat
 TEST_CASE("aggregation allocator (null, char, char, short, int) has default constructor", "[allocator][utility]")
 {
 	utility::aggregation_allocator<utility::null_allocator, char, char, short, int> aa;
+	static_cast<void>(aa);
 }
 
 TEST_CASE("aggregation allocator (null, char, char, short, int) fails to allocate", "[allocator][utility]")
@@ -50,7 +51,7 @@ TEST_CASE("aggregation allocator (heap, void, char, short, int) can allocate non
 	CHECK(static_cast<void *>(aa.address<0>(p, 1)) != static_cast<void *>(aa.address<2>(p, 1)));
 
 	aa.construct(aa.address<0>(p, 1), '0');
-	aa.construct(aa.address<1>(p, 1), 1);
+	aa.construct(aa.address<1>(p, 1), short(1));
 	aa.construct(aa.address<2>(p, 1), 2);
 	CHECK(aa.address<0>(p, 1)[0] == '0');
 	CHECK(aa.address<1>(p, 1)[0] == 1);
@@ -88,7 +89,7 @@ TEST_CASE("aggregation allocator (heap, char, char, short, int) can allocate non
 
 	aa.construct(p, 'a');
 	aa.construct(aa.address<0>(p, 1), '0');
-	aa.construct(aa.address<1>(p, 1), 1);
+	aa.construct(aa.address<1>(p, 1), short(1));
 	aa.construct(aa.address<2>(p, 1), 2);
 	CHECK(*p == 'a');
 	CHECK(aa.address<0>(p, 1)[0] == '0');

@@ -56,7 +56,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_unreachable();
 		}
@@ -75,20 +75,20 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T & x)
+		void operator () (T &)
 		{
 			debug_unreachable();
 		}
 	};
 
-	void read_settings_callback(std::string name, engine::resource::reader::Structurer && structurer)
+	void read_settings_callback(std::string /*name*/, engine::resource::reader::Structurer && structurer)
 	{
 		utility::visit(ReadSettings{}, std::move(structurer));
 
 		settings_lock++;
 	}
 
-	void write_settings_callback(std::string name, engine::resource::writer::Serializer & serializer)
+	void write_settings_callback(std::string /*name*/, engine::resource::writer::Serializer & serializer)
 	{
 		utility::visit(WriteSettings{}, serializer);
 
@@ -156,7 +156,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	return execute(window);
 }
 #elif WINDOW_USE_X11
-int main(const int argc, const char *const argv[])
+int main(const int /*argc*/, const char *const /*argv*/[])
 {
 	engine::resource::reader reader;
 	engine::resource::writer writer;

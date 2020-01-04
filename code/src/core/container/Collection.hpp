@@ -2,13 +2,14 @@
 #ifndef CORE_CONTAINER_COLLECTION_HPP
 #define CORE_CONTAINER_COLLECTION_HPP
 
-#include <core/debug.hpp>
+#include "core/debug.hpp"
 
-#include <utility/array_alloc.hpp>
-#include <utility/bitmanip.hpp>
-#include <utility/preprocessor.hpp>
-#include <utility/type_traits.hpp>
-#include <utility/utility.hpp>
+#include "utility/array_alloc.hpp"
+#include "utility/bitmanip.hpp"
+#include "utility/preprocessor.hpp"
+#include "utility/ranges.hpp"
+#include "utility/type_traits.hpp"
+#include "utility/utility.hpp"
 
 #include <array>
 #include <numeric>
@@ -28,7 +29,7 @@ namespace core
 				return func(key, utility::monostate{});
 			}
 			template <typename F, typename K>
-			auto call_impl_func(F && func, K key) ->
+			auto call_impl_func(F && func, K /*key*/) ->
 				decltype(func(utility::monostate{}))
 			{
 				return func(utility::monostate{});
@@ -41,7 +42,7 @@ namespace core
 				return func(key, std::forward<P>(p));
 			}
 			template <typename F, typename K, typename P>
-			auto call_impl_func(F && func, K key, P && p) ->
+			auto call_impl_func(F && func, K /*key*/, P && p) ->
 				decltype(func(std::forward<P>(p)))
 			{
 				return func(std::forward<P>(p));
@@ -91,7 +92,7 @@ namespace core
 
 				void remove_at(std::ptrdiff_t index)
 				{
-					debug_assert((0 <= index && index < data_.size()));
+					debug_assert(std::size_t(index) < data_.size());
 
 					const auto last = data_.size() - 1;
 
@@ -151,15 +152,15 @@ namespace core
 				{
 					value = 0xffffffff;
 				}
-				void set(uint8_t type, uint24_t index)
+				void set(uint8_t type, std::size_t index)
 				{
-					debug_assert((index & 0xff000000) == uint32_t{0});
-					value = (uint32_t{type} << 24) | index;
+					debug_assert(index < 0x01000000, "24 bits are not enough");
+					value = (uint32_t{type} << 24) | static_cast<uint32_t>(index);
 				}
-				void set_index(uint24_t index)
+				void set_index(std::size_t index)
 				{
-					debug_assert((index & 0xff000000) == uint32_t{0});
-					value = (value & 0xff000000) | index;
+					debug_assert(index < 0x01000000, "24 bits are not enough");
+					value = (value & 0xff000000) | static_cast<uint32_t>(index);
 				}
 			};
 
@@ -380,7 +381,7 @@ namespace core
 			void clear_all_impl(mpl::index_sequence<type, types...>)
 			{
 				auto & array = std::get<type>(arrays);
-				for (int i = 0; i < array.size(); i++)
+				for (auto i : ranges::index_sequence_for(array))
 				{
 					slots[array.bucket_at(i)].clear();
 				}
@@ -388,7 +389,7 @@ namespace core
 
 				clear_all_impl(mpl::index_sequence<types...>{});
 			}
-			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t bucket, uint24_t index)
+			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t /*bucket*/, uint24_t /*index*/)
 			{
 				intrinsic_unreachable();
 			}
@@ -407,7 +408,7 @@ namespace core
 			}
 
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, Key key, uint24_t index, F && func) ->
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, Key key, uint24_t /*index*/, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<component_types> &>()))
 			{
 				intrinsic_unreachable();
@@ -775,7 +776,7 @@ namespace core
 			}
 
 			template <size_t type>
-			void remove_at_impl(bucket_t bucket, uint32_t index)
+			void remove_at_impl(bucket_t bucket, uint16_t index)
 			{
 				auto & array = std::get<type>(arrays);
 				debug_assert(index < array.size);
@@ -794,9 +795,8 @@ namespace core
 				array.size--;
 			}
 
-			void remove_impl(bucket_t bucket, mpl::index_sequence<>)
-			{
-			}
+			void remove_impl(bucket_t /*bucket*/, mpl::index_sequence<>)
+			{}
 			template <size_t type, size_t ...types>
 			void remove_impl(bucket_t bucket, mpl::index_sequence<type, types...>)
 			{
@@ -811,7 +811,7 @@ namespace core
 			}
 
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, bucket_t bucket, F && func) ->
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, bucket_t /*bucket*/, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();
@@ -833,9 +833,8 @@ namespace core
 			}
 
 			template <typename F>
-			void call_all_impl(K key, bucket_t bucket, F && func, mpl::index_sequence<>)
-			{
-			}
+			void call_all_impl(K /*key*/, bucket_t /*bucket*/, F && /*func*/, mpl::index_sequence<>)
+			{}
 			template <typename F, size_t type, size_t ...types>
 			void call_all_impl(K key, bucket_t bucket, F && func, mpl::index_sequence<type, types...>)
 			{
@@ -979,7 +978,7 @@ namespace core
 				if (size <= 0)
 					return count;
 
-				for (int bucket = 0; bucket < M; bucket++)
+				for (std::ptrdiff_t bucket : ranges::index_sequence(M))
 				{
 					if (slots[bucket].empty())
 						continue;
@@ -1172,7 +1171,7 @@ namespace core
 
 				clear_all_impl(mpl::index_sequence<types...>{});
 			}
-			void remove_component_impl(mpl::index_constant<std::size_t(-1)>, uint24_t index)
+			void remove_component_impl(mpl::index_constant<std::size_t(-1)>, uint24_t /*index*/)
 			{
 				intrinsic_unreachable();
 			}
@@ -1204,7 +1203,7 @@ namespace core
 			}
 
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, uint24_t index, F && func) ->
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, uint24_t /*index*/, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();

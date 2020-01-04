@@ -7,6 +7,7 @@
 
 #include "engine/debug.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/string.hpp"
 #include "utility/variant.hpp"
 
@@ -25,7 +26,7 @@ namespace
 		if (extension.size() > filename.size())
 			return false;
 
-		for (int i = 0; i < extension.size(); i++)
+		for (std::ptrdiff_t i : ranges::index_sequence_for(extension))
 		{
 			if (filename.data()[filename.size() - i - 1] != extension.data()[extension.size() - i - 1])
 				return false;
@@ -102,7 +103,7 @@ namespace
 				throw std::runtime_error("");
 		}
 
-		std::size_t read(char * dest, std::size_t n)
+		int64_t read(char * dest, int64_t n)
 		{
 			file.read(dest, n);
 
@@ -110,13 +111,13 @@ namespace
 		}
 	};
 
-	uint64_t read_callback(char * dest, std::size_t n, void * data)
+	uint64_t read_callback(char * dest, int64_t n, void * data)
 	{
 		debug_assert(n < 0x7fffffffffffffffll);
 		ReadData & read_data = *static_cast<ReadData *>(data);
 
 		uint64_t amount = read_data.read(dest, n);
-		if (amount < n)
+		if (int64_t(amount) < n)
 			amount |= 0x8000000000000000ll;
 
 		return amount;

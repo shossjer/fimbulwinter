@@ -60,9 +60,9 @@ namespace engine
 			create_subsystem(*this, window, hardware_input);
 		}
 
-		void found_device(int id, int vendor, int product)
+		void found_device(int id, int /*vendor*/, int /*product*/)
 		{
-			if (id >= device_values.size())
+			if (std::size_t(id) >= device_values.size())
 			{
 				device_values.resize(id + 1);
 			}
@@ -71,7 +71,7 @@ namespace engine
 		}
 		void lost_device(int id)
 		{
-			if (debug_assert(id < device_values.size()))
+			if (debug_assert(std::size_t(id) < device_values.size()))
 			{
 				device_values[id] = DeviceValues{};
 			}
@@ -90,7 +90,7 @@ namespace engine
 
 		void dispatch(const Input & input)
 		{
-			auto & values = device_values[debug_assert(input.getDevice() < device_values.size()) ? input.getDevice() : 0];
+			auto & values = device_values[debug_assert(std::size_t(input.getDevice()) < device_values.size()) ? input.getDevice() : 0];
 
 			switch (input.getState())
 			{

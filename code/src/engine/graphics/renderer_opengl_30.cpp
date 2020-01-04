@@ -30,6 +30,7 @@
 #include "engine/resource/reader.hpp"
 
 #include "utility/lookup_table.hpp"
+#include "utility/ranges.hpp"
 #include "utility/unicode.hpp"
 #include "utility/variant.hpp"
 
@@ -149,12 +150,6 @@ namespace
 		void translate(const prime_type x, const prime_type y, const prime_type z)
 		{
 			this->stack.top() *= value_type::translation(x, y, z);
-		}
-
-	public:
-		friend void glLoadMatrix(const Stack & stack)
-		{
-			glLoadMatrix(stack.stack.top());
 		}
 	};
 
@@ -409,15 +404,6 @@ namespace
 		}
 	};
 
-	engine::graphics::opengl::Color4ub color_from(const engine::Entity entity)
-	{
-		return engine::graphics::opengl::Color4ub{
-			(entity & 0x000000ff) >> 0,
-			(entity & 0x0000ff00) >> 8,
-			(entity & 0x00ff0000) >> 16,
-			(entity & 0xff000000) >> 24 };
-	}
-
 	engine::graphics::opengl::Color4ub color_from(const engine::graphics::data::Color color)
 	{
 		return engine::graphics::opengl::Color4ub{
@@ -517,7 +503,7 @@ namespace
 
 		struct FontInfo
 		{
-			std::vector<int> allowed_unicodes;
+			std::vector<utility::unicode_code_point> allowed_unicodes;
 			std::vector<SymbolData> symbol_data;
 
 			int symbol_width;
@@ -533,7 +519,7 @@ namespace
 		FontInfo infos[10];
 		int count = 0;
 
-		int find(engine::Asset asset) const
+		std::ptrdiff_t find(engine::Asset asset) const
 		{
 			return std::find(assets, assets + count, asset) - assets;
 		}
@@ -545,12 +531,12 @@ namespace
 
 		void compile(engine::Asset asset, utility::string_view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
-			const int index = find(asset);
+			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			const FontInfo & info = infos[index];
 
-			const int len = utility::point_difference(text.length()).get();
+			const std::ptrdiff_t len = utility::point_difference(text.length()).get();
 			vertices.resize<float>(4 * len * 2);
 			texcoords.resize<float>(4 * len * 2);
 
@@ -565,8 +551,8 @@ namespace
 			for (auto cp : text)
 			{
 				// the null glyph is stored at the end
-				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp.value());
-				const int slot = (maybe == info.allowed_unicodes.end() || *maybe != cp.value() ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin();
+				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp);
+				const int slot = static_cast<int>((maybe == info.allowed_unicodes.end() || *maybe != cp ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin());
 				const int slot_y = slot / slots_in_width;
 				const int slot_x = slot % slots_in_width;
 
@@ -607,10 +593,10 @@ namespace
 			}
 		}
 
-		void create(std::string && name, std::vector<int> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
+		void create(std::string && name, std::vector<utility::unicode_code_point> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
 		{
 			const engine::Asset asset(name);
-			const int index = find(asset);
+			const auto index = find(asset);
 			debug_assert(index >= count, "font asset ", asset, " already exists");
 
 			assets[index] = asset;
@@ -630,7 +616,7 @@ namespace
 
 		void destroy(engine::Asset asset)
 		{
-			const int index = find(asset);
+			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			assets[index] = std::move(assets[count - 1]);
@@ -1001,7 +987,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (engine::Entity entity, T & x)
+		void operator () (engine::Entity /*entity*/, T &)
 		{
 			debug_unreachable();
 		}
@@ -1040,8 +1026,7 @@ namespace
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
-			const int nvertices = object->vertices.count() / 3; // assume xyz
-			for (int i = 0; i < nvertices; i++)
+			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.count() / 3))
 			{
 				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
 				core::maths::Vector4f::array_type buffer;
@@ -1272,7 +1257,7 @@ namespace
 						selectable_components.remove(x.entity);
 					}
 				}
-				void operator () (MessageMakeClearSelection && x)
+				void operator () (MessageMakeClearSelection &&)
 				{
 					debug_fail(); // not implemented yet
 				}
@@ -1599,8 +1584,7 @@ namespace
 				0.f, 1.f,
 				1.f, 1.f}});
 
-		return std::move(engine::graphics::data::Mesh{
-			vertices, triangles, normals, coords });
+		return engine::graphics::data::Mesh{vertices, triangles, normals, coords};
 	}
 
 	std::atomic_int read_lock;
@@ -1614,7 +1598,7 @@ namespace
 			x.read(image);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}
@@ -1648,7 +1632,7 @@ namespace
 			x.read(image);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}
@@ -1673,7 +1657,7 @@ namespace
 			x.read(data);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}
@@ -1712,30 +1696,32 @@ namespace
 		}
 
 		{
-			std::vector<int> unicode_indices;
+			std::vector<utility::unicode_code_point> unicode_indices;
 			unicode_indices.reserve(face->num_glyphs);
 			std::vector<int> glyph_indices;
 			glyph_indices.reserve(face->num_glyphs);
-
-			FT_UInt glyph_index;
-			FT_UInt unicode_index = FT_Get_First_Char(face, &glyph_index);
-			while (glyph_index != 0)
 			{
-				unicode_indices.push_back(unicode_index);
-				glyph_indices.push_back(glyph_index);
+				FT_UInt glyph_index;
+				FT_ULong unicode_index = FT_Get_First_Char(face, &glyph_index);
+				while (glyph_index != 0)
+				{
+					unicode_indices.emplace_back(debug_cast<uint32_t>(unicode_index));
+					glyph_indices.push_back(glyph_index);
 
-				unicode_index = FT_Get_Next_Char(face, unicode_index, &glyph_index);
+					unicode_index = FT_Get_Next_Char(face, unicode_index, &glyph_index);
+				}
+				glyph_indices.push_back(0);
+				debug_assert(unicode_indices.size() + 1 == glyph_indices.size());
+				debug_printline(name, ": face charmap size = ", unicode_indices.size());
 			}
-			glyph_indices.push_back(0);
-			debug_assert(unicode_indices.size() + 1 == glyph_indices.size());
-			debug_printline(name, ": face charmap size = ", unicode_indices.size());
 
-			const int total_slots = glyph_indices.size();
+			const int total_slots = static_cast<int>(glyph_indices.size());
+			debug_assert(total_slots > 0);
 
 
 			int maxx = 0, maxy = 0;
 			std::vector<FontManager::SymbolData> symbol_data(total_slots);
-			for (int i = 0; i < total_slots; i++)
+			for (std::ptrdiff_t i : ranges::index_sequence(total_slots))
 			{
 				const int glyph_index = glyph_indices[i];
 				if (FT_Load_Glyph(face, glyph_index, FT_LOAD_RENDER))
@@ -1747,10 +1733,10 @@ namespace
 				maxx = std::max(maxx, static_cast<int>(face->glyph->bitmap.width));
 				maxy = std::max(maxy, static_cast<int>(face->glyph->bitmap.rows));
 
-				symbol_data[i].offset_x = face->glyph->bitmap_left;
-				symbol_data[i].offset_y = face->glyph->bitmap.rows - face->glyph->bitmap_top;
-				symbol_data[i].advance_x = face->glyph->advance.x >> 6;
-				symbol_data[i].advance_y = face->glyph->advance.y >> 6;
+				symbol_data[i].offset_x = debug_cast<int16_t>(face->glyph->bitmap_left);
+				symbol_data[i].offset_y = debug_cast<int16_t>(face->glyph->bitmap.rows - face->glyph->bitmap_top);
+				symbol_data[i].advance_x = debug_cast<int16_t>(face->glyph->advance.x >> 6);
+				symbol_data[i].advance_y = debug_cast<int16_t>(face->glyph->advance.y >> 6);
 			}
 			debug_printline(name, ": face max = {", maxx, ", ", maxy, "}");
 			debug_assert(maxx > 0);
@@ -1765,7 +1751,7 @@ namespace
 			for (int texture_height = utility::clp2(slot_size_y);; texture_height *= 2)
 			{
 				const int max_in_y = texture_height / slot_size_y;
-				const int needed_in_x = (total_slots + max_in_y - 1) / max_in_y;
+				const int needed_in_x = 1 + (total_slots - 1) / max_in_y;
 
 				const int texture_width = utility::clp2(needed_in_x * slot_size_x);
 				const int max_in_x = texture_width / slot_size_x;
@@ -1788,7 +1774,6 @@ namespace
 			const int texture_width = std::get<2>(texture_dimensions.front());
 			const int texture_height = std::get<3>(texture_dimensions.front());
 			const int slots_in_x = texture_width / slot_size_x;
-			const int slots_in_y = texture_height / slot_size_y;
 
 
 			core::container::Buffer pixels(core::container::Buffer::Format::float32, texture_width * texture_height);
@@ -1808,25 +1793,25 @@ namespace
 					[&](int x, int y)
 					{
 						return
-							(x >= border_size && x < border_size + face->glyph->bitmap.width) &&
-							(y >= border_size && y < border_size + face->glyph->bitmap.rows) ?
+							(x >= border_size && static_cast<unsigned int>(x) < border_size + face->glyph->bitmap.width) &&
+							(y >= border_size && static_cast<unsigned int>(y) < border_size + face->glyph->bitmap.rows) ?
 							bitmap_buffer[(x - border_size) - (y - border_size) * face->glyph->bitmap.pitch] >= 128 : 0;
 					};
-				std::fill(distance_field.begin(), distance_field.end(), furthest_d);
+				std::fill(distance_field.begin(), distance_field.end(), static_cast<float>(furthest_d));
 				// for (int y = 0; y < slot_size_y; y++)
-				for (int y = 0; y < face->glyph->bitmap.rows + 2 * border_size; y++)
+				for (auto y : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
 				{
 					// for (int x = 0; x < slot_size_x; x++)
-					for (int x = 0; x < face->glyph->bitmap.width + 2 * border_size; x++)
+					for (auto x : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
 					{
 						const auto sample = sample_at(x, y);
 
 						double closest_dsq = slot_size_x * slot_size_x + slot_size_y * slot_size_y;
 						// for (int t = 0; t < slot_size_y; t++)
-						for (int t = 0; t < face->glyph->bitmap.rows + 2 * border_size; t++)
+						for (auto t : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
 						{
 							// for (int s = 0; s < slot_size_x; s++)
-							for (int s = 0; s < face->glyph->bitmap.width + 2 * border_size; s++)
+							for (auto s : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
 							{
 								if (sample_at(s, t) == sample)
 									continue;
@@ -1837,7 +1822,7 @@ namespace
 								closest_dsq = std::min(dsq, closest_dsq);
 							}
 						}
-						distance_field[x + y * slot_size_x] = ((sample == 0 ? 1 : -1) * std::sqrt(closest_dsq) + furthest_d) / (2. * furthest_d);
+						distance_field[x + y * slot_size_x] = static_cast<float>(((sample == 0 ? 1 : -1) * std::sqrt(closest_dsq) + furthest_d) / (2. * furthest_d));
 					}
 				}
 
@@ -1855,9 +1840,8 @@ namespace
 				}
 			}
 
-
 			const auto asset = engine::Asset(name);
-			post_register_texture(*self, asset, core::graphics::Image(texture_width, texture_height, 8, 1, core::graphics::ColorType::R, std::move(pixels)));
+			post_register_texture(*self, asset, core::graphics::Image(texture_width, texture_height, core::graphics::BitDepth::eight, core::graphics::ChannelCount::one, core::graphics::ColorType::R, std::move(pixels)));
 
 			font_manager.create(std::move(name), std::move(unicode_indices), std::move(symbol_data), slot_size_x, slot_size_y, texture_width, texture_height);
 		}
@@ -2019,7 +2003,7 @@ namespace
 				component.object->vertices.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				component.mesh->triangles.count(),
+				debug_cast<GLsizei>(component.mesh->triangles.count()),
 				GL_UNSIGNED_SHORT, // TODO
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
@@ -2050,7 +2034,7 @@ namespace
 					mesh->vertices.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					mesh->triangles.count(),
+					debug_cast<GLsizei>(mesh->triangles.count()),
 					BufferFormats[static_cast<int>(mesh->triangles.format())],
 					mesh->triangles.data());
 			}
@@ -2080,7 +2064,7 @@ namespace
 				component.mesh->vertices.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				component.mesh->triangles.count(),
+				debug_cast<GLsizei>(component.mesh->triangles.count()),
 				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
@@ -2266,7 +2250,7 @@ namespace
 				component.mesh->coords.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				component.mesh->triangles.count(),
+				debug_cast<GLsizei>(component.mesh->triangles.count()),
 				GL_UNSIGNED_SHORT, // TODO
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(texcoord_location);
@@ -2325,7 +2309,7 @@ namespace
 				component.vertices.data());
 			glDrawElements(
 				GL_LINES,
-				component.edges.count(),
+				debug_cast<GLsizei>(component.edges.count()),
 				BufferFormats[static_cast<int>(component.edges.format())],
 				component.edges.data());
 			glDisableVertexAttribArray(vertex_location);
@@ -2402,7 +2386,7 @@ namespace
 				mesh.coords.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				mesh.triangles.count(),
+				debug_cast<GLsizei>(mesh.triangles.count()),
 				BufferFormats[static_cast<int>(mesh.triangles.format())],
 				mesh.triangles.data());
 			glDisableVertexAttribArray(texcoord_location);
@@ -2472,7 +2456,7 @@ namespace
 					mesh.normals.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					mesh.triangles.count(),
+					debug_cast<GLsizei>(mesh.triangles.count()),
 					BufferFormats[static_cast<int>(mesh.triangles.format())],
 					mesh.triangles.data());
 			}
@@ -2658,7 +2642,7 @@ namespace
 			glDrawArrays(
 				GL_QUADS, // deprecated
 				0,
-				vertices.count() / 2);
+				debug_cast<GLsizei>(vertices.count() / 2));
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
@@ -2877,7 +2861,7 @@ namespace
 			glDrawArrays(
 				GL_QUADS, // deprecated
 				0,
-				vertices.count() / 2);
+				debug_cast<GLsizei>(vertices.count() / 2));
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 

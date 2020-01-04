@@ -18,6 +18,8 @@
 #include "engine/physics/physics.hpp"
 #include "engine/resource/reader.hpp"
 
+#include "utility/predicates.hpp"
+
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -31,6 +33,8 @@ namespace
 	using Armature = engine::animation::Armature;
 	using Joint = engine::animation::Armature::Joint;
 	using Mixer = unsigned int;
+
+	constexpr auto invalid_mixer = Mixer(-1);
 
 	const engine::animation::Callbacks * pCallbacks;
 
@@ -67,7 +71,7 @@ namespace
 	struct Playback
 	{
 		const Armature * armature;
-		const Action * action;
+		const Action * action_;
 
 		float elapsed;
 		float stepsize;
@@ -76,14 +80,21 @@ namespace
 
 		bool repeat;
 		bool finished;
-		int framei;
+		int framei_;
 
 		// vvvvvvvv tmp
 		std::vector<core::maths::Matrix4x4f> matrices;
 		core::maths::Vector3f position_movement;
 		core::maths::Quaternionf orientation_movement;
 
-		Playback(const Armature & armature, const bool repeat) : armature(&armature), action(nullptr), repeat(repeat), finished(false), framei(0), matrices(armature.joints.size()) {}
+		Playback(const Armature & armature, bool repeat)
+			: armature(&armature)
+			, action_(nullptr)
+			, repeat(repeat)
+			, finished(false)
+			, framei_(0)
+			, matrices(armature.joints.size())
+		{}
 		// ^^^"^^^^ tmp
 
 		bool isFinished() const
@@ -93,34 +104,35 @@ namespace
 
 		void update()
 		{
-			if (action == nullptr)
+			if (action_ == nullptr)
 				return;
 
-			framei += 1;
-			if (framei >= action->length)
+			framei_ += 1;
+			if (framei_ >= action_->length)
 			{
 				if (!repeat)
 				{
 					finished = true;
 				}
 
-				framei %= action->length;
+				framei_ %= action_->length;
 			}
 
 			int rooti = 0;
 			while (rooti < static_cast<int>(armature->joints.size()))
-				rooti = update(*action, rooti, core::maths::Matrix4x4f::identity(), framei);
+				rooti = update(*action_, rooti, core::maths::Matrix4x4f::identity(), framei_);
 
-			if (!action->positions.empty())
+			if (!action_->positions.empty())
 			{
-				position_movement = action->positions[framei + 1] - action->positions[framei];
+				position_movement = action_->positions[framei_ + 1] - action_->positions[framei_];
 			}
-			if (!action->orientations.empty())
+			if (!action_->orientations.empty())
 			{
-				orientation_movement = inverse(action->orientations[framei]) * action->orientations[framei + 1];
+				orientation_movement = inverse(action_->orientations[framei_]) * action_->orientations[framei_ + 1];
 			}
 		}
-		int update(const Action & action, const int mei, const core::maths::Matrix4x4f & parent_matrix, const int framei)
+
+		int update(const Action & action, int mei, const core::maths::Matrix4x4f & parent_matrix, int framei)
 		{
 			const auto pos = action.frames[framei].channels[mei].translation;
 			const auto rot = action.frames[framei].channels[mei].rotation;
@@ -149,18 +161,20 @@ namespace
 				matrix_pallet[i] = matrices[i] * armature->joints[i].inv_matrix;
 			// ^^^"^^^^ tmp
 		}
+
 		bool extract_position_movement(core::maths::Vector3f & movement) const
 		{
-			if (!action->positions.empty())
+			if (!action_->positions.empty())
 			{
 				movement = position_movement;
 				return true;
 			}
 			return false;
 		}
+
 		bool extract_orientation_movement(core::maths::Quaternionf & movement) const
 		{
-			if (!action->orientations.empty())
+			if (!action_->orientations.empty())
 			{
 				movement = orientation_movement;
 				return true;
@@ -191,12 +205,13 @@ namespace
 			if (action == nullptr)
 				return;
 
-			const auto framei_prev = framei;
-			const auto framei_next = framei + 1;
+			// const int framei_prev = framei;
+			const int framei_next = framei + 1;
 
 			// movement = action->keys[framei_next].translation - action->keys[framei_prev].translation;
 
-			const auto action_length = action->keys.size() - 1;
+			debug_assert(!action->keys.empty());
+			const int action_length = debug_cast<int>(action->keys.size()) - 1;
 			if (framei_next < action_length)
 			{
 				framei = framei_next;
@@ -242,10 +257,9 @@ namespace
 			return x.extract_position_movement(movement);
 		}
 		template <typename X>
-		bool operator () (X & x)
+		bool operator () (X &)
 		{
 			debug_unreachable();
-			return false;
 		}
 	};
 	struct extract_orientation_movement
@@ -257,10 +271,9 @@ namespace
 			return x.extract_orientation_movement(movement);
 		}
 		template <typename X>
-		bool operator () (X & x)
+		bool operator () (X &)
 		{
 			debug_unreachable();
-			return false;
 		}
 	};
 	struct extract_pallet
@@ -272,7 +285,7 @@ namespace
 			x.extract(matrix_pallet);
 		}
 		template <typename X>
-		void operator () (X & x)
+		void operator () (X &)
 		{
 			debug_unreachable();
 		}
@@ -284,7 +297,7 @@ namespace
 			return x.extract_translation();
 		}
 		template <typename X>
-		engine::transform_t operator () (const X & x)
+		engine::transform_t operator () (const X &)
 		{
 			debug_unreachable();
 		}
@@ -300,7 +313,7 @@ namespace
 			return x.finished;
 		}
 		template <typename X>
-		bool operator () (X & x)
+		bool operator () (X &)
 		{
 			debug_unreachable();
 		}
@@ -318,16 +331,16 @@ namespace
 		core::maths::Vector3f position_movement;
 		core::maths::Quaternionf orientation_movement;
 
-		Character(engine::Entity me, const Armature & armature) :
-			me(me),
-			armature(&armature),
-			mixer(-1),
-			matrix_pallet(armature.joints.size())
+		Character(engine::Entity me, const Armature & armature)
+			: me(me)
+			, armature(&armature)
+			, mixer(invalid_mixer)
+			, matrix_pallet(armature.joints.size())
 		{}
 
 		void finalize()
 		{
-			if (this->mixer == Mixer(-1))
+			if (this->mixer == invalid_mixer)
 				return;
 
 			if (mixers.call(mixer, is_finished{}))
@@ -359,16 +372,15 @@ namespace
 
 		Mixer mixer;
 
-		Model(engine::Entity me, const engine::animation::object & object) :
-			me(me),
-			object(& object),
-			mixer(-1)
-		{
-		}
+		Model(engine::Entity me, const engine::animation::object & object)
+			: me(me)
+			, object(&object)
+			, mixer(invalid_mixer)
+		{}
 
 		void finalize()
 		{
-			if (this->mixer == Mixer(-1))
+			if (this->mixer == invalid_mixer)
 				return;
 
 			post_update_movement(*::simulation, me, mixers.call(mixer, extract_translation {}));
@@ -378,7 +390,7 @@ namespace
 				//pCallbacks->onFinish(this->me);
 				// TODO: this needs to be changed when we start animation blending
 				mixers.remove(mixer);
-				mixer = Mixer(-1);
+				mixer = invalid_mixer;
 			}
 		}
 	};
@@ -403,18 +415,18 @@ namespace
 			{
 				auto action = std::find(x.armature->actions.begin(),
 				                        x.armature->actions.end(),
-				                        data.name);
+				                        utility::if_name_is(data.name));
 				if (action == x.armature->actions.end())
 				{
 					debug_printline(engine::animation_channel, "Could not find action ", data.name, " in armature ", x.armature->name);
 				}
 				else
 				{
-					playback.action = &*action;
+					playback.action_ = &*action;
 				}
 			}
 			// set mixer
-			if (x.mixer != Mixer(-1))
+			if (x.mixer != invalid_mixer)
 				mixers.remove(x.mixer);
 			x.mixer = mixer;
 		}
@@ -425,7 +437,7 @@ namespace
 			{
 				auto action = std::find(x.object->actions.begin(),
 				                        x.object->actions.end(),
-				                        data.name);
+				                        utility::if_name_is(data.name));
 				if (action == x.object->actions.end())
 				{
 					debug_printline(engine::animation_channel, "Could not find action ", data.name, " in object ", x.object->name);
@@ -436,7 +448,7 @@ namespace
 				}
 			}
 			// set mixer
-			if (x.mixer != Mixer(-1))
+			if (x.mixer != invalid_mixer)
 				mixers.remove(x.mixer);
 			x.mixer = mixer;
 		}
@@ -507,21 +519,21 @@ namespace engine
 			::renderer = nullptr;
 		}
 
-		mixer::mixer(engine::graphics::renderer & renderer, engine::physics::simulation & simulation)
+		mixer::mixer(engine::graphics::renderer & renderer_, engine::physics::simulation & simulation_)
 		{
-			::renderer = &renderer;
-			::simulation = &simulation;
+			::renderer = &renderer_;
+			::simulation = &simulation_;
 		}
 
 		/**
 		 * Sets callback instance, called from looper during setup
 		 */
-		void initialize(mixer & mixer, const Callbacks & callbacks)
+		void initialize(mixer &, const Callbacks & callbacks)
 		{
 			pCallbacks = &callbacks;
 		}
 
-		void update(mixer & mixer)
+		void update(mixer &)
 		{
 			AssetMessage asset_message;
 			while (queue_assets.try_pop(asset_message))
@@ -594,37 +606,37 @@ namespace engine
 			}
 		}
 
-		void post_register_armature(mixer & mixer, engine::Asset asset, engine::animation::Armature && data)
+		void post_register_armature(mixer &, engine::Asset asset, engine::animation::Armature && data)
 		{
 			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterArmature>, asset, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_register_object(mixer & mixer, engine::Asset asset, engine::animation::object && data)
+		void post_register_object(mixer &, engine::Asset asset, engine::animation::object && data)
 		{
 			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterObject>, asset, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_add_character(mixer & mixer, engine::Entity entity, engine::animation::character && data)
+		void post_add_character(mixer &, engine::Entity entity, engine::animation::character && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddCharacter>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_add_model(mixer & mixer, engine::Entity entity, engine::animation::model && data)
+		void post_add_model(mixer &, engine::Entity entity, engine::animation::model && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddModel>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_update_action(mixer & mixer, engine::Entity entity, engine::animation::action && data)
+		void post_update_action(mixer &, engine::Entity entity, engine::animation::action && data)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateAction>, entity, std::move(data));
 			debug_assert(res);
 		}
 
-		void post_remove(mixer & mixer, engine::Entity entity)
+		void post_remove(mixer &, engine::Entity entity)
 		{
 			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
 			debug_assert(res);

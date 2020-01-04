@@ -1,7 +1,6 @@
+#include <catch.hpp>
 
-#include "catch.hpp"
-
-#include <core/debug.hpp>
+#include "core/debug.hpp"
 
 namespace
 {
@@ -44,4 +43,31 @@ TEST_CASE( "debug_assert", "[utility]" )
 	debug_assert(b <= 7);
 	debug_assert(a > 3);
 	debug_assert(8 >= 7);
+
+	debug_assert(3 == 7 >> 1, "it should be three!");
+}
+
+TEST_CASE("debug cast", "[core][debug]")
+{
+	SECTION("is fine between signed/unsigned of same size")
+	{
+		// no data is lost
+		CHECK(debug_cast<int32_t>(uint32_t{0x80000000u}) == int32_t{-0x7fffffff - 1});
+
+		// we can even do a round trip
+		CHECK(debug_cast<uint32_t>(debug_cast<int32_t>(uint32_t{0x80000000u})) == uint32_t{0x80000000u});
+	}
+
+	SECTION("is fine to bigger sized types")
+	{
+		// SECTION("from
+		CHECK(debug_cast<int16_t>(int8_t{-0x7f - 1}) == int8_t{-0x7f - 1});
+		CHECK(debug_cast<int32_t>(int16_t{-0x7fff - 1}) == int16_t{-0x7fff - 1});
+		CHECK(debug_cast<int64_t>(int32_t{-0x7fffffff - 1}) == int32_t{-0x7fffffff - 1});
+	}
+
+	// SECTION("fails when data is lost")
+	// {
+	// 	CHECK_FALSE(debug_cast<uint32_t>(0x100000000ull));
+	// }
 }

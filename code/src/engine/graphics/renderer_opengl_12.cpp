@@ -26,6 +26,7 @@
 #include "engine/graphics/viewer.hpp"
 #include "engine/resource/reader.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>
@@ -242,15 +243,6 @@ namespace
 		}
 	};
 
-	engine::graphics::opengl::Color4ub color_from(const engine::Entity entity)
-	{
-		return engine::graphics::opengl::Color4ub{
-			(entity & 0x000000ff) >> 0,
-			(entity & 0x0000ff00) >> 8,
-			(entity & 0x00ff0000) >> 16,
-			(entity & 0xff000000) >> 24 };
-	}
-
 	engine::graphics::opengl::Color4ub color_from(const engine::graphics::data::Color color)
 	{
 		return engine::graphics::opengl::Color4ub{
@@ -451,22 +443,19 @@ namespace
 
 	struct Character
 	{
-		const mesh_t * mesh;
-		const texture_t * texture;
-		object_modelview_vertices * object;
+		const mesh_t * mesh_;
+		const texture_t * texture_;
+		object_modelview_vertices * object_;
 
-		Character(
-			const mesh_t & mesh,
-			const texture_t & texture,
-			object_modelview_vertices & object)
-			: mesh(&mesh)
-			, texture(&texture)
-			, object(&object)
+		Character(const mesh_t & mesh, const texture_t & texture, object_modelview_vertices & object)
+			: mesh_(&mesh)
+			, texture_(&texture)
+			, object_(&object)
 		{}
 
 		void draw(const bool highlighted)
 		{
-			const mesh_t & mesh = *this->mesh;
+			const mesh_t & mesh = *mesh_;
 
 			if (highlighted)
 			{
@@ -476,14 +465,14 @@ namespace
 					3, // TODO
 				    GL_FLOAT, // TODO
 				    0,
-				    object->vertices.data());
+				    object_->vertices.data());
 				glNormalPointer(
 					GL_FLOAT, // TODO
 				    0,
 				    mesh.normals.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					mesh.triangles.count(),
+					debug_cast<GLsizei>(mesh.triangles.count()),
 					GL_UNSIGNED_SHORT,
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -491,7 +480,7 @@ namespace
 			}
 			else
 			{
-				this->texture->enable();
+				texture_->enable();
 
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glEnableClientState(GL_NORMAL_ARRAY);
@@ -500,7 +489,7 @@ namespace
 					3, // TODO
 					GL_FLOAT, // TODO
 					0,
-					object->vertices.data());
+					object_->vertices.data());
 				glNormalPointer(
 					GL_FLOAT, // TODO
 					0,
@@ -512,13 +501,13 @@ namespace
 					mesh.coords.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					mesh.triangles.count(),
+					debug_cast<GLsizei>(mesh.triangles.count()),
 					GL_UNSIGNED_SHORT, // TODO
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
 				glDisableClientState(GL_VERTEX_ARRAY);
 
-				this->texture->disable();
+				texture_->disable();
 			}
 		}
 	};
@@ -724,7 +713,7 @@ namespace
 		}
 		void operator () (engine::Entity entity, Character & x)
 		{
-			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity, x.mesh, x.object, color));
+			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity, x.mesh_, x.object_, color));
 		}
 		void operator () (engine::Entity entity, ui::PanelC & x)
 		{
@@ -736,7 +725,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (engine::Entity entity, T & x)
+		void operator () (engine::Entity /*entity*/, T &)
 		{
 			debug_unreachable();
 		}
@@ -775,8 +764,7 @@ namespace
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
-			const int nvertices = object->vertices.count() / 3; // assume xyz
-			for (int i = 0; i < nvertices; i++)
+			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.count() / 3))
 			{
 				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
 				core::maths::Vector4f::array_type buffer;
@@ -1002,7 +990,7 @@ namespace
 						selectable_components.remove(x.entity);
 					}
 				}
-				void operator () (MessageMakeClearSelection && x)
+				void operator () (MessageMakeClearSelection &&)
 				{
 					debug_fail(); // not implemented yet
 				}
@@ -1304,8 +1292,7 @@ namespace
 				0.f, 1.f,
 				1.f, 1.f}});
 
-		return std::move(engine::graphics::data::Mesh{
-			vertices, triangles, normals, coords });
+		return engine::graphics::data::Mesh{vertices, triangles, normals, coords};
 	}
 
 	std::atomic_int texture_lock(0);
@@ -1319,7 +1306,7 @@ namespace
 			x.read(image);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}
@@ -1465,7 +1452,7 @@ namespace
 			                0,
 			                component.object->vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               component.mesh->triangles.count(),
+			               debug_cast<GLsizei>(component.mesh->triangles.count()),
 			               GL_UNSIGNED_SHORT,	// TODO
 			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
@@ -1488,7 +1475,7 @@ namespace
 					                0,
 					                mesh->vertices.data());
 					glDrawElements(GL_TRIANGLES,
-					               mesh->triangles.count(),
+					               debug_cast<GLsizei>(mesh->triangles.count()),
 					               BufferFormats[static_cast<int>(mesh->triangles.format())],
 					               mesh->triangles.data());
 				}
@@ -1509,7 +1496,7 @@ namespace
 			                0,
 			                component.mesh->vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               component.mesh->triangles.count(),
+			               debug_cast<GLsizei>(component.mesh->triangles.count()),
 			               BufferFormats[static_cast<int>(component.mesh->triangles.format())],
 			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
@@ -1606,8 +1593,8 @@ namespace
 		for (auto & component : components.get<Character>())
 		{
 			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			modelview_matrix.mult(component.mesh->modelview);
+			modelview_matrix.mult(component.object_->modelview);
+			modelview_matrix.mult(component.mesh_->modelview);
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
@@ -1647,7 +1634,7 @@ namespace
 			                0,
 			                component.vertices.data());
 			glDrawElements(GL_LINES,
-			               component.edges.count(),
+			               debug_cast<GLsizei>(component.edges.count()),
 			               BufferFormats[static_cast<int>(component.edges.format())],
 			               component.edges.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
@@ -1685,7 +1672,7 @@ namespace
 				                0,
 				                mesh.normals.data());
 				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
+				               debug_cast<GLsizei>(mesh.triangles.count()),
 				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -1710,7 +1697,7 @@ namespace
 				                  0,
 				                  mesh.coords.data());
 				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
+				               debug_cast<GLsizei>(mesh.triangles.count()),
 				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -1752,7 +1739,7 @@ namespace
 				                0,
 				                mesh.normals.data());
 				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
+				               debug_cast<GLsizei>(mesh.triangles.count()),
 				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 			}

@@ -11,7 +11,7 @@ namespace
 		int operator () (int x) { return x; }
 		int operator () (long long x) { return (int)x; }
 		template <typename X>
-		int operator () (X && x) { throw -1; }
+		int operator () (X &&) { throw -1; }
 	};
 	struct set_value
 	{
@@ -19,7 +19,7 @@ namespace
 		void operator () (int & x) { x = 5; }
 		void operator () (long long & x) { x = 5ll; }
 		template <typename X>
-		int operator () (X && x) { throw -1; }
+		int operator () (X &&) { throw -1; }
 	};
 }
 

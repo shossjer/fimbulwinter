@@ -1,13 +1,13 @@
-
-#include <config.h>
+#include "config.h"
 
 #if TEXT_USE_FREETYPE
 
 #include "Font.hpp"
 
-#include <core/debug.hpp>
+#include "core/debug.hpp"
 
-#include <utility/bitmanip.hpp>
+#include "utility/bitmanip.hpp"
+#include "utility/ranges.hpp"
 
 #include <cmath>
 #include <numeric>
@@ -18,6 +18,8 @@ namespace
 	{
 		return utility::clp2(minimum);
 	}
+
+	constexpr auto invalid_id = GLuint(-1);
 }
 
 namespace engine
@@ -37,12 +39,14 @@ namespace engine
 					FT_Done_FreeType(library);
 				}
 			}
+
 			Font::Data::Data()
 				: face(nullptr)
 			{
 				if (FT_Init_FreeType(&library))
 					debug_fail();
 			}
+
 			Font::Data::Data(Data && data)
 				: library(data.library)
 				, face(data.face)
@@ -50,6 +54,7 @@ namespace engine
 				data.library = nullptr;
 				data.face = nullptr;
 			}
+
 			Font::Data & Font::Data::operator = (Data && data)
 			{
 				library = data.library;
@@ -68,6 +73,7 @@ namespace engine
 				FT_Done_Face(face);
 				face = nullptr;
 			}
+
 			bool Font::Data::load(const char * name, int height)
 			{
 				debug_assert(face == nullptr);
@@ -102,11 +108,12 @@ namespace engine
 						return false;
 					}
 
-					max_bitmap_width = std::max(int(face->glyph->bitmap.width), int(max_bitmap_width));
-					max_bitmap_height = std::max(int(face->glyph->bitmap.rows), int(max_bitmap_height));
+					max_bitmap_width = std::max(debug_cast<int16_t>(face->glyph->bitmap.width), max_bitmap_width);
+					max_bitmap_height = std::max(debug_cast<int16_t>(face->glyph->bitmap.rows), max_bitmap_height);
 				}
 
-				texture_size = smallest_power_of_two(std::sqrt(max_bitmap_width * max_bitmap_height * 256)); // starting guess
+				const int estimated_area = max_bitmap_width * max_bitmap_height * 256;
+				texture_size = smallest_power_of_two(static_cast<int>(std::sqrt(estimated_area)));
 				do
 				{
 					const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
@@ -133,54 +140,56 @@ namespace engine
 					const int bitmap_slot_x = i % max_number_of_bitmaps_in_x;
 					const int bitmap_slot_y = i / max_number_of_bitmaps_in_x;
 					const int pixel_offset = bitmap_slot_x * max_bitmap_width + bitmap_slot_y * max_bitmap_height * texture_size;
-					for (int y = 0; y < face->glyph->bitmap.rows; y++)
-						for (int x = 0; x < face->glyph->bitmap.width; x++)
+					for (std::ptrdiff_t y : ranges::index_sequence(face->glyph->bitmap.rows))
+					{
+						for (std::ptrdiff_t x : ranges::index_sequence(face->glyph->bitmap.width))
+						{
 							pixels[pixel_offset + x + y * texture_size] = face->glyph->bitmap.buffer[x + y * face->glyph->bitmap.width];
+						}
+					}
 
-					params[i].bitmap_left = face->glyph->bitmap_left;
-					params[i].bitmap_top = face->glyph->bitmap_top;
-					params[i].advance_x = face->glyph->advance.x / 64;
-					params[i].advance_y = face->glyph->advance.y / 64;
+					params[i].bitmap_left = debug_cast<int16_t>(face->glyph->bitmap_left);
+					params[i].bitmap_top = debug_cast<int16_t>(face->glyph->bitmap_top);
+					params[i].advance_x = debug_cast<int16_t>(face->glyph->advance.x >> 6);
+					params[i].advance_y = debug_cast<int16_t>(face->glyph->advance.y >> 6);
 				}
 				return true;
 			}
 
 			Font::~Font()
 			{
-				if (id != GLuint(-1))
+				if (id != invalid_id)
 				{
 					decompile();
 				}
 			}
+
 			Font::Font()
-				: id(-1)
-			{
-			}
+				: id(invalid_id)
+			{}
+
 			Font::Font(Font && font)
-				: id(font.id)
+				: id(std::exchange(font.id, invalid_id))
 				, max_bitmap_width(font.max_bitmap_width)
 				, max_bitmap_height(font.max_bitmap_height)
 				, texture_size(font.texture_size)
 				, params(std::move(font.params))
-			{
-				font.id = -1;
-			}
+			{}
+
 			Font & Font::operator = (Font && font)
 			{
-				id = font.id;
+				id = std::exchange(font.id, invalid_id);
 				max_bitmap_width = font.max_bitmap_width;
 				max_bitmap_height = font.max_bitmap_height;
 				texture_size = font.texture_size;
 				params = std::move(font.params);
-
-				font.id = -1;
 
 				return *this;
 			}
 
 			void Font::compile(const Data & data)
 			{
-				debug_assert(id == GLuint(-1));
+				debug_assert(id == invalid_id);
 
 				glEnable(GL_TEXTURE_2D);
 
@@ -201,17 +210,18 @@ namespace engine
 				texture_size = data.texture_size;
 				params = data.params;
 			}
+
 			void Font::decompile()
 			{
-				debug_assert(id != GLuint(-1));
+				debug_assert(id != invalid_id);
 
 				glDeleteTextures(1, &id);
-				id = GLuint(-1);
+				id = invalid_id;
 			}
 
 			void Font::draw(int x, int y, char c) const
 			{
-				debug_assert(id != GLuint(-1));
+				debug_assert(id != invalid_id);
 
 				glEnable(GL_BLEND);
 				glEnable(GL_TEXTURE_2D);
@@ -244,9 +254,10 @@ namespace engine
 				glDisable(GL_TEXTURE_2D);
 				glDisable(GL_BLEND);
 			}
+
 			void Font::draw(int x, int y, const char * text) const
 			{
-				debug_assert(id != GLuint(-1));
+				debug_assert(id != invalid_id);
 
 				glEnable(GL_BLEND);
 				glEnable(GL_TEXTURE_2D);
@@ -284,13 +295,15 @@ namespace engine
 				glDisable(GL_TEXTURE_2D);
 				glDisable(GL_BLEND);
 			}
+
 			void Font::draw(int x, int y, const std::string & string) const
 			{
 				draw(x, y, string.c_str(), string.length());
 			}
-			void Font::draw(int x, int y, const char * text, unsigned int length) const
+
+			void Font::draw(int x, int y, const char * text, std::ptrdiff_t length) const
 			{
-				debug_assert(id != GLuint(-1));
+				debug_assert(id != invalid_id);
 
 				glEnable(GL_BLEND);
 				glEnable(GL_TEXTURE_2D);

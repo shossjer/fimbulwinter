@@ -33,13 +33,16 @@ namespace engine
 					this->free();
 				}
 			}
+
 			Font::Data::Data()
 				: font_struct(nullptr)
 			{}
+
 			Font::Data::Data(Data && data)
 				: window_(nullptr)
 				, font_struct(std::exchange(data.font_struct, nullptr))
 			{}
+
 			Font::Data & Font::Data::operator = (Data && data)
 			{
 				this->window_ = data.window_;
@@ -55,6 +58,7 @@ namespace engine
 				freeFont(*this->window_, this->font_struct);
 				this->font_struct = nullptr;
 			}
+
 			bool Font::Data::load(engine::application::window & window, const char * name, int height)
 			{
 				debug_assert(this->font_struct == nullptr);
@@ -72,16 +76,19 @@ namespace engine
 					this->decompile();
 				}
 			}
+
 			Font::Font() :
 				base(-1)
 			{
 			}
+
 			Font::Font(Font && font) :
 				base(font.base),
 				count(font.count)
 			{
 				font.base = -1;
 			}
+
 			Font & Font::operator = (Font && font)
 			{
 				this->base = font.base;
@@ -102,6 +109,7 @@ namespace engine
 				this->base = glGenLists(this->count);
 				buildFont(*data.window_, data.font_struct, first, last, this->base);
 			}
+
 			void Font::decompile()
 			{
 				debug_assert(this->base != GLuint(-1));
@@ -117,6 +125,7 @@ namespace engine
 				glRasterPos2i(x, y);
 				glCallList(this->base + c);
 			}
+
 			void Font::draw(int x, int y, const char * text) const
 			{
 				debug_assert(this->base != GLuint(-1));
@@ -127,6 +136,7 @@ namespace engine
 					glCallList(this->base + c);
 				}
 			}
+
 			void Font::draw(int x, int y, const std::string & string) const
 			{
 				debug_assert(this->base != GLuint(-1));
@@ -135,7 +145,8 @@ namespace engine
 				glListBase(this->base);
 				glCallLists(string.length(), GL_UNSIGNED_BYTE, string.c_str());
 			}
-			void Font::draw(int x, int y, const char * text, unsigned int length) const
+
+			void Font::draw(int x, int y, const char * text, std::ptrdiff_t length) const
 			{
 				debug_assert(this->base != GLuint(-1));
 

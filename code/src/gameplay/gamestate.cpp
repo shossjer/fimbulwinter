@@ -28,6 +28,7 @@
 #include "gameplay/roles.hpp"
 #include "gameplay/skills.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/string.hpp"
 
 #include <algorithm>
@@ -60,9 +61,6 @@ namespace
 
 	template<typename T>
 	T & access_component(const engine::Entity entity);
-
-	// update "profile" of entity if it is currently shown (will not set entity as selected).
-	void profile_update(const engine::Entity entity);
 
 	std::unordered_map<engine::Asset, RecipeIngredient> ingredient_graph;
 
@@ -108,12 +106,12 @@ namespace
 			s.read(recipes);
 
 			debug_printline("recipes:");
-			for (int i = 0; i < recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(recipes))
 			{
 				debug_printline("name = \"", recipes.get(i).name, "\"");
 				if (!recipes.get(i).ingredients.empty())
 				{
-					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
+					for (auto j : ranges::index_sequence_for(recipes.get(i).ingredients))
 					{
 						debug_printline(recipes.get(i).ingredients[j].quantity, "x ", recipes.get(i).ingredients[j].name);
 					}
@@ -130,7 +128,7 @@ namespace
 			s.read(roles);
 
 			debug_printline("classes:");
-			for (int i = 0; i < roles.size(); i++)
+			for (auto i : ranges::index_sequence_for(roles))
 			{
 				debug_printline("name = \"", roles.get(i).name, "\"");
 			}
@@ -141,7 +139,7 @@ namespace
 			s.read(skills);
 
 			debug_printline("skills:");
-			for (int i = 0; i < skills.size(); i++)
+			for (auto i : ranges::index_sequence_for(skills))
 			{
 				debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
 			}
@@ -152,7 +150,7 @@ namespace
 			std::vector<const gameplay::Recipe *> available_recipes;
 
 			std::vector<int> ingredient_counts(recipes.size(), 0);
-			for (int i = 0; i < recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(recipes))
 			{
 				// a raw ingredient does not have ingredients
 				if (recipes.get(i).ingredients.empty())
@@ -171,18 +169,18 @@ namespace
 				// there should be at least one stack
 				debug_assert(preparation.number_of_stacks > 0);
 
-				const int i = recipes.index(*preparation.recipe);
+				const auto i = recipes.index(*preparation.recipe);
 				ingredient_counts[i] += preparation.number_of_stacks;
 			}
 
-			for (int i = 0; i < recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(recipes))
 			{
 				if (!recipes.get(i).ingredients.empty())
 				{
 					bool is_available = true;
-					for (int j = 0; j < recipes.get(i).ingredients.size(); j++)
+					for (auto j : ranges::index_sequence_for(recipes.get(i).ingredients))
 					{
-						const int index = recipes.find(recipes.get(i).ingredients[j].name);
+						const auto index = recipes.find(recipes.get(i).ingredients[j].name);
 						debug_assert(index >= 0);
 
 						const int need = recipes.get(i).ingredients[j].quantity;
@@ -233,9 +231,9 @@ namespace
 		{
 			debug_assert(is_empty(table));
 
-			for (int j = 0; j < recipe.ingredients.size(); j++)
+			for (auto j : ranges::index_sequence_for(recipe.ingredients))
 			{
-				const int index = recipes.find(recipe.ingredients[j].name);
+				const auto index = recipes.find(recipe.ingredients[j].name);
 				if (recipes.get(index).ingredients.empty())
 					continue; // raw ingredient
 
@@ -274,11 +272,11 @@ namespace
 
 		std::vector<double> skills;
 
-		void clear_skills(const gameplay::Skills & skills)
+		void clear_skills(const gameplay::Skills & skills_)
 		{
-			this->skills.resize(skills.size(), 0.);
+			skills.resize(skills_.size(), 0.);
 		}
-		void add_skill(int index, double amount)
+		void add_skill(std::ptrdiff_t index, double amount)
 		{
 			skills[index] += amount;
 		}
@@ -292,7 +290,7 @@ namespace
 			const double my_sum = std::accumulate(begin(my_normalized_skills), end(my_normalized_skills), 0.);
 			if (my_sum != 0.)
 			{
-				for (int i = 0; i < my_normalized_skills.size(); i++)
+				for (auto i : ranges::index_sequence_for(my_normalized_skills))
 				{
 					my_normalized_skills[i] /= my_sum;
 				}
@@ -301,21 +299,21 @@ namespace
 			std::vector<double> role_normalized_skills(skills.size(), role.default_weight);
 			for (const auto & skill_weight : role.skill_weights)
 			{
-				const int index = kitchen.skills.find(skill_weight.name);
+				const auto index = kitchen.skills.find(skill_weight.name);
 				debug_assert(index >= 0);
 				role_normalized_skills[index] = skill_weight.weight;
 			}
 			const double role_sum = std::accumulate(begin(role_normalized_skills), end(role_normalized_skills), 0.);
 			if (role_sum != 0.)
 			{
-				for (int i = 0; i < role_normalized_skills.size(); i++)
+				for (auto i : ranges::index_sequence_for(role_normalized_skills))
 				{
 					role_normalized_skills[i] /= role_sum;
 				}
 			}
 
 			double diff = 0.;
-			for (int i = 0; i < my_normalized_skills.size(); i++)
+			for (auto i : ranges::index_sequence_for(my_normalized_skills))
 			{
 				diff += std::abs(my_normalized_skills[i] - role_normalized_skills[i]);
 			}
@@ -327,8 +325,8 @@ namespace
 			debug_assert(roles.size() > 0);
 
 			double best_score = score_role(roles.get(0));
-			int best_index = 0;
-			for (int i = 1; i < roles.size(); i++)
+			std::ptrdiff_t best_index = 0;
+			for (auto i : ranges::index_sequence(1, roles.size()))
 			{
 				const double score = score_role(roles.get(i));
 				if (score < best_score)
@@ -343,8 +341,8 @@ namespace
 		void print_best_to_worst_roles(const gameplay::Roles & roles) const
 		{
 			std::vector<double> scores;
-			std::vector<int> indices;
-			for (int i = 0; i < roles.size(); i++)
+			std::vector<std::ptrdiff_t> indices;
+			for (auto i : ranges::index_sequence_for(roles))
 			{
 				scores.push_back(score_role(roles.get(i)));
 				indices.push_back(i);
@@ -352,7 +350,7 @@ namespace
 			std::sort(std::begin(indices), std::end(indices), [&](int a, int b){ return scores[a] < scores[b]; });
 
 			debug_printline("best to worst matching classes:");
-			for (int i = 0; i < roles.size(); i++)
+			for (auto i : ranges::index_sequence_for(roles))
 			{
 				debug_printline("\"", roles.get(indices[i]).name, "\" = ", static_cast<int>((2. - scores[indices[i]]) / 2. * 100.), "%");
 			}
@@ -409,13 +407,13 @@ namespace
 			Worker & w = access_component<Worker>(worker);
 			for (auto & skill_amount : preparation.recipe->skill_amounts)
 			{
-				const int index = kitchen.skills.find(skill_amount.name);
+				const auto index = kitchen.skills.find(skill_amount.name);
 				debug_assert(index >= 0);
 				w.add_skill(index, skill_amount.amount);
 			}
 
 			debug_printline("worker (", worker, ") skills:");
-			for (int i = 0; i < kitchen.skills.size(); i++)
+			for (auto i : ranges::index_sequence_for(kitchen.skills))
 			{
 				debug_printline("\"", kitchen.skills.get(i).name, "\" = ", w.skills[i]);
 			}
@@ -442,7 +440,7 @@ namespace
 			}
 		}
 
-		void cleanup(const Preparation & preparation)
+		void cleanup(const Preparation & /*preparation*/)
 		{
 			post_update_action(*::mixer, worker, engine::animation::action{"idle", true});
 
@@ -465,7 +463,7 @@ namespace
 
 	struct Loader
 	{
-		void translate(engine::Command command, utility::any && data)
+		void translate(engine::Command command, utility::any &&)
 		{
 			debug_assert(command == engine::command::LOADER_FINISHED);
 			debug_printline(gameplay::gameplay_channel, "WOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOW");
@@ -496,7 +494,7 @@ namespace
 			x.read(image);
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("impossible to read, maybe");
 		}
@@ -527,7 +525,7 @@ namespace
 			other_entities.reserve(2);
 			shown_entities.reserve(recipes.size());
 
-			for (int i = 0; i < recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(recipes))
 			{
 				reader->post_read(utility::to_string("res/", recipes.get(i).name, ".png"), data_callback_image);
 
@@ -556,7 +554,7 @@ namespace
 
 			auto maybe = std::find(recipe_entities.begin(), recipe_entities.end(), entity);
 			debug_assert(maybe != recipe_entities.end());
-			const int index = std::distance(recipe_entities.begin(), maybe);
+			const auto index = std::distance(recipe_entities.begin(), maybe);
 
 			return recipes.get(index);
 		}
@@ -576,9 +574,9 @@ namespace
 
 			hide();
 
-			for (int i = 0; i < shown_recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(shown_recipes))
 			{
-				const int recipe_index = recipes.index(*shown_recipes[i]);
+				const auto recipe_index = recipes.index(*shown_recipes[i]);
 				const auto entity = recipe_entities[recipe_index];
 				debug_assert(std::find(shown_entities.begin(), shown_entities.end(), entity) == shown_entities.end());
 
@@ -604,7 +602,7 @@ namespace
 			}
 		}
 
-		int index_of_other(engine::Asset asset) const
+		std::ptrdiff_t index_of_other(engine::Asset asset) const
 		{
 			constexpr engine::Asset assets[] = {engine::Asset("continue"), engine::Asset("trash")};
 
@@ -619,7 +617,7 @@ namespace
 
 			auto maybe = std::find(other_entities.begin(), other_entities.end(), entity);
 			debug_assert(maybe != other_entities.end());
-			const int index = std::distance(other_entities.begin(), maybe);
+			const auto index = std::distance(other_entities.begin(), maybe);
 			return names[index];
 		}
 
@@ -629,7 +627,7 @@ namespace
 
 			for (int i = 0; i < nassets; i++)
 			{
-				const int other_index = index_of_other(assets[i]);
+				const auto other_index = index_of_other(assets[i]);
 				const auto entity = other_entities[other_index];
 
 				const float radius = 96.f;
@@ -670,13 +668,13 @@ namespace
 			}
 		}
 
-		std::string operator () (engine::Entity entity, const Worker & x)
+		std::string operator () (engine::Entity /*entity*/, const Worker & x)
 		{
 			const auto & role = x.compute_role(kitchen.roles);
 			return role.name;
 		}
 
-		std::string operator () (engine::Entity entity, const Workstation & x)
+		std::string operator () (engine::Entity entity, const Workstation &)
 		{
 			if (kitchen.is_empty(entity))
 				return "empty";
@@ -726,7 +724,7 @@ namespace
 			        components.call(target, get_tooltip{})};
 		}
 
-		void display(engine::Entity entity, int x, int y)
+		void display(engine::Entity entity, int x_, int y_)
 		{
 			if (target == entity)
 			{
@@ -744,8 +742,8 @@ namespace
 				post_remove(*::renderer, frame);
 			}
 			target = entity;
-			this->x = x;
-			this->y = y;
+			x = x_;
+			y = y_;
 
 			if (target != engine::Entity::null())
 			{
@@ -767,7 +765,7 @@ namespace
 			x.translate(command, std::move(data));
 		}
 		template <typename T>
-		void impl(T & x, ...)
+		void impl(T &, ...)
 		{
 			debug_unreachable();
 		}
@@ -1136,7 +1134,7 @@ namespace
 			kitchen.init_recipes(std::move(s));
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("unknown format");
 		}
@@ -1149,7 +1147,7 @@ namespace
 			kitchen.init_roles(std::move(s));
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("unknown format");
 		}
@@ -1162,25 +1160,25 @@ namespace
 			kitchen.init_skills(std::move(s));
 		}
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("unknown format");
 		}
 	};
 
-	void data_callback_recipes(std::string name, engine::resource::reader::Structurer && structurer)
+	void data_callback_recipes(std::string /*name*/, engine::resource::reader::Structurer && structurer)
 	{
 		utility::visit(data_callback_recipes_handler{}, std::move(structurer));
 
 		recipes_ring.init(kitchen.recipes);
 	}
 
-	void data_callback_roles(std::string name, engine::resource::reader::Structurer && structurer)
+	void data_callback_roles(std::string /*name*/, engine::resource::reader::Structurer && structurer)
 	{
 		utility::visit(data_callback_roles_handler{}, std::move(structurer));
 	}
 
-	void data_callback_skills(std::string name, engine::resource::reader::Structurer && structurer)
+	void data_callback_skills(std::string /*name*/, engine::resource::reader::Structurer && structurer)
 	{
 		utility::visit(data_callback_skills_handler{}, std::move(structurer));
 	}
@@ -1195,14 +1193,14 @@ namespace
 
 	void post_command_callback(engine::Command command, float value, void * data)
 	{
-		const auto & mapping_data = *static_cast<MappingData *>(data);
+		const auto & mapping_data_ = *static_cast<MappingData *>(data);
 
-		gameplay::post_command(mapping_data.callback, command, value);
+		gameplay::post_command(mapping_data_.callback, command, value);
 	}
 
 	void cursor_callback(engine::Command command, float value, void * data)
 	{
-		const auto & mapping_data = *static_cast<MappingData *>(data);
+		const auto & mapping_data_ = *static_cast<MappingData *>(data);
 
 		static int x = -1;
 		static int y = -1;
@@ -1210,7 +1208,7 @@ namespace
 		switch (command)
 		{
 		case gameplay::command::MOUSE_CLICK:
-			post_select(*::renderer, x, y, mapping_data.callback, value == 1.f ? gameplay::command::RENDER_SELECT : gameplay::command::RENDER_DESELECT);
+			post_select(*::renderer, x, y, mapping_data_.callback, value == 1.f ? gameplay::command::RENDER_SELECT : gameplay::command::RENDER_DESELECT);
 			break;
 		case gameplay::command::MOUSE_MOVE_X:
 			x = static_cast<int>(value);
@@ -1218,7 +1216,7 @@ namespace
 		case gameplay::command::MOUSE_MOVE_Y:
 			y = static_cast<int>(value);
 			// first command_x is called and then command_y
-			post_select(*::renderer, x, y, mapping_data.callback, gameplay::command::RENDER_HIGHLIGHT);
+			post_select(*::renderer, x, y, mapping_data_.callback, gameplay::command::RENDER_HIGHLIGHT);
 			break;
 		default:
 			debug_unreachable("unknown command");
@@ -1244,34 +1242,34 @@ namespace gameplay
 		::mixer = nullptr;
 	}
 
-	gamestate::gamestate(engine::animation::mixer & mixer, engine::audio::System & audio, engine::graphics::renderer & renderer, engine::graphics::viewer & viewer, engine::hid::ui & ui, engine::physics::simulation & simulation, engine::record & record, engine::resource::reader & reader)
+	gamestate::gamestate(engine::animation::mixer & mixer_, engine::audio::System & audio_, engine::graphics::renderer & renderer_, engine::graphics::viewer & viewer_, engine::hid::ui & ui_, engine::physics::simulation & simulation_, engine::record & record_, engine::resource::reader & reader_)
 	{
-		::mixer = &mixer;
-		::audio = &audio;
-		::renderer = &renderer;
-		::viewer = &viewer;
-		::ui = &ui;
-		::simulation = &simulation;
-		::record = &record;
-		::reader = &reader;
+		::mixer = &mixer_;
+		::audio = &audio_;
+		::renderer = &renderer_;
+		::viewer = &viewer_;
+		::ui = &ui_;
+		::simulation = &simulation_;
+		::record = &record_;
+		::reader = &reader_;
 
-		set_dependencies(mixer, renderer, simulation, reader, *this);
+		set_dependencies(mixer_, renderer_, simulation_, reader_, *this);
 
 		std::vector<engine::Asset> states = {engine::Asset("game"), engine::Asset("debug")};
-		post_add_context(ui, engine::Asset("default"), std::move(states));
+		post_add_context(*::ui, engine::Asset("default"), std::move(states));
 
 		auto debug_camera = engine::Entity::create();
 		auto game_camera = engine::Entity::create();
 		core::maths::Vector3f debug_camera_pos{ 0.f, 4.f, 0.f };
 		core::maths::Vector3f game_camera_pos{ 0.f, 7.f, 5.f };
 
-		debug_verify(components.try_emplace<FreeCamera>(debug_camera, viewer, simulation, debug_camera));
-		debug_verify(components.try_emplace<OverviewCamera>(game_camera, simulation, game_camera));
+		debug_verify(components.try_emplace<FreeCamera>(debug_camera, *::viewer, *::simulation, debug_camera));
+		debug_verify(components.try_emplace<OverviewCamera>(game_camera, *::simulation, game_camera));
 
-		engine::physics::camera::add(simulation, debug_camera, debug_camera_pos, false);
-		engine::physics::camera::add(simulation, game_camera, game_camera_pos, true);
+		engine::physics::camera::add(*::simulation, debug_camera, debug_camera_pos, false);
+		engine::physics::camera::add(*::simulation, game_camera, game_camera_pos, true);
 
-		post_add_frame(*::viewer, engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root")});
+		post_add_frame(*::viewer, engine::Asset("game"), engine::graphics::viewer::dynamic{engine::Asset("root"), -1});
 
 		post_add_projection(*::viewer, engine::Asset("my-perspective-3d"), engine::graphics::viewer::perspective{core::maths::make_degree(80.), .125, 128.});
 		post_add_projection(*::viewer, engine::Asset("my-perspective-2d"), engine::graphics::viewer::orthographic{-100., 100});
@@ -1295,54 +1293,54 @@ namespace gameplay
 		post_bind(*::viewer, engine::Asset("game"), game_camera);
 
 		auto flycontrol = engine::Entity::create();
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::TURN_LEFT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::TURN_RIGHT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::TURN_DOWN);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::TURN_UP);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_A, gameplay::command::MOVE_LEFT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_D, gameplay::command::MOVE_RIGHT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_S, gameplay::command::MOVE_DOWN);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_W, gameplay::command::MOVE_UP);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_Q, gameplay::command::ROLL_LEFT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_E, gameplay::command::ROLL_RIGHT);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_LEFTCTRL, gameplay::command::ELEVATE_DOWN);
-		post_add_button_press(ui, flycontrol, engine::hid::Input::Button::KEY_SPACE, gameplay::command::ELEVATE_UP);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::TURN_LEFT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::TURN_RIGHT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::TURN_DOWN);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::TURN_UP);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_A, gameplay::command::MOVE_LEFT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_D, gameplay::command::MOVE_RIGHT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_S, gameplay::command::MOVE_DOWN);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_W, gameplay::command::MOVE_UP);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_Q, gameplay::command::ROLL_LEFT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_E, gameplay::command::ROLL_RIGHT);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_LEFTCTRL, gameplay::command::ELEVATE_DOWN);
+		post_add_button_press(*::ui, flycontrol, engine::hid::Input::Button::KEY_SPACE, gameplay::command::ELEVATE_UP);
 		mapping_data[0] = MappingData{debug_camera, engine::Asset("default")};
-		post_bind(ui, engine::Asset("default"), engine::Asset("debug"), flycontrol, post_command_callback, &mapping_data[0]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("debug"), flycontrol, post_command_callback, &mapping_data[0]);
 
 		auto pancontrol = engine::Entity::create();
-		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::MOVE_LEFT);
-		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::MOVE_RIGHT);
-		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::MOVE_UP);
-		post_add_button_press(ui, pancontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::MOVE_DOWN);
-		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
-		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
-		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
-		post_add_axis_tilt(ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
+		post_add_button_press(*::ui, pancontrol, engine::hid::Input::Button::KEY_LEFT, gameplay::command::MOVE_LEFT);
+		post_add_button_press(*::ui, pancontrol, engine::hid::Input::Button::KEY_RIGHT, gameplay::command::MOVE_RIGHT);
+		post_add_button_press(*::ui, pancontrol, engine::hid::Input::Button::KEY_UP, gameplay::command::MOVE_UP);
+		post_add_button_press(*::ui, pancontrol, engine::hid::Input::Button::KEY_DOWN, gameplay::command::MOVE_DOWN);
+		post_add_axis_tilt(*::ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
+		post_add_axis_tilt(*::ui, pancontrol, engine::hid::Input::Axis::TILT_DPAD_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
+		post_add_axis_tilt(*::ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_X, gameplay::command::MOVE_LEFT, gameplay::command::MOVE_RIGHT);
+		post_add_axis_tilt(*::ui, pancontrol, engine::hid::Input::Axis::TILT_STICKL_Y, gameplay::command::MOVE_UP, gameplay::command::MOVE_DOWN);
 		mapping_data[1] = MappingData{game_camera, engine::Asset("default")};
-		post_bind(ui, engine::Asset("default"), engine::Asset("game"), pancontrol, post_command_callback, &mapping_data[1]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("game"), pancontrol, post_command_callback, &mapping_data[1]);
 
 		auto debug_switch = engine::Entity::create();
 		auto game_switch = engine::Entity::create();
 
-		debug_verify(components.try_emplace<CameraActivator>(debug_switch, viewer, ui, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera));
-		debug_verify(components.try_emplace<CameraActivator>(game_switch, viewer, ui, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera));
+		debug_verify(components.try_emplace<CameraActivator>(debug_switch, *::viewer, *::ui, engine::Asset("default"), engine::Asset("debug"), engine::Asset("game"), debug_camera));
+		debug_verify(components.try_emplace<CameraActivator>(game_switch, *::viewer, *::ui, engine::Asset("default"), engine::Asset("game"), engine::Asset("game"), game_camera));
 
-		post_add_button_press(ui, debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
-		post_add_button_press(ui, game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
+		post_add_button_press(*::ui, debug_switch, engine::hid::Input::Button::KEY_F1, gameplay::command::ACTIVATE_CAMERA);
+		post_add_button_press(*::ui, game_switch, engine::hid::Input::Button::KEY_F2, gameplay::command::ACTIVATE_CAMERA);
 		mapping_data[2] = MappingData{game_switch, engine::Asset("default")};
 		mapping_data[3] = MappingData{debug_switch, engine::Asset("default")};
-		post_bind(ui, engine::Asset("default"), engine::Asset("debug"), game_switch, post_command_callback, &mapping_data[2]);
-		post_bind(ui, engine::Asset("default"), engine::Asset("game"), debug_switch, post_command_callback, &mapping_data[3]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("debug"), game_switch, post_command_callback, &mapping_data[2]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("game"), debug_switch, post_command_callback, &mapping_data[3]);
 
 		auto selector = engine::Entity::create();
 		debug_verify(components.try_emplace<Selector>(selector));
 
 		auto cursor = engine::Entity::create();
-		post_add_axis_move(ui, cursor, engine::hid::Input::Axis::MOUSE_MOVE, gameplay::command::MOUSE_MOVE_X, gameplay::command::MOUSE_MOVE_Y);
-		post_add_button_press(ui, cursor, engine::hid::Input::Button::MOUSE_LEFT, gameplay::command::MOUSE_CLICK);
+		post_add_axis_move(*::ui, cursor, engine::hid::Input::Axis::MOUSE_MOVE, gameplay::command::MOUSE_MOVE_X, gameplay::command::MOUSE_MOVE_Y);
+		post_add_button_press(*::ui, cursor, engine::hid::Input::Button::MOUSE_LEFT, gameplay::command::MOUSE_CLICK);
 		mapping_data[4] = MappingData{selector, engine::Asset("default")};
-		post_bind(ui, engine::Asset("default"), engine::Asset("game"), cursor, cursor_callback, &mapping_data[4]);
+		post_bind(*::ui, engine::Asset("default"), engine::Asset("game"), cursor, cursor_callback, &mapping_data[4]);
 
 		// vvvv tmp vvvv
 		gameplay::create_level(engine::Entity::create(), "level");
@@ -1352,7 +1350,7 @@ namespace gameplay
 		::reader->post_read("skills", data_callback_skills);
 	}
 
-	void update(gamestate & gamestate, int frame_count)
+	void update(gamestate &, int frame_count)
 	{
 		// adding workstuff
 		{
@@ -1379,7 +1377,7 @@ namespace gameplay
 			std::tuple<engine::Entity, engine::Command, utility::any> command_args;
 			while (queue_commands.try_pop(command_args))
 			{
-				post_add_command(*record, frame_count, std::get<0>(command_args), std::get<1>(command_args), utility::any(std::get<2>(command_args)));
+				post_add_command(*::record, frame_count, std::get<0>(command_args), std::get<1>(command_args), utility::any(std::get<2>(command_args)));
 
 				if (debug_verify(std::get<0>(command_args) != engine::Entity::null()))
 				{
@@ -1421,7 +1419,7 @@ namespace gameplay
 	}
 
 	void post_add_workstation(
-		gamestate & gamestate,
+		gamestate &,
 		engine::Entity entity,
 		gamestate::WorkstationType type,
 		core::maths::Matrix4x4f front,
@@ -1431,7 +1429,7 @@ namespace gameplay
 		debug_assert(res);
 	}
 
-	void post_add_worker(gamestate & gamestate, engine::Entity entity)
+	void post_add_worker(gamestate &, engine::Entity entity)
 	{
 		const auto res = queue_workers.try_emplace(entity);
 		debug_assert(res);

@@ -7,6 +7,7 @@
 #include "engine/console.hpp"
 #include "engine/hid/input.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/string.hpp"
 
 #if INPUT_HAS_USER32_RAWINPUT
@@ -180,12 +181,13 @@ namespace
 	{
 		HANDLE handle;
 
-		int16_t id;
+		engine::hid::Input::Player id;
 
 		Device(HANDLE handle)
 			: handle(handle)
 		{
-			static int16_t next_id = 1; // 0 is reserved for not hardware input
+			static engine::hid::Input::Player next_id = 1; // 0 is reserved for not hardware input
+			debug_assert(next_id <= engine::hid::Input::max_player, "too many devices has been added, maybe we need to recycle some ids?");
 			id = next_id++;
 		}
 	};
@@ -366,13 +368,15 @@ namespace engine
 			{
 				UINT len = sizeof name;
 				const auto ret = GetRawInputDeviceInfo(handle, RIDI_DEVICENAME, name, &len);
-				debug_assert(ret >= 0, "buffer too small, expected ", len);
+				debug_assert(ret >= UINT(0), "buffer too small, expected ", len);
 			}
 
 			RID_DEVICE_INFO rdi;
-			rdi.cbSize = sizeof rdi;
-			UINT len = sizeof rdi;
-			debug_verify(GetRawInputDeviceInfo(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
+			{
+				rdi.cbSize = sizeof rdi;
+				UINT len = sizeof rdi;
+				debug_verify(GetRawInputDeviceInfo(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
+			}
 
 			::devices.emplace_back(handle);
 			Device & device = ::devices.back();
@@ -454,7 +458,7 @@ namespace engine
 				HidP_GetButtonCaps(HidP_Output, button_caps.data() + caps.NumberInputButtonCaps, &nbutton_caps, preparsed_data);
 				HidP_GetButtonCaps(HidP_Feature, button_caps.data() + caps.NumberInputButtonCaps + caps.NumberOutputButtonCaps, &nbutton_caps, preparsed_data);
 
-				for (int i = 0; i < button_caps.size(); i++)
+				for (int i : ranges::index_sequence_for(button_caps))
 				{
 					const auto & button_cap = button_caps[i];
 					const int offsets[] = { 0, caps.NumberInputButtonCaps, caps.NumberInputButtonCaps + caps.NumberOutputButtonCaps };
@@ -535,7 +539,7 @@ namespace engine
 				HidP_GetValueCaps(HidP_Output, value_caps.data() + caps.NumberInputValueCaps, &nvalue_caps, preparsed_data);
 				HidP_GetValueCaps(HidP_Feature, value_caps.data() + caps.NumberInputValueCaps + caps.NumberOutputValueCaps, &nvalue_caps, preparsed_data);
 
-				for (int i = 0; i < value_caps.size(); i++)
+				for (int i : ranges::index_sequence_for(value_caps))
 				{
 					const auto & value_cap = value_caps[i];
 					const int offsets[] = { 0, caps.NumberInputValueCaps, caps.NumberInputValueCaps + caps.NumberOutputValueCaps };
@@ -571,13 +575,13 @@ namespace engine
 				fields.resize(field_offsets[1]);
 
 				int bit_offset = 0;
-				for (int i = 0; i < fields.size(); i++)
+				for (int i : ranges::index_sequence_for(fields))
 				{
 					const auto & field = fields[i];
 					const HIDP_REPORT_TYPE type = i < field_offsets[1] ? HidP_Input : i < field_offsets[2] ? HidP_Output : HidP_Feature;
 					const char * const type_names[] = { "input", "output", "feature" };
-					const char * const name = field.type ? "value" : "button";
-					debug_printline("field ", i, "(", type_names[type], " ", name, ") ", field.nbits, " bits, starting at bit ", bit_offset);
+					const char * const field_name = field.type ? "value" : "button";
+					debug_printline("field ", i, "(", type_names[type], " ", field_name, ") ", field.nbits, " bits, starting at bit ", bit_offset);
 
 					if (field.type)
 					{
@@ -651,9 +655,9 @@ namespace engine
 			::window = nullptr;
 		}
 
-		void create_subsystem(devices & devices, engine::application::window & window, bool hardware_input)
+		void create_subsystem(devices & devices, engine::application::window & window_, bool hardware_input_)
 		{
-			::window = &window;
+			::window = &window_;
 
 			found_device(0, 0, 0); // non hardware device
 
@@ -662,7 +666,7 @@ namespace engine
 			engine::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
 			engine::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
 
-			if (hardware_input)
+			if (hardware_input_)
 			{
 				enable_hardware_input();
 			}
@@ -913,7 +917,7 @@ namespace engine
 				{
 					const int from = bit_offset / CHAR_BIT;
 					const int to = (bit_offset + field.nbits + (CHAR_BIT - 1)) / CHAR_BIT;
-					debug_assert(to - from <= sizeof(uint64_t));
+					debug_assert(std::size_t(to - from) <= sizeof(uint64_t));
 
 					uint64_t value = 0;
 					for (int i = 0; i < to - from; i++)

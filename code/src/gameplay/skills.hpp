@@ -6,6 +6,8 @@
 
 #include "engine/Asset.hpp"
 
+#include "utility/ranges.hpp"
+
 #include <string>
 #include <vector>
 
@@ -38,18 +40,18 @@ namespace gameplay
 		Skills & operator = (const Skills &) = delete;
 
 	public:
-		int find(const std::string & name) const
+		std::ptrdiff_t find(const std::string & name) const
 		{
-			for (int i = 0; i < skills.size(); i++)
+			for (std::ptrdiff_t i : ranges::index_sequence_for(skills))
 			{
 				if (skills[i].name == name)
 					return i;
 			}
 			return -1;
 		}
-		const Skill & get(int i) const { return skills[i]; }
-		int index(const Skill & skill) const { return static_cast<int>(&skill - skills.data()); }
-		int size() const { return skills.size(); }
+		const Skill & get(std::ptrdiff_t i) const { return skills[i]; }
+		std::ptrdiff_t index(const Skill & skill) const { return &skill - skills.data(); }
+		std::size_t size() const { return skills.size(); }
 
 	public:
 		static constexpr auto serialization()

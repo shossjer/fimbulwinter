@@ -36,25 +36,25 @@ namespace core
 			{
 				using this_type = PageQueueHeader<StorageTraits, true>;
 
-				this_type * previous;
+				this_type * previous_;
 
-				std::atomic_size_t readi;
-				std::atomic_size_t readendi;
-				std::atomic_size_t writei;
+				std::atomic_size_t readi_;
+				std::atomic_size_t readendi_;
+				std::atomic_size_t writei_;
 
 				PageQueueHeader()
-					: previous(this)
-					, readi{0}
-					, readendi{0}
-					, writei{std::size_t(-1)} // fake being full
+					: previous_(this)
+					, readi_{0}
+					, readendi_{0}
+					, writei_{std::size_t(-1)} // fake being full
 				{}
-				PageQueueHeader(this_type & previous, std::size_t capacity_)
-					: previous(&previous)
-					, readi{0}
-					, readendi{0}
-					, writei{0}
+				PageQueueHeader(this_type & previous, std::size_t capacity)
+					: previous_(&previous)
+					, readi_{0}
+					, readendi_{0}
+					, writei_{0}
 				{
-					debug_assert(capacity_ <= StorageTraits::capacity_value);
+					debug_assert(capacity <= StorageTraits::capacity_value);
 				}
 
 				constexpr std::size_t capacity() const { return StorageTraits::capacity_value; }
@@ -64,27 +64,27 @@ namespace core
 			{
 				using this_type = PageQueueHeader<StorageTraits, false>;
 
-				this_type * previous;
+				this_type * previous_;
 
-				std::atomic_size_t readi;
-				std::atomic_size_t readendi;
-				std::atomic_size_t writei;
+				std::atomic_size_t readi_;
+				std::atomic_size_t readendi_;
+				std::atomic_size_t writei_;
 
 				std::size_t capacity_;
 
 				PageQueueHeader()
-					: previous(this)
-					, readi{0}
-					, readendi{0}
-					, writei{0}
+					: previous_(this)
+					, readi_{0}
+					, readendi_{0}
+					, writei_{0}
 					, capacity_(0)
 				{}
-				PageQueueHeader(this_type & previous, std::size_t capacity_)
-					: previous(&previous)
-					, readi{0}
-					, readendi{0}
-					, writei{0}
-					, capacity_(capacity_)
+				PageQueueHeader(this_type & previous, std::size_t capacity)
+					: previous_(&previous)
+					, readi_{0}
+					, readendi_{0}
+					, writei_{0}
+					, capacity_(capacity)
 				{}
 
 				std::size_t capacity() const { return capacity_; }
@@ -103,21 +103,21 @@ namespace core
 			template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
 			struct SimpleQueueData_static_capacity
 			{
-				std::atomic_size_t readi;
-				std::atomic_size_t readendi;
-				std::atomic_size_t writei;
+				std::atomic_size_t readi_;
+				std::atomic_size_t readendi_;
+				std::atomic_size_t writei_;
 
 				Storage storage_;
 
 				SimpleQueueData_static_capacity()
 					: SimpleQueueData_static_capacity(utility::storage_traits<Storage>::capacity_value)
 				{}
-				SimpleQueueData_static_capacity(std::size_t capacity_)
-					: readi{0}
-					, readendi{0}
-					, writei{0}
+				SimpleQueueData_static_capacity(std::size_t capacity)
+					: readi_{0}
+					, readendi_{0}
+					, writei_{0}
 				{
-					debug_verify(storage_.allocate(capacity_));
+					debug_verify(storage_.allocate(capacity));
 				}
 
 				constexpr std::size_t capacity() const { return utility::storage_traits<Storage>::capacity_value; }
@@ -125,21 +125,21 @@ namespace core
 			template <typename Storage>
 			struct SimpleQueueData_static_capacity<Storage, false /*static_capacity*/>
 			{
-				std::atomic_size_t readi;
-				std::atomic_size_t readendi;
-				std::atomic_size_t writei;
+				std::atomic_size_t readi_;
+				std::atomic_size_t readendi_;
+				std::atomic_size_t writei_;
 
 				std::size_t capacity_;
 
 				Storage storage_;
 
-				SimpleQueueData_static_capacity(std::size_t capacity_)
-					: readi{0}
-					, readendi{0}
-					, writei{0}
-					, capacity_(capacity_)
+				SimpleQueueData_static_capacity(std::size_t capacity)
+					: readi_{0}
+					, readendi_{0}
+					, writei_{0}
+					, capacity_(capacity)
 				{
-					debug_verify(storage_.allocate(capacity_));
+					debug_verify(storage_.allocate(capacity));
 				}
 
 				std::size_t capacity() const { return capacity_; }
@@ -165,9 +165,9 @@ namespace core
 
 				~SimpleQueueData_trivially_destructible()
 				{
-					const std::size_t readi = this->readi.load(std::memory_order_relaxed);
-					const std::size_t barrier = this->readendi.load(std::memory_order_acquire);
-					debug_assert(barrier == this->writei.load(std::memory_order_relaxed));
+					const std::size_t readi = this->readi_.load(std::memory_order_relaxed);
+					const std::size_t barrier = this->readendi_.load(std::memory_order_acquire);
+					debug_assert(barrier == this->writei_.load(std::memory_order_relaxed));
 
 					auto sections = this->storage_.sections(this->capacity());
 					if (barrier < readi)
@@ -194,17 +194,17 @@ namespace core
 			template <typename Header>
 			bool checkout_write_slot(Header & header, std::size_t & slot, std::size_t & next)
 			{
-				slot = header.writei.load(std::memory_order_relaxed);
+				slot = header.writei_.load(std::memory_order_relaxed);
 
 				do
 				{
-					const std::size_t readi = header.readi.load(std::memory_order_relaxed);
+					const std::size_t readi = header.readi_.load(std::memory_order_relaxed);
 
 					next = utility::wrap_reset(slot + 1, header.capacity());
 					if (readi == next)
 						return false; // full
 				}
-				while (!header.writei.compare_exchange_weak(slot, next, std::memory_order_relaxed));
+				while (!header.writei_.compare_exchange_weak(slot, next, std::memory_order_relaxed));
 
 				return true;
 			}
@@ -217,7 +217,7 @@ namespace core
 				{
 					barrier = slot;
 				}
-				while (!header.readendi.compare_exchange_weak(barrier, next, std::memory_order_release, std::memory_order_relaxed));
+				while (!header.readendi_.compare_exchange_weak(barrier, next, std::memory_order_release, std::memory_order_relaxed));
 			}
 		}
 
@@ -248,7 +248,7 @@ namespace core
 				{
 					for (Header * header = write_header.load(std::memory_order_acquire); header != &detail::PageQueueCommon<storage_traits>::empty_header;)
 					{
-						Header * const previous = header->previous;
+						Header * const previous = header->previous_;
 
 						const auto capacity = header->capacity();
 						allocator_traits::destroy(*this, header);
@@ -318,21 +318,21 @@ namespace core
 			{
 				Header * read_header = write_header().load(std::memory_order_acquire);
 
-				if (read_header->previous != &empty_header())
+				if (read_header->previous_ != &empty_header())
 				{
 					Header * next_header;
 					do
 					{
 						next_header = read_header;
-						read_header = read_header->previous;
+						read_header = read_header->previous_;
 					}
-					while (read_header->previous != &empty_header());
+					while (read_header->previous_ != &empty_header());
 
-					const std::size_t slot = read_header->readi.load(std::memory_order_relaxed);
-					const std::size_t writei = read_header->writei.load(std::memory_order_relaxed);
+					const std::size_t slot = read_header->readi_.load(std::memory_order_relaxed);
+					const std::size_t writei = read_header->writei_.load(std::memory_order_relaxed);
 					if (slot == writei)
 					{
-						next_header->previous = &empty_header();
+						next_header->previous_ = &empty_header();
 
 						const auto capacity = read_header->capacity();
 						allocator_traits::destroy(allocator(), read_header);
@@ -342,8 +342,8 @@ namespace core
 					}
 				}
 
-				const std::size_t slot = read_header->readi.load(std::memory_order_relaxed);
-				const std::size_t barrier = read_header->readendi.load(std::memory_order_relaxed);
+				const std::size_t slot = read_header->readi_.load(std::memory_order_relaxed);
+				const std::size_t barrier = read_header->readendi_.load(std::memory_order_relaxed);
 				if (slot == barrier)
 					return false;
 
@@ -356,7 +356,7 @@ namespace core
 				allocator().destroy(p);
 
 				const std::size_t next = utility::wrap_reset(slot + 1, read_header->capacity());
-				read_header->readi.store(next, std::memory_order_relaxed);
+				read_header->readi_.store(next, std::memory_order_relaxed);
 
 				return true;
 			}
@@ -430,8 +430,8 @@ namespace core
 
 			bool try_pop(reference value)
 			{
-				const std::size_t slot = data.readi.load(std::memory_order_relaxed);
-				const std::size_t barrier = data.readendi.load(std::memory_order_relaxed);
+				const std::size_t slot = data.readi_.load(std::memory_order_relaxed);
+				const std::size_t barrier = data.readendi_.load(std::memory_order_relaxed);
 				if (slot == barrier)
 					return false;
 
@@ -443,7 +443,7 @@ namespace core
 				sections.destruct_at(slot);
 
 				const std::size_t next = utility::wrap_reset(slot + 1, data.capacity());
-				data.readi.store(next, std::memory_order_relaxed);
+				data.readi_.store(next, std::memory_order_relaxed);
 
 				return true;
 			}

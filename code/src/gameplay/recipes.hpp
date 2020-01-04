@@ -7,6 +7,7 @@
 #include "engine/Asset.hpp"
 
 #include "utility/optional.hpp"
+#include "utility/ranges.hpp"
 
 #include <string>
 #include <vector>
@@ -80,18 +81,18 @@ namespace gameplay
 		Recipes & operator = (const Recipes &) = delete;
 
 	public:
-		int find(const std::string & name) const
+		std::ptrdiff_t find(const std::string & name) const
 		{
-			for (int i = 0; i < recipes.size(); i++)
+			for (std::ptrdiff_t i : ranges::index_sequence_for(recipes))
 			{
 				if (recipes[i].name == name)
 					return i;
 			}
 			return -1;
 		}
-		const Recipe & get(int i) const { return recipes[i]; }
-		int index(const Recipe & recipe) const { return static_cast<int>(&recipe - recipes.data()); }
-		int size() const { return recipes.size(); }
+		const Recipe & get(std::ptrdiff_t i) const { return recipes[i]; }
+		std::ptrdiff_t index(const Recipe & recipe) const { return &recipe - recipes.data(); }
+		std::size_t size() const { return recipes.size(); }
 
 	public:
 		static constexpr auto serialization()

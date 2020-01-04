@@ -59,7 +59,7 @@ namespace engine
 
 					std::vector<Channel> channels;
 
-					Frame(const int nchannels) :
+					Frame(std::size_t nchannels) :
 						channels(nchannels)
 					{}
 
@@ -78,11 +78,6 @@ namespace engine
 				std::vector<Frame> frames;
 				std::vector<core::maths::Vector3f> positions;
 				std::vector<core::maths::Quaternionf> orientations;
-
-				bool operator == (const std::string & name) const
-				{
-					return name == this->name;
-				}
 
 				static constexpr auto serialization()
 				{

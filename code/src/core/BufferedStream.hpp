@@ -93,9 +93,9 @@ namespace core
 	private:
 		void fill_buffer()
 		{
-			const uint64_t amount = read_stream_.read(buffer_.data() + size_, buffer_.max_size() - size_);
+			const int64_t amount_read = read_stream_.read(buffer_.data() + size_, buffer_.max_size() - size_);
 			from_ = buffer_.data();
-			size_ += amount;
+			size_ += static_cast<std::ptrdiff_t>(amount_read);
 		}
 	};
 }

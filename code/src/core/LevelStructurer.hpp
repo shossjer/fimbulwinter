@@ -69,17 +69,17 @@ namespace core
 			return count * element_size;
 		}
 		template <typename T, typename P>
-		int read_array(P & x, int element_size = 1)
+		int read_array(P &, int /*element_size*/ = 1)
 		{
 			debug_fail("attempting to read array into a non array type in level '", stream.filename, "'");
 			return 0;
 		}
 
-		void read_bytes(char * ptr, int size)
+		void read_bytes(char * ptr, int64_t size)
 		{
 			if (!stream.valid())
 				throw std::runtime_error("unexpected eol");
-			const auto amount_read = stream.read_block(ptr, size);
+			const int64_t amount_read = stream.read_block(ptr, size);
 			if (amount_read < size)
 				throw std::runtime_error("unexpected eol");
 		}
@@ -89,7 +89,7 @@ namespace core
 			read_bytes(reinterpret_cast<char *>(buffer), sizeof(buffer));
 		}
 		template <typename T>
-		void read_color(T & x)
+		void read_color(T &)
 		{
 			debug_fail("attempting to read color into a non color type in level '", stream.filename, "'");
 		}
@@ -106,7 +106,7 @@ namespace core
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_matrix(T & x)
+		void read_matrix(T &)
 		{
 			debug_fail("attempting to read matrix into a non matrix type in level '", stream.filename, "'");
 		}
@@ -149,7 +149,7 @@ namespace core
 			return nmeshes;
 		}
 		template <typename T>
-		int read_meshes(T & x)
+		int read_meshes(T &)
 		{
 			debug_fail("attempting to read meshes into a non array type in level '", stream.filename, "'");
 			return 0;
@@ -184,7 +184,7 @@ namespace core
 			return nplaceholders;
 		}
 		template <typename T>
-		int read_placeholders(T & x)
+		int read_placeholders(T &)
 		{
 			debug_fail("attempting to read placeholders into a non array type in level '", stream.filename, "'");
 			return 0;
@@ -197,7 +197,7 @@ namespace core
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_quaternion(T & x)
+		void read_quaternion(T &)
 		{
 			debug_fail("attempting to read quaternion into a non quaternion type in level '", stream.filename, "'");
 		}
@@ -219,7 +219,7 @@ namespace core
 			x = buffer;
 		}
 		template <typename T>
-		void read_string(T & x)
+		void read_string(T &)
 		{
 			debug_fail("attempting to read string into a non string type in level '", stream.filename, "'");
 		}
@@ -231,7 +231,7 @@ namespace core
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_vector(T & x)
+		void read_vector(T &)
 		{
 			debug_fail("attempting to read vector into a non vector type in level '", stream.filename, "'");
 		}

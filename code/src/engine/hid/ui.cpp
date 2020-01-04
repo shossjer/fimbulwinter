@@ -14,6 +14,7 @@
 #include "engine/hid/input.hpp"
 
 #include "utility/any.hpp"
+#include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
 #include <algorithm>
@@ -55,7 +56,7 @@ namespace
 	std::vector<DeviceMapping> device_mappings;
 	std::vector<std::vector<DeviceSource>> device_sources;
 
-	int find_device(Device device)
+	std::ptrdiff_t find_device(Device device)
 	{
 		auto it = std::find(devices.begin(), devices.end(), device);
 		debug_assert(it != devices.end());
@@ -74,7 +75,7 @@ namespace
 
 	void remove_device(Device device)
 	{
-		const int i = find_device(device);
+		const auto i = find_device(device);
 
 		device_sources.erase(std::next(device_sources.begin(), i));
 		device_mappings.erase(std::next(device_mappings.begin(), i));
@@ -125,7 +126,7 @@ namespace
 	std::vector<engine::Entity> mapping_entities;
 	std::vector<Mapping> mappings;
 
-	int find_mapping(engine::Entity mapping)
+	std::ptrdiff_t find_mapping(engine::Entity mapping)
 	{
 		auto it = std::find(mapping_entities.begin(), mapping_entities.end(), mapping);
 		debug_assert(it != mapping_entities.end());
@@ -133,23 +134,16 @@ namespace
 		return std::distance(mapping_entities.begin(), it);
 	}
 
-	int add_or_find_mapping(engine::Entity mapping)
+	std::ptrdiff_t add_or_find_mapping(engine::Entity mapping)
 	{
 		auto it = std::find(mapping_entities.begin(), mapping_entities.end(), mapping);
-		const int i = std::distance(mapping_entities.begin(), it);
+		const auto i = std::distance(mapping_entities.begin(), it);
 		if (it == mapping_entities.end())
 		{
 			mapping_entities.push_back(mapping);
 			mappings.emplace_back();
 		}
 		return i;
-	}
-
-	void remove_mapping(engine::Entity mapping)
-	{
-		const int i = find_mapping(mapping);
-		mappings.erase(std::next(mappings.begin(), i));
-		mapping_entities.erase(std::next(mapping_entities.begin(), i));
 	}
 
 	struct Context
@@ -161,7 +155,7 @@ namespace
 			std::vector<void *> datas;
 		};
 
-		int active = 0;
+		std::ptrdiff_t active = 0;
 		bool has_device_mappings = false;
 
 		std::vector<engine::Asset> states;
@@ -176,7 +170,7 @@ namespace
 			debug_assert(!this->states.empty(), "a context without states is useless, and a special case we do not want to handle");
 		}
 
-		int find(engine::Asset state) const
+		std::ptrdiff_t find(engine::Asset state) const
 		{
 			auto it = std::find(states.begin(), states.end(), state);
 			debug_assert(it != states.end());
@@ -189,7 +183,7 @@ namespace
 		{
 			debug_assert((!has_device_mappings || state != states[active]));
 
-			const int i = find(state);
+			const auto i = find(state);
 			debug_assert(std::find(state_mappings[i].mappings.begin(), state_mappings[i].mappings.end(), mapping) == state_mappings[i].mappings.end());
 
 			state_mappings[i].mappings.push_back(mapping);
@@ -202,7 +196,7 @@ namespace
 		{
 			debug_assert((!has_device_mappings || state != states[active]));
 
-			const int i = find(state);
+			const auto i = find(state);
 			auto it = std::find(state_mappings[i].mappings.begin(), state_mappings[i].mappings.end(), mapping);
 			debug_assert(it != state_mappings[i].mappings.end());
 
@@ -259,11 +253,11 @@ namespace
 			{
 				auto & device_mapping = device_mappings[find_device(device)];
 
-				for (int j = 0; j < state_mapping.mappings.size(); j++)
+				for (auto j : ranges::index_sequence_for(state_mapping.mappings))
 				{
 					const auto & mapping = ::mappings[find_mapping(state_mapping.mappings[j])];
 
-					for (int i = 0; i < sizeof mapping.buttons / sizeof mapping.buttons[0]; i++)
+					for (auto i : ranges::index_sequence(sizeof mapping.buttons / sizeof mapping.buttons[0]))
 					{
 						if (mapping.buttons[i])
 						{
@@ -275,7 +269,7 @@ namespace
 						}
 					}
 
-					for (int i = 0; i < sizeof mapping.axes / sizeof mapping.axes[0]; i++)
+					for (auto i : ranges::index_sequence(sizeof mapping.axes / sizeof mapping.axes[0]))
 					{
 						if (mapping.axes[i])
 						{
@@ -301,11 +295,11 @@ namespace
 			{
 				auto & device_mapping = device_mappings[find_device(device)];
 
-				for (int j = 0; j < state_mapping.mappings.size(); j++)
+				for (auto j : ranges::index_sequence_for(state_mapping.mappings))
 				{
 					const auto & mapping = ::mappings[find_mapping(state_mapping.mappings[j])];
 
-					for (int i = 0; i < sizeof mapping.buttons / sizeof mapping.buttons[0]; i++)
+					for (auto i : ranges::index_sequence(sizeof mapping.buttons / sizeof mapping.buttons[0]))
 					{
 						if (mapping.buttons[i])
 						{
@@ -315,7 +309,7 @@ namespace
 						}
 					}
 
-					for (int i = 0; i < sizeof mapping.axes / sizeof mapping.axes[0]; i++)
+					for (auto i : ranges::index_sequence(sizeof mapping.axes / sizeof mapping.axes[0]))
 					{
 						if (mapping.axes[i])
 						{
@@ -334,7 +328,7 @@ namespace
 
 	engine::Asset default_context = engine::Asset::null();
 
-	int find_context(engine::Asset context)
+	std::ptrdiff_t find_context(engine::Asset context)
 	{
 		auto it = std::find(context_assets.begin(), context_assets.end(), context);
 		debug_assert(it != context_assets.end());
@@ -354,7 +348,7 @@ namespace
 	{
 		debug_assert(context != default_context);
 
-		const int i = find_context(context);
+		const auto i = find_context(context);
 		contexts.erase(std::next(contexts.begin(), i));
 		context_assets.erase(std::next(context_assets.begin(), i));
 	}
@@ -603,25 +597,25 @@ namespace
 
 	};
 
-	void post_query_contexts(std::atomic_int & ready, std::vector<ContextInfo> & contexts)
+	void post_query_contexts(std::atomic_int & ready, std::vector<ContextInfo> & contexts_)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<QueryContexts>, &ready, &contexts);
+		const auto res = queue.try_emplace(utility::in_place_type<QueryContexts>, &ready, &contexts_);
 		debug_assert(res);
 	}
 
-	void post_query_devices(std::atomic_int & ready, std::vector<DeviceInfo> & devices)
+	void post_query_devices(std::atomic_int & ready, std::vector<DeviceInfo> & devices_)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<QueryDevices>, &ready, &devices);
+		const auto res = queue.try_emplace(utility::in_place_type<QueryDevices>, &ready, &devices_);
 		debug_assert(res);
 	}
 
 	void callback_print_devices(void *)
 	{
 		std::atomic_int ready(0);
-		std::vector<DeviceInfo> devices;
-		std::vector<ContextInfo> contexts;
-		post_query_devices(ready, devices);
-		post_query_contexts(ready, contexts);
+		std::vector<DeviceInfo> devices_;
+		std::vector<ContextInfo> contexts_;
+		post_query_devices(ready, devices_);
+		post_query_contexts(ready, contexts_);
 
 		while (ready.load(std::memory_order_acquire) < 2)
 		{
@@ -629,12 +623,12 @@ namespace
 		}
 
 		debug_printline("print-devices:");
-		for (const auto & device : devices)
+		for (const auto & device : devices_)
 		{
-			std::vector<int> contexts_using_device;
-			for (int i = 0; i < contexts.size(); i++)
+			std::vector<std::ptrdiff_t> contexts_using_device;
+			for (auto i : ranges::index_sequence_for(contexts_))
 			{
-				if (std::find(contexts[i].devices.begin(), contexts[i].devices.end(), device.id) != contexts[i].devices.end())
+				if (std::find(contexts_[i].devices.begin(), contexts_[i].devices.end(), device.id) != contexts_[i].devices.end())
 				{
 					contexts_using_device.push_back(i);
 				}
@@ -650,7 +644,7 @@ namespace
 				context_str = " used in contexts:";
 				for (auto i : contexts_using_device)
 				{
-					context_str += utility::to_string(" ", contexts[i].asset);
+					context_str += utility::to_string(" ", contexts_[i].asset);
 				}
 			}
 			debug_printline(" device ", device.id, context_str);
@@ -677,7 +671,7 @@ namespace hid
 		engine::observe("print-devices", callback_print_devices, nullptr);
 	}
 
-	void update(ui & ui)
+	void update(ui &)
 	{
 		dimension_t notification_dimension;
 		if (queue_dimension.try_pop(notification_dimension))
@@ -752,7 +746,7 @@ namespace hid
 						// (the primary meaning being of course that found
 						// devices gets added to the default context if one
 						// is set, see DeviceFound)
-						const int i = find_context(default_context);
+						const auto i = find_context(default_context);
 						debug_assert(!contexts[i].has_device_mappings, "newly added context should not have device mappings");
 						for (auto device : devices)
 						{
@@ -763,7 +757,7 @@ namespace hid
 
 				void operator () (AddDevice && x)
 				{
-					const int i = find_context(x.context);
+					const auto i = find_context(x.context);
 					if (contexts[i].has_device_mappings)
 					{
 						contexts[i].clear_device_mappings();
@@ -774,7 +768,7 @@ namespace hid
 
 				void operator () (Bind && x)
 				{
-					const int i = find_context(x.context);
+					const auto i = find_context(x.context);
 					if (contexts[i].has_device_mappings && contexts[i].states[contexts[i].active] == x.state)
 					{
 						contexts[i].clear_device_mappings();
@@ -787,7 +781,7 @@ namespace hid
 				{
 					x.contexts->resize(contexts.size());
 
-					for (int i = 0; i < contexts.size(); i++)
+					for (auto i : ranges::index_sequence_for(contexts))
 					{
 						(*x.contexts)[i].asset = context_assets[i];
 						(*x.contexts)[i].devices = contexts[i].devices;
@@ -801,7 +795,7 @@ namespace hid
 				{
 					x.devices->resize(devices.size());
 
-					for (int i = 0; i < devices.size(); i++)
+					for (auto i : ranges::index_sequence_for(devices))
 					{
 						(*x.devices)[i].id = devices[i];
 						(*x.devices)[i].sources = device_sources[i];
@@ -812,7 +806,7 @@ namespace hid
 
 				void operator () (RemoveContext && x)
 				{
-					const int i = find_context(x.context);
+					const auto i = find_context(x.context);
 					if (contexts[i].has_device_mappings)
 					{
 						contexts[i].clear_device_mappings();
@@ -837,7 +831,7 @@ namespace hid
 
 				void operator () (RemoveDevice && x)
 				{
-					const int i = find_context(x.context);
+					const auto i = find_context(x.context);
 					if (contexts[i].has_device_mappings)
 					{
 						contexts[i].clear_device_mappings();
@@ -848,7 +842,7 @@ namespace hid
 
 				void operator () (SetState && x)
 				{
-					const int i = find_context(x.context);
+					const auto i = find_context(x.context);
 					if (contexts[i].has_device_mappings)
 					{
 						contexts[i].clear_device_mappings();
@@ -859,7 +853,7 @@ namespace hid
 
 				void operator () (Unbind && x)
 				{
-					const int i = find_context(x.context);
+					const auto i = find_context(x.context);
 					if (contexts[i].has_device_mappings && contexts[i].states[contexts[i].active] == x.state)
 					{
 						contexts[i].clear_device_mappings();
@@ -894,7 +888,7 @@ namespace hid
 
 					if (default_context != engine::Asset::null())
 					{
-						const int i = find_context(default_context);
+						const auto i = find_context(default_context);
 						contexts[i].clear_device_mappings();
 						contexts[i].add_device(x.id);
 						contexts[i].set_device_mappings();
@@ -922,7 +916,7 @@ namespace hid
 				{
 					debug_printline("device ", x.id, " found source ", x.path);
 
-					const int i = find_device(x.id);
+					const auto i = find_device(x.id);
 					debug_assert(std::find_if(device_sources[i].begin(), device_sources[i].end(), [&](const DeviceSource & source){ return source.path == x.path; }) == device_sources[i].end());
 					device_sources[i].push_back({x.type, std::move(x.path), std::move(x.name)});
 				}
@@ -931,7 +925,7 @@ namespace hid
 				{
 					debug_printline("device ", x.id, " lost source ", x.path);
 
-					const int i = find_device(x.id);
+					const auto i = find_device(x.id);
 					auto source = std::find_if(device_sources[i].begin(), device_sources[i].end(), [&](const DeviceSource & source){ return source.path == x.path; });
 					debug_assert(source != device_sources[i].end());
 					device_sources[i].erase(source);
@@ -946,6 +940,8 @@ namespace hid
 					case engine::hid::Input::State::AXIS_TILT:
 						filters.try_call(device_mapping.axis_filters[static_cast<int>(input.getAxis())], HandleAxisTilt{device_mapping.axis_callbacks[static_cast<int>(input.getAxis())], device_mapping.axis_datas[static_cast<int>(input.getAxis())], input});
 						break;
+					case engine::hid::Input::State::AXIS_TRIGGER:
+						break;
 					case engine::hid::Input::State::BUTTON_DOWN:
 						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], HandleButton<false>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], device_mapping.button_datas[static_cast<int>(input.getButton())], input});
 						break;
@@ -955,6 +951,8 @@ namespace hid
 					case engine::hid::Input::State::CURSOR_MOVE:
 						filters.try_call(device_mapping.axis_filters[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], HandleAxisMove{device_mapping.axis_callbacks[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], device_mapping.axis_datas[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], input});
 						break;
+					case engine::hid::Input::State::KEY_CHARACTER:
+						break;
 					}
 				}
 
@@ -963,43 +961,43 @@ namespace hid
 		}
 	}
 
-	void notify_resize(ui & ui, const int width, const int height)
+	void notify_resize(ui &, const int width, const int height)
 	{
 		queue_dimension.try_push(width, height);
 	}
 
-	void notify_device_found(ui & ui, int id)
+	void notify_device_found(ui &, int id)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceFound>, id);
 		debug_assert(res);
 	}
 
-	void notify_device_lost(ui & ui, int id)
+	void notify_device_lost(ui &, int id)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceLost>, id);
 		debug_assert(res);
 	}
 
-	void notify_add_source(ui & ui, int id, std::string && path, int type, std::string && name)
+	void notify_add_source(ui &, int id, std::string && path, int type, std::string && name)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), std::move(name));
 		debug_assert(res);
 	}
 
-	void notify_remove_source(ui & ui, int id, std::string && path)
+	void notify_remove_source(ui &, int id, std::string && path)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<RemoveSource>, id, std::move(path));
 		debug_assert(res);
 	}
 
-	void notify_input(ui & ui, const engine::hid::Input & input)
+	void notify_input(ui &, const engine::hid::Input & input)
 	{
 		const auto res = queue_input.try_emplace(utility::in_place_type<engine::hid::Input>, input);
 		debug_assert(res);
 	}
 
 	void post_add_context(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		std::vector<engine::Asset> states)
 	{
@@ -1007,7 +1005,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_remove_context(
-		ui & ui,
+		ui &,
 		engine::Asset context)
 	{
 		const auto res = queue.try_emplace(utility::in_place_type<RemoveContext>, context);
@@ -1015,7 +1013,7 @@ namespace hid
 	}
 
 	void post_set_state(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		engine::Asset state)
 	{
@@ -1024,7 +1022,7 @@ namespace hid
 	}
 
 	void post_add_device(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		int id)
 	{
@@ -1032,7 +1030,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_remove_device(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		int id)
 	{
@@ -1041,7 +1039,7 @@ namespace hid
 	}
 
 	void post_add_axis_move(
-		ui & ui,
+		ui &,
 		engine::Entity mapping,
 		engine::hid::Input::Axis code,
 		engine::Command command_x,
@@ -1051,7 +1049,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_add_axis_tilt(
-		ui & ui,
+		ui &,
 		engine::Entity mapping,
 		engine::hid::Input::Axis code,
 		engine::Command command_min,
@@ -1061,7 +1059,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_add_button_press(
-		ui & ui,
+		ui &,
 		engine::Entity mapping,
 		engine::hid::Input::Button code,
 		engine::Command command)
@@ -1070,7 +1068,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_add_button_release(
-		ui & ui,
+		ui &,
 		engine::Entity mapping,
 		engine::hid::Input::Button code,
 		engine::Command command)
@@ -1080,7 +1078,7 @@ namespace hid
 	}
 
 	void post_bind(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		engine::Asset state,
 		engine::Entity mapping,
@@ -1091,7 +1089,7 @@ namespace hid
 		debug_assert(res);
 	}
 	void post_unbind(
-		ui & ui,
+		ui &,
 		engine::Asset context,
 		engine::Asset state,
 		engine::Entity mapping)

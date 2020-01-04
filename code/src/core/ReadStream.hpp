@@ -10,7 +10,7 @@ namespace core
 	class ReadStream
 	{
 	private:
-		uint64_t (* read_callback_)(char * dest, std::size_t n, void * data);
+		uint64_t (* read_callback_)(char * dest, int64_t n, void * data);
 		void * data_;
 
 		bool done_ = false;
@@ -18,7 +18,7 @@ namespace core
 		std::string filename;
 
 	public:
-		ReadStream(uint64_t (* read_callback)(char * dest, std::size_t n, void * data), void * data, std::string filename)
+		ReadStream(uint64_t (* read_callback)(char * dest, int64_t n, void * data), void * data, std::string filename)
 			: read_callback_(read_callback)
 			, data_(data)
 			, filename(std::move(filename))
@@ -30,7 +30,7 @@ namespace core
 			return !done_;
 		}
 
-		uint64_t read(char * dest, std::size_t n)
+		int64_t read(char * dest, int64_t n)
 		{
 			debug_assert(!done_);
 			debug_assert(n > 0);
@@ -39,9 +39,9 @@ namespace core
 			done_ = ret > 0x7fffffffffffffffll;
 			return ret & 0x7fffffffffffffffll;
 		}
-		uint64_t read_block(char * dest, std::size_t n)
+		int64_t read_block(char * dest, int64_t n)
 		{
-			uint64_t total = 0;
+			int64_t total = 0;
 
 			do
 			{

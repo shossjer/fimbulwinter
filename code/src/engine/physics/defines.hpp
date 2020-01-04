@@ -75,10 +75,11 @@ namespace physics
 				// xyz value of all points.
 				std::vector<float> points;
 
-				uint32_t size() const
+				std::size_t size() const
 				{
-					debug_assert((points.size() % 3)== 0);
-					return points.size()/3;
+					debug_assert(points.size() % 3 == 0);
+
+					return points.size() / 3;
 				}
 			} mesh;
 

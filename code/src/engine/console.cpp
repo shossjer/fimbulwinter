@@ -22,16 +22,16 @@ namespace engine
 {
 	namespace detail
 	{
-		std::vector<Argument> parse_params(const std::string & line, int from)
+		std::vector<Argument> parse_params(const std::string & line, std::ptrdiff_t from)
 		{
 			std::vector<Argument> params;
 
-			while (from < line.length())
+			while (std::size_t(from) < line.length())
 			{
 				if (line[from] == '"')
 				{
-					const int to = line.find('"', from + 1);
-					if (to == std::string::npos)
+					const std::ptrdiff_t to = line.find('"', from + 1);
+					if (std::size_t(to) == std::string::npos)
 						throw std::runtime_error("missing ending quote (\") on string argument");
 
 					params.emplace_back(utility::in_place_type<utility::string_view>, line.data() + from + 1, to - from - 1);
@@ -39,13 +39,13 @@ namespace engine
 					continue;
 				}
 
-				int to = line.find(' ', from);
+				std::ptrdiff_t to = line.find(' ', from);
 				if (from == to)
 				{
 					from++;
 					continue;
 				}
-				if (to == std::string::npos)
+				if (std::size_t(to) == std::string::npos)
 				{
 					to = line.length();
 				}
@@ -59,13 +59,13 @@ namespace engine
 				{
 					params.emplace_back(utility::in_place_type<bool>, false);
 				}
-				else if (line.find('.', from) < to)
+				else if (line.find('.', from) < std::size_t(to))
 				{
 					try
 					{
 						params.emplace_back(utility::in_place_type<double>, std::stod(line.substr(from, to - from)));
 					}
-					catch (const std::invalid_argument & e)
+					catch (const std::invalid_argument &)
 					{
 						throw std::runtime_error(utility::to_string("at ", from, ": argument not a floating type"));
 					}
@@ -76,7 +76,7 @@ namespace engine
 					{
 						params.emplace_back(utility::in_place_type<int64_t>, std::stoll(line.substr(from, to - from)));
 					}
-					catch (const std::invalid_argument & e)
+					catch (const std::invalid_argument &)
 					{
 						throw std::runtime_error(utility::to_string("at ", from, ": argument not a integral type"));
 					}
@@ -101,9 +101,9 @@ namespace engine
 			if (line.empty())
 				return;
 
-			const int command_begin = 0;
-			int command_end = line.find(' ', command_begin);
-			if (command_end == std::string::npos)
+			const std::ptrdiff_t command_begin = 0;
+			std::ptrdiff_t command_end = line.find(' ', command_begin);
+			if (std::size_t(command_end) == std::string::npos)
 			{
 				command_end = line.length();
 			}

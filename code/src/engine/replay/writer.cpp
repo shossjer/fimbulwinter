@@ -91,7 +91,7 @@ namespace engine
 		thread = core::async::Thread(run);
 	}
 
-	void post_add_command(record & record, int frame_count, engine::Entity entity, engine::Command command, utility::any && data)
+	void post_add_command(record &, int frame_count, engine::Entity entity, engine::Command command, utility::any && data)
 	{
 		if (active.load(std::memory_order_relaxed))
 		{

@@ -4,7 +4,7 @@
 
 #include <config.h>
 
-#include "utility/functional.hpp"
+#include "utility/concepts.hpp"
 #include "utility/intrinsics.hpp"
 #include "utility/spinlock.hpp"
 #include "utility/stream.hpp"
@@ -20,6 +20,10 @@
 # pragma GCC diagnostic ignored "-Wparentheses"
 #endif
 
+#ifndef __has_builtin
+# define __has_builtin(x) 0
+#endif
+
 #if MODE_DEBUG
 
 /**
@@ -28,9 +32,9 @@
  * Additionally returns the evaluation of the condition.
  */
 # ifdef __GNUG__
-#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, ##__VA_ARGS__) || (debug_break(), false))
+#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} < expr, ##__VA_ARGS__) || (debug_break(), false))
 # else
-#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} >> expr << core::debug::empty_t{}, __VA_ARGS__) || (debug_break(), false))
+#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} < expr, __VA_ARGS__) || (debug_break(), false))
 # endif
 
 /**
@@ -46,7 +50,7 @@
 #  include <intrin.h>
 #  define debug_break() __debugbreak()
 # elif defined(__i386__) || defined(__x86_64__)
-inline static void debug_break_impl() { __asm__("int3"); }
+#  define debug_break() [](){ __asm__("int3"); }()
 // can we get some authoritative proof why `int3` works, and why it is
 // preferable over `raise(SIGTRAP)`? all we have to go on is rumors
 // :slightly_frowning_face:
@@ -54,7 +58,6 @@ inline static void debug_break_impl() { __asm__("int3"); }
 // http://www.ouah.org/linux-anti-debugging.txt
 // https://github.com/scottt/debugbreak/blob/8b4a755e76717103adc814c0c05ceb3b91befa7d/debugbreak.h#L46
 // https://github.com/nemequ/portable-snippets/blob/db0ac507dfcc749ce601e5aa1bc93e2ba86050a2/debug-trap/debug-trap.h#L36
-#  define debug_break() debug_break_impl()
 # else
 #  include <csignal>
 #  ifdef SIGTRAP
@@ -65,10 +68,53 @@ inline static void debug_break_impl() { __asm__("int3"); }
 #  endif
 # endif
 
+namespace core
+{
+	namespace detail
+	{
+		template <typename F>
+		struct delay_cast
+		{
+			F callback;
+
+			delay_cast(F callback)
+				: callback(std::forward<F>(callback))
+			{}
+
+			template <typename U, typename T>
+			decltype(auto) call(T && t)
+			{
+				return std::forward<F>(callback)(mpl::type_is<U>{}, std::forward<T>(t));
+			}
+		};
+
+		template <typename F>
+		auto make_delay_cast(F && callback)
+		{
+			return delay_cast<F &&>(std::forward<F>(callback));
+		}
+	}
+}
+
+/**
+ * Performs a `static_cast` and asserts that no data is lost.
+ *
+ * Returns the resulting value, even if data was lost.
+ */
+# define debug_cast \
+	core::detail::make_delay_cast([](auto type, auto && value) \
+	                              { \
+		                              auto result = static_cast<typename decltype(type)::type>(std::forward<decltype(value)>(value)); \
+		                              constexpr auto value_name = utility::type_name<mpl::remove_cvref_t<decltype(value)>>(); \
+		                              constexpr auto type_name = utility::type_name<typename decltype(type)::type>(); \
+		                              debug_assert(value == result, "data lost after static_cast from \"", value_name, "\" to \"", type_name, "\""); \
+		                              return result; \
+	                              }).template call
+
 /**
  * Fails unconditionally.
  *
- * Additionally returns false.
+ * \note Always returns false.
  */
 # ifdef __GNUG__
 #  define debug_fail(...) (core::debug::instance().fail(__FILE__, __LINE__, ##__VA_ARGS__) || (debug_break(), false))
@@ -98,11 +144,13 @@ inline static void debug_break_impl() { __asm__("int3"); }
 /**
  * Verifies that the expression is true.
  *
- * Additionally returns the evaluation of the expression.
- *
  * \note Always evaluates the expression.
  */
-# define debug_verify(expr, ...) (static_cast<bool>(expr) || debug_fail(__VA_ARGS__))
+# ifdef __GNUG__
+#  define debug_verify(expr, ...) debug_assert(expr, ##__VA_ARGS__)
+# else
+#  define debug_verify(expr, ...) debug_assert(expr, __VA_ARGS__)
+# endif
 
 #else
 
@@ -117,9 +165,18 @@ inline static void debug_break_impl() { __asm__("int3"); }
 # define debug_break()
 
 /**
- * Does nothing.
+ * Performs a `static_cast`.
+ *
+ * Returns the resulting value.
  */
-# define debug_fail(...)
+# define debug_cast static_cast
+
+/**
+ * Fails unconditionally.
+ *
+ * \note Always returns false.
+ */
+# define debug_fail(...) false
 
 /**
  * Does nothing.
@@ -133,8 +190,6 @@ inline static void debug_break_impl() { __asm__("int3"); }
 
 /**
  * Verifies that the expression is true.
- *
- * Additionally returns the evaluation of the expression.
  *
  * \note Always evaluates the expression.
  */
@@ -155,74 +210,103 @@ namespace core
 	{
 	public:
 		struct empty_t {};
+
 		template <typename T>
 		struct value_t
 		{
+			using this_type = value_t<T>;
+
 			T value;
 
-			value_t(T value) :
-				value(std::forward<T>(value))
-			{}
-		};
-
-		template <typename L>
-		struct compare_unary_t
-		{
-			using this_type = compare_unary_t<L>;
-
-			L left;
-
-			compare_unary_t(L left) :
-				left(std::move(left))
+			value_t(T value)
+				: value(std::forward<T>(value))
 			{}
 
-			auto operator () () ->
-				decltype(left.value)
+			bool operator () ()
 			{
-				return left.value;
+				return static_cast<bool>(value);
 			}
 
 			friend std::ostream & operator << (std::ostream & stream, const this_type & comp)
 			{
-				return stream << "failed with value: " << utility::try_stream(comp.left.value);
+				return stream << "failed with value: " << utility::try_stream(comp.value);
 			}
 		};
+
 		template <typename L, typename R, typename F>
 		struct compare_binary_t
 		{
+			using this_type = compare_binary_t<L, R, F>;
+
 			L left;
 			R right;
 
-			compare_binary_t(L left, R right) :
-				left(std::move(left)),
-				right(std::move(right))
+			compare_binary_t(L left, R right)
+				: left(std::forward<L>(left))
+				, right(std::forward<R>(right))
 			{}
 
-			auto operator () () ->
-				decltype(F{}(left.value, right.value))
+			decltype(auto) operator () ()
 			{
-				return F{}(left.value, right.value);
+				return F{}(std::forward<L>(left), std::forward<R>(right));
 			}
 
-			friend std::ostream & operator << (std::ostream & stream, const compare_binary_t<L, R, F> & comp)
+			friend std::ostream & operator << (std::ostream & stream, const this_type & comp)
 			{
-				return stream << "failed with lhs: " << utility::try_stream(comp.left.value) << "\n"
-				              << "            rhs: " << utility::try_stream(comp.right.value);
+				return stream << "failed with lhs: " << utility::try_stream(comp.left) << "\n"
+				              << "            rhs: " << utility::try_stream(comp.right);
 			}
 		};
 
+		// we make an exception to allow the following
+		// warnings to make it easier to use the debug
+		// library
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4018 4389 )
+		// C4018 - 'expression' : signed/unsigned mismatch
+		// C4389 - 'operator' : signed/unsigned mismatch
+#elif defined(__GNUG__)
+# if defined(__clang__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wsign-compare"
+# else
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wsign-compare"
+# endif
+		// -Wsign-compare - Warn when a comparison between signed and
+		// unsigned values could produce an incorrect result when the
+		// signed value is converted to unsigned.
+#endif
+		struct eq_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x == y; }};
+		struct ne_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x != y; }};
+		struct lt_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x < y; }};
+		struct le_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x <= y; }};
+		struct gt_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x > y; }};
+		struct ge_t { template <typename X, typename Y> bool operator () (X && x, Y && y) { return x >= y; }};
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#elif defined(__GNUG__)
+# if defined(__clang__)
+#  pragma clang diagnostic pop
+# else
+#  pragma GCC diagnostic pop
+# endif
+#endif
+
 		template <typename L, typename R>
-		using compare_eq_t = compare_binary_t<L, R, utility::equal_to<>>;
+		using compare_eq_t = compare_binary_t<L, R, eq_t>;
 		template <typename L, typename R>
-		using compare_ne_t = compare_binary_t<L, R, utility::not_equal_to<>>;
+		using compare_ne_t = compare_binary_t<L, R, ne_t>;
 		template <typename L, typename R>
-		using compare_lt_t = compare_binary_t<L, R, utility::less<>>;
+		using compare_lt_t = compare_binary_t<L, R, lt_t>;
 		template <typename L, typename R>
-		using compare_le_t = compare_binary_t<L, R, utility::less_equal<>>;
+		using compare_le_t = compare_binary_t<L, R, le_t>;
 		template <typename L, typename R>
-		using compare_gt_t = compare_binary_t<L, R, utility::greater<>>;
+		using compare_gt_t = compare_binary_t<L, R, gt_t>;
 		template <typename L, typename R>
-		using compare_ge_t = compare_binary_t<L, R, utility::greater_equal<>>;
+		using compare_ge_t = compare_binary_t<L, R, ge_t>;
+
 	private:
 		using lock_t = utility::spinlock;
 
@@ -305,64 +389,94 @@ namespace core
 	};
 
 	template <typename T,
-	          typename = mpl::disable_if_t<std::is_fundamental<mpl::decay_t<T>>::value>>
-	debug::value_t<T &&> operator >> (debug::empty_t &&, T && value)
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<T>>::value))>
+	debug::value_t<T &&> operator < (debug::empty_t &&, T && value)
 	{
-		return debug::value_t<T &&>{std::forward<T>(value)};
+		return debug::value_t<T &&>(std::forward<T>(value));
 	}
 	template <typename T,
-	          typename = mpl::enable_if_t<std::is_fundamental<T>::value>>
-	debug::value_t<T> operator >> (debug::empty_t &&, T value)
+	          REQUIRES((std::is_scalar<T>::value))>
+	debug::value_t<T> operator < (debug::empty_t &&, T value)
 	{
-		return debug::value_t<T>{value};
-	}
-	template <typename T,
-	          typename = mpl::disable_if_t<std::is_fundamental<mpl::decay_t<T>>::value>>
-	debug::value_t<T &&> operator << (T && value, debug::empty_t &&)
-	{
-		return debug::value_t<T &&>{std::forward<T>(value)};
-	}
-	template <typename T,
-	          typename = mpl::enable_if_t<std::is_fundamental<T>::value>>
-	debug::value_t<T> operator << (T value, debug::empty_t &&)
-	{
-		return debug::value_t<T>{value};
+		return debug::value_t<T>(std::forward<T>(value));
 	}
 
-	template <typename L>
-	debug::compare_unary_t<debug::value_t<L>> operator << (debug::value_t<L> && v, debug::empty_t &&)
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator == (debug::value_t<L> && left, R && right)
 	{
-		return debug::compare_unary_t<debug::value_t<L>>{std::move(v)};
+		return debug::compare_eq_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>> operator == (debug::value_t<L> && left, debug::value_t<R> && right)
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator == (debug::value_t<L> && left, R right)
 	{
-		return debug::compare_eq_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_eq_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>> operator != (debug::value_t<L> && left, debug::value_t<R> && right)
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator != (debug::value_t<L> && left, R && right)
 	{
-		return debug::compare_ne_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_ne_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>> operator < (debug::value_t<L> && left, debug::value_t<R> && right)
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator != (debug::value_t<L> && left, R right)
 	{
-		return debug::compare_lt_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_ne_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_le_t<debug::value_t<L>, debug::value_t<R>> operator <= (debug::value_t<L> && left, debug::value_t<R> && right)
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator < (debug::value_t<L> && left, R && right)
 	{
-		return debug::compare_le_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_lt_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>> operator > (debug::value_t<L> && left, debug::value_t<R> && right)
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator < (debug::value_t<L> && left, R right)
 	{
-		return debug::compare_gt_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_lt_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
 	}
-	template <typename L, typename R>
-	debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>> operator >= (debug::value_t<L> && left, debug::value_t<R> && right)
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator <= (debug::value_t<L> && left, R && right)
 	{
-		return debug::compare_ge_t<debug::value_t<L>, debug::value_t<R>>{std::move(left), std::move(right)};
+		return debug::compare_le_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator <= (debug::value_t<L> && left, R right)
+	{
+		return debug::compare_le_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator > (debug::value_t<L> && left, R && right)
+	{
+		return debug::compare_gt_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator > (debug::value_t<L> && left, R right)
+	{
+		return debug::compare_gt_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	auto operator >= (debug::value_t<L> && left, R && right)
+	{
+		return debug::compare_ge_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+	          REQUIRES((std::is_scalar<R>::value))>
+	auto operator >= (debug::value_t<L> && left, R right)
+	{
+		return debug::compare_ge_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
 	}
 }
 

@@ -1,11 +1,11 @@
-
-#include "catch.hpp"
+#include <catch.hpp>
 
 #include "utility/null_allocator.hpp"
 
 TEST_CASE("null allocator has default constructor", "[allocator][utility]")
 {
 	utility::null_allocator<char> na;
+	static_cast<void>(na);
 }
 
 TEST_CASE("null allocator fails to allocate", "[allocator][utility]")

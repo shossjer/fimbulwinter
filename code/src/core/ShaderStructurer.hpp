@@ -64,8 +64,8 @@ namespace core
 			// 	}
 			// }
 			stream.consume();
-			const int vertex_source_begin = stream.pos();
-			const int vertex_source_end = find(beginline, "[fragment]", endline);
+			const std::ptrdiff_t vertex_source_begin = stream.pos();
+			const std::ptrdiff_t vertex_source_end = find(beginline, "[fragment]", endline);
 			if (core::member_table<T>::has("vertex_source"))
 			{
 				parse_region(vertex_source_begin, vertex_source_end, x.vertex_source);
@@ -101,8 +101,8 @@ namespace core
 			// 	}
 			// }
 			stream.consume();
-			const int fragment_source_begin = stream.pos();
-			const int fragment_source_end = find(endoffile);
+			const std::ptrdiff_t fragment_source_begin = stream.pos();
+			const std::ptrdiff_t fragment_source_end = find(endoffile);
 			if (core::member_table<T>::has("fragment_source"))
 			{
 				parse_region(fragment_source_begin, fragment_source_end, x.fragment_source);
@@ -283,7 +283,7 @@ namespace core
 			return false;
 		}
 
-		int find(endoffile_t)
+		std::ptrdiff_t find(endoffile_t)
 		{
 			const auto bak = stream.pos();
 			while (stream.valid())
@@ -296,7 +296,7 @@ namespace core
 		}
 
 		template <typename P1, typename ...Ps>
-		int find(P1 && p1, Ps && ...ps)
+		std::ptrdiff_t find(P1 && p1, Ps && ...ps)
 		{
 			const auto bak = stream.pos();
 			while (stream.valid())
@@ -315,7 +315,7 @@ namespace core
 			return pos;
 		}
 
-		void parse_region(int from, int to, std::string & x)
+		void parse_region(std::ptrdiff_t from, std::ptrdiff_t to, std::string & x)
 		{
 			debug_assert(from == stream.pos());
 
@@ -339,7 +339,7 @@ namespace core
 			}
 		}
 
-		void skip_region(int from, int to)
+		void skip_region(std::ptrdiff_t from, std::ptrdiff_t to)
 		{
 			debug_assert(from == stream.pos());
 

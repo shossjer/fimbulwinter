@@ -59,7 +59,21 @@ namespace core
 				return;
 			}
 
+			// all objects with a non-trivial destructor have to be
+			// put before the setjmp
+			core::container::Buffer pixels;
+			std::vector<png_bytep> rows;
+
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4611 )
+			// the microsoft compiler complains about setjmp and
+			// object destruction
+#endif
 			if (setjmp(png_jmpbuf(png_ptr)))
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 			{
 				debug_fail("png is borked");
 				png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
@@ -74,7 +88,7 @@ namespace core
 					{
 						png_error(png_ptr, "unexpected eol");
 					}
-					const auto amount_read = read_stream.read_block(reinterpret_cast<char * >(data), size);
+					const uint64_t amount_read = read_stream.read_block(reinterpret_cast<char * >(data), size);
 					if (amount_read < size)
 					{
 						png_error(png_ptr, "unexpected eol");
@@ -97,9 +111,10 @@ namespace core
 			debug_printline(core::core_channel, "image_width: ", image_width);
 			debug_printline(core::core_channel, "image_height: ", image_height);
 			debug_printline(core::core_channel, "bit_depth: ", bit_depth);
-			core::container::Buffer pixels(core::container::Buffer::Format::uint8, row_size * image_height);
+
+			pixels.resize<uint8_t>(row_size * image_height);
+			rows.resize(image_height);
 			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
-			std::vector<png_bytep> rows(image_height);
 			for (int i = 0; i < image_height; i++)
 			{
 				rows[i] = reinterpret_cast<png_bytep>(pixels.data() + (image_height - 1 - i) * row_size);
@@ -110,52 +125,52 @@ namespace core
 
 			png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
 
-			if (member_table<T>::has("width"))
-			{
-				member_table<T>::call("width", x, TryAssign<int>(image_width));
-			}
-			if (member_table<T>::has("height"))
-			{
-				member_table<T>::call("height", x, TryAssign<int>(image_height));
-			}
+			core::try_assign<member_table<T>::find("width")>(x, [image_width](){ return image_width; });
+			core::try_assign<member_table<T>::find("height")>(x, [image_height](){ return image_height; });
 
-			if (member_table<T>::has("bit_depth"))
+			core::try_assign<member_table<T>::find("bit_depth")>(x, [bit_depth]()
 			{
-				member_table<T>::call("bit_depth", x, TryAssign<int>(bit_depth));
-			}
-			if (member_table<T>::has("channel_count"))
-			{
-				member_table<T>::call("channel_count", x, TryAssign<int>(channels));
-			}
-			if (member_table<T>::has("color_type"))
-			{
-				member_table<T>::call("color_type", x, [&](auto & y){ read_color_type(color_type, y); });
-			}
+				switch (bit_depth)
+				{
+				case 1:
+				case 2:
+				case 4:
+				case 8:
+				case 16:
+					return static_cast<graphics::BitDepth>(bit_depth);
+				default:
+					debug_unreachable("unknown bit depth");
+				}
+			});
 
-			if (member_table<T>::has("pixel_data"))
+			core::try_assign<member_table<T>::find("channel_count")>(x, [channels]()
 			{
-				member_table<T>::call("pixel_data", x, TryAssign<core::container::Buffer &&>(std::move(pixels)));
-			}
-		}
-	private:
-		void read_color_type(int color_type, graphics::ColorType & x)
-		{
-			switch (color_type)
+				switch (channels)
+				{
+				case 1:
+				case 2:
+				case 3:
+				case 4:
+					return static_cast<graphics::ChannelCount>(channels);
+				default:
+					debug_unreachable("unknown number of channels");
+				}
+			});
+
+			core::try_assign<member_table<T>::find("color_type")>(x, [color_type]()
 			{
-			case PNG_COLOR_TYPE_RGB:
-				x = graphics::ColorType::RGB;
-				break;
-			case PNG_COLOR_TYPE_RGBA:
-				x = graphics::ColorType::RGBA;
-				break;
-			default:
-				debug_fail("unknown color type");
-			}
-		}
-		template <typename T>
-		void read_color_type(int, T &)
-		{
-			debug_fail("unknown type for color type");
+				switch (color_type)
+				{
+				case PNG_COLOR_TYPE_RGB:
+					return graphics::ColorType::RGB;
+				case PNG_COLOR_TYPE_RGBA:
+					return graphics::ColorType::RGBA;
+				default:
+					debug_unreachable("unknown color type");
+				}
+			});
+
+			core::try_assign<member_table<T>::find("pixel_data")>(x, [&pixels]() { return std::move(pixels); });
 		}
 	};
 }

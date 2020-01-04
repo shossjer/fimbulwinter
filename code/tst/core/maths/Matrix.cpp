@@ -1,7 +1,6 @@
+#include <catch.hpp>
 
-#include "catch.hpp"
-
-#include <core/maths/Matrix.hpp>
+#include "core/maths/Matrix.hpp"
 
 namespace
 {
@@ -45,12 +44,13 @@ namespace
 //
 //////////////////////////////////////////////////////////////////////
 
-TEST_CASE( "matrix default construction", "[maths]" )
+TEST_CASE( "matrix default construction", "[core][maths]" )
 {
 	core::maths::Matrix4x4f matrix;
+	static_cast<void>(matrix);
 }
 
-TEST_CASE( "matrix copy construction", "[maths]" )
+TEST_CASE( "matrix copy construction", "[core][maths]" )
 {
 	core::maths::Matrix4x4f matrix1{  1.f,  -2.f,   3.f,  -4.f,
 	                                 -5.f,   6.f,  -7.f,   8.f,
@@ -64,7 +64,7 @@ TEST_CASE( "matrix copy construction", "[maths]" )
 	          -13.f,  14.f, -15.f,  16.f}});
 }
 
-TEST_CASE( "matrix construction", "[maths]" )
+TEST_CASE( "matrix construction", "[core][maths]" )
 {
 	core::maths::Matrix4x4f matrix{  1.f,  -2.f,   3.f,  -4.f,
 	                                -5.f,   6.f,  -7.f,   8.f,
@@ -77,7 +77,7 @@ TEST_CASE( "matrix construction", "[maths]" )
 	          -13.f,  14.f, -15.f,  16.f}});
 }
 
-TEST_CASE( "matrix copy assignment", "[maths]")
+TEST_CASE( "matrix copy assignment", "[core][maths]")
 {
 	core::maths::Matrix4x4f matrix;
 	matrix = core::maths::Matrix4x4f{  1.f,  -2.f,   3.f,  -4.f,
@@ -97,7 +97,7 @@ TEST_CASE( "matrix copy assignment", "[maths]")
 //
 //////////////////////////////////////////////////////////////////////
 
-TEST_CASE( "matrix multiplication", "[maths]" )
+TEST_CASE( "matrix multiplication", "[core][maths]" )
 {
 	core::maths::Matrix4x4f matrix1{  1.f,  -2.f,   3.f,  -4.f,
 	                                 -5.f,   6.f,  -7.f,   8.f,
@@ -125,7 +125,7 @@ TEST_CASE( "matrix multiplication", "[maths]" )
 //
 //////////////////////////////////////////////////////////////////////
 
-TEST_CASE( "matrix set", "[maths]")
+TEST_CASE( "matrix set", "[core][maths]")
 {
 	core::maths::Matrix4x4f matrix;
 	matrix.set( 1.f,  2.f,  3.f,  4.f,
@@ -168,7 +168,7 @@ TEST_CASE( "matrix set", "[maths]")
 //
 //////////////////////////////////////////////////////////////////////
 
-TEST_CASE( "matrix identity", "[maths]" )
+TEST_CASE( "matrix identity", "[core][maths]" )
 {
 	require(core::maths::Matrix4x4f::identity(),
 	        {{1.f, 0.f, 0.f, 0.f,
@@ -177,7 +177,7 @@ TEST_CASE( "matrix identity", "[maths]" )
 	          0.f, 0.f, 0.f, 1.f}});
 }
 
-TEST_CASE( "matrix ortho", "[maths]" )
+TEST_CASE( "matrix ortho", "[core][maths]" )
 {
 	require(core::maths::Matrix4x4f::ortho(-2, 3, -5, 7, -11, 13),
 	        {{0.4f, 0.f     ,  0.f     , -0.2f    ,
@@ -186,7 +186,7 @@ TEST_CASE( "matrix ortho", "[maths]" )
 	          0.f , 0.f     ,  0.f     ,  1.f     }});
 }
 
-TEST_CASE( "matrix perspective", "[maths]" )
+TEST_CASE( "matrix perspective", "[core][maths]" )
 {
 	require(core::maths::Matrix4x4f::perspective(core::maths::make_degree(90.f), 4.f / 3.f, 1, 128),
 	        {{0.75f, 0.f,  0.f     ,  0.f     ,
@@ -195,7 +195,7 @@ TEST_CASE( "matrix perspective", "[maths]" )
 	          0.f  , 0.f, -1.f     ,  0.f     }});
 }
 
-TEST_CASE( "matrix rotation", "[maths]" )
+TEST_CASE( "matrix rotation", "[core][maths]" )
 {
 	require(core::maths::Matrix4x4f::rotation(core::maths::make_degree(90.f), 1, 1, 1),
 	        {{ 0.33333f, -0.24402f,  0.91068f, 0.f,
@@ -204,7 +204,7 @@ TEST_CASE( "matrix rotation", "[maths]" )
 	           0.f     ,  0.f     ,  0.f     , 1.f}});
 }
 
-TEST_CASE( "matrix translation", "[maths]" )
+TEST_CASE( "matrix translation", "[core][maths]" )
 {
 	require(core::maths::Matrix4x4f::translation(2, 3, 5),
 	        {{1.f, 0.f, 0.f, 2.f,

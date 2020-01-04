@@ -223,13 +223,20 @@ namespace utl
 		}
 	};
 
+	template <typename T>
+	struct StaticCast
+	{
+		template <typename P>
+		constexpr T operator () (P && p) { return static_cast<T>(std::forward<P>(p)); }
+	};
+
 	template <typename InputIt, typename T>
-	constexpr std::size_t index_of_impl(InputIt begin, InputIt it, InputIt end, const T & value)
+	constexpr std::ptrdiff_t index_of_impl(InputIt begin, InputIt it, InputIt end, const T & value)
 	{
 		return it == end || *it == value ? it - begin : index_of_impl(begin, ++it, end, value);
 	}
 	template <typename R, typename T>
-	constexpr std::size_t index_of(const R & range, const T & value)
+	constexpr std::ptrdiff_t index_of(const R & range, const T & value)
 	{
 		using std::begin;
 		using std::end;
@@ -237,20 +244,24 @@ namespace utl
 		return index_of_impl(begin(range), begin(range), end(range), value);
 	}
 
-	template <typename T, typename F, std::size_t ...Is>
-	constexpr auto inverse_table_impl(const T & table, F && f, mpl::index_sequence<Is...>)
+	template <typename T, typename F, typename I, I ...Is>
+	constexpr auto inverse_table_impl(const T & table, F && f, mpl::integral_sequence<I, Is...>)
 	{
-		return std::array<mpl::remove_cvref_t<decltype(f(std::declval<std::size_t>()))>, sizeof...(Is)>{{f(index_of(table, Is))...}};
+		return std::array<mpl::remove_cvref_t<decltype(f(std::declval<std::ptrdiff_t>()))>, sizeof...(Is)>{{f(index_of(table, Is))...}};
 	}
 	template <std::size_t N, typename T>
 	constexpr auto inverse_table(const T & table)
 	{
-		return inverse_table_impl(table, Identity{}, mpl::make_index_sequence<N>{});
+		using value_type = mpl::remove_cvref_t<decltype(table[0])>;
+
+		return inverse_table_impl(table, StaticCast<std::size_t>{}, mpl::make_integral_sequence<value_type, N>{});
 	}
 	template <std::size_t N, typename T, typename F>
 	constexpr auto inverse_table(const T & table, F && f)
 	{
-		return inverse_table_impl(table, std::forward<F>(f), mpl::make_index_sequence<N>{});
+		using value_type = mpl::remove_cvref_t<decltype(table[0])>;
+
+		return inverse_table_impl(table, std::forward<F>(f), mpl::make_integral_sequence<value_type, N>{});
 	}
 
 	template <typename Array, std::size_t ...Is>
@@ -291,6 +302,7 @@ namespace utl
 		value_type values[N] = {};
 
 		int expansion_hack[] = {(values[pairs.first] = std::move(pairs.second), 0)...};
+		static_cast<void>(expansion_hack);
 
 		return utl::to_array(std::move(values));
 	}

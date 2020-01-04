@@ -623,22 +623,26 @@ namespace utility
 		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, Ps && ...ps)
 		{
 			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_fill(begin, end, std::forward<Ps>(ps)), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 		template <std::size_t ...Is, typename ...Ps>
 		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, std::piecewise_construct_t, Ps && ...ps)
 		{
 			int expansion_hack[] = {(utl::unpack(std::forward<Ps>(ps), [this, begin, end](auto && ...ps){ section(mpl::index_constant<Is>{}).construct_fill(begin, end, std::forward<decltype(ps)>(ps)...); }), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 
 		template <std::size_t ...Is, typename InputIt>
 		void construct_range_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, InputIt begin, InputIt end)
 		{
 			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_range(index, utility::get<Is>(begin), utility::get<Is>(end)), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 		template <std::size_t ...Is, typename InputIt>
 		void construct_range_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, std::move_iterator<InputIt> begin, std::move_iterator<InputIt> end)
 		{
 			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_range(index, std::make_move_iterator(utility::get<Is>(begin.base())), std::make_move_iterator(utility::get<Is>(end.base()))), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 
 		template <typename ...Ps>
@@ -686,12 +690,14 @@ namespace utility
 		void destruct_range_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end)
 		{
 			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).destruct_range(begin, end), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 
 		template <std::size_t ...Is>
 		void destruct_at_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index)
 		{
 			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).destruct_at(index), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 	};
 
@@ -772,14 +778,14 @@ namespace utility
 			template <typename StoringType, typename ...Ps>
 			typename StoringType::value_type & construct_at(StoringType * data_, std::ptrdiff_t index, Ps && ...ps)
 			{
-				assert((0 <= index && index < Capacity));
+				assert(std::size_t(index) < Capacity);
 				return data_[index].construct(std::forward<Ps>(ps)...);
 			}
 
 			template <typename StoringType>
 			void destruct_at(StoringType * data_, std::ptrdiff_t index)
 			{
-				assert((0 <= index && index < Capacity));
+				assert(std::size_t(index) < Capacity);
 				data_[index].destruct();
 			}
 

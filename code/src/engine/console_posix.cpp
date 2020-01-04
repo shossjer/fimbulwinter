@@ -41,7 +41,14 @@ namespace
 
 		while (true)
 		{
-			const auto n = poll(fds, 2, -1);
+			const auto ret = poll(fds, 2, -1);
+			if (ret == -1)
+			{
+				if (!debug_verify(errno == EINTR, "poll failed with ", errno))
+					break;
+
+				continue;
+			}
 
 			if (fds[0].revents & POLLHUP)
 				break;

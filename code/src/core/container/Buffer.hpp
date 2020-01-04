@@ -7,6 +7,7 @@
 #include <utility/scalar_alloc.hpp>
 #include <utility/type_traits.hpp>
 
+#include <climits>
 #include <cstring>
 
 namespace core
@@ -54,12 +55,12 @@ namespace core
 
 		private:
 			utility::scalar_alloc data_;
-			Format format_;
-			uint32_t count_;
+			Format format_; // todo 4 bits are enough
+			std::size_t count_ : (sizeof(std::size_t) * CHAR_BIT - sizeof(Format) * CHAR_BIT);
 
 		public:
 			Buffer() = default;
-			Buffer(Format format, uint32_t count)
+			Buffer(Format format, std::size_t count)
 				: data_(format_size[static_cast<int>(format)] * count)
 				, format_(format)
 				, count_(count)

@@ -60,17 +60,17 @@ namespace core
 			return count * element_size;
 		}
 		template <typename T, typename P>
-		int read_array(P & x, int element_size = 1)
+		int read_array(P &, int /*element_size*/ = 1)
 		{
 			debug_fail("attempting to read array into a non array type in placeholder '", stream.filename, "'");
 			return 0;
 		}
 
-		void read_bytes(char * ptr, int size)
+		void read_bytes(char * ptr, int64_t size)
 		{
 			if (!stream.valid())
 				throw std::runtime_error("unexpected eol");
-			const auto amount_read = stream.read_block(ptr, size);
+			const int64_t amount_read = stream.read_block(ptr, size);
 			if (amount_read < size)
 			{
 				debug_printline("warning: eof while reading '", stream.filename, "'");
@@ -82,7 +82,7 @@ namespace core
 			read_bytes(reinterpret_cast<char *>(&count), sizeof(uint16_t));
 		}
 		template <typename T>
-		void read_count(T & x)
+		void read_count(T &)
 		{
 			debug_fail("attempting to read count into a non count type in placeholder '", stream.filename, "'");
 		}
@@ -94,7 +94,7 @@ namespace core
 			x.set_aligned(buffer);
 		}
 		template <typename T>
-		void read_matrix(T & x)
+		void read_matrix(T &)
 		{
 			debug_fail("attempting to read matrix into a non matrix type in placeholder '", stream.filename, "'");
 		}
@@ -116,7 +116,7 @@ namespace core
 			x = buffer;
 		}
 		template <typename T>
-		void read_string(T & x)
+		void read_string(T &)
 		{
 			debug_fail("attempting to read string into a non string type in placeholder '", stream.filename, "'");
 		}
@@ -126,7 +126,7 @@ namespace core
 			read_bytes(reinterpret_cast<char *>(&value), sizeof(float));
 		}
 		template <typename T>
-		void read_value(T & x)
+		void read_value(T &)
 		{
 			debug_fail("attempting to read value into a non value type in placeholder '", stream.filename, "'");
 		}
@@ -164,7 +164,7 @@ namespace core
 			return nweights;
 		}
 		template <typename T>
-		int read_weights(T & x)
+		int read_weights(T &)
 		{
 			debug_fail("attempting to read weights into a non array type in placeholder '", stream.filename, "'");
 			return 0;

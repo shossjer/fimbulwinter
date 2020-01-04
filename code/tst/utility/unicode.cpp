@@ -609,8 +609,6 @@ TEST_CASE("static strings can be memcpy-ed", "[utility][unicode][storage]")
 
 TEST_CASE("heap string", "[utility][unicode]")
 {
-	using string_utf8 = utility::heap_string_utf8;
-
 	utility::heap_string_utf8 s = long_text;
 	CHECK_FALSE(s.empty());
 	CHECK(s.size() == long_text_size);

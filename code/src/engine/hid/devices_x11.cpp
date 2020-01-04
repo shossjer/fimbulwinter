@@ -13,6 +13,7 @@
 #include "engine/hid/input.hpp"
 
 #include "utility/algorithm.hpp"
+#include "utility/ranges.hpp"
 #include "utility/unicode.hpp"
 
 #include <climits>
@@ -524,11 +525,11 @@ namespace
 		int fd; //
 		EventType type;
 
-		int16_t id;
+		engine::hid::Input::Player id;
 
 		struct input_absinfo absinfos[ABS_CNT];
 
-		Event(int fd, EventType type, int16_t id)
+		Event(int fd, EventType type, engine::hid::Input::Player id)
 			: fd(fd)
 			, type(type)
 			, id(id)
@@ -560,7 +561,7 @@ namespace
 
 		int16_t event_count = 0;
 
-		Device(int vendor, int product)
+		Device(uint16_t vendor, uint16_t product)
 			: vendor(vendor)
 			, product(product)
 		{
@@ -655,7 +656,6 @@ namespace
 			unsigned long code_bits[n_longs_for(REL_CNT)] = {};
 			::ioctl(fd, EVIOCGBIT(EV_REL, REL_CNT), code_bits);
 
-			int count = 0;
 			for (int code = 0; code < REL_CNT; code++)
 			{
 				if (test_bit(code, code_bits)) {
@@ -671,7 +671,6 @@ namespace
 			unsigned long code_bits[n_longs_for(ABS_CNT)] = {};
 			::ioctl(fd, EVIOCGBIT(EV_ABS, ABS_CNT), code_bits);
 
-			int count = 0;
 			for (int code = 0; code < ABS_CNT; code++)
 			{
 				if (test_bit(code, code_bits)) {
@@ -697,7 +696,7 @@ namespace
 		int16_t id;
 	};
 
-	Device & get_or_create_device(std::vector<Device> & devices, int vendor, int product)
+	Device & get_or_create_device(std::vector<Device> & devices, uint16_t vendor, uint16_t product)
 	{
 		for (auto & device : devices)
 		{
@@ -835,8 +834,8 @@ namespace
 		}
 
 		struct pollfd fds[11] = { // arbitrary
-			{interupt_pipe[0], 0, },
-			{notify_fd, POLLIN, },
+			{interupt_pipe[0], 0, 0},
+			{notify_fd, POLLIN, 0},
 		};
 
 		std::vector<EventInfo> event_infos;
@@ -847,7 +846,7 @@ namespace
 		while (true)
 		{
 			debug_assert(events.size() <= sizeof fds / sizeof fds[0]);
-			for (int i = 0; i < events.size(); i++)
+			for (auto i : ranges::index_sequence_for(events))
 			{
 				fds[2 + i].fd = events[i].fd;
 				fds[2 + i].events = POLLIN;
@@ -866,19 +865,19 @@ namespace
 			if (fds[0].revents & POLLHUP)
 				break;
 
-			for (int i = 0; i < events.size(); i++)
+			for (std::ptrdiff_t i : ranges::index_sequence_for(events))
 			{
 				if (fds[2 + i].revents & POLLIN)
 				{
 					struct input_event input[20]; // arbitrary
-					const int n = ::read(fds[2 + i].fd, input, sizeof input);
+					const auto n = ::read(fds[2 + i].fd, input, sizeof input);
 					// "[...] you’ll always get a whole number of input
 					// events on a read."
 					//
 					// https://www.kernel.org/doc/html/latest/input/input.html#event-interface
 					debug_assert(n > 0);
 
-					for (int j = 0; j < n / sizeof input[0]; j++)
+					for (auto j : ranges::index_sequence(n / sizeof input[0]))
 					{
 						switch (input[j].type)
 						{
@@ -997,7 +996,7 @@ namespace
 			}
 		}
 
-		for (int i = 0; i < event_infos.size(); i++)
+		for (auto i : ranges::index_sequence_for(event_infos))
 		{
 			if (event_infos[i].status == EventStatus::Open)
 			{
@@ -1090,7 +1089,7 @@ namespace engine
 {
 	namespace hid
 	{
-		void destroy_subsystem(devices & devices)
+		void destroy_subsystem(devices &)
 		{
 			disable_hardware_input();
 
@@ -1101,7 +1100,7 @@ namespace engine
 			lost_device(0); // non hardware device
 		}
 
-		void create_subsystem(devices & devices, engine::application::window & window, bool hardware_input)
+		void create_subsystem(devices &, engine::application::window & window, bool hardware_input)
 		{
 			if (XkbDescPtr const desc = load_key_names(window))
 			{
@@ -1125,7 +1124,7 @@ namespace engine
 			}
 		}
 
-		void key_character(devices & devices, XKeyEvent & event, utility::unicode_code_point cp)
+		void key_character(devices &, XKeyEvent & event, utility::unicode_code_point cp)
 		{
 			const engine::hid::Input::Button button = keycode_to_button[event.keycode];
 			// const auto button_name = core::value_table<engine::hid::Input::Button>::get_key(button);
@@ -1133,7 +1132,7 @@ namespace engine
 			dispatch(KeyCharacterInput(0, button, cp));
 		}
 
-		void button_press(devices & devices, XButtonEvent & event)
+		void button_press(devices &, XButtonEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1155,7 +1154,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, button, true));
 		}
 
-		void button_release(devices & devices, XButtonEvent & event)
+		void button_release(devices &, XButtonEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1177,7 +1176,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, button, false));
 		}
 
-		void key_press(devices & devices, XKeyEvent & event)
+		void key_press(devices &, XKeyEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1188,7 +1187,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, button, true));
 		}
 
-		void key_release(devices & devices, XKeyEvent & event)
+		void key_release(devices &, XKeyEvent & event)
 		{
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
@@ -1199,7 +1198,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, button, false));
 		}
 
-		void motion_notify(devices & devices, int x, int y, ::Time time)
+		void motion_notify(devices &, int x, int y, ::Time)
 		{
 			dispatch(CursorMoveInput(0, x, y));
 		}

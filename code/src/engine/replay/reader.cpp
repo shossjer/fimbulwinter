@@ -64,10 +64,11 @@ namespace
 
 		file.seekg(0, std::ifstream::end);
 		const auto file_size = file.tellg();
+		debug_assert(file_size <= std::size_t(-1), "file is too large, cannot read all in once");
 		file.seekg(0, std::ifstream::beg);
 
 		std::vector<char> bytes;
-		bytes.resize(file_size);
+		bytes.resize(static_cast<std::size_t>(file_size)); // might throw
 
 		file.read(bytes.data(), bytes.size());
 
@@ -81,9 +82,9 @@ namespace engine
 {
 	namespace replay
 	{
-		void start(void (* callback_command)(engine::Entity entity, engine::Command command, utility::any && data))
+		void start(void (* callback_command_)(engine::Entity entity, engine::Command command, utility::any && data))
 		{
-			::callback_command = callback_command;
+			::callback_command = callback_command_;
 
 			load();
 		}

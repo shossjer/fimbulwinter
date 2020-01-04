@@ -12,6 +12,7 @@
 
 #include "utility/json.hpp"
 #include "utility/optional.hpp"
+#include "utility/ranges.hpp"
 
 #include <cfloat>
 #include <cstdint>
@@ -33,14 +34,15 @@ namespace core
 			: filename(read_stream.filename)
 		{
 			std::vector<char> buffer;
-			std::ptrdiff_t filled = 0;
+			std::size_t filled = 0;
 
 			while (read_stream.valid())
 			{
-				const int extra = 0x1000;
-				buffer.resize(filled + extra);
+				const auto extra = 0x1000;
+				buffer.resize(filled + extra); // might throw
 
-				filled += read_stream.read(buffer.data() + filled, extra);
+				const int64_t amount_read = read_stream.read(buffer.data() + filled, extra);
+				filled += static_cast<std::size_t>(amount_read);
 			}
 
 			try
@@ -179,14 +181,14 @@ namespace core
 			const json & first = *j.begin();
 			if (first.is_array())
 			{
-				for (int i = 0; i < j.size(); i++)
+				for (std::ptrdiff_t i : ranges::index_sequence_for(j))
 				{
 					read_array(j[i], buffer[i]);
 				}
 			}
 			else if (first.is_object())
 			{
-				for (int i = 0; i < j.size(); i++)
+				for (std::ptrdiff_t i : ranges::index_sequence_for(j))
 				{
 					read_object(j[i], buffer[i]);
 				}

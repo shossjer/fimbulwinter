@@ -20,6 +20,20 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(private_compile_options
+	$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+		-Wall -Wextra -Wconversion -Werror -Wno-sign-conversion>
+	# sign-conversion - Warn for implicit conversions that may change
+	# the sign of an integer value, like assigning a signed integer
+	# expression to an unsigned integer variable.
+	$<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:CXX_COMPILER_VERSION,6.0>>:
+		-Wno-missing-braces>
+	# missing-braces - Warn if an aggregate or union initializer is not
+	# fully bracketed.
+	$<$<CXX_COMPILER_ID:MSVC>:
+		/W4 /WX>
+	)
+
 if (MSVC)
   set(CMAKE_CXX_FLAGS_DEBUG
 	 "${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"

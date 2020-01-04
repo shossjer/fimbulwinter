@@ -7,21 +7,20 @@ namespace engine
 {
 	namespace detail
 	{
-		extern std::vector<Argument> parse_params(const std::string & line, int from);
+		extern std::vector<Argument> parse_params(const std::string & line, std::ptrdiff_t from);
 	}
 }
 
-namespace
-{
-	template<typename T>
-	void test(std::string line, T expected)
-	{
-		const auto params = engine::detail::parse_params(line, 0);
-		REQUIRE(params.size() == 1);
-		REQUIRE(utility::holds_alternative<T>(params[0]));
-		REQUIRE(utility::get<T>(params[0]) == expected);
-	}
-}
+#define test(line, expected) \
+	do \
+	{ \
+		const std::string str = (line); \
+		const auto params = engine::detail::parse_params(str, 0); \
+		REQUIRE(params.size() == 1); \
+		REQUIRE(utility::holds_alternative<decltype(expected)>(params[0])); \
+		REQUIRE(utility::get<decltype(expected)>(params[0]) == (expected)); \
+	} \
+	while (false)
 
 TEST_CASE("Verify boolean parsing")
 {
@@ -120,10 +119,10 @@ TEST_CASE("Verify multiple args")
 
 namespace
 {
-	void f_empty(void * data) {}
-	void f_single(void * data, utility::string_view) {}
-	void f_dual1(void * data, bool, int64_t) {}
-	void f_dual2(void * data, bool, bool) {}
+	void f_empty(void *) {}
+	void f_single(void *, utility::string_view) {}
+	void f_dual1(void *, bool, int64_t) {}
+	void f_dual2(void *, bool, bool) {}
 
 	template <typename ...Parameters>
 	auto create_callback(void (* fun)(void * data, Parameters...), void * data)

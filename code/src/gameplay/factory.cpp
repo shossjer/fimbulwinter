@@ -14,6 +14,7 @@
 #include "gameplay/debug.hpp"
 #include "gameplay/gamestate.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/string.hpp"
 
 #include <unordered_map>
@@ -294,7 +295,7 @@ namespace
 
 				return armature != engine::Asset::null();
 			}
-			bool set(engine::Asset && asset, std::string && name, engine::animation::Armature && data)
+			bool set(engine::Asset && asset, std::string && /*name*/, engine::animation::Armature && data)
 			{
 				debug_assert(armature == engine::Asset::null());
 				armature = asset;
@@ -371,11 +372,11 @@ namespace
 				// 	engine::graphics::renderer::post_unregister(asset.mesh);
 				// }
 			}
-			Loaded(engine::Asset && asset, std::string && name, ModelData && data)
+			Loaded(engine::Asset && /*asset*/, std::string && name, ModelData && data)
 			{
 				const auto & part = data.part("all");
 
-				for (int i = 0; i < part.render.shapes.size(); i++)
+				for (auto i : ranges::index_sequence_for(part.render.shapes))
 				{
 					const auto & mesh = part.render.shapes[i];
 					const engine::Asset meshId(name + part.name + std::to_string(i));
@@ -389,9 +390,9 @@ namespace
 							mesh.normals,
 							core::container::Buffer{} });
 
-					const uint32_t r = mesh.color.red() * 255;
-					const uint32_t g = mesh.color.green() * 255;
-					const uint32_t b = mesh.color.blue() * 255;
+					const uint32_t r = static_cast<uint8_t>(mesh.color.red() * 255);
+					const uint32_t g = static_cast<uint8_t>(mesh.color.green() * 255);
+					const uint32_t b = static_cast<uint8_t>(mesh.color.blue() * 255);
 					const auto color = r + (g << 8) + (b << 16) + (0xff << 24);
 
 					assets.push_back({meshId, color});
@@ -472,7 +473,7 @@ namespace
 				// 	engine::graphics::renderer::post_unregister(asset);
 				// }
 			}
-			Loaded(engine::Asset && asset, std::string && name, LevelData && data)
+			Loaded(engine::Asset && /*asset*/, std::string && /*name*/, LevelData && data)
 			{
 				// tmp
 				set(
@@ -483,20 +484,20 @@ namespace
 
 				for (const auto & mesh : data.meshes)
 				{
-					const engine::Asset asset(mesh.name);
+					const engine::Asset mesh_asset(mesh.name);
 
 					post_register_mesh(
 						*renderer,
-						asset,
+						mesh_asset,
 						engine::graphics::data::Mesh{
 							mesh.vertices,
 							mesh.triangles,
 							mesh.normals,
 							core::container::Buffer{}});
 
-					const uint32_t r = mesh.color[0] * 255;
-					const uint32_t g = mesh.color[1] * 255;
-					const uint32_t b = mesh.color[2] * 255;
+					const uint32_t r = static_cast<uint8_t>(mesh.color[0] * 255);
+					const uint32_t g = static_cast<uint8_t>(mesh.color[1] * 255);
+					const uint32_t b = static_cast<uint8_t>(mesh.color[2] * 255);
 					const auto color = r + (g << 8) + (b << 16) + (0xff << 24);
 
 					meshes.push_back({mesh.name, mesh.matrix, color});
@@ -577,11 +578,11 @@ namespace
 				// 	engine::graphics::renderer::post_unregister(asset.mesh);
 				// }
 			}
-			Loaded(engine::Asset && asset, std::string && name, ModelData && data)
+			Loaded(engine::Asset && /*asset*/, std::string && name, ModelData && data)
 			{
 				const auto & part = data.part(name);
 
-				for (int i = 0; i < part.render.shapes.size(); i++)
+				for (auto i : ranges::index_sequence_for(part.render.shapes))
 				{
 					const auto & mesh = part.render.shapes[i];
 					const engine::Asset meshId(name + part.name + std::to_string(i));
@@ -595,9 +596,9 @@ namespace
 							mesh.normals,
 							core::container::Buffer{} });
 
-					const uint32_t r = mesh.color.red() * 255;
-					const uint32_t g = mesh.color.green() * 255;
-					const uint32_t b = mesh.color.blue() * 255;
+					const uint32_t r = static_cast<uint8_t>(mesh.color.red() * 255);
+					const uint32_t g = static_cast<uint8_t>(mesh.color.green() * 255);
+					const uint32_t b = static_cast<uint8_t>(mesh.color.blue() * 255);
 					const auto color = r + (g << 8) + (b << 16) + (0xff << 24);
 
 					assets.push_back({meshId, color});
@@ -814,9 +815,9 @@ namespace
 			{
 				if (entity != engine::Entity::null())
 				{
-					for (engine::Entity entity : meshes)
+					for (engine::Entity mesh_entity : meshes)
 					{
-						post_remove(*::renderer, entity);
+						post_remove(*::renderer, mesh_entity);
 					}
 				}
 			}
@@ -831,18 +832,18 @@ namespace
 					std::vector<engine::graphics::data::CompC::asset> assets;
 					assets.push_back({asset, mesh.color});
 
-					const auto entity = engine::Entity::create();
+					const auto mesh_entity = engine::Entity::create();
 
 					post_add_component(
 						*::renderer,
-						entity,
+						mesh_entity,
 						engine::graphics::data::CompC{
 							mesh.matrix,
 							core::maths::Vector3f{1.f, 1.f, 1.f},
 							assets});
-					post_make_obstruction(*::renderer, entity);
+					post_make_obstruction(*::renderer, mesh_entity);
 
-					meshes.push_back(entity);
+					meshes.push_back(mesh_entity);
 				}
 			}
 			Created(Created && x)
@@ -879,7 +880,6 @@ namespace
 		{
 			debug_assert(utility::holds_alternative<Creating>(state));
 
-			Creating creating = utility::get<Creating>(std::move(state));
 			state.emplace<Created>(entity, resource);
 		}
 	};
@@ -1056,10 +1056,10 @@ namespace
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityBench & x) { debug_unreachable(); }
-			void operator () (EntityBoard & x) { debug_unreachable(); }
-			void operator () (EntityLevel & x) { debug_unreachable(); }
-			void operator () (EntityOven & x) { debug_unreachable(); }
+			void operator () (EntityBench &) { debug_unreachable(); }
+			void operator () (EntityBoard &) { debug_unreachable(); }
+			void operator () (EntityLevel &) { debug_unreachable(); }
+			void operator () (EntityOven &) { debug_unreachable(); }
 		};
 		entities.call(entity, CreateEntity{resource});
 	}
@@ -1074,10 +1074,10 @@ namespace
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityBench & x) { debug_unreachable(); }
-			void operator () (EntityLevel & x) { debug_unreachable(); }
-			void operator () (EntityOven & x) { debug_unreachable(); }
-			void operator () (EntityWorker & x) { debug_unreachable(); }
+			void operator () (EntityBench &) { debug_unreachable(); }
+			void operator () (EntityLevel &) { debug_unreachable(); }
+			void operator () (EntityOven &) { debug_unreachable(); }
+			void operator () (EntityWorker &) { debug_unreachable(); }
 		};
 		entities.call(entity, CreateEntity{resource});
 	}
@@ -1092,10 +1092,10 @@ namespace
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityBench & x) { debug_unreachable(); }
-			void operator () (EntityBoard & x) { debug_unreachable(); }
-			void operator () (EntityOven & x) { debug_unreachable(); }
-			void operator () (EntityWorker & x) { debug_unreachable(); }
+			void operator () (EntityBench &) { debug_unreachable(); }
+			void operator () (EntityBoard &) { debug_unreachable(); }
+			void operator () (EntityOven &) { debug_unreachable(); }
+			void operator () (EntityWorker &) { debug_unreachable(); }
 		};
 		entities.call(entity, CreateEntity{resource});
 	}
@@ -1114,9 +1114,9 @@ namespace
 			{
 				x.create(entity, resource);
 			}
-			void operator () (EntityBoard & x) { debug_unreachable(); }
-			void operator () (EntityLevel & x) { debug_unreachable(); }
-			void operator () (EntityWorker & x) { debug_unreachable(); }
+			void operator () (EntityBoard &) { debug_unreachable(); }
+			void operator () (EntityLevel &) { debug_unreachable(); }
+			void operator () (EntityWorker &) { debug_unreachable(); }
 		};
 		entities.call(entity, CreateEntity{resource});
 	}
@@ -1143,7 +1143,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1173,7 +1173,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1203,7 +1203,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1224,7 +1224,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1263,7 +1263,7 @@ namespace
 		}
 
 		template <typename T>
-		void operator () (T && x)
+		void operator () (T &&)
 		{
 			debug_fail("not possible to serialize");
 		}
@@ -1379,13 +1379,13 @@ namespace
 
 namespace gameplay
 {
-	void set_dependencies(engine::animation::mixer & mixer, engine::graphics::renderer & renderer, engine::physics::simulation & simulation, engine::resource::reader & reader, gameplay::gamestate & gamestate)
+	void set_dependencies(engine::animation::mixer & mixer_, engine::graphics::renderer & renderer_, engine::physics::simulation & simulation_, engine::resource::reader & reader_, gameplay::gamestate & gamestate_)
 	{
-		::mixer = &mixer;
-		::renderer = &renderer;
-		::simulation = &simulation;
-		::reader = &reader;
-		::gamestate = &gamestate;
+		::mixer = &mixer_;
+		::renderer = &renderer_;
+		::simulation = &simulation_;
+		::reader = &reader_;
+		::gamestate = &gamestate_;
 	}
 
 	void create_level(engine::Entity entity, const std::string & name)

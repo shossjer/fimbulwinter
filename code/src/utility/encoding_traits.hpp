@@ -21,11 +21,11 @@ namespace utility
 
 		static constexpr std::ptrdiff_t get(code_point cp, code_unit * buffer) { *buffer = cp; return 1; }
 
-		static constexpr std::ptrdiff_t next(const code_unit * s) { return 1; }
-		static constexpr std::ptrdiff_t next(const code_unit * s, std::ptrdiff_t count) { return count; }
+		static constexpr std::ptrdiff_t next(const code_unit *) { return 1; }
+		static constexpr std::ptrdiff_t next(const code_unit *, std::ptrdiff_t count) { return count; }
 
-		static constexpr std::ptrdiff_t previous(const code_unit * s) { return 1; }
-		static constexpr std::ptrdiff_t previous(const code_unit * s, std::ptrdiff_t count) { return count; }
+		static constexpr std::ptrdiff_t previous(const code_unit *) { return 1; }
+		static constexpr std::ptrdiff_t previous(const code_unit *, std::ptrdiff_t count) { return count; }
 
 		static constexpr std::ptrdiff_t count(const code_unit * begin, const code_unit * end) { return end - begin; }
 	};

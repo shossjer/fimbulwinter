@@ -21,11 +21,6 @@ namespace engine
 		extern void update(viewer & viewer);
 	}
 
-	namespace gui
-	{
-		extern void update();
-	}
-
 	namespace hid
 	{
 		extern void update(ui & ui);
@@ -54,8 +49,6 @@ namespace
 	gameplay::gamestate * gamestate = nullptr;
 
 	bool active = false;
-
-	long long frame_count;
 
 	core::async::Thread looperThread;
 
@@ -113,18 +106,16 @@ namespace gameplay
 		::mixer = nullptr;
 	}
 
-	looper::looper(engine::animation::mixer & mixer, engine::graphics::renderer & renderer, engine::graphics::viewer & viewer, engine::hid::ui & ui, engine::physics::simulation & simulation, gameplay::gamestate & gamestate)
+	looper::looper(engine::animation::mixer & mixer_, engine::graphics::renderer & renderer_, engine::graphics::viewer & viewer_, engine::hid::ui & ui_, engine::physics::simulation & simulation_, gameplay::gamestate & gamestate_)
 	{
-		::mixer = &mixer;
-		::renderer = &renderer;
-		::viewer = &viewer;
-		::ui = &ui;
-		::simulation = &simulation;
-		::gamestate = &gamestate;
+		::mixer = &mixer_;
+		::renderer = &renderer_;
+		::viewer = &viewer_;
+		::ui = &ui_;
+		::simulation = &simulation_;
+		::gamestate = &gamestate_;
 
 		active = true;
-
-		frame_count = 0;
 
 		looperThread = core::async::Thread(run);
 	}
