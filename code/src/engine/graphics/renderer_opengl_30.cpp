@@ -1702,10 +1702,10 @@ namespace
 			glyph_indices.reserve(face->num_glyphs);
 			{
 				FT_UInt glyph_index;
-				FT_UInt unicode_index = FT_Get_First_Char(face, &glyph_index);
+				FT_ULong unicode_index = FT_Get_First_Char(face, &glyph_index);
 				while (glyph_index != 0)
 				{
-					unicode_indices.emplace_back(unicode_index);
+					unicode_indices.emplace_back(debug_cast<uint32_t>(unicode_index));
 					glyph_indices.push_back(glyph_index);
 
 					unicode_index = FT_Get_Next_Char(face, unicode_index, &glyph_index);
@@ -1733,14 +1733,10 @@ namespace
 				maxx = std::max(maxx, static_cast<int>(face->glyph->bitmap.width));
 				maxy = std::max(maxy, static_cast<int>(face->glyph->bitmap.rows));
 
-				symbol_data[i].offset_x = static_cast<int16_t>(face->glyph->bitmap_left);
-				debug_assert(symbol_data[i].offset_x == face->glyph->bitmap_left, "16 bits are not enough for offset, should we use 32?");
-				symbol_data[i].offset_y = static_cast<int16_t>(face->glyph->bitmap.rows - face->glyph->bitmap_top);
-				debug_assert(symbol_data[i].offset_y == face->glyph->bitmap.rows - face->glyph->bitmap_top, "16 bits are not enough for offset, should we use 32?");
-				symbol_data[i].advance_x = static_cast<int16_t>(face->glyph->advance.x >> 6);
-				debug_assert(symbol_data[i].advance_x == face->glyph->advance.x >> 6, "16 bits are not enough for advancement, should we use 26?");
-				symbol_data[i].advance_y = static_cast<int16_t>(face->glyph->advance.y >> 6);
-				debug_assert(symbol_data[i].advance_y == face->glyph->advance.y >> 6, "16 bits are not enough for advancement, should we use 26?");
+				symbol_data[i].offset_x = debug_cast<int16_t>(face->glyph->bitmap_left);
+				symbol_data[i].offset_y = debug_cast<int16_t>(face->glyph->bitmap.rows - face->glyph->bitmap_top);
+				symbol_data[i].advance_x = debug_cast<int16_t>(face->glyph->advance.x >> 6);
+				symbol_data[i].advance_y = debug_cast<int16_t>(face->glyph->advance.y >> 6);
 			}
 			debug_printline(name, ": face max = {", maxx, ", ", maxy, "}");
 			debug_assert(maxx > 0);
@@ -2007,7 +2003,7 @@ namespace
 				component.object->vertices.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				component.mesh->triangles.count(),
+				debug_cast<GLsizei>(component.mesh->triangles.count()),
 				GL_UNSIGNED_SHORT, // TODO
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
@@ -2038,7 +2034,7 @@ namespace
 					mesh->vertices.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					mesh->triangles.count(),
+					debug_cast<GLsizei>(mesh->triangles.count()),
 					BufferFormats[static_cast<int>(mesh->triangles.format())],
 					mesh->triangles.data());
 			}
@@ -2068,7 +2064,7 @@ namespace
 				component.mesh->vertices.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				component.mesh->triangles.count(),
+				debug_cast<GLsizei>(component.mesh->triangles.count()),
 				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(vertex_location);
@@ -2254,7 +2250,7 @@ namespace
 				component.mesh->coords.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				component.mesh->triangles.count(),
+				debug_cast<GLsizei>(component.mesh->triangles.count()),
 				GL_UNSIGNED_SHORT, // TODO
 				component.mesh->triangles.data());
 			glDisableVertexAttribArray(texcoord_location);
@@ -2313,7 +2309,7 @@ namespace
 				component.vertices.data());
 			glDrawElements(
 				GL_LINES,
-				component.edges.count(),
+				debug_cast<GLsizei>(component.edges.count()),
 				BufferFormats[static_cast<int>(component.edges.format())],
 				component.edges.data());
 			glDisableVertexAttribArray(vertex_location);
@@ -2390,7 +2386,7 @@ namespace
 				mesh.coords.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				mesh.triangles.count(),
+				debug_cast<GLsizei>(mesh.triangles.count()),
 				BufferFormats[static_cast<int>(mesh.triangles.format())],
 				mesh.triangles.data());
 			glDisableVertexAttribArray(texcoord_location);
@@ -2460,7 +2456,7 @@ namespace
 					mesh.normals.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					mesh.triangles.count(),
+					debug_cast<GLsizei>(mesh.triangles.count()),
 					BufferFormats[static_cast<int>(mesh.triangles.format())],
 					mesh.triangles.data());
 			}
@@ -2646,7 +2642,7 @@ namespace
 			glDrawArrays(
 				GL_QUADS, // deprecated
 				0,
-				vertices.count() / 2);
+				debug_cast<GLsizei>(vertices.count() / 2));
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 
@@ -2865,7 +2861,7 @@ namespace
 			glDrawArrays(
 				GL_QUADS, // deprecated
 				0,
-				vertices.count() / 2);
+				debug_cast<GLsizei>(vertices.count() / 2));
 			glDisableVertexAttribArray(texcoord_location);
 			glDisableVertexAttribArray(vertex_location);
 

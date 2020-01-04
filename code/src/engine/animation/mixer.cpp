@@ -210,7 +210,8 @@ namespace
 
 			// movement = action->keys[framei_next].translation - action->keys[framei_prev].translation;
 
-			const int action_length = action->keys.size() - 1;
+			debug_assert(!action->keys.empty());
+			const int action_length = debug_cast<int>(action->keys.size()) - 1;
 			if (framei_next < action_length)
 			{
 				framei = framei_next;

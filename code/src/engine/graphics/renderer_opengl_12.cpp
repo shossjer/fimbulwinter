@@ -472,7 +472,7 @@ namespace
 				    mesh.normals.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					mesh.triangles.count(),
+					debug_cast<GLsizei>(mesh.triangles.count()),
 					GL_UNSIGNED_SHORT,
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -501,7 +501,7 @@ namespace
 					mesh.coords.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					mesh.triangles.count(),
+					debug_cast<GLsizei>(mesh.triangles.count()),
 					GL_UNSIGNED_SHORT, // TODO
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -1452,7 +1452,7 @@ namespace
 			                0,
 			                component.object->vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               component.mesh->triangles.count(),
+			               debug_cast<GLsizei>(component.mesh->triangles.count()),
 			               GL_UNSIGNED_SHORT,	// TODO
 			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
@@ -1475,7 +1475,7 @@ namespace
 					                0,
 					                mesh->vertices.data());
 					glDrawElements(GL_TRIANGLES,
-					               mesh->triangles.count(),
+					               debug_cast<GLsizei>(mesh->triangles.count()),
 					               BufferFormats[static_cast<int>(mesh->triangles.format())],
 					               mesh->triangles.data());
 				}
@@ -1496,7 +1496,7 @@ namespace
 			                0,
 			                component.mesh->vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               component.mesh->triangles.count(),
+			               debug_cast<GLsizei>(component.mesh->triangles.count()),
 			               BufferFormats[static_cast<int>(component.mesh->triangles.format())],
 			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
@@ -1634,7 +1634,7 @@ namespace
 			                0,
 			                component.vertices.data());
 			glDrawElements(GL_LINES,
-			               component.edges.count(),
+			               debug_cast<GLsizei>(component.edges.count()),
 			               BufferFormats[static_cast<int>(component.edges.format())],
 			               component.edges.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
@@ -1672,7 +1672,7 @@ namespace
 				                0,
 				                mesh.normals.data());
 				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
+				               debug_cast<GLsizei>(mesh.triangles.count()),
 				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -1697,7 +1697,7 @@ namespace
 				                  0,
 				                  mesh.coords.data());
 				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
+				               debug_cast<GLsizei>(mesh.triangles.count()),
 				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -1739,7 +1739,7 @@ namespace
 				                0,
 				                mesh.normals.data());
 				glDrawElements(GL_TRIANGLES,
-				               mesh.triangles.count(),
+				               debug_cast<GLsizei>(mesh.triangles.count()),
 				               BufferFormats[static_cast<int>(mesh.triangles.format())],
 				               mesh.triangles.data());
 			}

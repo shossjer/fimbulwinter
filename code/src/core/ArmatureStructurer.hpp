@@ -200,7 +200,7 @@ namespace core
 		template <typename T>
 		void read_joint_chain(std::vector<T> & joints, int parenti)
 		{
-			const int mei = joints.size();
+			const int mei = debug_cast<int>(joints.size());
 			joints.emplace_back();
 			T & me = joints.back();
 
