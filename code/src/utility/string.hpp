@@ -563,7 +563,7 @@ namespace utility
 
 			const auto len = repeat * count;
 			data_.array_.set_size(len + 1);
-			for (int i : ranges::index_sequence(len))
+			for (std::ptrdiff_t i : ranges::index_sequence(len))
 			{
 				data_.array_.chars_.construct_at(i, s[i % count]);
 			}

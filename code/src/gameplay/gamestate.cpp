@@ -106,12 +106,12 @@ namespace
 			s.read(recipes);
 
 			debug_printline("recipes:");
-			for (int i = 0; i < recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(recipes))
 			{
 				debug_printline("name = \"", recipes.get(i).name, "\"");
 				if (!recipes.get(i).ingredients.empty())
 				{
-					for (int j : ranges::index_sequence_for(recipes.get(i).ingredients))
+					for (auto j : ranges::index_sequence_for(recipes.get(i).ingredients))
 					{
 						debug_printline(recipes.get(i).ingredients[j].quantity, "x ", recipes.get(i).ingredients[j].name);
 					}
@@ -128,7 +128,7 @@ namespace
 			s.read(roles);
 
 			debug_printline("classes:");
-			for (int i = 0; i < roles.size(); i++)
+			for (auto i : ranges::index_sequence_for(roles))
 			{
 				debug_printline("name = \"", roles.get(i).name, "\"");
 			}
@@ -139,7 +139,7 @@ namespace
 			s.read(skills);
 
 			debug_printline("skills:");
-			for (int i = 0; i < skills.size(); i++)
+			for (auto i : ranges::index_sequence_for(skills))
 			{
 				debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
 			}
@@ -150,7 +150,7 @@ namespace
 			std::vector<const gameplay::Recipe *> available_recipes;
 
 			std::vector<int> ingredient_counts(recipes.size(), 0);
-			for (int i = 0; i < recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(recipes))
 			{
 				// a raw ingredient does not have ingredients
 				if (recipes.get(i).ingredients.empty())
@@ -169,18 +169,18 @@ namespace
 				// there should be at least one stack
 				debug_assert(preparation.number_of_stacks > 0);
 
-				const int i = recipes.index(*preparation.recipe);
+				const auto i = recipes.index(*preparation.recipe);
 				ingredient_counts[i] += preparation.number_of_stacks;
 			}
 
-			for (int i = 0; i < recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(recipes))
 			{
 				if (!recipes.get(i).ingredients.empty())
 				{
 					bool is_available = true;
-					for (int j : ranges::index_sequence_for(recipes.get(i).ingredients))
+					for (auto j : ranges::index_sequence_for(recipes.get(i).ingredients))
 					{
-						const int index = recipes.find(recipes.get(i).ingredients[j].name);
+						const auto index = recipes.find(recipes.get(i).ingredients[j].name);
 						debug_assert(index >= 0);
 
 						const int need = recipes.get(i).ingredients[j].quantity;
@@ -231,9 +231,9 @@ namespace
 		{
 			debug_assert(is_empty(table));
 
-			for (int j : ranges::index_sequence_for(recipe.ingredients))
+			for (auto j : ranges::index_sequence_for(recipe.ingredients))
 			{
-				const int index = recipes.find(recipe.ingredients[j].name);
+				const auto index = recipes.find(recipe.ingredients[j].name);
 				if (recipes.get(index).ingredients.empty())
 					continue; // raw ingredient
 
@@ -276,7 +276,7 @@ namespace
 		{
 			skills.resize(skills_.size(), 0.);
 		}
-		void add_skill(int index, double amount)
+		void add_skill(std::ptrdiff_t index, double amount)
 		{
 			skills[index] += amount;
 		}
@@ -290,7 +290,7 @@ namespace
 			const double my_sum = std::accumulate(begin(my_normalized_skills), end(my_normalized_skills), 0.);
 			if (my_sum != 0.)
 			{
-				for (int i : ranges::index_sequence_for(my_normalized_skills))
+				for (auto i : ranges::index_sequence_for(my_normalized_skills))
 				{
 					my_normalized_skills[i] /= my_sum;
 				}
@@ -299,21 +299,21 @@ namespace
 			std::vector<double> role_normalized_skills(skills.size(), role.default_weight);
 			for (const auto & skill_weight : role.skill_weights)
 			{
-				const int index = kitchen.skills.find(skill_weight.name);
+				const auto index = kitchen.skills.find(skill_weight.name);
 				debug_assert(index >= 0);
 				role_normalized_skills[index] = skill_weight.weight;
 			}
 			const double role_sum = std::accumulate(begin(role_normalized_skills), end(role_normalized_skills), 0.);
 			if (role_sum != 0.)
 			{
-				for (int i : ranges::index_sequence_for(role_normalized_skills))
+				for (auto i : ranges::index_sequence_for(role_normalized_skills))
 				{
 					role_normalized_skills[i] /= role_sum;
 				}
 			}
 
 			double diff = 0.;
-			for (int i : ranges::index_sequence_for(my_normalized_skills))
+			for (auto i : ranges::index_sequence_for(my_normalized_skills))
 			{
 				diff += std::abs(my_normalized_skills[i] - role_normalized_skills[i]);
 			}
@@ -325,8 +325,8 @@ namespace
 			debug_assert(roles.size() > 0);
 
 			double best_score = score_role(roles.get(0));
-			int best_index = 0;
-			for (int i = 1; i < roles.size(); i++)
+			std::ptrdiff_t best_index = 0;
+			for (auto i : ranges::index_sequence(1, roles.size()))
 			{
 				const double score = score_role(roles.get(i));
 				if (score < best_score)
@@ -341,8 +341,8 @@ namespace
 		void print_best_to_worst_roles(const gameplay::Roles & roles) const
 		{
 			std::vector<double> scores;
-			std::vector<int> indices;
-			for (int i = 0; i < roles.size(); i++)
+			std::vector<std::ptrdiff_t> indices;
+			for (auto i : ranges::index_sequence_for(roles))
 			{
 				scores.push_back(score_role(roles.get(i)));
 				indices.push_back(i);
@@ -350,7 +350,7 @@ namespace
 			std::sort(std::begin(indices), std::end(indices), [&](int a, int b){ return scores[a] < scores[b]; });
 
 			debug_printline("best to worst matching classes:");
-			for (int i = 0; i < roles.size(); i++)
+			for (auto i : ranges::index_sequence_for(roles))
 			{
 				debug_printline("\"", roles.get(indices[i]).name, "\" = ", static_cast<int>((2. - scores[indices[i]]) / 2. * 100.), "%");
 			}
@@ -407,13 +407,13 @@ namespace
 			Worker & w = access_component<Worker>(worker);
 			for (auto & skill_amount : preparation.recipe->skill_amounts)
 			{
-				const int index = kitchen.skills.find(skill_amount.name);
+				const auto index = kitchen.skills.find(skill_amount.name);
 				debug_assert(index >= 0);
 				w.add_skill(index, skill_amount.amount);
 			}
 
 			debug_printline("worker (", worker, ") skills:");
-			for (int i = 0; i < kitchen.skills.size(); i++)
+			for (auto i : ranges::index_sequence_for(kitchen.skills))
 			{
 				debug_printline("\"", kitchen.skills.get(i).name, "\" = ", w.skills[i]);
 			}
@@ -525,7 +525,7 @@ namespace
 			other_entities.reserve(2);
 			shown_entities.reserve(recipes.size());
 
-			for (int i = 0; i < recipes.size(); i++)
+			for (auto i : ranges::index_sequence_for(recipes))
 			{
 				reader->post_read(utility::to_string("res/", recipes.get(i).name, ".png"), data_callback_image);
 
@@ -554,7 +554,7 @@ namespace
 
 			auto maybe = std::find(recipe_entities.begin(), recipe_entities.end(), entity);
 			debug_assert(maybe != recipe_entities.end());
-			const int index = std::distance(recipe_entities.begin(), maybe);
+			const auto index = std::distance(recipe_entities.begin(), maybe);
 
 			return recipes.get(index);
 		}
@@ -574,9 +574,9 @@ namespace
 
 			hide();
 
-			for (int i : ranges::index_sequence_for(shown_recipes))
+			for (auto i : ranges::index_sequence_for(shown_recipes))
 			{
-				const int recipe_index = recipes.index(*shown_recipes[i]);
+				const auto recipe_index = recipes.index(*shown_recipes[i]);
 				const auto entity = recipe_entities[recipe_index];
 				debug_assert(std::find(shown_entities.begin(), shown_entities.end(), entity) == shown_entities.end());
 
@@ -602,7 +602,7 @@ namespace
 			}
 		}
 
-		int index_of_other(engine::Asset asset) const
+		std::ptrdiff_t index_of_other(engine::Asset asset) const
 		{
 			constexpr engine::Asset assets[] = {engine::Asset("continue"), engine::Asset("trash")};
 
@@ -617,7 +617,7 @@ namespace
 
 			auto maybe = std::find(other_entities.begin(), other_entities.end(), entity);
 			debug_assert(maybe != other_entities.end());
-			const int index = std::distance(other_entities.begin(), maybe);
+			const auto index = std::distance(other_entities.begin(), maybe);
 			return names[index];
 		}
 
@@ -627,7 +627,7 @@ namespace
 
 			for (int i = 0; i < nassets; i++)
 			{
-				const int other_index = index_of_other(assets[i]);
+				const auto other_index = index_of_other(assets[i]);
 				const auto entity = other_entities[other_index];
 
 				const float radius = 96.f;

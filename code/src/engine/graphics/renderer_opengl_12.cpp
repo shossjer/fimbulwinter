@@ -26,6 +26,7 @@
 #include "engine/graphics/viewer.hpp"
 #include "engine/resource/reader.hpp"
 
+#include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>
@@ -763,8 +764,7 @@ namespace
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
-			const int nvertices = object->vertices.count() / 3; // assume xyz
-			for (int i = 0; i < nvertices; i++)
+			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.count() / 3))
 			{
 				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
 				core::maths::Vector4f::array_type buffer;

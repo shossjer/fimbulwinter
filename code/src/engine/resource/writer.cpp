@@ -21,7 +21,7 @@ namespace
 		if (extension.size() > filename.size())
 			return false;
 
-		for (int i : ranges::index_sequence_for(extension))
+		for (std::ptrdiff_t i : ranges::index_sequence_for(extension))
 		{
 			if (filename.data()[filename.size() - i - 1] != extension.data()[extension.size() - i - 1])
 				return false;

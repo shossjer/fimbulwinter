@@ -79,7 +79,7 @@ namespace core
 			if (!stream.valid())
 				throw std::runtime_error("unexpected eof");
 
-			const int header_from = stream.pos();
+			const std::ptrdiff_t header_from = stream.pos();
 			while (stream.peek() != ']')
 			{
 				if (is_newline())
@@ -89,7 +89,7 @@ namespace core
 				if (!stream.valid())
 					throw std::runtime_error("unexpected eof");
 			}
-			const int header_to = stream.pos();
+			const std::ptrdiff_t header_to = stream.pos();
 			const utility::string_view header_name(stream.data(header_from), header_to - header_from);
 
 			stream.next(); // ']'
@@ -152,7 +152,7 @@ namespace core
 		{
 			stream.consume();
 
-			const int key_from = stream.pos();
+			const std::ptrdiff_t key_from = stream.pos();
 			while (stream.peek() != '=')
 			{
 				if (is_newline())
@@ -162,21 +162,21 @@ namespace core
 				if (!stream.valid())
 					throw std::runtime_error("unexpected eof");
 			}
-			const int key_to = stream.pos();
+			const std::ptrdiff_t key_to = stream.pos();
 			const utility::string_view key_name(stream.data(key_from), key_to - key_from);
 
 			stream.next(); // '='
 			if (!stream.valid())
 				throw std::runtime_error("unexpected eof");
 
-			const int value_from = stream.pos();
+			const std::ptrdiff_t value_from = stream.pos();
 			while (!is_newline())
 			{
 				stream.next();
 				if (!stream.valid())
 					throw std::runtime_error("unexpected eof");
 			}
-			const int value_to = stream.pos();
+			const std::ptrdiff_t value_to = stream.pos();
 			const utility::string_view value_string(stream.data(value_from), value_to - value_from);
 
 			core::member_table<T>::call(key_name, x, [&](auto & y){ return parse_value(y, value_string); });

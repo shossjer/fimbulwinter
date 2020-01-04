@@ -147,56 +147,56 @@ namespace utility
 			return to - from;
 		}
 
-		static constexpr int next(const char * s)
+		static constexpr std::ptrdiff_t next(const char * s)
 		{
 			return extract_size(s);
 		}
-		static constexpr int next(const char16_t * s)
+		static constexpr std::ptrdiff_t next(const char16_t * s)
 		{
 			return extract_size(s);
 		}
-		static constexpr int next(const char32_t *)
+		static constexpr std::ptrdiff_t next(const char32_t *)
 		{
 			return 1;
 		}
 
-		static constexpr int previous_impl(const char * s, const char * from)
+		static constexpr std::ptrdiff_t previous_impl(const char * s, const char * from)
 		{
 			// 0x80 = 1000 0000
 			// 0xc0 = 1100 0000
 			return (*s & 0xc0) == 0x80 ? previous_impl(s - 1, from) : from - s;
 		}
-		static constexpr int previous(const char * s)
+		static constexpr std::ptrdiff_t previous(const char * s)
 		{
 			return previous_impl(s - 1, s);
 		}
 
-		static constexpr int previous_impl(const char * s, int length, const char * from)
+		static constexpr std::ptrdiff_t previous_impl(const char * s, std::ptrdiff_t length, const char * from)
 		{
 			return length <= 0 ? from - s : previous_impl(s - previous(s), length - 1, from);
 		}
-		static constexpr int previous(const char *, utility::unit_difference length) { return length.get(); }
-		static constexpr int previous(const char * s, utility::point_difference length)
+		static constexpr std::ptrdiff_t previous(const char *, utility::unit_difference length) { return length.get(); }
+		static constexpr std::ptrdiff_t previous(const char * s, utility::point_difference length)
 		{
 			return previous_impl(s, length.get(), s);
 		}
 		template <typename Encoding>
-		static constexpr int previous(const char * s, utility::lazy_difference<Encoding> length)
+		static constexpr std::ptrdiff_t previous(const char * s, utility::lazy_difference<Encoding> length)
 		{
 			return next(s, utility::unit_difference(length));
 		}
 
-		static constexpr int next_impl(const char * s, int length, const char * from)
+		static constexpr std::ptrdiff_t next_impl(const char * s, std::ptrdiff_t length, const char * from)
 		{
 			return length <= 0 ? s - from : next_impl(s + next(s), length - 1, from);
 		}
-		static constexpr int next(const char *, utility::unit_difference length) { return length.get(); }
-		static constexpr int next(const char * s, utility::point_difference length)
+		static constexpr std::ptrdiff_t next(const char *, utility::unit_difference length) { return length.get(); }
+		static constexpr std::ptrdiff_t next(const char * s, utility::point_difference length)
 		{
 			return next_impl(s, length.get(), s);
 		}
 		template <typename Encoding>
-		static constexpr int next(const char * s, utility::lazy_difference<Encoding> length)
+		static constexpr std::ptrdiff_t next(const char * s, utility::lazy_difference<Encoding> length)
 		{
 			return next(s, utility::unit_difference(length));
 		}

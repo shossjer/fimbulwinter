@@ -59,7 +59,7 @@ namespace engine
 
 					std::vector<Channel> channels;
 
-					Frame(const int nchannels) :
+					Frame(std::size_t nchannels) :
 						channels(nchannels)
 					{}
 

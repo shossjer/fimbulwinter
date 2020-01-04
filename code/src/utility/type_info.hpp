@@ -141,7 +141,7 @@ namespace utility
 		constexpr constexpr_array<N> build_type_name(string_view str)
 		{
 			constexpr_array<N> name{};
-			std::size_t length = 0;
+			std::ptrdiff_t length = 0;
 
 			for (std::size_t i = 0; i < str.size();)
 			{
@@ -154,7 +154,7 @@ namespace utility
 				// https://developercommunity.visualstudio.com/content/problem/227884/constexpr-foreach-doesnt-compile.html
 				for (std::size_t j = 0; j < pattern.with.size(); j++)
 #else
-				for (int j : ranges::index_sequence_for(pattern.with))
+				for (std::ptrdiff_t j : ranges::index_sequence_for(pattern.with))
 #endif
 				{
 					name.values[length + j] = pattern.with.data()[j];

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
+#include <type_traits>
 
 namespace ranges
 {
@@ -53,14 +55,22 @@ namespace ranges
 		constexpr iterator end() const { return iterator(end_); }
 	};
 
-	inline constexpr auto index_sequence(std::size_t from, std::size_t to)
+	inline constexpr auto index_sequence(std::ptrdiff_t from, std::ptrdiff_t to)
 	{
-		return iota_range<std::size_t>(from, to);
+		assert(from <= to);
+		assert(0 <= from); // more weird than harmful
+
+		return iota_range<std::ptrdiff_t>(from, to);
 	}
 
-	inline constexpr auto index_sequence(std::size_t count)
+	template <typename N>
+	inline constexpr auto index_sequence(N count)
 	{
-		return index_sequence(0, count);
+		using I = std::make_signed_t<N>;
+
+		assert(0 <= static_cast<I>(count));
+
+		return iota_range<I>(0, static_cast<I>(count));
 	}
 
 	template <typename T>

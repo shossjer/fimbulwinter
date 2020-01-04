@@ -59,18 +59,18 @@ namespace gameplay
 		Roles & operator = (const Roles &) = delete;
 
 	public:
-		int find(const std::string & name) const
+		std::ptrdiff_t find(const std::string & name) const
 		{
-			for (int i : ranges::index_sequence_for(roles))
+			for (std::ptrdiff_t i : ranges::index_sequence_for(roles))
 			{
 				if (roles[i].name == name)
 					return i;
 			}
 			return -1;
 		}
-		const Role & get(int i) const { return roles[i]; }
-		int index(const Role & role) const { return static_cast<int>(&role - roles.data()); }
-		int size() const { return roles.size(); }
+		const Role & get(std::ptrdiff_t i) const { return roles[i]; }
+		std::ptrdiff_t index(const Role & role) const { return &role - roles.data(); }
+		std::size_t size() const { return roles.size(); }
 
 	public:
 		static constexpr auto serialization()

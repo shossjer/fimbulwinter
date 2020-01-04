@@ -376,7 +376,7 @@ namespace
 			{
 				const auto & part = data.part("all");
 
-				for (int i : ranges::index_sequence_for(part.render.shapes))
+				for (auto i : ranges::index_sequence_for(part.render.shapes))
 				{
 					const auto & mesh = part.render.shapes[i];
 					const engine::Asset meshId(name + part.name + std::to_string(i));
@@ -582,7 +582,7 @@ namespace
 			{
 				const auto & part = data.part(name);
 
-				for (int i : ranges::index_sequence_for(part.render.shapes))
+				for (auto i : ranges::index_sequence_for(part.render.shapes))
 				{
 					const auto & mesh = part.render.shapes[i];
 					const engine::Asset meshId(name + part.name + std::to_string(i));

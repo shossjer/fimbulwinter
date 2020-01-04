@@ -519,7 +519,7 @@ namespace
 		FontInfo infos[10];
 		int count = 0;
 
-		int find(engine::Asset asset) const
+		std::ptrdiff_t find(engine::Asset asset) const
 		{
 			return std::find(assets, assets + count, asset) - assets;
 		}
@@ -531,12 +531,12 @@ namespace
 
 		void compile(engine::Asset asset, utility::string_view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
-			const int index = find(asset);
+			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			const FontInfo & info = infos[index];
 
-			const int len = utility::point_difference(text.length()).get();
+			const std::ptrdiff_t len = utility::point_difference(text.length()).get();
 			vertices.resize<float>(4 * len * 2);
 			texcoords.resize<float>(4 * len * 2);
 
@@ -552,7 +552,7 @@ namespace
 			{
 				// the null glyph is stored at the end
 				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp);
-				const int slot = (maybe == info.allowed_unicodes.end() || *maybe != cp ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin();
+				const int slot = static_cast<int>((maybe == info.allowed_unicodes.end() || *maybe != cp ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin());
 				const int slot_y = slot / slots_in_width;
 				const int slot_x = slot % slots_in_width;
 
@@ -596,7 +596,7 @@ namespace
 		void create(std::string && name, std::vector<utility::unicode_code_point> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
 		{
 			const engine::Asset asset(name);
-			const int index = find(asset);
+			const auto index = find(asset);
 			debug_assert(index >= count, "font asset ", asset, " already exists");
 
 			assets[index] = asset;
@@ -616,7 +616,7 @@ namespace
 
 		void destroy(engine::Asset asset)
 		{
-			const int index = find(asset);
+			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			assets[index] = std::move(assets[count - 1]);
@@ -1026,8 +1026,7 @@ namespace
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
-			const int nvertices = object->vertices.count() / 3; // assume xyz
-			for (int i = 0; i < nvertices; i++)
+			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.count() / 3))
 			{
 				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
 				core::maths::Vector4f::array_type buffer;
@@ -1716,12 +1715,13 @@ namespace
 				debug_printline(name, ": face charmap size = ", unicode_indices.size());
 			}
 
-			const int total_slots = glyph_indices.size();
+			const int total_slots = static_cast<int>(glyph_indices.size());
+			debug_assert(total_slots > 0);
 
 
 			int maxx = 0, maxy = 0;
 			std::vector<FontManager::SymbolData> symbol_data(total_slots);
-			for (int i = 0; i < total_slots; i++)
+			for (std::ptrdiff_t i : ranges::index_sequence(total_slots))
 			{
 				const int glyph_index = glyph_indices[i];
 				if (FT_Load_Glyph(face, glyph_index, FT_LOAD_RENDER))
@@ -1755,7 +1755,7 @@ namespace
 			for (int texture_height = utility::clp2(slot_size_y);; texture_height *= 2)
 			{
 				const int max_in_y = texture_height / slot_size_y;
-				const int needed_in_x = (total_slots + max_in_y - 1) / max_in_y;
+				const int needed_in_x = 1 + (total_slots - 1) / max_in_y;
 
 				const int texture_width = utility::clp2(needed_in_x * slot_size_x);
 				const int max_in_x = texture_width / slot_size_x;
@@ -1803,19 +1803,19 @@ namespace
 					};
 				std::fill(distance_field.begin(), distance_field.end(), static_cast<float>(furthest_d));
 				// for (int y = 0; y < slot_size_y; y++)
-				for (int y : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
+				for (auto y : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
 				{
 					// for (int x = 0; x < slot_size_x; x++)
-					for (int x : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
+					for (auto x : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
 					{
 						const auto sample = sample_at(x, y);
 
 						double closest_dsq = slot_size_x * slot_size_x + slot_size_y * slot_size_y;
 						// for (int t = 0; t < slot_size_y; t++)
-						for (int t : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
+						for (auto t : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
 						{
 							// for (int s = 0; s < slot_size_x; s++)
-							for (int s : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
+							for (auto s : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
 							{
 								if (sample_at(s, t) == sample)
 									continue;

@@ -181,14 +181,14 @@ namespace core
 			const json & first = *j.begin();
 			if (first.is_array())
 			{
-				for (int i : ranges::index_sequence_for(j))
+				for (std::ptrdiff_t i : ranges::index_sequence_for(j))
 				{
 					read_array(j[i], buffer[i]);
 				}
 			}
 			else if (first.is_object())
 			{
-				for (int i : ranges::index_sequence_for(j))
+				for (std::ptrdiff_t i : ranges::index_sequence_for(j))
 				{
 					read_object(j[i], buffer[i]);
 				}

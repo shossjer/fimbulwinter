@@ -544,11 +544,11 @@ namespace
 		int fd; //
 		EventType type;
 
-		int16_t id;
+		engine::hid::Input::Player id;
 
 		struct input_absinfo absinfos[ABS_CNT];
 
-		Event(int fd, EventType type, int16_t id)
+		Event(int fd, EventType type, engine::hid::Input::Player id)
 			: fd(fd)
 			, type(type)
 			, id(id)
@@ -580,7 +580,7 @@ namespace
 
 		int16_t event_count = 0;
 
-		Device(int vendor, int product)
+		Device(uint16_t vendor, uint16_t product)
 			: vendor(vendor)
 			, product(product)
 		{
@@ -712,7 +712,7 @@ namespace
 		int16_t id;
 	};
 
-	Device & get_or_create_device(std::vector<Device> & devices, int vendor, int product)
+	Device & get_or_create_device(std::vector<Device> & devices, uint16_t vendor, uint16_t product)
 	{
 		for (auto & device : devices)
 		{
@@ -862,7 +862,7 @@ namespace
 		while (true)
 		{
 			debug_assert(events.size() <= sizeof fds / sizeof fds[0]);
-			for (int i : ranges::index_sequence_for(events))
+			for (auto i : ranges::index_sequence_for(events))
 			{
 				fds[2 + i].fd = events[i].fd;
 				fds[2 + i].events = POLLIN;
@@ -881,19 +881,19 @@ namespace
 			if (fds[0].revents & POLLHUP)
 				break;
 
-			for (int i : ranges::index_sequence_for(events))
+			for (std::ptrdiff_t i : ranges::index_sequence_for(events))
 			{
 				if (fds[2 + i].revents & POLLIN)
 				{
 					struct input_event input[20]; // arbitrary
-					const int n = ::read(fds[2 + i].fd, input, sizeof input);
+					const auto n = ::read(fds[2 + i].fd, input, sizeof input);
 					// "[...] you’ll always get a whole number of input
 					// events on a read."
 					//
 					// https://www.kernel.org/doc/html/latest/input/input.html#event-interface
 					debug_assert(n > 0);
 
-					for (int j : ranges::index_sequence(n / sizeof input[0]))
+					for (auto j : ranges::index_sequence(n / sizeof input[0]))
 					{
 						switch (input[j].type)
 						{
@@ -1012,7 +1012,7 @@ namespace
 			}
 		}
 
-		for (int i : ranges::index_sequence_for(event_infos))
+		for (auto i : ranges::index_sequence_for(event_infos))
 		{
 			if (event_infos[i].status == EventStatus::Open)
 			{

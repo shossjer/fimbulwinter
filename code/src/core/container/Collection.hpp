@@ -152,15 +152,15 @@ namespace core
 				{
 					value = 0xffffffff;
 				}
-				void set(uint8_t type, uint24_t index)
+				void set(uint8_t type, std::size_t index)
 				{
-					debug_assert((index & 0xff000000) == uint32_t{0});
-					value = (uint32_t{type} << 24) | index;
+					debug_assert(index < 0x01000000, "24 bits are not enough");
+					value = (uint32_t{type} << 24) | static_cast<uint32_t>(index);
 				}
-				void set_index(uint24_t index)
+				void set_index(std::size_t index)
 				{
-					debug_assert((index & 0xff000000) == uint32_t{0});
-					value = (value & 0xff000000) | index;
+					debug_assert(index < 0x01000000, "24 bits are not enough");
+					value = (value & 0xff000000) | static_cast<uint32_t>(index);
 				}
 			};
 
@@ -381,7 +381,7 @@ namespace core
 			void clear_all_impl(mpl::index_sequence<type, types...>)
 			{
 				auto & array = std::get<type>(arrays);
-				for (int i : ranges::index_sequence_for(array))
+				for (auto i : ranges::index_sequence_for(array))
 				{
 					slots[array.bucket_at(i)].clear();
 				}
@@ -978,7 +978,7 @@ namespace core
 				if (size <= 0)
 					return count;
 
-				for (int bucket : ranges::index_sequence(M))
+				for (std::ptrdiff_t bucket : ranges::index_sequence(M))
 				{
 					if (slots[bucket].empty())
 						continue;
