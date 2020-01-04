@@ -1,6 +1,7 @@
 
 #include "devices.hpp"
-#include "input.hpp"
+
+#include "engine/hid/input.hpp"
 
 #include <bitset>
 #include <vector>

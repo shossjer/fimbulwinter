@@ -528,6 +528,16 @@ namespace mpl
 	struct is_constructible_from_tuple;
 	template <typename T, typename Tuple, std::size_t ...Is>
 	struct is_constructible_from_tuple<T, Tuple, mpl::index_sequence<Is...>> : std::is_constructible<T, decltype(std::get<Is>(std::declval<Tuple>()))...> {};
+
+	namespace detail
+	{
+		template <typename T, typename ...Ts>
+		struct common_type_unless_nonvoid : mpl::type_is<T> {};
+		template <typename ...Ts>
+		struct common_type_unless_nonvoid<void, Ts...> : std::common_type<Ts...> {};
+	}
+	template <typename T, typename ...Ts>
+	using common_type_unless_nonvoid = typename detail::common_type_unless_nonvoid<T, Ts...>::type;
 }
 
 #endif /* UTILITY_TYPETRAITS_HPP */

@@ -50,6 +50,7 @@ set(FILES_UTILITY
 	tst/utility/storing.cpp
 	tst/utility/string_view.cpp
 	tst/utility/type_info.cpp
+	tst/utility/type_traits.cpp
 	tst/utility/unicode.cpp
 	tst/utility/variant.cpp
 	)
