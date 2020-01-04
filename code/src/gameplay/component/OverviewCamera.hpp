@@ -57,22 +57,22 @@ namespace gameplay
 			void update()
 			{
 				const float movement_speed = 1.f;
-				if (move_left)
+				if (move_left != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
 						core::maths::Vector3f{-(move_left * movement_speed), 0.f, 0.f});
-				if (move_right)
+				if (move_right != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
 						core::maths::Vector3f{move_right * movement_speed, 0.f, 0.f});
-				if (move_up)
+				if (move_up != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
 						core::maths::Vector3f{0.f, 0.f, -(move_up * movement_speed)});
-				if (move_down)
+				if (move_down != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,

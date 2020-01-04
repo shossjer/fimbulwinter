@@ -104,46 +104,46 @@ namespace gameplay
 			void update()
 			{
 				const float rotation_speed = make_radian(core::maths::degreef{1.f/2.f}).get();
-				if (turn_left)
+				if (turn_left != 0.f)
 					rotation *= core::maths::Quaternionf{std::cos(turn_left * rotation_speed), 0.f, std::sin(turn_left * rotation_speed), 0.f};
-				if (turn_right)
+				if (turn_right != 0.f)
 					rotation *= core::maths::Quaternionf{std::cos(-(turn_right * rotation_speed)), 0.f, std::sin(-(turn_right * rotation_speed)), 0.f};
-				if (turn_up)
+				if (turn_up != 0.f)
 					rotation *= core::maths::Quaternionf{std::cos(-(turn_up * rotation_speed)), std::sin(-(turn_up * rotation_speed)), 0.f, 0.f};
-				if (turn_down)
+				if (turn_down != 0.f)
 					rotation *= core::maths::Quaternionf{std::cos(turn_down * rotation_speed), std::sin(turn_down * rotation_speed), 0.f, 0.f};
-				if (roll_left)
+				if (roll_left != 0.f)
 					rotation *= core::maths::Quaternionf{std::cos(roll_left * rotation_speed), 0.f, 0.f, std::sin(roll_left * rotation_speed)};
-				if (roll_right)
+				if (roll_right != 0.f)
 					rotation *= core::maths::Quaternionf{std::cos(-(roll_right * rotation_speed)), 0.f, 0.f, std::sin(-(roll_right * rotation_speed))};
 
 				const float movement_speed = .5f;
-				if (move_left)
+				if (move_left != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
 						-rotation.axis_x() * (move_left * movement_speed));
-				if (move_right)
+				if (move_right != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
 						rotation.axis_x() * (move_right * movement_speed));
-				if (move_up)
+				if (move_up != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
 						-rotation.axis_z() * (move_up * movement_speed));
-				if (move_down)
+				if (move_down != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
 						rotation.axis_z() * (move_down * movement_speed));
-				if (elevate_down)
+				if (elevate_down != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
 						-rotation.axis_y() * (elevate_down * movement_speed));
-				if (elevate_up)
+				if (elevate_up != 0.f)
 					engine::physics::camera::update(
 						*simulation,
 						camera,
