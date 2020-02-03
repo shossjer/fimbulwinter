@@ -1,17 +1,31 @@
+#include "config.h"
 
-#include <core/debug.hpp>
+#if THREAD_USE_PTHREAD
 
-#include <pthread.h>
+#include "Thread.hpp"
 
-#include <stdexcept>
+#include "core/debug.hpp"
+
+#include <algorithm>
 
 namespace
 {
-	void *call_void(void *arg)
+	void * call_void(void * arg)
 	{
 		((void(*)())arg)();
 
 		return nullptr;
+	}
+
+	constexpr auto invalid_pthread = pthread_t{};
+
+	pthread_t create_thread(void * callback(void *), void * arg)
+	{
+		pthread_t pthread;
+		if (!debug_verify(pthread_create(&pthread, nullptr, callback, arg) == 0, "pthread_create failed"))
+			return invalid_pthread;
+
+		return pthread;
 	}
 }
 
@@ -19,45 +33,44 @@ namespace core
 {
 	namespace async
 	{
-		Thread::Thread() :
-			pthread(0)
-		{
-		}
-		Thread::Thread(void (*const callback)())
-		{
-			this->create(call_void, (void *)callback);
-		}
-		Thread::Thread(Thread &&thread) :
-			pthread(thread.pthread)
-		{
-			thread.pthread = 0;
-		}
 		Thread::~Thread()
 		{
-			debug_assert(this->pthread == std::size_t{0});
+			debug_assert(pthread == invalid_pthread, "thread might still be running");
 		}
 
-		Thread &Thread::operator = (Thread &&thread)
-		{
-			debug_assert(this->pthread == std::size_t{0});
+		Thread::Thread()
+			: pthread(invalid_pthread)
+		{}
 
-			this->pthread = thread.pthread;
-			thread.pthread = 0;
+		Thread::Thread(void (* callback)())
+			: pthread(create_thread(call_void, (void *)callback))
+		{}
+
+		Thread::Thread(Thread && other)
+			: pthread(std::exchange(other.pthread, invalid_pthread))
+		{}
+
+		Thread & Thread::operator = (Thread && other)
+		{
+			debug_assert(pthread == invalid_pthread);
+
+			pthread = std::exchange(other.pthread, invalid_pthread);
 			return *this;
+		}
+
+		bool Thread::valid() const
+		{
+			return pthread != invalid_pthread;
 		}
 
 		void Thread::join()
 		{
-			pthread_join(this->pthread, nullptr);
-			this->pthread = 0;
-		}
+			debug_assert(pthread != invalid_pthread, "thread must be initialized");
 
-		void Thread::create(void *callback(void *), void *arg)
-		{
-			const auto ret = pthread_create(&this->pthread, nullptr, callback, arg);
-
-			if (ret != 0)
-				throw std::runtime_error("pthread_create failed");
+			pthread_join(pthread, nullptr);
+			pthread = invalid_pthread;
 		}
 	}
 }
+
+#endif

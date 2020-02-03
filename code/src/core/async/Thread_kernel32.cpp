@@ -1,11 +1,12 @@
+#include "config.h"
+
+#if THREAD_USE_KERNEL32
 
 #include "Thread.hpp"
 
-#include <core/debug.hpp>
+#include "core/debug.hpp"
 
-#include <windows.h>
-
-#include <stdexcept>
+#include <algorithm>
 
 namespace
 {
@@ -15,51 +16,57 @@ namespace
 
 		return DWORD{0};
 	}
+
+	HANDLE create_thread(LPTHREAD_START_ROUTINE callback, LPVOID lpVoid)
+	{
+		HANDLE handle = CreateThread(nullptr, 0, callback, lpVoid, 0, nullptr);
+		debug_assert(handle != nullptr, "CreateThread failed");
+		return handle;
+	}
 }
 
 namespace core
 {
 	namespace async
 	{
-		Thread::Thread() :
-			handle(nullptr)
-		{
-		}
-		Thread::Thread(void (*const callback)())
-		{
-			this->create(call_void, (LPVOID)callback);
-		}
-		Thread::Thread(Thread &&thread) :
-			handle(thread.handle)
-		{
-			thread.handle = nullptr;
-		}
 		Thread::~Thread()
 		{
-			debug_assert(this->handle == nullptr);
+			debug_assert(handle == nullptr, "thread might still be running");
 		}
 
-		Thread &Thread::operator = (Thread &&thread)
-		{
-			debug_assert(this->handle == nullptr);
+		Thread::Thread()
+			: handle(nullptr)
+		{}
 
-			this->handle = thread.handle;
-			thread.handle = nullptr;
+		Thread::Thread(void (* callback)())
+			: handle(create_thread(call_void, (LPVOID)callback))
+		{}
+
+		Thread::Thread(Thread && other)
+			: handle(std::exchange(other.handle, nullptr))
+		{}
+
+		Thread & Thread::operator = (Thread && other)
+		{
+			debug_assert(handle == nullptr, "thread is still running");
+
+			handle = std::exchange(thread.handle, nullptr);
 			return *this;
+		}
+
+		bool Thread::valid() const
+		{
+			return handle != nullptr;
 		}
 
 		void Thread::join()
 		{
-			WaitForSingleObject(this->handle, INFINITE);
-			this->handle = nullptr;
-		}
+			debug_assert(handle != nullptr, "thread must be initialized");
 
-		void Thread::create(DWORD WINAPI callback(LPVOID), LPVOID lpVoid)
-		{
-			this->handle = CreateThread(nullptr, 0, callback, lpVoid, 0, nullptr);
-
-			if (handle == nullptr)
-				throw std::runtime_error("CreateThread failed");
+			WaitForSingleObject(handle, INFINITE);
+			handle = nullptr;
 		}
 	}
 }
+
+#endif

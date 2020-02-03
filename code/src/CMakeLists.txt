@@ -1,6 +1,7 @@
 
 set(SOURCES_CORE
-	src/core/async/Thread.cpp
+	src/core/async/Thread_kernel32.cpp
+	src/core/async/Thread_pthread.cpp
 	src/core/container/Buffer.cpp
 	)
 
