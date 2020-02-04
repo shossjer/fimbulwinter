@@ -389,7 +389,7 @@ namespace core
 	};
 
 	template <typename T,
-	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<T>>::value))>
+	          REQUIRES((!std::is_scalar<mpl::decay_t<T>>::value))>
 	debug::value_t<T &&> operator < (debug::empty_t &&, T && value)
 	{
 		return debug::value_t<T &&>(std::forward<T>(value));
@@ -402,7 +402,7 @@ namespace core
 	}
 
 	template <typename L, typename R,
-	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	          REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
 	auto operator == (debug::value_t<L> && left, R && right)
 	{
 		return debug::compare_eq_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
@@ -415,7 +415,7 @@ namespace core
 	}
 
 	template <typename L, typename R,
-	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	          REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
 	auto operator != (debug::value_t<L> && left, R && right)
 	{
 		return debug::compare_ne_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
@@ -428,7 +428,7 @@ namespace core
 	}
 
 	template <typename L, typename R,
-	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	          REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
 	auto operator < (debug::value_t<L> && left, R && right)
 	{
 		return debug::compare_lt_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
@@ -441,7 +441,7 @@ namespace core
 	}
 
 	template <typename L, typename R,
-	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	          REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
 	auto operator <= (debug::value_t<L> && left, R && right)
 	{
 		return debug::compare_le_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
@@ -454,7 +454,7 @@ namespace core
 	}
 
 	template <typename L, typename R,
-	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	          REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
 	auto operator > (debug::value_t<L> && left, R && right)
 	{
 		return debug::compare_gt_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
@@ -467,7 +467,7 @@ namespace core
 	}
 
 	template <typename L, typename R,
-	          REQUIRES((!std::is_scalar<mpl::remove_cvref_t<R>>::value))>
+	          REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
 	auto operator >= (debug::value_t<L> && left, R && right)
 	{
 		return debug::compare_ge_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
