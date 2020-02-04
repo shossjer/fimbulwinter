@@ -2,14 +2,6 @@
 #ifndef CORE_ASYNC_THREAD_HPP
 #define CORE_ASYNC_THREAD_HPP
 
-#include "config.h"
-
-#if THREAD_USE_KERNEL32
-# include <windows.h>
-#elif THREAD_USE_PTHREAD
-# include <pthread.h>
-#endif
-
 namespace core
 {
 	namespace async
@@ -17,11 +9,7 @@ namespace core
 		class Thread
 		{
 		private:
-#if THREAD_USE_KERNEL32
-			HANDLE handle;
-#elif THREAD_USE_PTHREAD
-			pthread_t pthread;
-#endif
+			void * data_;
 
 		public:
 			~Thread();

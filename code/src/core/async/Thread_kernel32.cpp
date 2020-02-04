@@ -8,20 +8,34 @@
 
 #include <algorithm>
 
+#include <windows.h>
+
 namespace
 {
+	constexpr void * const invalid_data = nullptr;
+
+	HANDLE get_handle(void * data)
+	{
+		return static_cast<HANDLE>(data);
+	}
+
+	void * set_handle(HANDLE handle)
+	{
+		return static_cast<void *>(handle);
+	}
+
+	void * start_thread(LPTHREAD_START_ROUTINE callback, LPVOID lpVoid)
+	{
+		HANDLE handle = CreateThread(nullptr, 0, callback, lpVoid, 0, nullptr);
+		debug_verify(handle != nullptr, "CreateThread failed");
+		return set_handle(handle);
+	}
+
 	DWORD WINAPI call_void(LPVOID arg)
 	{
 		((void(*)())arg)();
 
-		return DWORD{0};
-	}
-
-	HANDLE create_thread(LPTHREAD_START_ROUTINE callback, LPVOID lpVoid)
-	{
-		HANDLE handle = CreateThread(nullptr, 0, callback, lpVoid, 0, nullptr);
-		debug_assert(handle != nullptr, "CreateThread failed");
-		return handle;
+		return DWORD{};
 	}
 }
 
@@ -31,40 +45,40 @@ namespace core
 	{
 		Thread::~Thread()
 		{
-			debug_assert(handle == nullptr, "thread might still be running");
+			debug_assert(data_ == invalid_data, "thread resource lost");
 		}
 
 		Thread::Thread()
-			: handle(nullptr)
+			: data_(invalid_data)
 		{}
 
 		Thread::Thread(void (* callback)())
-			: handle(create_thread(call_void, (LPVOID)callback))
+			: data_(start_thread(call_void, (LPVOID)callback))
 		{}
 
 		Thread::Thread(Thread && other)
-			: handle(std::exchange(other.handle, nullptr))
+			: data_(std::exchange(other.data_, invalid_data))
 		{}
 
 		Thread & Thread::operator = (Thread && other)
 		{
-			debug_assert(handle == nullptr, "thread is still running");
+			debug_assert(data_ == invalid_data, "thread resource lost");
 
-			handle = std::exchange(thread.handle, nullptr);
+			data_ = std::exchange(other.data_, invalid_data);
 			return *this;
 		}
 
 		bool Thread::valid() const
 		{
-			return handle != nullptr;
+			return data_ != invalid_data;
 		}
 
 		void Thread::join()
 		{
-			debug_assert(handle != nullptr, "thread must be initialized");
+			debug_assert(data_ != invalid_data, "thread is not joinable");
 
-			WaitForSingleObject(handle, INFINITE);
-			handle = nullptr;
+			WaitForSingleObject(get_handle(data_), INFINITE); // todo check error
+			data_ = invalid_data;
 		}
 	}
 }

@@ -8,24 +8,38 @@
 
 #include <algorithm>
 
+#include <pthread.h>
+
 namespace
 {
+	constexpr void * const invalid_data = nullptr;
+
+	pthread_t get_pthread(void * data)
+	{
+		return static_cast<pthread_t>(reinterpret_cast<std::intptr_t>(data));
+	}
+
+	void * set_pthread(pthread_t pthread)
+	{
+		static_assert(sizeof(pthread_t) <= sizeof(void *), "pointer type is not large enough to hold pthread_t!");
+
+		return reinterpret_cast<void *>(pthread);
+	}
+
+	void * start_thread(void * (* callback)(void *), void * arg)
+	{
+		pthread_t pthread;
+		if (!debug_verify(pthread_create(&pthread, nullptr, callback, arg) == 0, "failed with errno ", errno))
+			return invalid_data;
+
+		return set_pthread(pthread);
+	}
+
 	void * call_void(void * arg)
 	{
 		((void(*)())arg)();
 
 		return nullptr;
-	}
-
-	constexpr auto invalid_pthread = pthread_t{};
-
-	pthread_t create_thread(void * callback(void *), void * arg)
-	{
-		pthread_t pthread;
-		if (!debug_verify(pthread_create(&pthread, nullptr, callback, arg) == 0, "pthread_create failed"))
-			return invalid_pthread;
-
-		return pthread;
 	}
 }
 
@@ -35,40 +49,40 @@ namespace core
 	{
 		Thread::~Thread()
 		{
-			debug_assert(pthread == invalid_pthread, "thread might still be running");
+			debug_assert(data_ == invalid_data, "thread resource lost");
 		}
 
 		Thread::Thread()
-			: pthread(invalid_pthread)
+			: data_(invalid_data)
 		{}
 
 		Thread::Thread(void (* callback)())
-			: pthread(create_thread(call_void, (void *)callback))
+			: data_(start_thread(call_void, (void *)callback))
 		{}
 
 		Thread::Thread(Thread && other)
-			: pthread(std::exchange(other.pthread, invalid_pthread))
+			: data_(std::exchange(other.data_, invalid_data))
 		{}
 
 		Thread & Thread::operator = (Thread && other)
 		{
-			debug_assert(pthread == invalid_pthread);
+			debug_assert(data_ == invalid_data, "thread resource lost");
 
-			pthread = std::exchange(other.pthread, invalid_pthread);
+			data_ = std::exchange(other.data_, invalid_data);
 			return *this;
 		}
 
 		bool Thread::valid() const
 		{
-			return pthread != invalid_pthread;
+			return data_ != invalid_data;
 		}
 
 		void Thread::join()
 		{
-			debug_assert(pthread != invalid_pthread, "thread must be initialized");
+			debug_assert(data_ != invalid_data, "thread is not joinable");
 
-			pthread_join(pthread, nullptr);
-			pthread = invalid_pthread;
+			debug_verify(pthread_join(get_pthread(data_), nullptr) == 0, "failed with errno ", errno);
+			data_ = invalid_data;
 		}
 	}
 }
