@@ -53,7 +53,7 @@ namespace core
 		{
 			uint16_t count;
 			read_count(count);
-			debug_printline(count, " array count in placeholder '", stream.filename, "'");
+			debug_printline(count, " array count in placeholder '", stream.filepath(), "'");
 
 			x.resize<T>(count * element_size);
 			read_bytes(x.data(), count * element_size * sizeof(T));
@@ -62,7 +62,7 @@ namespace core
 		template <typename T, typename P>
 		int read_array(P &, int /*element_size*/ = 1)
 		{
-			debug_fail("attempting to read array into a non array type in placeholder '", stream.filename, "'");
+			debug_fail("attempting to read array into a non array type in placeholder '", stream.filepath(), "'");
 			return 0;
 		}
 
@@ -73,7 +73,7 @@ namespace core
 			const int64_t amount_read = stream.read_block(ptr, size);
 			if (amount_read < size)
 			{
-				debug_printline("warning: eof while reading '", stream.filename, "'");
+				debug_printline("warning: eof while reading '", stream.filepath(), "'");
 			}
 		}
 
@@ -84,7 +84,7 @@ namespace core
 		template <typename T>
 		void read_count(T &)
 		{
-			debug_fail("attempting to read count into a non count type in placeholder '", stream.filename, "'");
+			debug_fail("attempting to read count into a non count type in placeholder '", stream.filepath(), "'");
 		}
 
 		void read_matrix(core::maths::Matrix4x4f & x)
@@ -96,7 +96,7 @@ namespace core
 		template <typename T>
 		void read_matrix(T &)
 		{
-			debug_fail("attempting to read matrix into a non matrix type in placeholder '", stream.filename, "'");
+			debug_fail("attempting to read matrix into a non matrix type in placeholder '", stream.filepath(), "'");
 		}
 
 		template <std::size_t N>
@@ -118,7 +118,7 @@ namespace core
 		template <typename T>
 		void read_string(T &)
 		{
-			debug_fail("attempting to read string into a non string type in placeholder '", stream.filename, "'");
+			debug_fail("attempting to read string into a non string type in placeholder '", stream.filepath(), "'");
 		}
 
 		void read_value(float & value)
@@ -128,7 +128,7 @@ namespace core
 		template <typename T>
 		void read_value(T &)
 		{
-			debug_fail("attempting to read value into a non value type in placeholder '", stream.filename, "'");
+			debug_fail("attempting to read value into a non value type in placeholder '", stream.filepath(), "'");
 		}
 
 		template <typename T>
@@ -136,7 +136,7 @@ namespace core
 		{
 			uint16_t nweights;
 			read_count(nweights);
-			debug_printline(nweights, " weight count in placeholder '", stream.filename, "'");
+			debug_printline(nweights, " weight count in placeholder '", stream.filepath(), "'");
 
 			x.resize(nweights);
 			for (auto & w : x)
@@ -166,7 +166,7 @@ namespace core
 		template <typename T>
 		int read_weights(T &)
 		{
-			debug_fail("attempting to read weights into a non array type in placeholder '", stream.filename, "'");
+			debug_fail("attempting to read weights into a non array type in placeholder '", stream.filepath(), "'");
 			return 0;
 		}
 	};

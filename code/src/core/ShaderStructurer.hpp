@@ -40,7 +40,7 @@ namespace core
 		template <typename T>
 		void read(T & x)
 		{
-			debug_verify(parse("[vertex]", newline), "expected vertex section in '", stream.filename(), "'");
+			debug_verify(parse("[vertex]", newline), "expected vertex section in '", stream.filepath(), "'");
 			static_assert(core::member_table<T>::has("inputs"), "");
 			// if (core::member_table<T>::has("inputs"))
 			{
@@ -48,7 +48,7 @@ namespace core
 				{
 					if (core::member_table<T>::call("inputs", x, [&](auto & y){ return read_name_value(y); }))
 					{
-						debug_verify(parse("]", newline), "expected ending bracket in '", stream.filename(), "'");
+						debug_verify(parse("]", newline), "expected ending bracket in '", stream.filepath(), "'");
 					}
 					else
 					{
@@ -77,7 +77,7 @@ namespace core
 			// debug_printline(std::string(stream.data(vertex_source_begin), stream.data(vertex_source_end)));
 
 			stream.consume();
-			debug_verify(parse("[fragment]", newline), "expected fragment section in '", stream.filename(), "'");
+			debug_verify(parse("[fragment]", newline), "expected fragment section in '", stream.filepath(), "'");
 			static_assert(core::member_table<T>::has("outputs"), "");
 			// if (core::member_table<T>::has("outputs"))
 			{
@@ -85,7 +85,7 @@ namespace core
 				{
 					if (core::member_table<T>::call("outputs", x, [&](auto & y){ return read_name_value(y); }))
 					{
-						debug_verify(parse("]", newline), "expected ending bracket in '", stream.filename(), "'");
+						debug_verify(parse("]", newline), "expected ending bracket in '", stream.filepath(), "'");
 					}
 					else
 					{
@@ -124,16 +124,16 @@ namespace core
 			static_assert(core::member_table<T>::has("name"), "");
 			if (!core::member_table<T>::call("name", x.back(), [&](auto & y){ return parse(y); }))
 			{
-				debug_printline("failed to parse 'name' in '", stream.filename(), "'");
+				debug_printline("failed to parse 'name' in '", stream.filepath(), "'");
 				return false;
 			}
 
-			debug_verify(parse(whitespace), "'name' and 'value' should be separated by whitespace in '", stream.filename(), "'");
+			debug_verify(parse(whitespace), "'name' and 'value' should be separated by whitespace in '", stream.filepath(), "'");
 
 			static_assert(core::member_table<T>::has("value"), "");
 			if (!core::member_table<T>::call("value", x.back(), [&](auto & y){ return parse(y); }))
 			{
-				debug_printline("failed to parse 'value' in '", stream.filename(), "'");
+				debug_printline("failed to parse 'value' in '", stream.filepath(), "'");
 				return false;
 			}
 

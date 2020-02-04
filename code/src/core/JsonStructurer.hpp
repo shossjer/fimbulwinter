@@ -25,13 +25,13 @@ namespace core
 	class JsonStructurer
 	{
 	private:
-		std::string filename;
+		utility::heap_string_utf8 filepath_;
 
 		json root;
 
 	public:
 		JsonStructurer(core::ReadStream && read_stream)
-			: filename(read_stream.filename)
+			: filepath_(read_stream.filepath())
 		{
 			std::vector<char> buffer;
 			std::size_t filled = 0;
@@ -51,7 +51,7 @@ namespace core
 			}
 			catch (...)
 			{
-				debug_fail("something is wrong with the json in '", filename, "'");
+				debug_fail("something is wrong with the json in '", filepath_, "'");
 			}
 		}
 
@@ -199,7 +199,7 @@ namespace core
 			}
 			else
 			{
-				debug_fail("unknown value type in json '", filename, "'");
+				debug_fail("unknown value type in json '", filepath_, "'");
 			}
 		}
 		template <typename T>
@@ -229,14 +229,14 @@ namespace core
 				}
 				else
 				{
-					debug_fail("unknown value type in json '", filename, "'");
+					debug_fail("unknown value type in json '", filepath_, "'");
 				}
 			}
 		}
 		template <typename T>
 		void read_array(const json &, T &)
 		{
-			debug_fail("attempting to read array into a non array type in json '", filename, "'");
+			debug_fail("attempting to read array into a non array type in json '", filepath_, "'");
 		}
 
 		void read_number(const json & j, int & x)
@@ -262,7 +262,7 @@ namespace core
 		template <typename T>
 		void read_number(const json &, T &)
 		{
-			debug_fail("attempting to read number into a non number type in json '", filename, "'");
+			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
 		}
 
 		template <typename T>
@@ -299,7 +299,7 @@ namespace core
 				}
 				else
 				{
-					debug_fail("unknown value type in json '", filename, "'");
+					debug_fail("unknown value type in json '", filepath_, "'");
 				}
 			}
 		}
@@ -335,7 +335,7 @@ namespace core
 				}
 				else
 				{
-					debug_fail("unknown value type in json '", filename, "'");
+					debug_fail("unknown value type in json '", filepath_, "'");
 				}
 			}
 		}
@@ -344,13 +344,13 @@ namespace core
 		          REQUIRES((std::is_enum<T>::value))>
 		void read_object(const json &, T &)
 		{
-			debug_fail("attempting to read object into a non class type in json '", filename, "'");
+			debug_fail("attempting to read object into a non class type in json '", filepath_, "'");
 		}
 		template <typename T,
 		          REQUIRES((!core::has_lookup_table<T>::value))>
 		void read_object(const json &, T &)
 		{
-			debug_fail("attempting to read object into a type without a member table in json '", filename, "'");
+			debug_fail("attempting to read object into a type without a member table in json '", filepath_, "'");
 		}
 
 		void read_string(const json & j, std::string & x)
@@ -377,13 +377,13 @@ namespace core
 		          REQUIRES((std::is_class<T>::value))>
 		void read_string(const json &, T &)
 		{
-			debug_fail("attempting to read string into a non string type in json '", filename, "'");
+			debug_fail("attempting to read string into a non string type in json '", filepath_, "'");
 		}
 		template <typename T,
 		          REQUIRES((!core::has_lookup_table<T>::value))>
 		void read_string(const json &, T &)
 		{
-			debug_fail("attempting to read string into a non string type in json '", filename, "'");
+			debug_fail("attempting to read string into a non string type in json '", filepath_, "'");
 		}
 	};
 }

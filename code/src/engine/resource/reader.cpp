@@ -96,7 +96,7 @@ namespace
 	{
 		std::ifstream file;
 
-		ReadData(std::string filename)
+		ReadData(const char * filename)
 			: file(filename, std::ifstream::binary)
 		{
 			if (!file)
@@ -124,60 +124,60 @@ namespace
 	}
 
 	template <typename StructurerType>
-	void read_file(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_file(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
 		debug_printline("reading '", filename, "'");
-		ReadData read_data(filename);
+		ReadData read_data(filename.data());
 
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, core::ReadStream(read_callback, &read_data, filename));
+		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, core::ReadStream(read_callback, &read_data, std::move(filename)));
 
 		callback(std::move(name), std::move(structurer));
 	}
 
-	void read_arm(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_arm(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		read_file<core::ArmatureStructurer>(name, filename, callback);
+		read_file<core::ArmatureStructurer>(name, std::move(filename), callback);
 	}
 
-	void read_bytes(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_bytes(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		read_file<core::BytesStructurer>(name, filename, callback);
+		read_file<core::BytesStructurer>(name, std::move(filename), callback);
 	}
 
-	void read_glsl(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_glsl(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		read_file<core::ShaderStructurer>(name, filename, callback);
+		read_file<core::ShaderStructurer>(name, std::move(filename), callback);
 	}
 
-	void read_ini(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_ini(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		read_file<core::IniStructurer>(name, filename, callback);
+		read_file<core::IniStructurer>(name, std::move(filename), callback);
 	}
 
-	void read_json(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_json(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		read_file<core::JsonStructurer>(name, filename, callback);
+		read_file<core::JsonStructurer>(name, std::move(filename), callback);
 	}
 
-	void read_lvl(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_lvl(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		read_file<core::LevelStructurer>(name, filename, callback);
+		read_file<core::LevelStructurer>(name, std::move(filename), callback);
 	}
 
-	void read_msh(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_msh(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		read_file<core::PlaceholderStructurer>(name, filename, callback);
+		read_file<core::PlaceholderStructurer>(name, std::move(filename), callback);
 	}
 
-	void read_png(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void read_png(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
-		read_file<core::PngStructurer>(name, filename, callback);
+		read_file<core::PngStructurer>(name, std::move(filename), callback);
 	}
 
-	void no_read(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
+	void no_read(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::reader::Structurer && structurer))
 	{
 		using StructurerType = core::NoSerializer;
-		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, filename);
+		engine::resource::reader::Structurer structurer(utility::in_place_type<StructurerType>, std::move(filename));
 		callback(std::move(name), std::move(structurer));
 	}
 
@@ -194,35 +194,35 @@ namespace
 					{
 						if ((x.formats & engine::resource::Format::Armature) && has_extension(x.name, ".arm"))
 						{
-							read_arm(x.name, x.name, x.callback);
+							read_arm(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else if ((x.formats & engine::resource::Format::Shader) && has_extension(x.name, ".glsl"))
 						{
-							read_glsl(x.name, x.name, x.callback);
+							read_glsl(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else if ((x.formats & engine::resource::Format::Ini) && has_extension(x.name, ".ini"))
 						{
-							read_ini(x.name, x.name, x.callback);
+							read_ini(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else if ((x.formats & engine::resource::Format::Json) && has_extension(x.name, ".json"))
 						{
-							read_json(x.name, x.name, x.callback);
+							read_json(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else if ((x.formats & engine::resource::Format::Level) && has_extension(x.name, ".lvl"))
 						{
-							read_lvl(x.name, x.name, x.callback);
+							read_lvl(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else if ((x.formats & engine::resource::Format::Placeholder) && has_extension(x.name, ".msh"))
 						{
-							read_msh(x.name, x.name, x.callback);
+							read_msh(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else if ((x.formats & engine::resource::Format::Png) && has_extension(x.name, ".png"))
 						{
-							read_png(x.name, x.name, x.callback);
+							read_png(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else if ((x.formats & engine::resource::Format::Ttf) && has_extension(x.name, ".ttf"))
 						{
-							read_bytes(x.name, x.name, x.callback);
+							read_bytes(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else if (x.formats & engine::resource::FormatMask::all())
 						{
@@ -252,33 +252,59 @@ namespace
 						}
 						else if (matching_formats & engine::resource::Format::Armature)
 						{
-							read_arm(x.name, "res/" + x.name + ".arm", x.callback);
+							utility::heap_string_utf8 filename = u8"res/"; // todo
+							filename.try_append(x.name.data(), utility::unit_difference(x.name.size()));
+							filename.try_append(u8".arm");
+
+							read_arm(x.name, std::move(filename), x.callback);
 						}
 						else if (matching_formats & engine::resource::Format::Ini)
 						{
-							std::string filename = (check_if_ini(x.name) == 2 ? "res/" : "") + x.name + ".ini";
-							read_ini(x.name, filename, x.callback);
+							utility::heap_string_utf8 filename = check_if_ini(x.name) == 2 ? u8"res/" : u8""; // todo
+							filename.try_append(x.name.data(), utility::unit_difference(x.name.size()));
+							filename.try_append(u8".ini");
+
+							read_ini(x.name, std::move(filename), x.callback);
 						}
 						else if (matching_formats & engine::resource::Format::Json)
 						{
-							std::string filename = (check_if_json(x.name) == 2 ? "res/" : "") + x.name + ".json";
-							read_json(x.name, filename, x.callback);
+							utility::heap_string_utf8 filename = check_if_json(x.name) == 2 ? u8"res/" : u8""; // todo
+							filename.try_append(x.name.data(), utility::unit_difference(x.name.size()));
+							filename.try_append(u8".json");
+
+							read_json(x.name, std::move(filename), x.callback);
 						}
 						else if (matching_formats & engine::resource::Format::Level)
 						{
-							read_lvl(x.name, "res/" + x.name + ".lvl", x.callback);
+							utility::heap_string_utf8 filename = u8"res/"; // todo
+							filename.try_append(x.name.data(), utility::unit_difference(x.name.size()));
+							filename.try_append(u8".lvl");
+
+							read_lvl(x.name, std::move(filename), x.callback);
 						}
 						else if (matching_formats & engine::resource::Format::Placeholder)
 						{
-							read_msh(x.name, "res/" + x.name + ".msh", x.callback);
+							utility::heap_string_utf8 filename = u8"res/"; // todo
+							filename.try_append(x.name.data(), utility::unit_difference(x.name.size()));
+							filename.try_append(u8".msh");
+
+							read_msh(x.name, std::move(filename), x.callback);
 						}
 						else if (matching_formats & engine::resource::Format::Png)
 						{
-							read_png(x.name, "res/" + x.name + ".png", x.callback);
+							utility::heap_string_utf8 filename = u8"res/"; // todo
+							filename.try_append(x.name.data(), utility::unit_difference(x.name.size()));
+							filename.try_append(u8".png");
+
+							read_png(x.name, std::move(filename), x.callback);
 						}
 						else if (matching_formats & engine::resource::Format::Shader)
 						{
-							read_glsl(x.name, "res/gfx/" + x.name + ".glsl", x.callback);
+							utility::heap_string_utf8 filename = u8"res/gfx/"; // todo
+							filename.try_append(x.name.data(), utility::unit_difference(x.name.size()));
+							filename.try_append(u8".glsl");
+
+							read_glsl(x.name, std::move(filename), x.callback);
 						}
 						else if (matching_formats)
 						{
@@ -286,11 +312,15 @@ namespace
 						}
 						else if (matching_formats & engine::resource::Format::Ttf)
 						{
-							read_bytes(x.name, "res/font/" + x.name + ".ttf", x.callback);
+							utility::heap_string_utf8 filename = u8"res/font/"; // todo
+							filename.try_append(x.name.data(), utility::unit_difference(x.name.size()));
+							filename.try_append(u8".ttf");
+
+							read_bytes(x.name, std::move(filename), x.callback);
 						}
 						else if (x.formats & engine::resource::Format::None)
 						{
-							no_read(x.name, x.name, x.callback);
+							no_read(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 						}
 						else
 						{

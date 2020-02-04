@@ -105,7 +105,7 @@ namespace core
 			const int image_height = png_get_image_height(png_ptr, info_ptr);
 			const int bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 			const int row_size = image_width * channels * (bit_depth / 8);
-			debug_printline(core::core_channel, "texture: ", read_stream_.filename);
+			debug_printline(core::core_channel, "texture: ", read_stream_.filepath());
 			debug_printline(core::core_channel, "channels: ", channels);
 			debug_printline(core::core_channel, "color_type: ", color_type);
 			debug_printline(core::core_channel, "image_width: ", image_width);
