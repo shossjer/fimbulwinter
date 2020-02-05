@@ -7,6 +7,45 @@
 
 namespace utility
 {
+	// unicode_points
+	struct point_difference : Arithmetic<point_difference, std::ptrdiff_t>
+	{
+		using Arithmetic<point_difference, std::ptrdiff_t>::Arithmetic;
+	};
+
+	// unicode_units
+	struct unit_difference : Arithmetic<unit_difference, std::ptrdiff_t>
+	{
+		using Arithmetic<unit_difference, std::ptrdiff_t>::Arithmetic;
+	};
+
+	// unicode_diff
+	template <typename Encoding>
+	class lazy_difference
+	{
+		using encoding_traits = encoding_traits<Encoding>;
+
+		using code_unit = typename encoding_traits::code_unit;
+	private:
+		const code_unit * begin_;
+		const code_unit * end_;
+
+	public:
+		constexpr lazy_difference(const code_unit * begin, const code_unit * end)
+			: begin_(begin)
+			, end_(end)
+		{}
+
+	public:
+		constexpr operator point_difference () const
+		{
+			if (end_ < begin_)
+				return point_difference(-encoding_traits::count(end_, begin_));
+			return point_difference(encoding_traits::count(begin_, end_));
+		}
+		constexpr operator unit_difference () const { return unit_difference(end_ - begin_); }
+	};
+
 	class unicode_code_point
 	{
 	private:
@@ -264,7 +303,11 @@ namespace utility
 		using code_unit = char;
 		using code_point = utility::unicode_code_point;
 
-		static constexpr std::size_t max_size() { return 4; }
+		using difference_type = lazy_difference<encoding_utf8>;
+
+		static constexpr std::size_t max_size() { return 4; } // todo remove?
+
+		static difference_type difference(const code_unit * begin, const code_unit * end) { return {begin, end}; }
 	};
 
 	struct encoding_utf16
@@ -272,7 +315,11 @@ namespace utility
 		using code_unit = char16_t;
 		using code_point = utility::unicode_code_point;
 
-		static constexpr std::size_t max_size() { return 2; }
+		using difference_type = lazy_difference<encoding_utf16>;
+
+		static constexpr std::size_t max_size() { return 2; } // todo remove?
+
+		static difference_type difference(const code_unit * begin, const code_unit * end) { return {begin, end}; }
 	};
 
 	struct encoding_utf32
@@ -280,7 +327,11 @@ namespace utility
 		using code_unit = char32_t;
 		using code_point = utility::unicode_code_point;
 
-		static constexpr std::size_t max_size() { return 1; }
+		using difference_type = lazy_difference<encoding_utf32>;
+
+		static constexpr std::size_t max_size() { return 1; } // todo remove?
+
+		static difference_type difference(const code_unit * begin, const code_unit * end) { return {begin, end}; }
 	};
 
 	using string_view_utf8 = basic_string_view<utility::encoding_utf8>;

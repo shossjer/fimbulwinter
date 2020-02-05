@@ -131,8 +131,8 @@ namespace utility
 
 		using encoding_traits = utility::encoding_traits<Encoding>;
 
-		using difference_unit_type = utility::unit_difference;
-		using difference_point_type = utility::point_difference;
+		using code_unit = typename encoding_traits::code_unit;
+		using code_point = typename encoding_traits::code_point;
 
 	public:
 		using const_iterator = const_string_iterator<Encoding>;
@@ -479,11 +479,11 @@ namespace utility
 	public:
 		using value_type = code_unit;
 		using size_type = typename array_data::size_type;
+		using difference_type = typename encoding_traits::difference_type;
 		using iterator = string_iterator<Encoding>;
 		using const_iterator = const_string_iterator<Encoding>;
 		using reverse_iterator = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-		using difference_type = typename std::iterator_traits<iterator>::difference_type;
 
 	private:
 		basic_string_data<utility::array_wrapper<array_data>, Encoding> data_;

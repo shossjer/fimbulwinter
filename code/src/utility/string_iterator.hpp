@@ -18,7 +18,7 @@ namespace utility
 		using encoding_traits = encoding_traits<Encoding>;
 
 	public:
-		using difference_type = utility::lazy_difference<Encoding>; // todo only if code unit != code point
+		using difference_type = typename encoding_traits::difference_type;
 		using value_type = typename encoding_traits::code_unit;
 		using pointer = mpl::add_const_if<Const, value_type> *;
 		using reference = typename encoding_traits::code_point; // todo typename Encoding::references
@@ -93,7 +93,7 @@ namespace utility
 		friend constexpr bool operator > (this_type x, this_type y) { return y < x; }
 		friend constexpr bool operator >= (this_type x, this_type y) { return !(x < y); }
 
-		friend constexpr difference_type operator - (this_type x, this_type y) { return {y.ptr_, x.ptr_}; }
+		friend constexpr difference_type operator - (this_type x, this_type y) { return encoding_traits::difference(y.ptr_, x.ptr_); }
 	};
 
 	template <typename Encoding>
