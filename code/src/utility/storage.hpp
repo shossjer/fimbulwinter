@@ -6,6 +6,7 @@
 
 #include "utility/algorithm.hpp"
 #include "utility/aggregation_allocator.hpp"
+#include "utility/bitmanip.hpp"
 #include "utility/heap_allocator.hpp"
 #include "utility/iterator.hpp"
 #include "utility/null_allocator.hpp"
@@ -1203,13 +1204,13 @@ namespace utility
 
 		static std::size_t grow(std::size_t capacity, std::size_t amount)
 		{
-			assert(amount <= 8 || amount <= capacity);
-			return capacity < 8 ? 8 : capacity * 2;
+			assert(0 < amount);
+			return utility::clp2(capacity + amount);
 		}
 
 		static std::size_t capacity_for(std::size_t size)
 		{
-			return size;
+			return utility::clp2(size);
 		}
 	};
 	template <std::size_t Capacity, typename ...Ts>
