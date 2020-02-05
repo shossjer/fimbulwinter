@@ -4,6 +4,7 @@
 
 #include "utility/array_alloc.hpp"
 #include "utility/encoding_traits.hpp"
+#include "utility/ext/string.hpp"
 #include "utility/ranges.hpp"
 #include "utility/stream.hpp"
 #include "utility/string_iterator.hpp"
@@ -154,7 +155,7 @@ namespace utility
 		basic_string_view() = default;
 		constexpr basic_string_view(const_pointer s)
 			: ptr_(s)
-			, size_(std::strlen(s))
+			, size_(ext::strlen(s))
 		{}
 		template <typename Count>
 		constexpr basic_string_view(const_pointer s, Count && count)
@@ -502,14 +503,14 @@ namespace utility
 			: basic_string(repeat_char{}, repeat, std::forward<Character>(character), 0)
 		{}
 		basic_string(size_type repeat, const code_unit * s)
-			: basic_string(repeat_str{}, repeat, s, std::strlen(s))
+			: basic_string(repeat_str{}, repeat, s, ext::strlen(s))
 		{}
 		template <typename Count>
 		basic_string(size_type repeat, const code_unit * s, Count && count)
 			: basic_string(repeat_str{}, repeat, s, encoding_traits::next(s, std::forward<Count>(count)))
 		{}
 		basic_string(const code_unit * s)
-			: basic_string(copy_str{}, s, std::strlen(s))
+			: basic_string(copy_str{}, s, ext::strlen(s))
 		{}
 		template <typename Count>
 		basic_string(const code_unit * s, Count && count)
@@ -526,7 +527,7 @@ namespace utility
 		basic_string & operator = (const code_unit * s)
 		{
 			const auto ret = data_.array_.try_replace_with(
-				std::strlen(s) + 1,
+				ext::strlen(s) + 1,
 				[&](array_data & new_data)
 				{
 					new_data.chars_.construct_range(0, s, s + data_.array_.size());
@@ -639,7 +640,7 @@ namespace utility
 		{
 			return try_append_impl(copy_char{}, std::forward<Character>(character), 0);
 		}
-		bool try_append(const code_unit * s) { return try_append_impl(copy_str{}, s, std::strlen(s)); }
+		bool try_append(const code_unit * s) { return try_append_impl(copy_str{}, s, ext::strlen(s)); }
 		template <typename Count>
 		bool try_append(const code_unit * s, Count && count)
 		{
