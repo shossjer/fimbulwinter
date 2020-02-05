@@ -147,8 +147,8 @@ namespace utility
 		using size_type = typename const_iterator::size_type;
 
 	private:
-		const_iterator ptr_;
-		difference_unit_type size_;
+		const_pointer ptr_;
+		size_type size_;
 
 	public:
 		basic_string_view() = default;
@@ -161,14 +161,9 @@ namespace utility
 			: ptr_(s)
 			, size_(encoding_traits::next(s, std::forward<Count>(count)))
 		{}
-		template <typename Count>
-		constexpr basic_string_view(const_iterator ptr, Count && count)
-			: ptr_(ptr)
-			, size_(encoding_traits::next(ptr.get(), std::forward<Count>(count)))
-		{}
 		template <typename StorageTraits>
 		basic_string_view(const basic_string<StorageTraits, Encoding> & str)
-			: ptr_(str.begin())
+			: ptr_(str.data())
 			, size_(str.size())
 		{}
 
@@ -187,47 +182,47 @@ namespace utility
 
 		constexpr decltype(auto) front() const { return *begin(); }
 		constexpr decltype(auto) back() const { return *--end(); }
-		constexpr const_pointer data() const { return ptr_.get(); }
+		constexpr const_pointer data() const { return ptr_; }
 
-		constexpr size_type size() const { return size_.get(); }
+		constexpr size_type size() const { return size_; }
 		constexpr decltype(auto) length() const { return end() - begin(); }
-		constexpr bool empty() const { return size_ == 0; }
+		constexpr bool empty() const { return size_ <= 0; }
 
 		constexpr int compare(this_type other) const
 		{
-			return compare_impl(compare_data(ptr_.get(),
-			                                 other.ptr_.get(),
-			                                 std::min(size_.get(), other.size_.get())),
-			                    size_.get(),
-			                    other.size_.get());
+			return compare_impl(compare_data(ptr_,
+			                                 other.ptr_,
+			                                 std::min(size_, other.size_)),
+			                    size_,
+			                    other.size_);
 		}
 		constexpr int compare(std::ptrdiff_t pos1, std::ptrdiff_t count1, this_type other) const
 		{
-			return compare_impl(compare_data(ptr_.get() + pos1,
-			                                 other.ptr_.get(),
-			                                 std::min(count1, other.size_.get())),
+			return compare_impl(compare_data(ptr_ + pos1,
+			                                 other.ptr_,
+			                                 std::min(count1, other.size_)),
 			                    count1,
-			                    other.size_.get());
+			                    other.size_);
 		}
 		constexpr int compare(std::ptrdiff_t pos1, std::ptrdiff_t count1, this_type other, std::ptrdiff_t pos2, std::ptrdiff_t count2) const
 		{
-			return compare_impl(compare_data(ptr_.get() + pos1,
-			                                 other.ptr_.get() + pos2,
+			return compare_impl(compare_data(ptr_ + pos1,
+			                                 other.ptr_ + pos2,
 			                                 std::min(count1, count2)),
 			                    count1,
 			                    count2);
 		}
 		constexpr int compare(const_pointer s) const
 		{
-			return s ? compare_data_null_terminated(ptr_.get(), ptr_.get() + size_.get(), s) : size_ != 0;
+			return s ? compare_data_null_terminated(ptr_, ptr_ + size_, s) : size_ != 0;
 		}
 		constexpr int compare(std::ptrdiff_t pos1, std::ptrdiff_t count1, const_pointer s) const
 		{
-			return s ? compare_data_null_terminated(ptr_.get() + pos1, ptr_.get() + pos1 + count1, s) : count1 != 0;
+			return s ? compare_data_null_terminated(ptr_ + pos1, ptr_ + pos1 + count1, s) : count1 != 0;
 		}
 		constexpr int compare(std::ptrdiff_t pos1, std::ptrdiff_t count1, const_pointer s, std::ptrdiff_t count2) const
 		{
-			return s ? compare_impl(compare_data(ptr_.get() + pos1, s, std::min(count1, count2)),
+			return s ? compare_impl(compare_data(ptr_ + pos1, s, std::min(count1, count2)),
 			                        count1,
 			                        count2) : count1 != 0;
 		}
@@ -280,7 +275,7 @@ namespace utility
 		template <typename Traits>
 		friend std::basic_ostream<value_type, Traits> & operator << (std::basic_ostream<value_type, Traits> & os, this_type x)
 		{
-			return os.write(x.ptr_.get(), x.size_.get());
+			return os.write(x.ptr_, x.size_);
 		}
 	};
 
