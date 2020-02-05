@@ -239,6 +239,16 @@ namespace core
 			debug_fail("attempting to read array into a non array type in json '", filepath_, "'");
 		}
 
+		void read_bool(const json & j, bool & x)
+		{
+			x = j;
+		}
+		template <typename T>
+		void read_bool(const json &, T &)
+		{
+			debug_fail("attempting to read bool into a non bool type in json '", filepath_, "'");
+		}
+
 		void read_number(const json & j, int & x)
 		{
 			x = j;
@@ -320,6 +330,10 @@ namespace core
 				if (v.is_array())
 				{
 					member_table<T>::call(key, x, [&](auto & y){ read_array(v, y); });
+				}
+				else if (v.is_boolean())
+				{
+					member_table<T>::call(key, x, [&](auto & y){ read_bool(v, y); });
 				}
 				else if (v.is_number())
 				{

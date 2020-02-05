@@ -34,7 +34,12 @@ namespace core
 		{
 			return root.dump(4) + "\n";
 		}
+
 	private:
+		void write_(json & j, const bool & x)
+		{
+			write_bool(j, x);
+		}
 		void write_(json & j, const int & x)
 		{
 			write_number(j, x);
@@ -52,6 +57,11 @@ namespace core
 		void write_(json & j, const T & x)
 		{
 			write_object(j, x);
+		}
+
+		void write_bool(json & j, const bool & x)
+		{
+			j = x;
 		}
 
 		void write_number(json & j, const int & x)
