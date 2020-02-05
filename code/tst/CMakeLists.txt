@@ -16,6 +16,7 @@ set(FILES_ENGINE
 	tst/main_core.cpp
 	tst/engine/animation/mixer.cpp
 	tst/engine/application/window.cpp
+	tst/engine/Asset.cpp
 	tst/engine/audio/system.cpp
 	tst/engine/console.cpp
 	tst/engine/graphics/renderer.cpp
