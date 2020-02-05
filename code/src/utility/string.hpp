@@ -305,6 +305,7 @@ namespace utility
 			void set_capacity(std::size_t capacity)
 			{
 				assert(capacity == storage_traits::capacity_value);
+				static_cast<void>(capacity);
 			}
 
 			void set_size(std::size_t size)

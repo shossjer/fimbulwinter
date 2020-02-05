@@ -360,7 +360,7 @@ namespace engine
 	namespace hid
 	{
 #if INPUT_HAS_USER32_RAWINPUT
-		void add_device(devices &devices, HANDLE handle)
+		void add_device(devices & /*devices*/, HANDLE handle)
 		{
 			debug_assert(std::find_if(::devices.begin(), ::devices.end(), [&handle](const Device & device){ return device.handle == handle; }) == ::devices.end(), "device has already been added!");
 
@@ -580,8 +580,10 @@ namespace engine
 					const auto & field = fields[i];
 					const HIDP_REPORT_TYPE type = i < field_offsets[1] ? HidP_Input : i < field_offsets[2] ? HidP_Output : HidP_Feature;
 					const char * const type_names[] = { "input", "output", "feature" };
+#if MODE_DEBUG
 					const char * const field_name = field.type ? "value" : "button";
 					debug_printline("field ", i, "(", type_names[type], " ", field_name, ") ", field.nbits, " bits, starting at bit ", bit_offset);
+#endif
 
 					if (field.type)
 					{
@@ -627,7 +629,7 @@ namespace engine
 			}
 		}
 
-		void remove_device(devices &devices, HANDLE handle)
+		void remove_device(devices & /*devices*/, HANDLE handle)
 		{
 			auto it = std::find_if(::devices.begin(), ::devices.end(), [&handle](const Device & device){ return device.handle == handle; });
 			debug_assert(it != ::devices.end(), "device was never added before removal!");
@@ -640,7 +642,7 @@ namespace engine
 			::devices.erase(it);
 		}
 
-		void destroy_subsystem(devices &devices)
+		void destroy_subsystem(devices & /*devices*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			disable_hardware_input();
@@ -655,7 +657,7 @@ namespace engine
 			::window = nullptr;
 		}
 
-		void create_subsystem(devices & devices, engine::application::window & window_, bool hardware_input_)
+		void create_subsystem(devices & /*devices*/, engine::application::window & window_, bool hardware_input_)
 		{
 			::window = &window_;
 
@@ -673,7 +675,7 @@ namespace engine
 #endif
 		}
 
-		void process_input(devices & devices, HRAWINPUT input)
+		void process_input(devices & /*devices*/, HRAWINPUT input)
 		{
 			UINT len = 0;
 			debug_verify(GetRawInputData(input, RID_INPUT, nullptr, &len, sizeof(RAWINPUTHEADER)) == 0);
@@ -688,13 +690,13 @@ namespace engine
 
 # ifdef PRINT_ANY_INFO
 			std::string info = "device ";
-			info += it == devices.end() ? "x" : utility::to_string(it - devices.begin());
+			info += it == ::devices.end() ? "x" : utility::to_string(it - ::devices.begin());
 
 			switch (ri.header.dwType)
 			{
 #  ifdef PRINT_MOUSE_INFO
 			case RIM_TYPEMOUSE:
-				info += utility::to_string("(mouse): ", ri.data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE ? " absolute {" : " relative {", ri.data.mouse.lLastX, ", ", ri.data.mouse.lLastY, "}");
+				info += utility::to_string(" (mouse): ", ri.data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE ? " absolute {" : " relative {", ri.data.mouse.lLastX, ", ", ri.data.mouse.lLastY, "}");
 				if (ri.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN)
 				{
 					info += " left down";
@@ -818,8 +820,8 @@ namespace engine
 			}
 			case RIM_TYPEKEYBOARD:
 			{
-				static_assert(RI_KEY_E0 == 2, "");
-				static_assert(RI_KEY_E1 == 4, "");
+				static_assert(RI_KEY_E0 == 2, "The bit shift for e0 is off!");
+				static_assert(RI_KEY_E1 == 4, "The bit shift for e1 is off!");
 				// set the most significant bit if e0 is set, and the second
 				// most significant bit if e1 is set
 				const int sc = ri.data.keyboard.MakeCode | ((ri.data.keyboard.Flags & RI_KEY_E0) << 6) | ((ri.data.keyboard.Flags & RI_KEY_E1) << 4);
@@ -943,13 +945,13 @@ namespace engine
 		}
 #endif
 
-		void key_character(devices & devices, int scancode, const char16_t * u16)
+		void key_character(devices & /*devices*/, int scancode, const char16_t * u16)
 		{
 			const engine::hid::Input::Button button = sc_to_button[scancode];
 			dispatch(KeyCharacterInput(0, button, utility::unicode_code_point(u16)));
 		}
 
-		void key_down(devices & devices, WPARAM wParam, LPARAM lParam, LONG time)
+		void key_down(devices & /*devices*/, WPARAM wParam, LPARAM lParam, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -958,7 +960,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
 		}
 
-		void key_up(devices & devices, WPARAM wParam, LPARAM lParam, LONG time)
+		void key_up(devices & /*devices*/, WPARAM wParam, LPARAM lParam, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -967,7 +969,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
 		}
 
-		void syskey_down(devices & devices, WPARAM wParam, LPARAM lParam, LONG time)
+		void syskey_down(devices & /*devices*/, WPARAM wParam, LPARAM lParam, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -976,7 +978,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
 		}
 
-		void syskey_up(devices & devices, WPARAM wParam, LPARAM lParam, LONG time)
+		void syskey_up(devices & /*devices*/, WPARAM wParam, LPARAM lParam, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -985,7 +987,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
 		}
 
-		void lbutton_down(devices & devices, LONG time)
+		void lbutton_down(devices & /*devices*/, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -994,7 +996,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_LEFT, true));
 		}
 
-		void lbutton_up(devices & devices, LONG time)
+		void lbutton_up(devices & /*devices*/, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -1003,7 +1005,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_LEFT, false));
 		}
 
-		void mbutton_down(devices & devices, LONG time)
+		void mbutton_down(devices & /*devices*/, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -1012,7 +1014,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_MIDDLE, true));
 		}
 
-		void mbutton_up(devices & devices, LONG time)
+		void mbutton_up(devices & /*devices*/, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -1021,7 +1023,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_MIDDLE, false));
 		}
 
-		void rbutton_down(devices & devices, LONG time)
+		void rbutton_down(devices & /*devices*/, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -1030,7 +1032,7 @@ namespace engine
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_RIGHT, true));
 		}
 
-		void rbutton_up(devices & devices, LONG time)
+		void rbutton_up(devices & /*devices*/, LONG /*time*/)
 		{
 #if INPUT_HAS_USER32_RAWINPUT
 			if (hardware_input.load(std::memory_order_relaxed))
@@ -1039,12 +1041,12 @@ namespace engine
 			dispatch(ButtonStateInput(0, engine::hid::Input::Button::MOUSE_RIGHT, false));
 		}
 
-		void mouse_move(devices & devices, int_fast16_t x, int_fast16_t y, LONG time)
+		void mouse_move(devices & /*devices*/, int_fast16_t x, int_fast16_t y, LONG /*time*/)
 		{
 			dispatch(CursorMoveInput(0, x, y));
 		}
 
-		void mouse_wheel(devices & devices, int_fast16_t delta, LONG time)
+		void mouse_wheel(devices & /*devices*/, int_fast16_t /*delta*/, LONG /*time*/)
 		{
 			// TODO:
 		}

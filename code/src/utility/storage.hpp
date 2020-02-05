@@ -771,6 +771,7 @@ namespace utility
 			void deallocate(std::size_t capacity)
 			{
 				assert(capacity <= Capacity); // todo ==
+				static_cast<void>(capacity);
 			}
 
 			constexpr std::size_t max_size() const { return Capacity; }
@@ -1204,6 +1205,8 @@ namespace utility
 		static std::size_t grow(std::size_t capacity, std::size_t amount)
 		{
 			assert(amount <= 8 || amount <= capacity);
+			static_cast<void>(amount);
+
 			return capacity < 8 ? 8 : capacity * 2;
 		}
 

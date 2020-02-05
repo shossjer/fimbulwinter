@@ -285,7 +285,7 @@ namespace
 			Loading()
 			{}
 
-			bool set(engine::Asset && asset, std::string && name, engine::model::mesh_t && data)
+			bool set(engine::Asset && asset, std::string && debug_expression(name), engine::model::mesh_t && data)
 			{
 				debug_assert(mesh == engine::Asset::null());
 				mesh = asset;

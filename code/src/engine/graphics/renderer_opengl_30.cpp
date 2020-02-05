@@ -151,6 +151,13 @@ namespace
 		{
 			this->stack.top() *= value_type::translation(x, y, z);
 		}
+
+	public:
+
+		friend void glLoadMatrix(const Stack & stack)
+		{
+			glLoadMatrix(stack.stack.top());
+		}
 	};
 
 	struct ShaderData
@@ -1765,10 +1772,12 @@ namespace
 			}
 			std::sort(texture_dimensions.begin(), texture_dimensions.end());
 
+#if MODE_DEBUG
 			for (const auto & dim : texture_dimensions)
 			{
 				debug_printline(name, ": face texture dimension = {", std::get<2>(dim), ", ", std::get<3>(dim), "}, unused slots = ", std::get<1>(dim), "(", static_cast<int>(static_cast<double>(std::get<1>(dim) * slot_size_x * slot_size_y) / static_cast<double>(std::get<2>(dim) * std::get<3>(dim)) * 100.), "%)");
 			}
+#endif
 
 
 			const int texture_width = std::get<2>(texture_dimensions.front());
@@ -1889,7 +1898,7 @@ namespace
 		{
 			engine::graphics::opengl::Font::Data data;
 
-			if (!data.load(*engine::graphics::renderer::window, "consolas", 14))
+			if (!data.load(*engine::graphics::detail::window, "consolas", 14))
 			{
 				debug_fail();
 			}

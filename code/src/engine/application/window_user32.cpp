@@ -284,30 +284,30 @@ namespace engine
 			::ui = &ui_;
 		}
 
-		void make_current(window & window)
+		void make_current(window & /*window*/)
 		{
 			wglMakeCurrent(hDC, hGLRC);
 		}
 
-		void swap_buffers(window & window)
+		void swap_buffers(window & /*window*/)
 		{
 			SwapBuffers(hDC);
 		}
 
 #if INPUT_HAS_USER32_RAWINPUT
-		void RegisterRawInputDevices(window & window, const uint32_t * collections, int count)
+		void RegisterRawInputDevices(window & /*window*/, const uint32_t * collections, int count)
 		{
 			RegisterRawInputDevicesWithFlags(collections, count, RIDEV_DEVNOTIFY, hWnd);
 		}
 
-		void UnregisterRawInputDevices(window & window, const uint32_t * collections, int count)
+		void UnregisterRawInputDevices(window & /*window*/, const uint32_t * collections, int count)
 		{
 			RegisterRawInputDevicesWithFlags(collections, count, RIDEV_REMOVE, nullptr);
 		}
 #endif
 
 #if TEXT_USE_USER32
-		void buildFont(window & window, HFONT hFont, DWORD count, DWORD listBase)
+		void buildFont(window & /*window*/, HFONT hFont, DWORD count, DWORD listBase)
 		{
 			HGDIOBJ hPrevious = SelectObject(hDC, hFont);
 
@@ -316,12 +316,12 @@ namespace engine
 			SelectObject(hDC, hPrevious);
 		}
 
-		void freeFont(window & window, HFONT hFont)
+		void freeFont(window & /*window*/, HFONT hFont)
 		{
 			DeleteObject(hFont);
 		}
 
-		HFONT loadFont(window & window, const char * name, int height)
+		HFONT loadFont(window & /*window*/, const char * name, int height)
 		{
 			return CreateFont(height,
 			                  0,
@@ -340,7 +340,7 @@ namespace engine
 		}
 #endif
 
-		int execute(window & window)
+		int execute(window & /*window*/)
 		{
 			return messageLoop();
 		}

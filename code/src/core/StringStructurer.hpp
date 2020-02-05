@@ -80,7 +80,15 @@ namespace core
 		{
 			call_or_read(std::forward<T>(x));
 
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+			// C4127 - conditional expression is constant
+#endif
 			if (sizeof...(Ts) > 0)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 			{
 				skip_whitespace();
 				if (ss.peek() == ')')

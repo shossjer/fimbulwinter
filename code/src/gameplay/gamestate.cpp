@@ -105,6 +105,7 @@ namespace
 		{
 			s.read(recipes);
 
+#if MODE_DEBUG
 			debug_printline("recipes:");
 			for (auto i : ranges::index_sequence_for(recipes))
 			{
@@ -121,28 +122,33 @@ namespace
 					debug_printline("\"", recipes.get(i).name, "\" has no ingredients");
 				}
 			}
+#endif
 		}
 
 		void init_roles(core::JsonStructurer && s)
 		{
 			s.read(roles);
 
+#if MODE_DEBUG
 			debug_printline("classes:");
 			for (auto i : ranges::index_sequence_for(roles))
 			{
 				debug_printline("name = \"", roles.get(i).name, "\"");
 			}
+#endif
 		}
 
 		void init_skills(core::JsonStructurer && s)
 		{
 			s.read(skills);
 
+#if MODE_DEBUG
 			debug_printline("skills:");
 			for (auto i : ranges::index_sequence_for(skills))
 			{
 				debug_printline("name = \"", skills.get(i).name, "\", type = \"", skills.get(i).type, "\"");
 			}
+#endif
 		}
 
 		std::vector<const gameplay::Recipe *> get_available_recipes() const
@@ -349,11 +355,13 @@ namespace
 			}
 			std::sort(std::begin(indices), std::end(indices), [&](int a, int b){ return scores[a] < scores[b]; });
 
+#if MODE_DEBUG
 			debug_printline("best to worst matching classes:");
 			for (auto i : ranges::index_sequence_for(roles))
 			{
 				debug_printline("\"", roles.get(indices[i]).name, "\" = ", static_cast<int>((2. - scores[indices[i]]) / 2. * 100.), "%");
 			}
+#endif
 		}
 	};
 
@@ -412,11 +420,13 @@ namespace
 				w.add_skill(index, skill_amount.amount);
 			}
 
+#if MODE_DEBUG
 			debug_printline("worker (", worker, ") skills:");
 			for (auto i : ranges::index_sequence_for(kitchen.skills))
 			{
 				debug_printline("\"", kitchen.skills.get(i).name, "\" = ", w.skills[i]);
 			}
+#endif
 			w.print_best_to_worst_roles(kitchen.roles);
 		}
 

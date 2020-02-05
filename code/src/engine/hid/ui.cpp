@@ -649,10 +649,12 @@ namespace
 			}
 			debug_printline(" device ", device.id, context_str);
 
+#if MODE_DEBUG
 			for (const auto & source : device.sources)
 			{
 				debug_printline("  source ", source.path, "(", source.type, "): ", source.name);
 			}
+#endif
 		}
 	}
 }
