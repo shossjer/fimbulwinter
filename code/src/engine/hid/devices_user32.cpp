@@ -685,6 +685,13 @@ namespace engine
 			debug_verify(GetRawInputData(input, RID_INPUT, bytes.data(), &len, sizeof(RAWINPUTHEADER)) == len);
 
 			const RAWINPUT & ri = *reinterpret_cast<const RAWINPUT *>(bytes.data());
+			// ri.header.hDevice may be null, according to stack overflow user
+			// 175201, yet the documentation mentions nothing of it. When it is
+			// null, there does not seem to be possible to get the id of the
+			// device that sent the data, so all we can do is ignore it :shrug:
+			// great design microsoft
+			//
+			// https://stackoverflow.com/a/57616263
 			auto it = std::find_if(::devices.begin(), ::devices.end(), [&ri](const Device & device){ return device.handle == ri.header.hDevice; });
 			// debug_assert(it != devices.end(), "received input from unknown device!");
 
