@@ -97,11 +97,23 @@ namespace utility
 
 	public:
 		friend constexpr bool operator == (unicode_code_point a, unicode_code_point b) { return a.value_ == b.value_; }
+		friend constexpr bool operator == (unicode_code_point a, uint32_t b) { return a.value_ == b; }
+		friend constexpr bool operator == (uint32_t a, unicode_code_point b) { return a == b.value_; }
 		friend constexpr bool operator != (unicode_code_point a, unicode_code_point b) { return !(a == b); }
+		friend constexpr bool operator != (unicode_code_point a, uint32_t b) { return !(a == b); }
+		friend constexpr bool operator != (uint32_t a, unicode_code_point b) { return !(a == b); }
 		friend constexpr bool operator < (unicode_code_point a, unicode_code_point b) { return a.value_ < b.value_; }
+		friend constexpr bool operator < (unicode_code_point a, uint32_t b) { return a.value_ < b; }
+		friend constexpr bool operator < (uint32_t a, unicode_code_point b) { return a < b.value_; }
 		friend constexpr bool operator <= (unicode_code_point a, unicode_code_point b) { return !(b < a); }
+		friend constexpr bool operator <= (unicode_code_point a, uint32_t b) { return !(b < a); }
+		friend constexpr bool operator <= (uint32_t a, unicode_code_point b) { return !(b < a); }
 		friend constexpr bool operator > (unicode_code_point a, unicode_code_point b) { return b < a; }
+		friend constexpr bool operator > (unicode_code_point a, uint32_t b) { return b < a; }
+		friend constexpr bool operator > (uint32_t a, unicode_code_point b) { return b < a; }
 		friend constexpr bool operator >= (unicode_code_point a, unicode_code_point b) { return !(a < b); }
+		friend constexpr bool operator >= (unicode_code_point a, uint32_t b) { return !(a < b); }
+		friend constexpr bool operator >= (uint32_t a, unicode_code_point b) { return !(a < b); }
 
 		template <typename Traits>
 		friend std::basic_ostream<char, Traits> & operator << (std::basic_ostream<char, Traits> & os, unicode_code_point x)
