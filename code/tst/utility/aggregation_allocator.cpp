@@ -1,8 +1,8 @@
-#include <catch.hpp>
-
 #include "utility/aggregation_allocator.hpp"
 #include "utility/heap_allocator.hpp"
 #include "utility/null_allocator.hpp"
+
+#include <catch/catch.hpp>
 
 TEST_CASE("aggregation allocator (null, void, char, short, int) has default constructor", "[allocator][utility]")
 {

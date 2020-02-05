@@ -1,10 +1,9 @@
-
-#include "catch.hpp"
-
 #include "gui_access.hpp"
 
-#include <engine/gui/view_refresh.hpp>
-#include <engine/gui/update.hpp>
+#include "engine/gui/view_refresh.hpp"
+#include "engine/gui/update.hpp"
+
+#include <catch/catch.hpp>
 
 SCENARIO("Adding view (show) to already updated group.", "[gui][Visibility]")
 {

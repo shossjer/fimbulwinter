@@ -1,7 +1,6 @@
+#include "utility/optional.hpp"
 
-#include "catch.hpp"
-
-#include <utility/optional.hpp>
+#include <catch/catch.hpp>
 
 #include <array>
 

@@ -1,6 +1,6 @@
-#include <catch.hpp>
-
 #include "utility/type_traits.hpp"
+
+#include <catch/catch.hpp>
 
 TEST_CASE("common_type_unless_nonvoid", "[utility][type_traits]")
 {

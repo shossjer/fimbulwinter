@@ -1,7 +1,6 @@
-
-#include "catch.hpp"
-
 #include "core/container/Queue.hpp"
+
+#include <catch/catch.hpp>
 
 static_assert(!std::is_trivially_destructible<utility::heap_storage<int>>::value, "");
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::heap_storage<int>>>::value, "");

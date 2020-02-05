@@ -1,6 +1,5 @@
-
 #define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include <catch/catch.hpp>
 
 TEST_CASE( "Important test", "Make sure logic works" )
 {

@@ -2,6 +2,9 @@
 #ifndef UTILITY_ARRAY_HPP
 #define UTILITY_ARRAY_HPP
 
+#include <array>
+#include <cstddef>
+
 namespace utility
 {
 	template <typename T, std::size_t N>

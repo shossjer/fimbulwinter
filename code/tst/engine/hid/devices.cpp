@@ -1,11 +1,11 @@
-#include <catch.hpp>
-
 #include "config.h"
 
 #include "engine/application/config.hpp"
 #include "engine/application/window.hpp"
 #include "engine/hid/devices.hpp"
 #include "engine/hid/ui.hpp"
+
+#include <catch/catch.hpp>
 
 #if WINDOW_USE_USER32
 # include <Windows.h>

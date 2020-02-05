@@ -1,6 +1,6 @@
-#include <catch.hpp>
-
 #include "core/maths/Matrix.hpp"
+
+#include <catch/catch.hpp>
 
 namespace
 {

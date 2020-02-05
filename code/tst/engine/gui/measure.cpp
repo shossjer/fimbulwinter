@@ -1,9 +1,8 @@
-
-#include "catch.hpp"
-
 #include "gui_access.hpp"
 
-#include <engine/gui/view_refresh.hpp>
+#include "engine/gui/view_refresh.hpp"
+
+#include <catch/catch.hpp>
 
 // "refresh" hierarchy with "content updated" child (no group change)
 

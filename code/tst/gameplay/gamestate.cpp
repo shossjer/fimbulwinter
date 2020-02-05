@@ -1,5 +1,3 @@
-#include <catch.hpp>
-
 #include "config.h"
 
 #include "engine/animation/mixer.hpp"
@@ -14,6 +12,8 @@
 #include "engine/resource/reader.hpp"
 
 #include "gameplay/gamestate.hpp"
+
+#include <catch/catch.hpp>
 
 #if WINDOW_USE_USER32
 # include <Windows.h>

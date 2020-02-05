@@ -1,6 +1,6 @@
-#include <catch.hpp>
-
 #include "engine/resource/writer.hpp"
+
+#include <catch/catch.hpp>
 
 TEST_CASE("Resource writer can be created and destroyed", "[engine][resource]")
 {

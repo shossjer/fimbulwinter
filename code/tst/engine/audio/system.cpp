@@ -1,8 +1,8 @@
-#include "catch.hpp"
-
 #include "core/async/delay.hpp"
 
 #include "engine/audio/system.hpp"
+
+#include <catch/catch.hpp>
 
 TEST_CASE("Audio System can be created and destroyed", "[engine][audio]")
 {

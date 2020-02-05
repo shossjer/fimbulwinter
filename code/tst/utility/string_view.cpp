@@ -1,7 +1,6 @@
-
-#include "catch.hpp"
-
 #include "utility/string_view.hpp"
+
+#include <catch/catch.hpp>
 
 #include <sstream>
 
