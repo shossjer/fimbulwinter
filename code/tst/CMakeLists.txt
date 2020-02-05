@@ -49,6 +49,7 @@ set(FILES_UTILITY
 	tst/utility/property.cpp
 	tst/utility/ranges.cpp
 	tst/utility/storing.cpp
+	tst/utility/string.cpp
 	tst/utility/string_view.cpp
 	tst/utility/type_info.cpp
 	tst/utility/type_traits.cpp

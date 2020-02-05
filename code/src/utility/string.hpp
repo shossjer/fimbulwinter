@@ -146,6 +146,10 @@ namespace utility
 		using reference = typename const_iterator::reference; // todo non const
 		using const_reference = typename const_iterator::reference;
 		using size_type = typename const_iterator::size_type;
+	private:
+
+		struct other_offset {};
+		struct other_substr {};
 
 	private:
 		const_pointer ptr_;
@@ -162,10 +166,28 @@ namespace utility
 			: ptr_(s)
 			, size_(encoding_traits::next(s, std::forward<Count>(count)))
 		{}
+		template <typename Position>
+		constexpr basic_string_view(const this_type & other, Position && position)
+			: basic_string_view(other_offset{}, other, encoding_traits::next(other.data(), std::forward<Position>(position)))
+		{}
+		template <typename Position, typename Count>
+		constexpr basic_string_view(const this_type & other, Position && position, Count && count)
+			: basic_string_view(other_substr{}, other, encoding_traits::next(other.data(), std::forward<Position>(position)), std::forward<Count>(count))
+		{}
 		template <typename StorageTraits>
 		basic_string_view(const basic_string<StorageTraits, Encoding> & str)
 			: ptr_(str.data())
 			, size_(str.size())
+		{}
+	private:
+		basic_string_view(other_offset, const this_type & other, std::size_t position)
+			: ptr_(other.data() + position)
+			, size_(other.size_ - position)
+		{}
+		template <typename Count>
+		basic_string_view(other_substr, const this_type & other, std::size_t position, Count && count)
+			: ptr_(other.data() + position)
+			, size_(encoding_traits::next(other.data() + position, std::forward<Count>(count)))
 		{}
 
 	public:
@@ -226,6 +248,24 @@ namespace utility
 			return s ? compare_impl(compare_data(ptr_ + pos1, s, std::min(count1, count2)),
 			                        count1,
 			                        count2) : count1 != 0;
+		}
+
+		constexpr difference_type find(code_unit c) const
+		{
+			return encoding_traits::difference(ptr_, ext::strfind(ptr_, ptr_ + size_, c));
+		}
+		template <typename Count>
+		constexpr difference_type find(code_unit c, Count && from) const
+		{
+			return encoding_traits::difference(ptr_,
+			                                   ext::strfind(ptr_ + encoding_traits::next(ptr_,
+			                                                                             std::forward<Count>(from)),
+			                                                ptr_ + size_,
+			                                                c));
+		}
+		constexpr difference_type rfind(code_unit c) const
+		{
+			return encoding_traits::difference(ptr_, ext::strrfind(ptr_, ptr_ + size_, c));
 		}
 	private:
 		static constexpr int compare_data(const_pointer a, const_pointer b, std::ptrdiff_t count)
@@ -516,6 +556,9 @@ namespace utility
 		basic_string(const code_unit * s, Count && count)
 			: basic_string(copy_str{}, s, encoding_traits::next(s, std::forward<Count>(count)))
 		{}
+		basic_string(const basic_string_view<Encoding> & v)
+			: basic_string(copy_str{}, v.data(), encoding_traits::next(v.data(), v.length()))
+		{}
 		template <typename Position>
 		basic_string(const this_type & other, Position && position)
 			: basic_string(other_offset{}, other, encoding_traits::next(other.data(), std::forward<Position>(position)))
@@ -646,6 +689,10 @@ namespace utility
 		{
 			return try_append_impl(copy_str{}, s, encoding_traits::next(s, std::forward<Count>(count)));
 		}
+		bool try_append(const basic_string_view<Encoding> & v)
+		{
+			return try_append_impl(copy_str{}, v.data(), encoding_traits::next(v.data(), v.length()));
+		}
 		bool try_append(const this_type & other)
 		{
 			return try_append_impl(copy_str{}, other.data(), other.data_.array_.size_without_null());
@@ -665,7 +712,10 @@ namespace utility
 			                       encoding_traits::next(other.data(), std::forward<Position>(position)),
 			                       std::forward<Count>(count));
 		}
+		template <typename Character>
+		this_type & operator += (Character && character) { try_append(std::forward<Character>(character)); return *this; }
 		this_type & operator += (const code_unit * s) { try_append(s); return *this; }
+		this_type & operator += (const basic_string_view<Encoding> & v) { try_append(v); return *this; }
 		this_type & operator += (const this_type & other) { try_append(other); return *this; }
 
 		template <typename Count>
@@ -676,6 +726,28 @@ namespace utility
 		}
 
 		int compare(const code_unit * s) const { return compare_data(data(), s); }
+
+		difference_type find(code_unit c) const
+		{
+			return encoding_traits::difference(data(), ext::strfind(data(),
+			                                                        data() + data_.array_.size_without_null(),
+			                                                        c));
+		}
+		template <typename Count>
+		difference_type find(code_unit c, Count && from) const
+		{
+			return encoding_traits::difference(data(),
+			                                   ext::strfind(data() + encoding_traits::next(data(),
+			                                                                               std::forward<Count>(from)),
+			                                                data() + data_.array_.size_without_null(),
+			                                                c));
+		}
+		difference_type rfind(code_unit c) const
+		{
+			return encoding_traits::difference(data(), ext::strrfind(data(),
+			                                                         data() + data_.array_.size_without_null(),
+			                                                         c));
+		}
 	private:
 		bool try_append_impl(copy_char, code_unit c, int) { return try_append_impl(copy_str{}, &c, 1); }
 		bool try_append_impl(copy_char, code_point cp, ...)
@@ -729,9 +801,29 @@ namespace utility
 		}
 
 	public:
-		friend this_type operator + (const this_type & x, const value_type * s) { return this_type(x.data(), x.data_.array_.size_without_null(), s, std::strlen(s)); }
-		friend this_type operator + (const this_type & x, const this_type & other) { return this_type(x.data(), x.data_.array_.size_without_null(), other.data(), other.data_.array_.size_without_null()); }
-		friend this_type operator + (const value_type * s, const this_type & x) { return this_type(s, std::strlen(s), x.data(), x.data_.array_.size_without_null()); }
+		friend this_type operator + (const this_type & x, const this_type & other)
+		{
+			return this_type(x.data(),
+			                 x.data_.array_.size_without_null(),
+			                 other.data(),
+			                 other.data_.array_.size_without_null());
+		}
+		friend this_type operator + (const this_type & x, const value_type * s)
+		{
+			return this_type(x.data(), x.data_.array_.size_without_null(), s, ext::strlen(s));
+		}
+		friend this_type operator + (const this_type & x, const basic_string_view<Encoding> & v)
+		{
+			return this_type(x.data(), x.data_.array_.size_without_null(), v.data(), v.size());
+		}
+		friend this_type operator + (const value_type * s, const this_type & x)
+		{
+			return this_type(s, ext::strlen(s), x.data(), x.data_.array_.size_without_null());
+		}
+		friend this_type operator + (const basic_string_view<Encoding> & v, const this_type & x)
+		{
+			return this_type(v.data(), v.size(), x.data(), x.data_.array_.size_without_null());
+		}
 		friend this_type && operator + (this_type && x, const this_type & other)
 		{
 			x.try_append(other);
@@ -742,16 +834,39 @@ namespace utility
 			x.try_append(s);
 			return std::move(x);
 		}
+		friend this_type && operator + (this_type && x, const basic_string_view<Encoding> & v)
+		{
+			x.try_append(v);
+			return std::move(x);
+		}
 
-		friend bool operator == (const this_type & x, const value_type * s) { return compare_data(x.data(), s) == 0; }
-		friend bool operator == (const this_type & x, const this_type & other) { return compare_data(x.data(), other.data()) == 0; }
-		friend bool operator == (const value_type * s, const this_type & x) { return compare_data(s, x.data()) == 0; }
+		friend bool operator == (const this_type & x, const value_type * s)
+		{
+			return compare_data(x.data(), s) == 0;
+		}
+		friend bool operator == (const this_type & x, const this_type & other)
+		{
+			return compare_data(x.data(), other.data()) == 0;
+		}
+		friend bool operator == (const value_type * s, const this_type & x)
+		{
+			return compare_data(s, x.data()) == 0;
+		}
 		friend bool operator != (const this_type & x, const value_type * s) { return !(x == s); }
 		friend bool operator != (const this_type & x, const this_type & other) { return !(x == other); }
 		friend bool operator != (const value_type * s, const this_type & x) { return !(s == x); }
-		friend bool operator < (const this_type & x, const value_type * s) { return compare_data(x.data(), s) < 0; }
-		friend bool operator < (const this_type & x, const this_type & other) { return compare_data(x.data(), other.data()) < 0; }
-		friend bool operator < (const value_type * s, const this_type & x) { return compare_data(s, x.data()) < 0; }
+		friend bool operator < (const this_type & x, const value_type * s)
+		{
+			return compare_data(x.data(), s) < 0;
+		}
+		friend bool operator < (const this_type & x, const this_type & other)
+		{
+			return compare_data(x.data(), other.data()) < 0;
+		}
+		friend bool operator < (const value_type * s, const this_type & x)
+		{
+			return compare_data(s, x.data()) < 0;
+		}
 		friend bool operator <= (const this_type & x, const value_type * s) { return !(s < x); }
 		friend bool operator <= (const this_type & x, const this_type & other) { return !(other < x); }
 		friend bool operator <= (const value_type * s, const this_type & x) { return !(x < s); }
