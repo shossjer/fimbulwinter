@@ -131,6 +131,7 @@ set(HEADERS_UTILITY
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
 	src/utility/crypto/crc.hpp
+	src/utility/ext/stddef.hpp
 	src/utility/encoding_traits.hpp
 	src/utility/functional.hpp
 	src/utility/heap_allocator.hpp
