@@ -135,7 +135,7 @@ namespace std
 	{
 		std::size_t operator () (const engine::Asset asset) const
 		{
-			return asset;
+			return static_cast<std::size_t>(asset);
 		}
 	};
 }

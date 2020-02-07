@@ -66,12 +66,12 @@ namespace core
 			return 0;
 		}
 
-		void read_bytes(char * ptr, int64_t size)
+		void read_bytes(char * ptr, ext::usize size)
 		{
 			if (!debug_verify(!stream.done()))
 				return; // todo error
 
-			const int64_t amount_read = stream.read_all(ptr, size);
+			const ext::usize amount_read = stream.read_all(ptr, size);
 			if (amount_read < size)
 			{
 				debug_printline("warning: eof while reading '", stream.filepath(), "'"); // todo error

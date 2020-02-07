@@ -107,7 +107,7 @@ namespace
 		{
 			file.read(static_cast<char *>(dest), n);
 
-			return file.gcount() ? file.gcount() : ext::ssize(-1);
+			return file.gcount() ? static_cast<ext::ssize>(file.gcount()) : ext::ssize(-1);
 		}
 	};
 

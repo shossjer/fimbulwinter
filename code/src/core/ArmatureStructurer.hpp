@@ -138,7 +138,7 @@ namespace core
 			read_bytes(reinterpret_cast<char *>(&byte), sizeof(uint8_t));
 		}
 
-		void read_bytes(char * ptr, int64_t size)
+		void read_bytes(char * ptr, ext::usize size)
 		{
 			if (!debug_verify(!read_stream_.done()))
 				return; // todo error
