@@ -49,7 +49,7 @@ namespace
 	{
 		int type;
 		std::string path;
-		std::string name;
+		utility::heap_string_utf8 name;
 	};
 
 	std::vector<Device> devices;
@@ -487,7 +487,7 @@ namespace
 		int id;
 		int type;
 		std::string path;
-		std::string name;
+		utility::heap_string_utf8 name;
 	};
 
 	struct RemoveSource
@@ -980,9 +980,9 @@ namespace hid
 		debug_assert(res);
 	}
 
-	void notify_add_source(ui &, int id, std::string && path, int type, std::string && name)
+	void notify_add_source(ui &, int id, std::string && path, int type, utility::string_view_utf8 name)
 	{
-		const auto res = queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), std::move(name));
+		const auto res = queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), utility::heap_string_utf8(name));
 		debug_assert(res);
 	}
 

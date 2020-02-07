@@ -14,7 +14,7 @@ namespace engine
 	{
 		extern void buildFont(window & window, HFONT hFont, DWORD count, DWORD listBase);
 		extern void freeFont(window & window, HFONT hFont);
-		extern HFONT loadFont(window & window, const char * name, int height);
+		extern HFONT loadFont(window & window, utility::string_view_utf8 name, int height);
 	}
 }
 
@@ -62,7 +62,7 @@ namespace engine
 				this->hFont = nullptr;
 			}
 
-			bool Font::Data::load(engine::application::window & window, const char * name, int height)
+			bool Font::Data::load(engine::application::window & window, utility::string_view_utf8 name, int height)
 			{
 				debug_assert(this->hFont == nullptr);
 

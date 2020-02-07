@@ -7,6 +7,8 @@
 #include "engine/application/config.hpp"
 #include "engine/debug.hpp"
 
+#include "utility/unicode.hpp"
+
 #include <windowsx.h>
 #include <windows.h>
 #if HAVE_VERSIONHELPERS_H
@@ -76,7 +78,7 @@ namespace
 			{
 				process_input(*::devices, reinterpret_cast<HRAWINPUT>(lParam));
 			}
-			return DefWindowProc(hWnd_, msg, wParam, lParam);
+			return DefWindowProcW(hWnd_, msg, wParam, lParam);
 		case WM_INPUT_DEVICE_CHANGE:
 			switch (wParam)
 			{
@@ -138,7 +140,7 @@ namespace
 			break;
 
 		default:
-			return DefWindowProc(hWnd_, msg, wParam, lParam);
+			return DefWindowProcW(hWnd_, msg, wParam, lParam);
 		}
 		return 0;
 	}
@@ -148,10 +150,10 @@ namespace
 	{
 		MSG msg;
 
-		while (GetMessage(&msg, nullptr, 0, 0)) // while the message isn't 'WM_QUIT'
+		while (GetMessageW(&msg, nullptr, 0, 0)) // while the message isn't 'WM_QUIT'
 		{
 			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			DispatchMessageW(&msg);
 		}
 		return (int)msg.wParam;
 	}
@@ -192,7 +194,7 @@ namespace engine
 
 			ReleaseDC(hWnd, hDC);
 			DestroyWindow(hWnd);
-			UnregisterClass("Tribunal Window Class Name", cast(hInstance_));
+			UnregisterClassW(L"Tribunal Window Class Name", cast(hInstance_));
 
 			::ui = nullptr;
 			::devices = nullptr;
@@ -219,26 +221,26 @@ namespace engine
 			                             0,
 			                             0,
 			                             cast(hInstance),
-			                             LoadIcon(0, IDI_APPLICATION),
-			                             LoadCursor(nullptr, IDC_ARROW),
+			                             LoadIconW(0, IDI_APPLICATION),
+			                             LoadCursorW(nullptr, IDC_ARROW),
 			                             (HBRUSH)COLOR_WINDOW,
 			                             0,
-			                             "Tribunal Window Class Name",
-			                             LoadIcon(cast(hInstance), IDI_APPLICATION)};
-			RegisterClassEx(&WndClass);
+			                             L"Tribunal Window Class Name",
+			                             LoadIconW(cast(hInstance), IDI_APPLICATION)};
+			RegisterClassExW(&WndClass);
 			// create window
-			::hWnd = CreateWindowEx(WS_EX_CLIENTEDGE,
-			                        "Tribunal Window Class Name",
-			                        "Tribunal",
-			                        WS_OVERLAPPEDWINDOW,
-			                        CW_USEDEFAULT,
-			                        CW_USEDEFAULT,
-			                        config.window_width,
-			                        config.window_height,
-			                        0,
-			                        0,
-			                        cast(hInstance),
-			                        0);
+			::hWnd = CreateWindowExW(WS_EX_CLIENTEDGE,
+			                         L"Tribunal Window Class Name",
+			                         L"Tribunal \U00010348 \u2603",
+			                         WS_OVERLAPPEDWINDOW,
+			                         CW_USEDEFAULT,
+			                         CW_USEDEFAULT,
+			                         config.window_width,
+			                         config.window_height,
+			                         0,
+			                         0,
+			                         cast(hInstance),
+			                         0);
 			// create window graphics
 			::hDC = GetDC(::hWnd);
 
@@ -321,22 +323,22 @@ namespace engine
 			DeleteObject(hFont);
 		}
 
-		HFONT loadFont(window & /*window*/, const char * name, int height)
+		HFONT loadFont(window & /*window*/, utility::string_view_utf8 name, int height)
 		{
-			return CreateFont(height,
-			                  0,
-			                  0,
-			                  0,
-			                  FW_DONTCARE,
-			                  FALSE,
-			                  FALSE,
-			                  FALSE,
-			                  DEFAULT_CHARSET,
-			                  OUT_OUTLINE_PRECIS,
-			                  CLIP_DEFAULT_PRECIS,
-			                  5, // CLEARTYPE_QUALITY,
-			                  VARIABLE_PITCH,
-			                  TEXT(name));
+			return CreateFontW(height,
+			                   0,
+			                   0,
+			                   0,
+			                   FW_DONTCARE,
+			                   FALSE,
+			                   FALSE,
+			                   FALSE,
+			                   DEFAULT_CHARSET,
+			                   OUT_OUTLINE_PRECIS,
+			                   CLIP_DEFAULT_PRECIS,
+			                   5, // CLEARTYPE_QUALITY,
+			                   VARIABLE_PITCH,
+			                   utility::heap_widen(name).data());
 		}
 #endif
 
@@ -347,7 +349,7 @@ namespace engine
 
 		void close()
 		{
-			PostMessage(hWnd, WM_CLOSE, 0, 0);
+			PostMessageW(hWnd, WM_CLOSE, 0, 0);
 		}
 	}
 }

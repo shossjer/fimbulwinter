@@ -9,6 +9,7 @@
 
 #include "utility/ranges.hpp"
 #include "utility/string.hpp"
+#include "utility/unicode.hpp"
 
 #if INPUT_HAS_USER32_RAWINPUT
 # include <vector>
@@ -48,7 +49,7 @@ namespace engine
 		extern void found_device(int id, int vendor, int product);
 		extern void lost_device(int id);
 
-		extern void add_source(int id, const char * path, int type, const char * name);
+		extern void add_source(int id, const char * path, int type, utility::string_view_utf8 name);
 		extern void remove_source(int id, const char * path);
 
 		extern void dispatch(const Input & input);
@@ -364,18 +365,20 @@ namespace engine
 		{
 			debug_assert(std::find_if(::devices.begin(), ::devices.end(), [&handle](const Device & device){ return device.handle == handle; }) == ::devices.end(), "device has already been added!");
 
-			char name[256] = "Unknown";
+			utility::static_string_utf8<256> name = "Unknown (try_narrow failed)";
 			{
-				UINT len = sizeof name;
-				const auto ret = GetRawInputDeviceInfo(handle, RIDI_DEVICENAME, name, &len);
+				wchar_t namew[256] = L"Unknown (buffer too small)";
+				UINT len = sizeof namew;
+				const auto ret = GetRawInputDeviceInfoW(handle, RIDI_DEVICENAME, namew, &len);
 				debug_assert(ret >= UINT(0), "buffer too small, expected ", len);
+				debug_verify(utility::try_narrow(namew, name));
 			}
 
 			RID_DEVICE_INFO rdi;
 			{
 				rdi.cbSize = sizeof rdi;
 				UINT len = sizeof rdi;
-				debug_verify(GetRawInputDeviceInfo(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
+				debug_verify(GetRawInputDeviceInfoW(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
 			}
 
 			::devices.emplace_back(handle);
@@ -405,9 +408,9 @@ namespace engine
 
 				PHIDP_PREPARSED_DATA preparsed_data = nullptr;
 				UINT len;
-				debug_verify(GetRawInputDeviceInfo(handle, RIDI_PREPARSEDDATA, nullptr, &len) == 0);
+				debug_verify(GetRawInputDeviceInfoW(handle, RIDI_PREPARSEDDATA, nullptr, &len) == 0);
 				std::vector<BYTE> bytes(len); // todo alignment
-				debug_verify(GetRawInputDeviceInfo(handle, RIDI_PREPARSEDDATA, bytes.data(), &len) == bytes.size());
+				debug_verify(GetRawInputDeviceInfoW(handle, RIDI_PREPARSEDDATA, bytes.data(), &len) == bytes.size());
 				preparsed_data = reinterpret_cast<PHIDP_PREPARSED_DATA>(bytes.data());
 
 				HIDP_CAPS caps;

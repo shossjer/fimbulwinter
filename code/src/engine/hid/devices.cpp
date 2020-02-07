@@ -13,7 +13,7 @@ namespace engine
 		extern void notify_device_found(ui & ui, int id);
 		extern void notify_device_lost(ui & ui, int id);
 
-		extern void notify_add_source(ui & ui, int id, std::string && path, int type, std::string && name);
+		extern void notify_add_source(ui & ui, int id, std::string && path, int type, utility::string_view_utf8 name);
 		extern void notify_remove_source(ui & ui, int id, std::string && path);
 
 		extern void notify_input(ui & ui, const engine::hid::Input & input);
@@ -79,7 +79,7 @@ namespace engine
 			notify_device_lost(*::ui, id);
 		}
 
-		void add_source(int id, const char * path, int type, const char * name)
+		void add_source(int id, const char * path, int type, utility::string_view_utf8 name)
 		{
 			notify_add_source(*::ui, id, path, type, name);
 		}

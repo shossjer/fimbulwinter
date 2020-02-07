@@ -16,7 +16,7 @@ namespace engine
 	{
 		extern void buildFont(window & window, XFontStruct * font_struct, unsigned int first, unsigned int last, int base);
 		extern void freeFont(window & window, XFontStruct * font_struct);
-		extern XFontStruct * loadFont(window & window, const char * name, int height);
+		extern XFontStruct * loadFont(window & window, utility::string_view_utf8 name, int height);
 	}
 }
 
@@ -59,7 +59,7 @@ namespace engine
 				this->font_struct = nullptr;
 			}
 
-			bool Font::Data::load(engine::application::window & window, const char * name, int height)
+			bool Font::Data::load(engine::application::window & window, utility::string_view_utf8 name, int height)
 			{
 				debug_assert(this->font_struct == nullptr);
 

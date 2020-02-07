@@ -112,16 +112,16 @@ namespace
 
 #if WINDOW_USE_USER32
 # if MODE_DEBUG
-int main(const int argc, const char *const argv[])
+int wmain(int argc, wchar_t * argv[], wchar_t * envp[])
 {
-	HINSTANCE hInstance = GetModuleHandle(nullptr);
+	HINSTANCE hInstance = GetModuleHandleW(nullptr);
 	int nCmdShow = SW_SHOW;
 
 	debug_assert(hInstance);
 	if (hInstance == nullptr)
 		return -1;
 # else
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*pCmdLine*/, int nCmdShow)
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*pCmdLine*/, int nCmdShow)
 {
 # endif
 	engine::resource::reader reader;
