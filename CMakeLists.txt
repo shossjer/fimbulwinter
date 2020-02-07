@@ -34,6 +34,11 @@ set(private_compile_options
 		/W4 /WX>
 	)
 
+set(private_compile_definitions
+	$<$<CXX_COMPILER_ID:MSVC>:
+		UNICODE _UNICODE>
+	)
+
 if (MSVC)
   set(CMAKE_CXX_FLAGS_DEBUG
 	 "${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"

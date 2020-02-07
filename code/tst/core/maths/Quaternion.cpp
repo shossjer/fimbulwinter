@@ -1,7 +1,6 @@
+#include "core/maths/Quaternion.hpp"
 
-#include "catch.hpp"
-
-#include <core/maths/Quaternion.hpp>
+#include <catch/catch.hpp>
 
 namespace
 {

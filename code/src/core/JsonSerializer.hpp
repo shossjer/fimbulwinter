@@ -4,6 +4,7 @@
 
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
+#include "core/WriteStream.hpp"
 
 #include "utility/json.hpp"
 
@@ -14,27 +15,29 @@ namespace core
 	class JsonSerializer
 	{
 	private:
-		json root;
-
-		std::string filename;
+		core::WriteStream stream;
 
 	public:
-		JsonSerializer(std::string filename)
-			: filename(std::move(filename))
+		JsonSerializer(core::WriteStream && stream)
+			: stream(std::move(stream))
 		{}
 
 	public:
 		template <typename T>
 		void write(const T & x)
 		{
+			json root;
 			write_object(root, x);
+
+			const std::string dump = root.dump(4) + "\n";
+			stream.write(dump.data(), dump.size());
 		}
 
-		std::string get() const
-		{
-			return root.dump(4) + "\n";
-		}
 	private:
+		void write_(json & j, const bool & x)
+		{
+			write_bool(j, x);
+		}
 		void write_(json & j, const int & x)
 		{
 			write_number(j, x);
@@ -52,6 +55,11 @@ namespace core
 		void write_(json & j, const T & x)
 		{
 			write_object(j, x);
+		}
+
+		void write_bool(json & j, const bool & x)
+		{
+			j = x;
 		}
 
 		void write_number(json & j, const int & x)

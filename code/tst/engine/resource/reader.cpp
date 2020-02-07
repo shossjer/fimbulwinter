@@ -1,6 +1,6 @@
-#include <catch.hpp>
-
 #include "engine/resource/reader.hpp"
+
+#include <catch/catch.hpp>
 
 TEST_CASE("Resource reader can be created and destroyed", "[engine][resource]")
 {

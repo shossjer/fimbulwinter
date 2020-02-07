@@ -1,7 +1,6 @@
-
-#include "catch.hpp"
-
 #include "utility/unicode.hpp"
+
+#include <catch/catch.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -154,39 +153,6 @@ TEST_CASE("string views", "[utility][unicode]")
 			CHECK(v <= v);
 			CHECK_FALSE(v > v);
 			CHECK(v >= v);
-		}
-
-		SECTION("to nullptr")
-		{
-			CHECK_FALSE(v == nullptr);
-			CHECK(v != nullptr);
-			CHECK_FALSE(v < nullptr);
-			CHECK_FALSE(v <= nullptr);
-			CHECK(v > nullptr);
-			CHECK(v >= nullptr);
-
-			CHECK_FALSE(nullptr == v);
-			CHECK(nullptr != v);
-			CHECK(nullptr < v);
-			CHECK(nullptr <= v);
-			CHECK_FALSE(nullptr > v);
-			CHECK_FALSE(nullptr >= v);
-
-			const utility::encoding_utf8::code_unit * const null = nullptr;
-
-			CHECK_FALSE(v == null);
-			CHECK(v != null);
-			CHECK_FALSE(v < null);
-			CHECK_FALSE(v <= null);
-			CHECK(v > null);
-			CHECK(v >= null);
-
-			CHECK_FALSE(null == v);
-			CHECK(null != v);
-			CHECK(null < v);
-			CHECK(null <= v);
-			CHECK_FALSE(null > v);
-			CHECK_FALSE(null >= v);
 		}
 
 		SECTION("to empty string views")
@@ -693,3 +659,78 @@ TEST_CASE("ostream string types", "[utility][unicode]")
 		CHECK(std::strcmp(os.str().c_str(), snowman) == 0);
 	}
 }
+
+TEST_CASE("the size of a utf8 string", "[encoding][string][unicode][utility]")
+{
+	constexpr utility::string_view_utf8 utf8 = u8"\u0024\u00f6\u2603\U00010348";
+
+	SECTION("in encoding utf8")
+	{
+		CHECK(utility::size<utility::encoding_utf8>(utf8) == 10);
+	}
+
+	SECTION("in encoding utf16")
+	{
+		CHECK(utility::size<utility::encoding_utf16>(utf8) == 5);
+	}
+
+	SECTION("in encoding utf32")
+	{
+		CHECK(utility::size<utility::encoding_utf32>(utf8) == 4);
+	}
+
+#if defined(_MSC_VER) && defined(_UNICODE)
+	SECTION("in encoding utfw")
+	{
+		CHECK(utility::size<utility::encoding_utfw>(utf8) == 5);
+	}
+#endif
+}
+
+#if defined(_MSC_VER) && defined(_UNICODE)
+TEST_CASE("", "")
+{
+	constexpr utility::string_view_utf8 utf8 = u8"\u0024\u00f6\u2603\U00010348";
+
+	/*constexpr*/ auto utfw = utility::static_widen<6>(utf8);
+
+	CHECK(utility::point_difference(utf8.length()) == utility::point_difference(utfw.length()));
+
+	auto utf8_beg = utf8.begin();
+	auto utfw_beg = utfw.begin();
+	for (; utf8_beg != utf8.end() && utfw_beg != utfw.end(); ++utf8_beg, ++utfw_beg)
+	{
+		CHECK(*utf8_beg == *utfw_beg);
+	}
+	CHECK(utf8_beg == utf8.end());
+	CHECK(utfw_beg == utfw.end());
+}
+
+TEST_CASE("", "")
+{
+	constexpr utility::string_view_utf8 utf8 = u8"\u0024\u00f6\u2603\U00010348";
+
+	/*constexpr*/ auto utfw = utility::heap_widen(utf8);
+
+	CHECK(utility::point_difference(utf8.length()) == utility::point_difference(utfw.length()));
+
+	auto utf8_beg = utf8.begin();
+	auto utfw_beg = utfw.begin();
+	for (; utf8_beg != utf8.end() && utfw_beg != utfw.end(); ++utf8_beg, ++utfw_beg)
+	{
+		CHECK(*utf8_beg == *utfw_beg);
+	}
+	CHECK(utf8_beg == utf8.end());
+	CHECK(utfw_beg == utfw.end());
+}
+
+TEST_CASE("", "")
+{
+	constexpr utility::string_view_utf8 utf8 = u8"\u0024\u00f6\u2603\U00010348";
+
+	/*constexpr*/ auto utfw = utility::static_widen<6>(utf8);
+	/*constexpr*/ auto round_trip = utility::static_narrow<11, utility::encoding_utf8>(utfw);
+
+	CHECK(utf8 == round_trip);
+}
+#endif

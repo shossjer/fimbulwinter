@@ -1,8 +1,8 @@
+#include "core/maths/Vector.hpp"
 
-#include "catch.hpp"
+#include "utility/type_traits.hpp"
 
-#include <core/maths/Vector.hpp>
-#include <utility/type_traits.hpp>
+#include <catch/catch.hpp>
 
 namespace
 {

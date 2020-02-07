@@ -14,12 +14,17 @@ namespace utility
 		using code_unit = T;
 		using code_point = T;
 
+		using difference_type = std::ptrdiff_t;
+
 		static constexpr code_point & dereference(code_unit * p) { return *p; }
 		static constexpr const code_point & dereference(const code_unit * p) { return *p; }
 
+		template <typename Char>
+		static constexpr std::size_t size(code_point) { return 1; }
 		static constexpr std::size_t max_size() { return 1; }
 
-		static constexpr std::ptrdiff_t get(code_point cp, code_unit * buffer) { *buffer = cp; return 1; }
+		template <typename Char>
+		static constexpr auto get(code_point cp, Char * buffer) -> decltype(*buffer = cp, std::ptrdiff_t()) { *buffer = cp; return 1; }
 
 		static constexpr std::ptrdiff_t next(const code_unit *) { return 1; }
 		static constexpr std::ptrdiff_t next(const code_unit *, std::ptrdiff_t count) { return count; }
@@ -28,6 +33,8 @@ namespace utility
 		static constexpr std::ptrdiff_t previous(const code_unit *, std::ptrdiff_t count) { return count; }
 
 		static constexpr std::ptrdiff_t count(const code_unit * begin, const code_unit * end) { return end - begin; }
+
+		static constexpr difference_type difference(const code_unit * begin, const code_unit * end) { return end - begin; }
 	};
 	template <typename T>
 	struct encoding_traits_impl<T, false /*trivial encoding type*/>
@@ -35,59 +42,30 @@ namespace utility
 		using code_unit = typename T::code_unit;
 		using code_point = typename T::code_point;
 
-		static constexpr code_point dereference(const code_unit * p) { return code_point(p); }
+		using difference_type = typename T::difference_type;
 
+		static constexpr code_point dereference(const code_unit * p) { return code_point(p); } // todo T::dereference
+
+		template <typename Char>
+		static constexpr std::size_t size(code_point cp) { return cp.template size<Char>(); } // todo T::size
 		static constexpr std::size_t max_size() { return T::max_size(); }
 
-		static constexpr std::ptrdiff_t  get(code_point cp, code_unit * buffer) { return cp.get(buffer); }
+		template <typename Char>
+		static constexpr std::ptrdiff_t get(code_point cp, Char * buffer) { return cp.get(buffer); } // todo T::get
 
-		static constexpr std::ptrdiff_t next(const code_unit * s) { return code_point::next(s); }
+		static constexpr std::ptrdiff_t next(const code_unit * s) { return code_point::next(s); } // todo T::next
 		template <typename Count>
-		static constexpr std::ptrdiff_t next(const code_unit * s, Count && count) { return code_point::next(s, std::forward<Count>(count)); }
+		static constexpr std::ptrdiff_t next(const code_unit * s, Count && count) { return code_point::next(s, std::forward<Count>(count)); } // todo T::next
 
-		static constexpr std::ptrdiff_t previous(const code_unit * s) { return code_point::previous(s); }
+		static constexpr std::ptrdiff_t previous(const code_unit * s) { return code_point::previous(s); } // todo T::previous
 		template <typename Count>
-		static constexpr std::ptrdiff_t previous(const code_unit * s, Count && count) { return code_point::previous(s, std::forward<Count>(count)); }
+		static constexpr std::ptrdiff_t previous(const code_unit * s, Count && count) { return code_point::previous(s, std::forward<Count>(count)); } // todo T::previous
 
-		static constexpr std::ptrdiff_t count(const code_unit * begin, const code_unit * end) { return code_point::count(begin, end); }
+		static constexpr std::ptrdiff_t count(const code_unit * begin, const code_unit * end) { return code_point::count(begin, end); } // todo T::count
+
+		static constexpr difference_type difference(const code_unit * begin, const code_unit * end) { return T::difference(begin, end); }
 	};
 
 	template <typename T>
 	using encoding_traits = encoding_traits_impl<T>;
-
-	struct point_difference : Arithmetic<point_difference, std::ptrdiff_t>
-	{
-		using Arithmetic<point_difference, std::ptrdiff_t>::Arithmetic;
-	};
-
-	struct unit_difference : Arithmetic<unit_difference, std::ptrdiff_t>
-	{
-		using Arithmetic<unit_difference, std::ptrdiff_t>::Arithmetic;
-	};
-
-	template <typename Encoding>
-	class lazy_difference
-	{
-		using encoding_traits = encoding_traits<Encoding>;
-
-		using code_unit = typename encoding_traits::code_unit;
-	private:
-		const code_unit * begin_;
-		const code_unit * end_;
-
-	public:
-		constexpr lazy_difference(const code_unit * begin, const code_unit * end)
-			: begin_(begin)
-			, end_(end)
-		{}
-
-	public:
-		constexpr operator point_difference () const
-		{
-			if (end_ < begin_)
-				return point_difference(-encoding_traits::count(end_, begin_));
-			return point_difference(encoding_traits::count(begin_, end_));
-		}
-		constexpr operator unit_difference () const { return unit_difference(end_ - begin_); }
-	};
 }

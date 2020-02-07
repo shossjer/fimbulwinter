@@ -41,13 +41,20 @@ namespace core
 			{
 				return func(key, std::forward<P>(p));
 			}
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+			// C4702 - unreachable code
+#endif
 			template <typename F, typename K, typename P>
 			auto call_impl_func(F && func, K /*key*/, P && p) ->
 				decltype(func(std::forward<P>(p)))
 			{
 				return func(std::forward<P>(p));
 			}
-
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 
 			using bucket_t = uint32_t;
 
@@ -328,7 +335,7 @@ namespace core
 			bucket_t place(Key key)
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (!slots[bucket].empty()) // ... this bucket is not empty!
 				{
@@ -344,7 +351,7 @@ namespace core
 			bucket_t find(Key key) const
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (slots[bucket].empty() || // ... this bucket is empty, or
 				       keys[bucket] != key) // ... this is not the right one!
@@ -407,6 +414,11 @@ namespace core
 				array.remove_at(index);
 			}
 
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+			// C4702 - unreachable code
+#endif
 			template <typename F>
 			auto call_impl(mpl::index_constant<std::size_t(-1)>, Key key, uint24_t /*index*/, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<component_types> &>()))
@@ -425,6 +437,9 @@ namespace core
 
 				return detail::call_impl_func(std::forward<F>(func), key, array.get(index));
 			}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 		};
 
 		/**
@@ -729,7 +744,7 @@ namespace core
 					return maybe_bucket;
 
 				auto bucket = hash(key);
-				int count = 0; // debug count that asserts if taken too many steps
+				debug_expression(int count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (!slots[bucket].empty()) // ... this bucket is not empty!
 				{
@@ -745,7 +760,7 @@ namespace core
 			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
-				int count = 0; // debug count that asserts if taken too many steps
+				debug_expression(int count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (slots[bucket].empty() || // ... this bucket is empty, or
 				       keys[bucket] != key) // ... this is not the right one!
@@ -810,6 +825,11 @@ namespace core
 				remove_impl(bucket, mpl::index_sequence<types...>{});
 			}
 
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+			// C4702 - unreachable code
+#endif
 			template <typename F>
 			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, bucket_t /*bucket*/, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
@@ -819,6 +839,9 @@ namespace core
 				// we should never get here
 				return detail::call_impl_func(std::forward<F>(func), key, *reinterpret_cast<mpl::car<Cs...> *>(0));
 			}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 			template <std::size_t type, typename F>
 			auto call_impl(mpl::index_constant<type>, K key, bucket_t bucket, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
@@ -1099,7 +1122,7 @@ namespace core
 			bucket_t place(K key)
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (!slots[bucket].empty()) // ... this bucket is not empty!
 				{
@@ -1115,7 +1138,7 @@ namespace core
 			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (slots[bucket].empty() || // ... this bucket is empty, or
 				       keys[bucket] != key) // ... this is not the right one!

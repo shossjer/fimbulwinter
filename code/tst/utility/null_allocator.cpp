@@ -1,6 +1,6 @@
-#include <catch.hpp>
-
 #include "utility/null_allocator.hpp"
+
+#include <catch/catch.hpp>
 
 TEST_CASE("null allocator has default constructor", "[allocator][utility]")
 {

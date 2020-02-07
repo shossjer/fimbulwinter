@@ -151,6 +151,15 @@ namespace
 		{
 			this->stack.top() *= value_type::translation(x, y, z);
 		}
+
+	public:
+
+#if !TEXT_USE_FREETYPE
+		friend void glLoadMatrix(const Stack & stack)
+		{
+			glLoadMatrix(stack.stack.top());
+		}
+#endif
 	};
 
 	struct ShaderData
@@ -1748,12 +1757,12 @@ namespace
 			const int slot_size_y = maxy + border_size * 2;
 
 			std::vector<std::tuple<int, int, int, int>> texture_dimensions;
-			for (int texture_height = utility::clp2(slot_size_y);; texture_height *= 2)
+			for (int texture_height = utility::clp2(uint32_t(slot_size_y));; texture_height *= 2)
 			{
 				const int max_in_y = texture_height / slot_size_y;
 				const int needed_in_x = 1 + (total_slots - 1) / max_in_y;
 
-				const int texture_width = utility::clp2(needed_in_x * slot_size_x);
+				const int texture_width = utility::clp2(uint32_t(needed_in_x * slot_size_x));
 				const int max_in_x = texture_width / slot_size_x;
 
 				const int unused_slots = max_in_x * max_in_y - total_slots;
@@ -1765,10 +1774,12 @@ namespace
 			}
 			std::sort(texture_dimensions.begin(), texture_dimensions.end());
 
+#if MODE_DEBUG
 			for (const auto & dim : texture_dimensions)
 			{
 				debug_printline(name, ": face texture dimension = {", std::get<2>(dim), ", ", std::get<3>(dim), "}, unused slots = ", std::get<1>(dim), "(", static_cast<int>(static_cast<double>(std::get<1>(dim) * slot_size_x * slot_size_y) / static_cast<double>(std::get<2>(dim) * std::get<3>(dim)) * 100.), "%)");
 			}
+#endif
 
 
 			const int texture_width = std::get<2>(texture_dimensions.front());
@@ -1889,7 +1900,7 @@ namespace
 		{
 			engine::graphics::opengl::Font::Data data;
 
-			if (!data.load(*engine::graphics::renderer::window, "consolas", 14))
+			if (!data.load(*engine::graphics::detail::window, "consolas", 14))
 			{
 				debug_fail();
 			}

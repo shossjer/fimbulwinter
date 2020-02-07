@@ -28,13 +28,11 @@ namespace core
 		void read(T & x)
 		{
 			png_byte sig[8];
-			const auto sig_read = read_stream_.read_block(reinterpret_cast<char *>(sig), 8);
-			debug_assert(sig_read == 8);
-			if (png_sig_cmp(sig, 0, 8))
-			{
-				debug_fail("not a png signature");
+			if (!debug_verify(read_stream_.read_block(reinterpret_cast<char *>(sig), 8) == 8, "not a png signature"))
 				return;
-			}
+
+			if (!debug_verify(png_sig_cmp(sig, 0, 8) == 0, "not a png signature"))
+				return;
 
 			png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 			if (!png_ptr)
@@ -105,7 +103,7 @@ namespace core
 			const int image_height = png_get_image_height(png_ptr, info_ptr);
 			const int bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 			const int row_size = image_width * channels * (bit_depth / 8);
-			debug_printline(core::core_channel, "texture: ", read_stream_.filename);
+			debug_printline(core::core_channel, "texture: ", read_stream_.filepath());
 			debug_printline(core::core_channel, "channels: ", channels);
 			debug_printline(core::core_channel, "color_type: ", color_type);
 			debug_printline(core::core_channel, "image_width: ", image_width);

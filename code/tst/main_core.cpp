@@ -1,8 +1,7 @@
+#include "core/debug.hpp"
 
 #define CATCH_CONFIG_MAIN
-#include "catch.hpp"
-
-#include "core/debug.hpp"
+#include <catch/catch.hpp>
 
 // todo : extend catch's console reporter to print a better message when
 // asserts fail

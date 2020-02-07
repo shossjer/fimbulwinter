@@ -1,6 +1,6 @@
-#include <catch.hpp>
-
 #include "utility/storing.hpp"
+
+#include <catch/catch.hpp>
 
 namespace
 {

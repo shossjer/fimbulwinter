@@ -2,28 +2,18 @@
 #ifndef UTILITY_STRING_VIEW_HPP
 #define UTILITY_STRING_VIEW_HPP
 
+#include "utility/ext/string.hpp"
+
 #include <algorithm>
-#include <cstddef>
 #include <ostream>
 
 namespace utility
 {
-	constexpr std::size_t strlen_impl(const char * str, std::size_t len)
-	{
-		return *str ? strlen_impl(str + 1, len + 1) : len;
-	}
-
-	constexpr std::size_t strlen(const char * str)
-	{
-		return str ? strlen_impl(str, 0) : throw "strlen expects non-null string";
-	}
-
 	template <typename T>
 	constexpr const T & min(const T & a, const T & b)
 	{
 		return b < a ? b : a;
 	}
-
 
 	class string_view
 	{
@@ -43,7 +33,7 @@ namespace utility
 		{}
 		constexpr string_view(const char * str)
 			: str_(str)
-			, len_(strlen(str))
+			, len_(ext::strlen(str))
 		{}
 		constexpr string_view & operator = (const string_view &) noexcept = default;
 
@@ -131,22 +121,22 @@ namespace utility
 		{
 			return pos > len_ ? std::size_t(-1) : compare_data(str_ + pos, that.str_, that.len_) == 0 ? pos : rfind_impl(that, pos - 1);
 		}
+
+		friend constexpr bool operator == (string_view a, string_view b) noexcept { return a.compare(b) == 0; }
+		friend constexpr bool operator != (string_view a, string_view b) noexcept { return a.compare(b) != 0; }
+		friend constexpr bool operator < (string_view a, string_view b) noexcept { return a.compare(b) < 0; }
+		friend constexpr bool operator <= (string_view a, string_view b) noexcept { return a.compare(b) <= 0; }
+		friend constexpr bool operator > (string_view a, string_view b) noexcept { return a.compare(b) > 0; }
+		friend constexpr bool operator >= (string_view a, string_view b) noexcept { return a.compare(b) >= 0; }
+
+		friend std::ostream & operator << (std::ostream & s, string_view v)
+		{
+			for (char c : v)
+				s.put(c);
+
+			return s;
+		}
 	};
-
-	inline constexpr bool operator == (string_view a, string_view b) noexcept { return a.compare(b) == 0; }
-	inline constexpr bool operator != (string_view a, string_view b) noexcept { return a.compare(b) != 0; }
-	inline constexpr bool operator < (string_view a, string_view b) noexcept { return a.compare(b) < 0; }
-	inline constexpr bool operator <= (string_view a, string_view b) noexcept { return a.compare(b) <= 0; }
-	inline constexpr bool operator > (string_view a, string_view b) noexcept { return a.compare(b) > 0; }
-	inline constexpr bool operator >= (string_view a, string_view b) noexcept { return a.compare(b) >= 0; }
-
-	inline std::ostream & operator << (std::ostream & s, string_view v)
-	{
-		for (char c : v)
-			s.put(c);
-
-		return s;
-	}
 }
 
 #endif /* UTILITY_STRING_VIEW_HPP */

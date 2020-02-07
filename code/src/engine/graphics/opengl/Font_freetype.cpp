@@ -16,7 +16,7 @@ namespace
 {
 	int smallest_power_of_two(int minimum)
 	{
-		return utility::clp2(minimum);
+		return utility::clp2(uint32_t(minimum));
 	}
 
 	constexpr auto invalid_id = GLuint(-1);
@@ -74,11 +74,15 @@ namespace engine
 				face = nullptr;
 			}
 
-			bool Font::Data::load(const char * name, int height)
+			bool Font::Data::load(utility::string_view_utf8 name, int height)
 			{
 				debug_assert(face == nullptr);
 
-				if (FT_New_Face(library, name, 0, &face))
+				if (!debug_assert(name[name.length()] == utility::unicode_code_point('\0'), "'name' must be null terminated, please sanitize your data!"))
+					return false;
+
+				// todo send file content to freetype
+				if (FT_New_Face(library, name.data(), 0, &face))
 				{
 					debug_fail();
 					return false;

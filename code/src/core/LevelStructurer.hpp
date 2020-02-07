@@ -71,7 +71,7 @@ namespace core
 		template <typename T, typename P>
 		int read_array(P &, int /*element_size*/ = 1)
 		{
-			debug_fail("attempting to read array into a non array type in level '", stream.filename, "'");
+			debug_fail("attempting to read array into a non array type in level '", stream.filepath(), "'");
 			return 0;
 		}
 
@@ -91,7 +91,7 @@ namespace core
 		template <typename T>
 		void read_color(T &)
 		{
-			debug_fail("attempting to read color into a non color type in level '", stream.filename, "'");
+			debug_fail("attempting to read color into a non color type in level '", stream.filepath(), "'");
 		}
 
 		void read_count(uint16_t & count)
@@ -108,7 +108,7 @@ namespace core
 		template <typename T>
 		void read_matrix(T &)
 		{
-			debug_fail("attempting to read matrix into a non matrix type in level '", stream.filename, "'");
+			debug_fail("attempting to read matrix into a non matrix type in level '", stream.filepath(), "'");
 		}
 
 		template <typename T,
@@ -142,7 +142,9 @@ namespace core
 				const auto nvertices = member_table<T>::call("vertices", m, [&](auto & y){ return read_array<float>(y, 3); });
 				static_assert(member_table<T>::has("normals"), "");
 				const auto nnormals = member_table<T>::call("normals", m, [&](auto & y){ return read_array<float>(y, 3); });
-				debug_assert(nvertices == nnormals);
+				if (!debug_verify(nvertices == nnormals))
+					return nmeshes;
+
 				static_assert(member_table<T>::has("triangles"), "");
 				member_table<T>::call("triangles", m, [&](auto & y){ return read_array<uint16_t>(y, 3); });
 			}
@@ -151,7 +153,7 @@ namespace core
 		template <typename T>
 		int read_meshes(T &)
 		{
-			debug_fail("attempting to read meshes into a non array type in level '", stream.filename, "'");
+			debug_fail("attempting to read meshes into a non array type in level '", stream.filepath(), "'");
 			return 0;
 		}
 
@@ -186,7 +188,7 @@ namespace core
 		template <typename T>
 		int read_placeholders(T &)
 		{
-			debug_fail("attempting to read placeholders into a non array type in level '", stream.filename, "'");
+			debug_fail("attempting to read placeholders into a non array type in level '", stream.filepath(), "'");
 			return 0;
 		}
 
@@ -199,7 +201,7 @@ namespace core
 		template <typename T>
 		void read_quaternion(T &)
 		{
-			debug_fail("attempting to read quaternion into a non quaternion type in level '", stream.filename, "'");
+			debug_fail("attempting to read quaternion into a non quaternion type in level '", stream.filepath(), "'");
 		}
 
 		template <std::size_t N>
@@ -221,7 +223,7 @@ namespace core
 		template <typename T>
 		void read_string(T &)
 		{
-			debug_fail("attempting to read string into a non string type in level '", stream.filename, "'");
+			debug_fail("attempting to read string into a non string type in level '", stream.filepath(), "'");
 		}
 
 		void read_vector(core::maths::Vector3f & x)
@@ -233,7 +235,7 @@ namespace core
 		template <typename T>
 		void read_vector(T &)
 		{
-			debug_fail("attempting to read vector into a non vector type in level '", stream.filename, "'");
+			debug_fail("attempting to read vector into a non vector type in level '", stream.filepath(), "'");
 		}
 	};
 }

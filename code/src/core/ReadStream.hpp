@@ -2,8 +2,11 @@
 #ifndef CORE_READSTREAM_HPP
 #define CORE_READSTREAM_HPP
 
+#include "core/debug.hpp"
+
+#include "utility/unicode.hpp"
+
 #include <utility>
-#include <string>
 
 namespace core
 {
@@ -14,14 +17,14 @@ namespace core
 		void * data_;
 
 		bool done_ = false;
-	public:
-		std::string filename;
+
+		utility::heap_string_utf8 filepath_;
 
 	public:
-		ReadStream(uint64_t (* read_callback)(char * dest, int64_t n, void * data), void * data, std::string filename)
+		ReadStream(uint64_t (* read_callback)(char * dest, int64_t n, void * data), void * data, utility::heap_string_utf8 && filepath)
 			: read_callback_(read_callback)
 			, data_(data)
-			, filename(std::move(filename))
+			, filepath_(std::move(filepath))
 		{}
 
 	public:
@@ -39,6 +42,7 @@ namespace core
 			done_ = ret > 0x7fffffffffffffffll;
 			return ret & 0x7fffffffffffffffll;
 		}
+
 		int64_t read_block(char * dest, int64_t n)
 		{
 			int64_t total = 0;
@@ -51,6 +55,8 @@ namespace core
 
 			return total;
 		}
+
+		const utility::heap_string_utf8 & filepath() const { return filepath_; }
 	};
 }
 

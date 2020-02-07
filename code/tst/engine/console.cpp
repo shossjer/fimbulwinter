@@ -1,7 +1,6 @@
-
-#include "catch.hpp"
-
 #include "engine/console.hpp"
+
+#include <catch/catch.hpp>
 
 namespace engine
 {

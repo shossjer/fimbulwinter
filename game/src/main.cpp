@@ -50,7 +50,7 @@ namespace
 			x.read(settings);
 		}
 
-		void operator () (core::NoSerializer && x)
+		void operator () (core::NoSerializer && debug_expression(x))
 		{
 			debug_printline("NO SERIALIZER FOR ", x.filename);
 		}
@@ -112,16 +112,16 @@ namespace
 
 #if WINDOW_USE_USER32
 # if MODE_DEBUG
-int main(const int argc, const char *const argv[])
+int wmain(int argc, wchar_t * argv[], wchar_t * envp[])
 {
-	HINSTANCE hInstance = GetModuleHandle(nullptr);
+	HINSTANCE hInstance = GetModuleHandleW(nullptr);
 	int nCmdShow = SW_SHOW;
 
 	debug_assert(hInstance);
 	if (hInstance == nullptr)
 		return -1;
 # else
-int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*pCmdLine*/, int nCmdShow)
 {
 # endif
 	engine::resource::reader reader;
@@ -156,7 +156,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	return execute(window);
 }
 #elif WINDOW_USE_X11
-int main(const int /*argc*/, const char *const /*argv*/[])
+int main(int /*argc*/, const char * /*argv*/[])
 {
 	engine::resource::reader reader;
 	engine::resource::writer writer;

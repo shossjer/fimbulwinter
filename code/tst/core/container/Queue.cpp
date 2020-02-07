@@ -1,24 +1,13 @@
-
-#include "catch.hpp"
-
 #include "core/container/Queue.hpp"
 
-static_assert(!std::is_trivially_destructible<utility::heap_storage<int>>::value, "");
+#include <catch/catch.hpp>
+
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::heap_storage<int>>>::value, "");
-
-static_assert(!std::is_trivially_destructible<utility::heap_storage<int, float, long double>>::value, "");
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::heap_storage<int, float, long double>>>::value, "");
-
-static_assert(!std::is_trivially_destructible<utility::heap_storage<int, std::string>>::value, "");
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::heap_storage<int, std::string>>>::value, "");
 
-static_assert(std::is_trivially_destructible<utility::static_storage<10, int>>::value, "");
 static_assert(std::is_trivially_destructible<core::container::SimpleQueue<utility::static_storage<10, int>>>::value, "");
-
-static_assert(std::is_trivially_destructible<utility::static_storage<10, int, float, long double>>::value, "");
 static_assert(std::is_trivially_destructible<core::container::SimpleQueue<utility::static_storage<10, int, float, long double>>>::value, "");
-
-static_assert(!std::is_trivially_destructible<utility::static_storage<10, int, std::string>>::value, "");
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::static_storage<10, int, std::string>>>::value, "");
 
 TEST_CASE("", "")
@@ -430,53 +419,10 @@ TEST_CASE("", "")
 	{
 		REQUIRE(q.try_emplace(7));
 	}
-
-	SECTION("")
-	{
-		REQUIRE(utility::heap_storage_traits::grow(0, 0) == 8);
-
-		REQUIRE(q.try_emplace(1));
-		REQUIRE(q.try_emplace(2));
-		REQUIRE(q.try_emplace(3));
-		REQUIRE(q.try_emplace(4));
-		REQUIRE(q.try_emplace(5));
-		REQUIRE(q.try_emplace(6));
-		REQUIRE(q.try_emplace(7));
-		REQUIRE(q.try_emplace(8)); // should cause a new allocation to happen
-
-		int v = 0;
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 1);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 2);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 3);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 4);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 5);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 6);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 7);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 8);
-
-		CHECK_FALSE(q.try_pop(v));
-	}
 }
 
 TEST_CASE("", "")
 {
-	REQUIRE(utility::heap_storage_traits::grow(0, 0) == 8);
-
 	core::container::PageQueue<utility::heap_storage<int>> q(9);
 
 	SECTION("")
@@ -519,45 +465,6 @@ TEST_CASE("", "")
 	SECTION("")
 	{
 		REQUIRE(q.try_emplace(7));
-	}
-
-	SECTION("")
-	{
-		REQUIRE(q.try_emplace(1));
-		REQUIRE(q.try_emplace(2));
-		REQUIRE(q.try_emplace(3));
-		REQUIRE(q.try_emplace(4));
-		REQUIRE(q.try_emplace(5));
-		REQUIRE(q.try_emplace(6));
-		REQUIRE(q.try_emplace(7));
-		REQUIRE(q.try_emplace(8));
-
-		int v = 0;
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 1);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 2);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 3);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 4);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 5);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 6);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 7);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(v == 8);
-
-		CHECK_FALSE(q.try_pop(v));
 	}
 }
 
@@ -619,77 +526,10 @@ TEST_CASE("", "")
 	{
 		REQUIRE(q.try_emplace(7, "7", std::make_unique<int>(7)));
 	}
-
-	SECTION("")
-	{
-		REQUIRE(utility::heap_storage_traits::grow(0, 0) == 8);
-
-		REQUIRE(q.try_emplace(1, "1", std::make_unique<int>(1)));
-		REQUIRE(q.try_emplace(2, "2", std::make_unique<int>(2)));
-		REQUIRE(q.try_emplace(3, "3", std::make_unique<int>(3)));
-		REQUIRE(q.try_emplace(4, "4", std::make_unique<int>(4)));
-		REQUIRE(q.try_emplace(5, "5", std::make_unique<int>(5)));
-		REQUIRE(q.try_emplace(6, "6", std::make_unique<int>(6)));
-		REQUIRE(q.try_emplace(7, "7", std::make_unique<int>(7)));
-		REQUIRE(q.try_emplace(8, "8", std::make_unique<int>(8))); // should cause a new allocation to happen
-
-		std::tuple<int, std::string, std::unique_ptr<int>> v(0, "", nullptr);
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 1);
-		CHECK(std::get<1>(v) == "1");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 1);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 2);
-		CHECK(std::get<1>(v) == "2");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 2);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 3);
-		CHECK(std::get<1>(v) == "3");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 3);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 4);
-		CHECK(std::get<1>(v) == "4");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 4);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 5);
-		CHECK(std::get<1>(v) == "5");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 5);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 6);
-		CHECK(std::get<1>(v) == "6");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 6);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 7);
-		CHECK(std::get<1>(v) == "7");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 7);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 8);
-		CHECK(std::get<1>(v) == "8");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 8);
-
-		CHECK_FALSE(q.try_pop(v));
-	}
 }
 
 TEST_CASE("", "")
 {
-	REQUIRE(utility::heap_storage_traits::grow(0, 0) == 8);
-
 	core::container::PageQueue<utility::heap_storage<int, std::string, std::unique_ptr<int>>> q(9);
 
 	SECTION("")
@@ -729,71 +569,6 @@ TEST_CASE("", "")
 	SECTION("")
 	{
 		REQUIRE(q.try_emplace(7, "7", std::make_unique<int>(7)));
-	}
-
-	SECTION("")
-	{
-		REQUIRE(utility::heap_storage_traits::grow(0, 0) == 8);
-
-		REQUIRE(q.try_emplace(1, "1", std::make_unique<int>(1)));
-		REQUIRE(q.try_emplace(2, "2", std::make_unique<int>(2)));
-		REQUIRE(q.try_emplace(3, "3", std::make_unique<int>(3)));
-		REQUIRE(q.try_emplace(4, "4", std::make_unique<int>(4)));
-		REQUIRE(q.try_emplace(5, "5", std::make_unique<int>(5)));
-		REQUIRE(q.try_emplace(6, "6", std::make_unique<int>(6)));
-		REQUIRE(q.try_emplace(7, "7", std::make_unique<int>(7)));
-		REQUIRE(q.try_emplace(8, "8", std::make_unique<int>(8)));
-
-		std::tuple<int, std::string, std::unique_ptr<int>> v(0, "", nullptr);
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 1);
-		CHECK(std::get<1>(v) == "1");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 1);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 2);
-		CHECK(std::get<1>(v) == "2");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 2);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 3);
-		CHECK(std::get<1>(v) == "3");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 3);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 4);
-		CHECK(std::get<1>(v) == "4");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 4);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 5);
-		CHECK(std::get<1>(v) == "5");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 5);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 6);
-		CHECK(std::get<1>(v) == "6");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 6);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 7);
-		CHECK(std::get<1>(v) == "7");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 7);
-
-		REQUIRE(q.try_pop(v));
-		CHECK(std::get<0>(v) == 8);
-		CHECK(std::get<1>(v) == "8");
-		REQUIRE(std::get<2>(v));
-		CHECK(*std::get<2>(v) == 8);
-
-		CHECK_FALSE(q.try_pop(v));
 	}
 }
 

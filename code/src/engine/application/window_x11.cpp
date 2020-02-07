@@ -748,7 +748,7 @@ namespace engine
 			XFreeFont(display, font_struct);
 		}
 
-		XFontStruct * loadFont(window & window, const char * name, int height)
+		XFontStruct * loadFont(window & window, utility::string_view_utf8 name, int height)
 		{
 			int n_old_paths;
 			char ** const old_paths = XGetFontPath(display, &n_old_paths);

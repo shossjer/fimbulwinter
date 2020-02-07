@@ -85,7 +85,7 @@ namespace utility
 		}
 		void destroy(const utility::zip_iterator<Ts *...> & p)
 		{
-			utl::unpack(static_cast<const std::tuple<Ts *...> &>(p), [this](auto ...ps){ int expansion_hack[] = {(base().destroy(ps), 0)...}; static_cast<void>(expansion_hack); });
+			utl::for_each(static_cast<const std::tuple<Ts *...> &>(p), [this](auto p) { base().destroy(p); });
 		}
 
 	private:
@@ -98,6 +98,11 @@ namespace utility
 			static_assert(sizeof...(Ts) == 1, "");
 			construct(std::get<0>(ptrs), std::forward<Ps>(ps)...);
 		}
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+		// C4702 - unreachable code
+#endif
 		template <std::size_t ...Is, typename P,
 		          REQUIRES((utility::is_proxy_reference<mpl::remove_cvref_t<P>>::value))>
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, P && p)
@@ -112,6 +117,9 @@ namespace utility
 			int expansion_hack[] = {(construct(std::get<Is>(ptrs), std::forward<Ps>(ps)), 0)...};
 			static_cast<void>(expansion_hack);
 		}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 		// crashes clang 4.0
 		// template <std::size_t ...Is, typename ...Ps>
 		// void piecewise_construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & p, Ps && ...ps)

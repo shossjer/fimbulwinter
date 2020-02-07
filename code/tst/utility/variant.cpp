@@ -1,9 +1,8 @@
+#include "utility/variant.hpp"
 
-#include "catch.hpp"
+#include "utility/property.hpp"
 
-#include <utility/variant.hpp>
-
-#include <utility/property.hpp>
+#include <catch/catch.hpp>
 
 #include <iostream>
 #include <string>

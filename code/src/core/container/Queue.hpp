@@ -48,7 +48,7 @@ namespace core
 					, readendi_{0}
 					, writei_{std::size_t(-1)} // fake being full
 				{}
-				PageQueueHeader(this_type & previous, std::size_t capacity)
+				PageQueueHeader(this_type & previous, std::size_t debug_expression(capacity))
 					: previous_(&previous)
 					, readi_{0}
 					, readendi_{0}
@@ -288,7 +288,7 @@ namespace core
 				std::size_t next;
 				while (!detail::checkout_write_slot(*header, slot, next))
 				{
-					const auto new_capacity = storage_traits::grow(header->capacity(), 0);
+					const auto new_capacity = storage_traits::grow(header->capacity(), 1);
 					Header * const new_header = allocator_traits::allocate(allocator(), new_capacity);
 					if (!new_header)
 						return false;
