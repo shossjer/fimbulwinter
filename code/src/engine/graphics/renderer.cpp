@@ -123,165 +123,134 @@ namespace engine
 
 		void post_add_display(renderer &, engine::Asset asset, renderer::display && data)
 		{
-			const auto res = queue_displays.try_emplace(utility::in_place_type<MessageAddDisplay>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_displays.try_emplace(utility::in_place_type<MessageAddDisplay>, asset, std::move(data)));
 		}
 		void post_remove_display(renderer &, engine::Asset asset)
 		{
-			const auto res = queue_displays.try_emplace(utility::in_place_type<MessageRemoveDisplay>, asset);
-			debug_assert(res);
+			debug_verify(queue_displays.try_emplace(utility::in_place_type<MessageRemoveDisplay>, asset));
 		}
 		void post_update_display(renderer &, engine::Asset asset, renderer::camera_2d && data)
 		{
-			const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera2D>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera2D>, asset, std::move(data)));
 		}
 		void post_update_display(renderer &, engine::Asset asset, renderer::camera_3d && data)
 		{
-			const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera3D>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera3D>, asset, std::move(data)));
 		}
 		void post_update_display(renderer &, engine::Asset asset, renderer::viewport && data)
 		{
-			const auto res = queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayViewport>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_displays.try_emplace(utility::in_place_type<MessageUpdateDisplayViewport>, asset, std::move(data)));
 		}
 
 		void post_register_character(renderer &, engine::Asset asset, engine::model::mesh_t && data)
 		{
-			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterCharacter>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterCharacter>, asset, std::move(data)));
 		}
 		void post_register_mesh(renderer &, engine::Asset asset, data::Mesh && data)
 		{
-			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterMesh>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterMesh>, asset, std::move(data)));
 		}
 		void post_register_texture(renderer &, engine::Asset asset, core::graphics::Image && image)
 		{
-			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterTexture>, asset, std::move(image));
-			debug_assert(res);
+			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterTexture>, asset, std::move(image)));
 		}
 
 		void post_add_bar(renderer &, engine::Entity entity, data::Bar && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddBar>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddBar>, entity, std::move(data)));
 		}
 		void post_add_character(renderer &, engine::Entity entity, data::CompT && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddCharacterT>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddCharacterT>, entity, std::move(data)));
 		}
 		void post_add_component(renderer &, engine::Entity entity, data::CompC && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddComponentC>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddComponentC>, entity, std::move(data)));
 		}
 		void post_add_component(renderer &, engine::Entity entity, data::CompT && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddComponentT>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddComponentT>, entity, std::move(data)));
 		}
 		void post_add_line(renderer &, engine::Entity entity, data::LineC && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddLineC>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddLineC>, entity, std::move(data)));
 		}
 		void post_add_panel(renderer &, engine::Entity entity, data::ui::PanelC && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddPanelC>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddPanelC>, entity, std::move(data)));
 		}
 		void post_add_panel(renderer &, engine::Entity entity, data::ui::PanelT && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddPanelT>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddPanelT>, entity, std::move(data)));
 		}
 		void post_add_text(renderer &, engine::Entity entity, data::ui::Text && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddText>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddText>, entity, std::move(data)));
 		}
 
 		void post_make_obstruction(renderer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeObstruction>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageMakeObstruction>, entity));
 		}
 		void post_make_selectable(renderer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeSelectable>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageMakeSelectable>, entity));
 		}
 		void post_make_transparent(renderer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeTransparent>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageMakeTransparent>, entity));
 		}
 
 		void post_make_clear_selection(renderer &)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeClearSelection>);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageMakeClearSelection>));
 		}
 		void post_make_dehighlight(renderer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeDehighlighted>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageMakeDehighlighted>, entity));
 		}
 		void post_make_deselect(renderer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeDeselect>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageMakeDeselect>, entity));
 		}
 		void post_make_highlight(renderer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeHighlighted>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageMakeHighlighted>, entity));
 		}
 		void post_make_select(renderer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageMakeSelect>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageMakeSelect>, entity));
 		}
 
 		void post_remove(renderer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity));
 		}
 
 		void post_update_characterskinning(renderer &, engine::Entity entity, renderer::CharacterSkinning && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateCharacterSkinning>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateCharacterSkinning>, entity, std::move(data)));
 		}
 		void post_update_modelviewmatrix(renderer &, engine::Entity entity, data::ModelviewMatrix && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateModelviewMatrix>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateModelviewMatrix>, entity, std::move(data)));
 		}
 		void post_update_panel(renderer &, engine::Entity entity, data::ui::PanelC && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdatePanelC>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdatePanelC>, entity, std::move(data)));
 		}
 		void post_update_panel(renderer &, engine::Entity entity, data::ui::PanelT && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdatePanelT>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdatePanelT>, entity, std::move(data)));
 		}
 		void post_update_text(renderer &, engine::Entity entity, data::ui::Text && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateText>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateText>, entity, std::move(data)));
 		}
 
 		void post_select(renderer &, int x, int y, engine::Entity entity, engine::Command command)
 		{
-			const auto res = queue_select.try_emplace(x, y, entity, command);
-			debug_assert(res);
+			debug_verify(queue_select.try_emplace(x, y, entity, command));
 		}
 
 		void toggle_down(renderer &)

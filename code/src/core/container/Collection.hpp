@@ -335,7 +335,7 @@ namespace core
 			bucket_t place(Key key)
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (!slots[bucket].empty()) // ... this bucket is not empty!
 				{
@@ -351,7 +351,7 @@ namespace core
 			bucket_t find(Key key) const
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (slots[bucket].empty() || // ... this bucket is empty, or
 				       keys[bucket] != key) // ... this is not the right one!
@@ -744,7 +744,7 @@ namespace core
 					return maybe_bucket;
 
 				auto bucket = hash(key);
-				int count = 0; // debug count that asserts if taken too many steps
+				debug_expression(int count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (!slots[bucket].empty()) // ... this bucket is not empty!
 				{
@@ -760,7 +760,7 @@ namespace core
 			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
-				int count = 0; // debug count that asserts if taken too many steps
+				debug_expression(int count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (slots[bucket].empty() || // ... this bucket is empty, or
 				       keys[bucket] != key) // ... this is not the right one!
@@ -1122,7 +1122,7 @@ namespace core
 			bucket_t place(K key)
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (!slots[bucket].empty()) // ... this bucket is not empty!
 				{
@@ -1138,7 +1138,7 @@ namespace core
 			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
-				std::size_t count = 0; // debug count that asserts if taken too many steps
+				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
 				// search again if...
 				while (slots[bucket].empty() || // ... this bucket is empty, or
 				       keys[bucket] != key) // ... this is not the right one!

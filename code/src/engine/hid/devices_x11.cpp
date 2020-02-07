@@ -509,6 +509,7 @@ namespace
 		Touch,
 	};
 
+#if MODE_DEBUG
 	constexpr auto serialization(utility::in_place_type_t<EventType>)
 	{
 		return utility::make_lookup_table(
@@ -519,6 +520,7 @@ namespace
 			std::make_pair(utility::string_view("touch"), EventType::Touch)
 			);
 	}
+#endif
 
 	struct Event
 	{
@@ -723,7 +725,7 @@ namespace
 			EventType type = find_event_type(fd);
 			if (type != EventType::Unknown)
 			{
-				const auto type_name = core::value_table<EventType>::get_key(type);
+				debug_expression(const auto type_name = core::value_table<EventType>::get_key(type));
 				debug_printline("event ", path, "(", type_name, "):");
 				print_info(fd);
 

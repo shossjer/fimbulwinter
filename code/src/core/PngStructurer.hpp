@@ -28,13 +28,11 @@ namespace core
 		void read(T & x)
 		{
 			png_byte sig[8];
-			const auto sig_read = read_stream_.read_block(reinterpret_cast<char *>(sig), 8);
-			debug_assert(sig_read == 8);
-			if (png_sig_cmp(sig, 0, 8))
-			{
-				debug_fail("not a png signature");
+			if (!debug_verify(read_stream_.read_block(reinterpret_cast<char *>(sig), 8) == 8, "not a png signature"))
 				return;
-			}
+
+			if (!debug_verify(png_sig_cmp(sig, 0, 8) == 0, "not a png signature"))
+				return;
 
 			png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 			if (!png_ptr)

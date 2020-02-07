@@ -48,7 +48,7 @@ namespace core
 					, readendi_{0}
 					, writei_{std::size_t(-1)} // fake being full
 				{}
-				PageQueueHeader(this_type & previous, std::size_t capacity)
+				PageQueueHeader(this_type & previous, std::size_t debug_expression(capacity))
 					: previous_(&previous)
 					, readi_{0}
 					, readendi_{0}

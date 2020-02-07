@@ -758,102 +758,84 @@ namespace engine
 
 		void post_add_frame(viewer &, engine::Asset asset, viewer::dynamic && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddFrameDynamic>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddFrameDynamic>, asset, std::move(data)));
 		}
 		void post_add_frame(viewer &, engine::Asset asset, viewer::fixed && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddFrameFixed>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddFrameFixed>, asset, std::move(data)));
 		}
 		void post_remove_frame(viewer &, engine::Asset asset)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRemoveFrame>, asset);
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageRemoveFrame>, asset));
 		}
 
 		void post_add_split(viewer &, engine::Asset asset, viewer::horizontal && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddSplitHorizontal>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddSplitHorizontal>, asset, std::move(data)));
 		}
 		void post_add_split(viewer &, engine::Asset asset, viewer::vertical && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddSplitVertical>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddSplitVertical>, asset, std::move(data)));
 		}
 		void post_remove_split(viewer &, engine::Asset asset)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRemoveSplit>, asset);
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageRemoveSplit>, asset));
 		}
 
 		void notify_resize(viewer &, int width, int height)
 		{
-			queue_resize.try_push(width, height);
+			debug_verify(queue_resize.try_push(width, height));
 		}
 
 		void post_add_projection(viewer &, engine::Asset asset, viewer::orthographic && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddProjectionOrthographic>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddProjectionOrthographic>, asset, std::move(data)));
 		}
 		void post_add_projection(viewer &, engine::Asset asset, viewer::perspective && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddProjectionPerspective>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddProjectionPerspective>, asset, std::move(data)));
 		}
 		void post_remove_projection(viewer &, engine::Asset asset)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRemoveProjection>, asset);
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageRemoveProjection>, asset));
 		}
 
 		void post_add_camera(viewer &, engine::Entity entity, viewer::camera && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageAddCamera>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddCamera>, entity, std::move(data)));
 		}
 		void post_remove_camera(viewer &, engine::Entity entity)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageRemoveCamera>, entity);
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageRemoveCamera>, entity));
 		}
 		void post_update_camera(viewer &, engine::Entity entity, viewer::projection && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraProjection>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraProjection>, entity, std::move(data)));
 		}
 		void post_update_camera(viewer &, engine::Entity entity, viewer::rotate && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraRotate>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraRotate>, entity, std::move(data)));
 		}
 		void post_update_camera(viewer &, engine::Entity entity, viewer::rotation && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraRotation>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraRotation>, entity, std::move(data)));
 		}
 		void post_update_camera(viewer &, engine::Entity entity, viewer::translate && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraTranslate>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraTranslate>, entity, std::move(data)));
 		}
 		void post_update_camera(viewer &, engine::Entity entity, viewer::translation && data)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraTranslation>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageUpdateCameraTranslation>, entity, std::move(data)));
 		}
 
 		void post_bind(viewer &, engine::Asset frame, engine::Entity camera)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageBind>, frame, camera);
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageBind>, frame, camera));
 		}
 		void post_unbind(viewer &, engine::Asset frame)
 		{
-			const auto res = queue_messages.try_emplace(utility::in_place_type<MessageUnbind>, frame);
-			debug_assert(res);
+			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageUnbind>, frame));
 		}
 	}
 }

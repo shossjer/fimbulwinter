@@ -485,6 +485,7 @@ namespace utility
 
 			void set_encoding(utility::type_id_t encoding)
 			{
+				static_cast<void>(encoding);
 				assert(encoding == utility::type_id<Encoding>());
 			}
 

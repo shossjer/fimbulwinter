@@ -608,38 +608,32 @@ namespace engine
 
 		void post_register_armature(mixer &, engine::Asset asset, engine::animation::Armature && data)
 		{
-			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterArmature>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterArmature>, asset, std::move(data)));
 		}
 
 		void post_register_object(mixer &, engine::Asset asset, engine::animation::object && data)
 		{
-			const auto res = queue_assets.try_emplace(utility::in_place_type<MessageRegisterObject>, asset, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterObject>, asset, std::move(data)));
 		}
 
 		void post_add_character(mixer &, engine::Entity entity, engine::animation::character && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddCharacter>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddCharacter>, entity, std::move(data)));
 		}
 
 		void post_add_model(mixer &, engine::Entity entity, engine::animation::model && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddModel>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddModel>, entity, std::move(data)));
 		}
 
 		void post_update_action(mixer &, engine::Entity entity, engine::animation::action && data)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateAction>, entity, std::move(data));
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateAction>, entity, std::move(data)));
 		}
 
 		void post_remove(mixer &, engine::Entity entity)
 		{
-			const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
-			debug_assert(res);
+			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity));
 		}
 	}
 }

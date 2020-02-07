@@ -473,7 +473,7 @@ namespace
 
 	struct Loader
 	{
-		void translate(engine::Command command, utility::any &&)
+		void translate(engine::Command debug_expression(command), utility::any &&)
 		{
 			debug_assert(command == engine::command::LOADER_FINISHED);
 			debug_printline(gameplay::gameplay_channel, "WOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOWOW");
@@ -882,20 +882,23 @@ namespace
 	{
 		Selector & selector;
 
-		void operator () (engine::Entity entity, Workstation & x)
+		void operator () (engine::Entity entity, Workstation & debug_expression(x))
 		{
-			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
-			debug_assert(has_selected_worker);
+			debug_expression(const bool has_selected_worker = components.contains<Worker>(selector.selected_entity));
+			if (!debug_assert(has_selected_worker))
+				return;
 
-			const bool is_busy = x.isBusy() && x.worker != selector.selected_entity;
-			debug_assert(!is_busy);
+			debug_expression(const bool is_busy = x.isBusy() && x.worker != selector.selected_entity);
+			if (!debug_assert(!is_busy))
+				return;
 
 			const bool is_empty = kitchen.is_empty(entity);
 			if (is_empty)
 			{
 				const auto & available_recipes = kitchen.get_available_recipes();
-				const bool has_available_recipes = !available_recipes.empty();
-				debug_assert(has_available_recipes);
+				debug_expression(const bool has_available_recipes = !available_recipes.empty());
+				if (!debug_assert(has_available_recipes))
+					return;
 
 				selector.targeted_entity = entity;
 				recipes_ring.show(kitchen.recipes, available_recipes, {200.f, 200.f, 0.f});
@@ -920,11 +923,13 @@ namespace
 
 		void operator () (engine::Entity entity, const Option &)
 		{
-			const bool has_selected_worker = components.contains<Worker>(selector.selected_entity);
-			debug_assert(has_selected_worker);
+			debug_expression(const bool has_selected_worker = components.contains<Worker>(selector.selected_entity));
+			if (!debug_assert(has_selected_worker))
+				return;
 
-			const bool has_targeted_workstation = components.contains<Workstation>(selector.targeted_entity);
-			debug_assert(has_targeted_workstation);
+			debug_expression(const bool has_targeted_workstation = components.contains<Workstation>(selector.targeted_entity));
+			if (!debug_assert(has_targeted_workstation))
+				return;
 
 			recipes_ring.hide();
 
@@ -951,8 +956,9 @@ namespace
 				{
 				case engine::Asset("continue"):
 				{
-					const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(selector.targeted_entity);
-					debug_assert(has_preparation_in_progress);
+					debug_expression(const bool has_preparation_in_progress = kitchen.has_preparation_in_progress(selector.targeted_entity));
+					if (!debug_assert(has_preparation_in_progress))
+						break;
 
 					Worker & worker = components.get<Worker>(selector.selected_entity);
 					Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
@@ -971,8 +977,9 @@ namespace
 				}
 				case engine::Asset("trash"):
 				{
-					const bool is_empty = kitchen.is_empty(selector.targeted_entity);
-					debug_assert(!is_empty);
+					debug_expression(const bool is_empty = kitchen.is_empty(selector.targeted_entity));
+					if (!debug_assert(!is_empty))
+						break;
 
 					Worker & worker = components.get<Worker>(selector.selected_entity);
 					Workstation & workstation = components.get<Workstation>(selector.targeted_entity);
@@ -1424,8 +1431,7 @@ namespace gameplay
 
 	void post_command(engine::Entity entity, engine::Command command, utility::any && data)
 	{
-		const auto res = queue_commands.try_emplace(entity, command, std::move(data));
-		debug_assert(res);
+		debug_verify(queue_commands.try_emplace(entity, command, std::move(data)));
 	}
 
 	void post_add_workstation(
@@ -1435,13 +1441,11 @@ namespace gameplay
 		core::maths::Matrix4x4f front,
 		core::maths::Matrix4x4f top)
 	{
-		const auto res = queue_workstations.try_emplace(entity, type, front, top);
-		debug_assert(res);
+		debug_verify(queue_workstations.try_emplace(entity, type, front, top));
 	}
 
 	void post_add_worker(gamestate &, engine::Entity entity)
 	{
-		const auto res = queue_workers.try_emplace(entity);
-		debug_assert(res);
+		debug_verify(queue_workers.try_emplace(entity));
 	}
 }

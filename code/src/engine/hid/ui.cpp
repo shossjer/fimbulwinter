@@ -599,14 +599,12 @@ namespace
 
 	void post_query_contexts(std::atomic_int & ready, std::vector<ContextInfo> & contexts_)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<QueryContexts>, &ready, &contexts_);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<QueryContexts>, &ready, &contexts_));
 	}
 
 	void post_query_devices(std::atomic_int & ready, std::vector<DeviceInfo> & devices_)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<QueryDevices>, &ready, &devices_);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<QueryDevices>, &ready, &devices_));
 	}
 
 	void callback_print_devices(void *)
@@ -970,32 +968,27 @@ namespace hid
 
 	void notify_device_found(ui &, int id)
 	{
-		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceFound>, id);
-		debug_assert(res);
+		debug_verify(queue_input.try_emplace(utility::in_place_type<DeviceFound>, id));
 	}
 
 	void notify_device_lost(ui &, int id)
 	{
-		const auto res = queue_input.try_emplace(utility::in_place_type<DeviceLost>, id);
-		debug_assert(res);
+		debug_verify(queue_input.try_emplace(utility::in_place_type<DeviceLost>, id));
 	}
 
 	void notify_add_source(ui &, int id, std::string && path, int type, utility::string_view_utf8 name)
 	{
-		const auto res = queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), utility::heap_string_utf8(name));
-		debug_assert(res);
+		debug_verify(queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), utility::heap_string_utf8(name)));
 	}
 
 	void notify_remove_source(ui &, int id, std::string && path)
 	{
-		const auto res = queue_input.try_emplace(utility::in_place_type<RemoveSource>, id, std::move(path));
-		debug_assert(res);
+		debug_verify(queue_input.try_emplace(utility::in_place_type<RemoveSource>, id, std::move(path)));
 	}
 
 	void notify_input(ui &, const engine::hid::Input & input)
 	{
-		const auto res = queue_input.try_emplace(utility::in_place_type<engine::hid::Input>, input);
-		debug_assert(res);
+		debug_verify(queue_input.try_emplace(utility::in_place_type<engine::hid::Input>, input));
 	}
 
 	void post_add_context(
@@ -1003,15 +996,13 @@ namespace hid
 		engine::Asset context,
 		std::vector<engine::Asset> states)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<AddContext>, context, std::move(states));
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<AddContext>, context, std::move(states)));
 	}
 	void post_remove_context(
 		ui &,
 		engine::Asset context)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<RemoveContext>, context);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<RemoveContext>, context));
 	}
 
 	void post_set_state(
@@ -1019,8 +1010,7 @@ namespace hid
 		engine::Asset context,
 		engine::Asset state)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<SetState>, context, state);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<SetState>, context, state));
 	}
 
 	void post_add_device(
@@ -1028,16 +1018,14 @@ namespace hid
 		engine::Asset context,
 		int id)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<AddDevice>, context, id);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<AddDevice>, context, id));
 	}
 	void post_remove_device(
 		ui &,
 		engine::Asset context,
 		int id)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<RemoveDevice>, context, id);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<RemoveDevice>, context, id));
 	}
 
 	void post_add_axis_move(
@@ -1047,8 +1035,7 @@ namespace hid
 		engine::Command command_x,
 		engine::Command command_y)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<AddAxisMove>, mapping, code, command_x, command_y);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<AddAxisMove>, mapping, code, command_x, command_y));
 	}
 	void post_add_axis_tilt(
 		ui &,
@@ -1057,8 +1044,7 @@ namespace hid
 		engine::Command command_min,
 		engine::Command command_max)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<AddAxisTilt>, mapping, code, command_min, command_max);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<AddAxisTilt>, mapping, code, command_min, command_max));
 	}
 	void post_add_button_press(
 		ui &,
@@ -1066,8 +1052,7 @@ namespace hid
 		engine::hid::Input::Button code,
 		engine::Command command)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<AddButtonPress>, mapping, code, command);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<AddButtonPress>, mapping, code, command));
 	}
 	void post_add_button_release(
 		ui &,
@@ -1075,8 +1060,7 @@ namespace hid
 		engine::hid::Input::Button code,
 		engine::Command command)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<AddButtonRelease>, mapping, code, command);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<AddButtonRelease>, mapping, code, command));
 	}
 
 	void post_bind(
@@ -1087,8 +1071,7 @@ namespace hid
 		void (* callback)(engine::Command command, float value, void * data),
 		void * data)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<Bind>, context, state, mapping, callback, data);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<Bind>, context, state, mapping, callback, data));
 	}
 	void post_unbind(
 		ui &,
@@ -1096,8 +1079,7 @@ namespace hid
 		engine::Asset state,
 		engine::Entity mapping)
 	{
-		const auto res = queue.try_emplace(utility::in_place_type<Unbind>, context, state, mapping);
-		debug_assert(res);
+		debug_verify(queue.try_emplace(utility::in_place_type<Unbind>, context, state, mapping));
 	}
 }
 }
