@@ -76,7 +76,15 @@ namespace core
 		{
 			write(x);
 
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+			// C4127 - conditional expression is constant
+#endif
 			if (sizeof...(Ts) > 0)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 			{
 				ss.put(',');
 				ss.put(' ');

@@ -141,7 +141,9 @@ namespace core
 				const auto nvertices = member_table<T>::call("vertices", m, [&](auto & y){ return read_array<float>(y, 3); });
 				static_assert(member_table<T>::has("normals"), "");
 				const auto nnormals = member_table<T>::call("normals", m, [&](auto & y){ return read_array<float>(y, 3); });
-				debug_assert(nvertices == nnormals);
+				if (!debug_verify(nvertices == nnormals))
+					return nmeshes;
+
 				static_assert(member_table<T>::has("triangles"), "");
 				member_table<T>::call("triangles", m, [&](auto & y){ return read_array<uint16_t>(y, 3); });
 			}

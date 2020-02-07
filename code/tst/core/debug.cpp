@@ -13,10 +13,12 @@ namespace
 		A(const A &) = delete;
 		A(A &&) = delete;
 
+#if MODE_DEBUG
 		friend bool operator == (const A & a1, const A & a2)
 		{
 			return a1.i == a2.i;
 		}
+#endif
 	};
 }
 

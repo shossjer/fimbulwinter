@@ -339,7 +339,7 @@ namespace core
 			}
 		}
 
-		void skip_region(std::ptrdiff_t from, std::ptrdiff_t to)
+		void skip_region(std::ptrdiff_t debug_expression(from), std::ptrdiff_t to)
 		{
 			debug_assert(from == stream.pos());
 

@@ -2,22 +2,12 @@
 
 #include <catch/catch.hpp>
 
-static_assert(!std::is_trivially_destructible<utility::heap_storage<int>>::value, "");
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::heap_storage<int>>>::value, "");
-
-static_assert(!std::is_trivially_destructible<utility::heap_storage<int, float, long double>>::value, "");
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::heap_storage<int, float, long double>>>::value, "");
-
-static_assert(!std::is_trivially_destructible<utility::heap_storage<int, std::string>>::value, "");
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::heap_storage<int, std::string>>>::value, "");
 
-static_assert(std::is_trivially_destructible<utility::static_storage<10, int>>::value, "");
 static_assert(std::is_trivially_destructible<core::container::SimpleQueue<utility::static_storage<10, int>>>::value, "");
-
-static_assert(std::is_trivially_destructible<utility::static_storage<10, int, float, long double>>::value, "");
 static_assert(std::is_trivially_destructible<core::container::SimpleQueue<utility::static_storage<10, int, float, long double>>>::value, "");
-
-static_assert(!std::is_trivially_destructible<utility::static_storage<10, int, std::string>>::value, "");
 static_assert(!std::is_trivially_destructible<core::container::SimpleQueue<utility::static_storage<10, int, std::string>>>::value, "");
 
 TEST_CASE("", "")

@@ -112,6 +112,11 @@ namespace core
 	                              }).template call
 
 /**
+ *
+ */
+# define debug_expression(...) __VA_ARGS__
+
+/**
  * Fails unconditionally.
  *
  * \note Always returns false.
@@ -170,6 +175,11 @@ namespace core
  * Returns the resulting value.
  */
 # define debug_cast static_cast
+
+/**
+ * Does nothing.
+ */
+# define debug_expression(...)
 
 /**
  * Fails unconditionally.

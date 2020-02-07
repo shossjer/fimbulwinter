@@ -772,6 +772,7 @@ namespace utility
 			void deallocate(std::size_t capacity)
 			{
 				assert(capacity <= Capacity); // todo ==
+				static_cast<void>(capacity);
 			}
 
 			constexpr std::size_t max_size() const { return Capacity; }

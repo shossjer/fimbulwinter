@@ -100,7 +100,11 @@ TEST_CASE( "heap_storage<int>", "[utility]" )
 {
 	using heap_storage = utility::heap_storage<int>;
 	static_assert(std::is_standard_layout<heap_storage>::value, "");
+#if MODE_DEBUG
 	static_assert(!std::is_trivially_destructible<heap_storage>::value, "");
+#else
+	static_assert(std::is_trivially_destructible<heap_storage>::value, "");
+#endif
 	static_assert(heap_storage::storing_trivially_copyable::value, "");
 	static_assert(heap_storage::storing_trivially_destructible::value, "");
 	static_assert(!utility::storage_traits<heap_storage>::trivial_allocate::value, "");
@@ -147,7 +151,11 @@ TEST_CASE( "heap_storage<unique_ptr>", "[utility]" )
 {
 	using heap_storage = utility::heap_storage<std::unique_ptr<int>>;
 	static_assert(std::is_standard_layout<heap_storage>::value, "");
+#if MODE_DEBUG
 	static_assert(!std::is_trivially_destructible<heap_storage>::value, "");
+#else
+	static_assert(std::is_trivially_destructible<heap_storage>::value, "");
+#endif
 	static_assert(!heap_storage::storing_trivially_copyable::value, "");
 	static_assert(!heap_storage::storing_trivially_destructible::value, "");
 	static_assert(!utility::storage_traits<heap_storage>::trivial_allocate::value, "");

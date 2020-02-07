@@ -7,6 +7,7 @@
 #include "engine/graphics/opengl.hpp"
 
 #include "utility/string.hpp"
+#include "utility/unicode.hpp"
 
 # include <string>
 
@@ -74,9 +75,9 @@ namespace engine
 				public:
 					void free();
 #if TEXT_USE_FREETYPE
-					bool load(const char * name, int height);
+					bool load(utility::string_view_utf8 name, int height);
 #elif TEXT_USE_USER32 || TEXT_USE_X11
-					bool load(engine::application::window & window, const char * name, int height);
+					bool load(engine::application::window & window, utility::string_view_utf8 name, int height);
 #endif
 
 				public:

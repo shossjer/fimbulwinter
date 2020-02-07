@@ -102,6 +102,30 @@ namespace utl
 		                  std::forward<F>(f));
 	}
 
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+	// C4702 - unreachable code
+#endif
+	template <typename Array, std::size_t ...Is, typename F>
+	void for_each_in(Array && array,
+	                 mpl::index_sequence<Is...>,
+	                 F && f)
+	{
+		int expansion_hack[] = {(f(std::get<Is>(array)), 0)...};
+		static_cast<void>(expansion_hack);
+	}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
+	template <typename Array, typename F>
+	void for_each(Array && array, F && f)
+	{
+		return for_each_in(std::forward<Array>(array),
+		                   mpl::make_array_sequence<mpl::remove_cvref_t<Array>>{},
+		                   std::forward<F>(f));
+	}
+
 	////////////////////////////////////////////////////////////////////////////
 	//
 	//  kjhs

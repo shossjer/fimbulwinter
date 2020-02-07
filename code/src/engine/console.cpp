@@ -90,8 +90,8 @@ namespace engine
 		void observe_impl(utility::string_view keyword, std::unique_ptr<CallbackBase> && callback)
 		{
 			const auto key = engine::Asset(keyword);
-			const auto it = std::find_if(observers.begin(), observers.end(), [key](const auto & p){ return p.first == key; });
-			debug_assert(it == observers.end(), "\"", keyword, "\" is being observed twice");
+			if (!debug_assert(std::find_if(observers.begin(), observers.end(), [key](const auto & p){ return p.first == key; }) == observers.end(), "\"", keyword, "\" is being observed twice"))
+				return;
 
 			observers.emplace_back(key, std::move(callback));
 		}

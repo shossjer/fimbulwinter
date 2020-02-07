@@ -14,8 +14,13 @@ namespace engine
 	{
 		extern void buildFont(window & window, HFONT hFont, DWORD count, DWORD listBase);
 		extern void freeFont(window & window, HFONT hFont);
-		extern HFONT loadFont(window & window, const char * name, int height);
+		extern HFONT loadFont(window & window, utility::string_view_utf8 name, int height);
 	}
+}
+
+namespace
+{
+	constexpr auto invalid_base = GLuint(-1);
 }
 
 namespace engine
@@ -57,7 +62,7 @@ namespace engine
 				this->hFont = nullptr;
 			}
 
-			bool Font::Data::load(engine::application::window & window, const char * name, int height)
+			bool Font::Data::load(engine::application::window & window, utility::string_view_utf8 name, int height)
 			{
 				debug_assert(this->hFont == nullptr);
 
@@ -69,33 +74,30 @@ namespace engine
 
 			Font::~Font()
 			{
-				if (base != GLuint(-1))
+				if (base != invalid_base)
 				{
 					this->decompile();
 				}
 			}
 
 			Font::Font() :
-				base(-1)
+				base(invalid_base)
 			{}
 
 			Font::Font(Font && font) :
-				base(font.base)
-			{
-				font.base = -1;
-			}
+				base(std::exchange(font.base, invalid_base))
+			{}
 
 			Font & Font::operator = (Font && font)
 			{
-				this->base = font.base;
-				font.base = -1;
+				this->base = std::exchange(font.base, invalid_base);
 
 				return *this;
 			}
 
 			void Font::compile(const Data & data)
 			{
-				debug_assert(this->base == GLuint(-1));
+				debug_assert(this->base == invalid_base);
 
 				this->base = glGenLists(256);
 				buildFont(*data.window_, data.hFont, 256, this->base);
@@ -103,15 +105,15 @@ namespace engine
 
 			void Font::decompile()
 			{
-				debug_assert(this->base != GLuint(-1));
+				debug_assert(this->base != invalid_base);
 
 				glDeleteLists(this->base, 256);
-				this->base = -1;
+				this->base = invalid_base;
 			}
 
 			void Font::draw(int x, int y, char c) const
 			{
-				debug_assert(this->base != GLuint(-1));
+				debug_assert(this->base != invalid_base);
 
 				glRasterPos2i(x, y);
 				glCallList(this->base + c);
@@ -119,7 +121,7 @@ namespace engine
 
 			void Font::draw(int x, int y, const char * text) const
 			{
-				debug_assert(this->base != GLuint(-1));
+				debug_assert(this->base != invalid_base);
 
 				glRasterPos2i(x, y);
 				for (char c = *text; c != '\0'; c = *++text)
@@ -130,7 +132,7 @@ namespace engine
 
 			void Font::draw(int x, int y, const std::string & string) const
 			{
-				debug_assert(this->base != GLuint(-1));
+				debug_assert(this->base != invalid_base);
 
 				glRasterPos2i(x, y);
 				glListBase(this->base);
@@ -139,7 +141,7 @@ namespace engine
 
 			void Font::draw(int x, int y, const char * text, std::ptrdiff_t length) const
 			{
-				debug_assert(this->base != GLuint(-1));
+				debug_assert(this->base != invalid_base);
 
 				glRasterPos2i(x, y);
 				glListBase(this->base);

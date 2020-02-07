@@ -25,6 +25,7 @@ namespace utility
 			void set_capacity(size_type capacity)
 			{
 				assert(capacity == storage_traits::capacity_value);
+				static_cast<void>(capacity);
 			}
 			void set_size(size_type size)
 			{

@@ -278,20 +278,17 @@ namespace physics
 
 	void post_add_object(simulation &, engine::Entity entity, engine::transform_t && data)
 	{
-		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageAddObject>, entity, std::move(data));
-		debug_assert(res);
+		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddObject>, entity, std::move(data)));
 	}
 
 	void post_remove(simulation &, engine::Entity entity)
 	{
-		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity);
-		debug_assert(res);
+		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity));
 	}
 
 	void post_update_movement(simulation &, engine::Entity entity, movement_data && data)
 	{
-		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateMovement>, entity, std::move(data));
-		debug_assert(res);
+		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateMovement>, entity, std::move(data)));
 	}
 
 	void post_update_movement(simulation &, const engine::Entity /*id*/, const transform_t /*translation*/)
@@ -299,14 +296,12 @@ namespace physics
 
 	void post_update_orientation_movement(simulation &, engine::Entity entity, orientation_movement && data)
 	{
-		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateOrientationMovement>, entity, std::move(data));
-		debug_assert(res);
+		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateOrientationMovement>, entity, std::move(data)));
 	}
 
 	void post_update_transform(simulation &, engine::Entity entity, engine::transform_t && data)
 	{
-		const auto res = queue_entities.try_emplace(utility::in_place_type<MessageUpdateTransform>, entity, std::move(data));
-		debug_assert(res);
+		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateTransform>, entity, std::move(data)));
 	}
 }
 }
