@@ -190,6 +190,31 @@ namespace utility
 				4;
 		}
 
+		template <typename Char>
+		static constexpr std::ptrdiff_t count_impl(const Char * from, const Char * to, std::ptrdiff_t length)
+		{
+			return from < to ? count_impl(from + next(from), to, length + 1) : length;
+		}
+
+		template <typename Char>
+		static constexpr std::ptrdiff_t next_impl(const Char * s, std::ptrdiff_t length, const Char * from)
+		{
+			return length <= 0 ? s - from : next_impl(s + next(s), length - 1, from);
+		}
+
+		static constexpr std::ptrdiff_t previous_impl(const char * s, const char * from)
+		{
+			// 0x80 = 1000 0000
+			// 0xc0 = 1100 0000
+			return (*s & 0xc0) == 0x80 ? previous_impl(s - 1, from) : from - s;
+		}
+
+		template <typename Char>
+		static constexpr std::ptrdiff_t previous_impl(const Char * s, std::ptrdiff_t length, const Char * from)
+		{
+			return length <= 0 ? from - s : previous_impl(s - previous(s), length - 1, from);
+		}
+
 		constexpr std::size_t size_impl(mpl::type_is<char16_t>) const { return value_ < 0x10000 ? 1 : 2; }
 
 		constexpr std::size_t size_impl(mpl::type_is<char32_t>) const { return 1; }
@@ -380,33 +405,6 @@ namespace utility
 			}
 		}
 #endif
-
-	private:
-
-		template <typename Char>
-		static constexpr std::ptrdiff_t count_impl(const Char * from, const Char * to, std::ptrdiff_t length)
-		{
-			return from < to ? count_impl(from + next(from), to, length + 1) : length;
-		}
-
-		static constexpr std::ptrdiff_t previous_impl(const char * s, const char * from)
-		{
-			// 0x80 = 1000 0000
-			// 0xc0 = 1100 0000
-			return (*s & 0xc0) == 0x80 ? previous_impl(s - 1, from) : from - s;
-		}
-
-		template <typename Char>
-		static constexpr std::ptrdiff_t previous_impl(const Char * s, std::ptrdiff_t length, const Char * from)
-		{
-			return length <= 0 ? from - s : previous_impl(s - previous(s), length - 1, from);
-		}
-
-		template <typename Char>
-		static constexpr std::ptrdiff_t next_impl(const Char * s, std::ptrdiff_t length, const Char * from)
-		{
-			return length <= 0 ? s - from : next_impl(s + next(s), length - 1, from);
-		}
 
 	private:
 

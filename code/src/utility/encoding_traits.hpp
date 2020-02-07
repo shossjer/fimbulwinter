@@ -47,7 +47,7 @@ namespace utility
 		static constexpr code_point dereference(const code_unit * p) { return code_point(p); } // todo T::dereference
 
 		template <typename Char>
-		static constexpr std::size_t size(code_point cp) { return cp.size<Char>(); } // todo T::size
+		static constexpr std::size_t size(code_point cp) { return cp.template size<Char>(); } // todo T::size
 		static constexpr std::size_t max_size() { return T::max_size(); }
 
 		template <typename Char>

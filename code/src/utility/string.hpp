@@ -658,7 +658,7 @@ namespace utility
 		const_reverse_iterator rend() const { return std::make_reverse_iterator(begin()); }
 		const_reverse_iterator crend() const { return std::make_reverse_iterator(cbegin()); }
 
-		operator utility::basic_string_view<Encoding>() const { return utility::basic_string_view<Encoding>(data(), utility::unit_difference(data_.array_.size_without_null())); }
+		operator utility::basic_string_view<Encoding>() const { return utility::basic_string_view<Encoding>(data(), length()); }
 
 		template <typename Position>
 		decltype(auto) operator [] (Position && position) { return begin()[std::forward<Position>(position)]; }

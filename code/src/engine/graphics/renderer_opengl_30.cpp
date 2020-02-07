@@ -154,10 +154,12 @@ namespace
 
 	public:
 
+#if !TEXT_USE_FREETYPE
 		friend void glLoadMatrix(const Stack & stack)
 		{
 			glLoadMatrix(stack.stack.top());
 		}
+#endif
 	};
 
 	struct ShaderData
