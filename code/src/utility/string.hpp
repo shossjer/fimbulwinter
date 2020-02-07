@@ -86,7 +86,7 @@ namespace utility
 
 		return split(string, delimiter, words, remove_whitespaces);
 	}
-	
+
 	/**
 	 * Trim from start.
 	 */
@@ -173,11 +173,6 @@ namespace utility
 		template <typename Position, typename Count>
 		constexpr basic_string_view(const this_type & other, Position && position, Count && count)
 			: basic_string_view(other_substr{}, other, encoding_traits::next(other.data(), std::forward<Position>(position)), std::forward<Count>(count))
-		{}
-		template <typename StorageTraits>
-		basic_string_view(const basic_string<StorageTraits, Encoding> & str)
-			: ptr_(str.data())
-			, size_(str.size())
 		{}
 	private:
 		basic_string_view(other_offset, const this_type & other, std::size_t position)
@@ -536,18 +531,24 @@ namespace utility
 		basic_string()
 			: data_(1)
 		{
-			data_.array_.set_size(1);
 			data_.array_.chars_.construct_at(0, '\0');
+			data_.array_.set_size(1);
+		}
+		explicit basic_string(std::size_t size)
+			: data_(size + 1)
+		{
+			data_.array_.chars_.construct_fill(0, size + 1, '\0');
+			data_.array_.set_size(size + 1);
 		}
 		template <typename Character>
-		basic_string(size_type repeat, Character && character)
+		basic_string(std::size_t repeat, Character && character)
 			: basic_string(repeat_char{}, repeat, std::forward<Character>(character), 0)
 		{}
-		basic_string(size_type repeat, const code_unit * s)
+		basic_string(std::size_t repeat, const code_unit * s)
 			: basic_string(repeat_str{}, repeat, s, ext::strlen(s))
 		{}
 		template <typename Count>
-		basic_string(size_type repeat, const code_unit * s, Count && count)
+		basic_string(std::size_t repeat, const code_unit * s, Count && count)
 			: basic_string(repeat_str{}, repeat, s, encoding_traits::next(s, std::forward<Count>(count)))
 		{}
 		basic_string(const code_unit * s)
@@ -557,9 +558,6 @@ namespace utility
 		basic_string(const code_unit * s, Count && count)
 			: basic_string(copy_str{}, s, encoding_traits::next(s, std::forward<Count>(count)))
 		{}
-		basic_string(const basic_string_view<Encoding> & v)
-			: basic_string(copy_str{}, v.data(), encoding_traits::next(v.data(), v.length()))
-		{}
 		template <typename Position>
 		basic_string(const this_type & other, Position && position)
 			: basic_string(other_offset{}, other, encoding_traits::next(other.data(), std::forward<Position>(position)))
@@ -567,6 +565,9 @@ namespace utility
 		template <typename Position, typename Count>
 		basic_string(const this_type & other, Position && position, Count && count)
 			: basic_string(other_substr{}, other, encoding_traits::next(other.data(), std::forward<Position>(position)), std::forward<Count>(count))
+		{}
+		explicit basic_string(basic_string_view<Encoding> view)
+			: basic_string(copy_str{}, view.data(), encoding_traits::next(view.data(), view.length()))
 		{}
 		basic_string & operator = (const code_unit * s)
 		{
@@ -579,24 +580,35 @@ namespace utility
 			assert(ret);
 			return *this;
 		}
+		basic_string & operator = (basic_string_view<Encoding> view)
+		{
+			const auto ret = data_.array_.try_replace_with(
+				view.size() + 1,
+				[&](array_data & new_data)
+				{
+					new_data.chars_.construct_range(0, view.begin(), view.end());
+				});
+			assert(ret);
+			return *this;
+		}
 	private:
-		basic_string(repeat_char, size_type repeat, code_unit c, int)
+		basic_string(repeat_char, std::size_t repeat, code_unit c, int)
 			: data_(repeat + 1)
 		{
 			data_.array_.set_size(repeat + 1);
 			data_.array_.chars_.construct_fill(0, repeat, c);
 			data_.array_.chars_.construct_at(repeat, '\0');
 		}
-		basic_string(repeat_char, size_type repeat, code_point cp, ...)
+		basic_string(repeat_char, std::size_t repeat, code_point cp, ...)
 			: basic_string(repeat_char{}, repeat, cp, std::array<code_unit, encoding_traits::max_size()>{}, 0)
 		{}
-		basic_string(repeat_char, size_type repeat, code_point cp, std::array<code_unit, 1> chars, int)
+		basic_string(repeat_char, std::size_t repeat, code_point cp, std::array<code_unit, 1> chars, int)
 			: basic_string(repeat_char{}, repeat, (encoding_traits::get(cp, chars.data()), chars[0]), 0)
 		{}
-		basic_string(repeat_char, size_type repeat, code_point cp, std::array<code_unit, encoding_traits::max_size()> chars, ...)
+		basic_string(repeat_char, std::size_t repeat, code_point cp, std::array<code_unit, encoding_traits::max_size()> chars, ...)
 			: basic_string(repeat_str{}, repeat, chars.data(), encoding_traits::get(cp, chars.data()))
 		{}
-		basic_string(repeat_str, size_type repeat, const code_unit * s, std::size_t count)
+		basic_string(repeat_str, std::size_t repeat, const code_unit * s, std::size_t count)
 			: data_(repeat * count + 1)
 		{
 			// assert(count != 1); // more efficient to call basic_string(repeat, c)
@@ -646,6 +658,8 @@ namespace utility
 		const_reverse_iterator rend() const { return std::make_reverse_iterator(begin()); }
 		const_reverse_iterator crend() const { return std::make_reverse_iterator(cbegin()); }
 
+		operator utility::basic_string_view<Encoding>() const { return utility::basic_string_view<Encoding>(data(), utility::unit_difference(data_.array_.size_without_null())); }
+
 		template <typename Position>
 		decltype(auto) operator [] (Position && position) { return begin()[std::forward<Position>(position)]; }
 		template <typename Position>
@@ -668,6 +682,21 @@ namespace utility
 			data_.array_.chars_.destruct_range(0, data_.array_.size());
 			data_.array_.set_size(1);
 			data_.array_.chars_.construct_at(0, '\0');
+		}
+
+		bool try_resize(std::size_t size)
+		{
+			if (!data_.array_.try_reserve(size + 1))
+				return false;
+
+			if (size + 1 < data_.array_.size())
+			{
+				data_.array_.chars_.destruct_range(size, data_.array_.size());
+			}
+			data_.array_.chars_.construct_fill(data_.array_.size(), size + 1, '\0');
+			data_.array_.set_size(size + 1);
+
+			return true;
 		}
 
 		bool try_push_back(code_point cp)

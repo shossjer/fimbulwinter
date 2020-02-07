@@ -19,9 +19,12 @@ namespace utility
 		static constexpr code_point & dereference(code_unit * p) { return *p; }
 		static constexpr const code_point & dereference(const code_unit * p) { return *p; }
 
+		template <typename Char>
+		static constexpr std::size_t size(code_point) { return 1; }
 		static constexpr std::size_t max_size() { return 1; }
 
-		static constexpr std::ptrdiff_t get(code_point cp, code_unit * buffer) { *buffer = cp; return 1; }
+		template <typename Char>
+		static constexpr auto get(code_point cp, Char * buffer) -> decltype(*buffer = cp, std::ptrdiff_t()) { *buffer = cp; return 1; }
 
 		static constexpr std::ptrdiff_t next(const code_unit *) { return 1; }
 		static constexpr std::ptrdiff_t next(const code_unit *, std::ptrdiff_t count) { return count; }
@@ -43,9 +46,12 @@ namespace utility
 
 		static constexpr code_point dereference(const code_unit * p) { return code_point(p); } // todo T::dereference
 
+		template <typename Char>
+		static constexpr std::size_t size(code_point cp) { return cp.size<Char>(); } // todo T::size
 		static constexpr std::size_t max_size() { return T::max_size(); }
 
-		static constexpr std::ptrdiff_t get(code_point cp, code_unit * buffer) { return cp.get(buffer); } // todo T::get
+		template <typename Char>
+		static constexpr std::ptrdiff_t get(code_point cp, Char * buffer) { return cp.get(buffer); } // todo T::get
 
 		static constexpr std::ptrdiff_t next(const code_unit * s) { return code_point::next(s); } // todo T::next
 		template <typename Count>
