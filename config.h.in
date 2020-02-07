@@ -73,6 +73,13 @@
 
 /**
  */
+#cmakedefine FILE_USE_INOTIFY 1
+/**
+ */
+#cmakedefine FILE_USE_DUMMY 1
+
+/**
+ */
 #cmakedefine INPUT_HAS_USER32_HID 1
 /**
  * Enable raw input by default

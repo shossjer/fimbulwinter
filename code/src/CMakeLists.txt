@@ -55,6 +55,8 @@ set(SOURCES_ENGINE
 	src/engine/console.cpp
 	src/engine/console_kernel32.cpp
 	src/engine/console_posix.cpp
+	src/engine/file/system_dummy.cpp
+	src/engine/file/system_inotify.cpp
 	src/engine/graphics/opengl.cpp
 	src/engine/graphics/opengl/Font_freetype.cpp
 	src/engine/graphics/opengl/Font_user32.cpp
@@ -91,6 +93,7 @@ set(HEADERS_ENGINE
 	src/engine/audio/system.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
+	src/engine/file/system.hpp
 	src/engine/graphics/config.hpp
 	src/engine/graphics/message.hpp
 	src/engine/graphics/opengl.hpp
@@ -134,6 +137,7 @@ set(HEADERS_UTILITY
 	src/utility/crypto/crc.hpp
 	src/utility/ext/stddef.hpp
 	src/utility/ext/string.hpp
+	src/utility/ext/unistd.hpp
 	src/utility/encoding_traits.hpp
 	src/utility/functional.hpp
 	src/utility/heap_allocator.hpp

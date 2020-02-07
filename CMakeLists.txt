@@ -113,6 +113,10 @@ message(STATUS "Looking for Hid - ${LIBRARY_HID}")
 message(STATUS "Looking for Kernel32")
 find_library(LIBRARY_KERNEL32 kernel32)
 message(STATUS "Looking for Kernel32 - ${LIBRARY_KERNEL32}")
+# Linux
+message(STATUS "Looking for Linux")
+find_file(FILE_SYS_INOTIFY_H sys/inotify.h)
+message(STATUS "Looking for Linux inotify - ${FILE_SYS_INOTIFY_H}")
 # OpenGL
 message(STATUS "Looking for OpenGL")
 find_file(FILE_GL_GL_H GL/gl.h)
@@ -193,6 +197,8 @@ else()
 endif()
 
 # select libraries
+include(CMakeDependentOption)
+
 # audio
 if(FILE_FMOD_HPP AND (LIBRARY_FMOD OR LIBRARY_FMOD_VC))
 	message(STATUS "Audio - FMOD")
@@ -218,6 +224,15 @@ elseif (LIBRARY_KERNEL32)
 else ()
   message(WARNING "Console - Disabled")
 endif ()
+
+# file
+cmake_dependent_option(FILE_USE_INOTIFY "Use the Linux inotify API for the file module" ON "FILE_SYS_INOTIFY_H" OFF)
+if(FILE_USE_INOTIFY)
+	message(STATUS "File - inotify")
+else()
+	message(WARNING "File - Disabled")
+	set(FILE_USE_DUMMY 1)
+endif()
 
 # graphics
 if (FILE_GL_GL_H AND

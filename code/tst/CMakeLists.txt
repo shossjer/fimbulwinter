@@ -19,6 +19,7 @@ set(FILES_ENGINE
 	tst/engine/Asset.cpp
 	tst/engine/audio/system.cpp
 	tst/engine/console.cpp
+	tst/engine/file/system.cpp
 	tst/engine/graphics/renderer.cpp
 	tst/engine/graphics/viewer.cpp
 	tst/engine/gui/gui_access.hpp
