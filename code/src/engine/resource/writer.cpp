@@ -55,23 +55,19 @@ namespace
 			: file(filename, std::ofstream::binary)
 		{}
 
-		int64_t write(const char * dest, int64_t n)
+		ext::ssize write(const void * dest, ext::usize n)
 		{
-			file.write(dest, n);
+			file.write(static_cast<const char *>(dest), n);
 
-			return n; // todo
+			return file ? n : ext::ssize(-1);
 		}
 	};
 
-	uint64_t write_callback(const char * src, int64_t n, void * data)
+	ext::ssize write_callback(const void * src, ext::usize n, void * data)
 	{
 		WriteData & write_data = *static_cast<WriteData *>(data);
 
-		uint64_t amount = write_data.write(src, n);
-		if (int64_t(amount) < n)
-			amount |= 0x8000000000000000ll;
-
-		return amount;
+		return write_data.write(src, n);
 	}
 
 	template <typename SerializerType>

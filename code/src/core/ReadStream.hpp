@@ -1,63 +1,81 @@
-
-#ifndef CORE_READSTREAM_HPP
-#define CORE_READSTREAM_HPP
+#pragma once
 
 #include "core/debug.hpp"
 
+#include "utility/ext/stddef.hpp"
 #include "utility/unicode.hpp"
-
-#include <utility>
 
 namespace core
 {
 	class ReadStream
 	{
 	private:
-		uint64_t (* read_callback_)(char * dest, int64_t n, void * data);
+		ext::ssize (* callback_)(void * dest, ext::usize n, void * data);
 		void * data_;
 
 		bool done_ = false;
+		bool fail_ = false;
 
 		utility::heap_string_utf8 filepath_;
 
 	public:
-		ReadStream(uint64_t (* read_callback)(char * dest, int64_t n, void * data), void * data, utility::heap_string_utf8 && filepath)
-			: read_callback_(read_callback)
+		explicit ReadStream(ext::ssize (* callback)(void * dest, ext::usize n, void * data), void * data, utility::heap_string_utf8 && filepath)
+			: callback_(callback)
 			, data_(data)
-			, filepath_(std::move(filepath))
+			, filepath_(static_cast<utility::heap_string_utf8 &&>(filepath))
 		{}
 
 	public:
-		bool valid() const
+		bool done() const { return done_; }
+		bool fail() const { return fail_; }
+
+		ext::usize read_some(void * dest, ext::usize size)
 		{
-			return !done_;
+			if (!debug_assert(!done_, "cannot read a done stream"))
+				return 0;
+
+			if (!debug_assert(size != 0, "cannot read zero bytes, please sanitize your data!"))
+				return 0;
+
+			const ext::ssize ret = callback_(dest, size, data_);
+			if (ret <= 0)
+			{
+				done_ = true;
+				fail_ = ret < 0;
+				return 0;
+			}
+			return ret;
 		}
 
-		int64_t read(char * dest, int64_t n)
+		ext::usize read_all(void * dest, ext::usize size)
 		{
-			debug_assert(!done_);
-			debug_assert(n > 0);
+			if (!debug_assert(!done_, "cannot read a done stream"))
+				return 0;
 
-			const uint64_t ret = read_callback_(dest, n, data_);
-			done_ = ret > 0x7fffffffffffffffll;
-			return ret & 0x7fffffffffffffffll;
-		}
+			if (!debug_assert(size != 0, "cannot read zero bytes, please sanitize your data!"))
+				return 0;
 
-		int64_t read_block(char * dest, int64_t n)
-		{
-			int64_t total = 0;
+			char * ptr = static_cast<char *>(dest);
+			ext::usize remaining = size;
 
 			do
 			{
-				total += read(dest + total, n - total);
-			}
-			while(total < n && !done_);
+				const ext::ssize ret = callback_(ptr, remaining, data_);
+				if (ret <= 0)
+				{
+					done_ = true;
+					fail_ = ret < 0;
+					break;
+				}
 
-			return total;
+				ptr += ret;
+				remaining -= ret;
+			}
+			while (0 < remaining);
+
+			return size - remaining;
 		}
 
 		const utility::heap_string_utf8 & filepath() const { return filepath_; }
 	};
 }
-
-#endif /* CORE_READSTREAM_HPP */

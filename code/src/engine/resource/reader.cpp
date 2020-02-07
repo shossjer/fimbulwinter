@@ -103,24 +103,19 @@ namespace
 				throw std::runtime_error("");
 		}
 
-		int64_t read(char * dest, int64_t n)
+		ext::ssize read(void * dest, ext::usize n)
 		{
-			file.read(dest, n);
+			file.read(static_cast<char *>(dest), n);
 
-			return file.gcount();
+			return file.gcount() ? file.gcount() : ext::ssize(-1);
 		}
 	};
 
-	uint64_t read_callback(char * dest, int64_t n, void * data)
+	ext::ssize read_callback(void * dest, ext::usize n, void * data)
 	{
-		debug_assert(n < 0x7fffffffffffffffll);
 		ReadData & read_data = *static_cast<ReadData *>(data);
 
-		uint64_t amount = read_data.read(dest, n);
-		if (int64_t(amount) < n)
-			amount |= 0x8000000000000000ll;
-
-		return amount;
+		return read_data.read(dest, n);
 	}
 
 	template <typename StructurerType>

@@ -27,12 +27,13 @@ namespace core
 
 			do
 			{
-				x.resize(end + chunk_size); // might throw
+				x.resize(end + chunk_size); // todo might throw
+				// todo worst case we read 1 byte, resize, read 1 byte,
+				// resize, etc, that is kind of dumb
 
-				const int64_t amount_read = stream.read(x.data() + end, chunk_size);
-				end += static_cast<std::size_t>(amount_read);
+				end += stream.read_some(x.data() + end, chunk_size);
 			}
-			while (stream.valid());
+			while (!stream.done());
 
 			x.resize(end);
 		}

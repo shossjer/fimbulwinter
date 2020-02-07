@@ -43,25 +43,25 @@ namespace core
 		          REQUIRES((std::is_enum<T>::value))>
 		void write_key_value(const utility::string_view & name, const T & x)
 		{
-			stream.write(name.data(), name.size());
-			stream.write("=", sizeof "=" - 1);
+			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
+			debug_verify(stream.write_all("=", sizeof "=" - 1) == sizeof "=" - 1);
 
 			utility::string_view value = value_table<T>::get_key(x);
-			stream.write(value.data(), value.size());
+			debug_verify(stream.write_all(value.data(), value.size()) == value.size());
 
-			stream.write("\n", sizeof "\n" - 1);
+			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
 		}
 		template <typename T,
 		          REQUIRES((!core::has_lookup_table<T>::value))>
 		void write_key_value(const utility::string_view & name, const T & x)
 		{
-			stream.write(name.data(), name.size());
-			stream.write("=", sizeof "=" - 1);
+			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
+			debug_verify(stream.write_all("=", sizeof "=" - 1) == sizeof "=" - 1);
 
 			std::string value = utility::to_string(x);
-			stream.write(value.data(), value.size());
+			debug_verify(stream.write_all(value.data(), value.size()) == value.size());
 
-			stream.write("\n", sizeof "\n" - 1);
+			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
 		}
 
 		template <typename T,
@@ -76,14 +76,14 @@ namespace core
 		          REQUIRES((std::is_class<T>::value))>
 		void write_header(const utility::string_view & name, const T & x)
 		{
-			stream.write("[", sizeof "[" - 1);
-			stream.write(name.data(), name.size());
-			stream.write("]", sizeof "]" - 1);
-			stream.write("\n", sizeof "\n" - 1);
+			debug_verify(stream.write_all("[", sizeof "[" - 1) == sizeof "[" - 1);
+			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
+			debug_verify(stream.write_all("]", sizeof "]" - 1) == sizeof "]" - 1);
+			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
 
 			member_table<T>::for_each_member(x, [&](const auto& k, const auto& y){ write_key_value(k, y); } );
 
-			stream.write("\n", sizeof "\n" - 1);
+			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
 		}
 		template <typename T,
 		          REQUIRES((core::has_lookup_table<T>::value)),

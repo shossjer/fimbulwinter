@@ -68,12 +68,13 @@ namespace core
 
 		void read_bytes(char * ptr, int64_t size)
 		{
-			if (!stream.valid())
-				throw std::runtime_error("unexpected eol");
-			const int64_t amount_read = stream.read_block(ptr, size);
+			if (!debug_verify(!stream.done()))
+				return; // todo error
+
+			const int64_t amount_read = stream.read_all(ptr, size);
 			if (amount_read < size)
 			{
-				debug_printline("warning: eof while reading '", stream.filepath(), "'");
+				debug_printline("warning: eof while reading '", stream.filepath(), "'"); // todo error
 			}
 		}
 
