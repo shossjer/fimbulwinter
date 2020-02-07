@@ -2,6 +2,9 @@
 
 #include "utility/intrinsics.hpp"
 
+#include <cstddef>
+#include <type_traits>
+
 namespace utility
 {
 	template <typename T>

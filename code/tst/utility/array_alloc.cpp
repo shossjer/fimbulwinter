@@ -1,7 +1,6 @@
-
-#include "catch.hpp"
-
 #include "utility/array_alloc.hpp"
+
+#include <catch/catch.hpp>
 
 TEST_CASE( "static_storage<5, int>", "[utility]" )
 {

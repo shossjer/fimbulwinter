@@ -1,9 +1,8 @@
-
-#include "catch.hpp"
-
 #include "gui_access.hpp"
 
-#include <engine/gui/update.hpp>
+#include "engine/gui/update.hpp"
+
+#include <catch/catch.hpp>
 
 namespace engine
 {

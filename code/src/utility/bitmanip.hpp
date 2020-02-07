@@ -6,6 +6,7 @@
 
 namespace utility
 {
+	// ceiling by power of two, smallest power of two at least as big as 'x'
 	inline uint32_t clp2(uint32_t x)
 	{
 		// Hacker's Delight Second Edition, Henry S. Warren, Jr.
@@ -18,10 +19,25 @@ namespace utility
 		return x + 1;
 	}
 
+	// ceiling by power of two, smallest power of two, at least as big as 'x'
+	inline uint64_t clp2(uint64_t x)
+	{
+		// Hacker's Delight Second Edition, Henry S. Warren, Jr.
+		x = x - 1;
+		x = x | (x >> 1);
+		x = x | (x >> 2);
+		x = x | (x >> 4);
+		x = x | (x >> 8);
+		x = x | (x >> 16);
+		x = x | (x >> 32);
+		return x + 1;
+	}
+
 #ifdef _MSC_VER
 #pragma warning( push )
 #pragma warning( disable : 4146 )
 #endif
+	// number of trailing zeros
 	inline int ntz(uint64_t x)
 	{
 #ifdef __GNUG__

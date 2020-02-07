@@ -1,7 +1,7 @@
-#include <catch.hpp>
-
 #include "utility/ranges.hpp"
 #include "utility/type_traits.hpp"
+
+#include <catch/catch.hpp>
 
 #include <array>
 

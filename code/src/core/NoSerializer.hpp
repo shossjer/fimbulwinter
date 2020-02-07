@@ -2,15 +2,15 @@
 #ifndef CORE_NOSERIALIZER_HPP
 #define CORE_NOSERIALIZER_HPP
 
-#include <string>
+#include "utility/unicode.hpp"
 
 namespace core
 {
 	struct NoSerializer
 	{
-		std::string filename;
+		utility::heap_string_utf8 filename;
 
-		NoSerializer(std::string filename)
+		NoSerializer(utility::heap_string_utf8 && filename)
 			: filename(std::move(filename))
 		{}
 	};

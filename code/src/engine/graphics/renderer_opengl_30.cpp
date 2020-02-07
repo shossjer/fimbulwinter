@@ -1755,12 +1755,12 @@ namespace
 			const int slot_size_y = maxy + border_size * 2;
 
 			std::vector<std::tuple<int, int, int, int>> texture_dimensions;
-			for (int texture_height = utility::clp2(slot_size_y);; texture_height *= 2)
+			for (int texture_height = utility::clp2(uint32_t(slot_size_y));; texture_height *= 2)
 			{
 				const int max_in_y = texture_height / slot_size_y;
 				const int needed_in_x = 1 + (total_slots - 1) / max_in_y;
 
-				const int texture_width = utility::clp2(needed_in_x * slot_size_x);
+				const int texture_width = utility::clp2(uint32_t(needed_in_x * slot_size_x));
 				const int max_in_x = texture_width / slot_size_x;
 
 				const int unused_slots = max_in_x * max_in_y - total_slots;

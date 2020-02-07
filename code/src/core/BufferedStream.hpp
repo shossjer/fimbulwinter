@@ -30,7 +30,7 @@ namespace core
 		}
 
 	public:
-		const std::string & filename() const { return read_stream_.filename; }
+		const utility::heap_string_utf8 & filepath() const { return read_stream_.filepath(); }
 
 		const char * data(std::ptrdiff_t pos) const
 		{

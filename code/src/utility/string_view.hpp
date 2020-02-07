@@ -2,22 +2,14 @@
 #ifndef UTILITY_STRING_VIEW_HPP
 #define UTILITY_STRING_VIEW_HPP
 
+#include "utility/ext/string.hpp"
+
 #include <algorithm>
 #include <cstddef>
 #include <ostream>
 
 namespace utility
 {
-	constexpr std::size_t strlen_impl(const char * str, std::size_t len)
-	{
-		return *str ? strlen_impl(str + 1, len + 1) : len;
-	}
-
-	constexpr std::size_t strlen(const char * str)
-	{
-		return str ? strlen_impl(str, 0) : throw "strlen expects non-null string";
-	}
-
 	template <typename T>
 	constexpr const T & min(const T & a, const T & b)
 	{
@@ -43,7 +35,7 @@ namespace utility
 		{}
 		constexpr string_view(const char * str)
 			: str_(str)
-			, len_(strlen(str))
+			, len_(ext::strlen(str))
 		{}
 		constexpr string_view & operator = (const string_view &) noexcept = default;
 

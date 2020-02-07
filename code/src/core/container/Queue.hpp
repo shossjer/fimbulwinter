@@ -288,7 +288,7 @@ namespace core
 				std::size_t next;
 				while (!detail::checkout_write_slot(*header, slot, next))
 				{
-					const auto new_capacity = storage_traits::grow(header->capacity(), 0);
+					const auto new_capacity = storage_traits::grow(header->capacity(), 1);
 					Header * const new_header = allocator_traits::allocate(allocator(), new_capacity);
 					if (!new_header)
 						return false;

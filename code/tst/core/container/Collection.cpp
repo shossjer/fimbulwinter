@@ -1,7 +1,6 @@
+#include "core/container/Collection.hpp"
 
-#include "catch.hpp"
-
-#include <core/container/Collection.hpp>
+#include <catch/catch.hpp>
 
 namespace
 {

@@ -1,7 +1,6 @@
+#include "core/maths/util.hpp"
 
-#include "catch.hpp"
-
-#include <core/maths/util.hpp>
+#include <catch/catch.hpp>
 
 namespace
 {

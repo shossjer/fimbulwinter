@@ -1,7 +1,7 @@
-#include <catch.hpp>
-
 #include "utility/algorithm.hpp"
 #include "utility/ranges.hpp"
+
+#include <catch/catch.hpp>
 
 TEST_CASE("to_array", "[utility][algorithm]")
 {

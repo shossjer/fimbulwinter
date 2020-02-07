@@ -4,11 +4,12 @@
 
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
+#include "core/WriteStream.hpp"
 
 #include "utility/string.hpp"
+#include "utility/string_view.hpp"
 
 #include <string>
-#include <vector>
 #include <cstdint>
 
 namespace core
@@ -16,24 +17,17 @@ namespace core
 	class IniSerializer
 	{
 	private:
-		std::vector<char> buffer;
-
-		std::string filename;
+		core::WriteStream stream;
 
 	public:
-		IniSerializer(std::string filename)
-			: filename(std::move(filename))
+		IniSerializer(core::WriteStream && stream)
+			: stream(std::move(stream))
 		{}
 
 	public:
-		const char * data() const { return buffer.data(); }
-		std::size_t size() const { return buffer.size(); }
-
 		template <typename T>
 		void write(const T & x)
 		{
-			buffer.clear();
-
 			write_key_values(x);
 			write_headers(x);
 		}
@@ -49,25 +43,25 @@ namespace core
 		          REQUIRES((std::is_enum<T>::value))>
 		void write_key_value(const utility::string_view & name, const T & x)
 		{
-			buffer.insert(buffer.end(), name.begin(), name.end());
-			buffer.push_back('=');
+			stream.write(name.data(), name.size());
+			stream.write("=", sizeof "=" - 1);
 
 			utility::string_view value = value_table<T>::get_key(x);
-			buffer.insert(buffer.end(), value.begin(), value.end());
+			stream.write(value.data(), value.size());
 
-			buffer.push_back('\n');
+			stream.write("\n", sizeof "\n" - 1);
 		}
 		template <typename T,
 		          REQUIRES((!core::has_lookup_table<T>::value))>
 		void write_key_value(const utility::string_view & name, const T & x)
 		{
-			buffer.insert(buffer.end(), name.begin(), name.end());
-			buffer.push_back('=');
+			stream.write(name.data(), name.size());
+			stream.write("=", sizeof "=" - 1);
 
 			std::string value = utility::to_string(x);
-			buffer.insert(buffer.end(), value.begin(), value.end());
+			stream.write(value.data(), value.size());
 
-			buffer.push_back('\n');
+			stream.write("\n", sizeof "\n" - 1);
 		}
 
 		template <typename T,
@@ -82,14 +76,14 @@ namespace core
 		          REQUIRES((std::is_class<T>::value))>
 		void write_header(const utility::string_view & name, const T & x)
 		{
-			buffer.push_back('[');
-			buffer.insert(buffer.end(), name.begin(), name.end());
-			buffer.push_back(']');
-			buffer.push_back('\n');
+			stream.write("[", sizeof "[" - 1);
+			stream.write(name.data(), name.size());
+			stream.write("]", sizeof "]" - 1);
+			stream.write("\n", sizeof "\n" - 1);
 
 			member_table<T>::for_each_member(x, [&](const auto& k, const auto& y){ write_key_value(k, y); } );
 
-			buffer.push_back('\n');
+			stream.write("\n", sizeof "\n" - 1);
 		}
 		template <typename T,
 		          REQUIRES((core::has_lookup_table<T>::value)),

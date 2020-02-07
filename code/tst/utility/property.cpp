@@ -1,7 +1,6 @@
+#include "utility/property.hpp"
 
-#include "catch.hpp"
-
-#include <utility/property.hpp>
+#include <catch/catch.hpp>
 
 #include <type_traits>
 

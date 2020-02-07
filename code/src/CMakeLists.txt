@@ -1,6 +1,7 @@
 
 set(SOURCES_CORE
-	src/core/async/Thread.cpp
+	src/core/async/Thread_kernel32.cpp
+	src/core/async/Thread_pthread.cpp
 	src/core/container/Buffer.cpp
 	)
 
@@ -42,6 +43,7 @@ set(HEADERS_CORE
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
+	src/core/WriteStream.hpp
 	)
 
 set(SOURCES_ENGINE
@@ -130,6 +132,8 @@ set(HEADERS_UTILITY
 	src/utility/bitmanip.hpp
 	src/utility/concepts.hpp
 	src/utility/crypto/crc.hpp
+	src/utility/ext/stddef.hpp
+	src/utility/ext/string.hpp
 	src/utility/encoding_traits.hpp
 	src/utility/functional.hpp
 	src/utility/heap_allocator.hpp

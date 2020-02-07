@@ -1,6 +1,6 @@
-#include <catch.hpp>
-
 #include "core/debug.hpp"
+
+#include <catch/catch.hpp>
 
 namespace
 {

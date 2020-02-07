@@ -1,7 +1,6 @@
-
-#include "catch.hpp"
-
 #include "utility/type_info.hpp"
+
+#include <catch/catch.hpp>
 
 namespace
 {

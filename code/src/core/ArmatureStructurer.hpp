@@ -130,7 +130,7 @@ namespace core
 		template <typename T>
 		void read_actions(T &, int /*njoints*/, int /*nactions*/)
 		{
-			debug_fail("attempting to read actions into a non array type in armature '", read_stream_.filename, "'");
+			debug_fail("attempting to read actions into a non array type in armature '", read_stream_.filepath(), "'");
 		}
 
 		void read_byte(uint8_t & byte)
@@ -154,7 +154,7 @@ namespace core
 		template <typename T>
 		void read_count(T &)
 		{
-			debug_fail("attempting to read count into a non count type in armature '", read_stream_.filename, "'");
+			debug_fail("attempting to read count into a non count type in armature '", read_stream_.filepath(), "'");
 		}
 
 		template <typename T>
@@ -194,7 +194,7 @@ namespace core
 		template <typename T>
 		void read_frames(T &, int /*njoints*/, int /*length*/)
 		{
-			debug_fail("attempting to read frames into a non array type in armature '", read_stream_.filename, "'");
+			debug_fail("attempting to read frames into a non array type in armature '", read_stream_.filepath(), "'");
 		}
 
 		template <typename T>
@@ -257,7 +257,7 @@ namespace core
 		template <typename T>
 		void read_joints(T &, int /*count*/)
 		{
-			debug_fail("attempting to read joints into a non array type in armature '", read_stream_.filename, "'");
+			debug_fail("attempting to read joints into a non array type in armature '", read_stream_.filepath(), "'");
 		}
 
 		void read_length(int32_t & length)
@@ -274,7 +274,7 @@ namespace core
 		template <typename T>
 		void read_matrix(T &)
 		{
-			debug_fail("attempting to read matrix into a non matrix type in armature '", read_stream_.filename, "'");
+			debug_fail("attempting to read matrix into a non matrix type in armature '", read_stream_.filepath(), "'");
 		}
 
 		template <typename T,
@@ -290,7 +290,7 @@ namespace core
 		template <typename T>
 		void read_orientations(T &, int /*length*/)
 		{
-			debug_fail("attempting to read orientations into a non array type in armature '", read_stream_.filename, "'");
+			debug_fail("attempting to read orientations into a non array type in armature '", read_stream_.filepath(), "'");
 		}
 
 		template <typename T,
@@ -306,7 +306,7 @@ namespace core
 		template <typename T>
 		void read_positions(T &, int /*length*/)
 		{
-			debug_fail("attempting to read positions into a non array type in armature '", read_stream_.filename, "'");
+			debug_fail("attempting to read positions into a non array type in armature '", read_stream_.filepath(), "'");
 		}
 
 		void read_quaternion(core::maths::Quaternionf & x)
@@ -318,7 +318,7 @@ namespace core
 		template <typename T>
 		void read_quaternion(T &)
 		{
-			debug_fail("attempting to read quaternion into a non quaternion type in level '", read_stream_.filename, "'");
+			debug_fail("attempting to read quaternion into a non quaternion type in level '", read_stream_.filepath(), "'");
 		}
 
 		template <std::size_t N>
@@ -340,7 +340,7 @@ namespace core
 		template <typename T>
 		void read_string(T &)
 		{
-			debug_fail("attempting to read string into a non string type in level '", read_stream_.filename, "'");
+			debug_fail("attempting to read string into a non string type in level '", read_stream_.filepath(), "'");
 		}
 
 		void read_vector(core::maths::Vector3f & x)
@@ -352,7 +352,7 @@ namespace core
 		template <typename T>
 		void read_vector(T &)
 		{
-			debug_fail("attempting to read vector into a non vector type in level '", read_stream_.filename, "'");
+			debug_fail("attempting to read vector into a non vector type in level '", read_stream_.filepath(), "'");
 		}
 	};
 }

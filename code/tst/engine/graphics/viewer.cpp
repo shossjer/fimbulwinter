@@ -1,5 +1,3 @@
-#include <catch.hpp>
-
 #include "config.h"
 
 #include "engine/application/config.hpp"
@@ -7,6 +5,8 @@
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
 #include "engine/resource/reader.hpp"
+
+#include <catch/catch.hpp>
 
 #if WINDOW_USE_USER32
 # include <Windows.h>

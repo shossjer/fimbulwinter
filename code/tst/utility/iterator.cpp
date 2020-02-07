@@ -1,7 +1,6 @@
+#include "utility/iterator.hpp"
 
-#include "catch.hpp"
-
-#include <utility/iterator.hpp>
+#include <catch/catch.hpp>
 
 #include <list>
 

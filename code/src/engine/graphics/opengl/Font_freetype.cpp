@@ -16,7 +16,7 @@ namespace
 {
 	int smallest_power_of_two(int minimum)
 	{
-		return utility::clp2(minimum);
+		return utility::clp2(uint32_t(minimum));
 	}
 
 	constexpr auto invalid_id = GLuint(-1);

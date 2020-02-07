@@ -9,6 +9,7 @@ set(FILES_CORE
 	tst/core/maths/Quaternion.cpp
 	tst/core/maths/Vector.cpp
 	tst/core/maths/util.cpp
+	tst/core/WriteStream.cpp
 	)
 
 set(FILES_ENGINE
@@ -41,13 +42,16 @@ set(FILES_UTILITY
 	tst/utility/any.cpp
 	tst/utility/array.cpp
 	tst/utility/array_alloc.cpp
+	tst/utility/bitmanip.cpp
 	tst/utility/crypto/crc.cpp
+	tst/utility/ext/string.cpp
 	tst/utility/iterator.cpp
 	tst/utility/null_allocator.cpp
 	tst/utility/optional.cpp
 	tst/utility/property.cpp
 	tst/utility/ranges.cpp
 	tst/utility/storing.cpp
+	tst/utility/string.cpp
 	tst/utility/string_view.cpp
 	tst/utility/type_info.cpp
 	tst/utility/type_traits.cpp

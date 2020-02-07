@@ -1,7 +1,6 @@
-
-#include "catch.hpp"
-
 #include "utility/any.hpp"
+
+#include <catch/catch.hpp>
 
 #include <string>
 

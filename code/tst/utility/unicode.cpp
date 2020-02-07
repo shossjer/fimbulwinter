@@ -1,7 +1,6 @@
-
-#include "catch.hpp"
-
 #include "utility/unicode.hpp"
+
+#include <catch/catch.hpp>
 
 #include <iostream>
 #include <sstream>

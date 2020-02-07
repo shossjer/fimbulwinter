@@ -47,36 +47,52 @@ namespace
 
 namespace
 {
-	void write_ini(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::writer::Serializer & serializer))
+	struct WriteData
 	{
-		debug_printline("writing '", filename, "'");
-		using SerializerType = core::IniSerializer;
-		engine::resource::writer::Serializer serializer(utility::in_place_type<SerializerType>, filename);
+		std::ofstream file;
 
-		callback(std::move(name), serializer);
+		WriteData(const char * filename)
+			: file(filename, std::ofstream::binary)
+		{}
 
-		const SerializerType & buffer = utility::get<SerializerType>(serializer);
+		int64_t write(const char * dest, int64_t n)
+		{
+			file.write(dest, n);
 
-		std::ofstream file(filename, std::ofstream::binary);
-		debug_assert(file);
+			return n; // todo
+		}
+	};
 
-		file.write(buffer.data(), buffer.size());
+	uint64_t write_callback(const char * src, int64_t n, void * data)
+	{
+		WriteData & write_data = *static_cast<WriteData *>(data);
+
+		uint64_t amount = write_data.write(src, n);
+		if (int64_t(amount) < n)
+			amount |= 0x8000000000000000ll;
+
+		return amount;
 	}
 
-	void write_json(std::string name, std::string filename, void (* callback)(std::string name, engine::resource::writer::Serializer & serializer))
+	template <typename SerializerType>
+	void write_file(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::writer::Serializer & serializer))
 	{
 		debug_printline("writing '", filename, "'");
-		using SerializerType = core::JsonSerializer;
-		engine::resource::writer::Serializer serializer(utility::in_place_type<SerializerType>, filename);
+		WriteData write_data(filename.data());
+
+		engine::resource::writer::Serializer serializer(utility::in_place_type<SerializerType>, core::WriteStream(write_callback, &write_data, std::move(filename)));
 
 		callback(std::move(name), serializer);
+	}
 
-		std::string bytes = utility::get<SerializerType>(serializer).get();
+	void write_ini(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::writer::Serializer & serializer))
+	{
+		write_file<core::IniSerializer>(name, std::move(filename), callback);
+	}
 
-		std::ofstream file(filename, std::ofstream::binary);
-		debug_assert(file);
-
-		file.write(bytes.data(), bytes.size());
+	void write_json(std::string name, utility::heap_string_utf8 && filename, void (* callback)(std::string name, engine::resource::writer::Serializer & serializer))
+	{
+		write_file<core::JsonSerializer>(name, std::move(filename), callback);
 	}
 
 	void process_messages()
@@ -90,11 +106,11 @@ namespace
 				{
 					if (has_extension(x.name, ".ini"))
 					{
-						write_ini(x.name, x.name, x.callback);
+						write_ini(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 					}
 					else if (has_extension(x.name, ".json"))
 					{
-						write_json(x.name, x.name, x.callback);
+						write_json(x.name, utility::heap_string_utf8(x.name.data(), utility::unit_difference(x.name.size())), x.callback);
 					}
 					else
 					{
