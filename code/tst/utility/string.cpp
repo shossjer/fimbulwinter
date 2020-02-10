@@ -45,3 +45,27 @@ TEST_CASE("string view cannot find", "[utility][string view]")
 		CHECK(a.rfind('g') == 6);
 	}
 }
+
+TEST_CASE("string can resize", "[utility][string]")
+{
+	utility::static_string<11, char> a(5);
+	CHECK(a.size() == 5);
+
+	SECTION("to something bigger")
+	{
+		CHECK(a.try_resize(8));
+		CHECK(a.size() == 8);
+	}
+
+	SECTION("to something smaller")
+	{
+		CHECK(a.try_resize(2));
+		CHECK(a.size() == 2);
+	}
+
+	SECTION("to the same")
+	{
+		CHECK(a.try_resize(5));
+		CHECK(a.size() == 5);
+	}
+}
