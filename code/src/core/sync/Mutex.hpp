@@ -84,7 +84,7 @@ namespace sync
 	}
 #if THREAD_USE_KERNEL32
 	inline Mutex::Mutex(const bool initial_owner) :
-		hMutex(CreateMutex(0, initial_owner, 0))
+		hMutex(CreateMutexW(nullptr, initial_owner, nullptr))
 	{
 	}
 #elif THREAD_USE_PTHREAD
