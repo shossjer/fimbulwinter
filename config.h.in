@@ -73,10 +73,13 @@
 
 /**
  */
+#cmakedefine FILE_USE_DUMMY 1
+/**
+ */
 #cmakedefine FILE_USE_INOTIFY 1
 /**
  */
-#cmakedefine FILE_USE_DUMMY 1
+#cmakedefine FILE_USE_KERNEL32 1
 
 /**
  */
