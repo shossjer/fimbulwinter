@@ -169,6 +169,10 @@ set(HEADERS_UTILITY
 	src/utility/variant.hpp
 	)
 
+set(MSVC_UTILITY
+	src/utility/utility.natvis
+	)
+
 set(SOURCES_GAMEPLAY
 	src/gameplay/factory.cpp
 	src/gameplay/gamestate.cpp
