@@ -518,9 +518,9 @@ namespace utility
 	using heap_string_utf8 = basic_string<utility::heap_storage_traits, encoding_utf8>;
 //	using heap_string_utf16 = basic_string<utility::heap_storage_traits, encoding_utf16>;
 //	using heap_string_utf32 = basic_string<utility::heap_storage_traits, encoding_utf32>;
-//#if defined(_MSC_VER) && defined(_UNICODE)
-//	using heap_string_utfw = basic_string<utility::heap_storage_traits, encoding_utfw>;
-//#endif
+#if defined(_MSC_VER) && defined(_UNICODE)
+	using heap_string_utfw = basic_string<utility::heap_storage_traits, encoding_utfw>;
+#endif
 
 	template <std::size_t Capacity>
 	using static_string_utf8 = basic_string<utility::static_storage_traits<Capacity>, encoding_utf8>;
@@ -537,10 +537,10 @@ namespace utility
 	// inspired by
 	//
 	// http://utf8everywhere.org/#how.cvt
-	template <typename StorageTraits, typename EncodingOut>
-	bool try_narrow(utility::basic_string_view<utility::encoding_utfw> in, utility::basic_string<StorageTraits, EncodingOut> & out)
+	template <typename StorageTraits, typename Encoding>
+	bool try_narrow(utility::basic_string_view<utility::encoding_utfw> in, utility::basic_string<StorageTraits, Encoding> & out)
 	{
-		if (!out.try_resize(utility::size<EncodingOut>(in)))
+		if (!out.try_resize(utility::size<Encoding>(in)))
 			return false;
 
 		utility::convert(in, out.data(), out.size());
@@ -548,32 +548,33 @@ namespace utility
 		return true;
 	}
 
-	template <typename StorageTraits, typename EncodingOut>
+	template <typename StorageTraits, typename Encoding>
 	auto narrow(utility::basic_string_view<utility::encoding_utfw> in)
 	{
-		basic_string<StorageTraits, EncodingOut> out(utility::size<EncodingOut>(in));
+		basic_string<StorageTraits, Encoding> out(utility::size<Encoding>(in));
 
 		utility::convert(in, out.data(), out.size());
 
 		return out;
 	}
 
-	template <std::size_t Capacity, typename EncodingOut>
-	decltype(auto) static_narrow(utility::basic_string_view<utility::encoding_utfw> in)
+	template <std::size_t Capacity, typename Encoding>
+	auto static_narrow(utility::basic_string_view<utility::encoding_utfw> in)
 	{
-		return narrow<utility::static_storage_traits<Capacity>, EncodingOut>(in);
+		return narrow<utility::static_storage_traits<Capacity>, Encoding>(in);
 	}
 
-	template <typename EncodingOut>
-	decltype(auto) heap_narrow(utility::basic_string_view<utility::encoding_utfw> in)
+	template <typename Encoding>
+	auto heap_narrow(utility::basic_string_view<utility::encoding_utfw> in)
 	{
-		return narrow<utility::heap_storage_traits, EncodingOut>(in);
+		return narrow<utility::heap_storage_traits, Encoding>(in);
 	}
 
-	template <typename StorageTraits, typename EncodingIn>
+	template <typename StorageTraits, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
 	bool try_widen(utility::basic_string_view<EncodingIn> in, utility::basic_string<StorageTraits, utility::encoding_utfw> & out)
 	{
-		if (!out.resize(utility::size<utility::encoding_utfw>(in)))
+		if (!out.try_resize(utility::size<utility::encoding_utfw>(in)))
 			return false;
 
 		utility::convert(in, out.data(), out.size());
@@ -581,7 +582,36 @@ namespace utility
 		return true;
 	}
 
-	template <typename StorageTraits, typename EncodingIn>
+	template <typename StorageTraits, typename StorageTraitsIn, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
+	bool try_widen(const utility::basic_string<StorageTraitsIn, EncodingIn> & in, utility::basic_string<StorageTraits, utility::encoding_utfw> & out)
+	{
+		return try_widen<StorageTraits>(static_cast<utility::basic_string_view<EncodingIn>>(in), out);
+	}
+
+	template <typename StorageTraits, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
+	bool try_widen_append(utility::basic_string_view<EncodingIn> in, utility::basic_string<StorageTraits, utility::encoding_utfw> & out)
+	{
+		const auto offset = out.size();
+
+		if (!out.try_resize(offset + utility::size<utility::encoding_utfw>(in)))
+			return false;
+
+		utility::convert(in, out.data() + offset, out.size() - offset);
+
+		return true;
+	}
+
+	template <typename StorageTraits, typename StorageTraitsIn, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
+	bool try_widen_append(const utility::basic_string<StorageTraitsIn, EncodingIn> & in, utility::basic_string<StorageTraits, utility::encoding_utfw> & out)
+	{
+		return try_widen_append<StorageTraits>(static_cast<utility::basic_string_view<EncodingIn>>(in), out);
+	}
+
+	template <typename StorageTraits, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
 	auto widen(utility::basic_string_view<EncodingIn> in)
 	{
 		basic_string<StorageTraits, utility::encoding_utfw> out(utility::size<utility::encoding_utfw>(in));
@@ -591,16 +621,39 @@ namespace utility
 		return out;
 	}
 
-	template <std::size_t Capacity, typename EncodingIn>
-	decltype(auto) static_widen(utility::basic_string_view<EncodingIn> in)
+	template <typename StorageTraits, typename StorageTraitsIn, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
+	auto widen(const utility::basic_string<StorageTraitsIn, EncodingIn> & in)
+	{
+		return widen<StorageTraits>(static_cast<utility::basic_string_view<EncodingIn>>(in));
+	}
+
+	template <std::size_t Capacity, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
+	auto static_widen(utility::basic_string_view<EncodingIn> in)
 	{
 		return widen<utility::static_storage_traits<Capacity>>(in);
 	}
 
-	template <typename EncodingIn>
-	decltype(auto) heap_widen(utility::basic_string_view<EncodingIn> in)
+	template <std::size_t Capacity, typename StorageTraitsIn, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
+	auto static_widen(const utility::basic_string<StorageTraitsIn, EncodingIn> & in)
+	{
+		return widen<utility::static_storage_traits<Capacity>>(static_cast<utility::basic_string_view<EncodingIn>>(in));
+	}
+
+	template <typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
+	auto heap_widen(utility::basic_string_view<EncodingIn> in)
 	{
 		return widen<utility::heap_storage_traits>(in);
+	}
+
+	template <typename StorageTraitsIn, typename EncodingIn,
+	          REQUIRES((!mpl::is_same<encoding_utfw, EncodingIn>::value))>
+	auto heap_widen(const utility::basic_string<StorageTraitsIn, EncodingIn> & in)
+	{
+		return widen<utility::heap_storage_traits>(static_cast<utility::basic_string_view<EncodingIn>>(in));
 	}
 #endif
 }
