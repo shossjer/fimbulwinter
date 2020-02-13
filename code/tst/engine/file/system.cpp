@@ -122,9 +122,8 @@ TEST_CASE("file system can create temporary directories", "[engine][file]")
 	{
 		struct SyncData
 		{
-			int counts[3] = {};
-			int neither = 0;
-			core::sync::Event<true> events[3];
+			int count = 0;
+			core::sync::Event<true> event;
 		} sync_data;
 
 		engine::file::watch(engine::Asset("tmpdir"),
@@ -142,48 +141,51 @@ TEST_CASE("file system can create temporary directories", "[engine][file]")
 			                    switch (match)
 			                    {
 			                    case engine::Asset("file.tmp"):
-				                    sync_data.counts[0] += int(number);
-				                    sync_data.events[0].set();
+				                    sync_data.count += int(number);
+				                    sync_data.event.set();
 				                    break;
 			                    case engine::Asset("file"):
-				                    sync_data.counts[1] += int(number);
-				                    sync_data.events[1].set();
+				                    sync_data.count += int(number);
+				                    sync_data.event.set();
 				                    break;
 			                    case engine::Asset(".tmp"):
-				                    sync_data.counts[2] += int(number);
-				                    sync_data.events[2].set();
+				                    sync_data.count += int(number);
+				                    sync_data.event.set();
 				                    break;
 			                    default:
-				                    sync_data.neither = -1;
-				                    sync_data.events[0].set();
-				                    sync_data.events[1].set();
-				                    sync_data.events[2].set();
+				                    sync_data.event.set();
 			                    }
 		                    },
 		                    utility::any(&sync_data));
 
 		SECTION("on temporary files created within")
 		{
-			const char numbers[] = {7, 5, 3};
-
-			engine::file::write(engine::Asset("tmpdir"), u8"file.tmp", write_char, utility::any(numbers[0]));
-			engine::file::write(engine::Asset("tmpdir"), u8"file.whatever", write_char, utility::any(numbers[1]));
-			engine::file::write(engine::Asset("tmpdir"), u8"whatever.tmp", write_char, utility::any(numbers[2]));
+			engine::file::write(engine::Asset("tmpdir"), u8"file.tmp", write_char, utility::any(char(1)));
 
 			// todo wait with timeout
-			sync_data.events[0].wait();
-			sync_data.events[1].wait();
-			sync_data.events[2].wait();
+			sync_data.event.wait();
+			sync_data.event.reset();
 
-			REQUIRE(sync_data.neither == 0);
+			CHECK(sync_data.count == 1);
 
-			CHECK(sync_data.counts[0] == int(numbers[0]));
-			CHECK(sync_data.counts[1] == int(numbers[1]));
-			CHECK(sync_data.counts[2] == int(numbers[2]));
+			engine::file::write(engine::Asset("tmpdir"), u8"file.whatever", write_char, utility::any(char(2)));
+
+			// todo wait with timeout
+			sync_data.event.wait();
+			sync_data.event.reset();
+
+			CHECK(sync_data.count == 3);
+
+			engine::file::write(engine::Asset("tmpdir"), u8"whatever.tmp", write_char, utility::any(char(4)));
+
+			// todo wait with timeout
+			sync_data.event.wait();
+
+			CHECK(sync_data.count == 7);
 		}
 	}
 
-	SECTION("and file watch will find already existing files")
+	SECTION("and watch will find already existing files")
 	{
 		const char number = 11;
 
