@@ -120,7 +120,7 @@ namespace sync
 #if THREAD_USE_KERNEL32
 	template <bool ManualReset>
 	inline Event<ManualReset>::Event(const bool initial_state) :
-		hEvent(CreateEvent(nullptr, FALSE, initial_state, nullptr))
+		hEvent(CreateEventW(nullptr, FALSE, initial_state, nullptr))
 	{
 	}
 #else
@@ -168,7 +168,7 @@ namespace sync
 	}
 #if THREAD_USE_KERNEL32
 	inline Event<true>::Event(const bool initial_state) :
-		hEvent(CreateEvent(nullptr, TRUE, initial_state, nullptr))
+		hEvent(CreateEventW(nullptr, TRUE, initial_state, nullptr))
 	{
 	}
 #else

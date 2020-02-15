@@ -7,7 +7,6 @@
 #include "utility/storage.hpp"
 
 #include <cstring>
-#include <utility>
 
 namespace core
 {
@@ -15,12 +14,12 @@ namespace core
 	{
 	private:
 		const char * from_;
-		std::ptrdiff_t size_ = 0;
-		std::ptrdiff_t pos_ = 0;
+		ext::ssize size_ = 0;
+		ext::ssize pos_ = 0;
 
 		ReadStream read_stream_;
 
-		utility::static_storage<0x10000, char> buffer_;
+		utility::static_storage<0x10000, char> buffer_; // arbitrary
 
 	public:
 		BufferedStream(ReadStream && stream)
@@ -54,13 +53,14 @@ namespace core
 
 		bool valid() const
 		{
-			return pos_ < size_ || read_stream_.valid();
+			return pos_ < size_ || !read_stream_.done();
 		}
 
 		void consume() { consume(pos_); }
 		void consume(std::ptrdiff_t pos)
 		{
-			debug_assert((0 <= pos && pos <= pos_));
+			if (!debug_assert((0 <= pos && pos <= pos_)))
+				return;
 
 			from_ += pos;
 			size_ -= pos;
@@ -69,11 +69,12 @@ namespace core
 
 		void next()
 		{
-			debug_assert(valid());
+			if (!debug_assert(valid()))
+				return;
 
 			pos_++;
 
-			while (pos_ >= size_ && read_stream_.valid())
+			while (pos_ >= size_ && !read_stream_.done())
 			{
 				if (from_ != buffer_.data())
 				{
@@ -85,17 +86,19 @@ namespace core
 
 		void seek(std::ptrdiff_t pos)
 		{
-			debug_assert((0 <= pos && pos <= size_));
-			debug_assert((pos < size_ || !read_stream_.valid()), "if you seek to the end then the stream should end");
+			if (!debug_assert((0 <= pos && pos <= size_)))
+				return;
+
+			if (!debug_assert((pos < size_ || read_stream_.done()), "if you seek to the end then the stream should end"))
+				return;
 
 			pos_ = pos;
 		}
 	private:
 		void fill_buffer()
 		{
-			const int64_t amount_read = read_stream_.read(buffer_.data() + size_, buffer_.max_size() - size_);
 			from_ = buffer_.data();
-			size_ += static_cast<std::ptrdiff_t>(amount_read);
+			size_ += read_stream_.read_some(buffer_.data() + size_, buffer_.max_size() - size_);
 		}
 	};
 }

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="utility::basic_string&lt;*,utility::encoding_utf8&gt;">
+    <DisplayString>{data_.array_.chars_.impl_.storage_,s8}</DisplayString>
+    <StringView>data_.array_.chars_.impl_.storage_,s8</StringView>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">data_.array_.size_</Item>
+      <Item Name="[capacity]" ExcludeView="simple">data_.array_.capacity_</Item>
+      <ArrayItems>
+        <Size>data_.array_.size_</Size>
+        <ValuePointer>(char*)data_.array_.chars_.impl_.storage_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="utility::basic_string&lt;*,utility::encoding_utf8&gt;" Priority="MediumHigh">
+    <DisplayString>{data_.array_.chars_.arrays.head_._Elems,s8}</DisplayString>
+    <StringView>data_.array_.chars_.arrays.head_._Elems,s8</StringView>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">data_.array_.size_</Item>
+      <Item Name="[capacity]" ExcludeView="simple">sizeof data_.array_.chars_.arrays.head_._Elems / sizeof(char)</Item>
+      <ArrayItems>
+        <Size>data_.array_.size_</Size>
+        <ValuePointer>(char*)data_.array_.chars_.arrays.head_._Elems</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="utility::basic_string&lt;*,utility::encoding_utf16&gt;">
+    <AlternativeType Name="utility::basic_string&lt;*,utility::encoding_utfw&gt;"/>
+    <DisplayString>{data_.array_.chars_.impl_.storage_,su}</DisplayString>
+    <StringView>data_.array_.chars_.impl_.storage_,su</StringView>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">data_.array_.size_</Item>
+      <Item Name="[capacity]" ExcludeView="simple">data_.array_.capacity_</Item>
+      <ArrayItems>
+        <Size>data_.array_.size_</Size>
+        <ValuePointer>(char16_t*)data_.array_.chars_.impl_.storage_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="utility::basic_string&lt;*,utility::encoding_utf16&gt;" Priority="MediumHigh">
+    <AlternativeType Name="utility::basic_string&lt;*,utility::encoding_utfw&gt;" Priority="MediumHigh"/>
+    <DisplayString>{data_.array_.chars_.arrays.head_._Elems,su}</DisplayString>
+    <StringView>data_.array_.chars_.arrays.head_._Elems,su</StringView>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">data_.array_.size_</Item>
+      <Item Name="[capacity]" ExcludeView="simple">sizeof data_.array_.chars_.arrays.head_._Elems / sizeof(char16_t)</Item>
+      <ArrayItems>
+        <Size>data_.array_.size_</Size>
+        <ValuePointer>(char16_t*)data_.array_.chars_.arrays.head_._Elems</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>

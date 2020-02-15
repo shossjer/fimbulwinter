@@ -2,43 +2,78 @@
 
 #include "core/debug.hpp"
 
+#include "utility/ext/stddef.hpp"
 #include "utility/unicode.hpp"
-
-#include <utility>
 
 namespace core
 {
 	class WriteStream
 	{
 	private:
-		uint64_t (* write_callback_)(const char * src, int64_t n, void * data);
+		ext::ssize (* callback_)(const void * src, ext::usize n, void * data);
 		void * data_;
 
 		bool done_ = false;
+		bool fail_ = false;
 
 		utility::heap_string_utf8 filepath_;
 
 	public:
-		WriteStream(uint64_t (* write_callback)(const char * src, int64_t n, void * data), void * data, utility::heap_string_utf8 && filepath)
-			: write_callback_(write_callback)
+		explicit WriteStream(ext::ssize (* callback)(const void * src, ext::usize n, void * data), void * data, utility::heap_string_utf8 && filepath)
+			: callback_(callback)
 			, data_(data)
-			, filepath_(std::move(filepath))
+			, filepath_(static_cast<utility::heap_string_utf8 &&>(filepath))
 		{}
 
 	public:
-		bool valid() const { return !done_; }
+		bool done() const { return done_; }
+		bool fail() const { return fail_; }
 
-		int64_t write(const char * src, int64_t n)
+		ext::usize write_some(const void * src, ext::usize size)
 		{
-			if (!debug_assert(!done_))
+			if (!debug_assert(!done_, "cannot write a done stream"))
 				return 0;
 
-			if (!debug_assert(0 < n))
+			if (!debug_assert(size != 0, "cannot write zero bytes, please sanitize your data!"))
 				return 0;
 
-			const uint64_t ret = write_callback_(src, n, data_);
-			done_ = ret > 0x7fffffffffffffffll;
-			return ret & 0x7fffffffffffffffll;
+			const ext::ssize ret = callback_(src, size, data_);
+			if (ret <= 0)
+			{
+				done_ = true;
+				fail_ = ret < 0;
+				return 0;
+			}
+			return ret;
+		}
+
+		ext::usize write_all(const void * src, ext::usize size)
+		{
+			if (!debug_assert(!done_, "cannot write a done stream"))
+				return 0;
+
+			if (!debug_assert(size != 0, "cannot write zero bytes, please sanitize your data!"))
+				return 0;
+
+			const char * ptr = static_cast<const char *>(src);
+			ext::usize remaining = size;
+
+			do
+			{
+				const ext::ssize ret = callback_(ptr, remaining, data_);
+				if (ret <= 0)
+				{
+					done_ = true;
+					fail_ = ret < 0;
+					break;
+				}
+
+				ptr += ret;
+				remaining -= ret;
+			}
+			while (0 < remaining);
+
+			return size - remaining;
 		}
 
 		const utility::heap_string_utf8 & filepath() const { return filepath_; }

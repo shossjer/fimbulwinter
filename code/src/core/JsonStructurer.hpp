@@ -36,13 +36,16 @@ namespace core
 			std::vector<char> buffer;
 			std::size_t filled = 0;
 
-			while (read_stream.valid())
+			while (!read_stream.done())
 			{
 				const auto extra = 0x1000;
-				buffer.resize(filled + extra); // might throw
+				buffer.resize(filled + extra); // todo might throw
 
-				const int64_t amount_read = read_stream.read(buffer.data() + filled, extra);
-				filled += static_cast<std::size_t>(amount_read);
+				const ext::ssize ret = read_stream.read_some(buffer.data() + filled, extra);
+				if (!debug_verify(ret >= 0))
+					return;
+
+				filled += ret;
 			}
 
 			try

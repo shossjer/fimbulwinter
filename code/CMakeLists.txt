@@ -36,7 +36,7 @@ include (src/CMakeLists.txt)
 include (tst/CMakeLists.txt)
 
 add_library(utility "")
-target_sources(utility PRIVATE ${SOURCES_UTILITY} ${HEADERS_UTILITY})
+target_sources(utility PRIVATE ${SOURCES_UTILITY} ${HEADERS_UTILITY} ${${CMAKE_CXX_COMPILER_ID}_UTILITY})
 target_include_directories(utility PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
 target_link_libraries(utility PRIVATE generated)
 target_compile_options(utility PRIVATE ${private_compile_options})

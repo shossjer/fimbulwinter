@@ -30,7 +30,7 @@ namespace core
 			write_object(root, x);
 
 			const std::string dump = root.dump(4) + "\n";
-			stream.write(dump.data(), dump.size());
+			debug_verify(stream.write_all(dump.data(), dump.size()) == dump.size());
 		}
 
 	private:

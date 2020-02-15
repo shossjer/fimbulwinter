@@ -80,12 +80,14 @@ if (ENDIANESS)
 endif ()
 
 # lookup dependencies
+
 # Catch
 message(STATUS "Looking for catch")
 find_file(FILE_CATCH_HPP catch.hpp)
 find_file(FILE_CATCH_CATCH_HPP catch/catch.hpp)
 message(STATUS "Looking for catch - ${FILE_CATCH_HPP}")
 message(STATUS "Looking for catch - ${FILE_CATCH_CATCH_HPP}")
+
 # FMOD
 message(STATUS "Looking for FMOD")
 find_file(FILE_FMOD_HPP fmod.hpp)
@@ -94,6 +96,7 @@ find_library(LIBRARY_FMOD fmod)
 find_library(LIBRARY_FMOD fmod_vc)
 message(STATUS "Looking for FMOD library - ${LIBRARY_FMOD}")
 message(STATUS "Looking for FMOD library - ${LIBRARY_FMOD_VC}")
+
 # Freetype
 message(STATUS "Looking for freetype")
 find_file(FILE_FT2BUILD_H ft2build.h)
@@ -104,20 +107,12 @@ find_library(LIBRARY_FREETYPE freetype)
 find_library(LIBRARY_FREETYPED freetyped)
 message(STATUS "Looking for freetype - ${LIBRARY_FREETYPE}")
 message(STATUS "Looking for freetype - ${LIBRARY_FREETYPED}")
-# Gdi32
-message(STATUS "Looking for Gdi32")
-find_library(LIBRARY_GDI32 gdi32)
-message(STATUS "Looking for Gdi32 - ${LIBRARY_GDI32}")
-# Hid
-message(STATUS "Looking for Hid")
-find_file(FILE_HIDSDI_H Hidsdi.h)
-message(STATUS "Looking for Hid - ${FILE_HIDSDI_H}")
-find_library(LIBRARY_HID Hid)
-message(STATUS "Looking for Hid - ${LIBRARY_HID}")
-# Kernel32
-message(STATUS "Looking for Kernel32")
-find_library(LIBRARY_KERNEL32 kernel32)
-message(STATUS "Looking for Kernel32 - ${LIBRARY_KERNEL32}")
+
+# Linux
+message(STATUS "Looking for Linux")
+find_file(FILE_SYS_INOTIFY_H sys/inotify.h)
+message(STATUS "Looking for Linux inotify - ${FILE_SYS_INOTIFY_H}")
+
 # OpenGL
 message(STATUS "Looking for OpenGL")
 find_file(FILE_GL_GL_H GL/gl.h)
@@ -128,6 +123,7 @@ find_library(LIBRARY_GL GL)
 find_library(LIBRARY_OPENGL32 opengl32)
 message(STATUS "Looking for OpenGL - ${LIBRARY_GL}")
 message(STATUS "Looking for OpenGL - ${LIBRARY_OPENGL32}")
+
 # POSIX
 message(STATUS "Looking for POSIX")
 find_file(FILE_POLL_H poll.h)
@@ -138,10 +134,22 @@ find_library(LIBRARY_PTHREAD pthread)
 message(STATUS "Looking for POSIX pthread - ${LIBRARY_PTHREAD}")
 find_file(FILE_UNISTD_H unistd.h)
 message(STATUS "Looking for POSIX unistd - ${FILE_UNISTD_H}")
-# User32
-message(STATUS "Looking for User32")
+
+# Windows
+message(STATUS "Looking for Windows")
+find_file(FILE_FILEAPI_H fileapi.h)
+message(STATUS "Looking for Windows fileapi - ${FILE_FILEAPI_H}")
+find_file(FILE_HIDSDI_H Hidsdi.h)
+message(STATUS "Looking for Windows Hidsdi - ${FILE_HIDSDI_H}")
+find_library(LIBRARY_GDI32 gdi32)
+message(STATUS "Looking for Windows Gdi32 - ${LIBRARY_GDI32}")
+find_library(LIBRARY_HID Hid)
+message(STATUS "Looking for Windows Hid - ${LIBRARY_HID}")
+find_library(LIBRARY_KERNEL32 kernel32)
+message(STATUS "Looking for Windows Kernel32 - ${LIBRARY_KERNEL32}")
 find_library(LIBRARY_USER32 user32)
-message(STATUS "Looking for User32 - ${LIBRARY_USER32}")
+message(STATUS "Looking for Windows User32 - ${LIBRARY_USER32}")
+
 # X11
 message(STATUS "Looking for X11")
 find_file(FILE_X11_XLIB_H X11/Xlib.h)
@@ -198,6 +206,8 @@ else()
 endif()
 
 # select libraries
+include(CMakeDependentOption)
+
 # audio
 if(FILE_FMOD_HPP AND (LIBRARY_FMOD OR LIBRARY_FMOD_VC))
 	message(STATUS "Audio - FMOD")
@@ -223,6 +233,18 @@ elseif (LIBRARY_KERNEL32)
 else ()
   message(WARNING "Console - Disabled")
 endif ()
+
+# file
+cmake_dependent_option(FILE_USE_INOTIFY "Use the Linux inotify API for the file module" ON "FILE_SYS_INOTIFY_H" OFF)
+cmake_dependent_option(FILE_USE_KERNEL32 "Use the Windows file API for the file module" ON "FILE_FILEAPI_H AND LIBRARY_KERNEL32" OFF)
+if(FILE_USE_INOTIFY)
+	message(STATUS "File - inotify")
+elseif(FILE_USE_KERNEL32)
+	message(STATUS "File - Kernel32")
+else()
+	message(WARNING "File - Disabled")
+	set(FILE_USE_DUMMY 1)
+endif()
 
 # graphics
 if (FILE_GL_GL_H AND

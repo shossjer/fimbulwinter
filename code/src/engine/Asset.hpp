@@ -28,7 +28,7 @@ namespace engine
 	class Asset
 	{
 	public:
-		using value_type = std::size_t;
+		using value_type = uint64_t;
 	private:
 		using this_type = Asset;
 
@@ -38,10 +38,10 @@ namespace engine
 	public:
 		Asset() = default;
 		template <std::size_t N>
-		explicit constexpr Asset(const char (&str)[N])
+		explicit constexpr Asset(const char (& str)[N])
 			: id{utility::crypto::crc32(str)}
 		{}
-		explicit constexpr Asset(const char *const str, const std::size_t n)
+		explicit constexpr Asset(const char * const str, const std::size_t n)
 			: id{utility::crypto::crc32(str, n)}
 		{}
 		explicit constexpr Asset(utility::string_view str)
@@ -50,26 +50,24 @@ namespace engine
 		explicit Asset(const std::string & str)
 			: id{utility::crypto::crc32(str.data(), str.length())}
 		{
+			// todo separate asset into a compile time and runtime
+			// version
 #if MODE_DEBUG
 			std::lock_guard<utility::spinlock> lock{get_readwritelock()};
 			get_lookup_table().emplace(id, str);
 #endif
 		}
-	private:
-		explicit constexpr Asset(value_type val)
-			: id(val)
-		{}
 
 	public:
 		constexpr operator value_type () const
 		{
-			return this->id;
+			return id;
 		}
 
 	public:
-		static constexpr Asset null()
+		static constexpr Asset null() // todo remove
 		{
-			return Asset(0);
+			return Asset{};
 		}
 #if MODE_DEBUG
 		// not thread safe
@@ -81,9 +79,21 @@ namespace engine
 	private:
 		static std::unordered_map<value_type, std::string> & get_lookup_table()
 		{
-			static std::unordered_map<value_type, std::string> lookup_table;
-			return lookup_table;
+			struct Singleton
+			{
+				std::unordered_map<value_type, std::string> lookup_table;
+
+				Singleton()
+				{
+					lookup_table.emplace(0, "reserved null value");
+					lookup_table.emplace(utility::crypto::crc32(""), "");
+				}
+			};
+
+			static Singleton singleton;
+			return singleton.lookup_table;
 		}
+
 		static utility::spinlock & get_readwritelock()
 		{
 			static utility::spinlock readwritelock;
@@ -121,11 +131,11 @@ namespace engine
 
 namespace std
 {
-	template<> struct hash<engine::Asset>
+	template<> struct hash<engine::Asset> // todo remove
 	{
 		std::size_t operator () (const engine::Asset asset) const
 		{
-			return asset;
+			return static_cast<std::size_t>(asset);
 		}
 	};
 }

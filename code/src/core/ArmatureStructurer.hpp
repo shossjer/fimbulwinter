@@ -138,13 +138,12 @@ namespace core
 			read_bytes(reinterpret_cast<char *>(&byte), sizeof(uint8_t));
 		}
 
-		void read_bytes(char * ptr, int64_t size)
+		void read_bytes(char * ptr, ext::usize size)
 		{
-			if (!read_stream_.valid())
-				throw std::runtime_error("unexpected eol");
-			const int64_t amount_read = read_stream_.read_block(ptr, size);
-			if (amount_read < size)
-				throw std::runtime_error("unexpected eol");
+			if (!debug_verify(!read_stream_.done()))
+				return; // todo error
+
+			debug_verify(read_stream_.read_all(ptr, size) == size, "unexpected eol"); // todo error
 		}
 
 		void read_count(uint16_t & count)

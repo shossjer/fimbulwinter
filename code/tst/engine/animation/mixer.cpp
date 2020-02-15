@@ -19,7 +19,7 @@ TEST_CASE("Animation Mixer can be created and destroyed", "[.engine][.animation]
 	engine::resource::reader reader;
 	engine::application::config_t config;
 #if WINDOW_USE_USER32
-	engine::application::window window(GetModuleHandle(nullptr), SW_HIDE, config);
+	engine::application::window window(GetModuleHandleW(nullptr), SW_HIDE, config);
 #else
 	engine::application::window window(config);
 #endif

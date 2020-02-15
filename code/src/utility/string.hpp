@@ -690,11 +690,13 @@ namespace utility
 			if (!data_.array_.try_reserve(size + 1))
 				return false;
 
+			std::size_t construct_from = data_.array_.size();
 			if (size + 1 < data_.array_.size())
 			{
+				construct_from = size;
 				data_.array_.chars_.destruct_range(size, data_.array_.size());
 			}
-			data_.array_.chars_.construct_fill(data_.array_.size(), size + 1, '\0');
+			data_.array_.chars_.construct_fill(construct_from, size + 1, '\0');
 			data_.array_.set_size(size + 1);
 
 			return true;

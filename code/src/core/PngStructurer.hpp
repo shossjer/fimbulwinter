@@ -28,7 +28,7 @@ namespace core
 		void read(T & x)
 		{
 			png_byte sig[8];
-			if (!debug_verify(read_stream_.read_block(reinterpret_cast<char *>(sig), 8) == 8, "not a png signature"))
+			if (!debug_verify(read_stream_.read_all(sig, 8) == 8, "not a png signature"))
 				return;
 
 			if (!debug_verify(png_sig_cmp(sig, 0, 8) == 0, "not a png signature"))
@@ -82,11 +82,11 @@ namespace core
 				[](png_structp png_ptr, png_bytep data, png_size_t size)
 				{
 					ReadStream & read_stream = *static_cast<ReadStream *>(png_get_io_ptr(png_ptr));
-					if (!read_stream.valid())
+					if (read_stream.done())
 					{
 						png_error(png_ptr, "unexpected eol");
 					}
-					const uint64_t amount_read = read_stream.read_block(reinterpret_cast<char * >(data), size);
+					const uint64_t amount_read = read_stream.read_all(data, size);
 					if (amount_read < size)
 					{
 						png_error(png_ptr, "unexpected eol");
