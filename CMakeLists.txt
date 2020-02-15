@@ -47,18 +47,8 @@ if (MSVC)
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MT")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
   add_definitions(-DNOMINMAX)
-  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hellskitchen)
 endif ()
 
-include(settings.cmake)
-
-if (CUSTOM_INCLUDE)
-	include_directories(${CUSTOM_INCLUDE})
-	set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${CUSTOM_INCLUDE}")
-endif()
-if (CUSTOM_LIBRARY)
-	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CUSTOM_LIBRARY}")
-endif()
 
 # project information
 message(STATUS "Using compiler ${CMAKE_CXX_COMPILER}")
@@ -383,4 +373,3 @@ add_library(generated INTERFACE)
 target_include_directories(generated INTERFACE "${PROJECT_BINARY_DIR}/generated")
 
 add_subdirectory(code)
-add_subdirectory(game)
