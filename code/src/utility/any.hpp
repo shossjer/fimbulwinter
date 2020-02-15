@@ -1,273 +1,455 @@
-
-#ifndef UTILITY_ANY_HPP
-#define UTILITY_ANY_HPP
+#pragma once
 
 #include "utility/concepts.hpp"
 #include "utility/stream.hpp"
 #include "utility/type_info.hpp"
 #include "utility/utility.hpp"
 
-#include <exception>
+#include <cassert>
 #include <iostream>
 #include <memory>
 
 namespace utility
 {
-	class bad_any_cast : public std::exception
-	{};
-
 	namespace detail
 	{
-		struct any_storage
+		enum class any_action
 		{
-			using this_type = any_storage;
+			destruct,
+			const_copy,
+			move,
+			none_type_id,
+			const_get,
+			const_ostream
+		};
 
-			struct base_t
-			{
-				utility::type_id_t id;
+		struct any_data;
 
-				virtual ~base_t() = default;
-				base_t(uint32_t id) : id(id) {}
+		union any_input
+		{
+			any_data * data_;
+			const any_data * const_data_;
 
-				virtual base_t * clone() const = 0;
-				virtual const void * data() const = 0;
-				virtual std::ostream & print(std::ostream & stream) const = 0;
-			};
+			any_input() = default;
+			any_input(any_data & data) : data_(&data) {}
+			any_input(const any_data & const_data) : const_data_(&const_data) {}
+		};
+
+		union any_output
+		{
+			any_data * data_;
+			utility::type_id_t type_id_;
+			std::ostream * ostream_;
+			const void * const_ptr_;
+
+			any_output() = default;
+			any_output(any_data & data) : data_(&data) {}
+			any_output(utility::type_id_t type_id) : type_id_(type_id) {}
+			any_output(std::ostream & ostream) : ostream_(&ostream) {}
+		};
+
+		template <typename T>
+		struct any_big;
+		template <typename T>
+		struct any_small;
+
+		struct any_data
+		{
+			using this_type = any_data;
+
+			using buffer_type = std::aligned_storage_t<sizeof(void *), alignof(void *)>;
+
 			template <typename T>
-			struct dynamic_t : base_t
+			using any_type = mpl::conditional_t<(sizeof(T) <= sizeof(typename any_data::buffer_type) &&
+			                                     alignof(T) <= alignof(typename any_data::buffer_type) &&
+			                                     std::is_nothrow_move_constructible<T>::value),
+			                                    any_small<T>,
+			                                    any_big<T>>;
+
+			void (* handler_)(any_action action, any_input in, any_output & out);
+
+			union
 			{
-				using this_type = dynamic_t<T>;
-
-				T data_;
-
-				~dynamic_t() override = default;
-				template <typename ...Ps>
-				dynamic_t(in_place_t, Ps && ...ps)
-					: base_t(utility::type_id<T>())
-					, data_{std::forward<Ps>(ps)...}
-				{}
-
-				base_t * clone() const override
-				{
-					return new this_type(*this);
-				}
-				const void * data() const override
-				{
-					return static_cast<const void *>(std::addressof(data_));
-				}
-				std::ostream & print(std::ostream & stream) const override
-				{
-					return stream << utility::try_stream(data_);
-				}
+				void * ptr_;
+				buffer_type buffer_;
 			};
 
-			std::unique_ptr<base_t> ptr;
-
-			constexpr any_storage() noexcept = default;
-			any_storage(const this_type & x)
-				: ptr(x.empty() ? nullptr : x.ptr->clone())
-			{}
-			any_storage(this_type && x) noexcept = default;
-			template <typename T, typename ...Ps>
-			any_storage(in_place_type_t<T>, Ps && ...ps)
-				: ptr(new dynamic_t<T>(in_place, std::forward<Ps>(ps)...))
-			{}
-			this_type & operator = (const this_type & x)
+			~any_data()
 			{
-				ptr.reset(x.empty() ? nullptr : x.ptr->clone());
+				if (handler_)
+				{
+					any_input in(*this);
+					any_output out;
+					handler_(any_action::destruct, in, out);
+				}
+			}
+
+			any_data() noexcept
+				: handler_(nullptr)
+			{}
+
+			any_data(const this_type & other)
+				: handler_(nullptr)
+			{
+				if (other.handler_)
+				{
+					any_input in(other);
+					any_output out(*this);
+					other.handler_(any_action::const_copy, in, out);
+				}
+			}
+
+			any_data(this_type && other) noexcept
+				: handler_(nullptr)
+			{
+				if (other.handler_)
+				{
+					any_input in(other);
+					any_output out(*this);
+					other.handler_(any_action::move, in, out);
+					other.handler_ = nullptr;
+				}
+			}
+
+			template <typename T, typename ...Ps>
+			explicit any_data(utility::in_place_type_t<T>, Ps && ...ps)
+			{
+				create<T>(std::forward<Ps>(ps)...);
+			}
+
+			any_data & operator = (const this_type & other)
+			{
+				any_data tmp(other);
+				return *this = std::move(tmp);
+			}
+
+			any_data & operator = (this_type && other) noexcept
+			{
+				destroy();
+
+				if (other.handler_)
+				{
+					any_input in(other);
+					any_output out(*this);
+					other.handler_(any_action::move, in, out);
+					other.handler_ = nullptr;
+				}
 				return *this;
 			}
-			this_type & operator = (this_type && x) noexcept = default;
 
-			void swap(this_type & x)
+			void swap(this_type & other)
 			{
-				ptr.swap(x.ptr);
+				if (handler_ && other.handler_)
+				{
+					if (this == &other)
+						return; // move from other to this would crash otherwise
+
+					any_data tmp;
+					{
+						any_input in(*this);
+						any_output out(tmp);
+						handler_(any_action::move, in, out);
+					}
+					{
+						any_input in(other);
+						any_output out(*this);
+						other.handler_(any_action::move, in, out);
+					}
+					{
+						any_input in(tmp);
+						any_output out(other);
+						tmp.handler_(any_action::move, in, out);
+						tmp.handler_ = nullptr;
+					}
+				}
+				else if (handler_)
+				{
+					any_input in(*this);
+					any_output out(other);
+					handler_(any_action::move, in, out);
+					handler_ = nullptr;
+				}
+				else if (other.handler_)
+				{
+					any_input in(other);
+					any_output out(*this);
+					other.handler_(any_action::move, in, out);
+					other.handler_ = nullptr;
+				}
 			}
 
 			template <typename T, typename ...Ps>
-			T & construct(Ps && ...ps)
+			T & create(Ps && ...ps)
 			{
-				dynamic_t<T> * p = new dynamic_t<T>(in_place, std::forward<Ps>(ps)...);
-				ptr.reset(p);
-				return p->data_;
-			}
-			void destruct() noexcept
-			{
-				ptr.reset(nullptr);
+				return any_type<T>::construct(*this, std::forward<Ps>(ps)...);
 			}
 
-			bool empty() const noexcept
+			void destroy()
 			{
-				return !static_cast<bool>(ptr);
+				if (handler_)
+				{
+					any_input in(*this);
+					any_output out;
+					handler_(any_action::destruct, in, out);
+					handler_ = nullptr;
+				}
+			}
+
+			bool empty() const { return handler_ == nullptr; }
+
+			template <typename T>
+			T * get()
+			{
+				return const_cast<T *>(const_cast<const this_type &>(*this).get<T>());
 			}
 
 			template <typename T>
-			T & get()
+			const T * get() const
 			{
-				return *static_cast<T *>(const_cast<void *>(ptr->data()));
-			}
-			template <typename T>
-			const T & get() const
-			{
-				return *static_cast<const T *>(ptr->data());
-			}
-
-			utility::type_id_t id() const
-			{
-				return empty() ? utility::type_id<void>() : ptr->id;
-			}
-
-			std::ostream & print(std::ostream & stream) const
-			{
-				return empty() ? stream << "(empty)" : ptr->print(stream);
-			}
-		};
-
-		template <typename T>
-		T & get_instance(any_storage & x)
-		{
-			return x.get<T>();
-		}
-		template <typename T>
-		const T & get_instance(const any_storage & x)
-		{
-			return x.get<T>();
-		}
-		template <typename T>
-		T && get_instance(any_storage && x)
-		{
-			return std::move(x.get<T>());
-		}
-
-		struct any_cast_helper
-		{
-			template <typename T, typename Any>
-			decltype(auto) any_cast_ref(Any && x)
-			{
-				if (!x.has_value() || x.type_id() != utility::type_id<T>())
-					throw bad_any_cast{};
-
-				return get_instance<T>(get_storage(std::forward<Any>(x)));
-			}
-			template <typename T, typename Any>
-			decltype(auto) any_cast_ptr(Any * x)
-			{
-				if (!x || !x->has_value() || x->type_id() != utility::type_id<T>())
+				if (!handler_)
 					return nullptr;
 
-				return std::addressof(get_instance<T>(get_storage(*x)));
+				any_input in(*this);
+				any_output out(utility::type_id<T>());
+				handler_(any_action::const_get, in, out);
+				return static_cast<const T *>(out.const_ptr_);
+			}
+
+			utility::type_id_t type_id() const
+			{
+				if (!handler_)
+					return utility::type_id<void>();
+
+				any_input in;
+				any_output out;
+				handler_(any_action::none_type_id, in, out);
+				return out.type_id_;
+			}
+
+			std::ostream & ostream(std::ostream & stream) const
+			{
+				if (!handler_)
+					return stream << "(empty)";
+
+				any_input in(*this);
+				any_output out(stream);
+				handler_(any_action::const_ostream, in, out);
+				return *out.ostream_;
 			}
 		};
+
+		template <typename T>
+		struct any_big
+		{
+			static void handler(any_action action, any_input in, any_output & out)
+			{
+				switch (action)
+				{
+				case any_action::destruct:
+					delete static_cast<T *>(in.data_->ptr_);
+					break;
+				case any_action::const_copy:
+					out.data_->ptr_ = utility::construct_new<T>(*static_cast<const T *>(in.const_data_->ptr_));
+					out.data_->handler_ = &any_big<T>::handler;
+					break;
+				case any_action::move:
+					out.data_->ptr_ = in.data_->ptr_;
+					out.data_->handler_ = &any_big<T>::handler;
+					break;
+				case any_action::none_type_id:
+					out.type_id_ = utility::type_id<T>();
+					break;
+				case any_action::const_get:
+					out.const_ptr_ = out.type_id_ == utility::type_id<T>() ? in.data_->ptr_ : nullptr;
+					break;
+				case any_action::const_ostream:
+					out.ostream_ = &(*out.ostream_ << utility::try_stream(*static_cast<const T *>(in.const_data_->ptr_)));
+					break;
+				};
+			}
+
+			template <typename ...Ps>
+			static T & construct(any_data & data, Ps && ...ps)
+			{
+				T * ptr = utility::construct_new<T>(std::forward<Ps>(ps)...);
+				data.ptr_ = ptr;
+				data.handler_ = &any_big<T>::handler;
+				return *ptr;
+			}
+		};
+
+		template <typename T>
+		struct any_small
+		{
+			static void handler(any_action action, any_input in, any_output & out)
+			{
+				switch (action)
+				{
+				case any_action::destruct:
+					static_cast<T *>(static_cast<void *>(&in.data_->buffer_))->~T();
+					break;
+				case any_action::const_copy:
+				{
+					auto & x = utility::construct_at<T>(&out.data_->buffer_, *static_cast<const T *>(static_cast<const void *>(&in.data_->buffer_)));
+					static_cast<void>(x);
+					assert(static_cast<void *>(&x) == static_cast<void *>(&out.data_->buffer_)); // [new.delete.placement]§2
+					out.data_->handler_ = &any_small<T>::handler;
+					break;
+				}
+				case any_action::move:
+				{
+					auto & x = utility::construct_at<T>(&out.data_->buffer_, static_cast<T &&>(*static_cast<T *>(static_cast<void *>(&in.data_->buffer_))));
+					static_cast<void>(x);
+					assert(static_cast<void *>(&x) == static_cast<void *>(&out.data_->buffer_)); // [new.delete.placement]§2
+					out.data_->handler_ = &any_small<T>::handler;
+					static_cast<T *>(static_cast<void *>(&in.data_->buffer_))->~T();
+					break;
+				}
+				case any_action::none_type_id:
+					out.type_id_ = utility::type_id<T>();
+					break;
+				case any_action::const_get:
+					out.const_ptr_ = out.type_id_ == utility::type_id<T>() ? static_cast<const void *>(&in.const_data_->buffer_) : nullptr;
+					break;
+				case any_action::const_ostream:
+					out.ostream_ = &(*out.ostream_ << utility::try_stream(*static_cast<const T *>(static_cast<const void *>(&in.const_data_->buffer_))));
+					break;
+				};
+			}
+
+			template <typename ...Ps>
+			static T & construct(any_data & data, Ps && ...ps)
+			{
+				T & obj = utility::construct_at<T>(&data.buffer_, std::forward<Ps>(ps)...);
+				data.handler_ = &any_small<T>::handler;
+				return obj;
+			}
+		};
+
+		struct any_cast_helper;
 	}
 
 	class any
 	{
 		friend struct detail::any_cast_helper;
 
-	private:
 		using this_type = any;
 
 	private:
-		detail::any_storage storage;
+
+		detail::any_data data_;
 
 	public:
-		constexpr any() noexcept = default;
-		any(const this_type & x) = default;
-		any(this_type && x) noexcept = default;
+
+		any() = default;
+
 		template <typename P,
-		          REQUIRES((!mpl::is_same<mpl::decay_t<P>, this_type>::value))>
+		          typename T = mpl::decay_t<P>,
+		          REQUIRES((!mpl::is_same<this_type, T>::value)),
+		          // REQUIRES((!mpl::is_same<in_place_type, T>::value)),
+		          REQUIRES((std::is_copy_constructible<T>::value))>
 		any(P && p)
-			: storage(in_place_type<mpl::decay_t<P>>, std::forward<P>(p))
+			: data_(utility::in_place_type<T>, std::forward<P>(p))
 		{}
+
 		template <typename T, typename ...Ps>
 		explicit any(in_place_type_t<T>, Ps && ...ps)
-			: storage(in_place_type<T>, std::forward<Ps>(ps)...)
+			: data_(utility::in_place_type<T>, std::forward<Ps>(ps)...)
 		{}
-		this_type & operator = (const this_type & x) = default;
-		this_type & operator = (this_type && x) noexcept = default;
+
 		template <typename P,
-		          REQUIRES((!mpl::is_same<mpl::decay_t<P>, this_type>::value)),
-		          REQUIRES((std::is_copy_constructible<mpl::decay_t<P>>::value))>
+		          typename T = mpl::decay_t<P>,
+		          REQUIRES((!mpl::is_same<this_type, T>::value)),
+		          REQUIRES((std::is_copy_constructible<T>::value))>
 		this_type & operator = (P && p)
 		{
-			storage.construct<mpl::decay_t<P>>(std::forward<P>(p));
+			data_ = detail::any_data(utility::in_place_type<T>, std::forward<P>(p));
 			return *this;
 		}
+
 		void swap(this_type & x) noexcept
 		{
-			storage.swap(x.storage);
+			data_.swap(x.data_);
 		}
 
 	public:
+
 		template <typename T, typename ...Ps,
 		          REQUIRES((std::is_constructible<T, Ps...>::value)),
 		          REQUIRES((std::is_copy_constructible<T>::value))>
 		T & emplace(Ps && ...ps)
 		{
-			return storage.construct<T>(std::forward<Ps>(ps)...);
+			data_.destroy();
+			return data_.create<T>(std::forward<Ps>(ps)...);
 		}
+
 		void reset()
 		{
-			storage.destruct();
+			data_.destroy();
 		}
 
 	public:
-		bool has_value() const noexcept
-		{
-			return !storage.empty();
-		}
 
-		utility::type_id_t type_id() const { return storage.id(); }
+		bool has_value() const noexcept { return !data_.empty(); }
 
-	public:
-		friend void swap(this_type & x, this_type & y)
-		{
-			x.swap(y);
-		}
+		utility::type_id_t type_id() const { return data_.type_id(); }
+
+	private:
 
 		friend std::ostream & operator << (std::ostream & stream, const this_type & x)
 		{
-			return x.storage.print(stream);
-		}
-	private:
-		friend detail::any_storage & get_storage(this_type & x)
-		{
-			return x.storage;
-		}
-		friend const detail::any_storage & get_storage(const this_type & x)
-		{
-			return x.storage;
-		}
-		friend detail::any_storage && get_storage(this_type && x)
-		{
-			return std::move(x.storage);
+			return x.data_.ostream(stream);
 		}
 	};
 
-	template <typename T>
-	T & any_cast(any & x)
+	inline void swap(any & x, any & y)
 	{
-		return detail::any_cast_helper{}.any_cast_ref<T>(x);
+		x.swap(y);
 	}
-	template <typename T>
-	const T & any_cast(const any & x)
+
+	namespace detail
 	{
-		return detail::any_cast_helper{}.any_cast_ref<T>(x);
+		struct any_cast_helper
+		{
+			template <typename T, typename Any>
+			auto any_cast(Any * x)
+			{
+				return x->data_.template get<T>();
+			}
+		};
 	}
-	template <typename T>
-	T && any_cast(any && x)
-	{
-		return detail::any_cast_helper{}.any_cast_ref<T>(std::move(x));
-	}
+
 	template <typename T>
 	T * any_cast(any * x) noexcept
 	{
-		return detail::any_cast_helper{}.any_cast_ptr<T>(x);
+		return detail::any_cast_helper{}.any_cast<T>(x);
 	}
 	template <typename T>
 	const T * any_cast(const any * x) noexcept
 	{
-		return detail::any_cast_helper{}.any_cast_ptr<T>(x);
+		return detail::any_cast_helper{}.any_cast<T>(x);
+	}
+
+	template <typename T,
+	          typename U = mpl::remove_cvref_t<T>,
+	          REQUIRES((std::is_constructible<T, U &>::value))>
+	T any_cast(any & x)
+	{
+		return static_cast<T>(*any_cast<U>(&x));
+	}
+	template <typename T,
+	          typename U = mpl::remove_cvref_t<T>,
+	          REQUIRES((std::is_constructible<T, const U &>::value))>
+	T any_cast(const any & x)
+	{
+		return static_cast<T>(*any_cast<U>(&x));
+	}
+	template <typename T,
+	          typename U = mpl::remove_cvref_t<T>,
+	          REQUIRES((std::is_constructible<T, U>::value))>
+	T any_cast(any && x)
+	{
+		return static_cast<T>(static_cast<U &&>(*any_cast<U>(&x)));
 	}
 
 	template <typename T>
@@ -279,8 +461,6 @@ namespace utility
 	template <typename T, typename ...Ps>
 	any make_any(Ps && ...ps)
 	{
-		return any{in_place_type<T>, std::forward<Ps>(ps)...};
+		return any(in_place_type<T>, std::forward<Ps>(ps)...);
 	}
 }
-
-#endif /* UTILITY_ANY_HPP */
