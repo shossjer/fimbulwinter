@@ -1,7 +1,6 @@
-
 cmake_minimum_required(VERSION 3.5.1)
 
-project(hellskitchen C CXX)
+project(fimbulwinter C CXX)
 
 # https://stackoverflow.com/a/31662300
 if(CMAKE_CONFIGURATION_TYPES)
