@@ -220,7 +220,7 @@ namespace utility
 				if (!handler_)
 					return utility::type_id<void>();
 
-				any_input in;
+				any_input in{};
 				any_output out;
 				handler_(any_action::none_type_id, in, out);
 				return out.type_id_;
