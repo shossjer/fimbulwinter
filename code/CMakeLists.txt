@@ -6,6 +6,9 @@ set(test_compile_options
 	# sign-conversion - Warn for implicit conversions that may change
 	# the sign of an integer value, like assigning a signed integer
 	# expression to an unsigned integer variable.
+	$<$<CXX_COMPILER_ID:Clang>:
+		-Wno-self-move>
+	# self-move - explicitly moving variable of type A to itself
 	$<$<CXX_COMPILER_ID:MSVC>:
 		/wd4456>
 	# C4456 - declaration of 'identifier' hides previous local
