@@ -1,9 +1,4 @@
-/**
- */
-#define TRIBUNAL_VERSION_MAJOR @TRIBUNAL_VERSION_MAJOR@
-/**
- */
-#define TRIBUNAL_VERSION_MINOR @TRIBUNAL_VERSION_MINOR@
+#pragma once
 
 #if defined(_MSC_VER)
 // The microsoft compiler sets _DEBUG appropriately when targeting a

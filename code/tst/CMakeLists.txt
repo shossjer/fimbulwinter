@@ -31,12 +31,6 @@ set(FILES_ENGINE
 	tst/engine/resource/writer.cpp
 	)
 
-set(FILES_GAMEPLAY
-	tst/main_core.cpp
-	tst/gameplay/gamestate.cpp
-	tst/gameplay/looper.cpp
-	)
-
 set(FILES_UTILITY
 	tst/main.cpp
 	tst/utility/aggregation_allocator.cpp

@@ -173,23 +173,3 @@ set(HEADERS_UTILITY
 set(MSVC_UTILITY
 	src/utility/utility.natvis
 	)
-
-set(SOURCES_GAMEPLAY
-	src/gameplay/factory.cpp
-	src/gameplay/gamestate.cpp
-	src/gameplay/looper.cpp
-	)
-
-set(HEADERS_GAMEPLAY
-	src/gameplay/commands.hpp
-	src/gameplay/component/CameraActivator.hpp
-	src/gameplay/component/FreeCamera.hpp
-	src/gameplay/component/OverviewCamera.hpp
-	src/gameplay/debug.hpp
-	src/gameplay/factory.hpp
-	src/gameplay/gamestate.hpp
-	src/gameplay/gamestate_models.hpp
-	src/gameplay/looper.hpp
-	src/gameplay/recipes.hpp
-	src/gameplay/skills.hpp
-	)

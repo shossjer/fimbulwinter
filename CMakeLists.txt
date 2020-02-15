@@ -1,7 +1,6 @@
-
 cmake_minimum_required(VERSION 3.5.1)
 
-project(hellskitchen C CXX)
+project(fimbulwinter C CXX)
 
 # https://stackoverflow.com/a/31662300
 if(CMAKE_CONFIGURATION_TYPES)
@@ -36,32 +35,17 @@ set(private_compile_options
 
 set(private_compile_definitions
 	$<$<CXX_COMPILER_ID:MSVC>:
-		UNICODE _UNICODE>
+		NOMINMAX UNICODE _UNICODE>
 	)
 
-if (MSVC)
-  set(CMAKE_CXX_FLAGS_DEBUG
-	 "${CMAKE_CXX_FLAGS_DEBUG} /wd4100 /wd4127 /wd4189 /wd4512 /wd4702 /MTd /D_SCL_SECURE_NO_WARNINGS"
-	 CACHE STRING "Debug builds CMAKE CXX flags " FORCE )
-  set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} /MT")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MT")
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-  add_definitions(-DNOMINMAX)
-  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hellskitchen)
-endif ()
-
-include(settings.cmake)
-
-if (CUSTOM_INCLUDE)
-	include_directories(${CUSTOM_INCLUDE})
-	set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${CUSTOM_INCLUDE}")
-endif()
-if (CUSTOM_LIBRARY)
-	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CUSTOM_LIBRARY}")
+if(MSVC)
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
 endif()
 
 # project information
-message(STATUS "Using compiler ${CMAKE_CXX_COMPILER}")
+message(STATUS "Using CXX compiler ${CMAKE_CXX_COMPILER}")
+message("")
 
 message(STATUS "CMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION}")
 message(STATUS "PROJECT_BINARY_DIR=${PROJECT_BINARY_DIR}")
@@ -71,6 +55,7 @@ message(STATUS "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
 message(STATUS "CMAKE_SYSTEM_PREFIX_PATH=${CMAKE_SYSTEM_PREFIX_PATH}")
 message(STATUS "CMAKE_INCLUDE_PATH=${CMAKE_INCLUDE_PATH}")
 message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
+message("")
 
 # hardware settings
 include(TestBigEndian)
@@ -383,4 +368,3 @@ add_library(generated INTERFACE)
 target_include_directories(generated INTERFACE "${PROJECT_BINARY_DIR}/generated")
 
 add_subdirectory(code)
-add_subdirectory(game)
