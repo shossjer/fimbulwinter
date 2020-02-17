@@ -1,5 +1,38 @@
 cmake_minimum_required(VERSION 3.5.1)
 
+# usage:
+#
+#   _resolve_options(options... [| options...]*)
+#
+# description:
+#
+#   generates an error if more than one option is set within a section
+#   (separated by "|"), turns off all options from remaining sections
+#   (not including the section with the first set option) and
+#   generates a warning in the process
+macro(_resolve_options)
+	unset(_resolve_options_chosen)
+	unset(_resolve_options_clear_remaining)
+
+	foreach(_arg IN ITEMS ${ARGV})
+		if(_arg MATCHES "\\|")
+			set(_resolve_options_clear_remaining ${_resolve_options_chosen})
+		elseif(${_arg})
+			if(_resolve_options_clear_remaining)
+				message(WARNING "option ${_arg} is overridden by ${_resolve_options_chosen}")
+				set(${_arg} OFF)
+			elseif(_resolve_options_chosen)
+				message(FATAL_ERROR "conflicting options ${_resolve_options_chosen} and ${_arg}")
+			else()
+				set(_resolve_options_chosen ${_arg})
+			endif()
+		endif()
+	endforeach()
+
+	unset(_resolve_options_chosen)
+	unset(_resolve_options_clear_remaining)
+endmacro()
+
 project(fimbulwinter C CXX)
 
 # https://stackoverflow.com/a/31662300
@@ -260,6 +293,7 @@ endif ()
 # file
 cmake_dependent_option(FILE_USE_INOTIFY "Use the Linux inotify API for the file module" ON "FILE_SYS_INOTIFY_H" OFF)
 cmake_dependent_option(FILE_USE_KERNEL32 "Use the Windows file API for the file module" ON "FILE_FILEAPI_H AND LIBRARY_KERNEL32" OFF)
+_resolve_options(FILE_USE_INOTIFY FILE_USE_KERNEL32)
 if(FILE_USE_INOTIFY)
 	message(STATUS "File - inotify")
 elseif(FILE_USE_KERNEL32)
@@ -297,6 +331,7 @@ endif()
 # window
 cmake_dependent_option(WINDOW_USE_USER32 "Use the Windows API for the window module" ON "LIBRARY_GDI32 AND LIBRARY_USER32" OFF)
 cmake_dependent_option(WINDOW_USE_X11 "Use X11/Xlib for the window module" ON "FILE_X11_XLIB_H AND LIBRARY_X11" OFF)
+_resolve_options(WINDOW_USE_USER32 WINDOW_USE_X11)
 add_library(window_dep "")
 set_target_properties(window_dep PROPERTIES LINKER_LANGUAGE CXX)
 if(WINDOW_USE_USER32)
@@ -331,6 +366,7 @@ endif()
 cmake_dependent_option(TEXT_USE_FREETYPE "Use Freetype as text/font source" ON "FOUND_FREETYPE" OFF)
 cmake_dependent_option(TEXT_USE_USER32 "Use the Windows API as text/font source" ON "WINDOW_USE_USER32" OFF)
 cmake_dependent_option(TEXT_USE_X11 "Use X11/Xlib as text/font source" ON "WINDOW_USE_X11" OFF)
+_resolve_options(TEXT_USE_FREETYPE | TEXT_USE_USER32 TEXT_USE_X11)
 add_library(text_dep "")
 set_target_properties(text_dep PROPERTIES LINKER_LANGUAGE CXX)
 if(TEXT_USE_FREETYPE)
@@ -355,6 +391,7 @@ endif()
 # thread
 cmake_dependent_option(THREAD_USE_KERNEL32 "Use the Windows API for threads" ON "LIBRARY_KERNEL32" OFF)
 cmake_dependent_option(THREAD_USE_PTHREAD "Use POSIX for threads" ON "FILE_PTHREAD_H AND LIBRARY_PTHREAD" OFF)
+_resolve_options(THREAD_USE_KERNEL32 THREAD_USE_PTHREAD)
 add_library(thread_dep "")
 set_target_properties(thread_dep PROPERTIES LINKER_LANGUAGE CXX)
 if(THREAD_USE_KERNEL32)
