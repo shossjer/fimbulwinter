@@ -68,9 +68,7 @@ endif ()
 
 # Catch
 message(STATUS "Looking for catch")
-find_file(FILE_CATCH_HPP catch.hpp)
 find_file(FILE_CATCH_CATCH_HPP catch/catch.hpp)
-message(STATUS "Looking for catch - ${FILE_CATCH_HPP}")
 message(STATUS "Looking for catch - ${FILE_CATCH_CATCH_HPP}")
 
 # FMOD
@@ -84,9 +82,7 @@ message(STATUS "Looking for FMOD library - ${LIBRARY_FMOD_VC}")
 
 # Freetype
 message(STATUS "Looking for freetype")
-find_file(FILE_FT2BUILD_H ft2build.h)
 find_file(FILE_FREETYPE2_FT2BUILD_H freetype2/ft2build.h)
-message(STATUS "Looking for freetype - ${FILE_FT2BUILD_H}")
 message(STATUS "Looking for freetype - ${FILE_FREETYPE2_FT2BUILD_H}")
 find_library(LIBRARY_FREETYPE freetype)
 find_library(LIBRARY_FREETYPED freetyped)
@@ -142,65 +138,107 @@ message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
 find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
-# look for JSON library hpp file
-find_file(FILE_JSON_HEADER nlohmann/json.hpp)
-message(STATUS "Looking for JSON header file - ${FILE_JSON_HEADER}")
-if (FILE_JSON_HEADER)
-else()
-  message(FATAL_ERROR "JSON parser - You need to get one!")
-endif()
+# json
+find_file(FILE_NLOHMANN_JSON_HPP nlohmann/json.hpp)
+message(STATUS "Looking for json - ${FILE_NLOHMANN_JSON_HPP}")
 
 # zlib
 message(STATUS "Looking for z")
+find_file(FILE_ZLIB_H zlib.h)
+message(STATUS "Looking for z - ${FILE_ZLIB_H}")
 find_library(LIBRARY_Z z)
 message(STATUS "Looking for z - ${LIBRARY_Z}")
-
-message(STATUS "Looking for zlibd")
-find_library(LIBRARY_ZLIB zlibd)
-message(STATUS "Looking for zlibd - ${LIBRARY_ZLIB}")
+find_library(LIBRARY_ZLIBSTATICD zlibd)
+message(STATUS "Looking for z - ${LIBRARY_ZLIBSTATICD}")
 
 # libpng
 message(STATUS "Looking for png")
+find_file(FILE_PNG_H png.h)
+message(STATUS "Looking for png - ${FILE_PNG_H}")
+find_file(FILE_LIBPNG16_PNG_H libpng16/png.h)
+message(STATUS "Looking for png - ${FILE_LIBPNG16_PNG_H}")
 find_library(LIBRARY_PNG png)
 message(STATUS "Looking for png - ${LIBRARY_PNG}")
+find_library(LIBRARY_LIBPNG16_STATICD libpng16_staticd)
+message(STATUS "Looking for png - ${LIBRARY_LIBPNG16_STATICD}")
 
-message(STATUS "Looking for libpng16_staticd")
-find_library(LIBRARY_LIBPNG libpng16_staticd)
-message(STATUS "Looking for libpng16_staticd - ${LIBRARY_LIBPNG}")
+# general dependencies
 
-set(GENERAL_INCLUDES)
+add_library(dep_json "")
+set_target_properties(dep_json PROPERTIES LINKER_LANGUAGE CXX)
+if(FILE_NLOHMANN_JSON_HPP)
+	get_filename_component(_directory_nlohmann "${FILE_NLOHMANN_JSON_HPP}" DIRECTORY)
+	get_filename_component(_directory ".." ABSOLUTE BASE_DIR "${_directory_nlohmann}")
 
-set(GENERAL_LIBRARIES)
-set(DEBUG_LIBRARIES)
-set(OPTIMIZED_LIBRARIES)
-
-if(LIBRARY_PNG)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_PNG}")
-elseif(LIBRARY_LIBPNG)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_LIBPNG}")
+	target_include_directories(dep_json INTERFACE "${_directory}")
 else()
-  message(FATAL_ERROR "Needs png")
+	message(FATAL_ERROR "Needs json nlohmann")
 endif()
 
-if(LIBRARY_Z)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_Z}")
-elseif(LIBRARY_ZLIB)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_ZLIB}")
+add_library(dep_png "")
+set_target_properties(dep_png PROPERTIES LINKER_LANGUAGE C)
+if(FILE_PNG_H AND LIBRARY_PNG)
+	get_filename_component(_directory "${FILE_PNG_H}" DIRECTORY)
+
+	target_include_directories(dep_png INTERFACE "${_directory}")
+	target_link_libraries(dep_png INTERFACE "${LIBRARY_PNG}")
+elseif(FILE_LIBPNG16_PNG_H AND LIBRARY_LIBPNG16_STATICD)
+	get_filename_component(_directory "${FILE_LIBPNG16_PNG_H}" DIRECTORY)
+
+	target_include_directories(dep_png INTERFACE "${_directory}")
+	target_link_libraries(dep_png INTERFACE "${LIBRARY_LIBPNG16_STATICD}")
 else()
-  message(FATAL_ERROR "Needs zlib")
+	message(FATAL_ERROR "Needs png")
 endif()
 
-# select libraries
+add_library(dep_zlib "")
+set_target_properties(dep_zlib PROPERTIES LINKER_LANGUAGE C)
+if(FILE_ZLIB_H AND LIBRARY_Z)
+	get_filename_component(_directory "${FILE_ZLIB_H}" DIRECTORY)
+
+	target_include_directories(dep_zlib INTERFACE "${_directory}")
+	target_link_libraries(dep_zlib INTERFACE "${LIBRARY_Z}")
+elseif(FILE_ZLIB_H AND LIBRARY_ZLIBSTATICD)
+	get_filename_component(_directory "${FILE_ZLIB_H}" DIRECTORY)
+
+	target_include_directories(dep_zlib INTERFACE "${_directory}")
+	target_link_libraries(dep_zlib INTERFACE "${LIBRARY_ZLIBSTATICD}")
+else()
+	message(FATAL_ERROR "Needs zlib")
+endif()
+
+add_library(dep_catch "")
+set_target_properties(dep_catch PROPERTIES LINKER_LANGUAGE CXX)
+if(FILE_CATCH_CATCH_HPP)
+	get_filename_component(_directory_catch "${FILE_CATCH_CATCH_HPP}" DIRECTORY)
+	get_filename_component(_directory ".." ABSOLUTE BASE_DIR "${_directory_catch}")
+
+	target_include_directories(dep_catch INTERFACE "${_directory}")
+else()
+	message(WARNING "Missing catch")
+endif()
+
+# module dependencies
 include(CMakeDependentOption)
 
 # audio
 if(FILE_FMOD_HPP AND (LIBRARY_FMOD OR LIBRARY_FMOD_VC))
+	set(FOUND_FMOD 1)
+endif()
+# hack to simplify the expression for `cmake_dependent_option`
+cmake_dependent_option(AUDIO_USE_FMOD "Use the FMOD library for the audio module" ON "FOUND_FMOD" OFF)
+add_library(audio_dep "")
+set_target_properties(audio_dep PROPERTIES LINKER_LANGUAGE CXX)
+if(AUDIO_USE_FMOD)
 	message(STATUS "Audio - FMOD")
-	set(AUDIO_USE_FMOD 1)
+
+	get_filename_component(_directory "${FILE_FMOD_HPP}" DIRECTORY)
+
+	target_include_directories(audio_dep INTERFACE "${_directory}")
 	if(LIBRARY_FMOD)
-		set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FMOD}")
+		target_link_libraries(audio_dep INTERFACE "${LIBRARY_FMOD}")
 	else()
-		set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FMOD_VC}")
+		target_link_libraries(audio_dep INTERFACE "${LIBRARY_FMOD_VC}")
 	endif()
 else()
 	message(WARNING "Audio - Disabled")
@@ -232,100 +270,103 @@ else()
 endif()
 
 # graphics
-if (FILE_GL_GL_H AND
-	 FILE_GL_GLEXT_H AND
-	 LIBRARY_GL)
-  message(STATUS "Graphics - OpenGL")
-  set(GRAPHICS_USE_OPENGL 1)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_GL}")
-elseif (FILE_GL_GL_H AND
-	 FILE_GL_GLEXT_H AND
-	 LIBRARY_OPENGL32)
-  message(STATUS "Graphics - OpenGL")
-  set(GRAPHICS_USE_OPENGL 1)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_OPENGL32}")
-else()
-  message(FATAL_ERROR "Graphics - Disabled")
+if(FILE_GL_GL_H AND FILE_GL_GLEXT_H AND (LIBRARY_GL OR LIBRARY_OPENGL32))
+	set(FOUND_OPENGL 1)
 endif()
+# hack to simplify the expression for `cmake_dependent_option`
+cmake_dependent_option(GRAPHICS_USE_OPENGL "Use OpenGL for the graphics module" ON "FOUND_OPENGL" OFF)
+add_library(graphics_dep "")
+set_target_properties(graphics_dep PROPERTIES LINKER_LANGUAGE CXX)
+if(GRAPHICS_USE_OPENGL)
+	message(STATUS "Graphics - OpenGL")
 
-# test
-if (FILE_CATCH_HPP OR
-	 FILE_CATCH_CATCH_HPP)
-  message(STATUS "Test - Catch")
+	# note GL.h is a system header, glext.h is not
+	get_filename_component(_directory_gl "${FILE_GL_GLEXT_H}" DIRECTORY)
+	get_filename_component(_directory ".." ABSOLUTE BASE_DIR "${_directory_gl}")
 
-  if (FILE_CATCH_CATCH_HPP)
-	 get_filename_component(INCLUDE_DIRECTORY_CATCH "${FILE_CATCH_CATCH_HPP}" DIRECTORY)
-	 set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${INCLUDE_DIRECTORY_CATCH}")
-  endif()
-else ()
-  message(WARNING "Test - Disabled")
-endif ()
-
-# thread
-if (LIBRARY_KERNEL32)
-  message(STATUS "Thread - Kernel32")
-  set(THREAD_USE_KERNEL32 1)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_KERNEL32}")
-elseif(FILE_PTHREAD_H AND
-	LIBRARY_PTHREAD)
-  message(STATUS "Thread - Pthread")
-  set(THREAD_USE_PTHREAD 1)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_PTHREAD}")
+	target_include_directories(graphics_dep INTERFACE "${_directory}")
+	if(LIBRARY_GL)
+		target_link_libraries(graphics_dep INTERFACE "${LIBRARY_GL}")
+	else()
+		target_link_libraries(graphics_dep INTERFACE "${LIBRARY_OPENGL32}")
+	endif()
 else()
-  message(FATAL_ERROR "Thread - Disabled")
+	message(FATAL_ERROR "Graphics - Disabled")
 endif()
 
 # window
-if (LIBRARY_GDI32 AND
-	LIBRARY_USER32)
-  message(STATUS "Window - User32")
-  set(WINDOW_USE_USER32 1)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_USER32}")
-elseif(FILE_X11_XLIB_H AND
-	LIBRARY_X11)
-  message(STATUS "Window - X11")
-  set(WINDOW_USE_X11 1)
-  set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_X11}")
+cmake_dependent_option(WINDOW_USE_USER32 "Use the Windows API for the window module" ON "LIBRARY_GDI32 AND LIBRARY_USER32" OFF)
+cmake_dependent_option(WINDOW_USE_X11 "Use X11/Xlib for the window module" ON "FILE_X11_XLIB_H AND LIBRARY_X11" OFF)
+add_library(window_dep "")
+set_target_properties(window_dep PROPERTIES LINKER_LANGUAGE CXX)
+if(WINDOW_USE_USER32)
+	message(STATUS "Window - User32")
+
+	target_link_libraries(window_dep INTERFACE "${LIBRARY_USER32}")
+elseif(WINDOW_USE_X11)
+	message(STATUS "Window - X11")
+
+	target_link_libraries(window_dep INTERFACE "${LIBRARY_X11}")
 else()
-  message(FATAL_ERROR "Window - Disabled")
+	message(FATAL_ERROR "Window - Disabled")
 endif()
 
 # additional libraries
+
 # input
-if(WINDOW_USE_USER32)
-	if(FILE_HIDSDI_H AND LIBRARY_HID)
-		message(STATUS "Input - User32 Hid")
-		set(INPUT_HAS_USER32_HID 1)
-		set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_HID}")
-	endif()
+cmake_dependent_option(INPUT_HAS_USER32_HID "Enable HID in the input module" ON "WINDOW_USE_USER32 AND FILE_HIDSDI_H AND LIBRARY_HID" OFF)
+add_library(input_dep "")
+set_target_properties(input_dep PROPERTIES LINKER_LANGUAGE CXX)
+if(INPUT_HAS_USER32_HID)
+	message(STATUS "Input - User32 Hid")
+
+	target_link_libraries(window_dep INTERFACE "${LIBRARY_HID}")
 endif()
 
 # text
-if ((FILE_FT2BUILD_H OR
-	  FILE_FREETYPE2_FT2BUILD_H) AND
-	(LIBRARY_FREETYPE OR LIBRARY_FREETYPED))
-  message(STATUS "Text - Freetype")
-  set(TEXT_USE_FREETYPE 1)
+if(FILE_FREETYPE2_FT2BUILD_H AND (LIBRARY_FREETYPE OR LIBRARY_FREETYPED))
+	set(FOUND_FREETYPE 1)
+endif()
+# hack to simplify the expression for `cmake_dependent_option`
+cmake_dependent_option(TEXT_USE_FREETYPE "Use Freetype as text/font source" ON "FOUND_FREETYPE" OFF)
+cmake_dependent_option(TEXT_USE_USER32 "Use the Windows API as text/font source" ON "WINDOW_USE_USER32" OFF)
+cmake_dependent_option(TEXT_USE_X11 "Use X11/Xlib as text/font source" ON "WINDOW_USE_X11" OFF)
+add_library(text_dep "")
+set_target_properties(text_dep PROPERTIES LINKER_LANGUAGE CXX)
+if(TEXT_USE_FREETYPE)
+	message(STATUS "Text - Freetype")
 
-  if (FILE_FREETYPE2_FT2BUILD_H)
-	get_filename_component(INCLUDE_DIRECTORY_FREETYPE "${FILE_FREETYPE2_FT2BUILD_H}" DIRECTORY)
-	set(GENERAL_INCLUDES "${GENERAL_INCLUDES};${INCLUDE_DIRECTORY_FREETYPE}")
-  endif()
+	get_filename_component(_directory_freetype2 "${FILE_FREETYPE2_FT2BUILD_H}" DIRECTORY)
 
-  if (LIBRARY_FREETYPE)
-	set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FREETYPE}")
-  else()
-	set(GENERAL_LIBRARIES "${GENERAL_LIBRARIES};${LIBRARY_FREETYPED}")
-  endif()
-
-elseif (WINDOW_USE_USER32)
-  message(WARNING "Text - User32")
-  set(TEXT_USE_USER32 1)
-elseif (WINDOW_USE_X11)
-  message(WARNING "Text - X11")
-  set(TEXT_USE_X11 1)
+	target_include_directories(text_dep INTERFACE "${_directory_freetype2}")
+	if(LIBRARY_FREETYPE)
+		target_link_libraries(text_dep INTERFACE "${LIBRARY_FREETYPE}")
+	else()
+		target_link_libraries(text_dep INTERFACE "${LIBRARY_FREETYPED}")
+	endif()
+elseif(TEXT_USE_USER32)
+	message(WARNING "Text - User32")
+elseif(TEXT_USE_X11)
+	message(WARNING "Text - X11")
 else()
-  message(WARNING "Text - Disabled")
+	message(WARNING "Text - Disabled")
+endif()
+
+# thread
+cmake_dependent_option(THREAD_USE_KERNEL32 "Use the Windows API for threads" ON "LIBRARY_KERNEL32" OFF)
+cmake_dependent_option(THREAD_USE_PTHREAD "Use POSIX for threads" ON "FILE_PTHREAD_H AND LIBRARY_PTHREAD" OFF)
+add_library(thread_dep "")
+set_target_properties(thread_dep PROPERTIES LINKER_LANGUAGE CXX)
+if(THREAD_USE_KERNEL32)
+	message(STATUS "Thread - Kernel32")
+
+	target_link_libraries(thread_dep INTERFACE "${LIBRARY_KERNEL32}")
+elseif(THREAD_USE_PTHREAD)
+	message(STATUS "Thread - Pthread")
+
+	target_link_libraries(thread_dep INTERFACE "${LIBRARY_PTHREAD}")
+else()
+	message(FATAL_ERROR "Thread - Disabled")
 endif()
 
 # lookup features
