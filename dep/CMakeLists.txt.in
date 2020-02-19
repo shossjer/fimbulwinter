@@ -1,0 +1,213 @@
+cmake_minimum_required(VERSION 3.0)
+
+include(ExternalProject)
+
+#set(_ep_tmp "@PROJECT_SOURCE_DIR@/.tmp")
+#set(_ep_stamp "@PROJECT_SOURCE_DIR@/.stamp")
+#set(_ep_log "@PROJECT_SOURCE_DIR@/.log")
+#set(_ep_binary "@PROJECT_SOURCE_DIR@/.binary")
+#set(_ep_install "@PROJECT_SOURCE_DIR@/.install")
+set(_ep_download "@PROJECT_SOURCE_DIR@/.download")
+set(_ep_source "@PROJECT_SOURCE_DIR@/.source")
+set(_install "@PROJECT_SOURCE_DIR@")
+set(_timeout 10)
+
+if(@BUILD_ZLIB@)
+	ExternalProject_Add(
+		zlib
+
+		DOWNLOAD_DIR "${_ep_download}"
+		SOURCE_DIR "${_ep_source}/zlib"
+
+		# download
+		URL "http://zlib.net/zlib-1.2.11.tar.gz"
+		# todo URL_HASH
+		TIMEOUT ${_timeout}
+
+		# update
+		UPDATE_COMMAND ""
+
+		# configure
+		CMAKE_ARGS
+		-DCMAKE_PREFIX_PATH=${_install} # not needed
+		-DCMAKE_INSTALL_PREFIX=${_install}
+
+		# build
+
+		# install
+
+		# test
+		TEST_COMMAND ""
+		)
+endif()
+
+if(@BUILD_LIBPNG@)
+	set(_dependencies)
+	if(@BUILD_ZLIB@)
+		set(_dependencies ${_dependencies} zlib)
+	endif()
+
+	ExternalProject_Add(
+		libpng
+
+		DEPENDS ${_dependencies}
+
+		DOWNLOAD_DIR "${_ep_download}"
+		SOURCE_DIR "${_ep_source}/libpng"
+
+		# download
+		URL "https://sourceforge.net/projects/libpng/files/libpng16/older-releases/1.6.30/libpng-1.6.30.tar.xz/download"
+		# todo URL_HASH
+		TIMEOUT ${_timeout}
+
+		# update
+		UPDATE_COMMAND ""
+
+		# configure
+		CMAKE_ARGS
+		-DCMAKE_PREFIX_PATH=${_install}
+		-DCMAKE_INSTALL_PREFIX=${_install}
+		-DPNG_TESTS=OFF
+
+		# build
+
+		# install
+
+		# test
+		TEST_COMMAND ""
+		)
+
+	unset(_dependencies)
+endif()
+
+if(@BUILD_NLOHMANN_JSON@)
+	ExternalProject_Add(
+		nlohmann-json
+
+		DOWNLOAD_DIR "${_ep_download}"
+		SOURCE_DIR "${_ep_source}/nlohmann-json"
+
+		# download
+		GIT_REPOSITORY "https://github.com/nlohmann/json.git"
+		GIT_TAG "ce0b3fe5a334567825a554a08b76c725d0790500"
+		TIMEOUT ${_timeout}
+
+		# update
+		UPDATE_COMMAND ""
+
+		# configure
+		CMAKE_ARGS
+		-DCMAKE_PREFIX_PATH=${_install} # not needed
+		-DCMAKE_INSTALL_PREFIX=${_install}
+		-DBuildTests=OFF
+
+		# build
+
+		# install
+
+		# test
+		TEST_COMMAND ""
+		)
+endif()
+
+if(@BUILD_CATCH@)
+	ExternalProject_Add(
+		catch
+
+		DOWNLOAD_DIR "${_ep_download}"
+		SOURCE_DIR "${_ep_source}/catch"
+
+		# download
+		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
+		GIT_TAG "Catch1.x"
+		TIMEOUT ${_timeout}
+
+		# update
+		UPDATE_COMMAND ""
+
+		# configure
+		CMAKE_ARGS
+		-DCMAKE_PREFIX_PATH=${_install} # not needed
+		-DCMAKE_INSTALL_PREFIX=${_install}
+
+		# build
+
+		# install
+
+		# test
+		TEST_COMMAND ""
+		)
+endif()
+
+if(@BUILD_FREETYPE@)
+	set(_dependencies)
+	if(@BUILD_ZLIB@)
+		set(_dependencies ${_dependencies} zlib)
+	endif()
+	if(@BUILD_LIBPNG@)
+		set(_dependencies ${_dependencies} libpng)
+	endif()
+
+	ExternalProject_Add(
+		freetype
+
+		DEPENDS ${_dependencies}
+
+		DOWNLOAD_DIR "${_ep_download}"
+		SOURCE_DIR "${_ep_source}/freetype"
+
+		# download
+		URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.8.1.tar.gz"
+		# todo URL_HASH
+		TIMEOUT ${_timeout}
+
+		# update
+		UPDATE_COMMAND ""
+
+		# configure
+		CMAKE_ARGS
+		-DCMAKE_PREFIX_PATH=${_install} # not needed
+		-DCMAKE_INSTALL_PREFIX=${_install}
+		-DWITH_ZLIB=@BUILD_ZLIB@
+		-DWITH_PNG=@BUILD_LIBPNG@
+		-DWITH_BZip2=OFF # is this needed?
+		-DWITH_HarfBuzz=OFF # is this needed?
+		# todo shared libraries
+
+		# build
+
+		# install
+
+		# test
+		TEST_COMMAND ""
+		)
+
+	unset(_dependencies)
+endif()
+
+if(NOT EXISTS "${_install}/include/GL/glext.h")
+	file(
+		DOWNLOAD
+		"https://www.khronos.org/registry/OpenGL/api/GL/glext.h"
+		"${_ep_download}/glext.h"
+
+		TIMEOUT ${_timeout}
+		)
+	file(
+		INSTALL "${_ep_download}/glext.h"
+		DESTINATION "${_install}/include/GL")
+endif()
+
+if(NOT EXISTS "${_install}/include/KHR/khrplatform.h")
+	file(
+		DOWNLOAD
+		"https://www.khronos.org/registry/EGL/api/KHR/khrplatform.h"
+		"${_ep_download}/khrplatform.h"
+
+		TIMEOUT ${_timeout}
+		)
+	file(
+		INSTALL "${_ep_download}/khrplatform.h"
+		DESTINATION "${_install}/include/KHR"
+		)
+endif()

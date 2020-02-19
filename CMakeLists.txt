@@ -44,7 +44,8 @@ elseif(NOT CMAKE_BUILD_TYPE)
 endif()
 set_property(GLOBAL PROPERTY DEBUG_CONFIGURATIONS Debug)
 
-include_directories("${PROJECT_SOURCE_DIR}/dep/include")
+add_subdirectory(dep)
+
 set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/include")
 set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/dep/lib")
 
