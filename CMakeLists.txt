@@ -11,8 +11,8 @@ cmake_minimum_required(VERSION 3.5.1)
 #   (not including the section with the first set option) and
 #   generates a warning in the process
 macro(_resolve_options)
-	unset(_resolve_options_chosen)
-	unset(_resolve_options_clear_remaining)
+	set(_resolve_options_chosen "")
+	set(_resolve_options_clear_remaining "")
 
 	foreach(_arg IN ITEMS ${ARGV})
 		if(_arg MATCHES "\\|")
@@ -35,17 +35,25 @@ endmacro()
 
 project(fimbulwinter C CXX)
 
-# https://stackoverflow.com/a/31662300
-if(CMAKE_CONFIGURATION_TYPES)
-	unset(CMAKE_BUILD_TYPE CACHE)
-	set(CMAKE_CONFIGURATION_TYPES Debug Release)
-elseif(NOT CMAKE_BUILD_TYPE)
-	message(FATAL_ERROR "Single configurations need to specify CMAKE_BUILD_TYPE! Run cmake with something like:\n-DCMAKE_BUILD_TYPE=Debug|Release")
+if(DEFINED CMAKE_CONFIGURATION_TYPES)
+	message(STATUS "Detected multi configuration build: ${CMAKE_CONFIGURATION_TYPES}")
+
+	if(DEFINED CMAKE_BUILD_TYPE)
+		message(WARNING "Both CMAKE_CONFIGURATION_TYPES and CMAKE_BUILD_TYPE are set! Please unset CMAKE_BUILD_TYPE to avoid confusion.")
+	endif()
+elseif(DEFINED CMAKE_BUILD_TYPE)
+	if(CMAKE_BUILD_TYPE STREQUAL "")
+		message(STATUS "Detected single configuration build")
+	else()
+		message(STATUS "Detected single configuration build: ${CMAKE_BUILD_TYPE}")
+	endif()
+else()
+	message(FATAL_ERROR "Neither CMAKE_CONFIGURATION_TYPES or CMAKE_BUILD_TYPE are set!")
 endif()
-set_property(GLOBAL PROPERTY DEBUG_CONFIGURATIONS Debug)
 
 add_subdirectory(dep)
 
+# todo remove
 set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/include")
 set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/dep/lib")
 
@@ -53,6 +61,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# todo move into code
 set(private_compile_options
 	$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
 		-Wall -Wextra -Wconversion -Werror -Wno-sign-conversion>
@@ -71,11 +80,6 @@ set(private_compile_definitions
 	$<$<CXX_COMPILER_ID:MSVC>:
 		NOMINMAX UNICODE _UNICODE>
 	)
-
-if(MSVC)
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-endif()
 
 # project information
 message(STATUS "Using CXX compiler ${CMAKE_CXX_COMPILER}")
