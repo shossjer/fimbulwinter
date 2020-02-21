@@ -9,7 +9,6 @@ include(ExternalProject)
 #set(_ep_install "@PROJECT_SOURCE_DIR@/.install")
 set(_ep_download "@PROJECT_SOURCE_DIR@/.download")
 set(_ep_source "@PROJECT_SOURCE_DIR@/.source")
-set(_install "@PROJECT_SOURCE_DIR@")
 set(_timeout 10)
 
 if(@BUILD_ZLIB@)
@@ -28,9 +27,7 @@ if(@BUILD_ZLIB@)
 		UPDATE_COMMAND ""
 
 		# configure
-		CMAKE_ARGS
-		-DCMAKE_PREFIX_PATH=${_install} # not needed
-		-DCMAKE_INSTALL_PREFIX=${_install}
+		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" "${_ep_source}/zlib"
 
 		# build
 
@@ -64,10 +61,7 @@ if(@BUILD_LIBPNG@)
 		UPDATE_COMMAND ""
 
 		# configure
-		CMAKE_ARGS
-		-DCMAKE_PREFIX_PATH=${_install}
-		-DCMAKE_INSTALL_PREFIX=${_install}
-		-DPNG_TESTS=OFF
+		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" -DPNG_TESTS=OFF "${_ep_source}/libpng"
 
 		# build
 
@@ -96,10 +90,7 @@ if(@BUILD_NLOHMANN_JSON@)
 		UPDATE_COMMAND ""
 
 		# configure
-		CMAKE_ARGS
-		-DCMAKE_PREFIX_PATH=${_install} # not needed
-		-DCMAKE_INSTALL_PREFIX=${_install}
-		-DBuildTests=OFF
+		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" -DBuildTests=OFF "${_ep_source}/nlohmann-json"
 
 		# build
 
@@ -126,9 +117,7 @@ if(@BUILD_CATCH@)
 		UPDATE_COMMAND ""
 
 		# configure
-		CMAKE_ARGS
-		-DCMAKE_PREFIX_PATH=${_install} # not needed
-		-DCMAKE_INSTALL_PREFIX=${_install}
+		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" "${_ep_source}/catch"
 
 		# build
 
@@ -165,14 +154,7 @@ if(@BUILD_FREETYPE@)
 		UPDATE_COMMAND ""
 
 		# configure
-		CMAKE_ARGS
-		-DCMAKE_PREFIX_PATH=${_install} # not needed
-		-DCMAKE_INSTALL_PREFIX=${_install}
-		-DWITH_ZLIB=@BUILD_ZLIB@
-		-DWITH_PNG=@BUILD_LIBPNG@
-		-DWITH_BZip2=OFF # is this needed?
-		-DWITH_HarfBuzz=OFF # is this needed?
-		# todo shared libraries
+		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" -DWITH_ZLIB=@BUILD_ZLIB@ -DWITH_PNG=@BUILD_LIBPNG@ -DWITH_BZip2=OFF -DWITH_HarfBuzz=OFF "${_ep_source}/freetype"
 
 		# build
 
@@ -185,7 +167,7 @@ if(@BUILD_FREETYPE@)
 	unset(_dependencies)
 endif()
 
-if(NOT EXISTS "${_install}/include/GL/glext.h")
+if(NOT EXISTS "${CMAKE_INSTALL_PREFIX}/include/GL/glext.h")
 	file(
 		DOWNLOAD
 		"https://www.khronos.org/registry/OpenGL/api/GL/glext.h"
@@ -195,10 +177,10 @@ if(NOT EXISTS "${_install}/include/GL/glext.h")
 		)
 	file(
 		INSTALL "${_ep_download}/glext.h"
-		DESTINATION "${_install}/include/GL")
+		DESTINATION "${CMAKE_INSTALL_PREFIX}/include/GL")
 endif()
 
-if(NOT EXISTS "${_install}/include/KHR/khrplatform.h")
+if(NOT EXISTS "${CMAKE_INSTALL_PREFIX}/include/KHR/khrplatform.h")
 	file(
 		DOWNLOAD
 		"https://www.khronos.org/registry/EGL/api/KHR/khrplatform.h"
@@ -208,6 +190,6 @@ if(NOT EXISTS "${_install}/include/KHR/khrplatform.h")
 		)
 	file(
 		INSTALL "${_ep_download}/khrplatform.h"
-		DESTINATION "${_install}/include/KHR"
+		DESTINATION "${CMAKE_INSTALL_PREFIX}/include/KHR"
 		)
 endif()
