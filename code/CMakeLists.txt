@@ -26,7 +26,7 @@ function(run_tests name executable)
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/run_tests"
 		COMMAND ${CMAKE_COMMAND} -E touch ${_test_state}
 		DEPENDS ${executable}
-		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+		WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}"
 		)
 	add_custom_target(
 		${name}
@@ -53,7 +53,7 @@ target_compile_options(utilitytest PRIVATE ${private_compile_options} ${test_com
 target_compile_definitions(utilitytest PRIVATE ${private_compile_definitions})
 
 if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
-	set_target_properties(utilitytest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	set_target_properties(utilitytest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}")
 endif()
 
 if(RUN_TESTS)
@@ -78,7 +78,7 @@ target_compile_options(coretest PRIVATE ${private_compile_options} ${test_compil
 target_compile_definitions(coretest PRIVATE ${private_compile_definitions})
 
 if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
-	set_target_properties(coretest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	set_target_properties(coretest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}")
 endif()
 
 if(RUN_TESTS)
@@ -103,7 +103,7 @@ target_compile_options(enginetest PRIVATE ${private_compile_options} ${test_comp
 target_compile_definitions(enginetest PRIVATE ${private_compile_definitions})
 
 if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
-	set_target_properties(enginetest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	set_target_properties(enginetest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}")
 endif()
 
 if(RUN_TESTS)
