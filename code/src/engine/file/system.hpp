@@ -26,6 +26,28 @@ namespace engine
 			system();
 		};
 
+		struct flags
+		{
+			enum bits : uint32_t
+			{
+				REPORT_MISSING = uint32_t(1) << 0,
+			};
+
+		private:
+			uint32_t value;
+
+		public:
+			flags() = default;
+			constexpr flags(bits bit) : value(bit) {}
+		private:
+			explicit constexpr flags(uint32_t value) : value(value) {}
+
+		public:
+			explicit constexpr operator bool () const { return value != 0; }
+
+			friend constexpr flags operator & (flags a, flags b) { return flags(a.value & b.value); }
+		};
+
 		void register_directory(engine::Asset name, utility::heap_string_utf8 && path);
 		void register_temporary_directory(engine::Asset name);
 		void unregister_directory(engine::Asset name);
@@ -35,11 +57,13 @@ namespace engine
 			utility::any & data,
 			engine::Asset match);
 
+		// mode REPORT_MISSING
 		void read(
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,
 			watch_callback * callback,
-			utility::any && data);
+			utility::any && data,
+			flags mode = flags{});
 
 		void watch(
 			engine::Asset directory,

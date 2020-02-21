@@ -838,6 +838,7 @@ namespace
 		utility::heap_string_utf8 pattern;
 		engine::file::watch_callback * callback;
 		utility::any data;
+		engine::file::flags mode;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
 		{
@@ -898,7 +899,7 @@ namespace
 			}
 
 			const auto number_of_matches = scan_directory(directory_meta, watch_id);
-			if (number_of_matches == 0)
+			if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
 			{
 				if (debug_assert(watch_ids.back() == watch_id))
 				{
@@ -1162,11 +1163,12 @@ namespace engine
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,
 			watch_callback * callback,
-			utility::any && data)
+			utility::any && data,
+			flags mode)
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<Read>(directory, std::move(pattern), callback, std::move(data));
+				try_queue_apc<Read>(directory, std::move(pattern), callback, std::move(data), mode);
 			}
 		}
 

@@ -104,6 +104,42 @@ TEST_CASE("file system can read files", "[engine][file]")
 		CHECK(sync_data.counts[2] == 4);
 	}
 
+	SECTION("and be told when no matchings are possible with the `REPORT_MISSING` flag")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::read(
+			engine::Asset("tmpdir"),
+			u8"maybe.exists",
+			[](core::ReadStream && /*stream*/, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset(""):
+					sync_data.count += 1;
+					break;
+				default:
+					sync_data.count = -100;
+				}
+				sync_data.event.set();
+			},
+			utility::any(&sync_data),
+			engine::file::flags::REPORT_MISSING);
+
+		// todo wait with timeout
+		sync_data.event.wait();
+		REQUIRE(sync_data.count == 1);
+	}
+
 	engine::file::unregister_directory(engine::Asset("tmpdir"));
 }
 

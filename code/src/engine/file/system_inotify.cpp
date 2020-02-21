@@ -46,6 +46,7 @@ namespace
 		utility::heap_string_utf8 pattern;
 		engine::file::watch_callback * callback;
 		utility::any data;
+		engine::file::flags mode;
 	};
 
 	struct Watch
@@ -651,7 +652,7 @@ namespace
 							}
 
 							const auto number_of_matches = scan_directory(directory_meta, watch_id);
-							if (number_of_matches == 0)
+							if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
 							{
 								if (debug_assert(watch_ids.back() == watch_id))
 								{
@@ -950,12 +951,13 @@ namespace engine
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,
 			watch_callback * callback,
-			utility::any && data)
+			utility::any && data,
+			flags mode)
 		{
 			if (!debug_assert(thread.valid()))
 				return;
 
-			if (debug_verify(message_queue.try_emplace(utility::in_place_type<Read>, directory, std::move(pattern), callback, std::move(data))))
+			if (debug_verify(message_queue.try_emplace(utility::in_place_type<Read>, directory, std::move(pattern), callback, std::move(data), mode)))
 			{
 				const char zero = 0;
 				debug_verify(::write(message_pipe[1], &zero, sizeof zero) == sizeof zero);
