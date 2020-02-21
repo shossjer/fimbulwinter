@@ -27,7 +27,6 @@
 #include "engine/debug.hpp"
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/viewer.hpp"
-#include "engine/resource/reader.hpp"
 
 #include "utility/lookup_table.hpp"
 #include "utility/ranges.hpp"
@@ -72,7 +71,6 @@ namespace engine
 
 			extern engine::graphics::renderer * self;
 			extern engine::application::window * window;
-			extern engine::resource::reader * reader;
 			extern void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data);
 		}
 	}
@@ -1477,396 +1475,6 @@ namespace
 		return buffer;
 	}
 
-	// TODO: move to loader/level
-	auto createCuboid()
-	{
-		// the vertices of cuboid are numbered as followed:
-		//              23--22
-		//             /    /
-		//            21--20
-		//
-		//        6  11--10   15
-		//       /|  |    |   /|
-		//      7 |  |    |  14|  18--19
-		//      | 4  9----8  |13  |    |
-		//      |/           |/   |    |
-		//      5   0----1   12   16--17
-		//   y     /    /
-		//   |    2----3
-		//   |
-		//   +----x
-		//  /
-		// z
-		const float xoffset = .5f;
-		const float yoffset = .5f;
-		const float zoffset = .5f;
-
-		std::array<float, 3 * 24> va;
-		std::size_t i = 0;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-
-		core::container::Buffer vertices = convert(std::move(va));
-		core::container::Buffer triangles = convert(std::array<uint16_t, 3 * 12> {{
-				0, 1, 3,
-				0, 3, 2,
-				4, 5, 7,
-				4, 7, 6,
-				8, 9, 11,
-				8, 11, 10,
-				12, 13, 15,
-				12, 15, 14,
-				16, 17, 19,
-				16, 19, 18,
-				20, 21, 23,
-				20, 23, 22}});
-		core::container::Buffer normals = convert(std::array<float, 3 * 24> {{
-				0.f, -1.f, 0.f,
-				0.f, -1.f, 0.f,
-				0.f, -1.f, 0.f,
-				0.f, -1.f, 0.f,
-				-1.f, 0.f, 0.f,
-				-1.f, 0.f, 0.f,
-				-1.f, 0.f, 0.f,
-				-1.f, 0.f, 0.f,
-				0.f, 0.f, -1.f,
-				0.f, 0.f, -1.f,
-				0.f, 0.f, -1.f,
-				0.f, 0.f, -1.f,
-				+1.f, 0.f, 0.f,
-				+1.f, 0.f, 0.f,
-				+1.f, 0.f, 0.f,
-				+1.f, 0.f, 0.f,
-				0.f, 0.f, +1.f,
-				0.f, 0.f, +1.f,
-				0.f, 0.f, +1.f,
-				0.f, 0.f, +1.f,
-				0.f, +1.f, 0.f,
-				0.f, +1.f, 0.f,
-				0.f, +1.f, 0.f,
-				0.f, +1.f, 0.f}});
-		core::container::Buffer coords = convert(std::array<float, 2 * 24> {{
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f}});
-
-		return engine::graphics::data::Mesh{vertices, triangles, normals, coords};
-	}
-
-	std::atomic_int read_lock;
-
-	struct TryReadImage
-	{
-		core::graphics::Image & image;
-
-		void operator () (core::PngStructurer && x)
-		{
-			x.read(image);
-		}
-		template <typename T>
-		void operator () (T &&)
-		{
-			debug_fail("impossible to read, maybe");
-		}
-	};
-
-	void data_callback_image(std::string name, engine::resource::reader::Structurer && structurer)
-	{
-		core::graphics::Image image;
-		visit(TryReadImage{image}, std::move(structurer));
-
-		engine::Asset asset = engine::Asset::null();
-		if (name == "res/box.png")
-			asset = engine::Asset("my_png");
-		else
-		{
-			debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
-			debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
-			asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
-		}
-
-		post_register_texture(*self, asset, std::move(image));
-		read_lock++;
-	}
-
-	struct TryReadShader
-	{
-		ShaderData & image;
-
-		void operator () (core::ShaderStructurer && x)
-		{
-			x.read(image);
-		}
-		template <typename T>
-		void operator () (T &&)
-		{
-			debug_fail("impossible to read, maybe");
-		}
-	};
-
-	void data_callback_shader(std::string name, engine::resource::reader::Structurer && structurer)
-	{
-		ShaderData shader_data;
-		visit(TryReadShader{shader_data}, std::move(structurer));
-
-		queue_shaders.try_push(std::make_pair(std::move(name), std::move(shader_data)));
-		read_lock++;
-	}
-
-#if TEXT_USE_FREETYPE
-	struct TryReadTtf
-	{
-		std::vector<char> & data;
-
-		void operator () (core::BytesStructurer && x)
-		{
-			x.read(data);
-		}
-		template <typename T>
-		void operator () (T &&)
-		{
-			debug_fail("impossible to read, maybe");
-		}
-	};
-
-	void data_callback_ttf(std::string name, engine::resource::reader::Structurer && structurer)
-	{
-		std::vector<char> data;
-		visit(TryReadTtf{data}, std::move(structurer));
-
-		debug_printline("<<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>");
-
-		FT_Library library;
-		if (FT_Init_FreeType(&library))
-			debug_fail();
-
-		FT_Face face;
-		if (FT_New_Memory_Face(library, reinterpret_cast<const FT_Byte*>(data.data()), data.size(), 0, &face))
-		{
-			debug_fail();
-			goto cleanup_library;
-		}
-		debug_printline(name, ": face->num_glyphs = ", face->num_glyphs);
-		debug_printline(name, ": face has kerning = ", FT_HAS_KERNING(face));
-
-		if (FT_Select_Charmap(face, FT_ENCODING_UNICODE))
-		{
-			debug_fail();
-			goto cleanup_face;
-		}
-
-		if (FT_Set_Pixel_Sizes(face, 0, 24))
-		{
-			debug_fail();
-			goto cleanup_face;
-		}
-
-		{
-			std::vector<utility::unicode_code_point> unicode_indices;
-			unicode_indices.reserve(face->num_glyphs);
-			std::vector<int> glyph_indices;
-			glyph_indices.reserve(face->num_glyphs);
-			{
-				FT_UInt glyph_index;
-				FT_ULong unicode_index = FT_Get_First_Char(face, &glyph_index);
-				while (glyph_index != 0)
-				{
-					unicode_indices.emplace_back(debug_cast<uint32_t>(unicode_index));
-					glyph_indices.push_back(glyph_index);
-
-					unicode_index = FT_Get_Next_Char(face, unicode_index, &glyph_index);
-				}
-				glyph_indices.push_back(0);
-				debug_assert(unicode_indices.size() + 1 == glyph_indices.size());
-				debug_printline(name, ": face charmap size = ", unicode_indices.size());
-			}
-
-			const int total_slots = static_cast<int>(glyph_indices.size());
-			debug_assert(total_slots > 0);
-
-
-			int maxx = 0, maxy = 0;
-			std::vector<FontManager::SymbolData> symbol_data(total_slots);
-			for (std::ptrdiff_t i : ranges::index_sequence(total_slots))
-			{
-				const int glyph_index = glyph_indices[i];
-				if (FT_Load_Glyph(face, glyph_index, FT_LOAD_RENDER))
-				{
-					debug_fail();
-					continue;
-				}
-
-				maxx = std::max(maxx, static_cast<int>(face->glyph->bitmap.width));
-				maxy = std::max(maxy, static_cast<int>(face->glyph->bitmap.rows));
-
-				symbol_data[i].offset_x = debug_cast<int16_t>(face->glyph->bitmap_left);
-				symbol_data[i].offset_y = debug_cast<int16_t>(face->glyph->bitmap.rows - face->glyph->bitmap_top);
-				symbol_data[i].advance_x = debug_cast<int16_t>(face->glyph->advance.x >> 6);
-				symbol_data[i].advance_y = debug_cast<int16_t>(face->glyph->advance.y >> 6);
-			}
-			debug_printline(name, ": face max = {", maxx, ", ", maxy, "}");
-			debug_assert(maxx > 0);
-			debug_assert(maxy > 0);
-
-
-			const int border_size = 1;
-			const int slot_size_x = maxx + border_size * 2;
-			const int slot_size_y = maxy + border_size * 2;
-
-			std::vector<std::tuple<int, int, int, int>> texture_dimensions;
-			for (int texture_height = utility::clp2(uint32_t(slot_size_y));; texture_height *= 2)
-			{
-				const int max_in_y = texture_height / slot_size_y;
-				const int needed_in_x = 1 + (total_slots - 1) / max_in_y;
-
-				const int texture_width = utility::clp2(uint32_t(needed_in_x * slot_size_x));
-				const int max_in_x = texture_width / slot_size_x;
-
-				const int unused_slots = max_in_x * max_in_y - total_slots;
-
-				texture_dimensions.push_back({std::abs(texture_width - texture_height), unused_slots, texture_width, texture_height});
-
-				if (max_in_y >= total_slots)
-					break;
-			}
-			std::sort(texture_dimensions.begin(), texture_dimensions.end());
-
-#if MODE_DEBUG
-			for (const auto & dim : texture_dimensions)
-			{
-				debug_printline(name, ": face texture dimension = {", std::get<2>(dim), ", ", std::get<3>(dim), "}, unused slots = ", std::get<1>(dim), "(", static_cast<int>(static_cast<double>(std::get<1>(dim) * slot_size_x * slot_size_y) / static_cast<double>(std::get<2>(dim) * std::get<3>(dim)) * 100.), "%)");
-			}
-#endif
-
-
-			const int texture_width = std::get<2>(texture_dimensions.front());
-			const int texture_height = std::get<3>(texture_dimensions.front());
-			const int slots_in_x = texture_width / slot_size_x;
-
-
-			core::container::Buffer pixels(core::container::Buffer::Format::float32, texture_width * texture_height);
-			std::vector<float> distance_field(slot_size_x * slot_size_y);
-			const double furthest_d = std::sqrt(slot_size_x * slot_size_x + slot_size_y * slot_size_y);
-			for (int i = 0; i < total_slots; i++)
-			{
-				const int glyph_index = glyph_indices[i];
-				if (FT_Load_Glyph(face, glyph_index, FT_LOAD_RENDER))
-				{
-					debug_fail();
-					continue;
-				}
-
-				const unsigned char * const bitmap_buffer = face->glyph->bitmap.pitch < 0 ? face->glyph->bitmap.buffer : face->glyph->bitmap.buffer + face->glyph->bitmap.pitch * (face->glyph->bitmap.rows - 1);
-				const auto sample_at =
-					[&](int x, int y)
-					{
-						return
-							(x >= border_size && static_cast<unsigned int>(x) < border_size + face->glyph->bitmap.width) &&
-							(y >= border_size && static_cast<unsigned int>(y) < border_size + face->glyph->bitmap.rows) ?
-							bitmap_buffer[(x - border_size) - (y - border_size) * face->glyph->bitmap.pitch] >= 128 : 0;
-					};
-				std::fill(distance_field.begin(), distance_field.end(), static_cast<float>(furthest_d));
-				// for (int y = 0; y < slot_size_y; y++)
-				for (auto y : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
-				{
-					// for (int x = 0; x < slot_size_x; x++)
-					for (auto x : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
-					{
-						const auto sample = sample_at(x, y);
-
-						double closest_dsq = slot_size_x * slot_size_x + slot_size_y * slot_size_y;
-						// for (int t = 0; t < slot_size_y; t++)
-						for (auto t : ranges::index_sequence(face->glyph->bitmap.rows + 2 * border_size))
-						{
-							// for (int s = 0; s < slot_size_x; s++)
-							for (auto s : ranges::index_sequence(face->glyph->bitmap.width + 2 * border_size))
-							{
-								if (sample_at(s, t) == sample)
-									continue;
-
-								const double dx = s - x;
-								const double dy = t - y;
-								const double dsq = dx * dx + dy * dy;
-								closest_dsq = std::min(dsq, closest_dsq);
-							}
-						}
-						distance_field[x + y * slot_size_x] = static_cast<float>(((sample == 0 ? 1 : -1) * std::sqrt(closest_dsq) + furthest_d) / (2. * furthest_d));
-					}
-				}
-
-				const int slot_index = i;
-				const int slot_x = slot_index % slots_in_x;
-				const int slot_y = slot_index / slots_in_x;
-				const int pixel_offset = slot_x * slot_size_x + (slot_y * slot_size_y) * texture_width;
-				float * const pixel_data = pixels.data_as<float>() + pixel_offset;
-				for (int y = 0; y < slot_size_y; y++)
-				{
-					for (int x = 0; x < slot_size_x; x++)
-					{
-						pixel_data[x + y * texture_width] = distance_field[x + y * slot_size_x];
-					}
-				}
-			}
-
-			const auto asset = engine::Asset(name);
-			post_register_texture(*self, asset, core::graphics::Image(texture_width, texture_height, core::graphics::BitDepth::eight, core::graphics::ChannelCount::one, core::graphics::ColorType::R, std::move(pixels)));
-
-			font_manager.create(std::move(name), std::move(unicode_indices), std::move(symbol_data), slot_size_x, slot_size_y, texture_width, texture_height);
-		}
-
-	cleanup_face:
-		FT_Done_Face(face);
-	cleanup_library:
-		FT_Done_FreeType(library);
-
-		debug_printline("<<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>");
-		read_lock++;
-	}
-#endif
-
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
@@ -1890,53 +1498,6 @@ namespace
 		glGenFramebuffers(1, &framebuffer);
 		glGenRenderbuffers(2, entitybuffers);
 		glGenTextures(1, &entitytexture);
-
-		// TODO: move to loader/level
-		// vvvvvvvv tmp vvvvvvvv
-		read_lock = 0;
-#if TEXT_USE_FREETYPE
-		reader->post_read("res/font/consolas.ttf", data_callback_ttf);
-#else
-		{
-			engine::graphics::opengl::Font::Data data;
-
-			if (!data.load(*engine::graphics::detail::window, "consolas", 14))
-			{
-				debug_fail();
-			}
-			normal_font.compile(data);
-
-			data.free();
-		}
-#endif
-
-		// add cuboid mesh as an asset
-		post_register_mesh(*self, engine::Asset{"cuboid"}, createCuboid());
-
-		reader->post_read("res/box.png", data_callback_image);
-		reader->post_read("res/dude.png", data_callback_image);
-		reader->post_read("res/photo.png", data_callback_image);
-
-		post_add_component(
-			*self,
-			engine::Entity::create(),
-			engine::graphics::data::CompT{
-				core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f),
-				core::maths::Vector3f{1.f, 1.f, 1.f},
-				engine::Asset{ "cuboid" },
-				engine::Asset{ "my_png" } });
-
-		reader->post_read("res/gfx/color.130.glsl", data_callback_shader);
-		reader->post_read("res/gfx/entity.130.glsl", data_callback_shader);
-		reader->post_read("res/gfx/text.130.glsl", data_callback_shader);
-		reader->post_read("res/gfx/texture.130.glsl", data_callback_shader);
-
-#if TEXT_USE_FREETYPE
-		while (read_lock < 8);
-#else
-		while (read_lock < 7);
-#endif
-		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 
 	void render_update()
@@ -2604,73 +2165,6 @@ namespace
 		glEnable(GL_DEPTH_TEST);
 
 		// draw gui
-#if TEXT_USE_FREETYPE
-		if (p_text >= 0 && materials.contains<texture_t>(engine::Asset("res/font/consolas.ttf")) && font_manager.has(engine::Asset("res/font/consolas.ttf")))
-		{
-		glUseProgram(p_text);
-		glUniform(p_text, "projection_matrix", display.projection_2d);
-		{
-			core::container::Buffer vertices;
-			core::container::Buffer texcoords;
-			font_manager.compile(engine::Asset("res/font/consolas.ttf"), u8"herp derp herp derp \u00c5\u00c4\u00d6 \u00e5\u00e4\u00f6 \u03b1\u03b2\u03b3\u03b4\u03b5\u03b6\u03b7 \u0410\u0411\u0412\u0413\u0414\u0415\u0416 \u2603.", vertices, texcoords);
-			debug_assert(vertices.count() / 8 == 46);
-			debug_assert(texcoords.count() / 8 == 46);
-			debug_assert(vertices.format() == core::container::Buffer::Format::float32);
-			debug_assert(texcoords.format() == core::container::Buffer::Format::float32);
-
-			const auto & texture = materials.get<texture_t>(engine::Asset("res/font/consolas.ttf"));
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.push();
-			modelview_matrix.rotate(core::maths::degreef(10.f), 0.f, 0.f, -1.f);
-			modelview_matrix.translate(20.f, 160.f, 0.f);
-			glUniform(p_text, "modelview_matrix", modelview_matrix.top());
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, texture.id);
-
-			glUniform(p_text, "tex", 0);
-
-			const auto vertex_location = 5;
-			const auto texcoord_location = 7;
-			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(texcoord_location);
-			glVertexAttribPointer(
-				vertex_location,
-				2,
-				BufferFormats[static_cast<int>(vertices.format())],
-				GL_FALSE,
-				0,
-				vertices.data());
-			glVertexAttribPointer(
-				texcoord_location,
-				2,
-				BufferFormats[static_cast<int>(texcoords.format())],
-				GL_FALSE,
-				0,
-				texcoords.data());
-			glDrawArrays(
-				GL_QUADS, // deprecated
-				0,
-				debug_cast<GLsizei>(vertices.count() / 2));
-			glDisableVertexAttribArray(texcoord_location);
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
-#else
-		{
-			glLoadMatrix(modelview_matrix);
-			glColor3ub(255, 255, 0);
-			normal_font.draw(10, 10 + 12, "herp derp herp derp herp derp herp derp herp derp etc.");
-		}
-#endif
-
 		if (p_color >= 0)
 		{
 		glUseProgram(p_color);
@@ -2830,7 +2324,7 @@ namespace
 		}
 
 #if TEXT_USE_FREETYPE
-		if (p_text >= 0 && materials.contains<texture_t>(engine::Asset("res/font/consolas.ttf")) && font_manager.has(engine::Asset("res/font/consolas.ttf")))
+		if (p_text >= 0)
 		{
 		glUseProgram(p_text);
 		glUniform(p_text, "projection_matrix", display.projection_2d);
@@ -2838,9 +2332,9 @@ namespace
 		{
 			core::container::Buffer vertices;
 			core::container::Buffer texcoords;
-			font_manager.compile(engine::Asset("res/font/consolas.ttf"), component.display.c_str(), vertices, texcoords);
+			font_manager.compile(engine::Asset("// todo"), component.display.c_str(), vertices, texcoords);
 
-			const auto & texture = materials.get<texture_t>(engine::Asset("res/font/consolas.ttf"));
+			const auto & texture = materials.get<texture_t>(engine::Asset("// todo"));
 
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
@@ -2917,15 +2411,7 @@ namespace
 	void render_teardown()
 	{
 		debug_printline(engine::graphics_channel, "render_callback stopping");
-#if TEXT_USE_FREETYPE
-		font_manager.destroy(engine::Asset("res/font/consolas.ttf"));
-#else
-		// vvvvvvvv tmp vvvvvvvv
-		{
-			normal_font.decompile();
-		}
-		// ^^^^^^^^ tmp ^^^^^^^^
-#endif
+
 		glDeleteRenderbuffers(2, entitybuffers);
 		glDeleteFramebuffers(1, &framebuffer);
 

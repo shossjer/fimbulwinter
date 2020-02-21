@@ -22,11 +22,6 @@ namespace engine
 	{
 		class window;
 	}
-
-	namespace resource
-	{
-		class reader;
-	}
 }
 
 namespace engine
@@ -194,7 +189,7 @@ namespace engine
 
 		public:
 			~renderer();
-			renderer(engine::application::window & window, engine::resource::reader & reader, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type);
+			renderer(engine::application::window & window, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type);
 		};
 
 		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)

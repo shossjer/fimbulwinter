@@ -76,8 +76,6 @@ set(SOURCES_ENGINE
 	src/engine/physics/physics_physx.cpp
 	src/engine/replay/reader.cpp
 	src/engine/replay/writer.cpp
-	src/engine/resource/reader.cpp
-	src/engine/resource/writer.cpp
 	)
 
 set(HEADERS_ENGINE
@@ -117,9 +115,6 @@ set(HEADERS_ENGINE
 	src/engine/physics/physics_physx.hpp
 	src/engine/replay/reader.hpp
 	src/engine/replay/writer.hpp
-	src/engine/resource/formats.hpp
-	src/engine/resource/reader.hpp
-	src/engine/resource/writer.hpp
 	)
 
 set(SOURCES_UTILITY

@@ -24,7 +24,6 @@
 #include "engine/debug.hpp"
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/viewer.hpp"
-#include "engine/resource/reader.hpp"
 
 #include "utility/ranges.hpp"
 #include "utility/variant.hpp"
@@ -61,7 +60,6 @@ namespace engine
 
 			extern engine::graphics::renderer * self;
 			extern engine::application::window * window;
-			extern engine::resource::reader * reader;
 			extern void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data);
 		}
 	}
@@ -1176,161 +1174,6 @@ namespace
 		return buffer;
 	}
 
-	// TODO: move to loader/level
-	auto createCuboid()
-	{
-		// the vertices of cuboid are numbered as followed:
-		//              23--22
-		//             /    /
-		//            21--20
-		//
-		//        6  11--10   15
-		//       /|  |    |   /|
-		//      7 |  |    |  14|  18--19
-		//      | 4  9----8  |13  |    |
-		//      |/           |/   |    |
-		//      5   0----1   12   16--17
-		//   y     /    /
-		//   |    2----3
-		//   |
-		//   +----x
-		//  /
-		// z
-		const float xoffset = .5f;
-		const float yoffset = .5f;
-		const float zoffset = .5f;
-
-		std::array<float, 3 * 24> va;
-		std::size_t i = 0;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = -zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = -yoffset; va[i++] = +zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = +zoffset;
-		va[i++] = +xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-		va[i++] = -xoffset; va[i++] = +yoffset; va[i++] = -zoffset;
-
-		core::container::Buffer vertices = convert(std::move(va));
-		core::container::Buffer triangles = convert(std::array<uint16_t, 3 * 12> {{
-				0, 1, 3,
-				0, 3, 2,
-				4, 5, 7,
-				4, 7, 6,
-				8, 9, 11,
-				8, 11, 10,
-				12, 13, 15,
-				12, 15, 14,
-				16, 17, 19,
-				16, 19, 18,
-				20, 21, 23,
-				20, 23, 22}});
-		core::container::Buffer normals = convert(std::array<float, 3 * 24> {{
-				0.f, -1.f, 0.f,
-				0.f, -1.f, 0.f,
-				0.f, -1.f, 0.f,
-				0.f, -1.f, 0.f,
-				-1.f, 0.f, 0.f,
-				-1.f, 0.f, 0.f,
-				-1.f, 0.f, 0.f,
-				-1.f, 0.f, 0.f,
-				0.f, 0.f, -1.f,
-				0.f, 0.f, -1.f,
-				0.f, 0.f, -1.f,
-				0.f, 0.f, -1.f,
-				+1.f, 0.f, 0.f,
-				+1.f, 0.f, 0.f,
-				+1.f, 0.f, 0.f,
-				+1.f, 0.f, 0.f,
-				0.f, 0.f, +1.f,
-				0.f, 0.f, +1.f,
-				0.f, 0.f, +1.f,
-				0.f, 0.f, +1.f,
-				0.f, +1.f, 0.f,
-				0.f, +1.f, 0.f,
-				0.f, +1.f, 0.f,
-				0.f, +1.f, 0.f}});
-		core::container::Buffer coords = convert(std::array<float, 2 * 24> {{
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				0.f, 1.f,
-				1.f, 1.f}});
-
-		return engine::graphics::data::Mesh{vertices, triangles, normals, coords};
-	}
-
-	std::atomic_int texture_lock(0);
-
-	struct TryReadImage
-	{
-		core::graphics::Image & image;
-
-		void operator () (core::PngStructurer && x)
-		{
-			x.read(image);
-		}
-		template <typename T>
-		void operator () (T &&)
-		{
-			debug_fail("impossible to read, maybe");
-		}
-	};
-
-	void data_callback_image(std::string name, engine::resource::reader::Structurer && structurer)
-	{
-		core::graphics::Image image;
-		visit(TryReadImage{image}, std::move(structurer));
-
-		engine::Asset asset = engine::Asset::null();
-		if (name == "res/box.png")
-			asset = engine::Asset("my_png");
-		else
-		{
-			debug_assert((name[0] == 'r' && name[1] == 'e' && name[2] == 's' && name[3] == '/'));
-			debug_assert((name[name.size() - 4] == '.' && name[name.size() - 3] == 'p' && name[name.size() - 2] == 'n' && name[name.size() - 1] == 'g'));
-			asset = engine::Asset(name.data() + 4, name.size() - 4 - 4);
-		}
-
-		post_register_texture(*self, asset, std::move(image));
-		texture_lock++;
-	}
-
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
@@ -1353,42 +1196,6 @@ namespace
 		// entity buffers
 		glGenFramebuffers(1, &framebuffer);
 		glGenRenderbuffers(2, entitybuffers);
-
-		// TODO: move to loader/level
-		// vvvvvvvv tmp vvvvvvvv
-		{
-			engine::graphics::opengl::Font::Data data;
-
-#if TEXT_USE_FREETYPE
-			if (!data.load("res/font/consolas.ttf", 14))
-#else
-			if (!data.load(*engine::graphics::detail::window, "consolas", 14))
-#endif
-			{
-				debug_fail();
-			}
-			normal_font.compile(data);
-
-			data.free();
-		}
-
-		// add cuboid mesh as an asset
-		post_register_mesh(*self, engine::Asset{"cuboid"}, createCuboid());
-
-		reader->post_read("res/box.png", data_callback_image);
-		reader->post_read("res/dude.png", data_callback_image);
-		reader->post_read("res/photo.png", data_callback_image);
-		while (texture_lock < 3);
-
-		post_add_component(
-			*self,
-			engine::Entity::create(),
-			engine::graphics::data::CompT{
-				core::maths::Matrix4x4f::translation(0.f, 5.f, 0.f),
-				core::maths::Vector3f{1.f, 1.f, 1.f},
-				engine::Asset{ "cuboid" },
-				engine::Asset{ "my_png" } });
-		// ^^^^^^^^ tmp ^^^^^^^^
 	}
 
 	constexpr std::array<GLenum, 10> BufferFormats =

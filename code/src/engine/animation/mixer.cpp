@@ -16,9 +16,9 @@
 #include "engine/Entity.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/physics/physics.hpp"
-#include "engine/resource/reader.hpp"
 
 #include "utility/predicates.hpp"
+#include "utility/variant.hpp"
 
 #include <cstdint>
 #include <utility>

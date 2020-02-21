@@ -5,7 +5,6 @@
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
 #include "engine/physics/physics.hpp"
-#include "engine/resource/reader.hpp"
 
 #include <catch/catch.hpp>
 
@@ -15,14 +14,13 @@
 
 TEST_CASE("Physics Simulation can be created and destroyed", "[.engine][.physics]")
 {
-	engine::resource::reader reader;
 	engine::application::config_t config;
 #if WINDOW_USE_USER32
 	engine::application::window window(GetModuleHandleW(nullptr), SW_HIDE, config);
 #else
 	engine::application::window window(config);
 #endif
-	engine::graphics::renderer renderer(window, reader, nullptr, engine::graphics::renderer::Type::OPENGL_1_2);
+	engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type::OPENGL_1_2);
 	engine::graphics::viewer viewer(renderer);
 
 	for (int i = 0; i < 2; i++)

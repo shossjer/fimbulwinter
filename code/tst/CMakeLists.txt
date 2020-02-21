@@ -27,8 +27,6 @@ set(FILES_ENGINE
 	tst/engine/hid/ui.cpp
 	tst/engine/physics/simulation.cpp
 	tst/engine/record.cpp
-	tst/engine/resource/reader.cpp
-	tst/engine/resource/writer.cpp
 	)
 
 set(FILES_UTILITY
