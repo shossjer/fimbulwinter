@@ -101,12 +101,20 @@ namespace core
 			for_each_member_impl(mpl::index_constant<0>{}, std::forward<X>(x), std::forward<F>(f));
 		}
 	private:
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+		// C4702 - unreachable code
+#endif
 		template <typename X, typename F>
 		static decltype(auto) call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
 		{
 			debug_unreachable();
 			return f(x.* lookup_table.template get_value<0>());
 		}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 		template <std::size_t I, typename X, typename F>
 		static decltype(auto) call_impl(mpl::index_constant<I>, X && x, F && f)
 		{

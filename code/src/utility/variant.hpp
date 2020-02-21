@@ -651,12 +651,20 @@ namespace utility
 		{
 			return f(std::forward<As>(alternatives)...);
 		}
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+		// C4702 - unreachable code
+#endif
 		template <typename S, typename F, typename St, typename ...As>
 		decltype(auto) query_impl_impl(mpl::index_constant<size_t(-1)>, S && storage, F && f, St && storages, As && ...alternatives)
 		{
 			intrinsic_unreachable();
 			return query_impl(std::forward<F>(f), std::forward<St>(storages), std::forward<As>(alternatives)..., get_alternative<0>(std::forward<S>(storage)));
 		}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 		template <size_t N, typename S, typename F, typename St, typename ...As>
 		decltype(auto) query_impl_impl(mpl::index_constant<N>, S && storage, F && f, St && storages, As && ...alternatives)
 		{

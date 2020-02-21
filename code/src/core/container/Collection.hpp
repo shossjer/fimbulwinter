@@ -1224,7 +1224,11 @@ namespace core
 					intrinsic_unreachable();
 				}
 			}
-
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+			// C4702 - unreachable code
+#endif
 			template <typename F>
 			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, uint24_t /*index*/, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
@@ -1234,6 +1238,9 @@ namespace core
 				// we should never get here
 				return detail::call_impl_func(std::forward<F>(func), key, *reinterpret_cast<mpl::car<Cs...> *>(0));
 			}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 			template <std::size_t type, typename F>
 			auto call_impl(mpl::index_constant<type>, K key, uint24_t index, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
