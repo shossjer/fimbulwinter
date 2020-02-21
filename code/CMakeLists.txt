@@ -26,7 +26,7 @@ function(run_tests name executable)
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/run_tests"
 		COMMAND ${CMAKE_COMMAND} -E touch ${_test_state}
 		DEPENDS ${executable}
-		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+		WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}"
 		)
 	add_custom_target(
 		${name}
@@ -40,20 +40,20 @@ include (tst/CMakeLists.txt)
 
 add_library(utility "")
 target_sources(utility PRIVATE ${SOURCES_UTILITY} ${HEADERS_UTILITY} ${${CMAKE_CXX_COMPILER_ID}_UTILITY})
-target_include_directories(utility PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
-target_link_libraries(utility PRIVATE generated)
+target_include_directories(utility PUBLIC "src")
+target_link_libraries(utility PRIVATE generated PUBLIC dep_json)
 target_compile_options(utility PRIVATE ${private_compile_options})
 target_compile_definitions(utility PRIVATE ${private_compile_definitions})
 
 add_executable(utilitytest "")
 target_sources(utilitytest PRIVATE ${FILES_UTILITY})
-target_include_directories(utilitytest PRIVATE "tst" "${GENERAL_INCLUDES}")
-target_link_libraries(utilitytest PRIVATE generated utility ${GENERAL_LIBRARIES} ${DEBUG_LIBRARIES} ${OPTIMIZED_LIBRARIES})
+target_include_directories(utilitytest PRIVATE "tst")
+target_link_libraries(utilitytest PRIVATE generated utility dep_catch)
 target_compile_options(utilitytest PRIVATE ${private_compile_options} ${test_compile_options})
 target_compile_definitions(utilitytest PRIVATE ${private_compile_definitions})
 
 if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
-	set_target_properties(utilitytest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	set_target_properties(utilitytest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}")
 endif()
 
 if(RUN_TESTS)
@@ -65,20 +65,20 @@ if(RUN_TESTS)
 	add_dependencies(core runutilitytest)
 endif()
 target_sources(core PRIVATE ${SOURCES_CORE} ${HEADERS_CORE})
-target_include_directories(core PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
-target_link_libraries(core PRIVATE generated utility)
+target_include_directories(core PUBLIC "src")
+target_link_libraries(core PRIVATE generated utility PUBLIC dep_zlib dep_png thread_dep)
 target_compile_options(core PRIVATE ${private_compile_options})
 target_compile_definitions(core PRIVATE ${private_compile_definitions})
 
 add_executable(coretest "")
 target_sources(coretest PRIVATE ${FILES_CORE})
-target_include_directories(coretest PRIVATE "tst" "${GENERAL_INCLUDES}")
-target_link_libraries(coretest PRIVATE generated utility core ${GENERAL_LIBRARIES} ${DEBUG_LIBRARIES} ${OPTIMIZED_LIBRARIES})
+target_include_directories(coretest PRIVATE "tst")
+target_link_libraries(coretest PRIVATE generated utility core dep_catch)
 target_compile_options(coretest PRIVATE ${private_compile_options} ${test_compile_options})
 target_compile_definitions(coretest PRIVATE ${private_compile_definitions})
 
 if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
-	set_target_properties(coretest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	set_target_properties(coretest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}")
 endif()
 
 if(RUN_TESTS)
@@ -90,20 +90,20 @@ if(RUN_TESTS)
 	add_dependencies(engine runcoretest)
 endif()
 target_sources(engine PRIVATE ${SOURCES_ENGINE} ${HEADERS_ENGINE})
-target_include_directories(engine PUBLIC "src" PRIVATE "${GENERAL_INCLUDES}")
-target_link_libraries(engine PRIVATE generated utility core)
+target_include_directories(engine PUBLIC "src")
+target_link_libraries(engine PRIVATE generated utility core PUBLIC audio_dep graphics_dep input_dep text_dep window_dep)
 target_compile_options(engine PRIVATE ${private_compile_options})
 target_compile_definitions(engine PRIVATE ${private_compile_definitions})
 
 add_executable(enginetest "")
 target_sources(enginetest PRIVATE ${FILES_ENGINE})
-target_include_directories(enginetest PRIVATE "tst" "${GENERAL_INCLUDES}")
-target_link_libraries(enginetest PRIVATE generated utility core engine ${GENERAL_LIBRARIES} ${DEBUG_LIBRARIES} ${OPTIMIZED_LIBRARIES})
+target_include_directories(enginetest PRIVATE "tst")
+target_link_libraries(enginetest PRIVATE generated utility core engine dep_catch)
 target_compile_options(enginetest PRIVATE ${private_compile_options} ${test_compile_options})
 target_compile_definitions(enginetest PRIVATE ${private_compile_definitions})
 
 if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
-	set_target_properties(enginetest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+	set_target_properties(enginetest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}")
 endif()
 
 if(RUN_TESTS)

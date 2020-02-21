@@ -624,7 +624,7 @@ namespace
 	HANDLE hThread = nullptr;
 	bool active = false;
 
-	DWORD WINAPI file_watch(LPVOID arg)
+	DWORD WINAPI file_watch(LPVOID /*arg*/)
 	{
 		while (active)
 		{
