@@ -244,12 +244,8 @@ namespace
 		directory_metas.erase(directory_metas.begin() + index);
 	}
 
-	bool try_read(utility::heap_string_utf8 && filepath, watch_id watch_id, engine::Asset match)
+	bool try_read(utility::heap_string_utf8 && filepath, watch_callback & watch_callback, engine::Asset match)
 	{
-		const auto watch_index = find_watch(watch_id); // todo do this outside
-		if (!debug_assert(watch_index != ext::index_invalid))
-			return false;
-
 		const int fd = ::open(filepath.data(), O_RDONLY);
 		if (!debug_verify(fd != -1, "open \"", filepath, "\" failed with errno ", errno))
 			return false;
@@ -263,14 +259,14 @@ namespace
 		                        reinterpret_cast<void *>(fd),
 		                        std::move(filepath));
 
-		auto & watch_callback = watch_callbacks[watch_index];
 		watch_callback.callback(std::move(stream), watch_callback.data, match);
 
 		debug_verify(::close(fd) != -1, "failed with errno ", errno);
 		return true;
 	}
 
-	ext::ssize scan_directory(const directory_meta & directory_meta, watch_id watch_id)
+	template <typename F>
+	ext::ssize scan_directory(const directory_meta & directory_meta, F && f)
 	{
 		DIR * const dir = ::opendir(directory_meta.filepath.data());
 		if (!debug_verify(dir != nullptr, "opendir failed with errno ", errno))
@@ -286,12 +282,9 @@ namespace
 			const auto maybe_full = std::find(directory_meta.fulls.assets.begin(), directory_meta.fulls.assets.end(), full_asset);
 			if (maybe_full != directory_meta.fulls.assets.end())
 			{
-				const auto match_index = maybe_full - directory_meta.fulls.assets.begin();
-				if (directory_meta.fulls.watches[match_index] != watch_id)
-					continue;
+				if (f(filename, directory_meta.fulls, maybe_full - directory_meta.fulls.assets.begin()))
+					++number_of_matches;
 
-				number_of_matches++;
-				try_read(directory_meta.filepath + filename, watch_id, full_asset);
 				continue;
 			}
 
@@ -303,12 +296,9 @@ namespace
 			const auto maybe_name = std::find(directory_meta.names.assets.begin(), directory_meta.names.assets.end(), name_asset);
 			if (maybe_name != directory_meta.names.assets.end())
 			{
-				const auto match_index = maybe_name - directory_meta.names.assets.begin();
-				if (directory_meta.names.watches[match_index] != watch_id)
-					continue;
+				if (f(filename, directory_meta.names, maybe_name - directory_meta.names.assets.begin()))
+					++number_of_matches;
 
-				number_of_matches++;
-				try_read(directory_meta.filepath + filename, watch_id, name_asset);
 				continue;
 			}
 
@@ -316,12 +306,9 @@ namespace
 			const auto maybe_extension = std::find(directory_meta.extensions.assets.begin(), directory_meta.extensions.assets.end(), extension_asset);
 			if (maybe_extension != directory_meta.extensions.assets.end())
 			{
-				const auto match_index = maybe_extension - directory_meta.extensions.assets.begin();
-				if (directory_meta.extensions.watches[match_index] != watch_id)
-					continue;
+				if (f(filename, directory_meta.extensions, maybe_extension - directory_meta.extensions.assets.begin()))
+					++number_of_matches;
 
-				number_of_matches++;
-				try_read(directory_meta.filepath + filename, watch_id, extension_asset);
 				continue;
 			}
 		}
@@ -606,9 +593,7 @@ namespace
 							if (!debug_assert(directory_index != ext::index_invalid))
 								return;
 
-							directory_meta directory_meta(utility::heap_string_utf8(directory_metas[directory_index].filepath), false);
-
-							const auto watch_id = add_watch(x.callback, std::move(x.data)); // todo this feels like a hack
+							directory_meta temporary_meta(utility::heap_string_utf8(directory_metas[directory_index].filepath), false);
 
 							auto from = utility::unit_difference(0);
 							while (true)
@@ -621,27 +606,21 @@ namespace
 										const utility::string_view_utf8 extension(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
 										const engine::Asset asset(extension.data(), extension.size());
 
-										directory_meta.extensions.assets.push_back(asset);
-										directory_meta.extensions.aliases.push_back(x.directory);
-										directory_meta.extensions.watches.push_back(watch_id);
+										temporary_meta.extensions.assets.push_back(asset);
 									}
 									else if (x.pattern.data()[found.get() - 1] == '*') // name
 									{
 										const utility::string_view_utf8 name(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
 										const engine::Asset asset(name.data(), name.size());
 
-										directory_meta.names.assets.push_back(asset);
-										directory_meta.names.aliases.push_back(x.directory);
-										directory_meta.names.watches.push_back(watch_id);
+										temporary_meta.names.assets.push_back(asset);
 									}
 									else // full
 									{
 										const utility::string_view_utf8 full(x.pattern.data() + from.get(), found - from);
 										const engine::Asset asset(full.data(), full.size());
 
-										directory_meta.fulls.assets.push_back(asset);
-										directory_meta.fulls.aliases.push_back(x.directory);
-										directory_meta.fulls.watches.push_back(watch_id);
+										temporary_meta.fulls.assets.push_back(asset);
 									}
 								}
 
@@ -651,17 +630,19 @@ namespace
 								from = found + 1; // skip '|'
 							}
 
-							const auto number_of_matches = scan_directory(directory_meta, watch_id);
+							watch_callback watch_callback{x.callback, std::move(x.data)};
+
+							const auto number_of_matches = scan_directory(
+								temporary_meta,
+								[&temporary_meta, &watch_callback](utility::string_view_utf8 filename, const struct directory_meta::match & match, ext::index match_index)
+								{
+									try_read(temporary_meta.filepath + filename, watch_callback, match.assets[match_index]);
+									return true;
+								});
 							if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
 							{
-								if (debug_assert(watch_ids.back() == watch_id))
-								{
-									auto & watch_callback = watch_callbacks.back();
-									watch_callback.callback(core::ReadStream(nullptr, nullptr, ""), watch_callback.data, engine::Asset(""));
-								}
+								watch_callback.callback(core::ReadStream(nullptr, nullptr, ""), watch_callback.data, engine::Asset(""));
 							}
-
-							remove_watch(watch_id);
 						}
 
 						void operator () (Watch && x)
@@ -730,7 +711,21 @@ namespace
 								|| !directory_meta.extensions.assets.empty();
 							if (debug_assert(should_watch, "nothing to watch in directory, please sanitize your data!"))
 							{
-								scan_directory(directory_meta, watch_id);
+								if (!debug_assert(watch_ids.back() == watch_id))
+									return;
+
+								auto & watch_callback = watch_callbacks.back();
+
+								scan_directory(
+									directory_meta,
+									[&directory_meta, &watch_callback, watch_id](utility::string_view_utf8 filename, const struct directory_meta::match & match, ext::index match_index)
+									{
+										if (match.watches[match_index] != watch_id) // todo always newly added
+											return false;
+
+										try_read(directory_meta.filepath + filename, watch_callback, match.assets[match_index]);
+										return true;
+									});
 
 								if (directory_inotify_fds[directory_index] == -1)
 								{
@@ -818,9 +813,6 @@ namespace
 						if (event->mask & IN_MOVED_TO) { debug_printline("event IN_MOVED_TO: ", event->name); }
 						if (event->mask & IN_CREATE) { debug_printline("event IN_CREATE: ", event->name); }
 						if (event->mask & IN_DELETE) { debug_printline("event IN_DELETE: ", event->name); }
-
-						if (event->mask & ~IN_CLOSE_WRITE)
-							continue;
 #endif
 
 						const auto directory_index = find_directory(event->wd);
@@ -836,8 +828,17 @@ namespace
 						if (maybe_full != directory_meta.fulls.assets.end())
 						{
 							const auto match_index = maybe_full - directory_meta.fulls.assets.begin();
+							const auto watch_id = directory_meta.fulls.watches[match_index];
+							const auto watch_index = find_watch(watch_id);
+							if (debug_assert(watch_index != ext::index_invalid))
+							{
+								auto & watch_callback = watch_callbacks[watch_index];
 
-							try_read(directory_meta.filepath + filename, directory_meta.fulls.watches[match_index], full_asset);
+								if (event->mask & IN_CLOSE_WRITE)
+								{
+									try_read(directory_meta.filepath + filename, watch_callback, full_asset);
+								}
+							}
 							continue;
 						}
 
@@ -850,8 +851,18 @@ namespace
 						if (maybe_name != directory_meta.names.assets.end())
 						{
 							const auto match_index = maybe_name - directory_meta.names.assets.begin();
+							const auto watch_id = directory_meta.names.watches[match_index];
+							const auto watch_index = find_watch(watch_id);
+							if (debug_assert(watch_index != ext::index_invalid))
+							{
+								auto & watch_callback = watch_callbacks[watch_index];
 
-							try_read(directory_meta.filepath + filename, directory_meta.names.watches[match_index], name_asset);
+								if (event->mask & IN_CLOSE_WRITE)
+								{
+									try_read(directory_meta.filepath + filename, watch_callback, name_asset);
+								}
+
+							}
 							continue;
 						}
 
@@ -860,8 +871,18 @@ namespace
 						if (maybe_extension != directory_meta.extensions.assets.end())
 						{
 							const auto match_index = maybe_extension - directory_meta.extensions.assets.begin();
+							const auto watch_id = directory_meta.extensions.watches[match_index];
+							const auto watch_index = find_watch(watch_id);
+							if (debug_assert(watch_index != ext::index_invalid))
+							{
+								auto & watch_callback = watch_callbacks[watch_index];
 
-							try_read(directory_meta.filepath + filename, directory_meta.extensions.watches[match_index], extension_asset);
+								if (event->mask & IN_CLOSE_WRITE)
+								{
+									try_read(directory_meta.filepath + filename, watch_callback, extension_asset);
+								}
+
+							}
 							continue;
 						}
 					}
