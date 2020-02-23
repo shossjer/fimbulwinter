@@ -748,24 +748,27 @@ namespace
 							}
 							debug_assert(added_any_match, "nothing to watch in directory, please sanitize your data!");
 
-							if (!debug_assert(watch_ids.back() == watch_id))
-								return;
-
-							auto & watch_callback = watch_callbacks.back();
-
-							const auto number_of_matches = scan_directory(
-								directory_meta,
-								[&directory_meta, &watch_callback, watch_id](utility::string_view_utf8 filename, const struct directory_meta::match & match, ext::index match_index)
-								{
-									if (match.watches[match_index] != watch_id) // todo always newly added
-										return false;
-
-									try_read(directory_meta.filepath + filename, watch_callback, match.assets[match_index]);
-									return true;
-								});
-							if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
+							if (!(x.mode & engine::file::flags::IGNORE_EXISTING))
 							{
-								watch_callback.callback(core::ReadStream(nullptr, nullptr, ""), watch_callback.data, engine::Asset(""));
+								if (!debug_assert(watch_ids.back() == watch_id))
+									return;
+
+								auto & watch_callback = watch_callbacks.back();
+
+								const auto number_of_matches = scan_directory(
+									directory_meta,
+									[&directory_meta, &watch_callback, watch_id](utility::string_view_utf8 filename, const struct directory_meta::match & match, ext::index match_index)
+									{
+										if (match.watches[match_index] != watch_id) // todo always newly added
+											return false;
+
+										try_read(directory_meta.filepath + filename, watch_callback, match.assets[match_index]);
+										return true;
+									});
+								if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
+								{
+									watch_callback.callback(core::ReadStream(nullptr, nullptr, ""), watch_callback.data, engine::Asset(""));
+								}
 							}
 
 							if (directory_inotify_fds[directory_index] == -1)

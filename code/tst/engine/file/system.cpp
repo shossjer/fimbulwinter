@@ -269,6 +269,61 @@ TEST_CASE("file system can watch files", "[engine][file]")
 		sync_data.event.wait();
 		REQUIRE(sync_data.count == 12);
 	}
+
+	SECTION("and ignore those that already exist with the `IGNORE_EXISTING` flag")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::write(tmpdir, u8"already.existing", write_char, utility::any(char(1)));
+
+		engine::file::watch(
+			tmpdir,
+			u8"already.existing",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("already.existing"):
+					sync_data.count += int(read_char(stream));
+					break;
+				default:
+					sync_data.count = -100;
+				}
+				sync_data.event.set();
+			},
+			utility::any(&sync_data),
+			engine::file::flags::IGNORE_EXISTING);
+
+		engine::file::write(
+			tmpdir,
+			u8"already.existing",
+			[](core::WriteStream && stream, utility::any && data)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				sync_data.event.reset();
+
+				const char number = 2;
+				stream.write_all(&number, sizeof number);
+			},
+			utility::any(&sync_data));
+
+		// todo wait with timeout
+		sync_data.event.wait();
+		REQUIRE(sync_data.count == 2);
+	}
 }
 
 #endif

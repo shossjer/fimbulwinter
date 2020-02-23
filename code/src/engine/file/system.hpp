@@ -31,6 +31,7 @@ namespace engine
 			enum bits : uint32_t
 			{
 				REPORT_MISSING = uint32_t(1) << 0,
+				IGNORE_EXISTING = uint32_t(1) << 1,
 			};
 
 		private:
@@ -67,7 +68,7 @@ namespace engine
 
 		void remove(engine::Asset directory, utility::heap_string_utf8 && pattern);
 
-		// mode REPORT_MISSING
+		// mode REPORT_MISSING | IGNORE_EXISTING
 		void watch(
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,
