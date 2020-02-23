@@ -14,6 +14,24 @@ debug_assets("tmpdir");
 
 namespace
 {
+	struct temporary_directory
+	{
+		engine::Asset directory;
+
+		~temporary_directory()
+		{
+			engine::file::unregister_directory(directory);
+		}
+
+		temporary_directory(engine::Asset directory)
+			: directory(directory)
+		{
+			engine::file::register_temporary_directory(directory);
+		}
+
+		operator engine::Asset () const { return directory; }
+	};
+
 	void write_char(core::WriteStream && stream, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
@@ -44,7 +62,7 @@ TEST_CASE("file system can be created and destroyed", "[engine][file]")
 TEST_CASE("file system can read files", "[engine][file]")
 {
 	engine::file::system filesystem;
-	engine::file::register_temporary_directory(engine::Asset("tmpdir"));
+	temporary_directory tmpdir = engine::Asset("tmpdir");
 
 	SECTION("that are created before the read starts")
 	{
@@ -55,12 +73,12 @@ TEST_CASE("file system can read files", "[engine][file]")
 			core::sync::Event<true> events[3];
 		} sync_data;
 
-		engine::file::write(engine::Asset("tmpdir"), u8"maybe.exists", write_char, utility::any(char(1)));
-		engine::file::write(engine::Asset("tmpdir"), u8"maybe.whatever", write_char, utility::any(char(2)));
-		engine::file::write(engine::Asset("tmpdir"), u8"whatever.exists", write_char, utility::any(char(4)));
+		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(1)));
+		engine::file::write(tmpdir, u8"maybe.whatever", write_char, utility::any(char(2)));
+		engine::file::write(tmpdir, u8"whatever.exists", write_char, utility::any(char(4)));
 
 		engine::file::read(
-			engine::Asset("tmpdir"),
+			tmpdir,
 			u8"maybe.exists|maybe*|*.exists",
 			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
 			{
@@ -113,7 +131,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 		} sync_data;
 
 		engine::file::read(
-			engine::Asset("tmpdir"),
+			tmpdir,
 			u8"maybe.exists",
 			[](core::ReadStream && /*stream*/, utility::any & data, engine::Asset match)
 			{
@@ -139,14 +157,12 @@ TEST_CASE("file system can read files", "[engine][file]")
 		sync_data.event.wait();
 		REQUIRE(sync_data.count == 1);
 	}
-
-	engine::file::unregister_directory(engine::Asset("tmpdir"));
 }
 
 TEST_CASE("file system can watch files", "[engine][file]")
 {
 	engine::file::system filesystem;
-	engine::file::register_temporary_directory(engine::Asset("tmpdir"));
+	temporary_directory tmpdir = engine::Asset("tmpdir");
 
 	SECTION("that are created both before and after the watch starts")
 	{
@@ -156,10 +172,10 @@ TEST_CASE("file system can watch files", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(engine::Asset("tmpdir"), u8"file.tmp", write_char, utility::any(char(1)));
+		engine::file::write(tmpdir, u8"file.tmp", write_char, utility::any(char(1)));
 
 		engine::file::watch(
-			engine::Asset("tmpdir"),
+			tmpdir,
 			u8"file.tmp|file*|*.tmp",
 			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
 			{
@@ -187,14 +203,14 @@ TEST_CASE("file system can watch files", "[engine][file]")
 		REQUIRE(sync_data.count == 1);
 		sync_data.event.reset();
 
-		engine::file::write(engine::Asset("tmpdir"), u8"file.whatever", write_char, utility::any(char(2)));
+		engine::file::write(tmpdir, u8"file.whatever", write_char, utility::any(char(2)));
 
 		// todo wait with timeout
 		sync_data.event.wait();
 		REQUIRE(sync_data.count == 3);
 		sync_data.event.reset();
 
-		engine::file::write(engine::Asset("tmpdir"), u8"whatever.tmp", write_char, utility::any(char(4)));
+		engine::file::write(tmpdir, u8"whatever.tmp", write_char, utility::any(char(4)));
 
 		// todo wait with timeout
 		sync_data.event.wait();
@@ -210,7 +226,7 @@ TEST_CASE("file system can watch files", "[engine][file]")
 		} sync_data;
 
 		engine::file::watch(
-			engine::Asset("tmpdir"),
+			tmpdir,
 			u8"maybe.exists",
 			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
 			{
@@ -240,21 +256,19 @@ TEST_CASE("file system can watch files", "[engine][file]")
 		REQUIRE(sync_data.count == 1);
 		sync_data.event.reset();
 
-		engine::file::write(engine::Asset("tmpdir"), u8"maybe.exists", write_char, utility::any(char(10)));
+		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(10)));
 
 		// todo wait with timeout
 		sync_data.event.wait();
 		REQUIRE(sync_data.count == 11);
 		sync_data.event.reset();
 
-		engine::file::remove(engine::Asset("tmpdir"), u8"maybe.exists");
+		engine::file::remove(tmpdir, u8"maybe.exists");
 
 		// todo wait with timeout
 		sync_data.event.wait();
 		REQUIRE(sync_data.count == 12);
 	}
-
-	engine::file::unregister_directory(engine::Asset("tmpdir"));
 }
 
 #endif
