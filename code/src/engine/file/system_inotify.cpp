@@ -49,6 +49,12 @@ namespace
 		engine::file::flags mode;
 	};
 
+	struct Remove
+	{
+		engine::Asset directory;
+		utility::heap_string_utf8 pattern;
+	};
+
 	struct Watch
 	{
 		engine::Asset directory;
@@ -72,6 +78,7 @@ namespace
 		RegisterTemporaryDirectory,
 		UnregisterDirectory,
 		Read,
+		Remove,
 		Watch,
 		Write,
 		Terminate
@@ -645,6 +652,28 @@ namespace
 							}
 						}
 
+						void operator () (Remove && x)
+						{
+							const auto alias_index = find_alias(x.directory);
+							if (!debug_verify(alias_index != ext::index_invalid))
+								return; // error
+
+							const auto directory_index = find_directory(alias_metas[alias_index].filepath_asset);
+							if (!debug_assert(directory_index != ext::index_invalid))
+								return; // error
+
+							auto & directory_meta = directory_metas[directory_index];
+
+							scan_directory(
+								directory_meta,
+								[&directory_meta](utility::string_view_utf8 filename, const struct directory_meta::match & /*match*/, ext::index /*match_index*/)
+								{
+									auto filepath = directory_meta.filepath + filename;
+									debug_verify(::unlink(filepath.data()) != -1, "failed with errno ", errno);
+									return true;
+								});
+						}
+
 						void operator () (Watch && x)
 						{
 							const auto alias_index = find_alias(x.directory);
@@ -979,6 +1008,18 @@ namespace engine
 				return;
 
 			if (debug_verify(message_queue.try_emplace(utility::in_place_type<Read>, directory, std::move(pattern), callback, std::move(data), mode)))
+			{
+				const char zero = 0;
+				debug_verify(::write(message_pipe[1], &zero, sizeof zero) == sizeof zero);
+			}
+		}
+
+		void remove(engine::Asset directory, utility::heap_string_utf8 && pattern)
+		{
+			if (!debug_assert(thread.valid()))
+				return;
+
+			if (debug_verify(message_queue.try_emplace(utility::in_place_type<Remove>, directory, std::move(pattern))))
 			{
 				const char zero = 0;
 				debug_verify(::write(message_pipe[1], &zero, sizeof zero) == sizeof zero);

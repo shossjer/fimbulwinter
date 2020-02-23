@@ -65,6 +65,8 @@ namespace engine
 			utility::any && data,
 			flags mode = flags{});
 
+		void remove(engine::Asset directory, utility::heap_string_utf8 && pattern);
+
 		void watch(
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,
