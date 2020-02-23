@@ -67,11 +67,13 @@ namespace engine
 
 		void remove(engine::Asset directory, utility::heap_string_utf8 && pattern);
 
+		// mode REPORT_MISSING
 		void watch(
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,
 			watch_callback * callback,
-			utility::any && data);
+			utility::any && data,
+			flags mode = flags{});
 
 		using write_callback = void(
 			core::WriteStream && stream,

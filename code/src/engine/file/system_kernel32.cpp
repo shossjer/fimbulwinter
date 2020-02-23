@@ -857,6 +857,7 @@ namespace
 
 			const auto watch_id = add_watch(x.callback, std::move(x.data)); // todo this feels like a hack
 
+			debug_expression(bool added_any_match = false);
 			auto from = utility::unit_difference(0);
 			while (true)
 			{
@@ -871,6 +872,7 @@ namespace
 						directory_meta.extensions.assets.push_back(asset);
 						directory_meta.extensions.aliases.push_back(x.directory);
 						directory_meta.extensions.watches.push_back(watch_id);
+						debug_expression(added_any_match = true);
 					}
 					else if (x.pattern.data()[found.get() - 1] == '*') // name
 					{
@@ -880,6 +882,7 @@ namespace
 						directory_meta.names.assets.push_back(asset);
 						directory_meta.names.aliases.push_back(x.directory);
 						directory_meta.names.watches.push_back(watch_id);
+						debug_expression(added_any_match = true);
 					}
 					else // full
 					{
@@ -889,6 +892,7 @@ namespace
 						directory_meta.fulls.assets.push_back(asset);
 						directory_meta.fulls.aliases.push_back(x.directory);
 						directory_meta.fulls.watches.push_back(watch_id);
+						debug_expression(added_any_match = true);
 					}
 				}
 
@@ -897,6 +901,7 @@ namespace
 
 				from = found + 1; // skip '|'
 			}
+			debug_assert(added_any_match, "nothing to read in directory, please sanitize your data!");
 
 			const auto number_of_matches = scan_directory(directory_meta, watch_id);
 			if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
@@ -918,6 +923,7 @@ namespace
 		utility::heap_string_utf8 pattern;
 		engine::file::watch_callback * callback;
 		utility::any data;
+		engine::file::flags mode;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
 		{
@@ -938,6 +944,7 @@ namespace
 
 			alias_metas[alias_index].watches.push_back(watch_id);
 
+			debug_expression(bool added_any_match = false);
 			auto from = utility::unit_difference(0);
 			while (true)
 			{
@@ -953,6 +960,7 @@ namespace
 						directory_meta.extensions.assets.push_back(asset);
 						directory_meta.extensions.aliases.push_back(x.directory);
 						directory_meta.extensions.watches.push_back(watch_id);
+						debug_expression(added_any_match = true);
 					}
 					else if (x.pattern.data()[found.get() - 1] == '*') // name
 					{
@@ -963,6 +971,7 @@ namespace
 						directory_meta.names.assets.push_back(asset);
 						directory_meta.names.aliases.push_back(x.directory);
 						directory_meta.names.watches.push_back(watch_id);
+						debug_expression(added_any_match = true);
 					}
 					else // full
 					{
@@ -973,6 +982,7 @@ namespace
 						directory_meta.fulls.assets.push_back(asset);
 						directory_meta.fulls.aliases.push_back(x.directory);
 						directory_meta.fulls.watches.push_back(watch_id);
+						debug_expression(added_any_match = true);
 					}
 				}
 
@@ -981,22 +991,24 @@ namespace
 
 				from = found + 1; // skip '|'
 			}
+			debug_assert(added_any_match, "nothing to read in directory, please sanitize your data!");
 
-			const bool should_watch =
-				!directory_meta.fulls.assets.empty()
-				|| !directory_meta.names.assets.empty()
-				|| !directory_meta.extensions.assets.empty();
-			if (debug_assert(should_watch, "nothing to watch in directory, please sanitize your data!"))
+			const auto number_of_matches = scan_directory(directory_meta, watch_id);
+			if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
 			{
-				scan_directory(directory_meta, watch_id);
-
-				if (!directory_metas[directory_index].async)
+				if (debug_assert(watch_ids.back() == watch_id))
 				{
-					// note files that are created in between
-					// the scan and the start of the watch will
-					// not be reported
-					try_start_watch(directory_index);
+					auto & watch_callback = watch_callbacks.back();
+					watch_callback.callback(core::ReadStream(nullptr, nullptr, ""), watch_callback.data, engine::Asset(""));
 				}
+			}
+
+			if (!directory_metas[directory_index].async)
+			{
+				// todo files that are created in between the scan and the
+				// start of the watch will not be reported, maybe watch
+				// before scan and remove duplicates?
+				try_start_watch(directory_index);
 			}
 		}
 	};
@@ -1176,11 +1188,12 @@ namespace engine
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,
 			watch_callback * callback,
-			utility::any && data)
+			utility::any && data,
+			flags mode)
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<Watch>(directory, std::move(pattern), callback, std::move(data));
+				try_queue_apc<Watch>(directory, std::move(pattern), callback, std::move(data), mode);
 			}
 		}
 
