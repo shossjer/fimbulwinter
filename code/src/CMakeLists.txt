@@ -3,6 +3,8 @@ set(SOURCES_CORE
 	src/core/async/Thread_kernel32.cpp
 	src/core/async/Thread_pthread.cpp
 	src/core/container/Buffer.cpp
+	src/core/native/file_kernel32.cpp
+	src/core/native/file_posix.cpp
 	)
 
 set(HEADERS_CORE
@@ -32,6 +34,7 @@ set(HEADERS_CORE
 	src/core/maths/Vector.hpp
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
+	src/core/native/file.hpp
 	src/core/NoSerializer.hpp
 	src/core/PlaceholderStructurer.hpp
 	src/core/PngStructurer.hpp
