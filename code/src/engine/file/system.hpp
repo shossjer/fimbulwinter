@@ -34,6 +34,7 @@ namespace engine
 				IGNORE_EXISTING = uint32_t(1) << 1,
 				ONCE_ONLY = uint32_t(1) << 2,
 				OVERWRITE_EXISTING = uint32_t(1) << 3,
+				APPEND_EXISTING = uint32_t(1) << 4,
 			};
 
 		private:
@@ -82,7 +83,7 @@ namespace engine
 			core::WriteStream && stream,
 			utility::any && data);
 
-		// mode OVERWRITE_EXISTING
+		// mode OVERWRITE_EXISTING | APPEND_EXISTING
 		void write(
 			engine::Asset directory,
 			utility::heap_string_utf8 && filename,

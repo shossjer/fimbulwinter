@@ -868,7 +868,11 @@ namespace
 							auto filepath = directory_meta.filepath + x.filename;
 
 							int flags = O_WRONLY | O_CREAT;
-							if (!(x.mode & engine::file::flags::OVERWRITE_EXISTING))
+							if (x.mode & engine::file::flags::APPEND_EXISTING)
+							{
+								flags |= O_APPEND;
+							}
+							else if (!(x.mode & engine::file::flags::OVERWRITE_EXISTING))
 							{
 								flags |= O_EXCL;
 							}

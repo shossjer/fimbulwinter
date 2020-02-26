@@ -560,6 +560,44 @@ TEST_CASE("file system can write files", "[engine][file]")
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 2);
 	}
+
+	SECTION("and append to files with the `APPEND_EXISTING` flag")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(1)), engine::file::flags::APPEND_EXISTING);
+		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(2)), engine::file::flags::APPEND_EXISTING);
+
+		engine::file::read(
+			tmpdir,
+			u8"new.file",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("new.file"):
+					sync_data.count += int(read_char(stream));
+					sync_data.count += int(read_char(stream));
+					break;
+				default:
+					sync_data.count = -100;
+				}
+				sync_data.event.set();
+			},
+			utility::any(&sync_data));
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 3);
+	}
 }
 
 #endif
