@@ -47,6 +47,8 @@ namespace
 		stream.read_all(&number, sizeof number);
 		return number;
 	}
+
+	const int timeout = 1000; // milliseconds
 }
 
 TEST_CASE("file system can be created and destroyed", "[engine][file]")
@@ -110,10 +112,9 @@ TEST_CASE("file system can read files", "[engine][file]")
 			},
 			utility::any(&sync_data));
 
-		// todo wait with timeout
-		sync_data.events[0].wait();
-		sync_data.events[1].wait();
-		sync_data.events[2].wait();
+		REQUIRE(sync_data.events[0].wait(timeout));
+		REQUIRE(sync_data.events[1].wait(timeout));
+		REQUIRE(sync_data.events[2].wait(timeout));
 
 		REQUIRE(sync_data.neither == 0);
 
@@ -153,8 +154,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 			utility::any(&sync_data),
 			engine::file::flags::REPORT_MISSING);
 
-		// todo wait with timeout
-		sync_data.event.wait();
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);
 	}
 }
@@ -198,22 +198,19 @@ TEST_CASE("file system can watch files", "[engine][file]")
 			},
 			utility::any(&sync_data));
 
-		// todo wait with timeout
-		sync_data.event.wait();
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);
 		sync_data.event.reset();
 
 		engine::file::write(tmpdir, u8"file.whatever", write_char, utility::any(char(2)));
 
-		// todo wait with timeout
-		sync_data.event.wait();
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 3);
 		sync_data.event.reset();
 
 		engine::file::write(tmpdir, u8"whatever.tmp", write_char, utility::any(char(4)));
 
-		// todo wait with timeout
-		sync_data.event.wait();
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 7);
 	}
 
@@ -251,22 +248,19 @@ TEST_CASE("file system can watch files", "[engine][file]")
 			utility::any(&sync_data),
 			engine::file::flags::REPORT_MISSING);
 
-		// todo wait with timeout
-		sync_data.event.wait();
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);
 		sync_data.event.reset();
 
 		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(10)));
 
-		// todo wait with timeout
-		sync_data.event.wait();
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 11);
 		sync_data.event.reset();
 
 		engine::file::remove(tmpdir, u8"maybe.exists");
 
-		// todo wait with timeout
-		sync_data.event.wait();
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 12);
 	}
 
@@ -320,8 +314,7 @@ TEST_CASE("file system can watch files", "[engine][file]")
 			},
 			utility::any(&sync_data));
 
-		// todo wait with timeout
-		sync_data.event.wait();
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 2);
 	}
 }

@@ -54,6 +54,11 @@ namespace sync
 #if THREAD_USE_PTHREAD
 		/**  */
 		bool wait(Mutex & mutex);
+
+		bool wait(Mutex & mutex, const struct timespec & ts)
+		{
+			return pthread_cond_timedwait(&cond, &mutex.mutex, &ts) == 0;
+		}
 #endif
 	};
 }
