@@ -32,6 +32,7 @@ namespace engine
 			{
 				REPORT_MISSING = uint32_t(1) << 0,
 				IGNORE_EXISTING = uint32_t(1) << 1,
+				ONCE_ONLY = uint32_t(1) << 2,
 			};
 
 		private:
@@ -58,7 +59,7 @@ namespace engine
 			utility::any & data,
 			engine::Asset match);
 
-		// mode REPORT_MISSING
+		// mode REPORT_MISSING | ONCE_ONLY
 		void read(
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,

@@ -157,6 +157,68 @@ TEST_CASE("file system can read files", "[engine][file]")
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);
 	}
+
+	SECTION("and only read the first match with the `ONCE_ONLY` flag")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(1)));
+		engine::file::write(tmpdir, u8"maybe.whatever", write_char, utility::any(char(1)));
+		engine::file::write(tmpdir, u8"whatever.exists", write_char, utility::any(char(1)));
+
+		engine::file::read(
+			tmpdir,
+			u8"maybe.exists|maybe*|*.exists",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("maybe.exists"):
+				case engine::Asset("maybe"):
+				case engine::Asset(".exists"):
+					sync_data.count += int(read_char(stream));
+					break;
+				default:
+					sync_data.count = -100;
+				}
+			},
+			utility::any(&sync_data),
+			engine::file::flags::ONCE_ONLY);
+
+		engine::file::read(
+			tmpdir,
+			u8"maybe.exists",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("maybe.exists"):
+					sync_data.count += int(read_char(stream));
+					break;
+				default:
+					sync_data.count = -100;
+				}
+				sync_data.event.set();
+			},
+			utility::any(&sync_data));
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 2);
+	}
 }
 
 TEST_CASE("file system can watch files", "[engine][file]")

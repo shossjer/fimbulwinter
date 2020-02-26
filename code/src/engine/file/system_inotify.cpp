@@ -98,11 +98,13 @@ namespace
 		utility::any data;
 
 		bool report_missing;
+		bool once_only;
 
-		watch_callback(engine::file::watch_callback * callback, utility::any && data, bool report_missing)
+		watch_callback(engine::file::watch_callback * callback, utility::any && data, bool report_missing, bool once_only)
 			: callback(callback)
 			, data(std::move(data))
 			, report_missing(report_missing)
+			, once_only(once_only)
 		{}
 	};
 
@@ -118,13 +120,13 @@ namespace
 		return maybe - watch_ids.begin();
 	}
 
-	watch_id add_watch(engine::file::watch_callback * callback, utility::any && data, bool report_missing)
+	watch_id add_watch(engine::file::watch_callback * callback, utility::any && data, bool report_missing, bool once_only)
 	{
 		static watch_id next_id = 1; // reserve 0 (for no particular reason)
 		const watch_id id = next_id++;
 
 		watch_ids.push_back(id);
-		watch_callbacks.emplace_back(callback, std::move(data), report_missing);
+		watch_callbacks.emplace_back(callback, std::move(data), report_missing, once_only);
 
 		return id;
 	}
@@ -277,8 +279,11 @@ namespace
 	}
 
 	template <typename F>
-	ext::ssize scan_directory(const directory_meta & directory_meta, F && f)
+	ext::ssize scan_directory(const directory_meta & directory_meta, F && f, ext::usize max = ext::usize(-1))
 	{
+		if (!debug_assert(max != 0))
+			return max;
+
 		DIR * const dir = ::opendir(directory_meta.filepath.data());
 		if (!debug_verify(dir != nullptr, "opendir failed with errno ", errno))
 			return -1;
@@ -294,7 +299,10 @@ namespace
 			if (maybe_full != directory_meta.fulls.assets.end())
 			{
 				if (f(filename, directory_meta.fulls, maybe_full - directory_meta.fulls.assets.begin()))
-					++number_of_matches;
+				{
+					if (ext::usize(++number_of_matches) >= max)
+						break;
+				}
 
 				continue;
 			}
@@ -308,7 +316,10 @@ namespace
 			if (maybe_name != directory_meta.names.assets.end())
 			{
 				if (f(filename, directory_meta.names, maybe_name - directory_meta.names.assets.begin()))
-					++number_of_matches;
+				{
+					if (ext::usize(++number_of_matches) >= max)
+						break;
+				}
 
 				continue;
 			}
@@ -318,7 +329,10 @@ namespace
 			if (maybe_extension != directory_meta.extensions.assets.end())
 			{
 				if (f(filename, directory_meta.extensions, maybe_extension - directory_meta.extensions.assets.begin()))
-					++number_of_matches;
+				{
+					if (ext::usize(++number_of_matches) >= max)
+						break;
+				}
 
 				continue;
 			}
@@ -646,16 +660,17 @@ namespace
 							}
 							debug_assert(added_any_match, "nothing to read in directory, please sanitize your data!");
 
-							watch_callback watch_callback{x.callback, std::move(x.data), static_cast<bool>(x.mode & engine::file::flags::REPORT_MISSING)};
+							watch_callback watch_callback{x.callback, std::move(x.data), static_cast<bool>(x.mode & engine::file::flags::REPORT_MISSING), static_cast<bool>(x.mode & engine::file::flags::ONCE_ONLY)};
 
-							const auto number_of_matches = scan_directory(
+							const ext::usize number_of_matches = scan_directory(
 								temporary_meta,
 								[&temporary_meta, &watch_callback](utility::string_view_utf8 filename, const struct directory_meta::match & match, ext::index match_index)
 								{
 									try_read(temporary_meta.filepath + filename, watch_callback, match.assets[match_index]);
 									return true;
-								});
-							if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
+								},
+								watch_callback.once_only ? 1 : -1);
+							if (watch_callback.report_missing && number_of_matches == 0)
 							{
 								watch_callback.callback(core::ReadStream(nullptr, nullptr, ""), watch_callback.data, engine::Asset(""));
 							}
@@ -765,7 +780,7 @@ namespace
 										try_read(directory_meta.filepath + filename, watch_callback, match.assets[match_index]);
 										return true;
 									});
-								if (x.mode & engine::file::flags::REPORT_MISSING && number_of_matches == 0)
+								if (watch_callback.report_missing && number_of_matches == 0)
 								{
 									watch_callback.callback(core::ReadStream(nullptr, nullptr, ""), watch_callback.data, engine::Asset(""));
 								}
