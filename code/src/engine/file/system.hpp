@@ -69,7 +69,7 @@ namespace engine
 
 		void remove(engine::Asset directory, utility::heap_string_utf8 && pattern);
 
-		// mode REPORT_MISSING | IGNORE_EXISTING
+		// mode REPORT_MISSING | IGNORE_EXISTING | ONCE_ONLY
 		void watch(
 			engine::Asset directory,
 			utility::heap_string_utf8 && pattern,

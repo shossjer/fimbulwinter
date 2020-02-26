@@ -379,6 +379,78 @@ TEST_CASE("file system can watch files", "[engine][file]")
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 2);
 	}
+
+	SECTION("and only watch the first match with the `ONCE_ONLY` flag")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> events[2];
+		} sync_data;
+
+		engine::file::write(tmpdir, u8"already.existing", write_char, utility::any(char(1)));
+		engine::file::write(tmpdir, u8"already.whatever", write_char, utility::any(char(1)));
+		engine::file::write(tmpdir, u8"whatever.existing", write_char, utility::any(char(1)));
+
+		engine::file::watch(
+			tmpdir,
+			u8"already.existing",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("already.existing"):
+					sync_data.count += int(read_char(stream));
+					sync_data.events[0].set();
+					break;
+				default:
+					sync_data.events[1].set();
+				}
+			},
+			utility::any(&sync_data),
+			engine::file::flags::ONCE_ONLY);
+
+		REQUIRE(sync_data.events[0].wait(timeout));
+		REQUIRE(!sync_data.events[1].wait(100));
+		REQUIRE(sync_data.count == 1);
+		sync_data.events[0].reset();
+
+		engine::file::watch(
+			tmpdir,
+			u8"maybe.exists|maybe*|*.exists",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("maybe.exists"):
+					sync_data.count += int(read_char(stream));
+					sync_data.events[0].set();
+					break;
+				default:
+					sync_data.events[1].set();
+				}
+			},
+			utility::any(&sync_data),
+			engine::file::flags::ONCE_ONLY);
+
+		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(2)));
+		engine::file::write(tmpdir, u8"maybe.whatever", write_char, utility::any(char(4)));
+		engine::file::write(tmpdir, u8"whatever.exists", write_char, utility::any(char(8)));
+
+		REQUIRE(sync_data.events[0].wait(timeout));
+		REQUIRE(!sync_data.events[1].wait(100));
+		REQUIRE(sync_data.count == 3);
+	}
 }
 
 #endif
