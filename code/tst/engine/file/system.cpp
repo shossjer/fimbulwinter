@@ -374,7 +374,8 @@ TEST_CASE("file system can watch files", "[engine][file]")
 				const char number = 2;
 				stream.write_all(&number, sizeof number);
 			},
-			utility::any(&sync_data));
+			utility::any(&sync_data),
+			engine::file::flags::OVERWRITE_EXISTING);
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 2);
@@ -450,6 +451,114 @@ TEST_CASE("file system can watch files", "[engine][file]")
 		REQUIRE(sync_data.events[0].wait(timeout));
 		REQUIRE(!sync_data.events[1].wait(100));
 		REQUIRE(sync_data.count == 3);
+	}
+}
+
+TEST_CASE("file system can write files", "[engine][file]")
+{
+	engine::file::system filesystem;
+	temporary_directory tmpdir = engine::Asset("tmpdir");
+
+	SECTION("without overwriting and be picked up by a watch")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> events[2];
+		} sync_data;
+
+		engine::file::watch(
+			tmpdir,
+			u8"new.file",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("new.file"):
+					sync_data.count += int(read_char(stream));
+					break;
+				default:
+					sync_data.count = -100;
+				}
+				sync_data.events[0].set();
+			},
+			utility::any(&sync_data),
+			engine::file::flags::ONCE_ONLY);
+
+		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(1)));
+
+		REQUIRE(sync_data.events[0].wait(timeout));
+		REQUIRE(sync_data.count == 1);
+
+		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(2))); // should not overwrite
+
+		engine::file::read(
+			tmpdir,
+			u8"new.file",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("new.file"):
+					sync_data.count += int(read_char(stream));
+					if (int(read_char(stream)) == -1 && stream.done())
+						break; // expected path when not appending
+				default:
+					sync_data.count = -100;
+				}
+				sync_data.events[1].set();
+			},
+			utility::any(&sync_data));
+
+		REQUIRE(sync_data.events[1].wait(timeout));
+		REQUIRE(sync_data.count == 2);
+	}
+
+	SECTION("and overwrite those that already exist with the `OVERWRITE_EXISTING` flag")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(1)));
+		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(2)), engine::file::flags::OVERWRITE_EXISTING);
+
+		engine::file::read(
+			tmpdir,
+			u8"new.file",
+			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				switch (match)
+				{
+				case engine::Asset("new.file"):
+					sync_data.count += int(read_char(stream));
+					break;
+				default:
+					sync_data.count = -100;
+				}
+				sync_data.event.set();
+			},
+			utility::any(&sync_data));
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 2);
 	}
 }
 

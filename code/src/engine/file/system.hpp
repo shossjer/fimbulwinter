@@ -33,6 +33,7 @@ namespace engine
 				REPORT_MISSING = uint32_t(1) << 0,
 				IGNORE_EXISTING = uint32_t(1) << 1,
 				ONCE_ONLY = uint32_t(1) << 2,
+				OVERWRITE_EXISTING = uint32_t(1) << 3,
 			};
 
 		private:
@@ -81,10 +82,12 @@ namespace engine
 			core::WriteStream && stream,
 			utility::any && data);
 
+		// mode OVERWRITE_EXISTING
 		void write(
 			engine::Asset directory,
 			utility::heap_string_utf8 && filename,
 			write_callback * callback,
-			utility::any && data);
+			utility::any && data,
+			flags mode = flags{});
 	}
 }

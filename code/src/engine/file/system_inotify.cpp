@@ -70,6 +70,7 @@ namespace
 		utility::heap_string_utf8 filename;
 		engine::file::write_callback * callback;
 		utility::any data;
+		engine::file::flags mode;
 	};
 
 	struct Terminate {};
@@ -866,9 +867,17 @@ namespace
 
 							auto filepath = directory_meta.filepath + x.filename;
 
-							const int fd = ::open(filepath.data(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
-							if (!debug_verify(fd != -1, "open \"", filepath, "\" failed with errno ", errno))
+							int flags = O_WRONLY | O_CREAT;
+							if (!(x.mode & engine::file::flags::OVERWRITE_EXISTING))
+							{
+								flags |= O_EXCL;
+							}
+							const int fd = ::open(filepath.data(), flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+							if (fd == -1)
+							{
+								debug_verify(errno == EEXIST, "open \"", filepath, "\" failed with errno ", errno);
 								return; // error
+							}
 
 							core::WriteStream stream([](const void * src, ext::usize n, void * data)
 							                         {
@@ -1224,12 +1233,13 @@ namespace engine
 			engine::Asset directory,
 			utility::heap_string_utf8 && filename,
 			write_callback * callback,
-			utility::any && data)
+			utility::any && data,
+			flags mode)
 		{
 			if (!debug_assert(thread.valid()))
 				return;
 
-			if (debug_verify(message_queue.try_emplace(utility::in_place_type<Write>, directory, std::move(filename), callback, std::move(data))))
+			if (debug_verify(message_queue.try_emplace(utility::in_place_type<Write>, directory, std::move(filename), callback, std::move(data), mode)))
 			{
 				const char zero = 0;
 				debug_verify(::write(message_pipe[1], &zero, sizeof zero) == sizeof zero);
