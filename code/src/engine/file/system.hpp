@@ -50,6 +50,9 @@ namespace engine
 			explicit constexpr operator bool () const { return value != 0; }
 
 			friend constexpr flags operator & (flags a, flags b) { return flags(a.value & b.value); }
+			friend constexpr flags operator | (flags a, flags b) { return flags(a.value | b.value); }
+			friend constexpr flags operator & (bits a, bits b) { return flags(static_cast<uint32_t>(a) & static_cast<uint32_t>(b)); }
+			friend constexpr flags operator | (bits a, bits b) { return flags(static_cast<uint32_t>(a) | static_cast<uint32_t>(b)); }
 		};
 
 		void register_directory(engine::Asset name, utility::heap_string_utf8 && path);
