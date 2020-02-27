@@ -447,10 +447,11 @@ namespace
 	void move_matches(directory_meta::match & from, directory_meta::match & to, engine::Asset alias)
 	{
 		auto aliases_it = from.aliases.begin();
+		auto aliases_end = from.aliases.end();
 		while (true)
 		{
-			aliases_it = std::find(aliases_it, from.aliases.end(), alias);
-			if (aliases_it == from.aliases.end())
+			aliases_it = std::find(aliases_it, aliases_end, alias);
+			if (aliases_it == aliases_end)
 				break;
 
 			const auto match_index = aliases_it - from.aliases.begin();
@@ -458,14 +459,17 @@ namespace
 			to.aliases.push_back(alias);
 			to.watches.push_back(std::move(from.watches[match_index]));
 
-			const auto last_index = from.aliases.size() - 1;
+			--aliases_end;
+			const auto last_index = aliases_end - from.aliases.begin();
 			from.assets[match_index] = std::move(from.assets[last_index]);
 			from.aliases[match_index] = std::move(from.aliases[last_index]);
 			from.watches[match_index] = std::move(from.watches[last_index]);
-			from.assets.pop_back();
-			from.aliases.pop_back();
-			from.watches.pop_back();
 		}
+
+		const auto remaining = aliases_end - from.aliases.begin();
+		from.assets.erase(from.assets.begin() + remaining, from.assets.end());
+		from.aliases.erase(from.aliases.begin() + remaining, from.aliases.end());
+		from.watches.erase(from.watches.begin() + remaining, from.watches.end());
 	}
 
 	void move_matches(ext::index from_directory, ext::index to_directory, engine::Asset alias)

@@ -391,10 +391,11 @@ namespace
 	void move_matches(directory_meta::match & from, directory_meta::match & to, engine::Asset alias)
 	{
 		auto aliases_it = from.aliases.begin();
+		auto aliases_end = from.aliases.end();
 		while (true)
 		{
-			aliases_it = std::find(aliases_it, from.aliases.end(), alias);
-			if (aliases_it == from.aliases.end())
+			aliases_it = std::find(aliases_it, aliases_end, alias);
+			if (aliases_it == aliases_end)
 				break;
 
 			const auto match_index = aliases_it - from.aliases.begin();
@@ -402,14 +403,17 @@ namespace
 			to.aliases.push_back(alias);
 			to.watches.push_back(std::move(from.watches[match_index]));
 
-			const auto last_index = from.aliases.size() - 1;
+			--aliases_end;
+			const auto last_index = aliases_end - from.aliases.begin();
 			from.assets[match_index] = std::move(from.assets[last_index]);
 			from.aliases[match_index] = std::move(from.aliases[last_index]);
 			from.watches[match_index] = std::move(from.watches[last_index]);
-			from.assets.pop_back();
-			from.aliases.pop_back();
-			from.watches.pop_back();
 		}
+
+		const auto remaining = aliases_end - from.aliases.begin();
+		from.assets.erase(from.assets.begin() + remaining, from.assets.end());
+		from.aliases.erase(from.aliases.begin() + remaining, from.aliases.end());
+		from.watches.erase(from.watches.begin() + remaining, from.watches.end());
 	}
 
 	void move_matches(ext::index from_directory, ext::index to_directory, engine::Asset alias)
@@ -422,21 +426,25 @@ namespace
 	void remove_matches(directory_meta::match & match, watch_id watch)
 	{
 		auto watch_it = match.watches.begin();
+		auto watch_end = match.watches.end();
 		while (true)
 		{
-			watch_it = std::find(watch_it, match.watches.end(), watch);
-			if (watch_it == match.watches.end())
+			watch_it = std::find(watch_it, watch_end, watch);
+			if (watch_it == watch_end)
 				break;
 
+			--watch_end;
 			const auto match_index = watch_it - match.watches.begin();
-			const auto last_index = match.watches.size() - 1;
+			const auto last_index = watch_end - match.watches.begin();
 			match.assets[match_index] = std::move(match.assets[last_index]);
 			match.aliases[match_index] = std::move(match.aliases[last_index]);
 			match.watches[match_index] = std::move(match.watches[last_index]);
-			match.assets.pop_back();
-			match.aliases.pop_back();
-			match.watches.pop_back();
 		}
+
+		const auto remaining = watch_end - match.watches.begin();
+		match.assets.erase(match.assets.begin() + remaining, match.assets.end());
+		match.aliases.erase(match.aliases.begin() + remaining, match.aliases.end());
+		match.watches.erase(match.watches.begin() + remaining, match.watches.end());
 	}
 
 	void remove_matches(ext::index index, watch_id watch)
