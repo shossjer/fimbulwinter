@@ -347,7 +347,14 @@ namespace core
 			if (comp()) return true;
 
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, ":", line_number, ": ", expr, "\n", comp, "\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
+			utility::to_stream(
+				std::cerr,
+#if defined(_MSC_VER)
+				file_name, "(", line_number, ")",
+#else
+				file_name, ":", line_number,
+#endif
+				": ", expr, "\n", comp, "\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
 
 			return fail_hook_ ? fail_hook_() : false;
@@ -357,7 +364,14 @@ namespace core
 		bool fail(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, ":", line_number, ": failed\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
+			utility::to_stream(
+				std::cerr,
+#if defined(_MSC_VER)
+				file_name, "(", line_number, ")",
+#else
+				file_name, ":", line_number,
+#endif
+				": failed\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
 			std::cerr.flush();
 
 			return fail_hook_ ? fail_hook_() : false;
@@ -385,7 +399,14 @@ namespace core
 		void printline_all(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cout, file_name, ":", line_number, ": ", std::forward<Ps>(ps)..., "\n");
+			utility::to_stream(
+				std::cout,
+#if defined(_MSC_VER)
+				file_name, "(", line_number, ")",
+#else
+				file_name, ":", line_number,
+#endif
+				": ", std::forward<Ps>(ps)..., "\n");
 			std::cout.flush();
 		}
 
