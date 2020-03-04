@@ -85,26 +85,28 @@ namespace
 
 		struct async_type
 		{
-			HANDLE hDirectory;
 			OVERLAPPED overlapped;
+			HANDLE hDirectory;
 			std::aligned_storage_t<1024, alignof(DWORD)> buffer; // arbitrary
 
 			~async_type()
 			{
 				debug_verify(::CloseHandle(hDirectory) != FALSE, "failed with last error ", ::GetLastError());
 			}
-			async_type(HANDLE hDirectory, ext::index directory_index)
+			async_type(HANDLE hDirectory, engine::Asset filepath_asset)
 				: hDirectory(hDirectory)
 			{
-				overlapped.hEvent = reinterpret_cast<HANDLE>(directory_index);
+				overlapped.hEvent = reinterpret_cast<HANDLE>(static_cast<engine::Asset::value_type>(filepath_asset));
 			}
 		};
+		static_assert(std::is_standard_layout<async_type>::value, "`async_type` and `OVERLAPPED` must be pointer-interconvertible");
 
 		utility::heap_string_utfw filepath;
 		bool temporary;
 		int alias_count;
 
-		std::unique_ptr<async_type> async;
+		// todo raw allocations are sketchy
+		async_type * async;
 
 		match fulls;
 		match names;
@@ -114,6 +116,7 @@ namespace
 			: filepath(std::move(filepath))
 			, temporary(temporary)
 			, alias_count(0)
+			, async(nullptr)
 		{}
 	};
 
@@ -347,12 +350,12 @@ namespace
 		if (!debug_verify(hDirectory != INVALID_HANDLE_VALUE, "CreateFileW failed with last error ", ::GetLastError()))
 			return false;
 
-		auto async = std::make_unique<directory_meta::async_type>(hDirectory, directory_index);
+		auto async = std::make_unique<directory_meta::async_type>(hDirectory, directory_filepath_assets[directory_index]);
 
 		if (!try_read_directory(*async))
 			return false;
 
-		directory_metas[directory_index].async = std::move(async);
+		directory_metas[directory_index].async = async.release();
 
 		return true;
 	}
@@ -363,7 +366,13 @@ namespace
 			return;
 
 		debug_printline("stopping watch of \"", utility::heap_narrow<utility::encoding_utf8>(directory_metas[directory_index].filepath), "\"");
-		debug_verify(::CancelIoEx(directory_metas[directory_index].async->hDirectory, &directory_metas[directory_index].async->overlapped) != FALSE, "failed with last error ", ::GetLastError());
+		if (::CancelIoEx(directory_metas[directory_index].async->hDirectory, &directory_metas[directory_index].async->overlapped) == FALSE)
+		{
+			debug_verify(::GetLastError() == ERROR_NOT_FOUND, "CancelIoEx failed with last error ", ::GetLastError());
+		}
+
+		directory_metas[directory_index].async = nullptr;
+		// note cleanup will happen in the completion function
 	}
 
 	void clear_directories()
@@ -583,32 +592,43 @@ namespace
 
 	void CALLBACK Completion(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
 	{
-		const DWORD directory_index = static_cast<DWORD>(reinterpret_cast<ext::index>(lpOverlapped->hEvent));
+		auto async = std::unique_ptr<directory_meta::async_type>(reinterpret_cast<directory_meta::async_type *>(lpOverlapped));
+		// todo lpOverlapped->hEvent is superfluous
+		const auto filepath_asset = engine::Asset(static_cast<engine::Asset::value_type>(reinterpret_cast<ext::index>(lpOverlapped->hEvent)));
 
-		if (dwErrorCode == ERROR_OPERATION_ABORTED ||
-			!debug_assert(dwErrorCode == 0) ||
-			!debug_assert(0 < dwNumberOfBytesTransfered))
+		if (dwErrorCode != 0)
 		{
-			directory_metas[directory_index].async.reset();
+			debug_assert(dwErrorCode == ERROR_OPERATION_ABORTED);
+			debug_assert(0 == dwNumberOfBytesTransfered);
+
 			return;
 		}
 
 		const DWORD size = (dwNumberOfBytesTransfered + (alignof(DWORD) - 1)) & ~(alignof(DWORD) - 1);
-		debug_assert(size <= sizeof directory_metas[directory_index].async->buffer);
+		debug_assert(size <= sizeof async->buffer);
 		const DWORD chunk_size = sizeof(DWORD) + sizeof(DWORD) + size;
 
 		debug_assert(changes_buffer.size() % alignof(DWORD) == 0);
 		changes_buffer.insert(changes_buffer.end(), reinterpret_cast<const char *>(&chunk_size), reinterpret_cast<const char *>(&chunk_size) + sizeof(DWORD));
-		changes_buffer.insert(changes_buffer.end(), reinterpret_cast<const char *>(&directory_index), reinterpret_cast<const char *>(&directory_index) + sizeof(DWORD));
+		static_assert(sizeof(engine::Asset::value_type) <= sizeof(DWORD), "engine::Asset cannot be packed in a DWORD");
+		const DWORD filepath_asset_ = filepath_asset;
+		changes_buffer.insert(changes_buffer.end(), reinterpret_cast<const char *>(&filepath_asset_), reinterpret_cast<const char *>(&filepath_asset_) + sizeof(DWORD));
 
-		const char * const buffer = reinterpret_cast<const char *>(&directory_metas[directory_index].async->buffer);
+		const char * const buffer = reinterpret_cast<const char *>(&async->buffer);
 		changes_buffer.insert(changes_buffer.end(), buffer, buffer + size);
 
 		debug_verify(::SetEvent(hEvent) != FALSE, "failed with last error ", ::GetLastError());
 
-		if (!try_read_directory(*directory_metas[directory_index].async))
+		const auto directory_index = find_directory(filepath_asset);
+		if (directory_index == ext::index_invalid)
+			return; // the directory has been removed
+
+		if (directory_metas[directory_index].async != async.get())
+			return; // the watch has stopped
+
+		if (try_read_directory(*async))
 		{
-			directory_metas[directory_index].async.reset();
+			async.release();
 		}
 	}
 
@@ -634,7 +654,14 @@ namespace
 			while (buffer != buffer_end)
 			{
 				const std::size_t chunk_size = *reinterpret_cast<const DWORD *>(buffer);
-				const ext::index directory_index = *reinterpret_cast<const DWORD *>(buffer + sizeof(DWORD));
+				const auto directory_index = find_directory(engine::Asset(*reinterpret_cast<const DWORD *>(buffer + sizeof(DWORD))));
+
+				if (directory_index == ext::index_invalid)
+				{
+					buffer += chunk_size;
+
+					continue;
+				}
 
 				std::size_t offset = sizeof(DWORD) + sizeof(DWORD);
 				bool chunk_done = false;
