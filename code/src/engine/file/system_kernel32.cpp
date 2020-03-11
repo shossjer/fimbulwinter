@@ -203,9 +203,15 @@ namespace
 
 	bool try_read(utility::heap_string_utfw && filepath, watch_callback & watch_callback, engine::Asset match)
 	{
-		HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+		if (!debug_assert((filepath.data()[0] == L'\\' && filepath.data()[1] == L'\\' && filepath.data()[2] == L'?' && filepath.data()[3] == L'\\')))
+			return false;
+
+		HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 		if (!debug_verify(hFile != INVALID_HANDLE_VALUE, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\"failed with last error ", ::GetLastError()))
 			return false;
+
+		auto filepath_utf8 = utility::heap_narrow<utility::encoding_utf8>(utility::string_view_utfw(filepath, utility::unit_difference(4))); // skip "\\\\?\\"
+		std::replace(filepath_utf8.data(), filepath_utf8.data() + filepath_utf8.size(), '\\', '/');
 
 		core::ReadStream stream([](void * dest, ext::usize n, void * data)
 		                        {
@@ -218,7 +224,7 @@ namespace
 			                        return ext::ssize(read);
 		                        },
 		                        reinterpret_cast<void *>(hFile),
-		                        utility::heap_narrow<utility::encoding_utf8>(filepath));
+								std::move(filepath_utf8));
 
 		watch_callback.callback(std::move(stream), watch_callback.data, match);
 
@@ -1228,6 +1234,9 @@ namespace
 			if (!utility::try_widen_append(x.filename, filepath))
 				return;
 
+			if (!debug_assert((filepath.data()[0] == L'\\' && filepath.data()[1] == L'\\' && filepath.data()[2] == L'?' && filepath.data()[3] == L'\\')))
+				return;
+
 			DWORD dwCreationDisposition = CREATE_NEW;
 			DWORD dwDesiredAccess = GENERIC_WRITE;
 			if (x.mode & engine::file::flags::APPEND_EXISTING)
@@ -1246,6 +1255,9 @@ namespace
 				return;
 			}
 
+			auto filepath_utf8 = utility::heap_narrow<utility::encoding_utf8>(utility::string_view_utfw(filepath, utility::unit_difference(4))); // skip "\\\\?\\"
+			std::replace(filepath_utf8.data(), filepath_utf8.data() + filepath_utf8.size(), '\\', '/');
+
 			core::WriteStream stream([](const void * src, ext::usize n, void * data)
 										{
 											HANDLE hFile = reinterpret_cast<HANDLE>(data);
@@ -1257,7 +1269,7 @@ namespace
 											return ext::ssize(written);
 										},
 										reinterpret_cast<void *>(hFile),
-										utility::heap_narrow<utility::encoding_utf8>(filepath));
+										std::move(filepath_utf8));
 			x.callback(std::move(stream), std::move(x.data));
 
 			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
