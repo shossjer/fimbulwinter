@@ -13,6 +13,8 @@
 #include "engine/model/data.hpp"
 
 #include "utility/any.hpp"
+// todo forward declare
+#include "utility/unicode.hpp"
 
 #include <vector>
 
@@ -21,6 +23,11 @@ namespace engine
 	namespace application
 	{
 		class window;
+	}
+
+	namespace file
+	{
+		class system;
 	}
 }
 
@@ -189,7 +196,7 @@ namespace engine
 
 		public:
 			~renderer();
-			renderer(engine::application::window & window, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type);
+			renderer(engine::application::window & window, engine::file::system & filesystem, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type);
 		};
 
 		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)
@@ -199,6 +206,9 @@ namespace engine
 				std::make_pair(utility::string_view("opengl3.0"), renderer::Type::OPENGL_3_0)
 				);
 		}
+
+		// todo this feels hacky
+		void set_shader_directory(renderer & renderer, utility::heap_string_utf8 && directory);
 
 		// void notify(renderer & renderer, renderer::Camera2D && data);
 		// void notify(renderer & renderer, renderer::Camera3D && data);

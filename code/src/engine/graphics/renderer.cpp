@@ -21,6 +21,7 @@
 #include "engine/Asset.hpp"
 #include "engine/Command.hpp"
 #include "engine/debug.hpp"
+#include "engine/file/system.hpp"
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/viewer.hpp"
 
@@ -46,6 +47,8 @@ namespace engine
 			namespace opengl_30
 			{
 				extern void run();
+
+				extern void shader_callback(core::ReadStream && stream, utility::any & data, engine::Asset match);
 			}
 		}
 	}
@@ -65,8 +68,8 @@ namespace engine
 
 			std::atomic<int> entitytoggle;
 
-			engine::graphics::renderer * self = nullptr; // todo seems unnecessary
 			engine::application::window * window = nullptr;
+			engine::file::system * filesystem = nullptr;
 			void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data) = nullptr;
 
 			core::async::Thread renderThread;
@@ -74,6 +77,11 @@ namespace engine
 			core::sync::Event<true> event;
 		}
 	}
+}
+
+namespace
+{
+	engine::graphics::renderer::Type type;
 }
 
 namespace engine
@@ -90,14 +98,16 @@ namespace engine
 			renderThread.join();
 
 			detail::callback_select = nullptr;
+			detail::filesystem = nullptr;
 			detail::window = nullptr;
-			detail::self = nullptr;
 		}
 
-		renderer::renderer(engine::application::window & window_, void (* callback_select_)(engine::Entity entity, engine::Command command, utility::any && data), Type type)
+		renderer::renderer(engine::application::window & window_, engine::file::system & filesystem_, void (* callback_select_)(engine::Entity entity, engine::Command command, utility::any && data), Type type_)
 		{
-			detail::self = this;
+			type = type_;
+
 			detail::window = &window_;
+			detail::filesystem = &filesystem_;
 			detail::callback_select = callback_select_;
 
 			switch (type)
@@ -116,6 +126,23 @@ namespace engine
 		void update(renderer &)
 		{
 			event.set();
+		}
+
+		// todo remove dependency to file
+		void set_shader_directory(renderer & /*renderer*/, utility::heap_string_utf8 && directory)
+		{
+			engine::file::register_directory(engine::Asset("shader directory"), std::move(directory));
+			// todo unregister
+
+			switch (type)
+			{
+			case renderer::Type::OPENGL_3_0:
+				engine::file::watch(engine::Asset("shader directory"), u8"*.glsl", opengl_30::shader_callback, utility::any());
+				break;
+			case renderer::Type::OPENGL_1_2:
+				// shaders not supported
+				break;
+			}
 		}
 
 		void post_add_display(renderer &, engine::Asset asset, renderer::display && data)

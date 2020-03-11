@@ -2,6 +2,7 @@
 
 #include "engine/application/config.hpp"
 #include "engine/application/window.hpp"
+#include "engine/file/system.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
 #include "engine/physics/physics.hpp"
@@ -20,7 +21,8 @@ TEST_CASE("Physics Simulation can be created and destroyed", "[.engine][.physics
 #else
 	engine::application::window window(config);
 #endif
-	engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type::OPENGL_1_2);
+	engine::file::system filesystem;
+	engine::graphics::renderer renderer(window, filesystem, nullptr, engine::graphics::renderer::Type::OPENGL_1_2);
 	engine::graphics::viewer viewer(renderer);
 
 	for (int i = 0; i < 2; i++)

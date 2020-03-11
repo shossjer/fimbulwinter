@@ -16,10 +16,12 @@
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
 #include "core/container/Stack.hpp"
+#include "core/file/paths.hpp"
 #include "core/maths/Vector.hpp"
 #include "core/maths/algorithm.hpp"
 #include "core/PngStructurer.hpp"
 #include "core/serialization.hpp"
+#include "core/ShaderStructurer.hpp"
 #include "core/sync/Event.hpp"
 
 #include "engine/Asset.hpp"
@@ -1090,7 +1092,7 @@ namespace
 {
 	using namespace engine::graphics::detail;
 
-	core::container::PageQueue<utility::heap_storage<std::string, ShaderData>> queue_shaders;
+	core::container::PageQueue<utility::heap_storage<engine::Asset, ShaderData>> queue_shaders;
 
 	FontManager font_manager;
 	ShaderManager shader_manager;
@@ -1340,11 +1342,10 @@ namespace
 			visit(ProcessMessage{}, std::move(entity_message));
 		}
 
-		std::pair<std::string, ShaderData> shader_data_pair;
+		std::pair<engine::Asset, ShaderData> shader_data_pair;
 		while (queue_shaders.try_pop(shader_data_pair))
 		{
-			debug_printline("trying to create \"", shader_data_pair.first, "\"");
-			shader_manager.create(engine::Asset(shader_data_pair.first), std::move(shader_data_pair.second));
+			shader_manager.create(shader_data_pair.first, std::move(shader_data_pair.second));
 		}
 	}
 }
@@ -2457,6 +2458,21 @@ namespace engine
 					}
 
 					render_teardown();
+				}
+
+				void shader_callback(core::ReadStream && stream, utility::any & /*data*/, engine::Asset debug_expression(match))
+				{
+					if (!debug_assert(match == engine::Asset(".glsl")))
+						return;
+
+					const auto filename = core::file::filename(stream.filepath());
+					const auto asset = engine::Asset(filename.data(), filename.size());
+
+					ShaderData shader;
+					core::ShaderStructurer structurer(std::move(stream));
+					structurer.read(shader);
+
+					queue_shaders.try_emplace(asset, std::move(shader));
 				}
 			}
 		}
