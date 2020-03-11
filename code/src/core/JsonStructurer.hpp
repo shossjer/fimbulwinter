@@ -413,13 +413,9 @@ namespace core
 			debug_fail("attempting to read object into a type without a member table in json '", filepath_, "'");
 		}
 
-		void read_string(const json & j, std::string & x)
-		{
-			x = j;
-		}
 		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_enum<T>::value))>
+		          REQUIRES((std::is_enum<T>::value)),
+		          REQUIRES((core::has_lookup_table<T>::value))>
 		void read_string(const json & j, T & x)
 		{
 			const std::string & name = j;
@@ -432,18 +428,28 @@ namespace core
 				debug_fail("unknown enum value");
 			}
 		}
+		template <typename T>
+		auto read_string_nonenum(const json & j, T & x, int)
+			-> decltype(x = std::declval<typename json::string_t>(), void())
+		{
+			x = static_cast<const typename json::string_t &>(j);
+		}
 		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_class<T>::value))>
-		void read_string(const json &, T &)
+		          REQUIRES((std::is_constructible<T, const typename json::string_t &>::value))>
+		void read_string_nonenum(const json & j, T & x, float)
+		{
+			x = T(static_cast<const typename json::string_t &>(j));
+		}
+		template <typename T>
+		void read_string_nonenum(const json & /*j*/, T & /*x*/, ...)
 		{
 			debug_fail("attempting to read string into a non string type in json '", filepath_, "'");
 		}
 		template <typename T,
-		          REQUIRES((!core::has_lookup_table<T>::value))>
-		void read_string(const json &, T &)
+		          REQUIRES((!std::is_enum<T>::value))>
+		void read_string(const json & j, T & x)
 		{
-			debug_fail("attempting to read string into a non string type in json '", filepath_, "'");
+			read_string_nonenum(j, x, 0);
 		}
 	};
 }
