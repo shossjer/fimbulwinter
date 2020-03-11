@@ -252,13 +252,61 @@ namespace core
 			debug_fail("attempting to read bool into a non bool type in json '", filepath_, "'");
 		}
 
-		void read_number(const json & j, int & x)
+		template <typename T,
+		          REQUIRES((std::is_floating_point<T>::value))>
+		auto read_number_float(const json & j, T & x, int)
+			-> decltype(x = std::declval<typename json::number_float_t>(), void())
 		{
-			x = j;
+			x = debug_cast<T>(static_cast<typename json::number_float_t>(j));
 		}
-		void read_number(const json & j, double & x)
+		template <typename T>
+		void read_number_float(const json &, T &, ...)
 		{
-			x = j;
+			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
+		}
+		template <typename T,
+		          REQUIRES((std::is_integral<T>::value))>
+		auto read_number_unsigned(const json & j, T & x, int)
+			-> decltype(x = std::declval<typename json::number_unsigned_t>(), void())
+		{
+			x = debug_cast<T>(static_cast<typename json::number_unsigned_t>(j));
+		}
+		template <typename T>
+		void read_number_unsigned(const json &, T &, ...)
+		{
+			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
+		}
+		template <typename T,
+		          REQUIRES((std::is_integral<T>::value))>
+		auto read_number_signed(const json & j, T & x, int)
+			-> decltype(x = std::declval<typename json::number_integer_t>(), void())
+		{
+			x = debug_cast<T>(static_cast<typename json::number_integer_t>(j));
+		}
+		template <typename T>
+		void read_number_signed(const json &, T &, ...)
+		{
+			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
+		}
+		template <typename T>
+		void read_number(const json & j, T & x)
+		{
+			if (j.is_number_float())
+			{
+				read_number_float(j, x, 0);
+			}
+			else if (j.is_number_unsigned())
+			{
+				read_number_unsigned(j, x, 0);
+			}
+			else if (j.is_number_integer())
+			{
+				read_number_signed(j, x, 0);
+			}
+			else
+			{
+				debug_unreachable("not a number");
+			}
 		}
 		template <typename T>
 		void read_number(const json & j, utility::optional<T> & x)
@@ -271,11 +319,6 @@ namespace core
 			{
 				read_number(j, x.emplace());
 			}
-		}
-		template <typename T>
-		void read_number(const json &, T &)
-		{
-			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
 		}
 
 		template <typename T>
