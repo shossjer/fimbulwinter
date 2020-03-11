@@ -289,9 +289,10 @@ namespace core
 		// library
 #if defined(_MSC_VER)
 # pragma warning( push )
-# pragma warning( disable : 4018 4389 )
+# pragma warning( disable : 4018 4389 4805 )
 		// C4018 - 'expression' : signed/unsigned mismatch
 		// C4389 - 'operator' : signed/unsigned mismatch
+		// C4805 - 'operator' : unsafe mix of type 'X' and type 'Y' in operation
 #elif defined(__GNUG__)
 # if defined(__clang__)
 #  pragma clang diagnostic push
