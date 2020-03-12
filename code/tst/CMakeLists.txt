@@ -28,7 +28,6 @@ set(FILES_ENGINE
 	tst/engine/hid/devices.cpp
 	tst/engine/hid/ui.cpp
 	tst/engine/physics/simulation.cpp
-	tst/engine/record.cpp
 	)
 
 set(FILES_UTILITY

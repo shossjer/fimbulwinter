@@ -78,8 +78,6 @@ set(SOURCES_ENGINE
 	src/engine/physics/creation_physx.cpp
 	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
-	src/engine/replay/reader.cpp
-	src/engine/replay/writer.cpp
 	)
 
 set(HEADERS_ENGINE
@@ -117,8 +115,6 @@ set(HEADERS_ENGINE
 	src/engine/physics/material_physx.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/physics_physx.hpp
-	src/engine/replay/reader.hpp
-	src/engine/replay/writer.hpp
 	)
 
 set(SOURCES_UTILITY
