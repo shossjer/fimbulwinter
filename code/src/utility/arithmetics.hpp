@@ -32,9 +32,9 @@ namespace utility
 		constexpr T get() const { return value; }
 
 		Derived & operator ++ () { ++value; return *this; }
-		Derived operator ++ (int) { auto tmp = *this; value++; return tmp; }
+		Derived operator ++ (int) { Derived tmp = static_cast<Derived &>(*this); value++; return tmp; }
 		Derived & operator -- () { --value; return *this; }
-		Derived operator -- (int) { auto tmp = *this; value--; return tmp; }
+		Derived operator -- (int) { Derived tmp = static_cast<Derived &>(*this); value--; return tmp; }
 
 		Derived & operator += (const T & value)
 		{
