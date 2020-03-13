@@ -107,6 +107,7 @@ set(HEADERS_ENGINE
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
+	src/engine/MutableEntity.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
 	src/engine/physics/defines.hpp
