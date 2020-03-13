@@ -167,6 +167,21 @@ namespace core
 	template <typename T>
 	using has_lookup_table = typename has_lookup_table_impl<T>::type;
 
+	// todo separate utilities from customization points; `try_assign` is a utility, `for_each` is a customization point
+	template <typename T, typename F>
+	auto for_each(T & x, std::size_t count, F && f)
+		-> decltype(x.resize(count), bool())
+	{
+		x.resize(count);
+
+		for (auto && y : x)
+		{
+			if (!f(y))
+				return false;
+		}
+		return true;
+	}
+
 	template <std::size_t I, typename T, typename F>
 	void assign(T & x, F && f)
 	{
