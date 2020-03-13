@@ -411,6 +411,11 @@ namespace
 		}
 	};
 
+	struct ShaderMaterial
+	{
+		engine::Asset shader;
+	};
+
 	struct texture_t
 	{
 		GLuint id;
@@ -484,6 +489,7 @@ namespace
 		engine::Asset,
 		201,
 		std::array<color_t, 100>,
+		std::array<ShaderMaterial, 100>,
 		std::array<texture_t, 100>
 	>
 	materials;
@@ -917,6 +923,12 @@ namespace
 					debug_assert(!resources.contains(x.asset));
 					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
 				}
+
+				void operator () (MessageRegisterMaterial && x)
+				{
+					materials.replace<ShaderMaterial>(x.asset, x.material.data_opengl_30.shader);
+				}
+
 				void operator () (MessageRegisterMesh && x)
 				{
 					debug_assert(!resources.contains(x.asset));

@@ -51,6 +51,13 @@ namespace engine
 				engine::Asset asset;
 				engine::model::mesh_t mesh;
 			};
+
+			struct MessageRegisterMaterial
+			{
+				engine::Asset asset;
+				engine::graphics::data::MaterialAsset material;
+			};
+
 			struct MessageRegisterMesh
 			{
 				engine::Asset asset;
@@ -128,6 +135,7 @@ namespace engine
 				MessageUpdateDisplayViewport,
 
 				MessageRegisterCharacter,
+				MessageRegisterMaterial,
 				MessageRegisterMesh,
 				MessageRegisterTexture,
 

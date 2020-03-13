@@ -14,6 +14,8 @@
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
 #include "core/container/Stack.hpp"
+#include "core/file/paths.hpp"
+#include "core/JsonStructurer.hpp"
 #include "core/maths/Vector.hpp"
 #include "core/maths/algorithm.hpp"
 #include "core/sync/Event.hpp"
@@ -80,6 +82,31 @@ namespace engine
 namespace
 {
 	engine::graphics::renderer::Type type;
+
+	void material_callback(core::ReadStream && stream, utility::any & data, engine::Asset match)
+	{
+		if (!debug_assert(data.type_id() == utility::type_id<engine::graphics::renderer *>()))
+			return;
+
+		engine::graphics::data::MaterialAsset material;
+
+		switch (match)
+		{
+		case engine::Asset(".json"):
+		{
+			core::JsonStructurer structurer(std::move(stream));
+			structurer.read(material);
+			break;
+		}
+		default:
+			debug_unreachable("unknown match ", match);
+		}
+
+		const auto filename = core::file::filename(stream.filepath());
+		const auto asset = engine::Asset(filename.data(), filename.size());
+
+		engine::graphics::post_register_material(*utility::any_cast<engine::graphics::renderer *>(data), asset, std::move(material));
+	}
 }
 
 namespace engine
@@ -127,6 +154,15 @@ namespace engine
 		}
 
 		// todo remove dependency to file
+		void set_material_directory(renderer & renderer, utility::heap_string_utf8 && directory)
+		{
+			engine::file::register_directory(engine::Asset("material directory"), std::move(directory));
+			// todo unregister
+
+			engine::file::watch(engine::Asset("material directory"), u8"*.json", material_callback, utility::any(&renderer));
+		}
+
+		// todo remove dependency to file
 		void set_shader_directory(renderer & /*renderer*/, utility::heap_string_utf8 && directory)
 		{
 			engine::file::register_directory(engine::Asset("shader directory"), std::move(directory));
@@ -167,6 +203,10 @@ namespace engine
 		void post_register_character(renderer &, engine::Asset asset, engine::model::mesh_t && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterCharacter>, asset, std::move(data)));
+		}
+		void post_register_material(renderer &, engine::Asset asset, data::MaterialAsset && data)
+		{
+			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterMaterial>, asset, std::move(data)));
 		}
 		void post_register_mesh(renderer &, engine::Asset asset, data::MeshAsset && data)
 		{

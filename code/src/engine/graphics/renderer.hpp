@@ -118,6 +118,44 @@ namespace engine
 				camera_2d camera_2d;
 			};
 
+			struct MaterialAsset
+			{
+				struct material_opengl_12
+				{
+					uint32_t color;
+
+					static constexpr auto serialization()
+					{
+						return utility::make_lookup_table(
+							std::make_pair(utility::string_view("color"), &material_opengl_12::color)
+						);
+					}
+				};
+
+				struct material_opengl_30
+				{
+					engine::Asset shader;
+
+					static constexpr auto serialization()
+					{
+						return utility::make_lookup_table(
+							std::make_pair(utility::string_view("shader"), &material_opengl_30::shader)
+						);
+					}
+				};
+
+				material_opengl_12 data_opengl_12;
+				material_opengl_30 data_opengl_30;
+
+				static constexpr auto serialization()
+				{
+					return utility::make_lookup_table(
+						std::make_pair(core::value_table<engine::graphics::renderer::Type>::get_key(engine::graphics::renderer::Type::OPENGL_1_2), &MaterialAsset::data_opengl_12),
+						std::make_pair(core::value_table<engine::graphics::renderer::Type>::get_key(engine::graphics::renderer::Type::OPENGL_3_0), &MaterialAsset::data_opengl_30)
+					);
+				}
+			};
+
 			struct MeshAsset
 			{
 				core::container::Buffer vertices;
@@ -138,6 +176,8 @@ namespace engine
 		}
 
 		// todo this feels hacky
+		void set_material_directory(renderer & renderer, utility::heap_string_utf8 && directory);
+		// todo this feels hacky
 		void set_shader_directory(renderer & renderer, utility::heap_string_utf8 && directory);
 
 		// void notify(renderer & renderer, renderer::Camera2D && data);
@@ -150,6 +190,7 @@ namespace engine
 		void post_update_display(renderer & renderer, engine::Asset asset, data::viewport && data);
 
 		void post_register_character(renderer & renderer, engine::Asset asset, engine::model::mesh_t && data);
+		void post_register_material(renderer & renderer, engine::Asset asset, data::MaterialAsset && data);
 		void post_register_mesh(renderer & renderer, engine::Asset asset, data::MeshAsset && data);
 		void post_register_texture(renderer & renderer, engine::Asset asset, core::graphics::Image && image);
 

@@ -218,25 +218,16 @@ namespace
 	};
 
 
-	struct color_t
+	struct ColorMaterial
 	{
 		engine::graphics::opengl::Color4ub color;
 
-		color_t(unsigned int color)
-			: color((color & 0x000000ff) >>  0,
-			        (color & 0x0000ff00) >>  8,
-			        (color & 0x00ff0000) >> 16,
-			        (color & 0xff000000) >> 24)
-		{
-		}
-
-		void enable() const
-		{
-			glColor(color);
-		}
-		void disable() const
-		{
-		}
+		explicit ColorMaterial(uint32_t color)
+			: color(color >>  0 & 0x000000ff,
+			        color >>  8 & 0x000000ff,
+			        color >> 16 & 0x000000ff,
+			        color >> 24 & 0x000000ff)
+		{}
 	};
 
 	struct texture_t
@@ -290,7 +281,7 @@ namespace
 	<
 		engine::Asset,
 		201,
-		std::array<color_t, 100>,
+		std::array<ColorMaterial, 100>,
 		std::array<texture_t, 100>
 	>
 	materials;
@@ -639,6 +630,11 @@ namespace
 				{
 					debug_assert(!resources.contains(x.asset));
 					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
+				}
+
+				void operator () (MessageRegisterMaterial && x)
+				{
+					materials.replace<ColorMaterial>(x.asset, x.material.data_opengl_12.color);
 				}
 
 				void operator () (MessageRegisterMesh && x)
