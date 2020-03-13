@@ -11,6 +11,7 @@
 #include "engine/Entity.hpp"
 #include "engine/common.hpp"
 #include "engine/model/data.hpp"
+#include "engine/MutableEntity.hpp"
 
 #include "utility/any.hpp"
 // todo forward declare
@@ -202,7 +203,7 @@ namespace engine
 		void post_register_mesh(renderer & renderer, engine::Asset asset, data::MeshAsset && data);
 		void post_register_texture(renderer & renderer, engine::Asset asset, core::graphics::Image && image);
 
-		void post_add_object(renderer & renderer, engine::Entity entity, data::MeshObject && data);
+		void post_add_object(renderer & renderer, engine::MutableEntity entity, data::MeshObject && data);
 
 		void post_make_selectable(renderer & renderer, engine::Entity entity);
 		void post_make_obstruction(renderer & renderer, engine::Entity entity);

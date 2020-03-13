@@ -8,6 +8,7 @@
 #include "engine/Entity.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/model/data.hpp"
+#include "engine/MutableEntity.hpp"
 
 #include "utility/variant.hpp"
 
@@ -72,7 +73,7 @@ namespace engine
 
 			struct MessageAddMeshObject
 			{
-				engine::Entity entity;
+				engine::MutableEntity entity;
 				engine::graphics::data::MeshObject object;
 			};
 

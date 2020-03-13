@@ -349,7 +349,7 @@ namespace
 
 	core::container::UnorderedCollection
 	<
-		engine::Entity,
+		engine::MutableEntity,
 		1601,
 		std::array<object_modelview, 600>,
 		std::array<object_modelview_vertices, 200>
@@ -451,7 +451,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::MutableEntity,
 		1601,
 		utility::heap_storage<Character>,
 		utility::heap_storage<MeshObject>
@@ -488,13 +488,13 @@ namespace
 	{
 		engine::graphics::opengl::Color4ub color;
 
-		void operator () (engine::Entity entity, Character & x)
+		void operator () (engine::MutableEntity entity, Character & x)
 		{
-			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity, x.mesh_, x.object_, color));
+			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity.entity(), x.mesh_, x.object_, color));
 		}
 
 		template <typename T>
-		void operator () (engine::Entity /*entity*/, T &)
+		void operator () (engine::MutableEntity /*entity*/, T &)
 		{
 			debug_unreachable();
 		}
@@ -658,6 +658,13 @@ namespace
 
 				void operator () (MessageAddMeshObject && x)
 				{
+					if (const engine::MutableEntity * const key = objects.find_key(x.entity.entity()))
+					{
+						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
+							return; // error
+
+						objects.remove(*key); // todo use iterators
+					}
 					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
 
 					if (resources.contains<mesh_t>(x.object.mesh) &&
@@ -666,6 +673,13 @@ namespace
 						mesh_t & mesh = resources.get<mesh_t>(x.object.mesh);
 						ColorMaterial & material = materials.get<ColorMaterial>(x.object.material);
 
+						if (const engine::MutableEntity * const key = components.find_key(x.entity.entity()))
+						{
+							if (!debug_assert(*key < x.entity, "trying to add an older version mesh"))
+								return; // error
+
+							components.remove(*key); // todo use iterators
+						}
 						debug_verify(components.try_emplace<MeshObject>(x.entity, &object, &mesh, &material));
 					}
 					else
@@ -1048,8 +1062,8 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity.entity());
+			const bool is_selected = selected_components.contains<selected_t>(entity.entity());
 
 			if (is_highlighted)
 				glColor(highlighted_color);
