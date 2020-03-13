@@ -296,7 +296,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::MutableEntity,
 		41,
 		utility::static_storage<20, Camera>
 	>
@@ -506,7 +506,7 @@ namespace
 
 	struct MessageAddCamera
 	{
-		engine::Entity entity;
+		engine::MutableEntity entity;
 		engine::graphics::viewer::camera data;
 	};
 	struct MessageRemoveCamera
@@ -628,6 +628,13 @@ namespace engine
 
 					void operator () (MessageAddCamera && data)
 					{
+						if (const engine::MutableEntity * const key = cameras.find_key(data.entity.entity()))
+						{
+							if (!debug_assert(*key < data.entity, "trying to add an older version camera"))
+								return; // error
+
+							cameras.remove(*key); // todo use iterators
+						}
 						debug_verify(cameras.try_emplace<Camera>(data.entity, std::move(data.data)));
 					}
 					void operator () (MessageAddFrameDynamic && data)
@@ -810,7 +817,7 @@ namespace engine
 			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageRemoveProjection>, asset));
 		}
 
-		void post_add_camera(viewer &, engine::Entity entity, viewer::camera && data)
+		void post_add_camera(viewer &, engine::MutableEntity entity, viewer::camera && data)
 		{
 			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddCamera>, entity, std::move(data)));
 		}
