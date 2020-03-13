@@ -351,9 +351,10 @@ namespace
 			mixers.call(mixer, extract_pallet{matrix_pallet});
 			const bool has_position_movement = mixers.call(mixer, extract_position_movement{position_movement});
 			const bool has_orientation_movement = mixers.call(mixer, extract_orientation_movement{orientation_movement});
-			post_update_characterskinning(*renderer,
-			                              me,
-			                              engine::graphics::renderer::CharacterSkinning{matrix_pallet});
+			post_update_characterskinning(
+				*renderer,
+				me,
+				engine::graphics::data::CharacterSkinning{matrix_pallet});
 			if (has_position_movement)
 			{
 				post_update_movement(*::simulation, me, engine::physics::movement_data{engine::physics::movement_data::Type::CHARACTER, position_movement});

@@ -352,7 +352,7 @@ namespace
 
 	struct update_display_camera_2d
 	{
-		engine::graphics::renderer::camera_2d && data;
+		engine::graphics::data::camera_2d && data;
 
 		void operator () (display_t & x)
 		{
@@ -363,7 +363,7 @@ namespace
 
 	struct update_display_camera_3d
 	{
-		engine::graphics::renderer::camera_3d && data;
+		engine::graphics::data::camera_3d && data;
 
 		void operator () (display_t & x)
 		{
@@ -378,7 +378,7 @@ namespace
 
 	struct update_display_viewport
 	{
-		engine::graphics::renderer::viewport && data;
+		engine::graphics::data::viewport && data;
 
 		void operator () (display_t & x)
 		{
@@ -633,7 +633,7 @@ namespace
 		core::container::Buffer coords;
 		std::vector<engine::model::weight_t> weights;
 
-		mesh_t(engine::graphics::data::Mesh && data)
+		explicit mesh_t(engine::graphics::data::MeshAsset && data)
 			: modelview(core::maths::Matrix4x4f::identity())
 			, vertices(std::move(data.vertices))
 			, triangles(std::move(data.triangles))
@@ -641,7 +641,7 @@ namespace
 			, coords(std::move(data.coords))
 		{}
 
-		mesh_t(engine::model::mesh_t && data)
+		explicit mesh_t(engine::model::mesh_t && data)
 			: modelview(data.matrix)
 			, vertices(std::move(data.xyz))
 			, triangles(std::move(data.triangles))
@@ -830,7 +830,7 @@ namespace
 
 	struct update_matrixpallet
 	{
-		engine::graphics::renderer::CharacterSkinning && data;
+		engine::graphics::data::CharacterSkinning && data;
 
 		void operator () ()
 		{
@@ -1291,7 +1291,7 @@ namespace
 			std::tuple<int, int, engine::Entity, engine::Command> select_args;
 			while (queue_select.try_pop(select_args))
 			{
-				engine::graphics::renderer::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
+				engine::graphics::data::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
 				callback_select(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
 			}
 		}

@@ -244,7 +244,7 @@ namespace
 	struct extract_projection_matrices_2d
 	{
 		const Viewport & viewport;
-		engine::graphics::renderer::camera_2d & data;
+		engine::graphics::data::camera_2d & data;
 
 		void operator () (Orthographic & x)
 		{
@@ -261,7 +261,7 @@ namespace
 	struct extract_projection_matrices_3d
 	{
 		const Viewport & viewport;
-		engine::graphics::renderer::camera_3d & data;
+		engine::graphics::data::camera_3d & data;
 
 		void operator () (Orthographic & x)
 		{
@@ -359,9 +359,9 @@ namespace
 	{
 		const Viewport & viewport;
 
-		engine::graphics::renderer::camera_2d operator () (const Camera & x)
+		engine::graphics::data::camera_2d operator () (const Camera & x)
 		{
-			engine::graphics::renderer::camera_2d data;
+			engine::graphics::data::camera_2d data;
 			projections.call(x.projection_2d, extract_projection_matrices_2d{viewport, data});
 			data.view = core::maths::Matrix4x4f::identity();
 			return data;
@@ -372,9 +372,9 @@ namespace
 	{
 		const Viewport & viewport;
 
-		engine::graphics::renderer::camera_3d operator () (const Camera & x)
+		engine::graphics::data::camera_3d operator () (const Camera & x)
 		{
-			engine::graphics::renderer::camera_3d data;
+			engine::graphics::data::camera_3d data;
 			projections.call(x.projection_3d, extract_projection_matrices_3d{viewport, data});
 			data.frame = core::maths::Matrix4x4f{
 				viewport.width / 2.f, 0.f, 0.f, /*viewport.x +*/ viewport.width / 2.f,
@@ -743,7 +743,17 @@ namespace engine
 
 				for (const Viewport & viewport : viewports)
 				{
-					post_add_display(*::renderer, viewport.asset, engine::graphics::renderer::display{engine::graphics::renderer::viewport{viewport.x, viewport.y, viewport.width, viewport.height}, cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}), cameras.call(viewport.camera, extract_camera_matrices_2d{viewport})});
+					post_add_display(
+						*::renderer,
+						viewport.asset,
+						engine::graphics::data::display{
+							engine::graphics::data::viewport{
+							viewport.x,
+							viewport.y,
+							viewport.width,
+							viewport.height},
+						cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}),
+						cameras.call(viewport.camera, extract_camera_matrices_2d{viewport})});
 				}
 			}
 			else if (rebuild_matrices)

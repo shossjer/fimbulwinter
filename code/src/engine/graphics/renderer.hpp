@@ -35,79 +35,9 @@ namespace engine
 {
 	namespace graphics
 	{
-		namespace data
-		{
-			// modelview matrix
-			struct ModelviewMatrix
-			{
-				core::maths::Matrix4x4f matrix;
-			};
-		}
-
 		class renderer
 		{
 		public:
-			struct camera_2d
-			{
-				core::maths::Matrix4x4f projection;
-				core::maths::Matrix4x4f view;
-			};
-			struct camera_3d
-			{
-				core::maths::Matrix4x4f projection;
-				core::maths::Matrix4x4f frame;
-				core::maths::Matrix4x4f view;
-				core::maths::Matrix4x4f inv_projection;
-				core::maths::Matrix4x4f inv_frame;
-				core::maths::Matrix4x4f inv_view;
-			};
-			struct viewport
-			{
-				int32_t x;
-				int32_t y;
-				int32_t width;
-				int32_t height;
-			};
-			struct display
-			{
-				viewport viewport;
-				camera_3d camera_3d;
-				camera_2d camera_2d;
-			};
-
-			struct Cursor
-			{
-				int32_t x;
-				int32_t y;
-
-				static constexpr auto serialization()
-				{
-					return utility::make_lookup_table(
-						std::make_pair(utility::string_view("x"), &Cursor::x),
-						std::make_pair(utility::string_view("y"), &Cursor::y)
-						);
-				}
-			};
-
-			struct SelectData
-			{
-				engine::Entity entity;
-				Cursor cursor;
-
-				static constexpr auto serialization()
-				{
-					return utility::make_lookup_table(
-						std::make_pair(utility::string_view("entity"), &SelectData::entity),
-						std::make_pair(utility::string_view("cursor"), &SelectData::cursor)
-						);
-				}
-			};
-
-			struct CharacterSkinning
-			{
-				std::vector<core::maths::Matrix4x4f> matrix_pallet;
-			};
-
 			enum struct Type
 			{
 				OPENGL_1_2,
@@ -127,20 +57,100 @@ namespace engine
 				);
 		}
 
+		namespace data
+		{
+			struct Cursor
+			{
+				int32_t x;
+				int32_t y;
+
+				static constexpr auto serialization()
+				{
+					return utility::make_lookup_table(
+						std::make_pair(utility::string_view("x"), &Cursor::x),
+						std::make_pair(utility::string_view("y"), &Cursor::y)
+					);
+				}
+			};
+
+			struct SelectData
+			{
+				engine::Entity entity;
+				Cursor cursor;
+
+				static constexpr auto serialization()
+				{
+					return utility::make_lookup_table(
+						std::make_pair(utility::string_view("entity"), &SelectData::entity),
+						std::make_pair(utility::string_view("cursor"), &SelectData::cursor)
+					);
+				}
+			};
+
+			struct camera_2d
+			{
+				core::maths::Matrix4x4f projection;
+				core::maths::Matrix4x4f view;
+			};
+
+			struct camera_3d
+			{
+				core::maths::Matrix4x4f projection;
+				core::maths::Matrix4x4f frame;
+				core::maths::Matrix4x4f view;
+				core::maths::Matrix4x4f inv_projection;
+				core::maths::Matrix4x4f inv_frame;
+				core::maths::Matrix4x4f inv_view;
+			};
+
+			struct viewport
+			{
+				int32_t x;
+				int32_t y;
+				int32_t width;
+				int32_t height;
+			};
+
+			struct display
+			{
+				viewport viewport;
+				camera_3d camera_3d;
+				camera_2d camera_2d;
+			};
+
+			struct MeshAsset
+			{
+				core::container::Buffer vertices;
+				core::container::Buffer triangles;
+				core::container::Buffer normals;
+				core::container::Buffer coords;
+			};
+
+			struct CharacterSkinning
+			{
+				std::vector<core::maths::Matrix4x4f> matrix_pallet;
+			};
+
+			struct ModelviewMatrix
+			{
+				core::maths::Matrix4x4f matrix;
+			};
+		}
+
 		// todo this feels hacky
 		void set_shader_directory(renderer & renderer, utility::heap_string_utf8 && directory);
 
 		// void notify(renderer & renderer, renderer::Camera2D && data);
 		// void notify(renderer & renderer, renderer::Camera3D && data);
 		// void notify(renderer & renderer, renderer::Viewport && data);
-		void post_add_display(renderer & renderer, engine::Asset asset, renderer::display && data);
+		void post_add_display(renderer & renderer, engine::Asset asset, data::display && data);
 		void post_remove_display(renderer & renderer, engine::Asset asset);
-		void post_update_display(renderer & renderer, engine::Asset asset, renderer::camera_2d && data);
-		void post_update_display(renderer & renderer, engine::Asset asset, renderer::camera_3d && data);
-		void post_update_display(renderer & renderer, engine::Asset asset, renderer::viewport && data);
+		void post_update_display(renderer & renderer, engine::Asset asset, data::camera_2d && data);
+		void post_update_display(renderer & renderer, engine::Asset asset, data::camera_3d && data);
+		void post_update_display(renderer & renderer, engine::Asset asset, data::viewport && data);
 
 		void post_register_character(renderer & renderer, engine::Asset asset, engine::model::mesh_t && data);
-		void post_register_mesh(renderer & renderer, engine::Asset asset, data::Mesh && data);
+		void post_register_mesh(renderer & renderer, engine::Asset asset, data::MeshAsset && data);
 		void post_register_texture(renderer & renderer, engine::Asset asset, core::graphics::Image && image);
 
 		void post_make_selectable(renderer & renderer, engine::Entity entity);
@@ -155,7 +165,7 @@ namespace engine
 
 		void post_remove(renderer & renderer, engine::Entity entity);
 
-		void post_update_characterskinning(renderer & renderer, engine::Entity entity, renderer::CharacterSkinning && data);
+		void post_update_characterskinning(renderer & renderer, engine::Entity entity, data::CharacterSkinning && data);
 		void post_update_modelviewmatrix(renderer & renderer, engine::Entity entity, data::ModelviewMatrix && data);
 
 		void post_select(renderer & renderer, int x, int y, engine::Entity entity, engine::Command command);

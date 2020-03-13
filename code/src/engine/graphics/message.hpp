@@ -20,7 +20,7 @@ namespace engine
 			struct MessageAddDisplay
 			{
 				engine::Asset asset;
-				engine::graphics::renderer::display display;
+				engine::graphics::data::display display;
 			};
 
 			struct MessageRemoveDisplay
@@ -31,19 +31,19 @@ namespace engine
 			struct MessageUpdateDisplayCamera2D
 			{
 				engine::Asset asset;
-				engine::graphics::renderer::camera_2d camera_2d;
+				engine::graphics::data::camera_2d camera_2d;
 			};
 
 			struct MessageUpdateDisplayCamera3D
 			{
 				engine::Asset asset;
-				engine::graphics::renderer::camera_3d camera_3d;
+				engine::graphics::data::camera_3d camera_3d;
 			};
 
 			struct MessageUpdateDisplayViewport
 			{
 				engine::Asset asset;
-				engine::graphics::renderer::viewport viewport;
+				engine::graphics::data::viewport viewport;
 			};
 
 			struct MessageRegisterCharacter
@@ -54,7 +54,7 @@ namespace engine
 			struct MessageRegisterMesh
 			{
 				engine::Asset asset;
-				engine::graphics::data::Mesh mesh;
+				engine::graphics::data::MeshAsset mesh;
 			};
 
 			struct MessageRegisterTexture
@@ -110,7 +110,7 @@ namespace engine
 			struct MessageUpdateCharacterSkinning
 			{
 				engine::Entity entity;
-				engine::graphics::renderer::CharacterSkinning character_skinning;
+				engine::graphics::data::CharacterSkinning character_skinning;
 			};
 
 			struct MessageUpdateModelviewMatrix

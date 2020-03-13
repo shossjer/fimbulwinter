@@ -143,7 +143,7 @@ namespace engine
 			}
 		}
 
-		void post_add_display(renderer &, engine::Asset asset, renderer::display && data)
+		void post_add_display(renderer &, engine::Asset asset, data::display && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageAddDisplay>, asset, std::move(data)));
 		}
@@ -151,15 +151,15 @@ namespace engine
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRemoveDisplay>, asset));
 		}
-		void post_update_display(renderer &, engine::Asset asset, renderer::camera_2d && data)
+		void post_update_display(renderer &, engine::Asset asset, data::camera_2d && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera2D>, asset, std::move(data)));
 		}
-		void post_update_display(renderer &, engine::Asset asset, renderer::camera_3d && data)
+		void post_update_display(renderer &, engine::Asset asset, data::camera_3d && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera3D>, asset, std::move(data)));
 		}
-		void post_update_display(renderer &, engine::Asset asset, renderer::viewport && data)
+		void post_update_display(renderer &, engine::Asset asset, data::viewport && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateDisplayViewport>, asset, std::move(data)));
 		}
@@ -168,7 +168,7 @@ namespace engine
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterCharacter>, asset, std::move(data)));
 		}
-		void post_register_mesh(renderer &, engine::Asset asset, data::Mesh && data)
+		void post_register_mesh(renderer &, engine::Asset asset, data::MeshAsset && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterMesh>, asset, std::move(data)));
 		}
@@ -216,7 +216,7 @@ namespace engine
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRemove>, entity));
 		}
 
-		void post_update_characterskinning(renderer &, engine::Entity entity, renderer::CharacterSkinning && data)
+		void post_update_characterskinning(renderer &, engine::Entity entity, data::CharacterSkinning && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateCharacterSkinning>, entity, std::move(data)));
 		}
