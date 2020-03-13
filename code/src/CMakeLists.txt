@@ -20,6 +20,7 @@ set(HEADERS_CORE
 	src/core/container/Stack.hpp
 	src/core/container/Queue.hpp
 	src/core/debug.hpp
+	src/core/file/paths.hpp
 	src/core/graphics/Image.hpp
 	src/core/graphics/types.hpp
 	src/core/IniSerializer.hpp

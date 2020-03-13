@@ -5,6 +5,7 @@ set(FILES_CORE
 	tst/core/container/Collection.cpp
 	tst/core/container/Queue.cpp
 	tst/core/debug.cpp
+	tst/core/file/paths.cpp
 	tst/core/maths/Matrix.cpp
 	tst/core/maths/Quaternion.cpp
 	tst/core/maths/Vector.cpp
