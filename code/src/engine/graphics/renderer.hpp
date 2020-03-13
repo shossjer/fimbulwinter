@@ -37,86 +37,6 @@ namespace engine
 	{
 		namespace data
 		{
-			// Color
-			using Color = uint32_t;
-
-			// line segments with color
-			struct LineC
-			{
-				core::maths::Matrix4x4f modelview;
-				core::container::Buffer vertices;
-				core::container::Buffer edges;
-				Color color;
-			};
-
-			// mesh with optional uv-coords
-			// uv-coords must exist if any component instance has texture
-			struct Mesh
-			{
-				core::container::Buffer vertices;
-				core::container::Buffer triangles;
-				core::container::Buffer normals;
-				core::container::Buffer coords;
-			};
-
-			// used when adding components
-			struct CompT
-			{
-				core::maths::Matrix4x4f modelview;
-				core::maths::Vector3f scale;
-				engine::Asset mesh;
-				engine::Asset texture;
-			};
-
-			struct CompC
-			{
-				core::maths::Matrix4x4f modelview;
-				core::maths::Vector3f scale;
-
-				struct asset
-				{
-					engine::Asset mesh;
-					Color color;
-				};
-				std::vector<asset> assets;
-			};
-
-			struct Bar
-			{
-				// TODO: enum for type of Bar (Progress, Hitpoints, Level etc)
-
-				core::maths::Vector3f worldPosition;
-
-				// value between 0.f to 1.f
-				float progress;
-			};
-
-			namespace ui
-			{
-				struct PanelC
-				{
-					core::maths::Matrix4x4f matrix;
-					core::maths::Vector2f size;
-					Color color;
-				};
-
-				struct PanelT
-				{
-					core::maths::Matrix4x4f matrix;
-					core::maths::Vector2f size;
-					engine::Asset texture;
-				};
-
-				struct Text
-				{
-					core::maths::Matrix4x4f matrix;
-					Color color;
-					std::string display;
-					// TODO: asset font resource
-					// TODO: font size
-				};
-			}
-
 			// modelview matrix
 			struct ModelviewMatrix
 			{
@@ -223,15 +143,6 @@ namespace engine
 		void post_register_mesh(renderer & renderer, engine::Asset asset, data::Mesh && data);
 		void post_register_texture(renderer & renderer, engine::Asset asset, core::graphics::Image && image);
 
-		void post_add_bar(renderer & renderer, engine::Entity entity, data::Bar && bar);
-		void post_add_character(renderer & renderer, engine::Entity entity, data::CompT && data);
-		void post_add_component(renderer & renderer, engine::Entity entity, data::CompC && data);
-		void post_add_component(renderer & renderer, engine::Entity entity, data::CompT && data);
-		void post_add_line(renderer & renderer, engine::Entity entity, data::LineC && data);
-		void post_add_panel(renderer & renderer, engine::Entity entity, data::ui::PanelC && data);
-		void post_add_panel(renderer & renderer, engine::Entity entity, data::ui::PanelT && data);
-		void post_add_text(renderer & renderer, engine::Entity entity, data::ui::Text && data);
-
 		void post_make_selectable(renderer & renderer, engine::Entity entity);
 		void post_make_obstruction(renderer & renderer, engine::Entity entity);
 		void post_make_transparent(renderer & renderer, engine::Entity entity);
@@ -246,9 +157,6 @@ namespace engine
 
 		void post_update_characterskinning(renderer & renderer, engine::Entity entity, renderer::CharacterSkinning && data);
 		void post_update_modelviewmatrix(renderer & renderer, engine::Entity entity, data::ModelviewMatrix && data);
-		void post_update_panel(renderer & renderer, engine::Entity entity, data::ui::PanelC && data);
-		void post_update_panel(renderer & renderer, engine::Entity entity, data::ui::PanelT && data);
-		void post_update_text(renderer & renderer, engine::Entity entity, data::ui::Text && data);
 
 		void post_select(renderer & renderer, int x, int y, engine::Entity entity, engine::Command command);
 

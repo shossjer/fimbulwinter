@@ -63,9 +63,7 @@ namespace engine
 			extern std::atomic_int active;
 			extern core::sync::Event<true> event;
 
-			extern core::container::PageQueue<utility::heap_storage<DisplayMessage>> queue_displays;
-			extern core::container::PageQueue<utility::heap_storage<AssetMessage>> queue_assets;
-			extern core::container::PageQueue<utility::heap_storage<EntityMessage>> queue_entities;
+			extern core::container::PageQueue<utility::heap_storage<Message>> message_queue;
 
 			extern core::container::PageQueue<utility::heap_storage<int, int, engine::Entity, engine::Command>> queue_select;
 
@@ -413,15 +411,6 @@ namespace
 		}
 	};
 
-	engine::graphics::opengl::Color4ub color_from(const engine::graphics::data::Color color)
-	{
-		return engine::graphics::opengl::Color4ub{
-			(color & 0x000000ff) >> 0,
-			(color & 0x0000ff00) >> 8,
-			(color & 0x00ff0000) >> 16,
-			(color & 0xff000000) >> 24 };
-	}
-
 	struct texture_t
 	{
 		GLuint id;
@@ -719,54 +708,6 @@ namespace
 	};
 
 
-	struct comp_c
-	{
-		struct asset
-		{
-			const mesh_t * mesh;
-			engine::graphics::opengl::Color4ub color;
-
-			asset(engine::graphics::data::CompC::asset && data)
-				: mesh(&resources.get<mesh_t>(data.mesh))
-				, color((data.color & 0x000000ff) >> 0,
-						(data.color & 0x0000ff00) >> 8,
-						(data.color & 0x00ff0000) >> 16,
-						(data.color & 0xff000000) >> 24)
-			{}
-		};
-
-		object_modelview * object;
-		std::vector<asset> assets;
-
-		comp_c(
-			object_modelview & object,
-			std::vector<engine::graphics::data::CompC::asset> && assets)
-			: object(&object)
-		{
-			this->assets.reserve(assets.size());
-			for (auto & asset : assets)
-			{
-				this->assets.emplace_back(std::move(asset));
-			}
-		}
-	};
-
-	struct comp_t
-	{
-		const mesh_t * mesh;
-		const texture_t * texture;
-		object_modelview * object;
-
-		comp_t(
-			const mesh_t & mesh,
-			const texture_t & texture,
-			object_modelview & object)
-			: mesh(&mesh)
-			, texture(&texture)
-			, object(&object)
-		{}
-	};
-
 	struct Character
 	{
 		const mesh_t * mesh;
@@ -783,105 +724,11 @@ namespace
 		{}
 	};
 
-	struct Bar
-	{
-		core::maths::Vector3f worldPosition;
-		float progress;
-
-		Bar(engine::graphics::data::Bar && bar)
-			: worldPosition(bar.worldPosition)
-			, progress(bar.progress)
-		{}
-	};
-
-	struct linec_t
-	{
-		core::maths::Matrix4x4f modelview;
-		core::container::Buffer vertices;
-		core::container::Buffer edges;
-		engine::graphics::opengl::Color4ub color;
-
-		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
-
-		linec_t(engine::graphics::data::LineC && data) :
-			modelview(std::move(data.modelview)),
-			vertices(std::move(data.vertices)),
-			edges(std::move(data.edges)),
-			color((data.color & 0x000000ff) >>  0,
-			      (data.color & 0x0000ff00) >>  8,
-			      (data.color & 0x00ff0000) >> 16,
-			      (data.color & 0xff000000) >> 24)
-		{}
-		linec_t & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			modelview = std::move(data.matrix);
-			return *this;
-		}
-	};
-
-	namespace ui
-	{
-		struct PanelC
-		{
-			object_modelview * object;
-			core::maths::Vector2f size;
-			engine::graphics::opengl::Color4ub color;
-
-			PanelC(
-				object_modelview & object,
-				core::maths::Vector2f && size,
-				unsigned int && color)
-				: object(&object)
-				, size(std::move(size))
-				, color(color_from(std::move(color)))
-			{}
-		};
-
-		struct PanelT
-		{
-			const texture_t * texture;
-			object_modelview * object;
-			core::maths::Vector2f size;
-
-			PanelT(
-				const texture_t & texture,
-				object_modelview & object,
-				core::maths::Vector2f && size)
-				: texture(&texture)
-				, object(&object)
-				, size(std::move(size))
-			{}
-		};
-
-		struct Text
-		{
-			object_modelview * object;
-			std::string display;
-			engine::graphics::opengl::Color4ub color;
-
-			Text(
-				object_modelview & object,
-				std::string && display,
-				unsigned int && color)
-				: object(&object)
-				, display(std::move(display))
-				, color(color_from(color))
-			{}
-		};
-	}
-
 	core::container::Collection
 	<
 		engine::Entity,
 		1601,
-		utility::heap_storage<comp_c>,
-		utility::heap_storage<comp_t>,
-		utility::heap_storage<Character>,
-		utility::heap_storage<Bar>,
-		utility::heap_storage<linec_t>,
-		utility::heap_storage<::ui::PanelC>,
-		utility::heap_storage<::ui::PanelT>,
-		utility::heap_storage<::ui::Text>
+		utility::heap_storage<Character>
 	>
 	components;
 
@@ -903,64 +750,11 @@ namespace
 		{}
 	};
 
-	struct selectable_comp_c
-	{
-		std::vector<const mesh_t *> meshes;
-		object_modelview * object;
-
-		engine::graphics::opengl::Color4ub selectable_color;
-
-		selectable_comp_c(
-			std::vector<const mesh_t *> meshes,
-			object_modelview * object,
-			engine::graphics::opengl::Color4ub selectable_color)
-			: meshes(std::move(meshes))
-			, object(object)
-			, selectable_color(std::move(selectable_color))
-		{}
-	};
-
-	struct selectable_comp_t
-	{
-		const mesh_t * mesh;
-		object_modelview * object;
-
-		engine::graphics::opengl::Color4ub selectable_color;
-
-		selectable_comp_t(
-			const mesh_t * mesh,
-			object_modelview * object,
-			engine::graphics::opengl::Color4ub selectable_color)
-			: mesh(mesh)
-			, object(object)
-			, selectable_color(std::move(selectable_color))
-		{}
-	};
-
-	struct selectable_panel
-	{
-		object_modelview * object;
-		core::maths::Vector2f size;
-		engine::graphics::opengl::Color4ub selectable_color;
-
-		selectable_panel(
-			object_modelview * object,
-			core::maths::Vector2f size,
-			engine::graphics::opengl::Color4ub selectable_color)
-			: object(object)
-			, size(std::move(size))
-			, selectable_color(std::move(selectable_color))
-		{}
-	};
-
 	core::container::Collection
 	<
 		engine::Entity,
 		1601,
-		utility::heap_storage<selectable_character_t>,
-		utility::heap_storage<selectable_comp_c>,
-		utility::heap_storage<selectable_comp_t>,
-		utility::heap_storage<selectable_panel>
+		utility::heap_storage<selectable_character_t>
 	>
 	selectable_components;
 
@@ -968,31 +762,9 @@ namespace
 	{
 		engine::graphics::opengl::Color4ub color;
 
-		void operator () (engine::Entity entity, comp_c & x)
-		{
-			std::vector<const mesh_t *> meshes;
-			meshes.reserve(x.assets.size());
-			for (const auto & asset : x.assets)
-			{
-				meshes.push_back(asset.mesh);
-			}
-			debug_verify(selectable_components.try_emplace<selectable_comp_c>(entity, meshes, x.object, color));
-		}
-		void operator () (engine::Entity entity, comp_t & x)
-		{
-			debug_verify(selectable_components.try_emplace<selectable_comp_t>(entity, x.mesh, x.object, color));
-		}
 		void operator () (engine::Entity entity, Character & x)
 		{
 			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity, x.mesh, x.object, color));
-		}
-		void operator () (engine::Entity entity, ui::PanelC & x)
-		{
-			debug_verify(selectable_components.try_emplace<selectable_panel>(entity, x.object, x.size, color));
-		}
-		void operator () (engine::Entity entity, ui::PanelT & x)
-		{
-			debug_verify(selectable_components.try_emplace<selectable_panel>(entity, x.object, x.size, color));
 		}
 
 		template <typename T>
@@ -1101,8 +873,9 @@ namespace
 	void poll_queues()
 	{
 		bool should_maybe_resize_framebuffer = false;
-		DisplayMessage display_message;
-		while (queue_displays.try_pop(display_message))
+
+		Message message;
+		while (message_queue.try_pop(message))
 		{
 			struct ProcessMessage
 			{
@@ -1116,37 +889,29 @@ namespace
 					                                             x.display.camera_2d.projection, x.display.camera_2d.view));
 					should_maybe_resize_framebuffer = true;
 				}
+
 				void operator () (MessageRemoveDisplay && x)
 				{
 					displays.remove(x.asset);
 					should_maybe_resize_framebuffer = true;
 				}
+
 				void operator () (MessageUpdateDisplayCamera2D && x)
 				{
 					displays.call(x.asset, update_display_camera_2d{std::move(x.camera_2d)});
 				}
+
 				void operator () (MessageUpdateDisplayCamera3D && x)
 				{
 					displays.call(x.asset, update_display_camera_3d{std::move(x.camera_3d)});
 				}
+
 				void operator () (MessageUpdateDisplayViewport && x)
 				{
 					displays.call(x.asset, update_display_viewport{std::move(x.viewport)});
 					should_maybe_resize_framebuffer = true;
 				}
-			};
-			visit(ProcessMessage{should_maybe_resize_framebuffer}, std::move(display_message));
-		}
-		if (should_maybe_resize_framebuffer)
-		{
-			maybe_resize_framebuffer();
-		}
 
-		AssetMessage asset_message;
-		while (queue_assets.try_pop(asset_message))
-		{
-			struct ProcessMessage
-			{
 				void operator () (MessageRegisterCharacter && x)
 				{
 					debug_assert(!resources.contains(x.asset));
@@ -1157,81 +922,13 @@ namespace
 					debug_assert(!resources.contains(x.asset));
 					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
 				}
+
 				void operator () (MessageRegisterTexture && x)
 				{
 					debug_assert(!materials.contains(x.asset));
 					materials.emplace<texture_t>(x.asset, std::move(x.image));
 				}
-			};
-			visit(ProcessMessage{}, std::move(asset_message));
-		}
 
-		EntityMessage entity_message;
-		while (queue_entities.try_pop(entity_message))
-		{
-			struct ProcessMessage
-			{
-				void operator () (MessageAddBar && x)
-				{
-					if (components.contains(x.entity))
-					{
-						// is this safe to do?
-						auto & bar = components.get<Bar>(x.entity);
-						bar.worldPosition = x.bar.worldPosition;
-						bar.progress = x.bar.progress;
-					}
-					else
-					{
-						debug_verify(components.try_emplace<Bar>(x.entity, std::move(x.bar)));
-					}
-				}
-				void operator () (MessageAddCharacterT && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					const auto & mesh = resources.get<mesh_t>(x.component.mesh);
-					const auto & texture = materials.get<texture_t>(x.component.texture);
-					auto & object = objects.emplace<object_modelview_vertices>(x.entity, mesh, std::move(x.component.modelview));
-					debug_verify(components.try_emplace<Character>(x.entity, mesh, texture, object));
-					debug_verify(updateable_components.try_emplace<updateable_character_t>(x.entity, mesh, object));
-				}
-				void operator () (MessageAddComponentC && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.component.modelview));
-					debug_verify(components.try_emplace<comp_c>(x.entity, object, std::move(x.component.assets)));
-				}
-				void operator () (MessageAddComponentT && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					const auto & mesh = resources.get<mesh_t>(x.component.mesh);
-					const auto & texture = materials.get<texture_t>(x.component.texture);
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.component.modelview));
-					debug_verify(components.try_emplace<comp_t>(x.entity, mesh, texture, object));
-				}
-				void operator () (MessageAddLineC && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					debug_verify(components.try_emplace<linec_t>(x.entity, std::move(x.line)));
-				}
-				void operator () (MessageAddPanelC && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.panel.matrix));
-					debug_verify(components.try_emplace<::ui::PanelC>(x.entity, object, std::move(x.panel.size), std::move(x.panel.color)));
-				}
-				void operator () (MessageAddPanelT && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					const auto & texture = materials.get<texture_t>(x.panel.texture);
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.panel.matrix));
-					debug_verify(components.try_emplace<::ui::PanelT>(x.entity, texture, object, std::move(x.panel.size)));
-				}
-				void operator () (MessageAddText && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.text.matrix));
-					debug_verify(components.try_emplace<::ui::Text>(x.entity, object, std::move(x.text.display), std::move(x.text.color)));
-				}
 				void operator () (MessageMakeObstruction && x)
 				{
 					const engine::graphics::opengl::Color4ub color = {0, 0, 0, 0};
@@ -1244,6 +941,7 @@ namespace
 						components.call(x.entity, add_selectable_color{color});
 					}
 				}
+
 				void operator () (MessageMakeSelectable && x)
 				{
 					const engine::graphics::opengl::Color4ub color = {(x.entity & 0x000000ff) >> 0,
@@ -1259,6 +957,7 @@ namespace
 						components.call(x.entity, add_selectable_color{color});
 					}
 				}
+
 				void operator () (MessageMakeTransparent && x)
 				{
 					if (selectable_components.contains(x.entity))
@@ -1266,26 +965,32 @@ namespace
 						selectable_components.remove(x.entity);
 					}
 				}
+
 				void operator () (MessageMakeClearSelection &&)
 				{
 					debug_fail(); // not implemented yet
 				}
+
 				void operator () (MessageMakeDehighlighted && x)
 				{
 					selected_components.try_remove<highlighted_t>(x.entity);
 				}
+
 				void operator () (MessageMakeDeselect && x)
 				{
 					selected_components.try_remove<selected_t>(x.entity);
 				}
+
 				void operator () (MessageMakeHighlighted && x)
 				{
 					selected_components.emplace<highlighted_t>(x.entity);
 				}
+
 				void operator () (MessageMakeSelect && x)
 				{
 					selected_components.emplace<selected_t>(x.entity);
 				}
+
 				void operator () (MessageRemove && x)
 				{
 					debug_assert(components.contains(x.entity));
@@ -1303,43 +1008,24 @@ namespace
 						objects.remove(x.entity);
 					}
 				}
+
 				void operator () (MessageUpdateCharacterSkinning && x)
 				{
 					debug_assert(updateable_components.contains(x.entity));
 					updateable_components.call(x.entity, update_matrixpallet{std::move(x.character_skinning)});
 				}
+
 				void operator () (MessageUpdateModelviewMatrix && x)
 				{
 					debug_assert(objects.contains(x.entity));
 					objects.call(x.entity, update_modelview{std::move(x.modelview_matrix)});
 				}
-				void operator () (MessageUpdatePanelC && x)
-				{
-					debug_assert(components.contains(x.entity));
-					auto & view = components.get<ui::PanelC>(x.entity);
-					view.object->modelview = x.panel.matrix;
-					view.color = color_from(x.panel.color);
-					view.size = x.panel.size;
-				}
-				void operator () (MessageUpdatePanelT && x)
-				{
-					debug_assert(components.contains(x.entity));
-					const auto & texture = materials.get<texture_t>(x.panel.texture);
-					auto & view = components.get<ui::PanelT>(x.entity);
-					view.object->modelview = x.panel.matrix;
-					view.size = x.panel.size;
-					view.texture = &texture;
-				}
-				void operator () (MessageUpdateText && x)
-				{
-					debug_assert(components.contains(x.entity));
-					auto & view = components.get<ui::Text>(x.entity);
-					view.object->modelview = x.text.matrix;
-					view.color = color_from(x.text.color);
-					view.display = x.text.display;
-				}
 			};
-			visit(ProcessMessage{}, std::move(entity_message));
+			visit(ProcessMessage{should_maybe_resize_framebuffer}, std::move(message));
+		}
+		if (should_maybe_resize_framebuffer)
+		{
+			maybe_resize_framebuffer();
 		}
 
 		std::pair<engine::Asset, ShaderData> shader_data_pair;
@@ -1514,10 +1200,8 @@ namespace
 		if (framebuffer_width == 0 || framebuffer_height == 0)
 			return;
 
-		const GLint p_color = shader_manager.get(engine::Asset("res/gfx/color.130.glsl"));
 		const GLint p_entity = shader_manager.get(engine::Asset("res/gfx/entity.130.glsl"));
 		const GLint p_tex = shader_manager.get(engine::Asset("res/gfx/texture.130.glsl"));
-		const GLint p_text = shader_manager.get(engine::Asset("res/gfx/text.130.glsl"));
 
 		glStencilMask(0x000000ff);
 		// setup frame
@@ -1525,7 +1209,6 @@ namespace
 		glClearDepth(1.);
 		//glClearStencil(0x00000000);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
 		debug_assert(glGetError() == GL_NO_ERROR);
 
 		////////////////////////////////////////////////////////
@@ -1585,67 +1268,6 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : selectable_components.get<selectable_comp_c>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_entity, "modelview_matrix", modelview_matrix.top());
-
-			const auto color_location = 5;// glGetAttribLocation(p_tex, "status_flags");
-			glVertexAttrib4f(color_location, component.selectable_color[0] / 255.f, component.selectable_color[1] / 255.f, component.selectable_color[2] / 255.f, component.selectable_color[3] / 255.f);
-
-			const auto vertex_location = 4;// glGetAttribLocation(p_tex, "in_vertex");
-			glEnableVertexAttribArray(vertex_location);
-			for (const auto & mesh : component.meshes)
-			{
-				glVertexAttribPointer(
-					vertex_location,
-					3,
-					BufferFormats[static_cast<int>(mesh->vertices.format())],
-					GL_FALSE,
-					0,
-					mesh->vertices.data());
-				glDrawElements(
-					GL_TRIANGLES,
-					debug_cast<GLsizei>(mesh->triangles.count()),
-					BufferFormats[static_cast<int>(mesh->triangles.format())],
-					mesh->triangles.data());
-			}
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		for (const auto & component : selectable_components.get<selectable_comp_t>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_entity, "modelview_matrix", modelview_matrix.top());
-
-			const auto color_location = 5;// glGetAttribLocation(p_tex, "status_flags");
-			glVertexAttrib4f(color_location, component.selectable_color[0] / 255.f, component.selectable_color[1] / 255.f, component.selectable_color[2] / 255.f, component.selectable_color[3] / 255.f);
-
-			const auto vertex_location = 4;// glGetAttribLocation(p_tex, "in_vertex");
-			glEnableVertexAttribArray(vertex_location);
-			glVertexAttribPointer(
-				vertex_location,
-				3,
-				BufferFormats[static_cast<int>(component.mesh->vertices.format())],
-				GL_FALSE,
-				0,
-				component.mesh->vertices.data());
-			glDrawElements(
-				GL_TRIANGLES,
-				debug_cast<GLsizei>(component.mesh->triangles.count()),
-				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
-				component.mesh->triangles.data());
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
 		}
 
 		// setup 2D
@@ -1653,55 +1275,6 @@ namespace
 		glLoadMatrix(display.projection_2d);
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(display.view_2d);
-
-		if (p_entity >= 0)
-		{
-		glUniform(p_entity, "projection_matrix", display.projection_2d);
-		for (const auto & component : selectable_components.get<selectable_panel>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_entity, "modelview_matrix", modelview_matrix.top());
-
-			const auto color_location = 5;// glGetAttribLocation(p_tex, "status_flags");
-			glVertexAttrib4f(color_location, component.selectable_color[0] / 255.f, component.selectable_color[1] / 255.f, component.selectable_color[2] / 255.f, component.selectable_color[3] / 255.f);
-
-			core::maths::Vector2f::array_type size;
-			component.size.get_aligned(size);
-
-			const GLfloat vertices[] = {
-				0.f, size[1],
-				size[0], size[1],
-				size[0], 0.f,
-				0.f, 0.f
-			};
-			const GLushort indices[] = {
-				0, 1, 2,
-				2, 3, 0
-			};
-
-			const auto vertex_location = 4;// glGetAttribLocation(p_tex, "in_vertex");
-			glEnableVertexAttribArray(vertex_location);
-			glVertexAttribPointer(
-				vertex_location,
-				2,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				vertices);
-			glDrawElements(
-				GL_TRIANGLES,
-				6,
-				GL_UNSIGNED_SHORT,
-				indices);
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
 
 		}
 
@@ -1836,212 +1409,6 @@ namespace
 		}
 		glUseProgram(0);
 		}
-		if (p_color >= 0)
-		{
-		glUseProgram(p_color);
-		glUniform(p_color, "projection_matrix", display.projection_3d);
-		{
-			static int frame_count = 0;
-			frame_count++;
-
-			glUniform(p_color, "time", static_cast<float>(frame_count) / 50.f);
-		}
-		glUniform(p_color, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
-		for (const auto & component : components.get<linec_t>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.modelview);
-			glUniform(p_color, "modelview_matrix", modelview_matrix.top());
-
-			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = selectable_components.contains(entity);
-
-			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
-
-			const auto color_location = 7;
-			glVertexAttrib4f(color_location, component.color[0] / 255.f, component.color[1] / 255.f, component.color[2] / 255.f, component.color[3] / 255.f);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-
-			glUniform(p_color, "entitytex", 0);
-
-			glLineWidth(2.f);
-
-			const auto vertex_location = 5;
-			glEnableVertexAttribArray(vertex_location);
-			glVertexAttribPointer(
-				vertex_location,
-				3,
-				BufferFormats[static_cast<int>(component.vertices.format())],
-				GL_FALSE,
-				0,
-				component.vertices.data());
-			glDrawElements(
-				GL_LINES,
-				debug_cast<GLsizei>(component.edges.count()),
-				BufferFormats[static_cast<int>(component.edges.format())],
-				component.edges.data());
-			glDisableVertexAttribArray(vertex_location);
-
-			glLineWidth(1.f);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
-		if (p_tex >= 0)
-		{
-		glUseProgram(p_tex);
-		glUniform(p_tex, "projection_matrix", display.projection_3d);
-		{
-			static int frame_count = 0;
-			frame_count++;
-
-			glUniform(p_tex, "time", static_cast<float>(frame_count) / 50.f);
-		}
-		glUniform(p_tex, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
-		for (const auto & component : components.get<comp_t>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_tex, "modelview_matrix", modelview_matrix.top());
-
-			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = selectable_components.contains(entity);
-
-			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
-
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, component.texture->id);
-
-			glUniform(p_tex, "tex", 0);
-			glUniform(p_tex, "entitytex", 1);
-
-			const mesh_t & mesh = *component.mesh;
-
-			const auto vertex_location = 5;
-			const auto normal_location = 6;
-			const auto texcoord_location = 7;
-			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(normal_location);
-			glEnableVertexAttribArray(texcoord_location);
-			glVertexAttribPointer(
-				vertex_location,
-				3,
-				BufferFormats[static_cast<int>(mesh.vertices.format())],
-				GL_FALSE,
-				0,
-				mesh.vertices.data());
-			glVertexAttribPointer(
-				normal_location,
-				3,
-				BufferFormats[static_cast<int>(mesh.normals.format())],
-				GL_FALSE,
-				0,
-				mesh.normals.data());
-			glVertexAttribPointer(
-				texcoord_location,
-				2,
-				BufferFormats[static_cast<int>(mesh.coords.format())],
-				GL_FALSE,
-				0,
-				mesh.coords.data());
-			glDrawElements(
-				GL_TRIANGLES,
-				debug_cast<GLsizei>(mesh.triangles.count()),
-				BufferFormats[static_cast<int>(mesh.triangles.format())],
-				mesh.triangles.data());
-			glDisableVertexAttribArray(texcoord_location);
-			glDisableVertexAttribArray(normal_location);
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
-		if (p_color >= 0)
-		{
-		glUseProgram(p_color);
-		glUniform(p_color, "projection_matrix", display.projection_3d);
-		{
-			static int frame_count = 0;
-			frame_count++;
-
-			glUniform(p_color, "time", static_cast<float>(frame_count) / 50.f);
-		}
-		glUniform(p_color, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
-		for (const comp_c & component : components.get<comp_c>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_color, "modelview_matrix", modelview_matrix.top());
-
-			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = selectable_components.contains(entity);
-
-			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-
-			glUniform(p_color, "entitytex", 0);
-
-			const auto vertex_location = 5;
-			const auto normal_location = 6;
-			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(normal_location);
-			for (const auto & a : component.assets)
-			{
-				const mesh_t & mesh = *a.mesh;
-
-				const auto color_location = 7;
-				glVertexAttrib4f(color_location, a.color[0] / 255.f, a.color[1] / 255.f, a.color[2] / 255.f, a.color[3] / 255.f);
-
-				glVertexAttribPointer(
-					vertex_location,
-					3,
-					BufferFormats[static_cast<int>(mesh.vertices.format())],
-					GL_FALSE,
-					0,
-					mesh.vertices.data());
-				glVertexAttribPointer(
-					normal_location,
-					3,
-					BufferFormats[static_cast<int>(mesh.normals.format())],
-					GL_FALSE,
-					0,
-					mesh.normals.data());
-				glDrawElements(
-					GL_TRIANGLES,
-					debug_cast<GLsizei>(mesh.triangles.count()),
-					BufferFormats[static_cast<int>(mesh.triangles.format())],
-					mesh.triangles.data());
-			}
-			glDisableVertexAttribArray(normal_location);
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
 
 		glDisable(GL_STENCIL_TEST);
 		glDisable(GL_DEPTH_TEST);
@@ -2058,340 +1425,10 @@ namespace
 
 		// 2d
 		// ...
-		if (p_color >= 0)
-		{
-		glUseProgram(p_color);
-		glUniform(p_color, "projection_matrix", display.projection_2d);
-		{
-			static int frame_count = 0;
-			frame_count++;
-
-			glUniform(p_color, "time", static_cast<float>(frame_count) / 50.f);
-		}
-		glUniform(p_color, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
-		for (const Bar & component : components.get<Bar>())
-		{
-			modelview_matrix.push();
-
-			// calculate modelview of bar position in world space
-			core::maths::Vector2f frameCoord = display.from_world_to_frame(component.worldPosition);
-			core::maths::Vector2f::array_type b;
-			frameCoord.get_aligned(b);
-
-			core::maths::Matrix4x4f modelview = make_translation_matrix(core::maths::Vector3f{ b[0], b[1], 0.f });
-
-			modelview_matrix.mult(modelview);
-			glUniform(p_color, "modelview_matrix", modelview_matrix.top());
-
-			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, 0.f, 0.f, 0.f, 0.f);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-
-			glUniform(p_color, "entitytex", 0);
-
-			const float WF = 28.f;
-			const float WI = WF - 2.f;
-			const float HF = 5.f;
-			const float HI = HF - 2.f;
-			const float ws = -WI + component.progress * WI * 2;
-
-			const GLfloat vertices[] = {
-				-WF, -HF,
-				-WF, HF,
-				WF, HF,
-				WF, -HF,
-
-				-WI, -HI,
-				-WI, HI,
-				ws, HI,
-				ws, -HI
-			};
-			const GLubyte colors[] = {
-				20, 20, 40, 255,
-				20, 20, 40, 255,
-				20, 20, 40, 255,
-				20, 20, 40, 255,
-
-				100, 255, 80, 255,
-				100, 255, 80, 255,
-				100, 255, 80, 255,
-				100, 255, 80, 255
-			};
-			const GLushort indices[] = {
-				0, 1, 2,
-				2, 3, 0,
-
-				4, 5, 6,
-				6, 7, 4
-			};
-
-			const auto vertex_location = 5;
-			const auto color_location = 7;
-			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(color_location);
-			glVertexAttribPointer(
-				vertex_location,
-				2,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				vertices);
-			glVertexAttribPointer(
-				color_location,
-				4,
-				GL_UNSIGNED_BYTE,
-				GL_TRUE,
-				0,
-				colors);
-			glDrawElements(
-				GL_TRIANGLES,
-				12,
-				GL_UNSIGNED_SHORT,
-				indices);
-			glDisableVertexAttribArray(color_location);
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
-
 
 		// clear depth to make GUI show over all prev. rendering
 		glClearDepth(1.0);
 		glEnable(GL_DEPTH_TEST);
-
-		// draw gui
-		if (p_color >= 0)
-		{
-		glUseProgram(p_color);
-		glUniform(p_color, "projection_matrix", display.projection_2d);
-		{
-			static int frame_count = 0;
-			frame_count++;
-
-			glUniform(p_color, "time", static_cast<float>(frame_count) / 50.f);
-		}
-		glUniform(p_color, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
-		for (const auto & component : ::components.get<::ui::PanelC>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_color, "modelview_matrix", modelview_matrix.top());
-
-			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = selectable_components.contains(entity);
-
-			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
-
-			const auto color_location = 7;
-			glVertexAttrib4f(color_location, component.color[0] / 255.f, component.color[1] / 255.f, component.color[2] / 255.f, component.color[3] / 255.f);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-
-			glUniform(p_color, "entitytex", 0);
-
-			core::maths::Vector2f::array_type size;
-			component.size.get_aligned(size);
-
-			const GLfloat vertices[] = {
-				0.f, 0.f,
-				0.f, size[1],
-				size[0], size[1],
-				size[0], 0.f
-			};
-			const GLushort indices[] = {
-				0, 1, 2,
-				2, 3, 0
-			};
-
-			const auto vertex_location = 5;
-			glEnableVertexAttribArray(vertex_location);
-			glVertexAttribPointer(
-				vertex_location,
-				2,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				vertices);
-			glDrawElements(
-				GL_TRIANGLES,
-				6,
-				GL_UNSIGNED_SHORT,
-				indices);
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
-		if (p_tex >= 0)
-		{
-		glUseProgram(p_tex);
-		glUniform(p_tex, "projection_matrix", display.projection_2d);
-		{
-			static int frame_count = 0;
-			frame_count++;
-
-			glUniform(p_tex, "time", static_cast<float>(frame_count) / 50.f);
-		}
-		glUniform(p_tex, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
-		for (const auto & component : ::components.get<::ui::PanelT>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_tex, "modelview_matrix", modelview_matrix.top());
-
-			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
-			const bool is_interactible = selectable_components.contains(entity);
-
-			const auto status_flags_location = 4;
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
-
-			const auto normal_location = 6;
-			glVertexAttrib4f(normal_location, 0.f, 0.f, 1.f, 0.f);
-
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, component.texture->id);
-
-			glUniform(p_tex, "tex", 0);
-			glUniform(p_tex, "entitytex", 1);
-
-			core::maths::Vector2f::array_type size;
-			component.size.get_aligned(size);
-
-			const GLfloat vertices[] = {
-				0.f, 0.f,
-				0.f, size[1],
-				size[0], size[1],
-				size[0], 0.f
-			};
-			const GLfloat texcoords[] = {
-				0.f, 1.f,
-				0.f, 0.f,
-				1.f, 0.f,
-				1.f, 1.f
-			};
-			const GLushort indices[] = {
-				0, 1, 2,
-				2, 3, 0
-			};
-
-			const auto vertex_location = 5;
-			const auto texcoord_location = 7;
-			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(texcoord_location);
-			glVertexAttribPointer(
-				vertex_location,
-				2,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				vertices);
-			glVertexAttribPointer(
-				texcoord_location,
-				2,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				texcoords);
-			glDrawElements(
-				GL_TRIANGLES,
-				6,
-				GL_UNSIGNED_SHORT,
-				indices);
-			glDisableVertexAttribArray(texcoord_location);
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
-
-#if TEXT_USE_FREETYPE
-		if (p_text >= 0)
-		{
-		glUseProgram(p_text);
-		glUniform(p_text, "projection_matrix", display.projection_2d);
-		for (const ::ui::Text & component : ::components.get<::ui::Text>())
-		{
-			core::container::Buffer vertices;
-			core::container::Buffer texcoords;
-			font_manager.compile(engine::Asset("// todo"), component.display.c_str(), vertices, texcoords);
-
-			const auto & texture = materials.get<texture_t>(engine::Asset("// todo"));
-
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_text, "modelview_matrix", modelview_matrix.top());
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, texture.id);
-
-			glUniform(p_text, "tex", 0);
-
-			const auto vertex_location = 5;
-			const auto texcoord_location = 7;
-			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(texcoord_location);
-			glVertexAttribPointer(
-				vertex_location,
-				2,
-				BufferFormats[static_cast<int>(vertices.format())],
-				GL_FALSE,
-				0,
-				vertices.data());
-			glVertexAttribPointer(
-				texcoord_location,
-				2,
-				BufferFormats[static_cast<int>(texcoords.format())],
-				GL_FALSE,
-				0,
-				texcoords.data());
-			glDrawArrays(
-				GL_QUADS, // deprecated
-				0,
-				debug_cast<GLsizei>(vertices.count() / 2));
-			glDisableVertexAttribArray(texcoord_location);
-			glDisableVertexAttribArray(vertex_location);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
-#else
-		for (const ::ui::Text & component : ::components.get<::ui::Text>())
-		{
-			core::maths::Vector4f vec = component.object->modelview.get_column<3>();
-			core::maths::Vector4f::array_type pos;
-			vec.get_aligned(pos);
-
-			modelview_matrix.push();
-			modelview_matrix.translate(pos[0], pos[1], pos[2]);
-			glLoadMatrix(modelview_matrix);
-
-			glColor(component.color);
-			normal_font.draw(0, 0, component.display);
-
-			modelview_matrix.pop();
-		}
-#endif
 
 		}
 

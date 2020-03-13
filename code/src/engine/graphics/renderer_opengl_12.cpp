@@ -50,9 +50,7 @@ namespace engine
 			extern std::atomic_int active;
 			extern core::sync::Event<true> event;
 
-			extern core::container::PageQueue<utility::heap_storage<DisplayMessage>> queue_displays;
-			extern core::container::PageQueue<utility::heap_storage<AssetMessage>> queue_assets;
-			extern core::container::PageQueue<utility::heap_storage<EntityMessage>> queue_entities;
+			extern core::container::PageQueue<utility::heap_storage<Message>> message_queue;
 
 			extern core::container::PageQueue<utility::heap_storage<int, int, engine::Entity, engine::Command>> queue_select;
 
@@ -241,15 +239,6 @@ namespace
 		}
 	};
 
-	engine::graphics::opengl::Color4ub color_from(const engine::graphics::data::Color color)
-	{
-		return engine::graphics::opengl::Color4ub{
-			(color & 0x000000ff) >> 0,
-			(color & 0x0000ff00) >> 8,
-			(color & 0x00ff0000) >> 16,
-			(color & 0xff000000) >> 24 };
-	}
-
 	struct texture_t
 	{
 		GLuint id;
@@ -391,54 +380,6 @@ namespace
 	};
 
 
-	struct comp_c
-	{
-		struct asset
-		{
-			const mesh_t * mesh;
-			engine::graphics::opengl::Color4ub color;
-
-			asset(engine::graphics::data::CompC::asset && data)
-				: mesh(&resources.get<mesh_t>(data.mesh))
-				, color((data.color & 0x000000ff) >> 0,
-						(data.color & 0x0000ff00) >> 8,
-						(data.color & 0x00ff0000) >> 16,
-						(data.color & 0xff000000) >> 24)
-			{}
-		};
-
-		object_modelview * object;
-		std::vector<asset> assets;
-
-		comp_c(
-			object_modelview & object,
-			std::vector<engine::graphics::data::CompC::asset> && assets)
-			: object(&object)
-		{
-			this->assets.reserve(assets.size());
-			for (auto & asset : assets)
-			{
-				this->assets.emplace_back(std::move(asset));
-			}
-		}
-	};
-
-	struct comp_t
-	{
-		const mesh_t * mesh;
-		const texture_t * texture;
-		object_modelview * object;
-
-		comp_t(
-			const mesh_t & mesh,
-			const texture_t & texture,
-			object_modelview & object)
-			: mesh(&mesh)
-			, texture(&texture)
-			, object(&object)
-		{}
-	};
-
 	struct Character
 	{
 		const mesh_t * mesh_;
@@ -510,105 +451,11 @@ namespace
 		}
 	};
 
-	struct Bar
-	{
-		core::maths::Vector3f worldPosition;
-		float progress;
-
-		Bar(engine::graphics::data::Bar && bar)
-			: worldPosition(bar.worldPosition)
-			, progress(bar.progress)
-		{}
-	};
-
-	struct linec_t
-	{
-		core::maths::Matrix4x4f modelview;
-		core::container::Buffer vertices;
-		core::container::Buffer edges;
-		engine::graphics::opengl::Color4ub color;
-
-		engine::graphics::opengl::Color4ub selectable_color = {0, 0, 0, 0};
-
-		linec_t(engine::graphics::data::LineC && data) :
-			modelview(std::move(data.modelview)),
-			vertices(std::move(data.vertices)),
-			edges(std::move(data.edges)),
-			color((data.color & 0x000000ff) >>  0,
-			      (data.color & 0x0000ff00) >>  8,
-			      (data.color & 0x00ff0000) >> 16,
-			      (data.color & 0xff000000) >> 24)
-		{}
-		linec_t & operator = (engine::graphics::data::ModelviewMatrix && data)
-		{
-			modelview = std::move(data.matrix);
-			return *this;
-		}
-	};
-
-	namespace ui
-	{
-		struct PanelC
-		{
-			object_modelview * object;
-			core::maths::Vector2f size;
-			engine::graphics::opengl::Color4ub color;
-
-			PanelC(
-				object_modelview & object,
-				core::maths::Vector2f && size,
-				unsigned int && color)
-				: object(&object)
-				, size(std::move(size))
-				, color(color_from(std::move(color)))
-			{}
-		};
-
-		struct PanelT
-		{
-			const texture_t * texture;
-			object_modelview * object;
-			core::maths::Vector2f size;
-
-			PanelT(
-				const texture_t & texture,
-				object_modelview & object,
-				core::maths::Vector2f && size)
-				: texture(&texture)
-				, object(&object)
-				, size(std::move(size))
-			{}
-		};
-
-		struct Text
-		{
-			object_modelview * object;
-			std::string display;
-			engine::graphics::opengl::Color4ub color;
-
-			Text(
-				object_modelview & object,
-				std::string && display,
-				unsigned int && color)
-				: object(&object)
-				, display(std::move(display))
-				, color(color_from(color))
-			{}
-		};
-	}
-
 	core::container::Collection
 	<
 		engine::Entity,
 		1601,
-		utility::heap_storage<comp_c>,
-		utility::heap_storage<comp_t>,
-		utility::heap_storage<Character>,
-		utility::heap_storage<Bar>,
-		utility::heap_storage<linec_t>,
-		utility::heap_storage<::ui::PanelC>,
-		utility::heap_storage<::ui::PanelT>,
-		utility::heap_storage<::ui::Text>
+		utility::heap_storage<Character>
 	>
 	components;
 
@@ -630,64 +477,11 @@ namespace
 		{}
 	};
 
-	struct selectable_comp_c
-	{
-		std::vector<const mesh_t *> meshes;
-		object_modelview * object;
-
-		engine::graphics::opengl::Color4ub selectable_color;
-
-		selectable_comp_c(
-			std::vector<const mesh_t *> meshes,
-			object_modelview * object,
-			engine::graphics::opengl::Color4ub selectable_color)
-			: meshes(std::move(meshes))
-			, object(object)
-			, selectable_color(std::move(selectable_color))
-		{}
-	};
-
-	struct selectable_comp_t
-	{
-		const mesh_t * mesh;
-		object_modelview * object;
-
-		engine::graphics::opengl::Color4ub selectable_color;
-
-		selectable_comp_t(
-			const mesh_t * mesh,
-			object_modelview * object,
-			engine::graphics::opengl::Color4ub selectable_color)
-			: mesh(mesh)
-			, object(object)
-			, selectable_color(std::move(selectable_color))
-		{}
-	};
-
-	struct selectable_panel
-	{
-		object_modelview * object;
-		core::maths::Vector2f size;
-		engine::graphics::opengl::Color4ub selectable_color;
-
-		selectable_panel(
-			object_modelview * object,
-			core::maths::Vector2f size,
-			engine::graphics::opengl::Color4ub selectable_color)
-			: object(object)
-			, size(std::move(size))
-			, selectable_color(std::move(selectable_color))
-		{}
-	};
-
 	core::container::Collection
 	<
 		engine::Entity,
 		1601,
-		utility::heap_storage<selectable_character_t>,
-		utility::heap_storage<selectable_comp_c>,
-		utility::heap_storage<selectable_comp_t>,
-		utility::heap_storage<selectable_panel>
+		utility::heap_storage<selectable_character_t>
 	>
 	selectable_components;
 
@@ -695,31 +489,9 @@ namespace
 	{
 		engine::graphics::opengl::Color4ub color;
 
-		void operator () (engine::Entity entity, comp_c & x)
-		{
-			std::vector<const mesh_t *> meshes;
-			meshes.reserve(x.assets.size());
-			for (const auto & asset : x.assets)
-			{
-				meshes.push_back(asset.mesh);
-			}
-			debug_verify(selectable_components.try_emplace<selectable_comp_c>(entity, meshes, x.object, color));
-		}
-		void operator () (engine::Entity entity, comp_t & x)
-		{
-			debug_verify(selectable_components.try_emplace<selectable_comp_t>(entity, x.mesh, x.object, color));
-		}
 		void operator () (engine::Entity entity, Character & x)
 		{
 			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity, x.mesh_, x.object_, color));
-		}
-		void operator () (engine::Entity entity, ui::PanelC & x)
-		{
-			debug_verify(selectable_components.try_emplace<selectable_panel>(entity, x.object, x.size, color));
-		}
-		void operator () (engine::Entity entity, ui::PanelT & x)
-		{
-			debug_verify(selectable_components.try_emplace<selectable_panel>(entity, x.object, x.size, color));
 		}
 
 		template <typename T>
@@ -823,8 +595,9 @@ namespace
 	void poll_queues()
 	{
 		bool should_maybe_resize_framebuffer = false;
-		DisplayMessage display_message;
-		while (queue_displays.try_pop(display_message))
+
+		Message message;
+		while (message_queue.try_pop(message))
 		{
 			struct ProcessMessage
 			{
@@ -832,128 +605,54 @@ namespace
 
 				void operator () (MessageAddDisplay && x)
 				{
-					debug_verify(displays.try_emplace<display_t>(x.asset,
-					                                             x.display.viewport.x, x.display.viewport.y, x.display.viewport.width, x.display.viewport.height,
-					                                             x.display.camera_3d.projection, x.display.camera_3d.frame, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_frame, x.display.camera_3d.inv_view,
-					                                             x.display.camera_2d.projection, x.display.camera_2d.view));
+					debug_verify(displays.try_emplace<display_t>(
+						x.asset,
+						x.display.viewport.x, x.display.viewport.y, x.display.viewport.width, x.display.viewport.height,
+						x.display.camera_3d.projection, x.display.camera_3d.frame, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_frame, x.display.camera_3d.inv_view,
+						x.display.camera_2d.projection, x.display.camera_2d.view));
 					should_maybe_resize_framebuffer = true;
 				}
+
 				void operator () (MessageRemoveDisplay && x)
 				{
 					displays.remove(x.asset);
 					should_maybe_resize_framebuffer = true;
 				}
+
 				void operator () (MessageUpdateDisplayCamera2D && x)
 				{
 					displays.call(x.asset, update_display_camera_2d{std::move(x.camera_2d)});
 				}
+
 				void operator () (MessageUpdateDisplayCamera3D && x)
 				{
 					displays.call(x.asset, update_display_camera_3d{std::move(x.camera_3d)});
 				}
+
 				void operator () (MessageUpdateDisplayViewport && x)
 				{
 					displays.call(x.asset, update_display_viewport{std::move(x.viewport)});
 					should_maybe_resize_framebuffer = true;
 				}
-			};
-			visit(ProcessMessage{should_maybe_resize_framebuffer}, std::move(display_message));
-		}
-		if (should_maybe_resize_framebuffer)
-		{
-			maybe_resize_framebuffer();
-		}
 
-		AssetMessage asset_message;
-		while (queue_assets.try_pop(asset_message))
-		{
-			struct ProcessMessage
-			{
 				void operator () (MessageRegisterCharacter && x)
 				{
 					debug_assert(!resources.contains(x.asset));
 					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
 				}
+
 				void operator () (MessageRegisterMesh && x)
 				{
 					debug_assert(!resources.contains(x.asset));
 					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
 				}
+
 				void operator () (MessageRegisterTexture && x)
 				{
 					debug_assert(!materials.contains(x.asset));
 					materials.emplace<texture_t>(x.asset, std::move(x.image));
 				}
-			};
-			visit(ProcessMessage{}, std::move(asset_message));
-		}
 
-		EntityMessage entity_message;
-		while (queue_entities.try_pop(entity_message))
-		{
-			struct ProcessMessage
-			{
-				void operator () (MessageAddBar && x)
-				{
-					if (components.contains(x.entity))
-					{
-						// is this safe to do?
-						auto & bar = components.get<Bar>(x.entity);
-						bar.worldPosition = x.bar.worldPosition;
-						bar.progress = x.bar.progress;
-					}
-					else
-					{
-						debug_verify(components.try_emplace<Bar>(x.entity, std::move(x.bar)));
-					}
-				}
-				void operator () (MessageAddCharacterT && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					const auto & mesh = resources.get<mesh_t>(x.component.mesh);
-					const auto & texture = materials.get<texture_t>(x.component.texture);
-					auto & object = objects.emplace<object_modelview_vertices>(x.entity, mesh, std::move(x.component.modelview));
-					debug_verify(components.try_emplace<Character>(x.entity, mesh, texture, object));
-					debug_verify(updateable_components.try_emplace<updateable_character_t>(x.entity, mesh, object));
-				}
-				void operator () (MessageAddComponentC && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.component.modelview));
-					debug_verify(components.try_emplace<comp_c>(x.entity, object, std::move(x.component.assets)));
-				}
-				void operator () (MessageAddComponentT && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					const auto & mesh = resources.get<mesh_t>(x.component.mesh);
-					const auto & texture = materials.get<texture_t>(x.component.texture);
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.component.modelview));
-					debug_verify(components.try_emplace<comp_t>(x.entity, mesh, texture, object));
-				}
-				void operator () (MessageAddLineC && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					debug_verify(components.try_emplace<linec_t>(x.entity, std::move(x.line)));
-				}
-				void operator () (MessageAddPanelC && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.panel.matrix));
-					debug_verify(components.try_emplace<::ui::PanelC>(x.entity, object, std::move(x.panel.size), std::move(x.panel.color)));
-				}
-				void operator () (MessageAddPanelT && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					const auto & texture = materials.get<texture_t>(x.panel.texture);
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.panel.matrix));
-					debug_verify(components.try_emplace<::ui::PanelT>(x.entity, texture, object, std::move(x.panel.size)));
-				}
-				void operator () (MessageAddText && x)
-				{
-					debug_assert(!components.contains(x.entity));
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.text.matrix));
-					debug_verify(components.try_emplace<::ui::Text>(x.entity, object, std::move(x.text.display), std::move(x.text.color)));
-				}
 				void operator () (MessageMakeObstruction && x)
 				{
 					const engine::graphics::opengl::Color4ub color = {0, 0, 0, 0};
@@ -966,6 +665,7 @@ namespace
 						components.call(x.entity, add_selectable_color{color});
 					}
 				}
+
 				void operator () (MessageMakeSelectable && x)
 				{
 					const engine::graphics::opengl::Color4ub color = {(x.entity & 0x000000ff) >> 0,
@@ -981,6 +681,7 @@ namespace
 						components.call(x.entity, add_selectable_color{color});
 					}
 				}
+
 				void operator () (MessageMakeTransparent && x)
 				{
 					if (selectable_components.contains(x.entity))
@@ -988,26 +689,32 @@ namespace
 						selectable_components.remove(x.entity);
 					}
 				}
+
 				void operator () (MessageMakeClearSelection &&)
 				{
 					debug_fail(); // not implemented yet
 				}
+
 				void operator () (MessageMakeDehighlighted && x)
 				{
 					selected_components.try_remove<highlighted_t>(x.entity);
 				}
+
 				void operator () (MessageMakeDeselect && x)
 				{
 					selected_components.try_remove<selected_t>(x.entity);
 				}
+
 				void operator () (MessageMakeHighlighted && x)
 				{
 					selected_components.emplace<highlighted_t>(x.entity);
 				}
+
 				void operator () (MessageMakeSelect && x)
 				{
 					selected_components.emplace<selected_t>(x.entity);
 				}
+
 				void operator () (MessageRemove && x)
 				{
 					debug_assert(components.contains(x.entity));
@@ -1025,43 +732,24 @@ namespace
 						objects.remove(x.entity);
 					}
 				}
+
 				void operator () (MessageUpdateCharacterSkinning && x)
 				{
 					debug_assert(updateable_components.contains(x.entity));
 					updateable_components.call(x.entity, update_matrixpallet{std::move(x.character_skinning)});
 				}
+
 				void operator () (MessageUpdateModelviewMatrix && x)
 				{
 					debug_assert(objects.contains(x.entity));
 					objects.call(x.entity, update_modelview{std::move(x.modelview_matrix)});
 				}
-				void operator () (MessageUpdatePanelC && x)
-				{
-					debug_assert(components.contains(x.entity));
-					auto & view = components.get<ui::PanelC>(x.entity);
-					view.object->modelview = x.panel.matrix;
-					view.color = color_from(x.panel.color);
-					view.size = x.panel.size;
-				}
-				void operator () (MessageUpdatePanelT && x)
-				{
-					debug_assert(components.contains(x.entity));
-					const auto & texture = materials.get<texture_t>(x.panel.texture);
-					auto & view = components.get<ui::PanelT>(x.entity);
-					view.object->modelview = x.panel.matrix;
-					view.size = x.panel.size;
-					view.texture = &texture;
-				}
-				void operator () (MessageUpdateText && x)
-				{
-					debug_assert(components.contains(x.entity));
-					auto & view = components.get<ui::Text>(x.entity);
-					view.object->modelview = x.text.matrix;
-					view.color = color_from(x.text.color);
-					view.display = x.text.display;
-				}
 			};
-			visit(ProcessMessage{}, std::move(entity_message));
+			visit(ProcessMessage{should_maybe_resize_framebuffer}, std::move(message));
+		}
+		if (should_maybe_resize_framebuffer)
+		{
+			maybe_resize_framebuffer();
 		}
 	}
 }
@@ -1080,6 +768,7 @@ namespace
 	engine::graphics::opengl::Color4ub highlighted_color{255, 191, 64, 255};
 	engine::graphics::opengl::Color4ub selected_color{64, 191, 255, 255};
 
+	// todo remove
 	void resize_framebuffer(int width, int height)
 	{
 		framebuffer_width = width;
@@ -1266,79 +955,12 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : selectable_components.get<selectable_comp_c>())
-		{
-			modelview_matrix.push();
-			{
-				modelview_matrix.mult(component.object->modelview);
-				glLoadMatrix(modelview_matrix);
-
-				glColor(component.selectable_color);
-				glEnableClientState(GL_VERTEX_ARRAY);
-				for (const auto & mesh : component.meshes)
-				{
-					glVertexPointer(3, // TODO
-					                BufferFormats[static_cast<int>(mesh->vertices.format())], // TODO
-					                0,
-					                mesh->vertices.data());
-					glDrawElements(GL_TRIANGLES,
-					               debug_cast<GLsizei>(mesh->triangles.count()),
-					               BufferFormats[static_cast<int>(mesh->triangles.format())],
-					               mesh->triangles.data());
-				}
-				glDisableClientState(GL_VERTEX_ARRAY);
-			}
-			modelview_matrix.pop();
-		}
-		for (const auto & component : selectable_components.get<selectable_comp_t>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
-
-			glColor(component.selectable_color);
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glVertexPointer(3, // TODO
-			                BufferFormats[static_cast<int>(component.mesh->vertices.format())], // TODO
-			                0,
-			                component.mesh->vertices.data());
-			glDrawElements(GL_TRIANGLES,
-			               debug_cast<GLsizei>(component.mesh->triangles.count()),
-			               BufferFormats[static_cast<int>(component.mesh->triangles.format())],
-			               component.mesh->triangles.data());
-			glDisableClientState(GL_VERTEX_ARRAY);
-
-			modelview_matrix.pop();
-		}
 
 		// setup 2D
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrix(display.projection_2d);
 		glMatrixMode(GL_MODELVIEW);
 		modelview_matrix.load(display.view_2d);
-
-		for (const auto & component : selectable_components.get<selectable_panel>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
-
-			core::maths::Vector2f::array_type size;
-			component.size.get_aligned(size);
-
-			glColor(component.selectable_color);
-
-			glBegin(GL_QUADS);
-			{
-				glVertex2f(0.f, size[1]);
-				glVertex2f(size[0], size[1]);
-				glVertex2f(size[0], 0.f);
-				glVertex2f(0.f, 0.f);
-			}
-			glEnd();
-
-			modelview_matrix.pop();
-		}
 
 		}
 
@@ -1417,144 +1039,6 @@ namespace
 
 			modelview_matrix.pop();
 		}
-		for (const auto & component : components.get<linec_t>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.modelview);
-			glLoadMatrix(modelview_matrix);
-
-			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
-
-			glLineWidth(2.f);
-			if (is_highlighted)
-				glColor(highlighted_color);
-			else if (is_selected)
-				glColor(selected_color);
-			else
-				glColor(component.color);
-
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glVertexPointer(3, // TODO
-			                BufferFormats[static_cast<int>(component.vertices.format())], // TODO
-			                0,
-			                component.vertices.data());
-			glDrawElements(GL_LINES,
-			               debug_cast<GLsizei>(component.edges.count()),
-			               BufferFormats[static_cast<int>(component.edges.format())],
-			               component.edges.data());
-			glDisableClientState(GL_VERTEX_ARRAY);
-
-			glLineWidth(1.f);
-
-			modelview_matrix.pop();
-		}
-		for (const auto & component : components.get<comp_t>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
-
-			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
-
-			const mesh_t & mesh = *component.mesh;
-
-			if (is_highlighted || is_selected)
-			{
-				if (is_highlighted)
-					glColor(highlighted_color);
-				else
-					glColor(selected_color);
-
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glEnableClientState(GL_NORMAL_ARRAY);
-				glVertexPointer(3, // TODO
-				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
-				                0,
-				                mesh.vertices.data());
-				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
-				                0,
-				                mesh.normals.data());
-				glDrawElements(GL_TRIANGLES,
-				               debug_cast<GLsizei>(mesh.triangles.count()),
-				               BufferFormats[static_cast<int>(mesh.triangles.format())],
-				               mesh.triangles.data());
-				glDisableClientState(GL_NORMAL_ARRAY);
-				glDisableClientState(GL_VERTEX_ARRAY);
-			}
-			else
-			{
-				component.texture->enable();
-
-				glEnableClientState(GL_VERTEX_ARRAY);
-				glEnableClientState(GL_NORMAL_ARRAY);
-				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-				glVertexPointer(3, // TODO
-				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
-				                0,
-				                mesh.vertices.data());
-				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
-				                0,
-				                mesh.normals.data());
-				glTexCoordPointer(2, // TODO
-				                  BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
-				                  0,
-				                  mesh.coords.data());
-				glDrawElements(GL_TRIANGLES,
-				               debug_cast<GLsizei>(mesh.triangles.count()),
-				               BufferFormats[static_cast<int>(mesh.triangles.format())],
-				               mesh.triangles.data());
-				glDisableClientState(GL_NORMAL_ARRAY);
-				glDisableClientState(GL_VERTEX_ARRAY);
-
-				component.texture->disable();
-			}
-
-			modelview_matrix.pop();
-		}
-		for (const comp_c & component : components.get<comp_c>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
-
-			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
-			const bool is_selected = selected_components.contains<selected_t>(entity);
-
-			glEnableClientState(GL_VERTEX_ARRAY);
-			glEnableClientState(GL_NORMAL_ARRAY);
-			for (const auto & a : component.assets)
-			{
-				const mesh_t & mesh = *a.mesh;
-
-				if (is_highlighted)
-					glColor(highlighted_color);
-				else if (is_selected)
-					glColor(selected_color);
-				else
-					glColor(a.color);
-
-				glVertexPointer(3, // TODO
-				                BufferFormats[static_cast<int>(mesh.vertices.format())], // TODO
-				                0,
-				                mesh.vertices.data());
-				glNormalPointer(BufferFormats[static_cast<int>(mesh.normals.format())], // TODO
-				                0,
-				                mesh.normals.data());
-				glDrawElements(GL_TRIANGLES,
-				               debug_cast<GLsizei>(mesh.triangles.count()),
-				               BufferFormats[static_cast<int>(mesh.triangles.format())],
-				               mesh.triangles.data());
-			}
-			glDisableClientState(GL_NORMAL_ARRAY);
-			glDisableClientState(GL_VERTEX_ARRAY);
-
-			modelview_matrix.pop();
-		}
 
 		glDisable(GL_STENCIL_TEST);
 		glDisable(GL_DEPTH_TEST);
@@ -1572,46 +1056,6 @@ namespace
 
 		// 2d
 		// ...
-		for (const Bar & component : components.get<Bar>())
-		{
-			modelview_matrix.push();
-
-			// calculate modelview of bar position in world space
-			core::maths::Vector2f frameCoord = display.from_world_to_frame(component.worldPosition);
-			core::maths::Vector2f::array_type b;
-			frameCoord.get_aligned(b);
-
-			core::maths::Matrix4x4f modelview = make_translation_matrix(core::maths::Vector3f{ b[0], b[1], 0.f });
-
-			modelview_matrix.mult(modelview);
-			glLoadMatrix(modelview_matrix);
-
-			const float WF = 28.f;
-			const float WI = WF - 2.f;
-			const float HF = 5.f;
-			const float HI = HF - 2.f;
-
-			glBegin(GL_QUADS);
-			{
-				glColor3ub(20, 20, 40);
-
-				glVertex2f(-WF, HF);
-				glVertex2f(+WF, HF);
-				glVertex2f(+WF,-HF);
-				glVertex2f(-WF,-HF);
-
-				glColor3ub(100, 255, 80);
-
-				const float ws = -WI + component.progress * WI * 2;
-				glVertex2f(-WI, HI);
-				glVertex2f(ws, HI);
-				glVertex2f(ws, -HI);
-				glVertex2f(-WI, -HI);
-			}
-			glEnd();
-
-			modelview_matrix.pop();
-		}
 
 		// clear depth to make GUI show over all prev. rendering
 		glClearDepth(1.0);
@@ -1622,73 +1066,6 @@ namespace
 		glLoadMatrix(modelview_matrix);
 		glColor3ub(255, 255, 0);
 		normal_font.draw(10, 10 + 12, "herp derp herp derp herp derp herp derp herp derp etc.");
-
-		for (const auto & component : ::components.get<::ui::PanelC>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
-
-			core::maths::Vector2f::array_type size;
-			component.size.get_aligned(size);
-
-			//glColor(components.get_key(component) == highlighted_entity ? highlighted_color : component.color);
-			glColor(component.color);
-
-			glBegin(GL_QUADS);
-			{
-				glVertex2f(0.f, size[1]);
-				glVertex2f(size[0], size[1]);
-				glVertex2f(size[0], 0.f);
-				glVertex2f(0.f, 0.f);
-			}
-			glEnd();
-
-			modelview_matrix.pop();
-		}
-		for (const auto & component : ::components.get<::ui::PanelT>())
-		{
-			component.texture->enable();
-
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glLoadMatrix(modelview_matrix);
-
-			core::maths::Vector2f::array_type size;
-			component.size.get_aligned(size);
-
-			glBegin(GL_QUADS);
-			{
-				glTexCoord2f(1.f, 0.f);
-				glVertex2f(0.f, size[1]);
-				glTexCoord2f(0.f, 0.f);
-				glVertex2f(size[0], size[1]);
-				glTexCoord2f(0.f, 1.f);
-				glVertex2f(size[0], 0.f);
-				glTexCoord2f(1.f, 1.f);
-				glVertex2f(0.f, 0.f);
-			}
-			glEnd();
-
-			modelview_matrix.pop();
-
-			component.texture->disable();
-		}
-		for (const ::ui::Text & component : ::components.get<::ui::Text>())
-		{
-			core::maths::Vector4f vec = component.object->modelview.get_column<3>();
-			core::maths::Vector4f::array_type pos;
-			vec.get_aligned(pos);
-
-			modelview_matrix.push();
-			modelview_matrix.translate(pos[0], pos[1], pos[2]);
-			glLoadMatrix(modelview_matrix);
-
-			glColor(component.color);
-			normal_font.draw(0, 0, component.display);
-
-			modelview_matrix.pop();
-		}
 
 		}
 
