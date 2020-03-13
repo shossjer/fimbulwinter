@@ -442,11 +442,19 @@ namespace
 		}
 	};
 
+	struct MeshObject
+	{
+		const object_modelview * object;
+		const mesh_t * mesh;
+		const ColorMaterial * material;
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
 		1601,
-		utility::heap_storage<Character>
+		utility::heap_storage<Character>,
+		utility::heap_storage<MeshObject>
 	>
 	components;
 
@@ -647,6 +655,24 @@ namespace
 				{
 					debug_assert(!materials.contains(x.asset));
 					materials.emplace<texture_t>(x.asset, std::move(x.image));
+				}
+
+				void operator () (MessageAddMeshObject && x)
+				{
+					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
+
+					if (resources.contains<mesh_t>(x.object.mesh) &&
+					    materials.contains<ColorMaterial>(x.object.material))
+					{
+						mesh_t & mesh = resources.get<mesh_t>(x.object.mesh);
+						ColorMaterial & material = materials.get<ColorMaterial>(x.object.material);
+
+						debug_verify(components.try_emplace<MeshObject>(x.entity, &object, &mesh, &material));
+					}
+					else
+					{
+						debug_fail("unknown object type");
+					}
 				}
 
 				void operator () (MessageMakeObstruction && x)
@@ -1034,6 +1060,43 @@ namespace
 			component.draw(is_highlighted || is_selected);
 
 			modelview_matrix.pop();
+
+			debug_assert(glGetError() == GL_NO_ERROR);
+		}
+
+		for (auto & component : components.get<MeshObject>())
+		{
+			modelview_matrix.push();
+			modelview_matrix.mult(component.object->modelview);
+			modelview_matrix.mult(component.mesh->modelview);
+			glLoadMatrix(modelview_matrix);
+
+			glColor(component.material->color);
+
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glEnableClientState(GL_NORMAL_ARRAY);
+
+			glVertexPointer(
+				3, // todo support 2d coordinates?
+				BufferFormats[static_cast<int>(component.mesh->vertices.format())],
+				0,
+				component.mesh->vertices.data());
+			glNormalPointer(
+				BufferFormats[static_cast<int>(component.mesh->normals.format())],
+				0,
+				component.mesh->normals.data());
+			glDrawElements(
+				GL_TRIANGLES,
+				debug_cast<GLsizei>(component.mesh->triangles.count()),
+				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
+				component.mesh->triangles.data());
+
+			glDisableClientState(GL_NORMAL_ARRAY);
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			modelview_matrix.pop();
+
+			debug_assert(glGetError() == GL_NO_ERROR);
 		}
 
 		glDisable(GL_STENCIL_TEST);

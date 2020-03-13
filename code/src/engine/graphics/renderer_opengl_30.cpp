@@ -730,11 +730,19 @@ namespace
 		{}
 	};
 
+	struct MeshObject
+	{
+		const object_modelview * object;
+		const mesh_t * mesh;
+		const ShaderMaterial * material;
+	};
+
 	core::container::Collection
 	<
 		engine::Entity,
 		1601,
-		utility::heap_storage<Character>
+		utility::heap_storage<Character>,
+		utility::heap_storage<MeshObject>
 	>
 	components;
 
@@ -939,6 +947,24 @@ namespace
 				{
 					debug_assert(!materials.contains(x.asset));
 					materials.emplace<texture_t>(x.asset, std::move(x.image));
+				}
+
+				void operator () (MessageAddMeshObject && x)
+				{
+					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
+
+					if (resources.contains<mesh_t>(x.object.mesh) &&
+						materials.contains<ShaderMaterial>(x.object.material))
+					{
+						mesh_t & mesh = resources.get<mesh_t>(x.object.mesh);
+						ShaderMaterial & material = materials.get<ShaderMaterial>(x.object.material);
+
+						debug_verify(components.try_emplace<MeshObject>(x.entity, &object, &mesh, &material));
+					}
+					else
+					{
+						debug_fail("unknown object type");
+					}
 				}
 
 				void operator () (MessageMakeObstruction && x)
@@ -1197,6 +1223,8 @@ namespace
 		glGenFramebuffers(1, &framebuffer);
 		glGenRenderbuffers(2, entitybuffers);
 		glGenTextures(1, &entitytexture);
+
+		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 
 	void render_update()
@@ -1422,6 +1450,78 @@ namespace
 		glUseProgram(0);
 		}
 
+		for (auto & component : components.get<MeshObject>())
+		{
+			const GLint program = shader_manager.get(component.material->shader);
+			if (program < 0)
+				continue; // not ready yet
+
+			glUseProgram(program);
+			glUniform(program, "projection_matrix", display.projection_3d);
+			{
+				static int frame_count = 0;
+				frame_count++;
+
+				glUniform(program, "time", static_cast<float>(frame_count) / 50.f);
+			}
+			glUniform(program, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
+
+			modelview_matrix.push();
+			modelview_matrix.mult(component.object->modelview);
+			modelview_matrix.mult(component.mesh->modelview);
+			glUniform(program, "modelview_matrix", modelview_matrix.top());
+
+			const auto entity = components.get_key(component);
+			const bool is_highlighted = selected_components.contains<highlighted_t>(entity);
+			const bool is_selected = selected_components.contains<selected_t>(entity);
+			const bool is_interactible = selectable_components.contains(entity);
+
+			const auto status_flags_location = 4;
+			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, entitytexture);
+
+			glUniform(program, "entitytex", 0);
+
+			const auto vertex_location = 5;
+			const auto normal_location = 6;
+			glEnableVertexAttribArray(vertex_location);
+			glEnableVertexAttribArray(normal_location);
+
+			//const auto color_location = 7;
+			//glVertexAttrib4f(color_location, a.color[0] / 255.f, a.color[1] / 255.f, a.color[2] / 255.f, a.color[3] / 255.f);
+
+			glVertexAttribPointer(
+				vertex_location,
+				3, // todo support 2d coordinates?
+				BufferFormats[static_cast<int>(component.mesh->vertices.format())],
+				GL_FALSE,
+				0,
+				component.mesh->vertices.data());
+			glVertexAttribPointer(
+				normal_location,
+				3, // todo support 2d coordinates?
+				BufferFormats[static_cast<int>(component.mesh->normals.format())],
+				GL_FALSE,
+				0,
+				component.mesh->normals.data());
+			glDrawElements(
+				GL_TRIANGLES,
+				debug_cast<GLsizei>(component.mesh->triangles.count()),
+				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
+				component.mesh->triangles.data());
+
+			glDisableVertexAttribArray(normal_location);
+			glDisableVertexAttribArray(vertex_location);
+
+			modelview_matrix.pop();
+
+			glUseProgram(0);
+
+			debug_assert(glGetError() == GL_NO_ERROR);
+		}
+
 		glDisable(GL_STENCIL_TEST);
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_LIGHTING);
@@ -1434,6 +1534,7 @@ namespace
 
 		// disable depth test to make the bar drawings show above the 3d content
 		glDisable(GL_DEPTH_TEST);
+		debug_assert(glGetError() == GL_NO_ERROR);
 
 		// 2d
 		// ...
@@ -1441,7 +1542,7 @@ namespace
 		// clear depth to make GUI show over all prev. rendering
 		glClearDepth(1.0);
 		glEnable(GL_DEPTH_TEST);
-
+		debug_assert(glGetError() == GL_NO_ERROR);
 		}
 
 		// entity buffers
@@ -1453,9 +1554,11 @@ namespace
 
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		}
+		debug_assert(glGetError() == GL_NO_ERROR);
 
 		// swap buffers
 		swap_buffers(*engine::graphics::detail::window);
+		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 
 	void render_teardown()

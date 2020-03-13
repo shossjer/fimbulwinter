@@ -70,6 +70,12 @@ namespace engine
 				core::graphics::Image image;
 			};
 
+			struct MessageAddMeshObject
+			{
+				engine::Entity entity;
+				engine::graphics::data::MeshObject object;
+			};
+
 			struct MessageMakeObstruction
 			{
 				engine::Entity entity;
@@ -139,6 +145,7 @@ namespace engine
 				MessageRegisterMesh,
 				MessageRegisterTexture,
 
+				MessageAddMeshObject,
 				MessageMakeObstruction,
 				MessageMakeSelectable,
 				MessageMakeTransparent,

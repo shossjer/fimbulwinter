@@ -217,6 +217,11 @@ namespace engine
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterTexture>, asset, std::move(image)));
 		}
 
+		void post_add_object(renderer &, engine::Entity entity, data::MeshObject && data)
+		{
+			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageAddMeshObject>, entity, std::move(data)));
+		}
+
 		void post_make_obstruction(renderer &, engine::Entity entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeObstruction>, entity));
