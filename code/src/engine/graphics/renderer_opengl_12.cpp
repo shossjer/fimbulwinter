@@ -647,8 +647,7 @@ namespace
 
 				void operator () (MessageRegisterMesh && x)
 				{
-					debug_assert(!resources.contains(x.asset));
-					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
+					resources.replace<mesh_t>(x.asset, std::move(x.mesh));
 				}
 
 				void operator () (MessageRegisterTexture && x)

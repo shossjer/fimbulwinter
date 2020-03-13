@@ -648,7 +648,7 @@ namespace engine
 					}
 					void operator () (MessageAddProjectionPerspective && data)
 					{
-						projections.emplace<Perspective>(data.asset, std::move(data.data));
+						projections.replace<Perspective>(data.asset, std::move(data.data));
 					}
 					void operator () (MessageAddSplitHorizontal && data)
 					{
