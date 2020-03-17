@@ -6,18 +6,17 @@ namespace engine
 {
 	namespace detail
 	{
-		extern std::vector<Argument> parse_params(const std::string & line, std::ptrdiff_t from);
+		extern std::vector<Argument> parse_params(utility::string_view_utf8 line);
 	}
 }
 
 #define test(line, expected) \
 	do \
 	{ \
-		const std::string str = (line); \
-		const auto params = engine::detail::parse_params(str, 0); \
+		const auto params = engine::detail::parse_params(utility::string_view_utf8(line)); \
 		REQUIRE(params.size() == 1); \
 		REQUIRE(utility::holds_alternative<decltype(expected)>(params[0])); \
-		REQUIRE(utility::get<decltype(expected)>(params[0]) == (expected)); \
+		REQUIRE(utility::get<decltype(expected)>(params[0]) == expected); \
 	} \
 	while (false)
 
@@ -56,25 +55,25 @@ TEST_CASE("Verify string parsing")
 {
 	SECTION("Parse strings")
 	{
-		test("\"a_single_string\"", utility::string_view("a_single_string"));
+		test("\"a_single_string\"", utility::string_view_utf8("a_single_string"));
 	}
 	SECTION("Parse string scope")
 	{
-		test("\"String with spaces\"", utility::string_view("String with spaces"));
+		test("\"String with spaces\"", utility::string_view_utf8("String with spaces"));
 	}
 	SECTION("Non-strings as strings")
 	{
-		test("\"1234\"", utility::string_view("1234"));
-		test("\"0.5\"", utility::string_view("0.5"));
-		test("\"false\"", utility::string_view("false"));
-		test("\"true\"", utility::string_view("true"));
+		test("\"1234\"", utility::string_view_utf8("1234"));
+		test("\"0.5\"", utility::string_view_utf8("0.5"));
+		test("\"false\"", utility::string_view_utf8("false"));
+		test("\"true\"", utility::string_view_utf8("true"));
 	}
 	SECTION("Number-like strings")
 	{
-		test("\"0x1234\"", utility::string_view("0x1234"));
-		test("\"0xffff\"", utility::string_view("0xffff"));
-		test("\"12b\"", utility::string_view("12b"));
-		test("\"a1234\"", utility::string_view("a1234"));
+		test("\"0x1234\"", utility::string_view_utf8("0x1234"));
+		test("\"0xffff\"", utility::string_view_utf8("0xffff"));
+		test("\"12b\"", utility::string_view_utf8("12b"));
+		test("\"a1234\"", utility::string_view_utf8("a1234"));
 	}
 }
 
@@ -82,34 +81,34 @@ TEST_CASE("Verify multiple args")
 {
 	SECTION("Parse strings")
 	{
-		const std::string line = "\"String with spaces\" \"hey_how_are_you\" \"Another string\" \"true\"";
-		const auto params = engine::detail::parse_params(line, 0);
+		const utility::string_view_utf8 line = "\"String with spaces\" \"hey_how_are_you\" \"Another string\" \"true\"";
+		const auto params = engine::detail::parse_params(line);
 
 		REQUIRE(params.size() == 4);
-		REQUIRE(utility::holds_alternative<utility::string_view>(params[0]));
-		REQUIRE(utility::holds_alternative<utility::string_view>(params[1]));
-		REQUIRE(utility::holds_alternative<utility::string_view>(params[2]));
-		REQUIRE(utility::holds_alternative<utility::string_view>(params[3]));
+		REQUIRE(utility::holds_alternative<utility::string_view_utf8>(params[0]));
+		REQUIRE(utility::holds_alternative<utility::string_view_utf8>(params[1]));
+		REQUIRE(utility::holds_alternative<utility::string_view_utf8>(params[2]));
+		REQUIRE(utility::holds_alternative<utility::string_view_utf8>(params[3]));
 
-		REQUIRE(utility::get<utility::string_view>(params[0]) == "String with spaces");
-		REQUIRE(utility::get<utility::string_view>(params[1]) == "hey_how_are_you");
-		REQUIRE(utility::get<utility::string_view>(params[2]) == "Another string");
-		REQUIRE(utility::get<utility::string_view>(params[3]) == "true");
+		REQUIRE(utility::get<utility::string_view_utf8>(params[0]) == "String with spaces");
+		REQUIRE(utility::get<utility::string_view_utf8>(params[1]) == "hey_how_are_you");
+		REQUIRE(utility::get<utility::string_view_utf8>(params[2]) == "Another string");
+		REQUIRE(utility::get<utility::string_view_utf8>(params[3]) == "true");
 	}
 	SECTION("Parse mix")
 	{
-		const std::string line = "\"String with spaces\" \"a_string\" true 1234 0.5";
-		const auto params = engine::detail::parse_params(line, 0);
+		const utility::string_view_utf8 line = "\"String with spaces\" \"a_string\" true 1234 0.5";
+		const auto params = engine::detail::parse_params(line);
 
 		REQUIRE(params.size() == 5);
-		REQUIRE(utility::holds_alternative<utility::string_view>(params[0]));
-		REQUIRE(utility::holds_alternative<utility::string_view>(params[1]));
+		REQUIRE(utility::holds_alternative<utility::string_view_utf8>(params[0]));
+		REQUIRE(utility::holds_alternative<utility::string_view_utf8>(params[1]));
 		REQUIRE(utility::holds_alternative<bool>(params[2]));
 		REQUIRE(utility::holds_alternative<int64_t>(params[3]));
 		REQUIRE(utility::holds_alternative<double>(params[4]));
 
-		REQUIRE(utility::get<utility::string_view>(params[0]) == "String with spaces");
-		REQUIRE(utility::get<utility::string_view>(params[1]) == "a_string");
+		REQUIRE(utility::get<utility::string_view_utf8>(params[0]) == "String with spaces");
+		REQUIRE(utility::get<utility::string_view_utf8>(params[1]) == "a_string");
 		REQUIRE(utility::get<bool>(params[2]) == true);
 		REQUIRE(utility::get<int64_t>(params[3]) == 1234);
 		REQUIRE(utility::get<double>(params[4]) == 0.5f);
@@ -119,7 +118,7 @@ TEST_CASE("Verify multiple args")
 namespace
 {
 	void f_empty(void *) {}
-	void f_single(void *, utility::string_view) {}
+	void f_single(void *, utility::string_view_utf8) {}
 	void f_dual1(void *, bool, int64_t) {}
 	void f_dual2(void *, bool, bool) {}
 
@@ -138,7 +137,7 @@ TEST_CASE("Verify variadic parsing")
 		auto callback = create_callback(f_empty, nullptr);
 		std::vector<engine::detail::Argument> params;
 		REQUIRE(callback.call(params));
-		params.emplace_back(utility::in_place_type<utility::string_view>, "");
+		params.emplace_back(utility::in_place_type<utility::string_view_utf8>, "");
 		REQUIRE(!callback.call(params));
 	}
 
@@ -151,7 +150,7 @@ TEST_CASE("Verify variadic parsing")
 		REQUIRE(c_empty.call(params));		// match
 		REQUIRE(!c_single.call(params));	// too few args
 
-		params.emplace_back(utility::in_place_type<utility::string_view>, "");
+		params.emplace_back(utility::in_place_type<utility::string_view_utf8>, "");
 
 		REQUIRE(!c_empty.call(params));		// too many args
 		REQUIRE(c_single.call(params));		// match
