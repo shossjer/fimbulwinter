@@ -794,8 +794,6 @@ namespace
 {
 	Stack modelview_matrix;
 
-	engine::graphics::opengl::Font normal_font;
-
 	int framebuffer_width = 0;
 	int framebuffer_height = 0;
 	GLuint framebuffer;
@@ -1136,9 +1134,6 @@ namespace
 
 		// draw gui
 		// ...
-		glLoadMatrix(modelview_matrix);
-		glColor3ub(255, 255, 0);
-		normal_font.draw(10, 10 + 12, "herp derp herp derp herp derp herp derp herp derp etc.");
 
 		}
 
@@ -1159,11 +1154,7 @@ namespace
 	void render_teardown()
 	{
 		debug_printline(engine::graphics_channel, "render_callback stopping");
-		// vvvvvvvv tmp vvvvvvvv
-		{
-			normal_font.decompile();
-		}
-		// ^^^^^^^^ tmp ^^^^^^^^
+
 		glDeleteRenderbuffers(2, entitybuffers);
 		glDeleteFramebuffers(1, &framebuffer);
 
