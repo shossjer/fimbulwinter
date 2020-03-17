@@ -572,11 +572,13 @@ namespace utility
 		{}
 		basic_string & operator = (const code_unit * s)
 		{
+			const auto len = ext::strlen(s);
 			const auto ret = data_.array_.try_replace_with(
-				ext::strlen(s) + 1,
+				len + 1,
 				[&](array_data & new_data)
 				{
-					new_data.chars_.construct_range(0, s, s + data_.array_.size());
+					new_data.set_size(len + 1);
+					new_data.chars_.construct_range(0, s, s + len + 1);
 				});
 			assert(ret);
 			return *this;
@@ -587,7 +589,9 @@ namespace utility
 				view.size() + 1,
 				[&](array_data & new_data)
 				{
-					new_data.chars_.construct_range(0, view.begin(), view.end());
+					new_data.set_size(view.size() + 1);
+					new_data.chars_.construct_range(0, view.data(), view.data() + view.size());
+					new_data.chars_.construct_at(view.size(), '\0');
 				});
 			assert(ret);
 			return *this;
