@@ -1632,7 +1632,7 @@ namespace engine
 						return;
 
 					const auto filename = core::file::filename(stream.filepath());
-					const auto asset = engine::Asset(filename.data(), filename.size());
+					const auto asset = engine::Asset(filename);
 
 					ShaderData shader;
 					core::ShaderStructurer structurer(std::move(stream));

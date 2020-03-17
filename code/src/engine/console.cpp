@@ -70,7 +70,7 @@ namespace engine
 
 		void observe_impl(utility::string_view_utf8 keyword, std::unique_ptr<CallbackBase> && callback)
 		{
-			const auto key = engine::Asset(keyword.data(), keyword.size());
+			const auto key = engine::Asset(keyword);
 			if (!debug_assert(std::find_if(observers.begin(), observers.end(), [key](const auto & p){ return p.first == key; }) == observers.end(), "\"", keyword, "\" is being observed twice"))
 				return;
 
@@ -85,7 +85,7 @@ namespace engine
 			const auto command_end = utility::unit_difference(line.find(' '));
 
 			const auto command_name = utility::string_view_utf8(line, utility::unit_difference(0), command_end);
-			const engine::Asset command_key(command_name.data(), command_name.size());
+			const engine::Asset command_key(command_name);
 
 			const std::vector<Argument> params = parse_params(utility::string_view_utf8(line, command_end + 1));
 
@@ -103,7 +103,7 @@ namespace engine
 
 	void abandon(utility::string_view_utf8 keyword)
 	{
-		const auto key = engine::Asset(keyword.data(), keyword.size());
+		const auto key = engine::Asset(keyword);
 		const auto it = std::find_if(observers.begin(), observers.end(), [key](const auto & p){ return p.first == key; });
 		debug_assert(it != observers.end(), "\"", keyword, "\" is not being observed");
 

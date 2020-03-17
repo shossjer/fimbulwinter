@@ -104,7 +104,7 @@ namespace
 		}
 
 		const auto filename = core::file::filename(stream.filepath());
-		const auto asset = engine::Asset(filename.data(), filename.size());
+		const auto asset = engine::Asset(filename);
 
 		engine::graphics::post_register_material(*utility::any_cast<engine::graphics::renderer *>(data), asset, std::move(material));
 	}
