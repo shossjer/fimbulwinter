@@ -30,6 +30,7 @@
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/viewer.hpp"
 
+#include "utility/any.hpp"
 #include "utility/lookup_table.hpp"
 #include "utility/ranges.hpp"
 #include "utility/unicode.hpp"

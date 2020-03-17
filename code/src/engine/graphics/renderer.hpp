@@ -13,7 +13,6 @@
 #include "engine/model/data.hpp"
 #include "engine/MutableEntity.hpp"
 
-#include "utility/any.hpp"
 // todo forward declare
 #include "utility/unicode.hpp"
 
@@ -30,6 +29,11 @@ namespace engine
 	{
 		class system;
 	}
+}
+
+namespace utility
+{
+	class any;
 }
 
 namespace engine

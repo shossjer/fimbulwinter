@@ -25,6 +25,7 @@
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/viewer.hpp"
 
+#include "utility/any.hpp"
 #include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
