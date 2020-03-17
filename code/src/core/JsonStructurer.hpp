@@ -11,7 +11,6 @@
 #include "core/serialization.hpp"
 
 #include "utility/json.hpp"
-#include "utility/optional.hpp"
 #include "utility/ranges.hpp"
 
 #include <cfloat>
@@ -294,33 +293,23 @@ namespace core
 		template <typename T>
 		void read_number(const json & j, T & x)
 		{
+			using core::value;
+
 			if (j.is_number_float())
 			{
-				read_number_float(j, x, 0);
+				read_number_float(j, value(x), 0);
 			}
 			else if (j.is_number_unsigned())
 			{
-				read_number_unsigned(j, x, 0);
+				read_number_unsigned(j, value(x), 0);
 			}
 			else if (j.is_number_integer())
 			{
-				read_number_signed(j, x, 0);
+				read_number_signed(j, value(x), 0);
 			}
 			else
 			{
 				debug_unreachable("not a number");
-			}
-		}
-		template <typename T>
-		void read_number(const json & j, utility::optional<T> & x)
-		{
-			if (x.has_value())
-			{
-				read_number(j, x.value());
-			}
-			else
-			{
-				read_number(j, x.emplace());
 			}
 		}
 
