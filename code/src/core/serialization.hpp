@@ -5,6 +5,7 @@
 #include "core/debug.hpp"
 
 #include "utility/lookup_table.hpp"
+#include "utility/optional.hpp"
 #include "utility/preprocessor.hpp"
 #include "utility/string_view.hpp"
 #include "utility/type_traits.hpp"
@@ -219,6 +220,14 @@ namespace core
 	{
 		return assign_string_nonenum(x, str, 0);
 	}
+
+	template <typename T>
+	T & value(utility::optional<T> & x)
+	{
+		return x.has_value() ? x.value() : x.emplace();
+	}
+	template <typename T>
+	T & value(T & x) { return x; }
 
 	template <std::size_t I, typename T, typename F>
 	void assign(T & x, F && f)
