@@ -71,6 +71,17 @@ namespace engine
 				core::graphics::Image image;
 			};
 
+			struct MessageCreateMaterialInstance
+			{
+				engine::MutableEntity entity;
+				engine::graphics::data::MaterialInstance data;
+			};
+
+			struct MessageDestroy
+			{
+				engine::MutableEntity entity;
+			};
+
 			struct MessageAddMeshObject
 			{
 				engine::MutableEntity entity;
@@ -145,6 +156,9 @@ namespace engine
 				MessageRegisterMaterial,
 				MessageRegisterMesh,
 				MessageRegisterTexture,
+
+				MessageCreateMaterialInstance,
+				MessageDestroy,
 
 				MessageAddMeshObject,
 				MessageMakeObstruction,

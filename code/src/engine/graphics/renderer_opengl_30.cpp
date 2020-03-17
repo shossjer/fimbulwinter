@@ -227,6 +227,9 @@ namespace
 
 		GLint create(engine::Asset asset, ShaderData && shader_data)
 		{
+			if (!debug_verify(count < 10, "too many shaders"))
+				return -1;
+
 			GLint vs = glCreateShader(GL_VERTEX_SHADER);
 			const char * vs_source = shader_data.vertex_source.data();
 			glShaderSource(vs, 1, &vs_source, nullptr);
@@ -277,12 +280,21 @@ namespace
 				debug_printline("program entity failed to link with: ", buffer);
 			}
 
-			debug_assert(count < 10);
-			assets[count] = asset;
-			programs[count] = p;
-			vertices[count] = vs;
-			fragments[count] = fs;
-			count++;
+			const auto index = std::find(assets, assets + count, asset) - assets;
+			if (index < count)
+			{
+				glDeleteProgram(programs[index]);
+				glDeleteShader(fragments[index]);
+				glDeleteShader(vertices[index]);
+			}
+			else
+			{
+				count++;
+			}
+			assets[index] = asset;
+			programs[index] = p;
+			vertices[index] = vs;
+			fragments[index] = fs;
 
 			debug_assert(glGetError() == GL_NO_ERROR);
 
@@ -389,111 +401,6 @@ namespace
 			x.height = data.height;
 		}
 	};
-
-
-	struct color_t
-	{
-		engine::graphics::opengl::Color4ub color;
-
-		color_t(unsigned int color)
-			: color((color & 0x000000ff) >>  0,
-			        (color & 0x0000ff00) >>  8,
-			        (color & 0x00ff0000) >> 16,
-			        (color & 0xff000000) >> 24)
-		{
-		}
-
-		void enable() const
-		{
-			glColor(color);
-		}
-		void disable() const
-		{
-		}
-	};
-
-	struct ShaderMaterial
-	{
-		engine::Asset shader;
-	};
-
-	struct texture_t
-	{
-		GLuint id;
-
-		int width;
-		int height;
-
-		~texture_t()
-		{
-			glDeleteTextures(1, &id);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-		}
-		texture_t(core::graphics::Image && image)
-		{
-			glEnable(GL_TEXTURE_2D);
-
-			glGenTextures(1, &id);
-			glBindTexture(GL_TEXTURE_2D, id);
-
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT/*GL_CLAMP*/);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT/*GL_CLAMP*/);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
-			width = image.width();
-			height = image.height();
-
-			switch (image.color())
-			{
-			case core::graphics::ColorType::R:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, image.width(), image.height(), 0, GL_RED, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
-				break;
-			case core::graphics::ColorType::RGB:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_RGB, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
-				break;
-			case core::graphics::ColorType::RGBA:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_RGBA, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
-				break;
-			default:
-				debug_unreachable();
-			}
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			glDisable(GL_TEXTURE_2D);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-		}
-
-		void enable() const
-		{
-			glEnable(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D, id);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-		}
-		void disable() const
-		{
-			glDisable(GL_TEXTURE_2D);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-		}
-	};
-
-	core::container::UnorderedCollection
-	<
-		engine::Asset,
-		201,
-		std::array<color_t, 100>,
-		std::array<ShaderMaterial, 100>,
-		std::array<texture_t, 100>
-	>
-	materials;
 
 
 	struct FontManager
@@ -658,14 +565,64 @@ namespace
 		{}
 	};
 
+	struct ColorClass
+	{
+		engine::graphics::opengl::Color4ub diffuse;
+		engine::Asset shader;
+
+		explicit ColorClass(uint32_t diffuse, engine::Asset shader)
+			: diffuse(diffuse >> 0 & 0x000000ff,
+				diffuse >> 8 & 0x000000ff,
+				diffuse >> 16 & 0x000000ff,
+				diffuse >> 24 & 0x000000ff)
+			, shader(shader)
+		{}
+	};
+
+	struct ShaderClass
+	{
+		engine::Asset shader;
+
+		explicit ShaderClass(engine::Asset shader)
+			: shader(shader)
+		{}
+	};
+
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
 		401,
 		std::array<mesh_t, 100>,
-		std::array<mesh_t, 1>
+		std::array<ColorClass, 100>,
+		std::array<ShaderClass, 100>
 	>
 	resources;
+
+
+	struct ShaderMaterial
+	{
+		engine::graphics::opengl::Color4ub diffuse;
+		std::vector<engine::Asset> textures;
+
+		engine::Asset materialclass;
+
+		explicit ShaderMaterial(uint32_t diffuse, std::vector<engine::Asset> && textures, engine::Asset materialclass)
+			: diffuse(diffuse >> 0 & 0x000000ff,
+				diffuse >> 8 & 0x000000ff,
+				diffuse >> 16 & 0x000000ff,
+				diffuse >> 24 & 0x000000ff)
+			, textures(std::move(textures))
+			, materialclass(materialclass)
+		{}
+	};
+
+	core::container::UnorderedCollection
+	<
+		engine::MutableEntity,
+		201,
+		std::array<ShaderMaterial, 100>
+	>
+	materials;
 
 
 	struct object_modelview
@@ -718,15 +675,12 @@ namespace
 	struct Character
 	{
 		const mesh_t * mesh;
-		const texture_t * texture;
 		object_modelview_vertices * object;
 
 		Character(
 			const mesh_t & mesh,
-			const texture_t & texture,
 			object_modelview_vertices & object)
 			: mesh(&mesh)
-			, texture(&texture)
 			, object(&object)
 		{}
 	};
@@ -735,7 +689,7 @@ namespace
 	{
 		const object_modelview * object;
 		const mesh_t * mesh;
-		const ShaderMaterial * material;
+		engine::Entity material;
 	};
 
 	core::container::Collection
@@ -935,7 +889,14 @@ namespace
 
 				void operator () (MessageRegisterMaterial && x)
 				{
-					materials.replace<ShaderMaterial>(x.asset, x.material.data_opengl_30.shader);
+					if (x.material.data_opengl_30.diffuse)
+					{
+						resources.replace<ColorClass>(x.asset, x.material.data_opengl_30.diffuse.value(), x.material.data_opengl_30.shader);
+					}
+					else
+					{
+						resources.replace<ShaderClass>(x.asset, x.material.data_opengl_30.shader);
+					}
 				}
 
 				void operator () (MessageRegisterMesh && x)
@@ -943,10 +904,31 @@ namespace
 					resources.replace<mesh_t>(x.asset, std::move(x.mesh));
 				}
 
-				void operator () (MessageRegisterTexture && x)
+				void operator () (MessageRegisterTexture && /*x*/)
 				{
-					debug_assert(!materials.contains(x.asset));
-					materials.emplace<texture_t>(x.asset, std::move(x.image));
+					debug_fail("missing implementation");
+				}
+
+				void operator () (MessageCreateMaterialInstance && x)
+				{
+					if (!debug_verify(resources.contains(x.data.materialclass), x.data.materialclass))
+						return; // error
+
+					std::vector<engine::Asset> textures; // todo
+
+					if (const engine::MutableEntity * const key = materials.find_key(x.entity.entity()))
+					{
+						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
+							return; // error
+
+						materials.remove(*key); // todo use iterators
+					}
+					materials.emplace<ShaderMaterial>(x.entity, x.data.diffuse, std::move(textures), x.data.materialclass);
+				}
+
+				void operator () (MessageDestroy && x)
+				{
+					materials.remove(x.entity);
 				}
 
 				void operator () (MessageAddMeshObject && x)
@@ -960,11 +942,9 @@ namespace
 					}
 					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
 
-					if (resources.contains<mesh_t>(x.object.mesh) &&
-						materials.contains<ShaderMaterial>(x.object.material))
+					if (resources.contains<mesh_t>(x.object.mesh))
 					{
 						mesh_t & mesh = resources.get<mesh_t>(x.object.mesh);
-						ShaderMaterial & material = materials.get<ShaderMaterial>(x.object.material);
 
 						if (const engine::MutableEntity * const key = components.find_key(x.entity.entity()))
 						{
@@ -973,7 +953,7 @@ namespace
 
 							components.remove(*key); // todo use iterators
 						}
-						debug_verify(components.try_emplace<MeshObject>(x.entity, &object, &mesh, &material));
+						debug_verify(components.try_emplace<MeshObject>(x.entity, &object, &mesh, x.object.material));
 					}
 					else
 					{
@@ -1416,7 +1396,7 @@ namespace
 			glActiveTexture(GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, entitytexture);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, component.texture->id);
+			glBindTexture(GL_TEXTURE_2D, entitytexture);
 
 			glUniform(p_tex, "tex", 0);
 			glUniform(p_tex, "entitytex", 1);
@@ -1466,9 +1446,33 @@ namespace
 
 		for (auto & component : components.get<MeshObject>())
 		{
-			const GLint program = shader_manager.get(component.material->shader);
+			engine::graphics::opengl::Color4ub color(0, 0, 0, 0);
+			engine::Asset shader{};
+
+			if (materials.contains<ShaderMaterial>(component.material))
+			{
+				auto & material = materials.get<ShaderMaterial>(component.material);
+
+				color = material.diffuse;
+
+				if (resources.contains<ColorClass>(material.materialclass))
+				{
+					auto & class_ = resources.get<ColorClass>(material.materialclass);
+
+					color = class_.diffuse;
+					shader = class_.shader;
+				}
+				else if (resources.contains<ShaderClass>(material.materialclass))
+				{
+					auto & class_ = resources.get<ShaderClass>(material.materialclass);
+
+					shader = class_.shader;
+				}
+			}
+
+			const GLint program = shader_manager.get(shader);
 			if (program < 0)
-				continue; // not ready yet
+				continue; // todo not ready yet
 
 			glUseProgram(program);
 			glUniform(program, "projection_matrix", display.projection_3d);
@@ -1503,8 +1507,8 @@ namespace
 			glEnableVertexAttribArray(vertex_location);
 			glEnableVertexAttribArray(normal_location);
 
-			//const auto color_location = 7;
-			//glVertexAttrib4f(color_location, a.color[0] / 255.f, a.color[1] / 255.f, a.color[2] / 255.f, a.color[3] / 255.f);
+			const auto color_location = 7;
+			glVertexAttrib4f(color_location, color[0] / 255.f, color[1] / 255.f, color[2] / 255.f, color[3] / 255.f);
 
 			glVertexAttribPointer(
 				vertex_location,
@@ -1590,12 +1594,12 @@ namespace
 			debug_printline(engine::asset_channel, resources_not_unregistered[i]);
 		}
 
-		engine::Asset materials_not_unregistered[materials.max_size()];
-		const int material_count = materials.get_all_keys(materials_not_unregistered, materials.max_size());
-		debug_printline(engine::asset_channel, material_count, " materials not unregistered:");
+		engine::MutableEntity materials_not_destroyed[materials.max_size()];
+		const int material_count = materials.get_all_keys(materials_not_destroyed, materials.max_size());
+		debug_printline(engine::asset_channel, material_count, " materials not destroyed:");
 		for (int i = 0; i < material_count; i++)
 		{
-			debug_printline(engine::asset_channel, materials_not_unregistered[i]);
+			debug_printline(engine::asset_channel, materials_not_destroyed[i]);
 		}
 	}
 }

@@ -219,75 +219,6 @@ namespace
 	};
 
 
-	struct ColorMaterial
-	{
-		engine::graphics::opengl::Color4ub color;
-
-		explicit ColorMaterial(uint32_t color)
-			: color(color >>  0 & 0x000000ff,
-			        color >>  8 & 0x000000ff,
-			        color >> 16 & 0x000000ff,
-			        color >> 24 & 0x000000ff)
-		{}
-	};
-
-	struct texture_t
-	{
-		GLuint id;
-
-		~texture_t()
-		{
-			glDeleteTextures(1, &id);
-		}
-		texture_t(core::graphics::Image && image)
-		{
-			glEnable(GL_TEXTURE_2D);
-
-			glGenTextures(1, &id);
-			glBindTexture(GL_TEXTURE_2D, id);
-
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT/*GL_CLAMP*/);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT/*GL_CLAMP*/);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, /*GL_LINEAR*/GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, /*GL_LINEAR_MIPMAP_LINEAR*/GL_NEAREST);
-
-			switch (image.color())
-			{
-			case core::graphics::ColorType::RGB:
-				glTexImage2D(GL_TEXTURE_2D, 0, 3, image.width(), image.height(), 0, GL_RGB, GL_UNSIGNED_BYTE, image.data());
-				break;
-			case core::graphics::ColorType::RGBA:
-				glTexImage2D(GL_TEXTURE_2D, 0, 4, image.width(), image.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
-				break;
-			default:
-				debug_unreachable();
-			}
-
-			glDisable(GL_TEXTURE_2D);
-		}
-
-		void enable() const
-		{
-			glEnable(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D, id);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-		}
-		void disable() const
-		{
-			glDisable(GL_TEXTURE_2D);
-		}
-	};
-
-	core::container::UnorderedCollection
-	<
-		engine::Asset,
-		201,
-		std::array<ColorMaterial, 100>,
-		std::array<texture_t, 100>
-	>
-	materials;
-
-
 	struct mesh_t
 	{
 		core::maths::Matrix4x4f modelview;
@@ -315,14 +246,54 @@ namespace
 		{}
 	};
 
+	struct ColorClass
+	{
+		engine::graphics::opengl::Color4ub diffuse;
+
+		explicit ColorClass(uint32_t diffuse)
+			: diffuse(diffuse >>  0 & 0x000000ff,
+			          diffuse >>  8 & 0x000000ff,
+			          diffuse >> 16 & 0x000000ff,
+			          diffuse >> 24 & 0x000000ff)
+		{}
+	};
+
+	struct DefaultClass
+	{};
+
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
 		401,
 		std::array<mesh_t, 100>,
-		std::array<mesh_t, 1>
+		std::array<ColorClass, 100>,
+		std::array<DefaultClass, 100>
 	>
 	resources;
+
+
+	struct ColorMaterial
+	{
+		engine::graphics::opengl::Color4ub diffuse;
+
+		engine::Asset materialclass;
+
+		explicit ColorMaterial(uint32_t diffuse, engine::Asset materialclass)
+			: diffuse(diffuse >> 0 & 0x000000ff,
+			          diffuse >> 8 & 0x000000ff,
+			          diffuse >> 16 & 0x000000ff,
+			          diffuse >> 24 & 0x000000ff)
+			, materialclass(materialclass)
+		{}
+	};
+
+	core::container::UnorderedCollection
+	<
+		engine::MutableEntity,
+		201,
+		std::array<ColorMaterial, 100>
+	>
+	materials;
 
 
 	struct object_modelview
@@ -375,12 +346,12 @@ namespace
 	struct Character
 	{
 		const mesh_t * mesh_;
-		const texture_t * texture_;
 		object_modelview_vertices * object_;
 
-		Character(const mesh_t & mesh, const texture_t & texture, object_modelview_vertices & object)
+		Character(
+			const mesh_t & mesh,
+			object_modelview_vertices & object)
 			: mesh_(&mesh)
-			, texture_(&texture)
 			, object_(&object)
 		{}
 
@@ -411,8 +382,6 @@ namespace
 			}
 			else
 			{
-				texture_->enable();
-
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glEnableClientState(GL_NORMAL_ARRAY);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -437,8 +406,6 @@ namespace
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
 				glDisableClientState(GL_VERTEX_ARRAY);
-
-				texture_->disable();
 			}
 		}
 	};
@@ -447,7 +414,7 @@ namespace
 	{
 		const object_modelview * object;
 		const mesh_t * mesh;
-		const ColorMaterial * material;
+		engine::Entity material;
 	};
 
 	core::container::Collection
@@ -643,7 +610,14 @@ namespace
 
 				void operator () (MessageRegisterMaterial && x)
 				{
-					materials.replace<ColorMaterial>(x.asset, x.material.data_opengl_12.color);
+					if (x.material.data_opengl_12.diffuse)
+					{
+						resources.replace<ColorClass>(x.asset, x.material.data_opengl_12.diffuse.value());
+					}
+					else
+					{
+						resources.replace<DefaultClass>(x.asset);
+					}
 				}
 
 				void operator () (MessageRegisterMesh && x)
@@ -651,10 +625,29 @@ namespace
 					resources.replace<mesh_t>(x.asset, std::move(x.mesh));
 				}
 
-				void operator () (MessageRegisterTexture && x)
+				void operator () (MessageRegisterTexture && /*x*/)
 				{
-					debug_assert(!materials.contains(x.asset));
-					materials.emplace<texture_t>(x.asset, std::move(x.image));
+					debug_fail("missing implementation");
+				}
+
+				void operator () (MessageCreateMaterialInstance && x)
+				{
+					if (!debug_verify(resources.contains(x.data.materialclass), x.data.materialclass))
+						return; // error
+
+					if (const engine::MutableEntity * const key = materials.find_key(x.entity.entity()))
+					{
+						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
+							return; // error
+
+						materials.remove(*key); // todo use iterators
+					}
+					materials.emplace<ColorMaterial>(x.entity, x.data.diffuse, x.data.materialclass);
+				}
+
+				void operator () (MessageDestroy && x)
+				{
+					materials.remove(x.entity);
 				}
 
 				void operator () (MessageAddMeshObject && x)
@@ -668,11 +661,9 @@ namespace
 					}
 					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
 
-					if (resources.contains<mesh_t>(x.object.mesh) &&
-					    materials.contains<ColorMaterial>(x.object.material))
+					if (resources.contains<mesh_t>(x.object.mesh))
 					{
 						mesh_t & mesh = resources.get<mesh_t>(x.object.mesh);
-						ColorMaterial & material = materials.get<ColorMaterial>(x.object.material);
 
 						if (const engine::MutableEntity * const key = components.find_key(x.entity.entity()))
 						{
@@ -681,7 +672,7 @@ namespace
 
 							components.remove(*key); // todo use iterators
 						}
-						debug_verify(components.try_emplace<MeshObject>(x.entity, &object, &mesh, &material));
+						debug_verify(components.try_emplace<MeshObject>(x.entity, &object, &mesh, x.object.material));
 					}
 					else
 					{
@@ -1078,12 +1069,28 @@ namespace
 
 		for (auto & component : components.get<MeshObject>())
 		{
+			engine::graphics::opengl::Color4ub color(0, 0, 0, 0);
+
+			if (materials.contains<ColorMaterial>(component.material))
+			{
+				auto & material = materials.get<ColorMaterial>(component.material);
+
+				color = material.diffuse;
+
+				if (resources.contains<ColorClass>(material.materialclass))
+				{
+					auto & class_ = resources.get<ColorClass>(material.materialclass);
+
+					color = class_.diffuse;
+				}
+			}
+
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
 			modelview_matrix.mult(component.mesh->modelview);
 			glLoadMatrix(modelview_matrix);
 
-			glColor(component.material->color);
+			glColor(color);
 
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_NORMAL_ARRAY);
@@ -1166,12 +1173,12 @@ namespace
 			debug_printline(engine::asset_channel, resources_not_unregistered[i]);
 		}
 
-		engine::Asset materials_not_unregistered[materials.max_size()];
-		const int material_count = materials.get_all_keys(materials_not_unregistered, materials.max_size());
-		debug_printline(engine::asset_channel, material_count, " materials not unregistered:");
+		engine::MutableEntity materials_not_destroyed[materials.max_size()];
+		const int material_count = materials.get_all_keys(materials_not_destroyed, materials.max_size());
+		debug_printline(engine::asset_channel, material_count, " materials not destroyed:");
 		for (int i = 0; i < material_count; i++)
 		{
-			debug_printline(engine::asset_channel, materials_not_unregistered[i]);
+			debug_printline(engine::asset_channel, materials_not_destroyed[i]);
 		}
 	}
 }

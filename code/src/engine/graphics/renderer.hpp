@@ -13,6 +13,7 @@
 #include "engine/model/data.hpp"
 #include "engine/MutableEntity.hpp"
 
+#include "utility/optional.hpp"
 // todo forward declare
 #include "utility/unicode.hpp"
 
@@ -127,23 +128,25 @@ namespace engine
 			{
 				struct material_opengl_12
 				{
-					uint32_t color;
+					utility::optional<uint32_t> diffuse;
 
 					static constexpr auto serialization()
 					{
 						return utility::make_lookup_table(
-							std::make_pair(utility::string_view("color"), &material_opengl_12::color)
+							std::make_pair(utility::string_view("diffuse"), &material_opengl_12::diffuse)
 						);
 					}
 				};
 
 				struct material_opengl_30
 				{
+					utility::optional<uint32_t> diffuse;
 					engine::Asset shader;
 
 					static constexpr auto serialization()
 					{
 						return utility::make_lookup_table(
+							std::make_pair(utility::string_view("diffuse"), &material_opengl_30::diffuse),
 							std::make_pair(utility::string_view("shader"), &material_opengl_30::shader)
 						);
 					}
@@ -169,12 +172,24 @@ namespace engine
 				core::container::Buffer coords;
 			};
 
+			struct MaterialInstance
+			{
+				struct Texture
+				{
+					engine::Asset texture;
+				};
+
+				engine::Asset materialclass;
+				uint32_t diffuse;
+				std::vector<Texture> textures;
+			};
+
 			struct MeshObject
 			{
 				core::maths::Matrix4x4f matrix;
 
 				engine::Asset mesh;
-				engine::Asset material;
+				engine::Entity material;
 			};
 
 			struct CharacterSkinning
@@ -206,8 +221,13 @@ namespace engine
 		void post_register_material(renderer & renderer, engine::Asset asset, data::MaterialAsset && data);
 		void post_register_mesh(renderer & renderer, engine::Asset asset, data::MeshAsset && data);
 		void post_register_texture(renderer & renderer, engine::Asset asset, core::graphics::Image && image);
+		//void post_unregister(renderer & renderer, engine::Asset asset);
+
+		void post_create_material(renderer & renderer, engine::MutableEntity entity, data::MaterialInstance && data);
+		void post_destroy(renderer & renderer, engine::MutableEntity entity);
 
 		void post_add_object(renderer & renderer, engine::MutableEntity entity, data::MeshObject && data);
+		void post_remove_object(renderer & renderer, engine::Entity entity);
 
 		void post_make_selectable(renderer & renderer, engine::Entity entity);
 		void post_make_obstruction(renderer & renderer, engine::Entity entity);

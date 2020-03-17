@@ -218,9 +218,22 @@ namespace engine
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterTexture>, asset, std::move(image)));
 		}
 
+		void post_create_material(renderer &, engine::MutableEntity entity, data::MaterialInstance && data)
+		{
+			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageCreateMaterialInstance>, entity, std::move(data)));
+		}
+		void post_destroy(renderer &, engine::MutableEntity entity)
+		{
+			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageDestroy>, entity));
+		}
+
 		void post_add_object(renderer &, engine::MutableEntity entity, data::MeshObject && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageAddMeshObject>, entity, std::move(data)));
+		}
+		void post_remove_object(renderer & r, engine::Entity entity)
+		{
+			post_remove(r, entity); // todo
 		}
 
 		void post_make_obstruction(renderer &, engine::Entity entity)
