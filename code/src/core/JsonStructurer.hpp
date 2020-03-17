@@ -228,7 +228,10 @@ namespace core
 				}
 				else if (v.is_string())
 				{
-					read_string(v, x.back());
+					using core::assign_string;
+
+					const typename json::string_t & string = v;
+					assign_string(x.back(), utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
 				}
 				else
 				{
@@ -351,7 +354,10 @@ namespace core
 				}
 				else if (v.is_string())
 				{
-					read_string(v, y);
+					using core::assign_string;
+
+					const typename json::string_t & string = v;
+					assign_string(x.back(), utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
 				}
 				else
 				{
@@ -391,7 +397,16 @@ namespace core
 				}
 				else if (v.is_string())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_string(v, y); });
+					member_table<T>::call(
+						key,
+						x,
+						[&](auto & y)
+						{
+							using core::assign_string;
+
+							const typename json::string_t & string = v;
+							assign_string(y, utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
+						});
 				}
 				else
 				{
@@ -411,45 +426,6 @@ namespace core
 		void read_object(const json &, T &)
 		{
 			debug_fail("attempting to read object into a type without a member table in json '", filepath_, "'");
-		}
-
-		template <typename T,
-		          REQUIRES((std::is_enum<T>::value)),
-		          REQUIRES((core::has_lookup_table<T>::value))>
-		void read_string(const json & j, T & x)
-		{
-			const std::string & name = j;
-			if (core::value_table<T>::has(name.c_str()))
-			{
-				x = core::value_table<T>::get(name.c_str());
-			}
-			else
-			{
-				debug_fail("unknown enum value");
-			}
-		}
-		template <typename T>
-		auto read_string_nonenum(const json & j, T & x, int)
-			-> decltype(x = std::declval<typename json::string_t>(), void())
-		{
-			x = static_cast<const typename json::string_t &>(j);
-		}
-		template <typename T,
-		          REQUIRES((std::is_constructible<T, const typename json::string_t &>::value))>
-		void read_string_nonenum(const json & j, T & x, float)
-		{
-			x = T(static_cast<const typename json::string_t &>(j));
-		}
-		template <typename T>
-		void read_string_nonenum(const json & /*j*/, T & /*x*/, ...)
-		{
-			debug_fail("attempting to read string into a non string type in json '", filepath_, "'");
-		}
-		template <typename T,
-		          REQUIRES((!std::is_enum<T>::value))>
-		void read_string(const json & j, T & x)
-		{
-			read_string_nonenum(j, x, 0);
 		}
 	};
 }
