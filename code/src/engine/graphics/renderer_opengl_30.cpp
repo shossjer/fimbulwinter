@@ -164,7 +164,7 @@ namespace
 	{
 		struct FragmentOutput
 		{
-			std::string name;
+			utility::heap_string_utf8 name;
 			int value;
 
 			static constexpr auto serialization()
@@ -178,7 +178,7 @@ namespace
 
 		struct VertexInput
 		{
-			std::string name;
+			utility::heap_string_utf8 name;
 			int value;
 
 			static constexpr auto serialization()
@@ -192,8 +192,8 @@ namespace
 
 		std::vector<VertexInput> inputs;
 		std::vector<FragmentOutput> outputs;
-		std::string vertex_source;
-		std::string fragment_source;
+		utility::heap_string_utf8 vertex_source;
+		utility::heap_string_utf8 fragment_source;
 
 		static constexpr auto serialization()
 		{
@@ -227,7 +227,7 @@ namespace
 		GLint create(engine::Asset asset, ShaderData && shader_data)
 		{
 			GLint vs = glCreateShader(GL_VERTEX_SHADER);
-			const char * vs_source = shader_data.vertex_source.c_str();
+			const char * vs_source = shader_data.vertex_source.data();
 			glShaderSource(vs, 1, &vs_source, nullptr);
 			glCompileShader(vs);
 			GLint vs_compile_status;
@@ -241,7 +241,7 @@ namespace
 			}
 
 			GLint fs = glCreateShader(GL_FRAGMENT_SHADER);
-			const char * fs_source = shader_data.fragment_source.c_str();
+			const char * fs_source = shader_data.fragment_source.data();
 			glShaderSource(fs, 1, &fs_source, nullptr);
 			glCompileShader(fs);
 			GLint fs_compile_status;
@@ -259,11 +259,11 @@ namespace
 			glAttachShader(p, fs);
 			for (const auto & input : shader_data.inputs)
 			{
-				glBindAttribLocation(p, input.value, input.name.c_str());
+				glBindAttribLocation(p, input.value, input.name.data());
 			}
 			for (const auto & output : shader_data.outputs)
 			{
-				glBindFragDataLocation(p, output.value, output.name.c_str());
+				glBindFragDataLocation(p, output.value, output.name.data());
 			}
 			glLinkProgram(p);
 			GLint p_link_status;
@@ -515,7 +515,7 @@ namespace
 			int texture_width; // ?
 			int texture_height; // ?
 
-			std::string name;
+			utility::heap_string_utf8 name;
 			int size;
 		};
 
@@ -597,7 +597,7 @@ namespace
 			}
 		}
 
-		void create(std::string && name, std::vector<utility::unicode_code_point> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
+		void create(utility::heap_string_utf8 && name, std::vector<utility::unicode_code_point> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
 		{
 			const engine::Asset asset(name);
 			const auto index = find(asset);
