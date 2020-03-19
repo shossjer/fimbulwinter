@@ -55,6 +55,29 @@ namespace sync
 
 		/**  */
 		bool wait();
+
+		bool wait(int milliseconds)
+		{
+#if THREAD_USE_KERNEL32
+			return WaitForSingleObject(hEvent, milliseconds) == WAIT_OBJECT_0;
+#else
+			struct timespec ts;
+			if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
+				return false;
+
+			ts.tv_sec += milliseconds / 1000;
+			ts.tv_nsec += (milliseconds % 1000) * 1000 * 1000;
+
+			std::lock_guard<Mutex> lock{mutex};
+			while (!is_set)
+			{
+				if (!cond.wait(mutex, ts))
+					return false;
+			}
+			is_set = false;
+			return true;
+#endif
+		}
 	};
 	/** true - to use manual reset or not */
 	template <>
@@ -98,6 +121,28 @@ namespace sync
 
 		/**  */
 		bool wait();
+
+		bool wait(int milliseconds)
+		{
+#if THREAD_USE_KERNEL32
+			return WaitForSingleObject(hEvent, milliseconds) == WAIT_OBJECT_0;
+#else
+			struct timespec ts;
+			if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
+				return false;
+
+			ts.tv_sec += milliseconds / 1000;
+			ts.tv_nsec += (milliseconds % 1000) * 1000 * 1000;
+
+			std::lock_guard<Mutex> lock{mutex};
+			while (!is_set)
+			{
+				if (!cond.wait(mutex, ts))
+					return false;
+			}
+			return true;
+#endif
+		}
 	};
 }
 }

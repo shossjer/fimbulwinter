@@ -28,7 +28,7 @@ namespace engine
 	class Asset
 	{
 	public:
-		using value_type = uint64_t;
+		using value_type = uint32_t;
 	private:
 		using this_type = Asset;
 
@@ -37,6 +37,7 @@ namespace engine
 
 	public:
 		Asset() = default;
+		explicit Asset(value_type id) : id(id) {}
 		template <std::size_t N>
 		explicit constexpr Asset(const char (& str)[N])
 			: id{utility::crypto::crc32(str)}

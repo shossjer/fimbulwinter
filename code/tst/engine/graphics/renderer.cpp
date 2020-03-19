@@ -3,7 +3,6 @@
 #include "engine/application/config.hpp"
 #include "engine/application/window.hpp"
 #include "engine/graphics/renderer.hpp"
-#include "engine/resource/reader.hpp"
 
 #include <catch/catch.hpp>
 
@@ -13,7 +12,6 @@
 
 TEST_CASE("Graphics Renderer can be created and destroyed", "[.engine][.graphics]")
 {
-	engine::resource::reader reader;
 	engine::application::config_t config;
 #if WINDOW_USE_USER32
 	engine::application::window window(GetModuleHandleW(nullptr), SW_HIDE, config);
@@ -23,11 +21,11 @@ TEST_CASE("Graphics Renderer can be created and destroyed", "[.engine][.graphics
 
 	for (int i = 0; i < 2; i++)
 	{
-		engine::graphics::renderer renderer(window, reader, nullptr, engine::graphics::renderer::Type::OPENGL_1_2);
+		engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type::OPENGL_1_2);
 	}
 
 	for (int i = 0; i < 2; i++)
 	{
-		engine::graphics::renderer renderer(window, reader, nullptr, engine::graphics::renderer::Type::OPENGL_3_0);
+		engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type::OPENGL_3_0);
 	}
 }

@@ -24,6 +24,22 @@
 # define __has_builtin(x) 0
 #endif
 
+#define QUOTE(x) #x
+#define STRINGIFY(x) QUOTE(x)
+
+#if defined(_MSC_VER)
+# define LINE_LINK __FILE__ "(" STRINGIFY(__LINE__) ")"
+#else
+# define LINE_LINK __FILE__ ":" STRINGIFY(__LINE__)
+#endif
+
+// due to a faulty preprocessor implementation by
+// microsoft, `#__VA_ARGS__` will be replaced by nothing when
+// __VA_ARGS__ is empty, so we have to add an extra ""
+//
+// https://docs.microsoft.com/en-us/cpp/preprocessor/preprocessor-experimental-overview#macro-arguments-are-unpacked
+#define NO_ARGS(...) (sizeof "" #__VA_ARGS__ == 1)
+
 #if MODE_DEBUG
 
 /**
@@ -31,10 +47,10 @@
  *
  * Additionally returns the evaluation of the condition.
  */
-# ifdef __GNUG__
-#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} < expr, ##__VA_ARGS__) || (debug_break(), false))
+# if defined(_MSC_VER)
+#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n"); }(core::debug::empty_t{} < expr) || (debug_break(), false))
 # else
-#  define debug_assert(expr, ...) (core::debug::instance().affirm(__FILE__, __LINE__, #expr, core::debug::empty_t{} < expr, __VA_ARGS__) || (debug_break(), false))
+#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n"); }(core::debug::empty_t{} < expr) || (debug_break(), false))
 # endif
 
 /**
@@ -121,10 +137,10 @@ namespace core
  *
  * \note Always returns false.
  */
-# ifdef __GNUG__
-#  define debug_fail(...) (core::debug::instance().fail(__FILE__, __LINE__, ##__VA_ARGS__) || (debug_break(), false))
+# if defined(_MSC_VER)
+#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n") || (debug_break(), false))
 # else
-#  define debug_fail(...) (core::debug::instance().fail(__FILE__, __LINE__, __VA_ARGS__) || (debug_break(), false))
+#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n") || (debug_break(), false))
 # endif
 
 /**
@@ -341,25 +357,14 @@ namespace core
 			fail_hook_ = fail_hook;
 		}
 
-		template <std::size_t N, std::size_t M, typename C, typename ...Ps>
-		bool affirm(const char (& file_name)[N], int line_number, const char (& expr)[M], C && comp, Ps && ...ps)
+		template <typename ...Ps>
+		bool fail(Ps && ...ps)
 		{
-			if (comp()) return true;
-
-			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, ":", line_number, ": ", expr, "\n", comp, "\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
-			std::cerr.flush();
-
-			return fail_hook_ ? fail_hook_() : false;
-		}
-
-		template <std::size_t N, typename ...Ps>
-		bool fail(const char (& file_name)[N], int line_number, Ps && ...ps)
-		{
-			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cerr, file_name, ":", line_number, ": failed\n", sizeof...(Ps) > 0 ? "explaination: " : "", std::forward<Ps>(ps)..., sizeof...(Ps) > 0 ? "\n" : "");
-			std::cerr.flush();
-
+			{
+				std::lock_guard<lock_t> guard{this->lock};
+				utility::to_stream(std::cerr, std::forward<Ps>(ps)...);
+				std::cerr.flush();
+			}
 			return fail_hook_ ? fail_hook_() : false;
 		}
 
@@ -385,7 +390,14 @@ namespace core
 		void printline_all(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
 			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(std::cout, file_name, ":", line_number, ": ", std::forward<Ps>(ps)..., "\n");
+			utility::to_stream(
+				std::cout,
+#if defined(_MSC_VER)
+				file_name, "(", line_number, ")",
+#else
+				file_name, ":", line_number,
+#endif
+				": ", std::forward<Ps>(ps)..., "\n");
 			std::cout.flush();
 		}
 

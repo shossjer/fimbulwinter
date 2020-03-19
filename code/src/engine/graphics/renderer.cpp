@@ -67,7 +67,6 @@ namespace engine
 
 			engine::graphics::renderer * self = nullptr; // todo seems unnecessary
 			engine::application::window * window = nullptr;
-			engine::resource::reader * reader = nullptr;
 			void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data) = nullptr;
 
 			core::async::Thread renderThread;
@@ -91,16 +90,14 @@ namespace engine
 			renderThread.join();
 
 			detail::callback_select = nullptr;
-			detail::reader = nullptr;
 			detail::window = nullptr;
 			detail::self = nullptr;
 		}
 
-		renderer::renderer(engine::application::window & window_, engine::resource::reader & reader_, void (* callback_select_)(engine::Entity entity, engine::Command command, utility::any && data), Type type)
+		renderer::renderer(engine::application::window & window_, void (* callback_select_)(engine::Entity entity, engine::Command command, utility::any && data), Type type)
 		{
 			detail::self = this;
 			detail::window = &window_;
-			detail::reader = &reader_;
 			detail::callback_select = callback_select_;
 
 			switch (type)
