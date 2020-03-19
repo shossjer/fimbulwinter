@@ -203,9 +203,15 @@ namespace
 
 	bool try_read(utility::heap_string_utfw && filepath, watch_callback & watch_callback, engine::Asset match)
 	{
-		HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+		if (!debug_assert((filepath.data()[0] == L'\\' && filepath.data()[1] == L'\\' && filepath.data()[2] == L'?' && filepath.data()[3] == L'\\')))
+			return false;
+
+		HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 		if (!debug_verify(hFile != INVALID_HANDLE_VALUE, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\"failed with last error ", ::GetLastError()))
 			return false;
+
+		auto filepath_utf8 = utility::heap_narrow<utility::encoding_utf8>(utility::string_view_utfw(filepath, utility::unit_difference(4))); // skip "\\\\?\\"
+		std::replace(filepath_utf8.data(), filepath_utf8.data() + filepath_utf8.size(), '\\', '/');
 
 		core::ReadStream stream([](void * dest, ext::usize n, void * data)
 		                        {
@@ -218,7 +224,7 @@ namespace
 			                        return ext::ssize(read);
 		                        },
 		                        reinterpret_cast<void *>(hFile),
-		                        utility::heap_narrow<utility::encoding_utf8>(filepath));
+								std::move(filepath_utf8));
 
 		watch_callback.callback(std::move(stream), watch_callback.data, match);
 
@@ -255,7 +261,7 @@ namespace
 			if (!debug_verify(utility::try_narrow(filename, match_name)))
 				continue;
 
-			const engine::Asset full_asset(match_name.data(), match_name.size());
+			const auto full_asset = engine::Asset(match_name);
 			const auto maybe_full = std::find(directory_meta.fulls.assets.begin(), directory_meta.fulls.assets.end(), full_asset);
 			if (maybe_full != directory_meta.fulls.assets.end())
 			{
@@ -275,7 +281,7 @@ namespace
 			if (dot == ext::index_invalid)
 				return false; // not eligible for partial matching
 
-			const engine::Asset name_asset(match_name.data(), dot);
+			const auto name_asset = engine::Asset(match_name.data(), dot);
 			const auto maybe_name = std::find(directory_meta.names.assets.begin(), directory_meta.names.assets.end(), name_asset);
 			if (maybe_name != directory_meta.names.assets.end())
 			{
@@ -291,7 +297,7 @@ namespace
 				continue;
 			}
 
-			const engine::Asset extension_asset(match_name.data() + dot, match_name.size() - dot);
+			const auto extension_asset = engine::Asset(match_name.data() + dot, match_name.size() - dot);
 			const auto maybe_extension = std::find(directory_meta.extensions.assets.begin(), directory_meta.extensions.assets.end(), extension_asset);
 			if (maybe_extension != directory_meta.extensions.assets.end())
 			{
@@ -706,7 +712,7 @@ namespace
 
 					const auto & directory_meta = directory_metas[directory_index];
 
-					const engine::Asset full_asset(match_name.data(), match_name.size());
+					const auto full_asset = engine::Asset(match_name);
 					const auto maybe_full = std::find(directory_meta.fulls.assets.begin(), directory_meta.fulls.assets.end(), full_asset);
 					if (maybe_full != directory_meta.fulls.assets.end())
 					{
@@ -760,7 +766,7 @@ namespace
 					if (dot == ext::index_invalid)
 						continue; // not eligible for partial matching
 
-					const engine::Asset name_asset(match_name.data(), dot);
+					const auto name_asset = engine::Asset(match_name.data(), dot);
 					const auto maybe_name = std::find(directory_meta.names.assets.begin(), directory_meta.names.assets.end(), name_asset);
 					if (maybe_name != directory_meta.names.assets.end())
 					{
@@ -810,7 +816,7 @@ namespace
 						continue;
 					}
 
-					const engine::Asset extension_asset(match_name.data() + dot, match_name.size() - dot);
+					const auto extension_asset = engine::Asset(match_name.data() + dot, match_name.size() - dot);
 					const auto maybe_extension = std::find(directory_meta.extensions.assets.begin(), directory_meta.extensions.assets.end(), extension_asset);
 					if (maybe_extension != directory_meta.extensions.assets.end())
 					{
@@ -999,24 +1005,24 @@ namespace
 				{
 					if (x.pattern.data()[from.get()] == '*') // extension
 					{
-						const utility::string_view_utf8 extension(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
-						const engine::Asset asset(extension.data(), extension.size());
+						const auto extension = utility::string_view_utf8(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
+						const auto asset = engine::Asset(extension);
 
 						temporary_meta.extensions.assets.push_back(asset);
 						debug_expression(added_any_match = true);
 					}
 					else if (x.pattern.data()[found.get() - 1] == '*') // name
 					{
-						const utility::string_view_utf8 name(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
-						const engine::Asset asset(name.data(), name.size());
+						const auto name = utility::string_view_utf8(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
+						const auto asset = engine::Asset(name);
 
 						temporary_meta.names.assets.push_back(asset);
 						debug_expression(added_any_match = true);
 					}
 					else // full
 					{
-						const utility::string_view_utf8 full(x.pattern.data() + from.get(), found - from);
-						const engine::Asset asset(full.data(), full.size());
+						const auto full = utility::string_view_utf8(x.pattern.data() + from.get(), found - from);
+						const auto asset = engine::Asset(full);
 
 						temporary_meta.fulls.assets.push_back(asset);
 						debug_expression(added_any_match = true);
@@ -1114,9 +1120,9 @@ namespace
 				{
 					if (x.pattern.data()[from.get()] == '*') // extension
 					{
-						const utility::string_view_utf8 extension(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
+						const auto extension = utility::string_view_utf8(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
 						debug_printline("adding extension \"", extension, "\" to watch for \"", utility::heap_narrow<utility::encoding_utf8>(directory_meta.filepath), "\"");
-						const engine::Asset asset(extension.data(), extension.size());
+						const auto asset = engine::Asset(extension);
 
 						directory_meta.extensions.assets.push_back(asset);
 						directory_meta.extensions.aliases.push_back(x.directory);
@@ -1125,9 +1131,9 @@ namespace
 					}
 					else if (x.pattern.data()[found.get() - 1] == '*') // name
 					{
-						const utility::string_view_utf8 name(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
+						const auto name = utility::string_view_utf8(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
 						debug_printline("adding name \"", name, "\" to watch for \"", utility::heap_narrow<utility::encoding_utf8>(directory_meta.filepath), "\"");
-						const engine::Asset asset(name.data(), name.size());
+						const auto asset = engine::Asset(name);
 
 						directory_meta.names.assets.push_back(asset);
 						directory_meta.names.aliases.push_back(x.directory);
@@ -1136,9 +1142,9 @@ namespace
 					}
 					else // full
 					{
-						const utility::string_view_utf8 full(x.pattern.data() + from.get(), found - from);
+						const auto full = utility::string_view_utf8(x.pattern.data() + from.get(), found - from);
 						debug_printline("adding full \"", full, "\" to watch for \"", utility::heap_narrow<utility::encoding_utf8>(directory_meta.filepath), "\"");
-						const engine::Asset asset(full.data(), full.size());
+						const auto asset = engine::Asset(full);
 
 						directory_meta.fulls.assets.push_back(asset);
 						directory_meta.fulls.aliases.push_back(x.directory);
@@ -1228,6 +1234,9 @@ namespace
 			if (!utility::try_widen_append(x.filename, filepath))
 				return;
 
+			if (!debug_assert((filepath.data()[0] == L'\\' && filepath.data()[1] == L'\\' && filepath.data()[2] == L'?' && filepath.data()[3] == L'\\')))
+				return;
+
 			DWORD dwCreationDisposition = CREATE_NEW;
 			DWORD dwDesiredAccess = GENERIC_WRITE;
 			if (x.mode & engine::file::flags::APPEND_EXISTING)
@@ -1246,6 +1255,9 @@ namespace
 				return;
 			}
 
+			auto filepath_utf8 = utility::heap_narrow<utility::encoding_utf8>(utility::string_view_utfw(filepath, utility::unit_difference(4))); // skip "\\\\?\\"
+			std::replace(filepath_utf8.data(), filepath_utf8.data() + filepath_utf8.size(), '\\', '/');
+
 			core::WriteStream stream([](const void * src, ext::usize n, void * data)
 										{
 											HANDLE hFile = reinterpret_cast<HANDLE>(data);
@@ -1257,7 +1269,7 @@ namespace
 											return ext::ssize(written);
 										},
 										reinterpret_cast<void *>(hFile),
-										utility::heap_narrow<utility::encoding_utf8>(filepath));
+										std::move(filepath_utf8));
 			x.callback(std::move(stream), std::move(x.data));
 
 			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());

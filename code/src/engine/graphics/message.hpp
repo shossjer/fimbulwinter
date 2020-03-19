@@ -8,6 +8,7 @@
 #include "engine/Entity.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/model/data.hpp"
+#include "engine/MutableEntity.hpp"
 
 #include "utility/variant.hpp"
 
@@ -20,168 +21,146 @@ namespace engine
 			struct MessageAddDisplay
 			{
 				engine::Asset asset;
-				engine::graphics::renderer::display display;
+				engine::graphics::data::display display;
 			};
+
 			struct MessageRemoveDisplay
 			{
 				engine::Asset asset;
 			};
+
 			struct MessageUpdateDisplayCamera2D
 			{
 				engine::Asset asset;
-				engine::graphics::renderer::camera_2d camera_2d;
+				engine::graphics::data::camera_2d camera_2d;
 			};
+
 			struct MessageUpdateDisplayCamera3D
 			{
 				engine::Asset asset;
-				engine::graphics::renderer::camera_3d camera_3d;
+				engine::graphics::data::camera_3d camera_3d;
 			};
+
 			struct MessageUpdateDisplayViewport
 			{
 				engine::Asset asset;
-				engine::graphics::renderer::viewport viewport;
+				engine::graphics::data::viewport viewport;
 			};
-			using DisplayMessage = utility::variant
-			<
-				MessageAddDisplay,
-				MessageRemoveDisplay,
-				MessageUpdateDisplayCamera2D,
-				MessageUpdateDisplayCamera3D,
-				MessageUpdateDisplayViewport
-			>;
 
 			struct MessageRegisterCharacter
 			{
 				engine::Asset asset;
 				engine::model::mesh_t mesh;
 			};
+
+			struct MessageRegisterMaterial
+			{
+				engine::Asset asset;
+				engine::graphics::data::MaterialAsset material;
+			};
+
 			struct MessageRegisterMesh
 			{
 				engine::Asset asset;
-				engine::graphics::data::Mesh mesh;
+				engine::graphics::data::MeshAsset mesh;
 			};
+
 			struct MessageRegisterTexture
 			{
 				engine::Asset asset;
 				core::graphics::Image image;
 			};
-			using AssetMessage = utility::variant
-			<
-				MessageRegisterCharacter,
-				MessageRegisterMesh,
-				MessageRegisterTexture
-			>;
 
-			struct MessageAddBar
+			struct MessageCreateMaterialInstance
 			{
-				engine::Entity entity;
-				engine::graphics::data::Bar bar;
+				engine::MutableEntity entity;
+				engine::graphics::data::MaterialInstance data;
 			};
-			struct MessageAddCharacterT
+
+			struct MessageDestroy
 			{
-				engine::Entity entity;
-				engine::graphics::data::CompT component;
+				engine::MutableEntity entity;
 			};
-			struct MessageAddComponentC
+
+			struct MessageAddMeshObject
 			{
-				engine::Entity entity;
-				engine::graphics::data::CompC component;
+				engine::MutableEntity entity;
+				engine::graphics::data::MeshObject object;
 			};
-			struct MessageAddComponentT
-			{
-				engine::Entity entity;
-				engine::graphics::data::CompT component;
-			};
-			struct MessageAddLineC
-			{
-				engine::Entity entity;
-				engine::graphics::data::LineC line;
-			};
-			struct MessageAddPanelC
-			{
-				engine::Entity entity;
-				engine::graphics::data::ui::PanelC panel;
-			};
-			struct MessageAddPanelT
-			{
-				engine::Entity entity;
-				engine::graphics::data::ui::PanelT panel;
-			};
-			struct MessageAddText
-			{
-				engine::Entity entity;
-				engine::graphics::data::ui::Text text;
-			};
+
 			struct MessageMakeObstruction
 			{
 				engine::Entity entity;
 			};
+
 			struct MessageMakeSelectable
 			{
 				engine::Entity entity;
 			};
+
 			struct MessageMakeTransparent
 			{
 				engine::Entity entity;
 			};
+
 			struct MessageMakeClearSelection
 			{
 			};
+
 			struct MessageMakeDehighlighted
 			{
 				engine::Entity entity;
 			};
+
 			struct MessageMakeDeselect
 			{
 				engine::Entity entity;
 			};
+
 			struct MessageMakeHighlighted
 			{
 				engine::Entity entity;
 			};
+
 			struct MessageMakeSelect
 			{
 				engine::Entity entity;
 			};
+
 			struct MessageRemove
 			{
 				engine::Entity entity;
 			};
+
 			struct MessageUpdateCharacterSkinning
 			{
 				engine::Entity entity;
-				engine::graphics::renderer::CharacterSkinning character_skinning;
+				engine::graphics::data::CharacterSkinning character_skinning;
 			};
+
 			struct MessageUpdateModelviewMatrix
 			{
 				engine::Entity entity;
 				engine::graphics::data::ModelviewMatrix modelview_matrix;
 			};
-			struct MessageUpdatePanelC
-			{
-				engine::Entity entity;
-				engine::graphics::data::ui::PanelC panel;
-			};
-			struct MessageUpdatePanelT
-			{
-				engine::Entity entity;
-				engine::graphics::data::ui::PanelT panel;
-			};
-			struct MessageUpdateText
-			{
-				engine::Entity entity;
-				engine::graphics::data::ui::Text text;
-			};
-			using EntityMessage = utility::variant
+
+			using Message = utility::variant
 			<
-				MessageAddBar,
-				MessageAddCharacterT,
-				MessageAddComponentC,
-				MessageAddComponentT,
-				MessageAddLineC,
-				MessageAddPanelC,
-				MessageAddPanelT,
-				MessageAddText,
+				MessageAddDisplay,
+				MessageRemoveDisplay,
+				MessageUpdateDisplayCamera2D,
+				MessageUpdateDisplayCamera3D,
+				MessageUpdateDisplayViewport,
+
+				MessageRegisterCharacter,
+				MessageRegisterMaterial,
+				MessageRegisterMesh,
+				MessageRegisterTexture,
+
+				MessageCreateMaterialInstance,
+				MessageDestroy,
+
+				MessageAddMeshObject,
 				MessageMakeObstruction,
 				MessageMakeSelectable,
 				MessageMakeTransparent,
@@ -192,10 +171,7 @@ namespace engine
 				MessageMakeSelect,
 				MessageRemove,
 				MessageUpdateCharacterSkinning,
-				MessageUpdateModelviewMatrix,
-				MessageUpdatePanelC,
-				MessageUpdatePanelT,
-				MessageUpdateText
+				MessageUpdateModelviewMatrix
 			>;
 		}
 	}

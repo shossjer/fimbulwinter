@@ -76,6 +76,34 @@ namespace core
 			return size - remaining;
 		}
 
+		ext::usize skip(ext::usize size)
+		{
+			if (!debug_assert(!done_, "cannot skip a done stream"))
+				return 0;
+
+			if (!debug_assert(size != 0, "cannot skip zero bytes, please sanitize your data!"))
+				return 0;
+
+			char buffer[0x1000]; // arbitrary
+			ext::usize remaining = size;
+
+			do
+			{
+				const ext::ssize ret = callback_(buffer, std::min(remaining, sizeof buffer), data_);
+				if (ret <= 0)
+				{
+					done_ = true;
+					fail_ = ret < 0;
+					break;
+				}
+
+				remaining -= ret;
+			}
+			while (0 < remaining);
+
+			return size - remaining;
+		}
+
 		const utility::heap_string_utf8 & filepath() const { return filepath_; }
 	};
 }

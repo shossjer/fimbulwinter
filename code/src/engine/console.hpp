@@ -1,9 +1,7 @@
+#pragma once
 
-#ifndef ENGINE_CONSOLE_HPP
-#define ENGINE_CONSOLE_HPP
-
-#include "utility/string_view.hpp"
 #include "utility/type_traits.hpp"
+#include "utility/unicode.hpp"
 #include "utility/variant.hpp"
 
 #include <memory>
@@ -25,7 +23,7 @@ namespace engine
 			bool,
 			double,
 			int64_t,
-			utility::string_view
+			utility::string_view_utf8
 		>;
 
 		struct CallbackBase
@@ -75,16 +73,14 @@ namespace engine
 			}
 		};
 
-		void observe_impl(utility::string_view keyword, std::unique_ptr<CallbackBase> && callback);
+		void observe_impl(utility::string_view_utf8 keyword, std::unique_ptr<CallbackBase> && callback);
 	}
 
-	void abandon(utility::string_view keyword);
+	void abandon(utility::string_view_utf8 keyword);
 
 	template <typename ...Parameters>
-	void observe(utility::string_view keyword, void (* fun)(void * data, Parameters...), void * data)
+	void observe(utility::string_view_utf8 keyword, void (* fun)(void * data, Parameters...), void * data)
 	{
 		detail::observe_impl(keyword, std::make_unique<detail::Callback<Parameters...>>(fun, data));
 	}
 }
-
-#endif /* ENGINE_CONSOLE_HPP */

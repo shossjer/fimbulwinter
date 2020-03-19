@@ -20,8 +20,9 @@ namespace engine
 {
 	namespace file
 	{
-		struct system
+		class system
 		{
+		public:
 			~system();
 			system();
 		};

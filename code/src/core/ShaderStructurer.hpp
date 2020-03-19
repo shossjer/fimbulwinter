@@ -6,11 +6,11 @@
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
 
-#include "utility/string.hpp"
+#include "utility/unicode.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <vector>
-#include <string>
 
 namespace core
 {
@@ -74,7 +74,6 @@ namespace core
 			{
 				skip_region(vertex_source_begin, vertex_source_end);
 			}
-			// debug_printline(std::string(stream.data(vertex_source_begin), stream.data(vertex_source_end)));
 
 			stream.consume();
 			debug_verify(parse("[fragment]", newline), "expected fragment section in '", stream.filepath(), "'");
@@ -111,7 +110,6 @@ namespace core
 			{
 				skip_region(fragment_source_begin, fragment_source_end);
 			}
-			// debug_printline(std::string(stream.data(fragment_source_begin), stream.data(fragment_source_end)));
 
 			debug_assert(!stream.valid());
 		}
@@ -238,38 +236,35 @@ namespace core
 				if (!stream.valid())
 					return false;
 			}
-			utility::from_string(std::string(stream.data(from), stream.data(stream.pos())), x, true);
+			// todo error handling
+			x = debug_cast<int>(std::strtol(stream.data(from), nullptr, 0));
 
 			return parse_impl(std::forward<Ps>(ps)...);
 		}
 
-		template <typename ...Ps>
-		bool parse_impl(std::string & x, Ps && ...ps)
+		template <typename T, typename ...Ps>
+		bool parse_impl(T & x, Ps && ...ps)
 		{
 			if (!stream.valid())
 				return false;
 
 			if (stream.peek() == '"')
-			{
-				debug_fail();
-				return false;
-			}
-			else
-			{
-				const auto from = stream.pos();
-				while (!(stream.peek() == '\n' ||
-				         stream.peek() == '\r' ||
-				         stream.peek() == '\t' ||
-				         stream.peek() == ' '))
-				{
-					stream.next();
-					if (!stream.valid())
-						return false;
-				}
-				x = std::string(stream.data(from), stream.data(stream.pos()));
+				return debug_fail();
 
-				return parse_impl(std::forward<Ps>(ps)...);
+			const auto from = stream.pos();
+			while (!(stream.peek() == '\n' ||
+				        stream.peek() == '\r' ||
+				        stream.peek() == '\t' ||
+				        stream.peek() == ' '))
+			{
+				stream.next();
+				if (!stream.valid())
+					return false;
 			}
+			if (!assign_string(x, utility::string_view_utf8(stream.data(from), utility::unit_difference(stream.pos() - from))))
+				return false;
+
+			return parse_impl(std::forward<Ps>(ps)...);
 		}
 
 		template <typename P1, typename ...Ps>
@@ -315,11 +310,15 @@ namespace core
 			return pos;
 		}
 
-		void parse_region(std::ptrdiff_t from, std::ptrdiff_t to, std::string & x)
+		template <typename T>
+		void parse_region(std::ptrdiff_t from, std::ptrdiff_t to, T & x)
 		{
+			using core::assign_string;
 			debug_assert(from == stream.pos());
 
-			x = std::string(stream.data(from), stream.data(to));
+			if (!assign_string(x, utility::string_view_utf8(stream.data(from), utility::unit_difference(to - from))))
+				return; // error
+
 			stream.seek(to);
 		}
 

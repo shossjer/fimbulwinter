@@ -363,7 +363,12 @@ namespace utility
 		}
 
 		template <typename Callback>
-		bool try_reallocate_with(std::size_t capacity, Callback && callback)
+		constexpr bool try_reallocate_with(std::size_t /*capacity*/, Callback && /*callback*/, mpl::true_type /*static capacity*/)
+		{
+			return false;
+		}
+		template <typename Callback>
+		bool try_reallocate_with(std::size_t capacity, Callback && callback, mpl::false_type /*static capacity*/)
 		{
 			StorageData new_data;
 			new_data.set_capacity(capacity);
@@ -384,6 +389,11 @@ namespace utility
 			new_data.set_capacity(0);
 			new_data.set_size(0);
 			return true;
+		}
+		template <typename Callback>
+		constexpr bool try_reallocate_with(std::size_t capacity, Callback && callback)
+		{
+			return try_reallocate_with(capacity, std::forward<Callback>(callback), typename StorageData::storage_traits::static_capacity{});
 		}
 
 		bool try_reallocate(std::size_t capacity)

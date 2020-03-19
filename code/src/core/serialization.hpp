@@ -4,12 +4,13 @@
 
 #include "core/debug.hpp"
 
+#include "utility/lookup_table.hpp"
+#include "utility/optional.hpp"
 #include "utility/preprocessor.hpp"
 #include "utility/string_view.hpp"
 #include "utility/type_traits.hpp"
+#include "utility/unicode.hpp"
 #include "utility/utility.hpp"
-
-#include "utility/lookup_table.hpp"
 
 namespace core
 {
@@ -166,6 +167,67 @@ namespace core
 
 	template <typename T>
 	using has_lookup_table = typename has_lookup_table_impl<T>::type;
+
+	// todo separate utilities from customization points; `try_assign` is a utility, `for_each` is a customization point
+	template <typename T, typename F>
+	auto for_each(T & x, std::size_t count, F && f)
+		-> decltype(x.resize(count), bool())
+	{
+		x.resize(count);
+
+		for (auto && y : x)
+		{
+			if (!f(y))
+				return false;
+		}
+		return true;
+	}
+
+	template <typename T,
+	          REQUIRES((std::is_enum<T>::value)),
+	          REQUIRES((core::has_lookup_table<T>::value))>
+	bool assign_string(T & x, utility::string_view_utf8 str)
+	{
+		if (!core::value_table<T>::has(str.data()))
+			return debug_fail("unknown enum value");
+
+		x = core::value_table<T>::get(str.data());
+		return true;
+	}
+	template <typename T>
+	auto assign_string_nonenum(T & x, utility::string_view_utf8 str, int)
+		-> decltype(x = str, bool())
+	{
+		x = str;
+		return true;
+	}
+	template <typename T>
+	auto assign_string_nonenum(T & x, utility::string_view_utf8 str, float)
+		-> decltype(x = T(str), bool())
+	{
+		x = T(str);
+		return true;
+	}
+	template <typename T>
+	bool assign_string_nonenum(T & /*x*/, utility::string_view_utf8 /*str*/, ...)
+	{
+		constexpr auto type_name = utility::type_name<T>();
+		debug_unreachable("`", type_name, "` cannot be assigned a `string_view_utf8`, try overload `assign_string`");
+	}
+	template <typename T,
+	          REQUIRES((!std::is_enum<T>::value))>
+	bool assign_string(T & x, utility::string_view_utf8 str)
+	{
+		return assign_string_nonenum(x, str, 0);
+	}
+
+	template <typename T>
+	T & value(utility::optional<T> & x)
+	{
+		return x.has_value() ? x.value() : x.emplace();
+	}
+	template <typename T>
+	T & value(T & x) { return x; }
 
 	template <std::size_t I, typename T, typename F>
 	void assign(T & x, F && f)

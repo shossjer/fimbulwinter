@@ -5,10 +5,12 @@ set(FILES_CORE
 	tst/core/container/Collection.cpp
 	tst/core/container/Queue.cpp
 	tst/core/debug.cpp
+	tst/core/file/paths.cpp
 	tst/core/maths/Matrix.cpp
 	tst/core/maths/Quaternion.cpp
 	tst/core/maths/Vector.cpp
 	tst/core/maths/util.cpp
+	tst/core/ReadStream.cpp
 	tst/core/WriteStream.cpp
 	)
 
@@ -25,8 +27,8 @@ set(FILES_ENGINE
 	tst/engine/gui/gui_access.hpp
 	tst/engine/hid/devices.cpp
 	tst/engine/hid/ui.cpp
+	tst/engine/MutableEntity.cpp
 	tst/engine/physics/simulation.cpp
-	tst/engine/record.cpp
 	)
 
 set(FILES_UTILITY

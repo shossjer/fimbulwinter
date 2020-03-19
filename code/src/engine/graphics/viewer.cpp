@@ -244,7 +244,7 @@ namespace
 	struct extract_projection_matrices_2d
 	{
 		const Viewport & viewport;
-		engine::graphics::renderer::camera_2d & data;
+		engine::graphics::data::camera_2d & data;
 
 		void operator () (Orthographic & x)
 		{
@@ -261,7 +261,7 @@ namespace
 	struct extract_projection_matrices_3d
 	{
 		const Viewport & viewport;
-		engine::graphics::renderer::camera_3d & data;
+		engine::graphics::data::camera_3d & data;
 
 		void operator () (Orthographic & x)
 		{
@@ -296,7 +296,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::MutableEntity,
 		41,
 		utility::static_storage<20, Camera>
 	>
@@ -359,9 +359,9 @@ namespace
 	{
 		const Viewport & viewport;
 
-		engine::graphics::renderer::camera_2d operator () (const Camera & x)
+		engine::graphics::data::camera_2d operator () (const Camera & x)
 		{
-			engine::graphics::renderer::camera_2d data;
+			engine::graphics::data::camera_2d data;
 			projections.call(x.projection_2d, extract_projection_matrices_2d{viewport, data});
 			data.view = core::maths::Matrix4x4f::identity();
 			return data;
@@ -372,9 +372,9 @@ namespace
 	{
 		const Viewport & viewport;
 
-		engine::graphics::renderer::camera_3d operator () (const Camera & x)
+		engine::graphics::data::camera_3d operator () (const Camera & x)
 		{
-			engine::graphics::renderer::camera_3d data;
+			engine::graphics::data::camera_3d data;
 			projections.call(x.projection_3d, extract_projection_matrices_3d{viewport, data});
 			data.frame = core::maths::Matrix4x4f{
 				viewport.width / 2.f, 0.f, 0.f, /*viewport.x +*/ viewport.width / 2.f,
@@ -506,7 +506,7 @@ namespace
 
 	struct MessageAddCamera
 	{
-		engine::Entity entity;
+		engine::MutableEntity entity;
 		engine::graphics::viewer::camera data;
 	};
 	struct MessageRemoveCamera
@@ -628,6 +628,13 @@ namespace engine
 
 					void operator () (MessageAddCamera && data)
 					{
+						if (const engine::MutableEntity * const key = cameras.find_key(data.entity.entity()))
+						{
+							if (!debug_assert(*key < data.entity, "trying to add an older version camera"))
+								return; // error
+
+							cameras.remove(*key); // todo use iterators
+						}
 						debug_verify(cameras.try_emplace<Camera>(data.entity, std::move(data.data)));
 					}
 					void operator () (MessageAddFrameDynamic && data)
@@ -648,7 +655,7 @@ namespace engine
 					}
 					void operator () (MessageAddProjectionPerspective && data)
 					{
-						projections.emplace<Perspective>(data.asset, std::move(data.data));
+						projections.replace<Perspective>(data.asset, std::move(data.data));
 					}
 					void operator () (MessageAddSplitHorizontal && data)
 					{
@@ -743,7 +750,17 @@ namespace engine
 
 				for (const Viewport & viewport : viewports)
 				{
-					post_add_display(*::renderer, viewport.asset, engine::graphics::renderer::display{engine::graphics::renderer::viewport{viewport.x, viewport.y, viewport.width, viewport.height}, cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}), cameras.call(viewport.camera, extract_camera_matrices_2d{viewport})});
+					post_add_display(
+						*::renderer,
+						viewport.asset,
+						engine::graphics::data::display{
+							engine::graphics::data::viewport{
+							viewport.x,
+							viewport.y,
+							viewport.width,
+							viewport.height},
+						cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}),
+						cameras.call(viewport.camera, extract_camera_matrices_2d{viewport})});
 				}
 			}
 			else if (rebuild_matrices)
@@ -800,7 +817,7 @@ namespace engine
 			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageRemoveProjection>, asset));
 		}
 
-		void post_add_camera(viewer &, engine::Entity entity, viewer::camera && data)
+		void post_add_camera(viewer &, engine::MutableEntity entity, viewer::camera && data)
 		{
 			debug_verify(queue_messages.try_emplace(utility::in_place_type<MessageAddCamera>, entity, std::move(data)));
 		}

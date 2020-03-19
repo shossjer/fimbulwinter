@@ -8,6 +8,7 @@
 
 #include "engine/Asset.hpp"
 #include "engine/Entity.hpp"
+#include "engine/MutableEntity.hpp"
 
 #include <cstdint>
 
@@ -110,7 +111,7 @@ namespace engine
 		void post_add_projection(viewer & viewer, engine::Asset asset, viewer::perspective && data);
 		void post_remove_projection(viewer & viewer, engine::Asset asset);
 
-		void post_add_camera(viewer & viewer, engine::Entity entity, viewer::camera && data);
+		void post_add_camera(viewer & viewer, engine::MutableEntity entity, viewer::camera && data);
 		void post_remove_camera(viewer & viewer, engine::Entity entity);
 		void post_update_camera(viewer & viewer, engine::Entity entity, viewer::projection && data);
 		void post_update_camera(viewer & viewer, engine::Entity entity, viewer::rotate && data);

@@ -11,7 +11,6 @@
 #include "core/serialization.hpp"
 
 #include "utility/json.hpp"
-#include "utility/optional.hpp"
 #include "utility/ranges.hpp"
 
 #include <cfloat>
@@ -228,7 +227,10 @@ namespace core
 				}
 				else if (v.is_string())
 				{
-					read_string(v, x.back());
+					using core::assign_string;
+
+					const typename json::string_t & string = v;
+					assign_string(x.back(), utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
 				}
 				else
 				{
@@ -252,30 +254,63 @@ namespace core
 			debug_fail("attempting to read bool into a non bool type in json '", filepath_, "'");
 		}
 
-		void read_number(const json & j, int & x)
+		template <typename T,
+		          REQUIRES((std::is_floating_point<T>::value))>
+		auto read_number_float(const json & j, T & x, int)
+			-> decltype(x = std::declval<typename json::number_float_t>(), void())
 		{
-			x = j;
-		}
-		void read_number(const json & j, double & x)
-		{
-			x = j;
+			x = debug_cast<T>(static_cast<typename json::number_float_t>(j));
 		}
 		template <typename T>
-		void read_number(const json & j, utility::optional<T> & x)
+		void read_number_float(const json &, T &, ...)
 		{
-			if (x.has_value())
+			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
+		}
+		template <typename T,
+		          REQUIRES((std::is_integral<T>::value))>
+		auto read_number_unsigned(const json & j, T & x, int)
+			-> decltype(x = std::declval<typename json::number_unsigned_t>(), void())
+		{
+			x = debug_cast<T>(static_cast<typename json::number_unsigned_t>(j));
+		}
+		template <typename T>
+		void read_number_unsigned(const json &, T &, ...)
+		{
+			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
+		}
+		template <typename T,
+		          REQUIRES((std::is_integral<T>::value))>
+		auto read_number_signed(const json & j, T & x, int)
+			-> decltype(x = std::declval<typename json::number_integer_t>(), void())
+		{
+			x = debug_cast<T>(static_cast<typename json::number_integer_t>(j));
+		}
+		template <typename T>
+		void read_number_signed(const json &, T &, ...)
+		{
+			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
+		}
+		template <typename T>
+		void read_number(const json & j, T & x)
+		{
+			using core::value;
+
+			if (j.is_number_float())
 			{
-				read_number(j, x.value());
+				read_number_float(j, value(x), 0);
+			}
+			else if (j.is_number_unsigned())
+			{
+				read_number_unsigned(j, value(x), 0);
+			}
+			else if (j.is_number_integer())
+			{
+				read_number_signed(j, value(x), 0);
 			}
 			else
 			{
-				read_number(j, x.emplace());
+				debug_unreachable("not a number");
 			}
-		}
-		template <typename T>
-		void read_number(const json &, T &)
-		{
-			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
 		}
 
 		template <typename T>
@@ -308,7 +343,10 @@ namespace core
 				}
 				else if (v.is_string())
 				{
-					read_string(v, y);
+					using core::assign_string;
+
+					const typename json::string_t & string = v;
+					assign_string(x.back(), utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
 				}
 				else
 				{
@@ -348,7 +386,16 @@ namespace core
 				}
 				else if (v.is_string())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_string(v, y); });
+					member_table<T>::call(
+						key,
+						x,
+						[&](auto & y)
+						{
+							using core::assign_string;
+
+							const typename json::string_t & string = v;
+							assign_string(y, utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
+						});
 				}
 				else
 				{
@@ -368,39 +415,6 @@ namespace core
 		void read_object(const json &, T &)
 		{
 			debug_fail("attempting to read object into a type without a member table in json '", filepath_, "'");
-		}
-
-		void read_string(const json & j, std::string & x)
-		{
-			x = j;
-		}
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_enum<T>::value))>
-		void read_string(const json & j, T & x)
-		{
-			const std::string & name = j;
-			if (core::value_table<T>::has(name.c_str()))
-			{
-				x = core::value_table<T>::get(name.c_str());
-			}
-			else
-			{
-				debug_fail("unknown enum value");
-			}
-		}
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_class<T>::value))>
-		void read_string(const json &, T &)
-		{
-			debug_fail("attempting to read string into a non string type in json '", filepath_, "'");
-		}
-		template <typename T,
-		          REQUIRES((!core::has_lookup_table<T>::value))>
-		void read_string(const json &, T &)
-		{
-			debug_fail("attempting to read string into a non string type in json '", filepath_, "'");
 		}
 	};
 }

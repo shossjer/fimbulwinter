@@ -8,10 +8,9 @@
 
 #include "utility/concepts.hpp"
 #include "utility/crypto/crc.hpp"
-#include "utility/string_view.hpp"
+#include "utility/unicode.hpp"
 
 #include <ostream>
-#include <string>
 
 #if MODE_DEBUG
 # include "engine/debug.hpp"
@@ -45,11 +44,12 @@ namespace engine
 		explicit constexpr Asset(const char * const str, const std::size_t n)
 			: id{utility::crypto::crc32(str, n)}
 		{}
-		explicit constexpr Asset(utility::string_view str)
-			: id{utility::crypto::crc32(str.data(), str.length())}
+		explicit constexpr Asset(utility::string_view_utf8 str)
+			: id{utility::crypto::crc32(str.data(), str.size())}
 		{}
-		explicit Asset(const std::string & str)
-			: id{utility::crypto::crc32(str.data(), str.length())}
+		template <typename StorageTraits>
+		explicit Asset(const utility::basic_string<StorageTraits, utility::encoding_utf8> & str)
+			: id{utility::crypto::crc32(str.data(), str.size())}
 		{
 			// todo separate asset into a compile time and runtime
 			// version
@@ -78,11 +78,11 @@ namespace engine
 			get_lookup_table().emplace(utility::crypto::crc32(str), str);
 		}
 	private:
-		static std::unordered_map<value_type, std::string> & get_lookup_table()
+		static std::unordered_map<value_type, utility::heap_string_utf8> & get_lookup_table()
 		{
 			struct Singleton
 			{
-				std::unordered_map<value_type, std::string> lookup_table;
+				std::unordered_map<value_type, utility::heap_string_utf8> lookup_table;
 
 				Singleton()
 				{

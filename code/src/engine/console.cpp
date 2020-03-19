@@ -1,15 +1,12 @@
-
 #include "console.hpp"
 
 #include "engine/Asset.hpp"
 #include "engine/debug.hpp"
 
-#include "utility/string.hpp"
-#include "utility/string_view.hpp"
-
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 
@@ -22,35 +19,31 @@ namespace engine
 {
 	namespace detail
 	{
-		std::vector<Argument> parse_params(const std::string & line, std::ptrdiff_t from)
+		std::vector<Argument> parse_params(utility::string_view_utf8 line)
 		{
 			std::vector<Argument> params;
 
-			while (std::size_t(from) < line.length())
+			while (!line.empty())
 			{
-				if (line[from] == '"')
+				if (line.front() == '"')
 				{
-					const std::ptrdiff_t to = line.find('"', from + 1);
-					if (std::size_t(to) == std::string::npos)
+					const auto to = utility::unit_difference(line.find('"', utility::unit_difference(1)));
+					if (to == line.size())
 						throw std::runtime_error("missing ending quote (\") on string argument");
 
-					params.emplace_back(utility::in_place_type<utility::string_view>, line.data() + from + 1, to - from - 1);
-					from = to + 1;
+					params.emplace_back(utility::in_place_type<utility::string_view_utf8>, line, utility::unit_difference(1), to - 1);
+					line = utility::string_view_utf8(line, to + 1);
 					continue;
 				}
 
-				std::ptrdiff_t to = line.find(' ', from);
-				if (from == to)
+				auto to = utility::unit_difference(line.find(' '));
+				if (to == 0)
 				{
-					from++;
+					line = utility::string_view_utf8(line, utility::unit_difference(1));
 					continue;
 				}
-				if (std::size_t(to) == std::string::npos)
-				{
-					to = line.length();
-				}
 
-				utility::string_view word(line.data() + from, to - from);
+				auto word = utility::string_view_utf8(line, utility::unit_difference(0), to);
 				if (word.compare("true") == 0)
 				{
 					params.emplace_back(utility::in_place_type<bool>, true);
@@ -59,35 +52,23 @@ namespace engine
 				{
 					params.emplace_back(utility::in_place_type<bool>, false);
 				}
-				else if (line.find('.', from) < std::size_t(to))
+				else if (utility::unit_difference(line.find('.')) < to)
 				{
-					try
-					{
-						params.emplace_back(utility::in_place_type<double>, std::stod(line.substr(from, to - from)));
-					}
-					catch (const std::invalid_argument &)
-					{
-						throw std::runtime_error(utility::to_string("at ", from, ": argument not a floating type"));
-					}
+					// todo error handling
+					params.emplace_back(utility::in_place_type<double>, std::strtod(line.data(), nullptr));
 				}
 				else
 				{
-					try
-					{
-						params.emplace_back(utility::in_place_type<int64_t>, std::stoll(line.substr(from, to - from)));
-					}
-					catch (const std::invalid_argument &)
-					{
-						throw std::runtime_error(utility::to_string("at ", from, ": argument not a integral type"));
-					}
+					// todo error handling
+					params.emplace_back(utility::in_place_type<int64_t>, std::strtoll(line.data(), nullptr, 0));
 				}
-				from = to + 1;
+				line = utility::string_view_utf8(line, to);
 			}
 
 			return params;
 		}
 
-		void observe_impl(utility::string_view keyword, std::unique_ptr<CallbackBase> && callback)
+		void observe_impl(utility::string_view_utf8 keyword, std::unique_ptr<CallbackBase> && callback)
 		{
 			const auto key = engine::Asset(keyword);
 			if (!debug_assert(std::find_if(observers.begin(), observers.end(), [key](const auto & p){ return p.first == key; }) == observers.end(), "\"", keyword, "\" is being observed twice"))
@@ -96,22 +77,17 @@ namespace engine
 			observers.emplace_back(key, std::move(callback));
 		}
 
-		void read_input(std::string line)
+		void read_input(utility::string_view_utf8 line)
 		{
 			if (line.empty())
 				return;
 
-			const std::ptrdiff_t command_begin = 0;
-			std::ptrdiff_t command_end = line.find(' ', command_begin);
-			if (std::size_t(command_end) == std::string::npos)
-			{
-				command_end = line.length();
-			}
+			const auto command_end = utility::unit_difference(line.find(' '));
 
-			const utility::string_view command_name(line.data() + command_begin, command_end - command_begin);
+			const auto command_name = utility::string_view_utf8(line, utility::unit_difference(0), command_end);
 			const engine::Asset command_key(command_name);
 
-			const std::vector<Argument> params = parse_params(line, command_end + 1);
+			const std::vector<Argument> params = parse_params(utility::string_view_utf8(line, command_end + 1));
 
 			for (auto & observer : observers)
 			{
@@ -125,7 +101,7 @@ namespace engine
 		}
 	}
 
-	void abandon(utility::string_view keyword)
+	void abandon(utility::string_view_utf8 keyword)
 	{
 		const auto key = engine::Asset(keyword);
 		const auto it = std::find_if(observers.begin(), observers.end(), [key](const auto & p){ return p.first == key; });

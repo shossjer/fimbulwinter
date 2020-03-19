@@ -20,6 +20,7 @@ set(HEADERS_CORE
 	src/core/container/Stack.hpp
 	src/core/container/Queue.hpp
 	src/core/debug.hpp
+	src/core/file/paths.hpp
 	src/core/graphics/Image.hpp
 	src/core/graphics/types.hpp
 	src/core/IniSerializer.hpp
@@ -77,8 +78,6 @@ set(SOURCES_ENGINE
 	src/engine/physics/creation_physx.cpp
 	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
-	src/engine/replay/reader.cpp
-	src/engine/replay/writer.cpp
 	)
 
 set(HEADERS_ENGINE
@@ -108,6 +107,7 @@ set(HEADERS_ENGINE
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
+	src/engine/MutableEntity.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
 	src/engine/physics/defines.hpp
@@ -116,8 +116,6 @@ set(HEADERS_ENGINE
 	src/engine/physics/material_physx.hpp
 	src/engine/physics/physics.hpp
 	src/engine/physics/physics_physx.hpp
-	src/engine/replay/reader.hpp
-	src/engine/replay/writer.hpp
 	)
 
 set(SOURCES_UTILITY

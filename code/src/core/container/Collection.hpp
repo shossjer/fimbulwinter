@@ -177,12 +177,23 @@ namespace core
 			Key keys[Maximum];
 
 		public:
-			bool contains(Key key) const
+			template <typename K>
+			const Key * find_key(K key) const
+			{
+				auto bucket = try_find(key);
+				if (bucket == bucket_t(-1))
+					return nullptr;
+
+				return keys + bucket;
+			}
+
+			template <typename K>
+			bool contains(K key) const
 			{
 				return try_find(key) != bucket_t(-1);
 			}
-			template <typename C>
-			bool contains(Key key) const
+			template <typename C, typename K>
+			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
@@ -202,8 +213,8 @@ namespace core
 			{
 				return std::get<mpl::index_of<C, component_types>::value>(arrays);
 			}
-			template <typename C>
-			C & get(Key key)
+			template <typename C, typename K>
+			C & get(K key)
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
@@ -213,7 +224,7 @@ namespace core
 
 				return std::get<type>(arrays).get(index);
 			}
-			template <typename C>
+			template <typename C, typename K>
 			const C & get(Key key) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
@@ -261,7 +272,8 @@ namespace core
 
 				return &array.get(index);
 			}
-			void remove(Key key)
+			template <typename K>
+			void remove(K key)
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -279,9 +291,9 @@ namespace core
 				}
 			}
 
-			template <typename F>
-			auto call(Key key, F && func) ->
-				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<component_types> &>()))
+			template <typename K, typename F>
+			auto call(K key, F && func) ->
+				decltype(detail::call_impl_func(std::forward<F>(func), std::declval<Key>(), std::declval<mpl::car<component_types> &>()))
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -290,19 +302,19 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, \
-					                 key, index, std::forward<F>(func))
+					                 keys[bucket], index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 key, index, std::forward<F>(func));
+					                 keys[bucket], index, std::forward<F>(func));
 				}
 			}
 
-			template <typename F>
-			auto try_call(Key key, F && func) ->
-				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<component_types> &>()))
+			template <typename K, typename F>
+			auto try_call(K key, F && func) ->
+				decltype(detail::call_impl_func(std::forward<F>(func), std::declval<Key>(), std::declval<mpl::car<component_types> &>()))
 			{
 				const auto bucket = try_find(key);
 
@@ -314,25 +326,27 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, \
-					                 key, index, std::forward<F>(func))
+					                 keys[bucket], index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 key, index, std::forward<F>(func));
+					                 keys[bucket], index, std::forward<F>(func));
 				}
 			}
 		private:
 			// not great
-			bucket_t hash(Key key) const
+			template <typename K>
+			bucket_t hash(K key) const
 			{
 				return (std::size_t(key) * std::size_t(key)) % Maximum;
 			}
 			/**
 			 * Find an empty bucket where the key can be placed.
 			 */
-			bucket_t place(Key key)
+			template <typename K>
+			bucket_t place(K key)
 			{
 				auto bucket = hash(key);
 				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
@@ -348,7 +362,8 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
-			bucket_t find(Key key) const
+			template <typename K>
+			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
 				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
@@ -365,7 +380,8 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
-			bucket_t try_find(Key key) const
+			template <typename K>
+			bucket_t try_find(K key) const
 			{
 				auto bucket = hash(key);
 				std::size_t count = 0;
@@ -886,8 +902,8 @@ namespace core
 		 */
 		template <typename Key, std::size_t Maximum, typename ...Arrays>
 		class UnorderedCollection;
-		template <typename K, std::size_t M, typename ...Cs, std::size_t ...Ns>
-		class UnorderedCollection<K, M, std::array<Cs, Ns>...>
+		template <typename Key, std::size_t M, typename ...Cs, std::size_t ...Ns>
+		class UnorderedCollection<Key, M, std::array<Cs, Ns>...>
 		{
 		private:
 			using bucket_t = uint32_t;
@@ -955,14 +971,25 @@ namespace core
 		private:
 			std::tuple<array_t<Cs, Ns>...> arrays;
 			slot_t slots[M];
-			K keys[M];
+			Key keys[M];
 
 		public:
+			template <typename K>
+			const Key * find_key(K key) const
+			{
+				auto bucket = try_find(key);
+				if (bucket == bucket_t(-1))
+					return nullptr;
+
+				return keys + bucket;
+			}
+
+			template <typename K>
 			bool contains(K key) const
 			{
 				return try_find(key) != bucket_t(-1);
 			}
-			template <typename C>
+			template <typename C, typename K>
 			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
@@ -973,7 +1000,7 @@ namespace core
 
 				return slots[bucket].get_type() == type;
 			}
-			template <typename C>
+			template <typename C, typename K>
 			C & get(K key)
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
@@ -984,7 +1011,7 @@ namespace core
 
 				return std::get<type>(arrays).get(index);
 			}
-			template <typename C>
+			template <typename C, typename K>
 			const C & get(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
@@ -995,7 +1022,7 @@ namespace core
 
 				return std::get<type>(arrays).get(index);
 			}
-			int get_all_keys(K * buffer, int size) const
+			int get_all_keys(Key * buffer, int size) const
 			{
 				int count = 0;
 				if (size <= 0)
@@ -1015,7 +1042,7 @@ namespace core
 			constexpr std::size_t max_size() const { return M; }
 
 			template <typename D>
-			void add(K key, D && data)
+			void add(Key key, D && data)
 			{
 				using Components = mpl::type_filter<std::is_constructible,
 				                                    mpl::type_list<Cs...>,
@@ -1034,7 +1061,7 @@ namespace core
 				}
 			}
 			template <typename Component, typename ...Ps>
-			Component & emplace(K key, Ps && ...ps)
+			Component & emplace(Key key, Ps && ...ps)
 			{
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
 
@@ -1052,6 +1079,7 @@ namespace core
 
 				return array.get(index);
 			}
+			template <typename K>
 			void remove(K key)
 			{
 				const auto bucket = find(key);
@@ -1060,7 +1088,7 @@ namespace core
 				slots[bucket].clear();
 			}
 			template <typename Component, typename ...Ps>
-			Component & replace(K key, Ps && ... ps)
+			Component & replace(Key key, Ps && ... ps)
 			{
 				constexpr auto type = mpl::index_of<Component, mpl::type_list<Cs...>>::value;
 
@@ -1080,6 +1108,7 @@ namespace core
 
 				return array.get(index);
 			}
+			template <typename K>
 			void try_remove(K key)
 			{
 				const auto bucket = try_find(key);
@@ -1090,9 +1119,9 @@ namespace core
 				slots[bucket].clear();
 			}
 
-			template <typename F>
+			template <typename K, typename F>
 			auto call(K key, F && func) ->
-				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
+				decltype(detail::call_impl_func(std::forward<F>(func), std::declval<Key>(), std::declval<mpl::car<Cs...> &>()))
 			{
 				const auto bucket = find(key);
 				const auto index = slots[bucket].get_index();
@@ -1101,17 +1130,18 @@ namespace core
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < sizeof...(Cs) ? (n) : std::size_t(-1))>{}, \
-					                 key, index, std::forward<F>(func))
+					                 keys[bucket], index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 key, index, std::forward<F>(func));
+					                 keys[bucket], index, std::forward<F>(func));
 				}
 			}
 		private:
 			// not great
+			template <typename K>
 			bucket_t hash(K key) const
 			{
 				return (std::size_t(key) * std::size_t(key)) % M;
@@ -1119,6 +1149,7 @@ namespace core
 			/**
 			 * Find an empty bucket where the key can be placed.
 			 */
+			template <typename K>
 			bucket_t place(K key)
 			{
 				auto bucket = hash(key);
@@ -1135,6 +1166,7 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
+			template <typename K>
 			bucket_t find(K key) const
 			{
 				auto bucket = hash(key);
@@ -1152,6 +1184,7 @@ namespace core
 			/**
 			 * Find the bucket where the key resides.
 			 */
+			template <typename K>
 			bucket_t try_find(K key) const
 			{
 				auto bucket = hash(key);
@@ -1230,7 +1263,7 @@ namespace core
 			// C4702 - unreachable code
 #endif
 			template <typename F>
-			auto call_impl(mpl::index_constant<std::size_t(-1)>, K key, uint24_t /*index*/, F && func) ->
+			auto call_impl(mpl::index_constant<std::size_t(-1)>, Key key, uint24_t /*index*/, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				intrinsic_unreachable();
@@ -1242,7 +1275,7 @@ namespace core
 # pragma warning( pop )
 #endif
 			template <std::size_t type, typename F>
-			auto call_impl(mpl::index_constant<type>, K key, uint24_t index, F && func) ->
+			auto call_impl(mpl::index_constant<type>, Key key, uint24_t index, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
 			{
 				auto & array = std::get<type>(arrays);

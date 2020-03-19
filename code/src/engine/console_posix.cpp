@@ -7,6 +7,8 @@
 #include "core/async/Thread.hpp"
 #include "core/debug.hpp"
 
+#include "utility/unicode.hpp"
+
 #include <iostream>
 #include <string>
 
@@ -17,7 +19,7 @@ namespace engine
 {
 	namespace detail
 	{
-		void read_input(std::string line);
+		void read_input(utility::string_view_utf8 line);
 	}
 }
 
@@ -62,7 +64,7 @@ namespace
 					break;
 				}
 
-				engine::detail::read_input(line);
+				engine::detail::read_input(utility::string_view_utf8(line.data(), utility::unit_difference(line.size())));
 			}
 		}
 		close(interupt_pipe[0]);
