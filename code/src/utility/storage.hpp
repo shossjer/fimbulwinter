@@ -620,6 +620,12 @@ namespace utility
 			return utility::const_section<Storage, typename Storage::template value_type_at<I>>(utility::get<I>(ptr_));
 		}
 	private:
+		template <std::size_t ...Is>
+		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end)
+		{
+			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_fill(begin, end), 0)...};
+			static_cast<void>(expansion_hack);
+		}
 		template <std::size_t ...Is, typename ...Ps>
 		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, Ps && ...ps)
 		{
