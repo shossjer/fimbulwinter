@@ -9,32 +9,43 @@
 
 namespace utility
 {
+	template <std::size_t N>
+	using size_type_for =
+		mpl::conditional_t<(N < 0x100), std::uint8_t,
+		mpl::conditional_t<(N < 0x10000), std::uint16_t,
+		mpl::conditional_t<(N < 0x100000000), std::uint32_t, std::uint64_t>>>;
+
 	namespace detail
 	{
 		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
 		struct array_data_impl;
+
 		template <typename Storage>
 		struct array_data_impl<Storage, true /*static capacity*/>
 		{
-			using size_type = std::size_t;
 			using storage_traits = utility::storage_traits<Storage>;
+
+			using size_type = utility::size_type_for<storage_traits::capacity_value>;
 
 			size_type size_ = 0;
 			Storage storage_;
 
-			void set_capacity(size_type capacity)
+			void set_capacity(std::size_t capacity)
 			{
 				assert(capacity == storage_traits::capacity_value);
 				static_cast<void>(capacity);
 			}
-			void set_size(size_type size)
+
+			void set_size(std::size_t size)
 			{
-				size_ = size;
+				assert(size <= size_type(-1));
+
+				size_ = static_cast<size_type>(size);
 			}
 
-			constexpr size_type capacity() const { return storage_traits::capacity_value; }
-			size_type size() const { return size_; }
+			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
 		};
+
 		template <typename Storage>
 		struct array_data_impl<Storage, false /*static capacity*/>
 		{
@@ -45,17 +56,17 @@ namespace utility
 			size_type capacity_ = 0;
 			Storage storage_;
 
-			void set_capacity(size_type capacity)
+			void set_capacity(std::size_t capacity)
 			{
 				capacity_ = capacity;
 			}
-			void set_size(size_type size)
+
+			void set_size(std::size_t size)
 			{
 				size_ = size;
 			}
 
-			size_type capacity() const { return capacity_; }
-			size_type size() const { return size_; }
+			std::size_t capacity() const { return capacity_; }
 		};
 	}
 
@@ -103,6 +114,8 @@ namespace utility
 		{
 			this->storage_.sections(this->capacity()).destruct_range(from, to);
 		}
+
+		std::size_t size() const { return this->size_; }
 	};
 
 	namespace detail

@@ -315,12 +315,6 @@ namespace utility
 		}
 	};
 
-	template <std::size_t N>
-	using size_type_for =
-		mpl::conditional_t<(N < 0x100), std::uint8_t,
-		mpl::conditional_t<(N < 0x10000), std::uint16_t,
-		mpl::conditional_t<(N < 0x100000000), std::uint32_t, std::uint64_t>>>;
-
 	namespace detail
 	{
 		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
@@ -343,11 +337,12 @@ namespace utility
 			{
 				assert(size <= size_type(-1));
 
-				this->size_ = static_cast<size_type>(size);
+				size_ = static_cast<size_type>(size);
 			}
 
 			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
 		};
+
 		template <typename Storage>
 		struct StringStorageDataImpl<Storage, false /*static capacity*/>
 		{
@@ -385,7 +380,7 @@ namespace utility
 
 			void set_size(std::size_t size)
 			{
-				this->size_ = size;
+				size_ = size;
 			}
 
 			std::size_t capacity() const { return capacity_; }
