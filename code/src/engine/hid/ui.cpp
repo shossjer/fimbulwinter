@@ -107,7 +107,7 @@ namespace
 	core::container::Collection
 	<
 		Filter,
-		201,
+		utility::heap_storage_traits,
 		utility::heap_storage<AxisMove>,
 		utility::heap_storage<AxisTilt>,
 		utility::heap_storage<ButtonPress>,

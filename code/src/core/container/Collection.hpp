@@ -58,20 +58,20 @@ namespace core
 
 			using bucket_t = uint32_t;
 
-			template <typename StorageTraits, typename C>
+			template <typename ComponentStorage>
 			class bucket_array_t
 			{
 			private:
-				utility::array_wrapper<utility::array_data<typename StorageTraits::template storage_type<C, bucket_t>>> data_;
+				utility::array_wrapper<utility::array_data<typename utility::storage_traits<ComponentStorage>::template append<bucket_t>>> data_;
 
 			public:
-				C * begin() { return components().data(); }
-				const C * begin() const { return components().data(); }
-				C * end() { return components().data() + data_.size(); }
-				const C * end() const { return components().data() + data_.size(); }
+				auto begin() { return components().data(); }
+				auto begin() const { return components().data(); }
+				auto end() { return components().data() + data_.size(); }
+				auto end() const { return components().data() + data_.size(); }
 
-				C & get(std::ptrdiff_t index) { return components()[index]; }
-				const C & get(std::ptrdiff_t index) const { return components()[index]; }
+				auto & get(std::ptrdiff_t index) { return components()[index]; }
+				auto & get(std::ptrdiff_t index) const { return components()[index]; }
 
 				bucket_t bucket_at(std::ptrdiff_t index) const { return buckets()[index]; }
 
@@ -115,20 +115,124 @@ namespace core
 				decltype(auto) buckets() { return data_.storage_.section(mpl::index_constant<1>{}, data_.capacity()); }
 				decltype(auto) buckets() const { return data_.storage_.section(mpl::index_constant<1>{}, data_.capacity()); }
 			};
+
+			template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
+			struct CollectionArrayDataImpl
+			{
+				using storage_traits = utility::storage_traits<Storage>;
+
+				using size_type = utility::size_type_for<storage_traits::capacity_value>;
+
+				Storage storage_;
+
+				void set_capacity(std::size_t capacity)
+				{
+					assert(capacity == storage_traits::capacity_value);
+					static_cast<void>(capacity);
+				}
+
+				constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
+			};
+
+			template <typename Storage>
+			struct CollectionArrayDataImpl<Storage, false /*static capacity*/>
+			{
+				using size_type = std::size_t;
+				using storage_traits = utility::storage_traits<Storage>;
+
+				size_type capacity_ = 0;
+				Storage storage_;
+
+				void set_capacity(std::size_t capacity)
+				{
+					capacity_ = capacity;
+				}
+
+				std::size_t capacity() const { return capacity_; }
+			};
+
+			template <typename Storage>
+			struct CollectionArrayData
+				: detail::CollectionArrayDataImpl<Storage>
+			{
+				using is_trivially_destructible = utility::storage_is_trivially_destructible<Storage>;
+				using is_trivially_copy_constructible = utility::storage_is_copy_constructible<Storage>;
+				using is_trivially_copy_assignable = utility::storage_is_copy_assignable<Storage>;
+				using is_trivially_move_constructible = utility::storage_is_trivially_move_constructible<Storage>;
+				using is_trivially_move_assignable = utility::storage_is_trivially_move_assignable<Storage>;
+
+				using this_type = CollectionArrayData<Storage>;
+				using base_type = detail::CollectionArrayDataImpl<Storage>;
+
+				using storage_traits = utility::storage_traits<Storage>;
+
+				using size_type = typename base_type::size_type;
+
+				bool allocate_storage(std::size_t capacity)
+				{
+					return this->storage_.allocate(capacity);
+				}
+
+				void deallocate_storage(std::size_t capacity)
+				{
+					this->storage_.deallocate(capacity);
+				}
+
+				void initialize()
+				{
+					const auto capacity = storage_traits::capacity_for(1);
+					if (this->storage_.allocate(capacity))
+					{
+						this->set_capacity(capacity);
+
+						this->set_size(1);
+						this->storage_.sections(capacity).construct_at(0); // todo guarantees zeroing?
+						// this->storage_.memset_fill(0, 1, 0); // necessary?
+					}
+					else
+					{
+						this->set_capacity(0);
+						this->set_size(0);
+					}
+				}
+
+				void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+				{
+					this->storage_.sections(this->capacity()).construct_range(index, other.storage_.sections(other.capacity()).data() + from, other.storage_.sections(other.capacity()).data() + to);
+				}
+
+				void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+				{
+					this->storage_.sections(this->capacity()).construct_range(index, std::make_move_iterator(other.storage_.sections(other.capacity()).data() + from), std::make_move_iterator(other.storage_.sections(other.capacity()).data() + to));
+				}
+
+				void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
+				{
+					this->storage_.sections(this->capacity()).destruct_range(from, to);
+				}
+
+				void set_size(std::size_t size)
+				{
+					assert(size == this->capacity());
+					static_cast<void>(size);
+				}
+
+				constexpr std::size_t size() const { return this->capacity(); }
+			};
 		}
 
 		/**
-		 * \tparam Key      The identification/lookup key.
-		 * \tparam Maximum  Should be about twice as many as is needed.
-		 * \tparam Storages A storage (like static_array_storage) for each type to store.
+		 * \tparam Key                 The identification/lookup key.
+		 * \tparam LookupStorageTraits A storage traits for the lookup table.
+		 * \tparam ComponentStorages   A storage for each component to store.
 		 */
-		template <typename Key, std::size_t Maximum, typename ...Storages>
+		template <typename Key, typename LookupStorageTraits, typename ...ComponentStorages>
 		class Collection
 		{
+			static_assert(mpl::conjunction<mpl::bool_constant<(ComponentStorages::value_types::size == 1)>...>::value, "Collection does not support multi-type storages for components");
+
 		private:
-			using component_types = mpl::type_list<typename Storages::template value_type_at<0>...>;
-			template <typename Storage>
-			using storage_traits = utility::storage_traits<Storage>;
+			using component_types = mpl::type_list<typename ComponentStorages::template value_type_at<0>...>;
 
 		private:
 			using bucket_t = detail::bucket_t;
@@ -139,31 +243,22 @@ namespace core
 			{
 				uint32_t value;
 
-				slot_t() :
-					value(0xffffffff)
-				{}
-
-				bool empty() const
-				{
-					return value == 0xffffffff;
-				}
 				uint8_t get_type() const
 				{
 					return value >> 24;
 				}
+
 				uint24_t get_index() const
 				{
 					return value & 0x00ffffff;
 				}
-				void clear()
-				{
-					value = 0xffffffff;
-				}
+
 				void set(uint8_t type, std::size_t index)
 				{
 					debug_assert(index < 0x01000000, "24 bits are not enough");
 					value = (uint32_t{type} << 24) | static_cast<uint32_t>(index);
 				}
+
 				void set_index(std::size_t index)
 				{
 					debug_assert(index < 0x01000000, "24 bits are not enough");
@@ -172,68 +267,96 @@ namespace core
 			};
 
 		private:
-			std::tuple<detail::bucket_array_t<storage_traits<Storages>, typename Storages::template value_type_at<0>>...> arrays;
-			slot_t slots[Maximum];
-			Key keys[Maximum];
+			utility::array_wrapper<detail::CollectionArrayData<typename LookupStorageTraits::template storage_type<slot_t, Key>>> lookup_;
+			// todo keys before slots?
+			std::tuple<detail::bucket_array_t<ComponentStorages>...> arrays_;
+
+			decltype(auto) slots() { return lookup_.storage_.section(mpl::index_constant<0>{}, lookup_.capacity()); }
+			decltype(auto) slots() const { return lookup_.storage_.section(mpl::index_constant<0>{}, lookup_.capacity()); }
+
+			decltype(auto) keys() { return lookup_.storage_.section(mpl::index_constant<1>{}, lookup_.capacity()); }
+			decltype(auto) keys() const { return lookup_.storage_.section(mpl::index_constant<1>{}, lookup_.capacity()); }
+
+		public:
+			// todo can CollectionArrayData do this?
+			Collection()
+				: lookup_(1)
+			{
+				lookup_.set_size(lookup_.capacity());
+				lookup_.storage_.sections(lookup_.capacity()).construct_fill(0, lookup_.capacity());
+			}
 
 		public:
 			template <typename K>
 			const Key * find_key(K key) const
 			{
-				auto bucket = try_find(key);
+				const auto bucket = find(key);
 				if (bucket == bucket_t(-1))
-					return nullptr;
+					return nullptr; // todo weird
 
-				return keys + bucket;
+				return keys().data() + bucket;
 			}
 
 			template <typename K>
 			bool contains(K key) const
 			{
-				return try_find(key) != bucket_t(-1);
+				return find(key) != bucket_t(-1);
 			}
+
 			template <typename C, typename K>
 			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				const auto bucket = try_find(key);
+				const auto bucket = find(key);
 				if (bucket == bucket_t(-1))
 					return false;
 
-				return slots[bucket].get_type() == type;
+				return slots()[bucket].get_type() == type;
 			}
+
 			template <typename C>
 			decltype(auto) get()
 			{
-				return std::get<mpl::index_of<C, component_types>::value>(arrays);
+				return std::get<mpl::index_of<C, component_types>::value>(arrays_);
 			}
+
 			template <typename C>
 			decltype(auto) get() const
 			{
-				return std::get<mpl::index_of<C, component_types>::value>(arrays);
+				return std::get<mpl::index_of<C, component_types>::value>(arrays_);
 			}
+
 			template <typename C, typename K>
-			C & get(K key)
+			C * try_get(K key)
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
 				const auto bucket = find(key);
-				debug_assert(slots[bucket].get_type() == type);
-				const auto index = slots[bucket].get_index();
+				if (bucket == bucket_t(-1))
+					return nullptr;
 
-				return std::get<type>(arrays).get(index);
+				if (slots()[bucket].get_type() != type)
+					return nullptr;
+
+				const auto index = slots()[bucket].get_index();
+				return &std::get<type>(arrays_).get(index);
 			}
+
 			template <typename C, typename K>
-			const C & get(Key key) const
+			const C * try_get(Key key) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
 				const auto bucket = find(key);
-				debug_assert(slots[bucket].get_type() == type);
-				const auto index = slots[bucket].get_index();
+				if (bucket == bucket_t(-1))
+					return nullptr;
 
-				return std::get<type>(arrays).get(index);
+				if (slots()[bucket].get_type() != type)
+					return nullptr;
+
+				const auto index = slots()[bucket].get_index();
+				return &std::get<type>(arrays_).get(index);
 			}
 
 			template <typename C>
@@ -241,17 +364,18 @@ namespace core
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				const auto & array = std::get<type>(arrays);
+				const auto & array = std::get<type>(arrays_);
 				debug_assert(&component >= array.begin());
 				debug_assert(&component < array.end());
 
-				return keys[array.bucket_at(std::distance(array.begin(), &component))];
+				return keys()[array.bucket_at(std::distance(array.begin(), &component))];
 			}
 
 			void clear()
 			{
 				clear_all_impl(mpl::make_index_sequence<component_types::size>{});
 			}
+
 			template <typename Component, typename ...Ps>
 			Component * try_emplace(Key key, Ps && ...ps)
 			{
@@ -259,26 +383,29 @@ namespace core
 
 				debug_assert(!contains(key));
 
-				const auto bucket = place(key);
-				auto & array = std::get<type>(arrays);
+				const auto bucket = try_place(key);
+				if (bucket == bucket_t(-1))
+					return nullptr;
 
+				auto & array = std::get<type>(arrays_);
 				const auto index = array.size();
 
 				if (!array.try_emplace_back(bucket, std::forward<Ps>(ps)...))
 					return nullptr;
 
-				slots[bucket].set(type, index);
-				keys[bucket] = key;
+				slots()[bucket].set(type, index);
+				keys()[bucket] = key;
 
 				return &array.get(index);
 			}
+
 			template <typename K>
 			void remove(K key)
 			{
 				const auto bucket = find(key);
-				const auto index = slots[bucket].get_index();
+				const auto index = slots()[bucket].get_index();
 
-				switch (slots[bucket].get_type())
+				switch (slots()[bucket].get_type())
 				{
 #define CASE(n) case (n):	  \
 					remove_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, bucket, index); \
@@ -296,19 +423,19 @@ namespace core
 				decltype(detail::call_impl_func(std::forward<F>(func), std::declval<Key>(), std::declval<mpl::car<component_types> &>()))
 			{
 				const auto bucket = find(key);
-				const auto index = slots[bucket].get_index();
+				const auto index = slots()[bucket].get_index();
 
-				switch (slots[bucket].get_type())
+				switch (slots()[bucket].get_type())
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, \
-					                 keys[bucket], index, std::forward<F>(func))
+					                 keys()[bucket], index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 keys[bucket], index, std::forward<F>(func));
+					                 keys()[bucket], index, std::forward<F>(func));
 				}
 			}
 
@@ -316,85 +443,113 @@ namespace core
 			auto try_call(K key, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), std::declval<Key>(), std::declval<mpl::car<component_types> &>()))
 			{
-				const auto bucket = try_find(key);
+				const auto bucket = find(key);
+				if (bucket == bucket_t(-1))
+					return detail::call_impl_func(std::forward<F>(func), key);
 
-				if (bucket == bucket_t(-1)) return detail::call_impl_func(std::forward<F>(func), key);
+				const auto index = slots()[bucket].get_index();
 
-				const auto index = slots[bucket].get_index();
-
-				switch (slots[bucket].get_type())
+				switch (slots()[bucket].get_type())
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, \
-					                 keys[bucket], index, std::forward<F>(func))
+					                 keys()[bucket], index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 keys[bucket], index, std::forward<F>(func));
+					                 keys()[bucket], index, std::forward<F>(func));
 				}
 			}
 		private:
-			// not great
 			template <typename K>
-			bucket_t hash(K key) const
+			static bucket_t find_bucket(K key, const Key * keys, ext::usize nkeys, std::size_t first_bucket)
 			{
-				return (std::size_t(key) * std::size_t(key)) % Maximum;
-			}
-			/**
-			 * Find an empty bucket where the key can be placed.
-			 */
-			template <typename K>
-			bucket_t place(K key)
-			{
-				auto bucket = hash(key);
-				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
-				// search again if...
-				while (!slots[bucket].empty()) // ... this bucket is not empty!
+				auto bucket = first_bucket;
+				int count = 0;
+				while (keys[bucket] != key)
 				{
-					debug_assert(count++ < std::size_t{4});
-					if (bucket++ >= Maximum - 1)
-						bucket -= Maximum;
+					if (count >= 4) // arbitrary
+						return bucket_t(-1);
+
+					count++;
+					bucket = (first_bucket + count * count) % nkeys;
 				}
-				return bucket;
+				return static_cast<bucket_t>(bucket);
 			}
+
+			template <typename K>
+			static bucket_t find_bucket(K key, const Key * keys, ext::usize nkeys)
+			{
+				if (!debug_assert(nkeys != 0))
+					return bucket_t(-1);
+
+				const auto first_bucket = (std::size_t(key) * std::size_t(key)) % nkeys; // todo
+
+				return find_bucket(key, keys, nkeys, first_bucket);
+			}
+
+			template <typename K>
+			static bucket_t find_empty_bucket(K key, const Key * keys, ext::usize nkeys)
+			{
+				if (!debug_assert(nkeys != 0))
+					return bucket_t(-1);
+
+				const auto first_bucket = (std::size_t(key) * std::size_t(key)) % nkeys; // todo
+
+				return find_bucket(Key{}, keys, nkeys, first_bucket);
+			}
+
+			bucket_t try_place(Key key)
+			{
+				while (true)
+				{
+					const auto bucket = find_empty_bucket(key, keys().data(), lookup_.size());
+					if (bucket != bucket_t(-1))
+						return bucket;
+
+					bool fatal_error = true;
+					if (!debug_verify(
+						    lookup_.try_reallocate_with(
+							    lookup_.capacity() * 2, // todo capacity_for? grow?
+							    [&fatal_error](auto & new_data, auto & old_data)
+							    {
+								    const auto new_size = new_data.capacity();
+								    new_data.set_size(new_size);
+								    auto new_slots = new_data.storage_.section(mpl::index_constant<0>{}, new_size);
+								    auto new_keys = new_data.storage_.section(mpl::index_constant<1>{}, new_size);
+								    new_slots.construct_fill(0, new_size, slot_t{});
+								    new_keys.construct_fill(0, new_size, Key{});
+
+								    const auto old_size = old_data.capacity();
+								    auto old_slots = old_data.storage_.section(mpl::index_constant<0>{}, old_size);
+								    auto old_keys = old_data.storage_.section(mpl::index_constant<1>{}, old_size);
+								    for (auto i : ranges::index_sequence(old_size))
+								    {
+									    if (old_keys[i] == Key{})
+										    continue; // empty
+
+									    const auto new_bucket = find_empty_bucket(old_keys[i], new_keys.data(), new_size);
+									    if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
+										    return fatal_error = false;
+
+									    new_slots[new_bucket] = old_slots[i];
+									    new_keys[new_bucket] = old_keys[i];
+								    }
+								    return true;
+							    })) && fatal_error)
+						return bucket_t(-1);
+				}
+			}
+
 			/**
 			 * Find the bucket where the key resides.
 			 */
 			template <typename K>
 			bucket_t find(K key) const
 			{
-				auto bucket = hash(key);
-				debug_expression(std::size_t count = 0); // debug count that asserts if taken too many steps
-				// search again if...
-				while (slots[bucket].empty() || // ... this bucket is empty, or
-				       keys[bucket] != key) // ... this is not the right one!
-				{
-					debug_assert(count++ < std::size_t{4});
-					if (bucket++ >= Maximum - 1)
-						bucket -= Maximum;
-				}
-				return bucket;
-			}
-			/**
-			 * Find the bucket where the key resides.
-			 */
-			template <typename K>
-			bucket_t try_find(K key) const
-			{
-				auto bucket = hash(key);
-				std::size_t count = 0;
-				// search again if...
-				while (slots[bucket].empty() || // ... this bucket is empty, or
-				       keys[bucket] != key) // ... this is not the right one!
-				{
-					if (count++ >= 4)
-						return bucket_t(-1);
-					if (bucket++ >= Maximum - 1)
-						bucket -= Maximum;
-				}
-				return bucket;
+				return find_bucket(key, keys().data(), lookup_.size());
 			}
 
 			void clear_all_impl(mpl::index_sequence<>)
@@ -403,10 +558,10 @@ namespace core
 			template <size_t type, size_t ...types>
 			void clear_all_impl(mpl::index_sequence<type, types...>)
 			{
-				auto & array = std::get<type>(arrays);
+				auto & array = std::get<type>(arrays_);
 				for (auto i : ranges::index_sequence_for(array))
 				{
-					slots[array.bucket_at(i)].clear();
+					keys()[array.bucket_at(i)] = Key{};
 				}
 				array.clear();
 
@@ -419,14 +574,13 @@ namespace core
 			template <std::size_t type>
 			void remove_impl(mpl::index_constant<type>, bucket_t bucket, uint24_t index)
 			{
-				auto & array = std::get<type>(arrays);
+				auto & array = std::get<type>(arrays_);
 				debug_assert(index < array.size());
 
 				const auto last = array.size() - 1;
 
-				slots[array.bucket_at(last)].set_index(index);
-				slots[bucket].clear();
-				// keys[bucket] = ??? // not needed
+				slots()[array.bucket_at(last)].set_index(index);
+				keys()[bucket] = Key{};
 				array.remove_at(index);
 			}
 
@@ -448,7 +602,7 @@ namespace core
 			auto call_impl(mpl::index_constant<type>, Key key, uint24_t index, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<component_types> &>()))
 			{
-				auto & array = std::get<type>(arrays);
+				auto & array = std::get<type>(arrays_);
 				debug_assert(index < array.size());
 
 				return detail::call_impl_func(std::forward<F>(func), key, array.get(index));

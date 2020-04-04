@@ -63,7 +63,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		21,
+		utility::static_storage_traits<23>,
 		utility::static_storage<10, Camera>
 	>
 	components;
@@ -108,14 +108,16 @@ namespace camera
 	// TODO: make thread safe when needed
 	void update(simulation &, engine::Entity id, core::maths::Vector3f movement)
 	{
-		Camera & camera = components.get<Camera>(id);
+		const auto camera = components.try_get<Camera>(id);
+		if (!debug_verify(camera != nullptr))
+			return;
 
-		camera.update(movement);
+		camera->update(movement);
 
 		post_update_camera(
 			*::viewer,
 			id,
-			engine::graphics::viewer::translation{ camera.position });
+			engine::graphics::viewer::translation{camera->position});
 	}
 }
 }
@@ -138,7 +140,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		201,
+		utility::heap_storage_traits,
 		utility::heap_storage<object_t>
 	>
 	objects;

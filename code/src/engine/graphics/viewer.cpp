@@ -297,7 +297,7 @@ namespace
 	core::container::Collection
 	<
 		engine::MutableEntity,
-		41,
+		utility::static_storage_traits<41>,
 		utility::static_storage<20, Camera>
 	>
 	cameras;

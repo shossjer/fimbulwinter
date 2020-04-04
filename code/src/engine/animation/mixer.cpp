@@ -237,7 +237,7 @@ namespace
 	core::container::Collection
 	<
 		Mixer,
-		1001,
+		utility::heap_storage_traits,
 		utility::heap_storage<Fade>,
 		utility::heap_storage<Fadein>,
 		utility::heap_storage<Fadeout>,
@@ -399,7 +399,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		201,
+		utility::heap_storage_traits,
 		utility::heap_storage<Character>,
 		utility::heap_storage<Model>
 	>

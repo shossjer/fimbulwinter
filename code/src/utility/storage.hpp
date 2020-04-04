@@ -282,6 +282,12 @@ namespace utility
 			construct_range_impl(mpl::true_type{}, index, begin, end);
 		}
 
+		// template <REQUIRES((can_memset::value))>
+		// void memset_fill(std::ptrdiff_t begin, std::ptrdiff_t end, char value)
+		// {
+		// 	construct_fill_impl(mpl::true_type{}, begin, end, value);
+		// }
+
 		pointer data()
 		{
 			return ptr_.storage().data(ptr_.base());
@@ -1204,6 +1210,9 @@ namespace utility
 		template <typename ...Us>
 		using storage_type = dynamic_storage<Allocator, Us...>;
 
+		template <typename ...Us>
+		using append = dynamic_storage<Allocator, Ts..., Us...>;
+
 		using static_capacity = mpl::false_type;
 		using trivial_allocate = mpl::false_type;
 		using trivial_deallocate = mpl::false_type;
@@ -1227,6 +1236,9 @@ namespace utility
 		using allocator_type = utility::null_allocator<T>;
 		template <typename ...Us>
 		using storage_type = static_storage<Capacity, Us...>;
+
+		template <typename ...Us>
+		using append = static_storage<Capacity, Ts..., Us...>;
 
 		using static_capacity = mpl::true_type;
 		using trivial_allocate = mpl::true_type;

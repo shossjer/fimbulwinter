@@ -358,7 +358,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Asset,
-		21,
+		utility::static_storage_traits<23>,
 		utility::static_storage<10, display_t>
 	>
 	displays;
@@ -695,7 +695,7 @@ namespace
 	core::container::Collection
 	<
 		engine::MutableEntity,
-		1601,
+		utility::heap_storage_traits,
 		utility::heap_storage<Character>,
 		utility::heap_storage<MeshObject>
 	>
@@ -722,7 +722,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		1601,
+		utility::heap_storage_traits,
 		utility::heap_storage<selectable_character_t>
 	>
 	selectable_components;
@@ -792,7 +792,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		1601,
+		utility::heap_storage_traits,
 		utility::heap_storage<updateable_character_t>
 	>
 	updateable_components;
