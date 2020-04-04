@@ -371,7 +371,7 @@ namespace utility
 			this->destruct_range(0, this->size());
 
 			this->set_size(size);
-			callback(*this);
+			callback(*this, *this); // todo weird
 			return true;
 		}
 
@@ -388,8 +388,8 @@ namespace utility
 			if (!new_data.allocate_storage(capacity))
 				return false;
 
-			new_data.set_size(this->size());
-			callback(new_data);
+			if (!callback(new_data, static_cast<StorageData &>(*this)))
+				return false;
 
 			if (this->capacity() > 0)
 			{
@@ -413,9 +413,11 @@ namespace utility
 		{
 			return try_reallocate_with(
 				capacity,
-				[&](StorageData & new_data)
+				[](StorageData & new_data, StorageData & old_data)
 				{
-					new_data.move_construct_range(0, *this, 0, this->size());
+					new_data.set_size(old_data.size());
+					new_data.move_construct_range(0, old_data, 0, old_data.size());
+					return true;
 				});
 		}
 

@@ -570,10 +570,11 @@ namespace utility
 			const auto len = ext::strlen(s);
 			const auto ret = data_.array_.try_replace_with(
 				len + 1,
-				[&](array_data & new_data)
+				[&](array_data & new_data, array_data & /*old_data*/)
 				{
 					new_data.set_size(len + 1);
 					new_data.chars_.construct_range(0, s, s + len + 1);
+					return true;
 				});
 			assert(ret);
 			return *this;
@@ -582,11 +583,12 @@ namespace utility
 		{
 			const auto ret = data_.array_.try_replace_with(
 				view.size() + 1,
-				[&](array_data & new_data)
+				[&](array_data & new_data, array_data & /*old_data*/)
 				{
 					new_data.set_size(view.size() + 1);
 					new_data.chars_.construct_range(0, view.data(), view.data() + view.size());
 					new_data.chars_.construct_at(view.size(), '\0');
+					return true;
 				});
 			assert(ret);
 			return *this;
