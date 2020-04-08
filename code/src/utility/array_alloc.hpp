@@ -32,13 +32,13 @@ namespace utility
 
 			void set_capacity(std::size_t capacity)
 			{
-				assert(capacity == storage_traits::capacity_value);
+				assert(capacity == 0 || capacity == storage_traits::capacity_value);
 				static_cast<void>(capacity);
 			}
 
 			void set_size(std::size_t size)
 			{
-				assert(size <= size_type(-1));
+				assert(size <= size_type(-1) && size <= storage_traits::capacity_value);
 
 				size_ = static_cast<size_type>(size);
 			}
@@ -63,6 +63,8 @@ namespace utility
 
 			void set_size(std::size_t size)
 			{
+				assert(size <= capacity_);
+
 				size_ = size;
 			}
 
@@ -172,6 +174,11 @@ namespace utility
 					this->set_size(other.size());
 					this->copy_construct_range(0, other, 0, other.size());
 				}
+				else
+				{
+					this->set_capacity(0);
+					this->set_size(0);
+				}
 			}
 			array_wrapper_trivially_copy_constructible(this_type &&) = default;
 			this_type & operator = (const this_type &) = default;
@@ -269,6 +276,11 @@ namespace utility
 					this->set_size(other.size());
 					this->move_construct_range(0, other, 0, other.size());
 				}
+				else
+				{
+					this->set_capacity(0);
+					this->set_size(0);
+				}
 			}
 			this_type & operator = (const this_type &) = default;
 			this_type & operator = (this_type &&) = default;
@@ -356,10 +368,8 @@ namespace utility
 		array_wrapper(std::size_t capacity)
 		{
 			capacity = StorageData::storage_traits::capacity_for(capacity);
-			if (this->allocate_storage(capacity))
-			{
-				this->set_capacity(capacity);
-			}
+			this->set_capacity(this->allocate_storage(capacity) ? capacity : 0);
+			this->set_size(0);
 		}
 
 		template <typename Callback>
@@ -383,15 +393,18 @@ namespace utility
 		template <typename Callback>
 		bool try_reallocate_with(std::size_t capacity, Callback && callback, mpl::false_type /*static capacity*/)
 		{
+			capacity = StorageData::storage_traits::capacity_for(capacity);
+
 			StorageData new_data;
-			new_data.set_capacity(capacity);
 			if (!new_data.allocate_storage(capacity))
 				return false;
+
+			new_data.set_capacity(capacity);
 
 			if (!callback(new_data, static_cast<StorageData &>(*this)))
 				return false;
 
-			if (this->capacity() > 0)
+			if (0 < this->capacity())
 			{
 				this->destruct_range(0, this->size());
 				this->deallocate_storage(this->capacity());

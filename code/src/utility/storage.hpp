@@ -778,12 +778,12 @@ namespace utility
 		public:
 			bool allocate(std::size_t capacity)
 			{
-				return capacity <= Capacity; // todo ==
+				return capacity == Capacity;
 			}
 
 			void deallocate(std::size_t capacity)
 			{
-				assert(capacity <= Capacity); // todo ==
+				assert(capacity == Capacity);
 				static_cast<void>(capacity);
 			}
 

@@ -127,7 +127,7 @@ namespace core
 
 				void set_capacity(std::size_t capacity)
 				{
-					assert(capacity == storage_traits::capacity_value);
+					assert(capacity == 0 || capacity == storage_traits::capacity_value);
 					static_cast<void>(capacity);
 				}
 
@@ -213,7 +213,7 @@ namespace core
 
 				void set_size(std::size_t size)
 				{
-					assert(size == this->capacity());
+					assert(size == 0 || size == this->capacity());
 					static_cast<void>(size);
 				}
 
