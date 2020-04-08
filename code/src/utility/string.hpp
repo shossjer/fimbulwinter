@@ -394,10 +394,6 @@ namespace utility
 		: detail::StringStorageDataImpl<Storage>
 	{
 		using is_trivially_destructible = utility::storage_is_trivially_destructible<Storage>;
-		using is_trivially_copy_constructible = utility::storage_is_copy_constructible<Storage>;
-		using is_trivially_copy_assignable = utility::storage_is_copy_assignable<Storage>;
-		using is_trivially_move_constructible = utility::storage_is_trivially_move_constructible<Storage>;
-		using is_trivially_move_assignable = utility::storage_is_trivially_move_assignable<Storage>;
 
 		using this_type = basic_string_array_data<Storage>;
 		using base_type = detail::StringStorageDataImpl<Storage>;

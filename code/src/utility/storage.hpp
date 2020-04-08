@@ -1270,17 +1270,6 @@ namespace utility
 		mpl::conjunction<typename Storage::storing_trivially_destructible,
 		                 typename storage_traits<Storage>::trivial_deallocate>;
 	template <typename Storage>
-	using storage_is_copy_constructible = std::is_copy_constructible<Storage>;
-	template <typename Storage>
-	using storage_is_copy_assignable = std::is_copy_assignable<Storage>;
-	template <typename Storage>
-	using storage_is_trivially_move_constructible =
-		mpl::conjunction<std::is_move_constructible<Storage>,
-		                 mpl::negation<typename storage_traits<Storage>::moves_allocation>>;
-	template <typename Storage>
-	using storage_is_trivially_move_assignable =
-		mpl::conjunction<std::is_move_assignable<Storage>,
-		                 mpl::negation<typename storage_traits<Storage>::moves_allocation>>;
 }
 
 #endif /* UTILITY_STORAGE_HPP */

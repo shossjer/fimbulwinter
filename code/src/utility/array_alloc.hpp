@@ -77,10 +77,6 @@ namespace utility
 		: detail::array_data_impl<Storage>
 	{
 		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
-		using is_trivially_copy_constructible = storage_is_copy_constructible<Storage>;
-		using is_trivially_copy_assignable = storage_is_copy_assignable<Storage>;
-		using is_trivially_move_constructible = storage_is_trivially_move_constructible<Storage>;
-		using is_trivially_move_assignable = storage_is_trivially_move_assignable<Storage>;
 
 		using this_type = array_data<Storage>;
 
@@ -150,7 +146,7 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename StorageData, bool = StorageData::is_trivially_copy_constructible::value>
+		template <typename StorageData, bool = std::is_copy_constructible<StorageData>::value>
 		struct array_wrapper_trivially_copy_constructible
 			: array_wrapper_trivially_destructible<StorageData>
 		{};
@@ -185,7 +181,7 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename StorageData, bool = StorageData::is_trivially_copy_assignable::value>
+		template <typename StorageData, bool = std::is_copy_assignable<StorageData>::value>
 		struct array_wrapper_trivially_copy_assignable
 			: array_wrapper_trivially_copy_constructible<StorageData>
 		{};
@@ -232,16 +228,14 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename StorageData, bool = StorageData::is_trivially_move_constructible::value, bool = StorageData::storage_traits::moves_allocation::value>
+		template <typename StorageData, bool move_constructible = std::is_move_constructible<StorageData>::value, bool moves_allocation = StorageData::storage_traits::moves_allocation::value>
 		struct array_wrapper_trivially_move_constructible
 			: array_wrapper_trivially_copy_assignable<StorageData>
-		{};
-		template <typename StorageData>
-		struct array_wrapper_trivially_move_constructible<StorageData, false /*trivially move constructible*/, true /*moves allocation*/>
-			: array_wrapper_trivially_copy_assignable<StorageData>
 		{
+			static_assert(move_constructible && moves_allocation, "");
+
 			using base_type = array_wrapper_trivially_copy_assignable<StorageData>;
-			using this_type = array_wrapper_trivially_move_constructible<StorageData, false, true>;
+			using this_type = array_wrapper_trivially_move_constructible<StorageData, move_constructible, moves_allocation>;
 
 			using base_type::base_type;
 
@@ -256,7 +250,11 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 		template <typename StorageData>
-		struct array_wrapper_trivially_move_constructible<StorageData, false /*trivially move constructible*/, false /*moves allocation*/>
+		struct array_wrapper_trivially_move_constructible<StorageData, true /*move constructible*/, false /*moves allocation*/>
+			: array_wrapper_trivially_copy_assignable<StorageData>
+		{};
+		template <typename StorageData>
+		struct array_wrapper_trivially_move_constructible<StorageData, false /*move constructible*/, false /*moves allocation*/>
 			: array_wrapper_trivially_copy_assignable<StorageData>
 		{
 			using base_type = array_wrapper_trivially_copy_assignable<StorageData>;
@@ -286,16 +284,14 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename StorageData, bool = StorageData::is_trivially_move_assignable::value, bool = StorageData::storage_traits::moves_allocation::value>
+		template <typename StorageData, bool move_assignable = std::is_move_assignable<StorageData>::value, bool moves_allocation = StorageData::storage_traits::moves_allocation::value>
 		struct array_wrapper_trivially_move_assignable
 			: array_wrapper_trivially_move_constructible<StorageData>
-		{};
-		template <typename StorageData>
-		struct array_wrapper_trivially_move_assignable<StorageData, false /*trivially move assignable*/, true /*moves allocation*/>
-			: array_wrapper_trivially_move_constructible<StorageData>
 		{
+			static_assert(move_assignable && moves_allocation, "");
+
 			using base_type = array_wrapper_trivially_move_constructible<StorageData>;
-			using this_type = array_wrapper_trivially_move_assignable<StorageData, false, true>;
+			using this_type = array_wrapper_trivially_move_assignable<StorageData, move_assignable, moves_allocation>;
 
 			using base_type::base_type;
 
@@ -318,7 +314,11 @@ namespace utility
 			}
 		};
 		template <typename StorageData>
-		struct array_wrapper_trivially_move_assignable<StorageData, false /*trivially move assignable*/, false /*moves allocation*/>
+		struct array_wrapper_trivially_move_assignable<StorageData, true /*move assignable*/, false /*moves allocation*/>
+			: array_wrapper_trivially_move_constructible<StorageData>
+		{};
+		template <typename StorageData>
+		struct array_wrapper_trivially_move_assignable<StorageData, false /*move assignable*/, false /*moves allocation*/>
 			: array_wrapper_trivially_move_constructible<StorageData>
 		{
 			using base_type = array_wrapper_trivially_move_constructible<StorageData>;
