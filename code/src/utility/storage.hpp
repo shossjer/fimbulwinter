@@ -1097,6 +1097,10 @@ namespace utility
 		using storing_trivially_destructible = mpl::apply<mpl::conjunction,
 		                                                  mpl::transform<std::is_trivially_destructible,
 		                                                                 storing_types>>;
+		using storing_trivially_default_constructible =
+			mpl::apply<mpl::conjunction,
+			           mpl::transform<std::is_trivially_default_constructible,
+			                          storing_types>>;
 	};
 
 	template <typename StorageImpl>
@@ -1117,6 +1121,7 @@ namespace utility
 		using storing_type = storing_type_for<value_type>;
 		using storing_trivially_copyable = std::is_trivially_copyable<storing_type>;
 		using storing_trivially_destructible = std::is_trivially_destructible<storing_type>;
+		using storing_trivially_default_constructible = std::is_trivially_default_constructible<storing_type>;
 
 		using allocator_type = typename StorageImpl::allocator_type;
 
@@ -1270,6 +1275,9 @@ namespace utility
 		mpl::conjunction<typename Storage::storing_trivially_destructible,
 		                 typename storage_traits<Storage>::trivial_deallocate>;
 	template <typename Storage>
+	using storage_is_trivially_default_constructible =
+		mpl::conjunction<typename Storage::storing_trivially_default_constructible,
+		                 typename storage_traits<Storage>::trivial_allocate>;
 }
 
 #endif /* UTILITY_STORAGE_HPP */

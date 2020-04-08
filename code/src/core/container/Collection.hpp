@@ -125,6 +125,9 @@ namespace core
 
 				Storage storage_;
 
+				CollectionArrayDataImpl() = default;
+				explicit CollectionArrayDataImpl(utility::null_place_t) {}
+
 				void set_capacity(std::size_t capacity)
 				{
 					assert(capacity == 0 || capacity == storage_traits::capacity_value);
@@ -140,8 +143,13 @@ namespace core
 				using size_type = std::size_t;
 				using storage_traits = utility::storage_traits<Storage>;
 
-				size_type capacity_ = 0;
+				size_type capacity_;
 				Storage storage_;
+
+				CollectionArrayDataImpl()
+					: capacity_{}
+				{}
+				explicit CollectionArrayDataImpl(utility::null_place_t) {}
 
 				void set_capacity(std::size_t capacity)
 				{
@@ -155,12 +163,15 @@ namespace core
 			struct CollectionArrayData
 				: detail::CollectionArrayDataImpl<Storage>
 			{
+				using storage_traits = utility::storage_traits<Storage>;
+
 				using is_trivially_destructible = utility::storage_is_trivially_destructible<Storage>;
+				using is_trivially_default_constructible =
+					mpl::conjunction<typename storage_traits::static_capacity,
+					                 utility::storage_is_trivially_default_constructible<Storage>>;
 
 				using this_type = CollectionArrayData<Storage>;
 				using base_type = detail::CollectionArrayDataImpl<Storage>;
-
-				using storage_traits = utility::storage_traits<Storage>;
 
 				using size_type = typename base_type::size_type;
 
@@ -180,10 +191,9 @@ namespace core
 					if (this->storage_.allocate(capacity))
 					{
 						this->set_capacity(capacity);
-
-						this->set_size(1);
-						this->storage_.sections(capacity).construct_at(0); // todo guarantees zeroing?
-						// this->storage_.memset_fill(0, 1, 0); // necessary?
+						this->set_size(capacity);
+						this->storage_.sections(capacity).construct_fill(0, capacity);
+						// this->storage_.sections(capacity).memset_fill(0, capacity, 0); // todo necessary?
 					}
 					else
 					{
@@ -272,15 +282,6 @@ namespace core
 
 			decltype(auto) keys() { return lookup_.storage_.section(mpl::index_constant<1>{}, lookup_.capacity()); }
 			decltype(auto) keys() const { return lookup_.storage_.section(mpl::index_constant<1>{}, lookup_.capacity()); }
-
-		public:
-			// todo can CollectionArrayData do this?
-			Collection()
-				: lookup_(1)
-			{
-				lookup_.set_size(lookup_.capacity());
-				lookup_.storage_.sections(lookup_.capacity()).construct_fill(0, lookup_.capacity());
-			}
 
 		public:
 			template <typename K>

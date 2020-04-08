@@ -324,8 +324,13 @@ namespace utility
 
 			using size_type = utility::size_type_for<storage_traits::capacity_value>;
 
-			size_type size_ = 0;
+			size_type size_;
 			Storage chars_;
+
+			StringStorageDataImpl()
+				: size_{}
+			{}
+			explicit StringStorageDataImpl(utility::null_place_t) {}
 
 			void set_capacity(std::size_t capacity)
 			{
@@ -369,9 +374,15 @@ namespace utility
 			// 	Big big;
 			// };
 
-			size_type capacity_ = 0;
-			size_type size_ = 0;
+			size_type capacity_;
+			size_type size_;
 			Storage chars_;
+
+			StringStorageDataImpl()
+				: capacity_{}
+				, size_{}
+			{}
+			explicit StringStorageDataImpl(utility::null_place_t) {}
 
 			void set_capacity(std::size_t capacity)
 			{
@@ -394,6 +405,7 @@ namespace utility
 		: detail::StringStorageDataImpl<Storage>
 	{
 		using is_trivially_destructible = utility::storage_is_trivially_destructible<Storage>;
+		using is_trivially_default_constructible = mpl::false_type;
 
 		using this_type = basic_string_array_data<Storage>;
 		using base_type = detail::StringStorageDataImpl<Storage>;
@@ -401,6 +413,8 @@ namespace utility
 		using storage_traits = utility::storage_traits<Storage>;
 
 		using size_type = typename base_type::size_type;
+
+		using base_type::base_type;
 
 		bool allocate_storage(std::size_t capacity)
 		{

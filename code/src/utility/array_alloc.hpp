@@ -27,8 +27,13 @@ namespace utility
 
 			using size_type = utility::size_type_for<storage_traits::capacity_value>;
 
-			size_type size_ = 0;
+			size_type size_;
 			Storage storage_;
+
+			array_data_impl()
+				: size_{}
+			{}
+			explicit array_data_impl(utility::null_place_t) {}
 
 			void set_capacity(std::size_t capacity)
 			{
@@ -52,9 +57,15 @@ namespace utility
 			using size_type = std::size_t;
 			using storage_traits = utility::storage_traits<Storage>;
 
-			size_type size_ = 0;
-			size_type capacity_ = 0;
+			size_type size_;
+			size_type capacity_;
 			Storage storage_;
+
+			array_data_impl()
+				: size_{}
+				, capacity_{}
+			{}
+			explicit array_data_impl(utility::null_place_t) {}
 
 			void set_capacity(std::size_t capacity)
 			{
@@ -76,8 +87,11 @@ namespace utility
 	struct array_data
 		: detail::array_data_impl<Storage>
 	{
+		// todo remove these
 		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
+		using is_trivially_default_constructible = mpl::false_type;
 
+		using base_type = detail::array_data_impl<Storage>;
 		using this_type = array_data<Storage>;
 
 		bool allocate_storage(std::size_t capacity)
@@ -121,7 +135,11 @@ namespace utility
 		template <typename StorageData, bool = StorageData::is_trivially_destructible::value>
 		struct array_wrapper_trivially_destructible
 			: StorageData
-		{};
+		{
+			using base_type = StorageData;
+
+			using base_type::base_type;
+		};
 		template <typename StorageData>
 		struct array_wrapper_trivially_destructible<StorageData, false /*trivially destructible*/>
 			: StorageData
@@ -146,21 +164,54 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename StorageData, bool = std::is_copy_constructible<StorageData>::value>
-		struct array_wrapper_trivially_copy_constructible
-			: array_wrapper_trivially_destructible<StorageData>
-		{};
-		template <typename StorageData>
-		struct array_wrapper_trivially_copy_constructible<StorageData, false /*copy constructible*/>
+		template <typename StorageData, bool = StorageData::is_trivially_default_constructible::value>
+		struct array_wrapper_trivially_default_constructible
 			: array_wrapper_trivially_destructible<StorageData>
 		{
 			using base_type = array_wrapper_trivially_destructible<StorageData>;
+
+			using base_type::base_type;
+		};
+		template <typename StorageData>
+		struct array_wrapper_trivially_default_constructible<StorageData, false /*trivially default constructible*/>
+			: array_wrapper_trivially_destructible<StorageData>
+		{
+			using base_type = array_wrapper_trivially_destructible<StorageData>;
+			using this_type = array_wrapper_trivially_default_constructible<StorageData, false>;
+
+			using base_type::base_type;
+
+			array_wrapper_trivially_default_constructible()
+				: base_type(utility::null_place)
+			{
+				this->initialize();
+			}
+			array_wrapper_trivially_default_constructible(const this_type &) = default;
+			array_wrapper_trivially_default_constructible(this_type &&) = default;
+			this_type & operator = (const this_type &) = default;
+			this_type & operator = (this_type &&) = default;
+		};
+
+		template <typename StorageData, bool = std::is_copy_constructible<StorageData>::value>
+		struct array_wrapper_trivially_copy_constructible
+			: array_wrapper_trivially_default_constructible<StorageData>
+		{
+			using base_type = array_wrapper_trivially_default_constructible<StorageData>;
+
+			using base_type::base_type;
+		};
+		template <typename StorageData>
+		struct array_wrapper_trivially_copy_constructible<StorageData, false /*copy constructible*/>
+			: array_wrapper_trivially_default_constructible<StorageData>
+		{
+			using base_type = array_wrapper_trivially_default_constructible<StorageData>;
 			using this_type = array_wrapper_trivially_copy_constructible<StorageData, false>;
 
 			using base_type::base_type;
 
 			array_wrapper_trivially_copy_constructible() = default;
 			array_wrapper_trivially_copy_constructible(const this_type & other)
+				: base_type(utility::null_place)
 			{
 				const auto capacity = StorageData::storage_traits::capacity_for(other.size());
 				if (this->allocate_storage(capacity))
@@ -184,7 +235,11 @@ namespace utility
 		template <typename StorageData, bool = std::is_copy_assignable<StorageData>::value>
 		struct array_wrapper_trivially_copy_assignable
 			: array_wrapper_trivially_copy_constructible<StorageData>
-		{};
+		{
+			using base_type = array_wrapper_trivially_copy_constructible<StorageData>;
+
+			using base_type::base_type;
+		};
 		template <typename StorageData>
 		struct array_wrapper_trivially_copy_assignable<StorageData, false /*copy assignable*/>
 			: array_wrapper_trivially_copy_constructible<StorageData>
@@ -252,7 +307,11 @@ namespace utility
 		template <typename StorageData>
 		struct array_wrapper_trivially_move_constructible<StorageData, true /*move constructible*/, false /*moves allocation*/>
 			: array_wrapper_trivially_copy_assignable<StorageData>
-		{};
+		{
+			using base_type = array_wrapper_trivially_copy_assignable<StorageData>;
+
+			using base_type::base_type;
+		};
 		template <typename StorageData>
 		struct array_wrapper_trivially_move_constructible<StorageData, false /*move constructible*/, false /*moves allocation*/>
 			: array_wrapper_trivially_copy_assignable<StorageData>
@@ -265,6 +324,7 @@ namespace utility
 			array_wrapper_trivially_move_constructible() = default;
 			array_wrapper_trivially_move_constructible(const this_type &) = default;
 			array_wrapper_trivially_move_constructible(this_type && other)
+				: base_type(utility::null_place)
 			{
 				const auto capacity = StorageData::storage_traits::capacity_for(other.size());
 				if (this->allocate_storage(capacity))
@@ -316,7 +376,11 @@ namespace utility
 		template <typename StorageData>
 		struct array_wrapper_trivially_move_assignable<StorageData, true /*move assignable*/, false /*moves allocation*/>
 			: array_wrapper_trivially_move_constructible<StorageData>
-		{};
+		{
+			using base_type = array_wrapper_trivially_move_constructible<StorageData>;
+
+			using base_type::base_type;
+		};
 		template <typename StorageData>
 		struct array_wrapper_trivially_move_assignable<StorageData, false /*move assignable*/, false /*moves allocation*/>
 			: array_wrapper_trivially_move_constructible<StorageData>
@@ -364,8 +428,11 @@ namespace utility
 	template <typename StorageData>
 	struct array_wrapper : detail::array_wrapper_trivially_move_assignable<StorageData>
 	{
+		using base_type = detail::array_wrapper_trivially_move_assignable<StorageData>;
+
 		array_wrapper() = default;
-		array_wrapper(std::size_t capacity)
+		explicit array_wrapper(std::size_t capacity)
+			: base_type(utility::null_place)
 		{
 			capacity = StorageData::storage_traits::capacity_for(capacity);
 			this->set_capacity(this->allocate_storage(capacity) ? capacity : 0);
