@@ -62,7 +62,7 @@ namespace core
 			class bucket_array_t
 			{
 			private:
-				utility::array_wrapper<utility::array_data<typename utility::storage_traits<ComponentStorage>::template append<bucket_t>>> data_;
+				utility::vector<typename utility::storage_traits<ComponentStorage>::template append<bucket_t>> data_;
 
 			public:
 				auto begin() { return components().data(); }
@@ -115,116 +115,6 @@ namespace core
 				decltype(auto) buckets() { return data_.storage_.section(mpl::index_constant<1>{}, data_.capacity()); }
 				decltype(auto) buckets() const { return data_.storage_.section(mpl::index_constant<1>{}, data_.capacity()); }
 			};
-
-			template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
-			struct CollectionArrayDataImpl
-			{
-				using storage_traits = utility::storage_traits<Storage>;
-
-				using size_type = utility::size_type_for<storage_traits::capacity_value>;
-
-				Storage storage_;
-
-				CollectionArrayDataImpl() = default;
-				explicit CollectionArrayDataImpl(utility::null_place_t) {}
-
-				void set_capacity(std::size_t capacity)
-				{
-					assert(capacity == 0 || capacity == storage_traits::capacity_value);
-					static_cast<void>(capacity);
-				}
-
-				constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
-			};
-
-			template <typename Storage>
-			struct CollectionArrayDataImpl<Storage, false /*static capacity*/>
-			{
-				using size_type = std::size_t;
-				using storage_traits = utility::storage_traits<Storage>;
-
-				size_type capacity_;
-				Storage storage_;
-
-				CollectionArrayDataImpl()
-					: capacity_{}
-				{}
-				explicit CollectionArrayDataImpl(utility::null_place_t) {}
-
-				void set_capacity(std::size_t capacity)
-				{
-					capacity_ = capacity;
-				}
-
-				std::size_t capacity() const { return capacity_; }
-			};
-
-			template <typename Storage>
-			struct CollectionArrayData
-				: detail::CollectionArrayDataImpl<Storage>
-			{
-				using storage_traits = utility::storage_traits<Storage>;
-
-				using is_trivially_destructible = utility::storage_is_trivially_destructible<Storage>;
-				using is_trivially_default_constructible =
-					mpl::conjunction<typename storage_traits::static_capacity,
-					                 utility::storage_is_trivially_default_constructible<Storage>>;
-
-				using this_type = CollectionArrayData<Storage>;
-				using base_type = detail::CollectionArrayDataImpl<Storage>;
-
-				using size_type = typename base_type::size_type;
-
-				bool allocate_storage(std::size_t capacity)
-				{
-					return this->storage_.allocate(capacity);
-				}
-
-				void deallocate_storage(std::size_t capacity)
-				{
-					this->storage_.deallocate(capacity);
-				}
-
-				void initialize()
-				{
-					const auto capacity = storage_traits::capacity_for(1);
-					if (this->storage_.allocate(capacity))
-					{
-						this->set_capacity(capacity);
-						this->set_size(capacity);
-						this->storage_.sections(capacity).construct_fill(0, capacity);
-						// this->storage_.sections(capacity).memset_fill(0, capacity, 0); // todo necessary?
-					}
-					else
-					{
-						this->set_capacity(0);
-						this->set_size(0);
-					}
-				}
-
-				void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-				{
-					this->storage_.sections(this->capacity()).construct_range(index, other.storage_.sections(other.capacity()).data() + from, other.storage_.sections(other.capacity()).data() + to);
-				}
-
-				void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-				{
-					this->storage_.sections(this->capacity()).construct_range(index, std::make_move_iterator(other.storage_.sections(other.capacity()).data() + from), std::make_move_iterator(other.storage_.sections(other.capacity()).data() + to));
-				}
-
-				void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
-				{
-					this->storage_.sections(this->capacity()).destruct_range(from, to);
-				}
-
-				void set_size(std::size_t size)
-				{
-					assert(size == 0 || size == this->capacity());
-					static_cast<void>(size);
-				}
-
-				constexpr std::size_t size() const { return this->capacity(); }
-			};
 		}
 
 		/**
@@ -273,7 +163,7 @@ namespace core
 			};
 
 		private:
-			utility::array_wrapper<detail::CollectionArrayData<typename LookupStorageTraits::template storage_type<slot_t, Key>>> lookup_;
+			utility::array_nonzero<typename LookupStorageTraits::template storage_type<slot_t, Key>> lookup_;
 			// todo keys before slots?
 			std::tuple<detail::bucket_array_t<ComponentStorages>...> arrays_;
 

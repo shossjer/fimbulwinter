@@ -492,8 +492,8 @@ namespace utility
 
 			void set_encoding(utility::type_id_t encoding)
 			{
-				static_cast<void>(encoding);
 				assert(encoding == utility::type_id<Encoding>());
+				static_cast<void>(encoding);
 			}
 
 			constexpr utility::type_id_t encoding() const { return utility::type_id<Encoding>(); }
@@ -526,7 +526,7 @@ namespace utility
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 	private:
-		basic_string_data<utility::array_wrapper<array_data>, Encoding> data_;
+		basic_string_data<utility::container<array_data>, Encoding> data_;
 
 		struct repeat_char {};
 		struct repeat_str {};
