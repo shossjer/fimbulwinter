@@ -9,6 +9,32 @@
 #include <array>
 #include <tuple>
 
+namespace ext
+{
+	namespace detail
+	{
+		template <typename T, std::size_t N>
+		auto tuple_size_impl(const std::array<T, N> &) -> mpl::index_constant<N>;
+		template <typename T1, typename T2>
+		auto tuple_size_impl(const std::pair<T1, T2> &) -> mpl::index_constant<2>;
+		template <typename ...Ts>
+		auto tuple_size_impl(const std::tuple<Ts...> &) -> mpl::index_constant<sizeof...(Ts)>;
+	}
+	// c++11
+	template <typename T>
+	using tuple_size = decltype(detail::tuple_size_impl(std::declval<T>()));
+
+	namespace detail
+	{
+		template <typename Tuple>
+		auto is_tuple_impl(int, Tuple && tuple) -> decltype(tuple_size_impl(std::forward<Tuple>(tuple)), mpl::true_type());
+		template <typename ...Ts>
+		auto is_tuple_impl(float, Ts && ...) -> mpl::false_type;
+	}
+	template <typename ...Ts>
+	using is_tuple = decltype(detail::is_tuple_impl(0, std::declval<Ts>()...));
+}
+
 namespace utl
 {
 	template <typename T, std::size_t N, std::size_t ...Is,

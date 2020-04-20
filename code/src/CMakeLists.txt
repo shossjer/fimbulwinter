@@ -130,6 +130,7 @@ set(HEADERS_UTILITY
 	src/utility/array.hpp
 	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
+	src/utility/compound.hpp
 	src/utility/concepts.hpp
 	src/utility/crypto/crc.hpp
 	src/utility/ext/stddef.hpp
