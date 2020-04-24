@@ -33,6 +33,32 @@ namespace ext
 	}
 	template <typename ...Ts>
 	using is_tuple = decltype(detail::is_tuple_impl(0, std::declval<Ts>()...));
+
+	template <typename T>
+	using make_tuple_sequence = mpl::make_index_sequence<ext::tuple_size<T>::value>;
+
+	template <typename F, typename Tuple, std::size_t ...Is>
+	decltype(auto) apply_for(F && f, Tuple && tuple, mpl::index_sequence<Is...>)
+	{
+		return std::forward<F>(f)(std::get<Is>(std::forward<Tuple>(tuple))...);
+	}
+
+	// c++17
+	template <typename F, typename Tuple>
+	decltype(auto) apply(F && f, Tuple && tuple)
+	{
+		return apply_for(std::forward<F>(f),
+		                 std::forward<Tuple>(tuple),
+		                 ext::make_tuple_sequence<Tuple>{});
+	}
+}
+
+namespace mpl
+{
+	template <typename T, typename Tuple, typename Indices = ext::make_tuple_sequence<Tuple>>
+	struct is_constructible_from_tuple;
+	template <typename T, typename Tuple, std::size_t ...Is>
+	struct is_constructible_from_tuple<T, Tuple, mpl::index_sequence<Is...>> : std::is_constructible<T, decltype(std::get<Is>(std::declval<Tuple>()))...> {};
 }
 
 namespace utl
@@ -100,32 +126,12 @@ namespace utl
 	template <typename Array, typename F>
 	inline auto map(Array && array, F && f) ->
 		decltype(map_for(std::forward<Array>(array),
-		                 mpl::make_array_sequence<mpl::decay_t<Array>>{},
+		                 ext::make_tuple_sequence<Array>{},
 		                 std::forward<F>(f)))
 	{
 		return map_for(std::forward<Array>(array),
-		               mpl::make_array_sequence<mpl::decay_t<Array>>{},
+		               ext::make_tuple_sequence<Array>{},
 		               std::forward<F>(f));
-	}
-
-	template <typename Array, std::size_t ...Is, typename F>
-	inline auto unpack_for(Array && array,
-	                       mpl::index_sequence<Is...>,
-	                       F && f) ->
-		decltype(std::forward<F>(f)(std::get<Is>(std::forward<Array>(array))...))
-	{
-		return std::forward<F>(f)(std::get<Is>(std::forward<Array>(array))...);
-	}
-	template <typename Array, typename F>
-	inline auto unpack(Array && array,
-	                   F && f) ->
-		decltype(unpack_for(std::forward<Array>(array),
-		                    mpl::make_array_sequence<mpl::decay_t<Array>>{},
-		                    std::forward<F>(f)))
-	{
-		return unpack_for(std::forward<Array>(array),
-		                  mpl::make_array_sequence<mpl::decay_t<Array>>{},
-		                  std::forward<F>(f));
 	}
 
 #if defined(_MSC_VER)
@@ -148,7 +154,7 @@ namespace utl
 	void for_each(Array && array, F && f)
 	{
 		return for_each_in(std::forward<Array>(array),
-		                   mpl::make_array_sequence<mpl::remove_cvref_t<Array>>{},
+		                   ext::make_tuple_sequence<Array>{},
 		                   std::forward<F>(f));
 	}
 
@@ -212,11 +218,11 @@ namespace utl
 	template <typename Array, typename ...Ps>
 	inline auto append(Array && array, Ps && ...ps) ->
 		decltype(append_impl(std::forward<Array>(array),
-		                     mpl::make_array_sequence<mpl::decay_t<Array>>{},
+		                     ext::make_tuple_sequence<Array>{},
 		                     std::forward<Ps>(ps)...))
 	{
 		return append_impl(std::forward<Array>(array),
-		                   mpl::make_array_sequence<mpl::decay_t<Array>>{},
+		                   ext::make_tuple_sequence<Array>{},
 		                   std::forward<Ps>(ps)...);
 	}
 
@@ -240,11 +246,11 @@ namespace utl
 	inline auto concat(Array1 && array1, Array2 && array2) ->
 		decltype(concat_impl(std::forward<Array1>(array1),
 		                     std::forward<Array2>(array2),
-		                     mpl::make_array_sequence<mpl::decay_t<Array2>>{}))
+		                     ext::make_tuple_sequence<Array2>{}))
 	{
 		return concat_impl(std::forward<Array1>(array1),
 		                   std::forward<Array2>(array2),
-		                   mpl::make_array_sequence<mpl::decay_t<Array2>>{});
+		                   ext::make_tuple_sequence<Array2>{});
 	}
 	template <typename Array1, typename Array2, typename ...Arrays>
 	inline auto concat(Array1 && array1, Array2 && array2, Arrays && ...arrays) ->

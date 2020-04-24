@@ -416,12 +416,12 @@ namespace utility
 
 		reference operator * () const
 		{
-			return utl::unpack(tuple(), [this](auto & ...ps){ return reference(storage_->value_at(ps)...); });
+			return ext::apply([this](auto & ...ps){ return reference(storage_->value_at(ps)...); }, tuple());
 		}
 
 		reference operator [] (difference_type n) const
 		{
-			return utl::unpack(tuple(), [this, n](auto & ...ps){ return reference(storage_->value_at(ps + n)...); });
+			return ext::apply([this, n](auto & ...ps){ return reference(storage_->value_at(ps + n)...); }, tuple());
 		}
 
 		this_type & operator ++ () { ++ptr_; return *this; }
@@ -444,7 +444,7 @@ namespace utility
 #if defined(_MSC_VER) && _MSC_VER <= 1916
 			using rvalue_reference = rvalue_reference;
 #endif
-			return utl::unpack(x.tuple(), [&x](auto & ...ps){ return rvalue_reference(std::move(x.storage_->value_at(ps))...); });
+			return ext::apply([&x](auto & ...ps){ return rvalue_reference(std::move(x.storage_->value_at(ps))...); }, x.tuple());
 		}
 	};
 
@@ -505,12 +505,12 @@ namespace utility
 
 		reference operator * () const
 		{
-			return utl::unpack(tuple(), [this](auto & ...ps){ return reference(storage_->value_at(ps)...); });
+			return ext::apply([this](auto & ...ps){ return reference(storage_->value_at(ps)...); }, tuple());
 		}
 
 		reference operator [] (difference_type n) const
 		{
-			return utl::unpack(tuple(), [this, n](auto & ...ps){ return reference(storage_->value_at(ps + n)...); });
+			return ext::apply([this, n](auto & ...ps){ return reference(storage_->value_at(ps + n)...); }, tuple());
 		}
 
 		this_type & operator ++ () { ++ptr_; return *this; }
@@ -531,7 +531,7 @@ namespace utility
 		// todo const_rvalue_reference?
 		friend auto iter_move(this_type x)
 		{
-			return utl::unpack(x.tuple(), [&x](auto & ...ps){ return utility::make_proxy_reference(std::move(x.storage_->value_at(ps))...); });
+			return ext::apply([&x](auto & ...ps){ return utility::make_proxy_reference(std::move(x.storage_->value_at(ps))...); }, x.tuple());
 		}
 	};
 
@@ -641,7 +641,7 @@ namespace utility
 		template <std::size_t ...Is, typename ...Ps>
 		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, std::piecewise_construct_t, Ps && ...ps)
 		{
-			int expansion_hack[] = {(utl::unpack(std::forward<Ps>(ps), [this, begin, end](auto && ...ps){ section(mpl::index_constant<Is>{}).construct_fill(begin, end, std::forward<decltype(ps)>(ps)...); }), 0)...};
+			int expansion_hack[] = {(ext::apply([this, begin, end](auto && ...ps){ section(mpl::index_constant<Is>{}).construct_fill(begin, end, std::forward<decltype(ps)>(ps)...); }, std::forward<Ps>(ps)), 0)...};
 			static_cast<void>(expansion_hack);
 		}
 
@@ -680,7 +680,7 @@ namespace utility
 		// template <std::size_t ...Is, typename ...Ps>
 		// reference piecewise_construct_at_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, Ps && ...ps)
 		// {
-		// 	return reference(utl::unpack(std::forward<Ps>(ps), [this, index](auto && ...ps){ return section(mpl::index_constant<Is>{}).construct_at(index, std::forward<decltype(ps)>(ps)...); })...);
+		// 	return reference(ext::apply([this, index](auto && ...ps){ return section(mpl::index_constant<Is>{}).construct_at(index, std::forward<decltype(ps)>(ps)...); }, std::forward<Ps>(ps))...);
 		// }
 		template <typename ...Ps>
 		reference piecewise_construct_at_impl(mpl::index_sequence<>, std::ptrdiff_t /*index*/, Ps && ...ps)
@@ -695,7 +695,7 @@ namespace utility
 		template <std::size_t I, std::size_t ...Is, typename P1, typename ...Ps>
 		reference piecewise_construct_at_impl(mpl::index_sequence<I, Is...>, std::ptrdiff_t index, P1 && p1, Ps && ...ps)
 		{
-			// return construct_at_impl(mpl::index_sequence<Is...>{}, index, std::piecewise_construct, std::forward<Ps>(ps)..., utl::unpack(std::forward<P1>(p1), [this, index](auto && ...ps) { return section(mpl::index_constant<I>{}).construct_at(index, std::forward<decltype(ps)>(ps)...); }));
+			// return construct_at_impl(mpl::index_sequence<Is...>{}, index, std::piecewise_construct, std::forward<Ps>(ps)..., ext::apply([this, index](auto && ...ps) { return section(mpl::index_constant<I>{}).construct_at(index, std::forward<decltype(ps)>(ps)...); }, std::forward<P1>(p1)));
 			return piecewise_construct_at_impl(mpl::index_sequence<Is...>{}, index, std::forward<Ps>(ps)..., construct_at_impl_helper(mpl::index_constant<I>{}, index, std::forward<P1>(p1), mpl::make_index_sequence<std::tuple_size<mpl::remove_cvref_t<P1>>::value>{}));
 		}
 

@@ -43,11 +43,11 @@ namespace utility
 
 		utility::zip_iterator<Ts *...> address(pointer p, size_type n)
 		{
-			return utl::unpack(offsets(n), [p](auto ...is){ return utility::zip_iterator<Ts *...>(reinterpret_cast<Ts *>(reinterpret_cast<char *>(p) + is)...); });
+			return ext::apply([p](auto ...is){ return utility::zip_iterator<Ts *...>(reinterpret_cast<Ts *>(reinterpret_cast<char *>(p) + is)...); }, offsets(n));
 		}
 		utility::zip_iterator<const Ts *...> address(const_pointer p, size_type n) const
 		{
-			return utl::unpack(offsets(n), [p](auto ...is){ return utility::zip_iterator<const Ts *...>(reinterpret_cast<const Ts *>(reinterpret_cast<const char *>(p) + is)...); });
+			return ext::apply([p](auto ...is){ return utility::zip_iterator<const Ts *...>(reinterpret_cast<const Ts *>(reinterpret_cast<const char *>(p) + is)...); }, offsets(n));
 		}
 
 		pointer allocate(size_type n, const void * hint = nullptr)
@@ -124,7 +124,7 @@ namespace utility
 		// template <std::size_t ...Is, typename ...Ps>
 		// void piecewise_construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & p, Ps && ...ps)
 		// {
-		// 	int expansion_hack[] = {(utl::unpack(std::forward<Ps>(ps), [this, &p](auto && ...ps){ construct(std::get<Is>(p), std::forward<decltype(ps)>(ps)...); }), 0)...};
+		// 	int expansion_hack[] = {(ext::apply([this, &p](auto && ...ps){ construct(std::get<Is>(p), std::forward<decltype(ps)>(ps)...); }, std::forward<Ps>(ps)), 0)...};
 		// }
 		void piecewise_construct_impl(mpl::index_sequence<>, const std::tuple<Ts *...> & /*ptrs*/)
 		{}

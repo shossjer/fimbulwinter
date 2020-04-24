@@ -511,19 +511,19 @@ namespace utility
 	public:
 		reference operator * () const
 		{
-			return utl::unpack(static_cast<const base_type &>(*this), [](auto & ...ps){ return reference(*ps...); });
+			return ext::apply([](auto & ...ps){ return reference(*ps...); }, *this);
 		}
 
-		reference operator [] (difference_type n) const { return utl::unpack(static_cast<const base_type &>(*this), [n](auto & ...ps){ return reference(ps[n]...); }); }
+		reference operator [] (difference_type n) const { return ext::apply([n](auto & ...ps){ return reference(ps[n]...); }, *this); }
 
-		this_type & operator ++ () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(++ps, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
-		this_type & operator -- () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(--ps, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
-		this_type operator ++ (int) { return utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ return this_type(ps++...); }); }
-		this_type operator -- (int) { return utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ return this_type(ps--...); }); }
-		this_type operator + (difference_type n) { return utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ return this_type(ps + n...); }); }
-		this_type operator - (difference_type n) { return utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ return this_type(ps - n...); }); }
-		this_type & operator += (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps += n, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
-		this_type & operator -= (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps -= n, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
+		this_type & operator ++ () { ext::apply([](auto & ...ps){ int expansion_hack[] = {(++ps, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
+		this_type & operator -- () { ext::apply([](auto & ...ps){ int expansion_hack[] = {(--ps, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
+		this_type operator ++ (int) { return ext::apply([](auto & ...ps){ return this_type(ps++...); }, *this); }
+		this_type operator -- (int) { return ext::apply([](auto & ...ps){ return this_type(ps--...); }, *this); }
+		this_type operator + (difference_type n) { return ext::apply([n](auto & ...ps){ return this_type(ps + n...); }, *this); }
+		this_type operator - (difference_type n) { return ext::apply([n](auto & ...ps){ return this_type(ps - n...); }, *this); }
+		this_type & operator += (difference_type n) { ext::apply([n](auto & ...ps){ int expansion_hack[] = {(ps += n, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
+		this_type & operator -= (difference_type n) { ext::apply([n](auto & ...ps){ int expansion_hack[] = {(ps -= n, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
 
 		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
 
@@ -531,7 +531,7 @@ namespace utility
 		friend auto iter_move(this_type x)
 		{
 			using utility::iter_move;
-			return utl::unpack(static_cast<base_type &>(x), [](auto & ...ps){ return utility::make_proxy_reference(iter_move(ps)...); });
+			return ext::apply([](auto & ...ps){ return utility::make_proxy_reference(iter_move(ps)...); }, x);
 		}
 	};
 
