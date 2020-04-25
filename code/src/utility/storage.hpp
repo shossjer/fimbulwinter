@@ -19,38 +19,43 @@
 
 namespace utility
 {
-	template <typename Storage, typename T>
-	class section_iterator
+	template <typename Storage, typename T, bool Const>
+	class section_iterator_impl
 	{
-	private:
-		using this_type = section_iterator<Storage, T>;
+		template <typename Storage_, typename T_, bool Const_>
+		friend class section_iterator_impl;
+
+		using this_type = section_iterator_impl<Storage, T, Const>;
 
 		using storing_type = typename Storage::template storing_type_for<T>;
+
+		using constified_storage_type = mpl::add_const_if<Const, Storage>;
+		using constified_storing_type = mpl::add_const_if<Const, storing_type>;
+		using constified_value_type = mpl::add_const_if<Const, T>;
 
 	public:
 		using difference_type = std::ptrdiff_t;
 		using value_type = T;
-		using pointer = T *;
-		using reference = T &;
+		using pointer = constified_value_type *;
+		using reference = constified_value_type &;
+		using rvalue_reference = constified_value_type &&;
 		using iterator_category = std::random_access_iterator_tag;
 
-		using rvalue_reference = T &&;
-
 	private:
-		Storage * storage_;
-		storing_type * ptr_;
+		constified_storage_type * storage_;
+		constified_storing_type * ptr_;
 
 	public:
-		section_iterator(Storage & storage_, storing_type * ptr_)
+		explicit section_iterator_impl(constified_storage_type & storage_, constified_storing_type * ptr_)
 			: storage_(&storage_)
 			, ptr_(ptr_)
 		{}
 
 	public:
-		Storage & storage() { return *storage_; }
+		constified_storage_type & storage() { return *storage_; }
 		const Storage & storage() const { return *storage_; }
 
-		storing_type * base() { return ptr_; }
+		constified_storing_type * base() { return ptr_; }
 		const storing_type * base() const { return ptr_; }
 
 		reference operator * () const
@@ -75,145 +80,58 @@ namespace utility
 		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
 
 	private:
-		friend std::pair<T *, T *> raw_range(this_type begin, this_type end)
+		friend std::pair<pointer, pointer> raw_range(this_type begin, this_type end)
 		{
 			return std::make_pair(begin.storage_->data(begin.ptr_), end.storage_->data(end.ptr_));
 		}
 	};
 
-	template <typename Storage, typename T>
-	bool operator == (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	template <typename Storage, typename T, bool Const1, bool Const2>
+	bool operator == (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
 	{
 		return i1.base() == i2.base();
 	}
-	template <typename Storage, typename T>
-	bool operator != (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+
+	template <typename Storage, typename T, bool Const1, bool Const2>
+	bool operator != (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
 	{
 		return i1.base() != i2.base();
 	}
-	template <typename Storage, typename T>
-	bool operator < (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+
+	template <typename Storage, typename T, bool Const1, bool Const2>
+	bool operator < (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
 	{
 		return i1.base() < i2.base();
 	}
-	template <typename Storage, typename T>
-	bool operator <= (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+
+	template <typename Storage, typename T, bool Const1, bool Const2>
+	bool operator <= (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
 	{
 		return i1.base() <= i2.base();
 	}
-	template <typename Storage, typename T>
-	bool operator > (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+
+	template <typename Storage, typename T, bool Const1, bool Const2>
+	bool operator > (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
 	{
 		return i1.base() > i2.base();
 	}
-	template <typename Storage, typename T>
-	bool operator >= (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+
+	template <typename Storage, typename T, bool Const1, bool Const2>
+	bool operator >= (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
 	{
 		return i1.base() >= i2.base();
 	}
 
-	template <typename Storage, typename T>
-	auto operator - (const section_iterator<Storage, T> & i1, const section_iterator<Storage, T> & i2)
+	template <typename Storage, typename T, bool Const1, bool Const2>
+	auto operator - (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
 	{
 		return i1.base() - i2.base();
 	}
 
 	template <typename Storage, typename T>
-	class const_section_iterator
-	{
-	private:
-		using this_type = const_section_iterator<Storage, T>;
-
-		using storing_type = typename Storage::template storing_type_for<T>;
-
-	public:
-		using difference_type = std::ptrdiff_t;
-		using value_type = T;
-		using pointer = const T *;
-		using reference = const T &;
-		using iterator_category = std::random_access_iterator_tag;
-
-		using rvalue_reference = const T &&;
-
-	private:
-		const Storage * storage_;
-		const storing_type * ptr_;
-
-	public:
-		const_section_iterator(const Storage & storage_, const storing_type * ptr_)
-			: storage_(&storage_)
-			, ptr_(ptr_)
-		{}
-
-	public:
-		const Storage & storage() const { return *storage_; }
-
-		const storing_type * base() const { return ptr_; }
-
-		reference operator * () const
-		{
-			return storage_->value_at(ptr_);
-		}
-
-		reference operator [] (difference_type n) const
-		{
-			return storage_->value_at(ptr_ + n);
-		}
-
-		this_type & operator ++ () { ++ptr_; return *this; }
-		this_type & operator -- () { --ptr_; return *this; }
-		this_type operator ++ (int) { return this_type(*storage_, ptr_++); }
-		this_type operator -- (int) { return this_type(*storage_, ptr_--); }
-		this_type operator + (difference_type n) { return this_type(*storage_, ptr_ + n); }
-		this_type operator - (difference_type n) { return this_type(*storage_, ptr_ - n); }
-		this_type & operator += (difference_type n) { ptr_ += n; return *this; }
-		this_type & operator -= (difference_type n) { ptr_ -= n; return *this; }
-
-		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
-
-	private:
-		friend std::pair<const T *, const T *> raw_range(this_type begin, this_type end)
-		{
-			return std::make_pair(begin.storage_->data(begin.ptr_), end.storage_->data(end.ptr_));
-		}
-	};
-
+	using section_iterator = section_iterator_impl<Storage, T, false>;
 	template <typename Storage, typename T>
-	bool operator == (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
-	{
-		return i1.base() == i2.base();
-	}
-	template <typename Storage, typename T>
-	bool operator != (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
-	{
-		return i1.base() != i2.base();
-	}
-	template <typename Storage, typename T>
-	bool operator < (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
-	{
-		return i1.base() < i2.base();
-	}
-	template <typename Storage, typename T>
-	bool operator <= (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
-	{
-		return i1.base() <= i2.base();
-	}
-	template <typename Storage, typename T>
-	bool operator > (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
-	{
-		return i1.base() > i2.base();
-	}
-	template <typename Storage, typename T>
-	bool operator >= (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
-	{
-		return i1.base() >= i2.base();
-	}
-
-	template <typename Storage, typename T>
-	auto operator - (const const_section_iterator<Storage, T> & i1, const const_section_iterator<Storage, T> & i2)
-	{
-		return i1.base() - i2.base();
-	}
+	using const_section_iterator = section_iterator_impl<Storage, T, true>;
 
 	template <typename Storage, typename T>
 	class section
@@ -372,46 +290,55 @@ namespace utility
 		}
 	};
 
-	template <typename Storage>
-	class storage_iterator
+	template <typename Storage, bool Const>
+	class storage_iterator_impl
 	{
-	private:
-		using this_type = storage_iterator<Storage>;
+		template <typename Storage_, bool Const_>
+		friend class storage_iterator_impl;
+
+		using this_type = storage_iterator_impl<Storage, Const>;
 
 		using value_types = typename Storage::value_types;
 		using storing_types = mpl::transform<Storage::template storing_type_for, value_types>;
-		using references = mpl::transform<std::add_lvalue_reference_t, value_types>;
-		using rvalue_references = mpl::transform<std::add_rvalue_reference_t, value_types>;
+
+		template <typename T>
+		using constify = mpl::add_const_if<Const, T>;
+
+		using constified_storage_type = mpl::add_const_if<Const, Storage>;
+		using constified_value_types = mpl::transform<constify, value_types>;
+		using constified_storing_types = mpl::transform<constify, storing_types>;
+
+		using references = mpl::transform<std::add_lvalue_reference_t, constified_value_types>;
+		using rvalue_references = mpl::transform<std::add_rvalue_reference_t, constified_value_types>;
 		using iterator = mpl::apply<utility::zip_iterator,
 		                            mpl::transform<std::add_pointer_t,
-		                                           storing_types>>;
+		                                           constified_storing_types>>;
 
 	public:
-		using value_type = mpl::apply<std::tuple, value_types>;
 		using difference_type = typename iterator::difference_type;
+		using value_type = mpl::apply<std::tuple, value_types>;
+		using pointer = mpl::add_const_if<Const, void> *; // ??
 		using reference = mpl::apply<utility::proxy_reference, references>;
 		using rvalue_reference = mpl::apply<utility::proxy_reference, rvalue_references>;
-
-		using pointer = void *; // ??
-		using iterator_category = std::input_iterator_tag; // ??
+		using iterator_category = std::random_access_iterator_tag; // ??
 
 	private:
-		Storage * storage_;
+		constified_storage_type * storage_;
 		iterator ptr_;
 
 	public:
 		template <typename ...Ps,
 		          REQUIRES((std::is_constructible<iterator, Ps...>::value))>
-		storage_iterator(Storage & storage_, Ps && ...ps)
+		explicit storage_iterator_impl(constified_storage_type & storage_, Ps && ...ps)
 			: storage_(&storage_)
 			, ptr_(std::forward<Ps>(ps)...)
 		{}
 
 	public:
-		Storage & storage() { return *storage_; }
+		constified_storage_type & storage() { return *storage_; }
 		const Storage & storage() const { return *storage_; }
 
-		iterator & base() { return ptr_; }
+		iterator & base() { return ptr_; } // ??
 		const iterator & base() const { return ptr_; }
 
 		reference operator * () const
@@ -448,101 +375,27 @@ namespace utility
 		}
 	};
 
-	template <std::size_t I, typename Storage>
-	decltype(auto) get(storage_iterator<Storage> & that) { return section_iterator<Storage, typename Storage::template value_type_at<I>>(that.storage(), utility::get<I>(that.base())); }
-	template <std::size_t I, typename Storage>
-	decltype(auto) get(const storage_iterator<Storage> & that) { return section_iterator<Storage, typename Storage::template value_type_at<I>>(that.storage(), utility::get<I>(that.base())); }
-	template <std::size_t I, typename Storage>
-	decltype(auto) get(storage_iterator<Storage> && that) { return section_iterator<Storage, typename Storage::template value_type_at<I>>(that.storage(), utility::get<I>(std::move(that.base()))); }
-	template <std::size_t I, typename Storage>
-	decltype(auto) get(const storage_iterator<Storage> && that) { return section_iterator<Storage, typename Storage::template value_type_at<I>>(that.storage(), utility::get<I>(std::move(that.base()))); }
-	template <typename T, typename Storage>
-	decltype(auto) get(storage_iterator<Storage> & that) { return get<mpl::index_of<T, typename Storage::value_types>>(that); }
-	template <typename T, typename Storage>
-	decltype(auto) get(const storage_iterator<Storage> & that) { return get<mpl::index_of<T, typename Storage::value_types>>(that); }
-	template <typename T, typename Storage>
-	decltype(auto) get(storage_iterator<Storage> && that) { return get<mpl::index_of<T, typename Storage::value_types>>(std::move(that)); }
-	template <typename T, typename Storage>
-	decltype(auto) get(const storage_iterator<Storage> && that) { return get<mpl::index_of<T, typename Storage::value_types>>(std::move(that)); }
+	template <std::size_t I, typename Storage, bool Const>
+	decltype(auto) get(storage_iterator_impl<Storage, Const> & that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), utility::get<I>(that.base())); }
+	template <std::size_t I, typename Storage, bool Const>
+	decltype(auto) get(const storage_iterator_impl<Storage, Const> & that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), utility::get<I>(that.base())); }
+	template <std::size_t I, typename Storage, bool Const>
+	decltype(auto) get(storage_iterator_impl<Storage, Const> && that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), utility::get<I>(std::move(that.base()))); }
+	template <std::size_t I, typename Storage, bool Const>
+	decltype(auto) get(const storage_iterator_impl<Storage, Const> && that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), utility::get<I>(std::move(that.base()))); }
+	template <typename T, typename Storage, bool Const>
+	decltype(auto) get(storage_iterator_impl<Storage, Const> & that) { return get<mpl::index_of<T, typename Storage::value_types>>(that); }
+	template <typename T, typename Storage, bool Const>
+	decltype(auto) get(const storage_iterator_impl<Storage, Const> & that) { return get<mpl::index_of<T, typename Storage::value_types>>(that); }
+	template <typename T, typename Storage, bool Const>
+	decltype(auto) get(storage_iterator_impl<Storage, Const> && that) { return get<mpl::index_of<T, typename Storage::value_types>>(std::move(that)); }
+	template <typename T, typename Storage, bool Const>
+	decltype(auto) get(const storage_iterator_impl<Storage, Const> && that) { return get<mpl::index_of<T, typename Storage::value_types>>(std::move(that)); }
 
 	template <typename Storage>
-	class const_storage_iterator
-	{
-	private:
-		using this_type = const_storage_iterator<Storage>;
-
-		using value_types = typename Storage::value_types;
-		using storing_types = mpl::transform<Storage::template storing_type_for, value_types>;
-		using const_references = mpl::transform<std::add_lvalue_reference_t,
-		                                        mpl::transform<std::add_const_t,
-		                                                       value_types>>;
-		using const_iterator = mpl::apply<utility::zip_iterator,
-		                                  mpl::transform<std::add_pointer_t,
-		                                                 mpl::transform<std::add_const_t,
-		                                                                storing_types>>>;
-
-	public:
-		using value_type = mpl::apply<std::tuple, value_types>;
-		using difference_type = typename const_iterator::difference_type;
-		using reference = mpl::apply<utility::proxy_reference, const_references>;
-
-	private:
-		const Storage * storage_;
-		const_iterator ptr_;
-
-	public:
-		template <typename ...Ps,
-		          REQUIRES((std::is_constructible<const_iterator, Ps...>::value))>
-		const_storage_iterator(const Storage & storage_, Ps && ...ps)
-			: storage_(&storage_)
-			, ptr_(std::forward<Ps>(ps)...)
-		{}
-
-	public:
-		const Storage & storage() const { return *storage_; }
-
-		const const_iterator & base() const { return ptr_; }
-
-		reference operator * () const
-		{
-			return ext::apply([this](auto & ...ps){ return reference(storage_->value_at(ps)...); }, tuple());
-		}
-
-		reference operator [] (difference_type n) const
-		{
-			return ext::apply([this, n](auto & ...ps){ return reference(storage_->value_at(ps + n)...); }, tuple());
-		}
-
-		this_type & operator ++ () { ++ptr_; return *this; }
-		this_type & operator -- () { --ptr_; return *this; }
-		this_type operator ++ (int) { return this_type(*storage_, ptr_++); }
-		this_type operator -- (int) { return this_type(*storage_, ptr_--); }
-		this_type operator + (difference_type n) { return this_type(*storage_, ptr_ + n); }
-		this_type operator - (difference_type n) { return this_type(*storage_, ptr_ - n); }
-		this_type & operator += (difference_type n) { ptr_ += n; return *this; }
-		this_type & operator -= (difference_type n) { ptr_ -= n; return *this; }
-
-		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
-	private:
-		typename const_iterator::underlying_type & tuple() { return ptr_; }
-		const typename const_iterator::underlying_type & tuple() const { return ptr_; }
-
-	private:
-		// todo const_rvalue_reference?
-		friend auto iter_move(this_type x)
-		{
-			return ext::apply([&x](auto & ...ps){ return utility::make_proxy_reference(std::move(x.storage_->value_at(ps))...); }, x.tuple());
-		}
-	};
-
-	template <std::size_t I, typename Storage>
-	decltype(auto) get(const const_storage_iterator<Storage> & that) { return const_section_iterator<Storage, typename Storage::template value_type_at<I>>(that.storage(), utility::get<I>(that.base())); }
-	template <std::size_t I, typename Storage>
-	decltype(auto) get(const const_storage_iterator<Storage> && that) { return const_section_iterator<Storage, typename Storage::template value_type_at<I>>(that.storage(), utility::get<I>(std::move(that.base()))); }
-	template <typename T, typename Storage>
-	decltype(auto) get(const const_storage_iterator<Storage> & that) { return get<mpl::index_of<T, typename Storage::value_types>>(that); }
-	template <typename T, typename Storage>
-	decltype(auto) get(const const_storage_iterator<Storage> && that) { return get<mpl::index_of<T, typename Storage::value_types>>(std::move(that)); }
+	using storage_iterator = storage_iterator_impl<Storage, false>;
+	template <typename Storage>
+	using const_storage_iterator = storage_iterator_impl<Storage, true>;
 
 	template <typename Storage>
 	class storage_data
