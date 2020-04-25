@@ -522,20 +522,23 @@ namespace core
 				static constexpr std::size_t capacity = N;
 
 				std::size_t size = 0;
-				utility::static_storage<N, C> components;
+				utility::static_storage<N, C> components_;
 				bucket_t buckets[N];
 
-				C * begin() { return components.data(); }
-				const C * begin() const { return components.data(); }
-				C * end() { return components.data() + size; }
-				const C * end() const { return components.data() + size; }
+				decltype(auto) components() { return components_.section(mpl::index_constant<0>{}); }
+				decltype(auto) components() const { return components_.section(mpl::index_constant<0>{}); }
 
-				C & get(const std::size_t index) { return components[index]; }
-				const C & get(const std::size_t index) const { return components[index]; }
+				C * begin() { return components().data(); }
+				const C * begin() const { return components().data(); }
+				C * end() { return components().data() + size; }
+				const C * end() const { return components().data() + size; }
+
+				C & get(const std::size_t index) { return components()[index]; }
+				const C & get(const std::size_t index) const { return components()[index]; }
 
 				template <typename ...Ps>
-				void construct(const std::size_t index, Ps && ...ps) { (void)components.construct_at(index, std::forward<Ps>(ps)...); }
-				void destruct(const std::size_t index) { components.destruct_at(index); }
+				void construct(const std::size_t index, Ps && ...ps) { components().construct_at(index, std::forward<Ps>(ps)...); }
+				void destruct(const std::size_t index) { components().destruct_at(index); }
 			};
 		private:
 			struct slot_t
@@ -957,20 +960,23 @@ namespace core
 				static constexpr std::size_t capacity = N;
 
 				std::size_t size = 0;
-				utility::static_storage<N, C> components;
+				utility::static_storage<N, C> components_;
 				uint24_t free_indices[N];
+
+				decltype(auto) components() { return components_.section(mpl::index_constant<0>{}); }
+				decltype(auto) components() const { return components_.section(mpl::index_constant<0>{}); }
 
 				array_t()
 				{
 					std::iota(free_indices + 0, free_indices + N, 0);
 				}
 
-				C & get(const std::size_t index) { return components[index]; }
-				const C & get(const std::size_t index) const { return components[index]; }
+				C & get(const std::size_t index) { return components()[index]; }
+				const C & get(const std::size_t index) const { return components()[index]; }
 
 				template <typename ...Ps>
-				void construct(const std::size_t index, Ps && ...ps) { (void)components.construct_at(index, std::forward<Ps>(ps)...); }
-				void destruct(const std::size_t index) { components.destruct_at(index); }
+				void construct(const std::size_t index, Ps && ...ps) { components().construct_at(index, std::forward<Ps>(ps)...); }
+				void destruct(const std::size_t index) { components().destruct_at(index); }
 			};
 		private:
 			struct slot_t
