@@ -317,10 +317,10 @@ namespace utility
 
 	public:
 		using difference_type = typename iterator::difference_type;
-		using value_type = mpl::apply<std::tuple, value_types>;
+		using value_type = utility::compound_type<value_types>;
 		using pointer = mpl::add_const_if<Const, void> *; // ??
-		using reference = mpl::apply<utility::compound, references>;
-		using rvalue_reference = mpl::apply<utility::compound, rvalue_references>;
+		using reference = utility::compound_type<references>;
+		using rvalue_reference = utility::compound_type<rvalue_references>;
 		using iterator_category = std::random_access_iterator_tag; // ??
 
 	private:
@@ -344,12 +344,12 @@ namespace utility
 
 		reference operator * () const
 		{
-			return ext::apply([this](auto & ...ps){ return reference(storage_->value_at(ps)...); }, tuple());
+			return ext::apply([this](auto & ...ps){ return reference(storage_->value_at(ps)...); }, ptr_);
 		}
 
 		reference operator [] (difference_type n) const
 		{
-			return ext::apply([this, n](auto & ...ps){ return reference(storage_->value_at(ps + n)...); }, tuple());
+			return ext::apply([this, n](auto & ...ps){ return reference(storage_->value_at(ps + n)...); }, ptr_);
 		}
 
 		this_type & operator ++ () { ++ptr_; return *this; }
@@ -362,9 +362,6 @@ namespace utility
 		this_type & operator -= (difference_type n) { ptr_ -= n; return *this; }
 
 		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
-	private:
-		typename iterator::underlying_type & tuple() { return ptr_; }
-		const typename iterator::underlying_type & tuple() const { return ptr_; }
 
 	private:
 		friend rvalue_reference iter_move(this_type x)
@@ -372,7 +369,9 @@ namespace utility
 #if defined(_MSC_VER) && _MSC_VER <= 1916
 			using rvalue_reference = rvalue_reference;
 #endif
-			return ext::apply([&x](auto & ...ps){ return rvalue_reference(std::move(x.storage_->value_at(ps))...); }, x.tuple());
+			// error returning reference to local temporary object
+			auto && wtf = ext::apply([&x](auto & ...ps){ return rvalue_reference(std::move(x.storage_->value_at(ps))...); }, x.ptr_);
+			return std::move(wtf);
 		}
 	};
 
@@ -955,27 +954,6 @@ namespace utility
 			mpl::apply<mpl::conjunction,
 			           mpl::transform<std::is_trivially_default_constructible,
 			                          storing_types>>;
-	};
-
-	template <typename StorageImpl>
-	class basic_storage<StorageImpl, 1>
-		: public StorageImpl
-	{
-	public:
-		template <std::size_t I>
-		using value_type_at = typename StorageImpl::template value_type_at<I>;
-		template <typename T>
-		using storing_type_for = typename StorageImpl::template storing_type_for<T>;
-
-		using value_type = value_type_at<0>;
-		using reference = value_type &;
-		using const_reference = const value_type &;
-		using rvalue_reference = value_type &&;
-
-		using storing_type = storing_type_for<value_type>;
-		using storing_trivially_copyable = std::is_trivially_copyable<storing_type>;
-		using storing_trivially_destructible = std::is_trivially_destructible<storing_type>;
-		using storing_trivially_default_constructible = std::is_trivially_default_constructible<storing_type>;
 	};
 
 	template <template <typename> class Allocator, typename ...Ts>

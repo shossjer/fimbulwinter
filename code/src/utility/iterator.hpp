@@ -314,60 +314,22 @@ namespace utility
 	}
 
 	template <typename ...Its>
-	class zip_iterator;
-
-	template <typename T>
-	struct is_zip_iterator : mpl::false_type {};
-	template <typename ...Its>
-	struct is_zip_iterator<zip_iterator<Its...>> : mpl::true_type {};
-
-	template <typename T>
-	struct zip_iterator_size;
-	template <typename ...Its>
-	struct zip_iterator_size<zip_iterator<Its...>> : mpl::index_constant<sizeof...(Its)> {};
-
-	template <typename ...Its>
 	class zip_iterator
-		: public std::tuple<Its...>
+		: public utility::compound<Its...>
 	{
 		template <typename ...Jts>
 		friend class zip_iterator;
 
-	private:
 		using this_type = zip_iterator<Its...>;
-		using base_type = std::tuple<Its...>;
+		using base_type = utility::compound<Its...>;
 
 	public:
-		using value_type = std::tuple<typename std::iterator_traits<Its>::value_type...>;
 		using difference_type = typename std::iterator_traits<mpl::car<Its...>>::difference_type;
 		using reference = utility::compound<typename std::iterator_traits<Its>::reference...>;
 
-		using underlying_type = base_type;
-
 	public:
-		template <typename ...Ps,
-		          REQUIRES((std::is_constructible<std::tuple<Its...>, Ps...>::value))>
-		zip_iterator(Ps && ...ps)
-			: base_type(std::forward<Ps>(ps)...)
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_zip_iterator<OtherT>::value)),
-		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
-		          REQUIRES((std::is_constructible<std::tuple<Its...>, Other>::value))>
-		zip_iterator(Other && other)
-			: base_type(std::forward<Other>(other))
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_zip_iterator<OtherT>::value)),
-		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
-		          REQUIRES((std::is_assignable<std::tuple<Its...>, Other>::value))>
-		this_type & operator = (Other && other)
-		{
-			static_cast<base_type &>(*this) = std::forward<Other>(other);
-			return *this;
-		}
+		using base_type::base_type;
+		using base_type::operator =;
 
 	public:
 		reference operator * () const
@@ -401,26 +363,31 @@ namespace utility
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) == static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator != (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) != static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator < (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) < static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator <= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) <= static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator > (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) > static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator >= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
