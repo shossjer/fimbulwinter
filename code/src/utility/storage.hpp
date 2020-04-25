@@ -21,6 +21,12 @@
 
 namespace utility
 {
+	struct zero_initialize_t
+	{
+		explicit zero_initialize_t() = default;
+	};
+	constexpr zero_initialize_t zero_initialize = zero_initialize_t{};
+
 	template <typename Storage, typename T, bool Const>
 	class section_iterator_impl
 	{
@@ -185,6 +191,11 @@ namespace utility
 			}
 		}
 
+		void construct_fill(std::ptrdiff_t begin, std::ptrdiff_t end, utility::zero_initialize_t)
+		{
+			construct_fill_zero_initialize_impl(can_memset{}, begin, end);
+		}
+
 		template <typename InputIt>
 		void construct_range(std::ptrdiff_t index, InputIt begin, InputIt end)
 		{
@@ -237,7 +248,19 @@ namespace utility
 		{
 			return ptr_.storage().index_of(ptr_.base(), x);
 		}
+
 	private:
+		void construct_fill_zero_initialize_impl(mpl::true_type /*can_memset*/, std::ptrdiff_t begin, std::ptrdiff_t end)
+		{
+			memset_fill(begin, end, ext::byte{});
+		}
+
+		void construct_fill_zero_initialize_impl(mpl::false_type /*can_memset*/, std::ptrdiff_t begin, std::ptrdiff_t end)
+		{
+			// todo forward initialization strategy
+			construct_fill(begin, end);
+		}
+
 		template <typename InputIt>
 		void construct_range_impl(mpl::true_type /*can_memcpy*/, std::ptrdiff_t index, InputIt begin, InputIt end)
 		{
@@ -497,6 +520,13 @@ namespace utility
 		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end)
 		{
 			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_fill(begin, end), 0)...};
+			static_cast<void>(expansion_hack);
+		}
+		template <std::size_t ...Is>
+		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, utility::zero_initialize_t initialization_strategy)
+		{
+			// todo try memset everything at once when begin and end is the whole range
+			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_fill(begin, end, initialization_strategy), 0)...};
 			static_cast<void>(expansion_hack);
 		}
 		template <std::size_t ...Is, typename ...Ps>
