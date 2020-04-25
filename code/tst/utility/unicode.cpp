@@ -524,55 +524,6 @@ TEST_CASE("static string", "[utility][unicode]")
 	CHECK(sv[long_text_symbol_5_point] == utility::unicode_code_point(snowman));
 }
 
-TEST_CASE("static strings can be memcpy-ed", "[utility][unicode][storage]")
-{
-	const utility::static_string_utf8<(three_snowmen_size + 1)> three_snowmen_strings[3] = { three_snowmen, three_snowmen, three_snowmen };
-
-	using storage_type = utility::static_storage<3, utility::static_string_utf8<(three_snowmen_size + 1)>>;
-	storage_type storage;
-
-	static_assert(utility::storage_traits<storage_type>::trivial_allocate::value, "");
-	// storage.allocate(3);
-
-	static_assert(storage_type::storing_trivially_copyable::value, "");
-	storage.memcpy_range(0, three_snowmen_strings, three_snowmen_strings + 3);
-
-	for (int i = 0; i < 3; i++)
-	{
-		CHECK(storage.data()[i].compare(three_snowmen) == 0);
-	}
-
-	static_assert(utility::storage_traits<storage_type>::trivial_allocate::value, "");
-	static_assert(storage_type::storing_trivially_copyable::value, "");
-	storage_type copy = storage;
-
-	for (int i = 0; i < 3; i++)
-	{
-		CHECK(storage.data()[i].compare(three_snowmen) == 0);
-		CHECK(copy.data()[i].compare(three_snowmen) == 0);
-	}
-
-	static_assert(storage_type::storing_trivially_destructible::value, "");
-	// storage.destruct_range(0, 3);
-
-	static_assert(utility::storage_traits<storage_type>::trivial_deallocate::value, "");
-	// storage.deallocate(3);
-
-	static_assert(storage_type::storing_trivially_copyable::value, "");
-	storage = std::move(copy);
-
-	for (int i = 0; i < 3; i++)
-	{
-		CHECK(storage.data()[i].compare(three_snowmen) == 0);
-	}
-
-	static_assert(storage_type::storing_trivially_destructible::value, "");
-	// storage.destruct_range(0, 3);
-
-	static_assert(utility::storage_traits<storage_type>::trivial_deallocate::value, "");
-	// storage.deallocate(3);
-}
-
 TEST_CASE("heap string", "[utility][unicode]")
 {
 	utility::heap_string_utf8 s = long_text;

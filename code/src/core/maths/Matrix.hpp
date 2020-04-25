@@ -250,11 +250,11 @@ namespace core
 			template <std::size_t I>
 			Vector<M, T> get_column() const
 			{
-				return utl::unpack_for(this->values,
-				                       mpl::integral_shift<std::size_t,
-				                                           mpl::make_index_sequence<M>,
-				                                           (I * M + 0)>{},
-				                       utl::constructor<Vector<M, T>>{});
+				return ext::apply_for(utl::constructor<Vector<M, T>>{},
+				                      this->values,
+				                      mpl::integral_shift<std::size_t,
+				                                          mpl::make_index_sequence<M>,
+				                                          (I * M + 0)>{});
 			}
 			array_type & get_aligned(array_type & buffer) const
 			{

@@ -39,6 +39,7 @@ set(FILES_UTILITY
 	tst/utility/array.cpp
 	tst/utility/array_alloc.cpp
 	tst/utility/bitmanip.cpp
+	tst/utility/compound.cpp
 	tst/utility/crypto/crc.cpp
 	tst/utility/ext/string.cpp
 	tst/utility/iterator.cpp

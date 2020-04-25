@@ -21,6 +21,9 @@ namespace core
 
 		utility::static_storage<0x10000, char> buffer_; // arbitrary
 
+		decltype(auto) buffer() { return buffer_.section(mpl::index_constant<0>{}); }
+		decltype(auto) buffer() const { return buffer_.section(mpl::index_constant<0>{}); }
+
 	public:
 		BufferedStream(ReadStream && stream)
 			: read_stream_(std::move(stream))
@@ -76,9 +79,9 @@ namespace core
 
 			while (pos_ >= size_ && !read_stream_.done())
 			{
-				if (from_ != buffer_.data())
+				if (from_ != buffer().data())
 				{
-					std::memmove(buffer_.data(), from_, size_);
+					std::memmove(buffer().data(), from_, size_);
 				}
 				fill_buffer();
 			}
@@ -97,8 +100,8 @@ namespace core
 	private:
 		void fill_buffer()
 		{
-			from_ = buffer_.data();
-			size_ += read_stream_.read_some(buffer_.data() + size_, buffer_.max_size() - size_);
+			from_ = buffer().data();
+			size_ += read_stream_.read_some(buffer().data() + size_, buffer_.max_size() - size_);
 		}
 	};
 }

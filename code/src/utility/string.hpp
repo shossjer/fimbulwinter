@@ -426,6 +426,9 @@ namespace utility
 			this->chars_.deallocate(capacity);
 		}
 
+		decltype(auto) chars() { return this->chars_.section(mpl::index_constant<0>{}); }
+		decltype(auto) chars() const { return this->chars_.section(mpl::index_constant<0>{}); }
+
 		void initialize()
 		{
 			const auto capacity = storage_traits::capacity_for(1);
@@ -434,7 +437,7 @@ namespace utility
 				this->set_capacity(capacity);
 
 				this->set_size(1);
-				this->chars_.construct_at(0, '\0');
+				chars().construct_at(0, '\0');
 			}
 			else
 			{
@@ -445,17 +448,17 @@ namespace utility
 
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			this->chars_.construct_range(index, other.chars_.data() + from, other.chars_.data() + to);
+			chars().construct_range(index, other.chars().data() + from, other.chars().data() + to);
 		}
 
 		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			this->chars_.construct_range(index, std::make_move_iterator(other.chars_.data() + from), std::make_move_iterator(other.chars_.data() + to));
+			chars().construct_range(index, std::make_move_iterator(other.chars().data() + from), std::make_move_iterator(other.chars().data() + to));
 		}
 
 		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
 		{
-			this->chars_.destruct_range(from, to);
+			chars().destruct_range(from, to);
 		}
 
 		std::size_t size() const { return this->size_; }
@@ -539,13 +542,13 @@ namespace utility
 		basic_string()
 			: data_(1)
 		{
-			data_.array_.chars_.construct_at(0, '\0');
+			data_.array_.chars().construct_at(0, '\0');
 			data_.array_.set_size(1);
 		}
 		explicit basic_string(std::size_t size)
 			: data_(size + 1)
 		{
-			data_.array_.chars_.construct_fill(0, size + 1, '\0');
+			data_.array_.chars().construct_fill(0, size + 1, '\0');
 			data_.array_.set_size(size + 1);
 		}
 		template <typename Character>
@@ -585,7 +588,7 @@ namespace utility
 				[&](array_data & new_data, array_data & /*old_data*/)
 				{
 					new_data.set_size(len + 1);
-					new_data.chars_.construct_range(0, s, s + len + 1);
+					new_data.chars().construct_range(0, s, s + len + 1);
 					return true;
 				});
 			assert(ret);
@@ -598,8 +601,8 @@ namespace utility
 				[&](array_data & new_data, array_data & /*old_data*/)
 				{
 					new_data.set_size(view.size() + 1);
-					new_data.chars_.construct_range(0, view.data(), view.data() + view.size());
-					new_data.chars_.construct_at(view.size(), '\0');
+					new_data.chars().construct_range(0, view.data(), view.data() + view.size());
+					new_data.chars().construct_at(view.size(), '\0');
 					return true;
 				});
 			assert(ret);
@@ -610,8 +613,8 @@ namespace utility
 			: data_(repeat + 1)
 		{
 			data_.array_.set_size(repeat + 1);
-			data_.array_.chars_.construct_fill(0, repeat, c);
-			data_.array_.chars_.construct_at(repeat, '\0');
+			data_.array_.chars().construct_fill(0, repeat, c);
+			data_.array_.chars().construct_at(repeat, '\0');
 		}
 		basic_string(repeat_char, std::size_t repeat, code_point cp, ...)
 			: basic_string(repeat_char{}, repeat, cp, std::array<code_unit, encoding_traits::max_size()>{}, 0)
@@ -631,16 +634,16 @@ namespace utility
 			data_.array_.set_size(len + 1);
 			for (std::ptrdiff_t i : ranges::index_sequence(len))
 			{
-				data_.array_.chars_.construct_at(i, s[i % count]);
+				data_.array_.chars().construct_at(i, s[i % count]);
 			}
-			data_.array_.chars_.construct_at(len, '\0');
+			data_.array_.chars().construct_at(len, '\0');
 		}
 		basic_string(copy_str, const code_unit * s, std::size_t count)
 			: data_(count + 1)
 		{
 			data_.array_.set_size(count + 1);
-			data_.array_.chars_.construct_range(0, s, s + count);
-			data_.array_.chars_.construct_at(count, '\0');
+			data_.array_.chars().construct_range(0, s, s + count);
+			data_.array_.chars().construct_at(count, '\0');
 		}
 		basic_string(other_offset, const this_type & other, size_type position)
 			: basic_string(copy_str{}, other.data() + position, other.data_.array_.size_without_null() - position)
@@ -653,9 +656,9 @@ namespace utility
 			: data_(ls + lt + 1)
 		{
 			data_.array_.set_size(ls + lt + 1);
-			data_.array_.chars_.construct_range(0, s, s + ls);
-			data_.array_.chars_.construct_range(ls, t, t + lt);
-			data_.array_.chars_.construct_at(ls + lt, '\0');
+			data_.array_.chars().construct_range(0, s, s + ls);
+			data_.array_.chars().construct_range(ls, t, t + lt);
+			data_.array_.chars().construct_at(ls + lt, '\0');
 		}
 
 	public:
@@ -682,8 +685,8 @@ namespace utility
 		decltype(auto) front() const { return *begin(); }
 		decltype(auto) back() { return *--end(); }
 		decltype(auto) back() const { return *--end(); }
-		value_type * data() { return data_.array_.chars_.data(); }
-		const value_type * data() const { return data_.array_.chars_.data(); }
+		value_type * data() { return data_.array_.chars().data(); }
+		const value_type * data() const { return data_.array_.chars().data(); }
 
 		constexpr utility::type_id_t encoding() const { return data_.encoding(); }
 		constexpr std::size_t capacity() const { return data_.array_.capacity(); }
@@ -693,9 +696,9 @@ namespace utility
 
 		void clear()
 		{
-			data_.array_.chars_.destruct_range(0, data_.array_.size());
+			data_.array_.chars().destruct_range(0, data_.array_.size());
 			data_.array_.set_size(1);
-			data_.array_.chars_.construct_at(0, '\0');
+			data_.array_.chars().construct_at(0, '\0');
 		}
 
 		bool try_resize(std::size_t size)
@@ -707,9 +710,9 @@ namespace utility
 			if (size + 1 < data_.array_.size())
 			{
 				construct_from = size;
-				data_.array_.chars_.destruct_range(size, data_.array_.size());
+				data_.array_.chars().destruct_range(size, data_.array_.size());
 			}
-			data_.array_.chars_.construct_fill(construct_from, size + 1, '\0');
+			data_.array_.chars().construct_fill(construct_from, size + 1, '\0');
 			data_.array_.set_size(size + 1);
 
 			return true;
@@ -807,10 +810,10 @@ namespace utility
 			if (!data_.array_.try_grow(count))
 				return false;
 
-			data_.array_.chars_.destruct_at(data_.array_.size() - 1);
+			data_.array_.chars().destruct_at(data_.array_.size() - 1);
 			data_.array_.set_size(data_.array_.size() + count);
-			data_.array_.chars_.construct_range(data_.array_.size() - 1 - count, s, s + count);
-			data_.array_.chars_.construct_at(data_.array_.size() - 1, '\0');
+			data_.array_.chars().construct_range(data_.array_.size() - 1 - count, s, s + count);
+			data_.array_.chars().construct_at(data_.array_.size() - 1, '\0');
 
 			return true;
 		}
@@ -832,7 +835,7 @@ namespace utility
 		{
 			assert(data_.array_.size() > count);
 
-			data_.array_.chars_.destruct_range(data_.array_.size() - count, data_.array_.size());
+			data_.array_.chars().destruct_range(data_.array_.size() - count, data_.array_.size());
 			data_.array_.set_size(data_.array_.size() - count);
 			data()[data_.array_.size() - 1] = '\0';
 		}

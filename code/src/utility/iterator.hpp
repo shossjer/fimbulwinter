@@ -3,6 +3,7 @@
 #define UTILITY_ITERATOR_HPP
 
 #include "utility/algorithm.hpp"
+#include "utility/compound.hpp"
 #include "utility/concepts.hpp"
 #include "utility/intrinsics.hpp"
 #include "utility/type_traits.hpp"
@@ -298,146 +299,6 @@ namespace utility
 		return utility::rend(std::move(c));
 	}
 
-
-	template <typename T>
-	struct is_pair : mpl::false_type {};
-	template <typename ...Ts>
-	struct is_pair<std::pair<Ts...>> : mpl::true_type {};
-
-	template <typename T>
-	struct is_tuple : mpl::false_type {};
-	template <typename ...Ts>
-	struct is_tuple<std::tuple<Ts...>> : mpl::true_type {};
-
-
-	template <typename ...Rs>
-	class proxy_reference;
-
-	template <typename T>
-	struct is_proxy_reference : mpl::false_type {};
-	template <typename ...Rs>
-	struct is_proxy_reference<proxy_reference<Rs...>> : mpl::true_type {};
-
-	template <typename T>
-	struct proxy_reference_size;
-	template <typename ...Rs>
-	struct proxy_reference_size<proxy_reference<Rs...>> : mpl::index_constant<sizeof...(Rs)> {};
-
-	namespace detail
-	{
-		template <std::size_t N>
-		struct proxy_reference_base_impl
-		{
-			template <typename ...Rs>
-			using type = std::tuple<Rs...>;
-		};
-		template <>
-		struct proxy_reference_base_impl<2>
-		{
-			template <typename R1, typename R2>
-			using type = std::pair<R1, R2>;
-		};
-		template <typename ...Rs>
-		using proxy_reference_base = typename proxy_reference_base_impl<sizeof...(Rs)>::template type<Rs...>;
-	}
-
-	// inspired by the works of eric niebler
-	//
-	// http://ericniebler.com/2015/02/13/iterators-plus-plus-part-2/
-
-	template <typename ...Rs>
-	class proxy_reference
-		: public detail::proxy_reference_base<Rs...>
-	{
-		template <typename ...Ss>
-		friend class proxy_reference;
-
-		using this_type = proxy_reference<Rs...>;
-		using base_type = detail::proxy_reference_base<Rs...>;
-
-	public:
-		proxy_reference() = default;
-		explicit proxy_reference(Rs && ...rs)
-			: base_type(std::forward<Rs>(rs)...)
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_proxy_reference<OtherT>::value)),
-		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
-		          REQUIRES((proxy_reference_size<OtherT>::value == sizeof...(Rs)))>
-		proxy_reference(Other && other)
-			: proxy_reference(mpl::make_index_sequence_for<Rs...>{}, std::forward<Other>(other))
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_pair<OtherT>::value || is_tuple<OtherT>::value)),
-		          REQUIRES((std::tuple_size<OtherT>::value == sizeof...(Rs))),
-		          REQUIRES((mpl::is_constructible_from_tuple<base_type, Other &&>::value))>
-		proxy_reference(Other && other)
-			: proxy_reference(mpl::make_index_sequence_for<Rs...>{}, std::forward<Other>(other))
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_proxy_reference<OtherT>::value)),
-		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
-		          REQUIRES((proxy_reference_size<OtherT>::value == sizeof...(Rs)))>
-		this_type & operator = (Other && other)
-		{
-			return operator_equal(mpl::make_index_sequence_for<Rs...>{}, std::forward<Other>(other));
-		}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_pair<OtherT>::value || is_tuple<OtherT>::value)),
-		          REQUIRES((std::tuple_size<OtherT>::value == sizeof...(Rs))),
-		          REQUIRES((mpl::is_constructible_from_tuple<base_type, Other &&>::value))>
-		this_type & operator = (Other && other)
-		{
-			return operator_equal(mpl::make_index_sequence_for<Rs...>{}, std::forward<Other>(other));
-		}
-	private:
-		template <std::size_t ...Is, typename Tuple>
-		proxy_reference(mpl::index_sequence<Is...>, Tuple && tuple)
-			: base_type(std::get<Is>(std::forward<Tuple>(tuple))...)
-		{}
-		template <std::size_t ...Is, typename Tuple>
-		this_type & operator_equal(mpl::index_sequence<Is...>, Tuple && tuple)
-		{
-			int expansion_hack[] = {(std::get<Is>(*this) = std::get<Is>(std::forward<Tuple>(tuple)), 0)...};
-			static_cast<void>(expansion_hack);
-			return *this;
-		}
-
-	public:
-		template <typename T,
-		          REQUIRES((sizeof...(Rs) == utility::int_hack<T, 1>::value)),
-		          REQUIRES((std::is_convertible<mpl::car<Rs...>, T &>::value))>
-		operator T & () &
-		{
-			return std::get<0>(*this);
-		}
-		template <typename T,
-		          REQUIRES((sizeof...(Rs) == utility::int_hack<T, 1>::value)),
-		          REQUIRES((std::is_convertible<mpl::car<Rs...>, T &&>::value))>
-		operator T && () &&
-		{
-			return std::move(std::get<0>(*this));
-		}
-	};
-
-	template <std::size_t I, typename That,
-	          REQUIRES((is_proxy_reference<mpl::remove_cvref_t<That>>::value))>
-	decltype(auto) get(That && that) { return std::get<I>(std::forward<That>(that)); }
-	template <typename T, typename That,
-	          REQUIRES((is_proxy_reference<mpl::remove_cvref_t<That>>::value))>
-	decltype(auto) get(That && that) { return std::get<T>(std::forward<That>(that)); }
-
-	template <typename ...Ps>
-	auto make_proxy_reference(Ps && ...ps)
-	{
-		return utility::proxy_reference<Ps &&...>(std::forward<Ps>(ps)...);
-	}
-
-
 	// eric niebler is a god :pray:
 	//
 	// http://ericniebler.com/2015/02/03/iterators-plus-plus-part-1/
@@ -453,77 +314,39 @@ namespace utility
 	}
 
 	template <typename ...Its>
-	class zip_iterator;
-
-	template <typename T>
-	struct is_zip_iterator : mpl::false_type {};
-	template <typename ...Its>
-	struct is_zip_iterator<zip_iterator<Its...>> : mpl::true_type {};
-
-	template <typename T>
-	struct zip_iterator_size;
-	template <typename ...Its>
-	struct zip_iterator_size<zip_iterator<Its...>> : mpl::index_constant<sizeof...(Its)> {};
-
-	template <typename ...Its>
 	class zip_iterator
-		: public std::tuple<Its...>
+		: public utility::compound<Its...>
 	{
 		template <typename ...Jts>
 		friend class zip_iterator;
 
-	private:
 		using this_type = zip_iterator<Its...>;
-		using base_type = std::tuple<Its...>;
+		using base_type = utility::compound<Its...>;
 
 	public:
-		using value_type = std::tuple<typename std::iterator_traits<Its>::value_type...>;
 		using difference_type = typename std::iterator_traits<mpl::car<Its...>>::difference_type;
-		using reference = utility::proxy_reference<typename std::iterator_traits<Its>::reference...>;
-
-		using underlying_type = base_type;
+		using reference = utility::compound<typename std::iterator_traits<Its>::reference...>;
 
 	public:
-		template <typename ...Ps,
-		          REQUIRES((std::is_constructible<std::tuple<Its...>, Ps...>::value))>
-		zip_iterator(Ps && ...ps)
-			: base_type(std::forward<Ps>(ps)...)
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_zip_iterator<OtherT>::value)),
-		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
-		          REQUIRES((std::is_constructible<std::tuple<Its...>, Other>::value))>
-		zip_iterator(Other && other)
-			: base_type(std::forward<Other>(other))
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_zip_iterator<OtherT>::value)),
-		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
-		          REQUIRES((std::is_assignable<std::tuple<Its...>, Other>::value))>
-		this_type & operator = (Other && other)
-		{
-			static_cast<base_type &>(*this) = std::forward<Other>(other);
-			return *this;
-		}
+		using base_type::base_type;
+		using base_type::operator =;
 
 	public:
 		reference operator * () const
 		{
-			return utl::unpack(static_cast<const base_type &>(*this), [](auto & ...ps){ return reference(*ps...); });
+			return ext::apply([](auto & ...ps){ return reference(*ps...); }, *this);
 		}
 
-		reference operator [] (difference_type n) const { return utl::unpack(static_cast<const base_type &>(*this), [n](auto & ...ps){ return reference(ps[n]...); }); }
+		reference operator [] (difference_type n) const { return ext::apply([n](auto & ...ps){ return reference(ps[n]...); }, *this); }
 
-		this_type & operator ++ () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(++ps, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
-		this_type & operator -- () { utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ int expansion_hack[] = {(--ps, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
-		this_type operator ++ (int) { return utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ return this_type(ps++...); }); }
-		this_type operator -- (int) { return utl::unpack(static_cast<base_type &>(*this), [](auto & ...ps){ return this_type(ps--...); }); }
-		this_type operator + (difference_type n) { return utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ return this_type(ps + n...); }); }
-		this_type operator - (difference_type n) { return utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ return this_type(ps - n...); }); }
-		this_type & operator += (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps += n, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
-		this_type & operator -= (difference_type n) { utl::unpack(static_cast<base_type &>(*this), [n](auto & ...ps){ int expansion_hack[] = {(ps -= n, 0)...}; static_cast<void>(expansion_hack); }); return *this; }
+		this_type & operator ++ () { ext::apply([](auto & ...ps){ int expansion_hack[] = {(++ps, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
+		this_type & operator -- () { ext::apply([](auto & ...ps){ int expansion_hack[] = {(--ps, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
+		this_type operator ++ (int) { return ext::apply([](auto & ...ps){ return this_type(ps++...); }, *this); }
+		this_type operator -- (int) { return ext::apply([](auto & ...ps){ return this_type(ps--...); }, *this); }
+		this_type operator + (difference_type n) { return ext::apply([n](auto & ...ps){ return this_type(ps + n...); }, *this); }
+		this_type operator - (difference_type n) { return ext::apply([n](auto & ...ps){ return this_type(ps - n...); }, *this); }
+		this_type & operator += (difference_type n) { ext::apply([n](auto & ...ps){ int expansion_hack[] = {(ps += n, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
+		this_type & operator -= (difference_type n) { ext::apply([n](auto & ...ps){ int expansion_hack[] = {(ps -= n, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
 
 		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
 
@@ -531,42 +354,40 @@ namespace utility
 		friend auto iter_move(this_type x)
 		{
 			using utility::iter_move;
-			return utl::unpack(static_cast<base_type &>(x), [](auto & ...ps){ return utility::make_proxy_reference(iter_move(ps)...); });
+			return ext::apply([](auto & ...ps){ return utility::forward_as_compound(iter_move(ps)...); }, x);
 		}
 	};
-
-	template <std::size_t I, typename That,
-	          REQUIRES((is_zip_iterator<mpl::remove_cvref_t<That>>::value))>
-	decltype(auto) get(That && that) { return std::get<I>(std::forward<That>(that)); }
-	template <typename T, typename That,
-	          REQUIRES((is_zip_iterator<mpl::remove_cvref_t<That>>::value))>
-	decltype(auto) get(That && that) { return std::get<T>(std::forward<That>(that)); }
 
 	template <typename ...Its, typename ...Jts>
 	bool operator == (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) == static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator != (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) != static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator < (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) < static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator <= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) <= static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator > (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
 		return static_cast<const std::tuple<Its...> &>(i1) > static_cast<const std::tuple<Its...> &>(i2);
 	}
+
 	template <typename ...Its, typename ...Jts>
 	bool operator >= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
