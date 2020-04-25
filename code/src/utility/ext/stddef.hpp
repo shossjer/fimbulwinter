@@ -16,4 +16,6 @@ namespace ext
 	using index = ssize;
 
 	constexpr auto index_invalid = index(-1);
+
+	enum class byte : unsigned char {};
 }

@@ -406,8 +406,8 @@ namespace core
 								    new_data.set_size(new_size);
 								    auto new_slots = new_data.storage_.section(mpl::index_constant<0>{}, new_size);
 								    auto new_keys = new_data.storage_.section(mpl::index_constant<1>{}, new_size);
-								    new_slots.construct_fill(0, new_size, slot_t{});
-								    new_keys.construct_fill(0, new_size, Key{});
+								    new_slots.memset_fill(0, new_size, ext::byte{});
+								    new_keys.memset_fill(0, new_size, ext::byte{});
 
 								    const auto old_size = old_data.capacity();
 								    auto old_slots = old_data.storage_.section(mpl::index_constant<0>{}, old_size);

@@ -8,6 +8,7 @@
 #include "utility/aggregation_allocator.hpp"
 #include "utility/bitmanip.hpp"
 #include "utility/compound.hpp"
+#include "utility/ext/stddef.hpp"
 #include "utility/heap_allocator.hpp"
 #include "utility/iterator.hpp"
 #include "utility/null_allocator.hpp"
@@ -155,6 +156,8 @@ namespace utility
 		using can_memcpy = mpl::conjunction<storing_trivially_copyable,
 		                                    utility::is_contiguous_iterator<InputIt>>;
 
+		using can_memset = storing_trivially_copyable;
+
 	private:
 		iterator ptr_;
 
@@ -201,11 +204,12 @@ namespace utility
 			construct_range_impl(mpl::true_type{}, index, begin, end);
 		}
 
-		// template <REQUIRES((can_memset::value))>
-		// void memset_fill(std::ptrdiff_t begin, std::ptrdiff_t end, char value)
-		// {
-		// 	construct_fill_impl(mpl::true_type{}, begin, end, value);
-		// }
+		template <typename Dummy = void,
+		          REQUIRES((mpl::car<can_memset, Dummy>::value))>
+		void memset_fill(std::ptrdiff_t begin, std::ptrdiff_t end, ext::byte value)
+		{
+			std::memset(ptr_.storage().data(ptr_.base()) + begin, static_cast<int>(value), (end - begin) * sizeof(value_type));
+		}
 
 		pointer data()
 		{
@@ -410,6 +414,8 @@ namespace utility
 		using reference = typename iterator::reference;
 		using const_reference = typename const_iterator::reference;
 
+		using can_memset = typename Storage::data_trivially_copyable;
+
 	private:
 		iterator ptr_;
 
@@ -455,6 +461,14 @@ namespace utility
 		}
 
 		// todo memcpy_range
+
+		template <typename Dummy = void,
+		          REQUIRES((mpl::car<can_memset, Dummy>::value))>
+		void memset_fill(std::ptrdiff_t begin, std::ptrdiff_t end, ext::byte value)
+		{
+			// todo everything at once when begin and end is the whole range
+			memset_fill_impl(mpl::make_index_sequence<value_types::size>{}, begin, end, value);
+		}
 
 		void destruct_range(std::ptrdiff_t begin, std::ptrdiff_t end)
 		{
@@ -553,6 +567,13 @@ namespace utility
 		}
 
 		template <std::size_t ...Is>
+		void memset_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, ext::byte value)
+		{
+			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).memset_fill(begin, end, value), 0)...};
+			static_cast<void>(expansion_hack);
+		}
+
+		template <std::size_t ...Is>
 		void destruct_range_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end)
 		{
 			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).destruct_range(begin, end), 0)...};
@@ -624,6 +645,8 @@ namespace utility
 
 			using iterator = utility::storage_iterator<this_type>;
 			using const_iterator = utility::const_storage_iterator<this_type>;
+
+			using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<utility::storing<Ts>>...>;
 
 		private:
 			utility::tuple<std::array<storing_type_for<Ts>, Capacity>...> arrays;
@@ -756,6 +779,8 @@ namespace utility
 
 			using iterator = utility::storage_iterator<this_type>;
 			using const_iterator = utility::const_storage_iterator<this_type>;
+
+			using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<Ts>...>;
 		private:
 			using allocator_traits = std::allocator_traits<allocator_type>;
 
