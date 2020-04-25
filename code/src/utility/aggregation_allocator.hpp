@@ -104,14 +104,14 @@ namespace utility
 		// C4702 - unreachable code
 #endif
 		template <std::size_t ...Is, typename P,
-		          REQUIRES((utility::is_proxy_reference<mpl::remove_cvref_t<P>>::value))>
+		          REQUIRES((ext::is_tuple<P>::value))>
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, P && p)
 		{
-			int expansion_hack[] = {(construct(std::get<Is>(ptrs), utility::get<Is>(std::forward<P>(p))), 0)...};
+			int expansion_hack[] = {(construct(std::get<Is>(ptrs), std::get<Is>(std::forward<P>(p))), 0)...};
 			static_cast<void>(expansion_hack);
 		}
 		template <std::size_t ...Is, typename ...Ps,
-		          REQUIRES((sizeof...(Ps) != 1 || !utility::is_proxy_reference<mpl::remove_cvref_t<mpl::car<Ps...>>>::value))>
+		          REQUIRES((!ext::is_tuple<Ps...>::value))>
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, Ps && ...ps)
 		{
 			int expansion_hack[] = {(construct(std::get<Is>(ptrs), std::forward<Ps>(ps)), 0)...};

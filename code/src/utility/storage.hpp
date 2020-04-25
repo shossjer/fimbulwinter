@@ -7,6 +7,7 @@
 #include "utility/algorithm.hpp"
 #include "utility/aggregation_allocator.hpp"
 #include "utility/bitmanip.hpp"
+#include "utility/compound.hpp"
 #include "utility/heap_allocator.hpp"
 #include "utility/iterator.hpp"
 #include "utility/null_allocator.hpp"
@@ -318,8 +319,8 @@ namespace utility
 		using difference_type = typename iterator::difference_type;
 		using value_type = mpl::apply<std::tuple, value_types>;
 		using pointer = mpl::add_const_if<Const, void> *; // ??
-		using reference = mpl::apply<utility::proxy_reference, references>;
-		using rvalue_reference = mpl::apply<utility::proxy_reference, rvalue_references>;
+		using reference = mpl::apply<utility::compound, references>;
+		using rvalue_reference = mpl::apply<utility::compound, rvalue_references>;
 		using iterator_category = std::random_access_iterator_tag; // ??
 
 	private:
@@ -376,13 +377,13 @@ namespace utility
 	};
 
 	template <std::size_t I, typename Storage, bool Const>
-	decltype(auto) get(storage_iterator_impl<Storage, Const> & that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), utility::get<I>(that.base())); }
+	decltype(auto) get(storage_iterator_impl<Storage, Const> & that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), std::get<I>(that.base())); }
 	template <std::size_t I, typename Storage, bool Const>
-	decltype(auto) get(const storage_iterator_impl<Storage, Const> & that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), utility::get<I>(that.base())); }
+	decltype(auto) get(const storage_iterator_impl<Storage, Const> & that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), std::get<I>(that.base())); }
 	template <std::size_t I, typename Storage, bool Const>
-	decltype(auto) get(storage_iterator_impl<Storage, Const> && that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), utility::get<I>(std::move(that.base()))); }
+	decltype(auto) get(storage_iterator_impl<Storage, Const> && that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), std::get<I>(std::move(that.base()))); }
 	template <std::size_t I, typename Storage, bool Const>
-	decltype(auto) get(const storage_iterator_impl<Storage, Const> && that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), utility::get<I>(std::move(that.base()))); }
+	decltype(auto) get(const storage_iterator_impl<Storage, Const> && that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), std::get<I>(std::move(that.base()))); }
 	template <typename T, typename Storage, bool Const>
 	decltype(auto) get(storage_iterator_impl<Storage, Const> & that) { return get<mpl::index_of<T, typename Storage::value_types>>(that); }
 	template <typename T, typename Storage, bool Const>
@@ -518,13 +519,13 @@ namespace utility
 			return reference(section(mpl::index_constant<0>{}).construct_at(index, std::forward<Ps>(ps)...));
 		}
 		template <std::size_t ...Is, typename P,
-		          REQUIRES((utility::is_proxy_reference<mpl::remove_cvref_t<P>>::value))>
+		          REQUIRES((utility::is_compound<P>::value))>
 		reference construct_at_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, P && p)
 		{
-			return reference(section(mpl::index_constant<Is>{}).construct_at(index, utility::get<Is>(std::forward<P>(p)))...);
+			return reference(section(mpl::index_constant<Is>{}).construct_at(index, std::get<Is>(std::forward<P>(p)))...);
 		}
 		template <std::size_t ...Is, typename ...Ps,
-		          REQUIRES((sizeof...(Ps) != 1 || !utility::is_proxy_reference<mpl::remove_cvref_t<mpl::car<Ps...>>>::value))>
+		          REQUIRES((!utility::is_compound<Ps...>::value))>
 		reference construct_at_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, Ps && ...ps)
 		{
 			return reference(section(mpl::index_constant<Is>{}).construct_at(index, std::forward<Ps>(ps))...);

@@ -3,6 +3,7 @@
 #define UTILITY_ITERATOR_HPP
 
 #include "utility/algorithm.hpp"
+#include "utility/compound.hpp"
 #include "utility/concepts.hpp"
 #include "utility/intrinsics.hpp"
 #include "utility/type_traits.hpp"
@@ -298,146 +299,6 @@ namespace utility
 		return utility::rend(std::move(c));
 	}
 
-
-	template <typename T>
-	struct is_pair : mpl::false_type {};
-	template <typename ...Ts>
-	struct is_pair<std::pair<Ts...>> : mpl::true_type {};
-
-	template <typename T>
-	struct is_tuple : mpl::false_type {};
-	template <typename ...Ts>
-	struct is_tuple<std::tuple<Ts...>> : mpl::true_type {};
-
-
-	template <typename ...Rs>
-	class proxy_reference;
-
-	template <typename T>
-	struct is_proxy_reference : mpl::false_type {};
-	template <typename ...Rs>
-	struct is_proxy_reference<proxy_reference<Rs...>> : mpl::true_type {};
-
-	template <typename T>
-	struct proxy_reference_size;
-	template <typename ...Rs>
-	struct proxy_reference_size<proxy_reference<Rs...>> : mpl::index_constant<sizeof...(Rs)> {};
-
-	namespace detail
-	{
-		template <std::size_t N>
-		struct proxy_reference_base_impl
-		{
-			template <typename ...Rs>
-			using type = std::tuple<Rs...>;
-		};
-		template <>
-		struct proxy_reference_base_impl<2>
-		{
-			template <typename R1, typename R2>
-			using type = std::pair<R1, R2>;
-		};
-		template <typename ...Rs>
-		using proxy_reference_base = typename proxy_reference_base_impl<sizeof...(Rs)>::template type<Rs...>;
-	}
-
-	// inspired by the works of eric niebler
-	//
-	// http://ericniebler.com/2015/02/13/iterators-plus-plus-part-2/
-
-	template <typename ...Rs>
-	class proxy_reference
-		: public detail::proxy_reference_base<Rs...>
-	{
-		template <typename ...Ss>
-		friend class proxy_reference;
-
-		using this_type = proxy_reference<Rs...>;
-		using base_type = detail::proxy_reference_base<Rs...>;
-
-	public:
-		proxy_reference() = default;
-		explicit proxy_reference(Rs && ...rs)
-			: base_type(std::forward<Rs>(rs)...)
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_proxy_reference<OtherT>::value)),
-		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
-		          REQUIRES((proxy_reference_size<OtherT>::value == sizeof...(Rs)))>
-		proxy_reference(Other && other)
-			: proxy_reference(mpl::make_index_sequence_for<Rs...>{}, std::forward<Other>(other))
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_pair<OtherT>::value || is_tuple<OtherT>::value)),
-		          REQUIRES((std::tuple_size<OtherT>::value == sizeof...(Rs))),
-		          REQUIRES((mpl::is_constructible_from_tuple<base_type, Other &&>::value))>
-		proxy_reference(Other && other)
-			: proxy_reference(mpl::make_index_sequence_for<Rs...>{}, std::forward<Other>(other))
-		{}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_proxy_reference<OtherT>::value)),
-		          REQUIRES((!mpl::is_same<this_type, OtherT>::value)),
-		          REQUIRES((proxy_reference_size<OtherT>::value == sizeof...(Rs)))>
-		this_type & operator = (Other && other)
-		{
-			return operator_equal(mpl::make_index_sequence_for<Rs...>{}, std::forward<Other>(other));
-		}
-		template <typename Other,
-		          typename OtherT = mpl::remove_cvref_t<Other>,
-		          REQUIRES((is_pair<OtherT>::value || is_tuple<OtherT>::value)),
-		          REQUIRES((std::tuple_size<OtherT>::value == sizeof...(Rs))),
-		          REQUIRES((mpl::is_constructible_from_tuple<base_type, Other &&>::value))>
-		this_type & operator = (Other && other)
-		{
-			return operator_equal(mpl::make_index_sequence_for<Rs...>{}, std::forward<Other>(other));
-		}
-	private:
-		template <std::size_t ...Is, typename Tuple>
-		proxy_reference(mpl::index_sequence<Is...>, Tuple && tuple)
-			: base_type(std::get<Is>(std::forward<Tuple>(tuple))...)
-		{}
-		template <std::size_t ...Is, typename Tuple>
-		this_type & operator_equal(mpl::index_sequence<Is...>, Tuple && tuple)
-		{
-			int expansion_hack[] = {(std::get<Is>(*this) = std::get<Is>(std::forward<Tuple>(tuple)), 0)...};
-			static_cast<void>(expansion_hack);
-			return *this;
-		}
-
-	public:
-		template <typename T,
-		          REQUIRES((sizeof...(Rs) == utility::int_hack<T, 1>::value)),
-		          REQUIRES((std::is_convertible<mpl::car<Rs...>, T &>::value))>
-		operator T & () &
-		{
-			return std::get<0>(*this);
-		}
-		template <typename T,
-		          REQUIRES((sizeof...(Rs) == utility::int_hack<T, 1>::value)),
-		          REQUIRES((std::is_convertible<mpl::car<Rs...>, T &&>::value))>
-		operator T && () &&
-		{
-			return std::move(std::get<0>(*this));
-		}
-	};
-
-	template <std::size_t I, typename That,
-	          REQUIRES((is_proxy_reference<mpl::remove_cvref_t<That>>::value))>
-	decltype(auto) get(That && that) { return std::get<I>(std::forward<That>(that)); }
-	template <typename T, typename That,
-	          REQUIRES((is_proxy_reference<mpl::remove_cvref_t<That>>::value))>
-	decltype(auto) get(That && that) { return std::get<T>(std::forward<That>(that)); }
-
-	template <typename ...Ps>
-	auto make_proxy_reference(Ps && ...ps)
-	{
-		return utility::proxy_reference<Ps &&...>(std::forward<Ps>(ps)...);
-	}
-
-
 	// eric niebler is a god :pray:
 	//
 	// http://ericniebler.com/2015/02/03/iterators-plus-plus-part-1/
@@ -479,7 +340,7 @@ namespace utility
 	public:
 		using value_type = std::tuple<typename std::iterator_traits<Its>::value_type...>;
 		using difference_type = typename std::iterator_traits<mpl::car<Its...>>::difference_type;
-		using reference = utility::proxy_reference<typename std::iterator_traits<Its>::reference...>;
+		using reference = utility::compound<typename std::iterator_traits<Its>::reference...>;
 
 		using underlying_type = base_type;
 
@@ -531,16 +392,9 @@ namespace utility
 		friend auto iter_move(this_type x)
 		{
 			using utility::iter_move;
-			return ext::apply([](auto & ...ps){ return utility::make_proxy_reference(iter_move(ps)...); }, x);
+			return ext::apply([](auto & ...ps){ return utility::forward_as_compound(iter_move(ps)...); }, x);
 		}
 	};
-
-	template <std::size_t I, typename That,
-	          REQUIRES((is_zip_iterator<mpl::remove_cvref_t<That>>::value))>
-	decltype(auto) get(That && that) { return std::get<I>(std::forward<That>(that)); }
-	template <typename T, typename That,
-	          REQUIRES((is_zip_iterator<mpl::remove_cvref_t<That>>::value))>
-	decltype(auto) get(That && that) { return std::get<T>(std::forward<That>(that)); }
 
 	template <typename ...Its, typename ...Jts>
 	bool operator == (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)

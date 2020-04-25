@@ -128,4 +128,10 @@ namespace utility
 			static_cast<void>(expansion_hack);
 		}
 	};
+
+	template <typename ...Ts>
+	auto forward_as_compound(Ts && ...ts)
+	{
+		return compound<Ts &&...>(std::forward<Ts>(ts)...);
+	}
 }
