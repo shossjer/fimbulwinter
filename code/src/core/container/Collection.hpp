@@ -163,7 +163,7 @@ namespace core
 			};
 
 		private:
-			utility::array_nonzero<typename LookupStorageTraits::template storage_type<slot_t, Key>> lookup_;
+			utility::array_nonempty<typename LookupStorageTraits::template storage_type<slot_t, Key>> lookup_;
 			// todo keys before slots?
 			std::tuple<detail::bucket_array_t<ComponentStorages>...> arrays_;
 

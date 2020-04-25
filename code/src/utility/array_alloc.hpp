@@ -9,6 +9,36 @@
 
 namespace utility
 {
+	struct initialize_empty
+	{
+		template <typename Data>
+		void operator () (Data & data)
+		{
+			data.set_capacity(0);
+			data.set_size(0);
+		}
+	};
+
+	struct initialize_zero
+	{
+		template <typename Data>
+		void operator () (Data & data)
+		{
+			const auto capacity = Data::storage_traits::capacity_for(1);
+			if (data.storage_.allocate(capacity))
+			{
+				data.set_capacity(capacity);
+				data.set_size(capacity);
+				data.storage_.sections(capacity).construct_fill(0, capacity, utility::zero_initialize);
+			}
+			else
+			{
+				data.set_capacity(0);
+				data.set_size(0);
+			}
+		}
+	};
+
 	template <std::size_t N>
 	using size_type_for =
 		mpl::conditional_t<(N < 0x100), std::uint8_t,
@@ -123,7 +153,7 @@ namespace utility
 		};
 	}
 
-	template <typename Storage, std::size_t MinCapacity = 0>
+	template <typename Storage, typename InitializationStrategy>
 	struct array_data
 		: detail::array_data_impl<Storage>
 	{
@@ -135,7 +165,7 @@ namespace utility
 			mpl::conjunction<typename storage_traits::static_capacity,
 			                 utility::storage_is_trivially_default_constructible<Storage>>;
 
-		using this_type = array_data<Storage>;
+		using this_type = array_data<Storage, InitializationStrategy>;
 		using base_type = detail::array_data_impl<Storage>;
 
 		using size_type = typename base_type::size_type;
@@ -152,30 +182,9 @@ namespace utility
 			this->storage_.deallocate(capacity);
 		}
 
-		void initialize(mpl::true_type /*zero min capacity*/)
-		{
-			this->set_capacity(0);
-			this->set_size(0);
-		}
-		void initialize(mpl::false_type /*zero min capacity*/)
-		{
-			const auto capacity = storage_traits::capacity_for(MinCapacity);
-			if (this->storage_.allocate(capacity))
-			{
-				this->set_capacity(capacity);
-				this->set_size(capacity);
-				this->storage_.sections(capacity).construct_fill(0, capacity);
-				// this->storage_.sections(capacity).memset_fill(0, capacity, 0); // todo necessary?
-			}
-			else
-			{
-				this->set_capacity(0);
-				this->set_size(0);
-			}
-		}
 		void initialize()
 		{
-			initialize(mpl::bool_constant<(MinCapacity == 0)>{});
+			InitializationStrategy{}(*this);
 		}
 
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
@@ -202,7 +211,7 @@ namespace utility
 		constexpr std::size_t size() const { return this->capacity(); }
 	};
 
-	template <typename Storage>
+	template <typename Storage, typename InitializationStrategy>
 	struct vector_data
 		: detail::vector_data_impl<Storage>
 	{
@@ -212,8 +221,8 @@ namespace utility
 		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
 		using is_trivially_default_constructible = mpl::false_type;
 
+		using this_type = vector_data<Storage, InitializationStrategy>;
 		using base_type = detail::vector_data_impl<Storage>;
-		using this_type = vector_data<Storage>;
 
 		using base_type::base_type;
 
@@ -229,8 +238,7 @@ namespace utility
 
 		void initialize()
 		{
-			this->set_capacity(0);
-			this->set_size(0);
+			InitializationStrategy{}(*this);
 		}
 
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
@@ -660,32 +668,32 @@ namespace utility
 	};
 
 	template <typename Storage>
-	using array = container<array_data<Storage, 0>>;
+	using array = container<array_data<Storage, initialize_empty>>;
 	template <typename Storage>
-	using array_nonzero = container<array_data<Storage, 1>>;
+	using array_nonempty = container<array_data<Storage, initialize_zero>>;
 	template <typename Storage>
-	using vector = container<vector_data<Storage>>;
+	using vector = container<vector_data<Storage, initialize_empty>>;
 
 	template <template <typename> class Allocator, typename ...Ts>
-	using dynamic_array = container<array_data<dynamic_storage<Allocator, Ts...>, 0>>;
+	using dynamic_array = container<array_data<dynamic_storage<Allocator, Ts...>, initialize_empty>>;
 	template <template <typename> class Allocator, typename ...Ts>
-	using dynamic_array_nonzero = container<array_data<dynamic_storage<Allocator, Ts...>, 1>>;
+	using dynamic_array_nonempty = container<array_data<dynamic_storage<Allocator, Ts...>, initialize_zero>>;
 	template <template <typename> class Allocator, typename ...Ts>
-	using dynamic_vector = container<vector_data<dynamic_storage<Allocator, Ts...>>>;
+	using dynamic_vector = container<vector_data<dynamic_storage<Allocator, Ts...>, initialize_empty>>;
 
 	template <typename ...Ts>
-	using heap_array = container<array_data<heap_storage<Ts...>, 0>>;
+	using heap_array = container<array_data<heap_storage<Ts...>, initialize_empty>>;
 	template <typename ...Ts>
-	using heap_array_nonzero = container<array_data<heap_storage<Ts...>, 1>>;
+	using heap_array_nonempty = container<array_data<heap_storage<Ts...>, initialize_zero>>;
 	template <typename ...Ts>
-	using heap_vector = container<vector_data<heap_storage<Ts...>>>;
+	using heap_vector = container<vector_data<heap_storage<Ts...>, initialize_empty>>;
 
 	template <std::size_t Capacity, typename ...Ts>
-	using static_array = container<array_data<static_storage<Capacity, Ts...>, 0>>;
+	using static_array = container<array_data<static_storage<Capacity, Ts...>, initialize_empty>>;
 	template <std::size_t Capacity, typename ...Ts>
-	using static_array_nonzero = container<array_data<static_storage<Capacity, Ts...>, 1>>;
+	using static_array_nonempty = container<array_data<static_storage<Capacity, Ts...>, initialize_zero>>;
 	template <std::size_t Capacity, typename ...Ts>
-	using static_vector = container<vector_data<static_storage<Capacity, Ts...>>>;
+	using static_vector = container<vector_data<static_storage<Capacity, Ts...>, initialize_empty>>;
 }
 
 #endif /* UTILITY_ARRAY_ALLOC_HPP */
