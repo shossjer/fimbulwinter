@@ -47,6 +47,7 @@ set(FILES_UTILITY
 	tst/utility/optional.cpp
 	tst/utility/property.cpp
 	tst/utility/ranges.cpp
+	tst/utility/span.cpp
 	tst/utility/storing.cpp
 	tst/utility/string.cpp
 	tst/utility/string_conversions.cpp

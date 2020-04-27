@@ -119,6 +119,14 @@ namespace utility
 	}
 
 	template <typename T>
+	constexpr auto to_address(T * ptr) { return ptr; }
+	template <typename It>
+	constexpr auto to_address(const It & it)
+	{
+		return to_address(it.operator->());
+	}
+
+	template <typename T>
 	constexpr std::pair<T *, T *> raw_range(T * begin, T * end)
 	{
 		return std::make_pair(begin, end);

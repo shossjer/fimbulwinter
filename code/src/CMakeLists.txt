@@ -151,6 +151,7 @@ set(HEADERS_UTILITY
 	src/utility/property.hpp
 	src/utility/ranges.hpp
 	src/utility/scalar_alloc.hpp
+	src/utility/span.hpp
 	src/utility/spinlock.hpp
 	src/utility/storage.hpp
 	src/utility/storing.hpp
