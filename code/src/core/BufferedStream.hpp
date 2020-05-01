@@ -21,8 +21,8 @@ namespace core
 
 		utility::static_storage<0x10000, char> buffer_; // arbitrary
 
-		decltype(auto) buffer() { return buffer_.section(mpl::index_constant<0>{}); }
-		decltype(auto) buffer() const { return buffer_.section(mpl::index_constant<0>{}); }
+		decltype(auto) buffer() { return buffer_.sections(buffer_.max_size()); }
+		decltype(auto) buffer() const { return buffer_.sections(buffer_.max_size()); }
 
 	public:
 		BufferedStream(ReadStream && stream)

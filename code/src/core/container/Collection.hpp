@@ -109,11 +109,11 @@ namespace core
 					data_.set_size(last);
 				}
 			private:
-				decltype(auto) components() { return data_.storage_.section(mpl::index_constant<0>{}, data_.capacity()); }
-				decltype(auto) components() const { return data_.storage_.section(mpl::index_constant<0>{}, data_.capacity()); }
+				decltype(auto) components() { return data_.storage_.sections_for(data_.capacity(), mpl::index_sequence<0>{}); }
+				decltype(auto) components() const { return data_.storage_.sections_for(data_.capacity(), mpl::index_sequence<0>{}); }
 
-				decltype(auto) buckets() { return data_.storage_.section(mpl::index_constant<1>{}, data_.capacity()); }
-				decltype(auto) buckets() const { return data_.storage_.section(mpl::index_constant<1>{}, data_.capacity()); }
+				decltype(auto) buckets() { return data_.storage_.sections_for(data_.capacity(), mpl::index_sequence<1>{}); }
+				decltype(auto) buckets() const { return data_.storage_.sections_for(data_.capacity(), mpl::index_sequence<1>{}); }
 			};
 		}
 
@@ -125,7 +125,7 @@ namespace core
 		template <typename Key, typename LookupStorageTraits, typename ...ComponentStorages>
 		class Collection
 		{
-			static_assert(mpl::conjunction<mpl::bool_constant<(ComponentStorages::value_types::size == 1)>...>::value, "Collection does not support multi-type storages for components");
+			static_assert(mpl::conjunction<mpl::bool_constant<(utility::storage_size<ComponentStorages>::value == 1)>...>::value, "Collection does not support multi-type storages for components");
 
 		private:
 			using component_types = mpl::type_list<typename ComponentStorages::template value_type_at<0>...>;
@@ -167,11 +167,11 @@ namespace core
 			// todo keys before slots?
 			std::tuple<detail::bucket_array_t<ComponentStorages>...> arrays_;
 
-			decltype(auto) slots() { return lookup_.storage_.section(mpl::index_constant<0>{}, lookup_.capacity()); }
-			decltype(auto) slots() const { return lookup_.storage_.section(mpl::index_constant<0>{}, lookup_.capacity()); }
+			decltype(auto) slots() { return lookup_.storage_.sections_for(lookup_.capacity(), mpl::index_sequence<0>{}); }
+			decltype(auto) slots() const { return lookup_.storage_.sections_for(lookup_.capacity(), mpl::index_sequence<0>{}); }
 
-			decltype(auto) keys() { return lookup_.storage_.section(mpl::index_constant<1>{}, lookup_.capacity()); }
-			decltype(auto) keys() const { return lookup_.storage_.section(mpl::index_constant<1>{}, lookup_.capacity()); }
+			decltype(auto) keys() { return lookup_.storage_.sections_for(lookup_.capacity(), mpl::index_sequence<1>{}); }
+			decltype(auto) keys() const { return lookup_.storage_.sections_for(lookup_.capacity(), mpl::index_sequence<1>{}); }
 
 		public:
 			template <typename K>
@@ -404,14 +404,14 @@ namespace core
 							    {
 								    const auto new_size = new_data.capacity();
 								    new_data.set_size(new_size);
-								    auto new_slots = new_data.storage_.section(mpl::index_constant<0>{}, new_size);
-								    auto new_keys = new_data.storage_.section(mpl::index_constant<1>{}, new_size);
+								    auto new_slots = new_data.storage_.sections_for(new_size, mpl::index_sequence<0>{});
+								    auto new_keys = new_data.storage_.sections_for(new_size, mpl::index_sequence<1>{});
 								    new_slots.memset_fill(0, new_size, ext::byte{});
 								    new_keys.memset_fill(0, new_size, ext::byte{});
 
 								    const auto old_size = old_data.capacity();
-								    auto old_slots = old_data.storage_.section(mpl::index_constant<0>{}, old_size);
-								    auto old_keys = old_data.storage_.section(mpl::index_constant<1>{}, old_size);
+								    auto old_slots = old_data.storage_.sections_for(old_size, mpl::index_sequence<0>{});
+								    auto old_keys = old_data.storage_.sections_for(old_size, mpl::index_sequence<1>{});
 								    for (auto i : ranges::index_sequence(old_size))
 								    {
 									    if (old_keys[i] == Key{})
@@ -525,8 +525,8 @@ namespace core
 				utility::static_storage<N, C> components_;
 				bucket_t buckets[N];
 
-				decltype(auto) components() { return components_.section(mpl::index_constant<0>{}); }
-				decltype(auto) components() const { return components_.section(mpl::index_constant<0>{}); }
+				decltype(auto) components() { return components_.sections(N); }
+				decltype(auto) components() const { return components_.sections(N); }
 
 				C * begin() { return components().data(); }
 				const C * begin() const { return components().data(); }
@@ -963,8 +963,8 @@ namespace core
 				utility::static_storage<N, C> components_;
 				uint24_t free_indices[N];
 
-				decltype(auto) components() { return components_.section(mpl::index_constant<0>{}); }
-				decltype(auto) components() const { return components_.section(mpl::index_constant<0>{}); }
+				decltype(auto) components() { return components_.sections(N); }
+				decltype(auto) components() const { return components_.sections(N); }
 
 				array_t()
 				{

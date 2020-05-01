@@ -37,8 +37,8 @@ namespace core
 			std::bitset<3> writebits;
 			utility::static_storage<3, T> buffer_;
 
-			decltype(auto) buffer() { return buffer_.section(mpl::index_constant<0>{}); }
-			decltype(auto) buffer() const { return buffer_.section(mpl::index_constant<0>{}); }
+			decltype(auto) buffer() { return buffer_.sections(buffer_.max_size()); }
+			decltype(auto) buffer() const { return buffer_.sections(buffer_.max_size()); }
 
 		public:
 			ExchangeQueue() :

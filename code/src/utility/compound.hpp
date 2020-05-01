@@ -135,6 +135,9 @@ namespace utility
 		return compound<Ts &&...>(std::forward<Ts>(ts)...);
 	}
 
+	template <template <typename ...> class P, typename ...Ts>
+	using zip_type = mpl::conditional_t<(mpl::concat<Ts...>::size == 1), mpl::car<Ts...>, mpl::apply<P, Ts...>>;
+
 	template <typename ...Ts>
-	using compound_type = mpl::conditional_t<(mpl::concat<Ts...>::size == 1), mpl::car<Ts...>, mpl::apply<utility::compound, Ts...>>;
+	using compound_type = zip_type<utility::compound, Ts...>;
 }

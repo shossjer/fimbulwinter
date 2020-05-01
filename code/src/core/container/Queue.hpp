@@ -234,7 +234,7 @@ namespace core
 
 			template <typename ...Ts>
 			using page_allocator = utility::aggregation_allocator<storage_traits::template allocator_type, detail::PageQueueHeader<storage_traits>, Ts...>;
-			using allocator_type = mpl::apply<page_allocator, typename Storage::value_types>;
+			using allocator_type = mpl::apply<page_allocator, typename storage_traits::type_list>;
 			using allocator_traits = std::allocator_traits<allocator_type>;
 
 			using Header = typename allocator_type::value_type;

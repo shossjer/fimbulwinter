@@ -426,8 +426,8 @@ namespace utility
 			this->chars_.deallocate(capacity);
 		}
 
-		decltype(auto) chars() { return this->chars_.section(mpl::index_constant<0>{}); }
-		decltype(auto) chars() const { return this->chars_.section(mpl::index_constant<0>{}); }
+		decltype(auto) chars() { return this->chars_.sections(this->capacity()); }
+		decltype(auto) chars() const { return this->chars_.sections(this->capacity()); }
 
 		void initialize()
 		{

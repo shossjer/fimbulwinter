@@ -27,306 +27,17 @@ namespace utility
 	};
 	constexpr zero_initialize_t zero_initialize = zero_initialize_t{};
 
-	template <typename Storage, typename T, bool Const>
-	class section_iterator_impl
-	{
-		template <typename Storage_, typename T_, bool Const_>
-		friend class section_iterator_impl;
-
-		using this_type = section_iterator_impl<Storage, T, Const>;
-
-		using storing_type = typename Storage::template storing_type_for<T>;
-
-		using constified_storage_type = mpl::add_const_if<Const, Storage>;
-		using constified_storing_type = mpl::add_const_if<Const, storing_type>;
-		using constified_value_type = mpl::add_const_if<Const, T>;
-
-	public:
-		using difference_type = std::ptrdiff_t;
-		using value_type = T;
-		using pointer = constified_value_type *;
-		using reference = constified_value_type &;
-		using rvalue_reference = constified_value_type &&;
-		using iterator_category = std::random_access_iterator_tag;
-
-	private:
-		constified_storage_type * storage_;
-		constified_storing_type * ptr_;
-
-	public:
-		explicit section_iterator_impl(constified_storage_type & storage_, constified_storing_type * ptr_)
-			: storage_(&storage_)
-			, ptr_(ptr_)
-		{}
-
-	public:
-		constified_storage_type & storage() { return *storage_; }
-		const Storage & storage() const { return *storage_; }
-
-		constified_storing_type * base() { return ptr_; }
-		const storing_type * base() const { return ptr_; }
-
-		reference operator * () const
-		{
-			return storage_->value_at(ptr_);
-		}
-
-		reference operator [] (difference_type n) const
-		{
-			return storage_->value_at(ptr_ + n);
-		}
-
-		this_type & operator ++ () { ++ptr_; return *this; }
-		this_type & operator -- () { --ptr_; return *this; }
-		this_type operator ++ (int) { return this_type(*storage_, ptr_++); }
-		this_type operator -- (int) { return this_type(*storage_, ptr_--); }
-		this_type operator + (difference_type n) { return this_type(*storage_, ptr_ + n); }
-		this_type operator - (difference_type n) { return this_type(*storage_, ptr_ - n); }
-		this_type & operator += (difference_type n) { ptr_ += n; return *this; }
-		this_type & operator -= (difference_type n) { ptr_ -= n; return *this; }
-
-		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
-
-	private:
-		friend std::pair<pointer, pointer> raw_range(this_type begin, this_type end)
-		{
-			return std::make_pair(begin.storage_->data(begin.ptr_), end.storage_->data(end.ptr_));
-		}
-	};
-
-	template <typename Storage, typename T, bool Const1, bool Const2>
-	bool operator == (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
-	{
-		return i1.base() == i2.base();
-	}
-
-	template <typename Storage, typename T, bool Const1, bool Const2>
-	bool operator != (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
-	{
-		return i1.base() != i2.base();
-	}
-
-	template <typename Storage, typename T, bool Const1, bool Const2>
-	bool operator < (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
-	{
-		return i1.base() < i2.base();
-	}
-
-	template <typename Storage, typename T, bool Const1, bool Const2>
-	bool operator <= (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
-	{
-		return i1.base() <= i2.base();
-	}
-
-	template <typename Storage, typename T, bool Const1, bool Const2>
-	bool operator > (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
-	{
-		return i1.base() > i2.base();
-	}
-
-	template <typename Storage, typename T, bool Const1, bool Const2>
-	bool operator >= (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
-	{
-		return i1.base() >= i2.base();
-	}
-
-	template <typename Storage, typename T, bool Const1, bool Const2>
-	auto operator - (const section_iterator_impl<Storage, T, Const1> & i1, const section_iterator_impl<Storage, T, Const2> & i2)
-	{
-		return i1.base() - i2.base();
-	}
-
-	template <typename Storage, typename T>
-	using section_iterator = section_iterator_impl<Storage, T, false>;
-	template <typename Storage, typename T>
-	using const_section_iterator = section_iterator_impl<Storage, T, true>;
-
-	template <typename Storage, typename T>
-	class section
-	{
-	public:
-		using iterator = section_iterator<Storage, T>;
-		using const_iterator = const_section_iterator<Storage, T>;
-
-		using value_type = T;
-		using reference = typename iterator::reference;
-		using pointer = typename iterator::pointer;
-		using const_reference = typename const_iterator::reference;
-		using const_pointer = typename const_iterator::pointer;
-
-		using storing_type = typename Storage::template storing_type_for<value_type>;
-		using storing_trivially_copyable = std::is_trivially_copyable<storing_type>;
-		using storing_trivially_destructible = std::is_trivially_destructible<storing_type>;
-
-		template <typename InputIt>
-		using can_memcpy = mpl::conjunction<storing_trivially_copyable,
-		                                    utility::is_contiguous_iterator<InputIt>>;
-
-		using can_memset = storing_trivially_copyable;
-
-	private:
-		iterator ptr_;
-
-	public:
-		section(iterator && ptr_)
-			: ptr_(std::move(ptr_))
-		{}
-
-	public:
-		reference operator [] (std::ptrdiff_t index)
-		{
-			return ptr_[index];
-		}
-		const_reference operator [] (std::ptrdiff_t index) const
-		{
-			return ptr_[index];
-		}
-
-		template <typename ...Ps>
-		void construct_fill(std::ptrdiff_t begin, std::ptrdiff_t end, Ps && ...ps)
-		{
-			for (; begin != end; begin++)
-			{
-				ptr_.storage().construct_at(ptr_.base(), begin, ps...);
-			}
-		}
-
-		void construct_fill(std::ptrdiff_t begin, std::ptrdiff_t end, utility::zero_initialize_t)
-		{
-			construct_fill_zero_initialize_impl(can_memset{}, begin, end);
-		}
-
-		template <typename InputIt>
-		void construct_range(std::ptrdiff_t index, InputIt begin, InputIt end)
-		{
-			construct_range_impl(can_memcpy<InputIt>{}, index, begin, end);
-		}
-
-		template <typename ...Ps>
-		reference construct_at(std::ptrdiff_t index, Ps && ...ps)
-		{
-			return ptr_.storage().construct_at(ptr_.base(), index, std::forward<Ps>(ps)...);
-		}
-
-		template <typename InputIt,
-		          REQUIRES((can_memcpy<InputIt>::value))>
-		void memcpy_range(std::ptrdiff_t index, InputIt begin, InputIt end)
-		{
-			construct_range_impl(mpl::true_type{}, index, begin, end);
-		}
-
-		template <typename Dummy = void,
-		          REQUIRES((mpl::car<can_memset, Dummy>::value))>
-		void memset_fill(std::ptrdiff_t begin, std::ptrdiff_t end, ext::byte value)
-		{
-			std::memset(ptr_.storage().data(ptr_.base()) + begin, static_cast<int>(value), (end - begin) * sizeof(value_type));
-		}
-
-		pointer data()
-		{
-			return ptr_.storage().data(ptr_.base());
-		}
-		const_pointer data() const
-		{
-			return ptr_.storage().data(ptr_.base());
-		}
-
-		void destruct_range(std::ptrdiff_t begin, std::ptrdiff_t end)
-		{
-			for (; begin != end; begin++)
-			{
-				ptr_.storage().destruct_at(ptr_.base(), begin);
-			}
-		}
-
-		void destruct_at(std::ptrdiff_t index)
-		{
-			ptr_.storage().destruct_at(ptr_.base(), index);
-		}
-
-		std::ptrdiff_t index_of(const_reference x) const
-		{
-			return ptr_.storage().index_of(ptr_.base(), x);
-		}
-
-	private:
-		void construct_fill_zero_initialize_impl(mpl::true_type /*can_memset*/, std::ptrdiff_t begin, std::ptrdiff_t end)
-		{
-			memset_fill(begin, end, ext::byte{});
-		}
-
-		void construct_fill_zero_initialize_impl(mpl::false_type /*can_memset*/, std::ptrdiff_t begin, std::ptrdiff_t end)
-		{
-			// todo forward initialization strategy
-			construct_fill(begin, end);
-		}
-
-		template <typename InputIt>
-		void construct_range_impl(mpl::true_type /*can_memcpy*/, std::ptrdiff_t index, InputIt begin, InputIt end)
-		{
-			using utility::raw_range;
-			auto range = raw_range(begin, end);
-
-			assert(range.first <= range.second);
-			std::memcpy(ptr_.storage().data(ptr_.base()) + index, range.first, (range.second - range.first) * sizeof(value_type));
-		}
-
-		template <typename InputIt>
-		void construct_range_impl(mpl::false_type /*can_memcpy*/, std::ptrdiff_t index, InputIt begin, InputIt end)
-		{
-			for (; begin != end; index++, ++begin)
-			{
-				ptr_.storage().construct_at(ptr_.base(), index, *begin);
-			}
-		}
-	};
-
-	template <typename Storage, typename T>
-	class const_section
-	{
-	public:
-		using const_iterator = const_section_iterator<Storage, T>;
-
-		using value_type = T;
-		using const_reference = typename const_iterator::reference;
-		using const_pointer = typename const_iterator::pointer;
-
-		using storing_type = typename Storage::template storing_type_for<value_type>;
-
-	private:
-		const_iterator ptr_;
-
-	public:
-		const_section(const_iterator && ptr_)
-			: ptr_(std::move(ptr_))
-		{}
-
-	public:
-		const_reference operator [] (std::ptrdiff_t index) const
-		{
-			return ptr_[index];
-		}
-
-		const_pointer data() const
-		{
-			return ptr_.storage().data(ptr_.base());
-		}
-
-		std::ptrdiff_t index_of(const_reference x) const
-		{
-			return ptr_.storage().index_of(ptr_.base(), x);
-		}
-	};
-
-	template <typename Storage, bool Const>
+	template <typename Storage, bool Const, std::size_t ...Is>
 	class storage_iterator_impl
 	{
-		template <typename Storage_, bool Const_>
+		static_assert(0 < sizeof...(Is), "");
+
+		template <typename Storage_, bool Const_, std::size_t ...Is_>
 		friend class storage_iterator_impl;
 
-		using this_type = storage_iterator_impl<Storage, Const>;
+		using this_type = storage_iterator_impl<Storage, Const, Is...>;
 
-		using value_types = typename Storage::value_types;
+		using value_types = mpl::type_list<typename Storage::template value_type_at<Is>...>;
 		using storing_types = mpl::transform<Storage::template storing_type_for, value_types>;
 
 		template <typename T>
@@ -336,6 +47,7 @@ namespace utility
 		using constified_value_types = mpl::transform<constify, value_types>;
 		using constified_storing_types = mpl::transform<constify, storing_types>;
 
+		using pointers = mpl::transform<std::add_pointer_t, constified_value_types>;
 		using references = mpl::transform<std::add_lvalue_reference_t, constified_value_types>;
 		using rvalue_references = mpl::transform<std::add_rvalue_reference_t, constified_value_types>;
 		using iterator = mpl::apply<utility::zip_iterator,
@@ -345,7 +57,7 @@ namespace utility
 	public:
 		using difference_type = typename iterator::difference_type;
 		using value_type = utility::compound_type<value_types>;
-		using pointer = mpl::add_const_if<Const, void> *; // ??
+		using pointer = utility::zip_type<utility::zip_iterator, pointers>;
 		using reference = utility::compound_type<references>;
 		using rvalue_reference = utility::compound_type<rvalue_references>;
 		using iterator_category = std::random_access_iterator_tag; // ??
@@ -366,17 +78,17 @@ namespace utility
 		constified_storage_type & storage() { return *storage_; }
 		const Storage & storage() const { return *storage_; }
 
-		iterator & base() { return ptr_; } // ??
+		iterator & base() { return ptr_; }
 		const iterator & base() const { return ptr_; }
 
 		reference operator * () const
 		{
-			return ext::apply([this](auto & ...ps){ return reference(storage_->value_at(ps)...); }, ptr_);
+			return ext::apply([this](auto & ...ps) -> reference { return reference(storage_->value_at(ps)...); }, ptr_);
 		}
 
 		reference operator [] (difference_type n) const
 		{
-			return ext::apply([this, n](auto & ...ps){ return reference(storage_->value_at(ps + n)...); }, ptr_);
+			return ext::apply([this, n](auto & ...ps) -> reference { return reference(storage_->value_at(ps + n)...); }, ptr_);
 		}
 
 		this_type & operator ++ () { ++ptr_; return *this; }
@@ -396,287 +108,361 @@ namespace utility
 #if defined(_MSC_VER) && _MSC_VER <= 1916
 			using rvalue_reference = rvalue_reference;
 #endif
-			// error returning reference to local temporary object
-			auto && wtf = ext::apply([&x](auto & ...ps){ return rvalue_reference(std::move(x.storage_->value_at(ps))...); }, x.ptr_);
-			return std::move(wtf);
+			return ext::apply([&x](auto & ...ps) -> rvalue_reference { return rvalue_reference(std::move(x.storage_->value_at(ps))...); }, x.ptr_);
+		}
+
+		friend pointer to_address(this_type x)
+		{
+			return ext::apply([&](auto & ...ps){ return pointer(x.storage_->data(ps)...); }, x.ptr_);
 		}
 	};
 
-	template <std::size_t I, typename Storage, bool Const>
-	decltype(auto) get(storage_iterator_impl<Storage, Const> & that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), std::get<I>(that.base())); }
-	template <std::size_t I, typename Storage, bool Const>
-	decltype(auto) get(const storage_iterator_impl<Storage, Const> & that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), std::get<I>(that.base())); }
-	template <std::size_t I, typename Storage, bool Const>
-	decltype(auto) get(storage_iterator_impl<Storage, Const> && that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), std::get<I>(std::move(that.base()))); }
-	template <std::size_t I, typename Storage, bool Const>
-	decltype(auto) get(const storage_iterator_impl<Storage, Const> && that) { return section_iterator_impl<Storage, typename Storage::template value_type_at<I>, Const>(that.storage(), std::get<I>(std::move(that.base()))); }
-	template <typename T, typename Storage, bool Const>
-	decltype(auto) get(storage_iterator_impl<Storage, Const> & that) { return get<mpl::index_of<T, typename Storage::value_types>>(that); }
-	template <typename T, typename Storage, bool Const>
-	decltype(auto) get(const storage_iterator_impl<Storage, Const> & that) { return get<mpl::index_of<T, typename Storage::value_types>>(that); }
-	template <typename T, typename Storage, bool Const>
-	decltype(auto) get(storage_iterator_impl<Storage, Const> && that) { return get<mpl::index_of<T, typename Storage::value_types>>(std::move(that)); }
-	template <typename T, typename Storage, bool Const>
-	decltype(auto) get(const storage_iterator_impl<Storage, Const> && that) { return get<mpl::index_of<T, typename Storage::value_types>>(std::move(that)); }
+	template <typename Storage, std::size_t ...Is>
+	using storage_iterator = storage_iterator_impl<Storage, false, Is...>;
+	template <typename Storage, std::size_t ...Is>
+	using const_storage_iterator = storage_iterator_impl<Storage, true, Is...>;
 
-	template <typename Storage>
-	using storage_iterator = storage_iterator_impl<Storage, false>;
-	template <typename Storage>
-	using const_storage_iterator = storage_iterator_impl<Storage, true>;
-
-	template <typename Storage>
+	template <typename Storage, std::size_t ...Is>
 	class storage_data
 	{
-	private:
-		using value_types = typename Storage::value_types;
+		template <std::size_t I>
+		using value_type_i = typename Storage::template value_type_at<I>;
+		template <std::size_t I>
+		using storing_type_i = typename Storage::template storing_type_for<value_type_i<I>>;
+
+		template <std::size_t K>
+		using value_type_k = mpl::type_at<K, value_type_i<Is>...>;
+		template <std::size_t K>
+		using storing_type_k = typename Storage::template storing_type_for<value_type_k<K>>;
+
+		template <std::size_t K, typename InputIt>
+		using can_memcpy_k = mpl::conjunction<std::is_trivially_copyable<storing_type_k<K>>,
+		                                       utility::is_contiguous_iterator<InputIt>>;
+		template <std::size_t K>
+		using can_memset_k = std::is_trivially_copyable<storing_type_k<K>>;
+
+		using iterator = storage_iterator<Storage, Is...>;
+		using const_iterator = const_storage_iterator<Storage, Is...>;
 
 	public:
-		using iterator = storage_iterator<Storage>;
-		using const_iterator = const_storage_iterator<Storage>;
-
+		using value_type = typename iterator::value_type;
 		using reference = typename iterator::reference;
 		using const_reference = typename const_iterator::reference;
+		using pointer = typename iterator::pointer;
+		using const_pointer = typename const_iterator::pointer;
 
-		using can_memset = typename Storage::data_trivially_copyable;
+		template <typename InputIt>
+		using can_memcpy = mpl::conjunction<std::is_trivially_copyable<storing_type_i<Is>>...,
+		                                    utility::is_contiguous_iterator<InputIt>>;
+
+		using can_memset = mpl::conjunction<std::is_trivially_copyable<storing_type_i<Is>>...>;
 
 	private:
-		iterator ptr_;
+		iterator it_;
 
 	public:
-		storage_data(iterator && ptr)
-			: ptr_(std::move(ptr))
+		template <typename ...Ps>
+		explicit storage_data(Storage & storage, Ps && ...ps)
+			: it_(storage, std::forward<Ps>(ps)...)
 		{}
 
 	public:
-		reference operator [] (std::ptrdiff_t index)
+		reference operator [] (ext::index index)
 		{
-			return ptr_[index];
-		}
-		const_reference operator [] (std::ptrdiff_t index) const
-		{
-			return ptr_[index];
+			return it_[index];
 		}
 
-		iterator data() { return ptr_; }
-		const_iterator data() const { return ptr_; }
+		const_reference operator [] (ext::index index) const
+		{
+			return it_[index];
+		}
+
+		pointer data() { return to_address(it_); }
+		const_pointer data() const { return to_address(it_); }
 
 		template <typename ...Ps>
-		void construct_fill(std::ptrdiff_t begin, std::ptrdiff_t end, Ps && ...ps)
+		void construct_fill(ext::index begin, ext::index end, Ps && ...ps)
 		{
-			return construct_fill_impl(mpl::make_index_sequence<value_types::size>{}, begin, end, std::forward<Ps>(ps)...);
+			return construct_fill_impl(mpl::make_index_sequence<sizeof...(Is)>{}, begin, end, std::forward<Ps>(ps)...);
 		}
 
 		template <typename InputIt>
 		void construct_range(std::ptrdiff_t index, InputIt begin, InputIt end)
 		{
-			construct_range_impl(mpl::make_index_sequence<value_types::size>{}, index, begin, end);
+			construct_range_impl(mpl::make_index_sequence<sizeof...(Is)>{}, index, begin, end);
 		}
 
 		template <typename ...Ps>
-		reference construct_at(std::ptrdiff_t index, Ps && ...ps)
+		reference construct_at(ext::index index, Ps && ...ps)
 		{
-			return construct_at_impl(mpl::make_index_sequence<value_types::size>{}, index, std::forward<Ps>(ps)...);
-		}
-		template <typename ...Ps>
-		reference construct_at(std::ptrdiff_t index, std::piecewise_construct_t, Ps && ...ps)
-		{
-			return piecewise_construct_at_impl(mpl::make_index_sequence<value_types::size>{}, index, std::forward<Ps>(ps)...);
+			return construct_at_impl(mpl::make_index_sequence<sizeof...(Is)>{}, index, std::forward<Ps>(ps)...);
 		}
 
-		// todo memcpy_range
+		template <typename InputIt,
+		          REQUIRES((can_memcpy<InputIt>::value))>
+		void memcpy_range(ext::index index, InputIt begin, InputIt end)
+		{
+			memcpy_range_impl(mpl::make_index_sequence<sizeof...(Is)>{}, index, begin, end);
+		}
 
-		template <typename Dummy = void,
-		          REQUIRES((mpl::car<can_memset, Dummy>::value))>
-		void memset_fill(std::ptrdiff_t begin, std::ptrdiff_t end, ext::byte value)
+		template <typename can_memset_ = can_memset,
+		          REQUIRES((can_memset_::value))>
+		void memset_fill(ext::index begin, ext::index end, ext::byte value)
 		{
 			// todo everything at once when begin and end is the whole range
-			memset_fill_impl(mpl::make_index_sequence<value_types::size>{}, begin, end, value);
+			memset_fill_impl(mpl::make_index_sequence<sizeof...(Is)>{}, begin, end, value);
 		}
 
-		void destruct_range(std::ptrdiff_t begin, std::ptrdiff_t end)
+		void destruct_range(ext::index begin, ext::index end)
 		{
-			destruct_range_impl(mpl::make_index_sequence<value_types::size>{}, begin, end);
+			destruct_range_impl(mpl::make_index_sequence<sizeof...(Is)>{}, begin, end);
 		}
 
-		void destruct_at(std::ptrdiff_t index)
+		void destruct_at(ext::index index)
 		{
-			destruct_at_impl(mpl::make_index_sequence<value_types::size>{}, index);
+			destruct_at_impl(mpl::make_index_sequence<sizeof...(Is)>{}, index);
 		}
 
-		template <std::size_t I,
-		          REQUIRES((I < value_types::size))>
-		utility::section<Storage, typename Storage::template value_type_at<I>> section(mpl::index_constant<I>)
-		{
-			return utility::section<Storage, typename Storage::template value_type_at<I>>(utility::get<I>(ptr_));
-		}
-		template <std::size_t I,
-		          REQUIRES((I < value_types::size))>
-		utility::const_section<Storage, typename Storage::template value_type_at<I>> section(mpl::index_constant<I>) const
-		{
-			return utility::const_section<Storage, typename Storage::template value_type_at<I>>(utility::get<I>(ptr_));
-		}
 	private:
-		template <std::size_t ...Is>
-		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end)
+		template <std::size_t K>
+		void construct_fill_zero_initialize_impl(mpl::true_type /*can_memset*/, mpl::index_sequence<K> seq, ext::index begin, ext::index end)
 		{
-			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_fill(begin, end), 0)...};
-			static_cast<void>(expansion_hack);
+			memset_fill_impl(seq, begin, end, ext::byte{});
 		}
-		template <std::size_t ...Is>
-		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, utility::zero_initialize_t initialization_strategy)
+
+		template <std::size_t K>
+		void construct_fill_zero_initialize_impl(mpl::false_type /*can_memset*/, mpl::index_sequence<K> seq, ext::index begin, ext::index end)
 		{
-			// todo try memset everything at once when begin and end is the whole range
-			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_fill(begin, end, initialization_strategy), 0)...};
-			static_cast<void>(expansion_hack);
+			// todo forward initialization strategy
+			construct_fill_impl(seq, begin, end);
 		}
-		template <std::size_t ...Is, typename ...Ps>
-		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, Ps && ...ps)
+
+		template <std::size_t K, typename ...Ps>
+		void construct_fill_impl(mpl::index_sequence<K> seq, ext::index begin, ext::index end, Ps && ...ps)
 		{
-			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_fill(begin, end, std::forward<Ps>(ps)), 0)...};
-			static_cast<void>(expansion_hack);
+			for (; begin != end; begin++)
+			{
+				construct_at_impl(seq, begin, ps...);
+			}
 		}
-		template <std::size_t ...Is, typename ...Ps>
-		void construct_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, std::piecewise_construct_t, Ps && ...ps)
+
+		template <std::size_t K>
+		void construct_fill_impl(mpl::index_sequence<K> seq, ext::index begin, ext::index end, utility::zero_initialize_t)
 		{
-			int expansion_hack[] = {(ext::apply([this, begin, end](auto && ...ps){ section(mpl::index_constant<Is>{}).construct_fill(begin, end, std::forward<decltype(ps)>(ps)...); }, std::forward<Ps>(ps)), 0)...};
+			construct_fill_zero_initialize_impl(can_memset_k<K>{}, seq, begin, end);
+		}
+
+		template <std::size_t ...Ks, typename ...Ps>
+		void construct_fill_impl(mpl::index_sequence<Ks...>, ext::index begin, ext::index end, Ps && ...ps)
+		{
+			int expansion_hack[] = {(construct_fill_impl(mpl::index_sequence<Ks>{}, begin, end, ps...), 0)...};
 			static_cast<void>(expansion_hack);
 		}
 
-		template <std::size_t ...Is, typename InputIt>
-		void construct_range_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, InputIt begin, InputIt end)
+		template <std::size_t ...Ks, typename ...Ps>
+		void construct_fill_impl(mpl::index_sequence<Ks...>, ext::index begin, ext::index end, std::piecewise_construct_t, Ps && ...ps)
 		{
-			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_range(index, utility::get<Is>(begin), utility::get<Is>(end)), 0)...};
-			static_cast<void>(expansion_hack);
-		}
-		template <std::size_t ...Is, typename InputIt>
-		void construct_range_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, std::move_iterator<InputIt> begin, std::move_iterator<InputIt> end)
-		{
-			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).construct_range(index, std::make_move_iterator(utility::get<Is>(begin.base())), std::make_move_iterator(utility::get<Is>(end.base()))), 0)...};
+			int expansion_hack[] = {(ext::apply([this, begin, end](auto && ...ps){ construct_fill_impl(mpl::index_sequence<Ks>{}, begin, end, std::forward<decltype(ps)>(ps)...); }, std::forward<Ps>(ps)), 0)...};
 			static_cast<void>(expansion_hack);
 		}
 
-		template <typename ...Ps>
-		reference construct_at_impl(mpl::index_sequence<0>, std::ptrdiff_t index, Ps && ...ps)
+		template <std::size_t K, typename InputIt>
+		void construct_range_or_memcpy_impl(mpl::true_type /*can_memcpy*/, mpl::index_sequence<K>, ext::index index, InputIt begin, InputIt end)
 		{
-			static_assert(value_types::size == 1, "");
-			return reference(section(mpl::index_constant<0>{}).construct_at(index, std::forward<Ps>(ps)...));
-		}
-		template <std::size_t ...Is, typename P,
-		          REQUIRES((utility::is_compound<P>::value))>
-		reference construct_at_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, P && p)
-		{
-			return reference(section(mpl::index_constant<Is>{}).construct_at(index, std::get<Is>(std::forward<P>(p)))...);
-		}
-		template <std::size_t ...Is, typename ...Ps,
-		          REQUIRES((!utility::is_compound<Ps...>::value))>
-		reference construct_at_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, Ps && ...ps)
-		{
-			return reference(section(mpl::index_constant<Is>{}).construct_at(index, std::forward<Ps>(ps))...);
-		}
-		// crashes clang 4.0
-		// template <std::size_t ...Is, typename ...Ps>
-		// reference piecewise_construct_at_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index, Ps && ...ps)
-		// {
-		// 	return reference(ext::apply([this, index](auto && ...ps){ return section(mpl::index_constant<Is>{}).construct_at(index, std::forward<decltype(ps)>(ps)...); }, std::forward<Ps>(ps))...);
-		// }
-		template <typename ...Ps>
-		reference piecewise_construct_at_impl(mpl::index_sequence<>, std::ptrdiff_t /*index*/, Ps && ...ps)
-		{
-			return reference(std::forward<Ps>(ps)...);
-		}
-		template <std::size_t I, typename P1, std::size_t ...Is>
-		decltype(auto) construct_at_impl_helper(mpl::index_constant<I>, std::ptrdiff_t index, P1 && p1, mpl::index_sequence<Is...>)
-		{
-			return section(mpl::index_constant<I>{}).construct_at(index, std::get<Is>(std::forward<P1>(p1))...);
-		}
-		template <std::size_t I, std::size_t ...Is, typename P1, typename ...Ps>
-		reference piecewise_construct_at_impl(mpl::index_sequence<I, Is...>, std::ptrdiff_t index, P1 && p1, Ps && ...ps)
-		{
-			// return construct_at_impl(mpl::index_sequence<Is...>{}, index, std::piecewise_construct, std::forward<Ps>(ps)..., ext::apply([this, index](auto && ...ps) { return section(mpl::index_constant<I>{}).construct_at(index, std::forward<decltype(ps)>(ps)...); }, std::forward<P1>(p1)));
-			return piecewise_construct_at_impl(mpl::index_sequence<Is...>{}, index, std::forward<Ps>(ps)..., construct_at_impl_helper(mpl::index_constant<I>{}, index, std::forward<P1>(p1), mpl::make_index_sequence<std::tuple_size<mpl::remove_cvref_t<P1>>::value>{}));
+			using utility::raw_range;
+			auto range = raw_range(begin, end);
+
+			assert(range.first <= range.second);
+			std::memcpy(it_.storage().data(std::get<K>(it_.base())) + index, range.first, (range.second - range.first) * sizeof(value_type_k<K>));
 		}
 
-		template <std::size_t ...Is>
-		void memset_fill_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end, ext::byte value)
+		template <std::size_t K, typename InputIt>
+		void construct_range_or_memcpy_impl(mpl::false_type /*can_memcpy*/, mpl::index_sequence<K> seq, ext::index index, InputIt begin, InputIt end)
 		{
-			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).memset_fill(begin, end, value), 0)...};
+			for (; begin != end; index++, ++begin)
+			{
+				construct_at_impl(seq, index, *begin);
+			}
+		}
+
+		template <std::size_t K, typename InputIt>
+		void construct_range_impl(mpl::index_sequence<K> seq, ext::index index, InputIt begin, InputIt end)
+		{
+			construct_range_or_memcpy_impl(can_memcpy_k<K, InputIt>{}, seq, index, begin, end);
+		}
+
+		template <std::size_t ...Ks, typename InputIt,
+		          REQUIRES((sizeof...(Ks) != 1))>
+		void construct_range_impl(mpl::index_sequence<Ks...>, ext::index index, InputIt begin, InputIt end)
+		{
+			int expansion_hack[] = {(construct_range_impl(mpl::index_sequence<Ks>{}, index, std::get<Ks>(begin), std::get<Ks>(end)), 0)...};
 			static_cast<void>(expansion_hack);
 		}
 
-		template <std::size_t ...Is>
-		void destruct_range_impl(mpl::index_sequence<Is...>, std::ptrdiff_t begin, std::ptrdiff_t end)
+		template <std::size_t ...Ks, typename InputIt,
+		          REQUIRES((sizeof...(Ks) != 1))>
+		void construct_range_impl(mpl::index_sequence<Ks...>, ext::index index, std::move_iterator<InputIt> begin, std::move_iterator<InputIt> end)
 		{
-			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).destruct_range(begin, end), 0)...};
+			int expansion_hack[] = {(construct_range_impl(mpl::index_sequence<Ks>{}, index, std::make_move_iterator(std::get<Ks>(begin.base())), std::make_move_iterator(std::get<Ks>(end.base()))), 0)...};
 			static_cast<void>(expansion_hack);
 		}
 
-		template <std::size_t ...Is>
-		void destruct_at_impl(mpl::index_sequence<Is...>, std::ptrdiff_t index)
+		template <std::size_t K, typename ...Ps>
+		decltype(auto) construct_at_impl(mpl::index_sequence<K>, ext::index index, Ps && ...ps)
 		{
-			int expansion_hack[] = {(section(mpl::index_constant<Is>{}).destruct_at(index), 0)...};
+			return it_.storage().construct_at(std::get<K>(it_.base()), index, std::forward<Ps>(ps)...);
+		}
+
+		template <std::size_t K, typename P>
+		decltype(auto) construct_at_impl(mpl::index_sequence<K> seq, ext::index index, std::piecewise_construct_t, P && p)
+		{
+			return ext::apply([this, seq, index](auto && ...ps) -> decltype(auto) { return construct_at_impl(seq, index, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
+		}
+
+		template <std::size_t ...Ks, typename P,
+		          REQUIRES((ext::tuple_size<P>::value == sizeof...(Is)))>
+		decltype(auto) construct_at_impl(mpl::index_sequence<Ks...>, ext::index index, P && p)
+		{
+			return reference(construct_at_impl(mpl::index_sequence<Ks>{}, index, std::get<Ks>(std::forward<P>(p)))...);
+		}
+
+		template <std::size_t ...Ks, typename ...Ps>
+		decltype(auto) construct_at_impl(mpl::index_sequence<Ks...>, ext::index index, Ps && ...ps)
+		{
+			return reference(construct_at_impl(mpl::index_sequence<Ks>{}, index, std::forward<Ps>(ps))...);
+		}
+
+		template <std::size_t ...Ks, typename ...Ps>
+		decltype(auto) construct_at_impl(mpl::index_sequence<Ks...>, ext::index index, std::piecewise_construct_t, Ps && ...ps)
+		{
+			return reference(construct_at_impl(mpl::index_sequence<Ks>{}, index, std::piecewise_construct, std::forward<Ps>(ps))...);
+		}
+
+		template <std::size_t K, typename InputIt>
+		void memcpy_range_impl(mpl::index_sequence<K> seq, ext::index index, InputIt begin, InputIt end)
+		{
+			construct_range_or_memcpy_impl(mpl::true_type{}, seq, index, begin, end);
+		}
+
+		template <std::size_t ...Ks, typename InputIt>
+		void memcpy_range_impl(mpl::index_sequence<Ks...>, ext::index index, InputIt begin, InputIt end)
+		{
+			int expansion_hack[] = {(memcpy_range_impl(mpl::index_sequence<Ks>{}, index, std::get<Ks>(begin), std::get<Ks>(end)), 0)...};
+			static_cast<void>(expansion_hack);
+		}
+
+		template <std::size_t K>
+		void memset_fill_impl(mpl::index_sequence<K>, ext::index begin, ext::index end, ext::byte value)
+		{
+			std::memset(it_.storage().data(std::get<K>(it_.base())) + begin, static_cast<int>(value), (end - begin) * sizeof(value_type_k<K>));
+		}
+
+		template <std::size_t ...Ks>
+		void memset_fill_impl(mpl::index_sequence<Ks...>, ext::index begin, ext::index end, ext::byte value)
+		{
+			int expansion_hack[] = {(memset_fill_impl(mpl::index_sequence<Ks>{}, begin, end, value), 0)...};
+			static_cast<void>(expansion_hack);
+		}
+
+		template <std::size_t K>
+		void destruct_range_impl(mpl::index_sequence<K> seq, ext::index begin, ext::index end)
+		{
+			for (; begin != end; begin++)
+			{
+				destruct_at_impl(seq, begin);
+			}
+		}
+
+		template <std::size_t ...Ks>
+		void destruct_range_impl(mpl::index_sequence<Ks...>, ext::index begin, ext::index end)
+		{
+			int expansion_hack[] = {(destruct_range_impl(mpl::index_sequence<Ks>{}, begin, end), 0)...};
+			static_cast<void>(expansion_hack);
+		}
+
+		template <std::size_t K>
+		void destruct_at_impl(mpl::index_sequence<K>, ext::index index)
+		{
+			it_.storage().destruct_at(std::get<K>(it_.base()), index);
+		}
+
+		template <std::size_t ...Ks>
+		void destruct_at_impl(mpl::index_sequence<Ks...>, ext::index index)
+		{
+			int expansion_hack[] = {(destruct_at_impl(mpl::index_sequence<Ks>{}, index), 0)...};
 			static_cast<void>(expansion_hack);
 		}
 	};
 
-	template <typename Storage>
+	template <typename Storage, std::size_t ...Is>
 	class const_storage_data
 	{
 	private:
-		using value_types = typename Storage::value_types;
+		using iterator = const_storage_iterator<Storage, Is...>;
+		using const_iterator = iterator;
 
 	public:
-		using const_iterator = const_storage_iterator<Storage>;
-
+		using value_type = typename iterator::value_type;
+		using reference = typename iterator::reference;
 		using const_reference = typename const_iterator::reference;
+		using pointer = typename iterator::pointer;
+		using const_pointer = typename const_iterator::pointer;
 
 	private:
-		const_iterator ptr_;
+		iterator it_;
 
 	public:
-		const_storage_data(const_iterator && ptr)
-			: ptr_(std::move(ptr))
+		template <typename ...Ps>
+		explicit const_storage_data(const Storage & storage, Ps && ...ps)
+			: it_(storage, std::forward<Ps>(ps)...)
 		{}
 
 	public:
-		const_reference operator [] (std::ptrdiff_t index) const
+		const_reference operator [] (ext::index index) const
 		{
-			return ptr_[index];
+			return it_[index];
 		}
 
-		const_iterator data() const { return ptr_; }
-
-		template <std::size_t I,
-		          REQUIRES((I < value_types::size))>
-		utility::const_section<Storage, typename Storage::template value_type_at<I>> section(mpl::index_constant<I>) const
-		{
-			return utility::const_section<Storage, typename Storage::template value_type_at<I>>(utility::get<I>(ptr_));
-		}
+		const_pointer data() const { return to_address(it_); }
 	};
 
-	namespace detail
-	{
 		template <std::size_t Capacity, typename ...Ts>
-		class static_storage_impl
+		class static_storage
 		{
-		private:
-			using this_type = static_storage_impl<Capacity, Ts...>;
+			using this_type = static_storage<Capacity, Ts...>;
 
 		public:
-			using value_types = mpl::type_list<Ts...>;
+			using value_type = utility::compound_type<Ts...>;
+			using allocator_type = utility::null_allocator<char>;
+			using size_type = std::size_t; // todo size_for<Capacity>?
+			using difference_type = std::ptrdiff_t;
+			using reference = utility::compound_type<Ts &...>;
+			using const_reference = utility::compound_type<const Ts &...>;
+			using rvalue_reference = utility::compound_type<Ts &&...>;
+			using pointer = utility::zip_type<utility::zip_iterator, Ts *...>;
+			using const_pointer = utility::zip_type<utility::zip_iterator, const Ts *...>;
 
 			template <std::size_t I>
-			using value_type_at = mpl::type_at<I, Ts...>;
+			using value_type_at = mpl::type_at<I, Ts...>; // todo remove
 			template <typename Storing>
 			using value_type_for = typename Storing::value_type;
 			template <typename T>
 			using storing_type_for = utility::storing<T>;
 
-			using allocator_type = utility::null_allocator<char>;
-
-			using iterator = utility::storage_iterator<this_type>;
-			using const_iterator = utility::const_storage_iterator<this_type>;
-
 			using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<utility::storing<Ts>>...>;
+
+			using storing_trivially_copyable =
+				mpl::apply<mpl::conjunction,
+				           mpl::transform<std::is_trivially_copyable,
+				                          utility::storing<Ts>...>>;
+			using storing_trivially_destructible =
+				mpl::apply<mpl::conjunction,
+				           mpl::transform<std::is_trivially_destructible,
+				                          utility::storing<Ts>...>>;
+			using storing_trivially_default_constructible =
+				mpl::apply<mpl::conjunction,
+				           mpl::transform<std::is_trivially_default_constructible,
+				                          utility::storing<Ts>...>>;
 
 		private:
 			utility::tuple<std::array<storing_type_for<Ts>, Capacity>...> arrays;
@@ -739,78 +525,67 @@ namespace utility
 				return p->value;
 			}
 
-			template <std::size_t I>
-			utility::section<this_type, value_type_at<I>> section(mpl::index_constant<I>)
+			template <std::size_t ...Is>
+			auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>)
 			{
-				return utility::section<this_type, value_type_at<I>>(utility::section_iterator<this_type, value_type_at<I>>(*this, get<I>(arrays).data()));
-			}
-			template <std::size_t I>
-			utility::const_section<this_type, value_type_at<I>> section(mpl::index_constant<I>) const
-			{
-				return utility::const_section<this_type, value_type_at<I>>(utility::const_section_iterator<this_type, value_type_at<I>>(*this, get<I>(arrays).data()));
-			}
-			template <std::size_t I>
-			utility::section<this_type, value_type_at<I>> section(mpl::index_constant<I> i, std::size_t /*capacity*/)
-			{
-				return section(i);
-			}
-			template <std::size_t I>
-			utility::const_section<this_type, value_type_at<I>> section(mpl::index_constant<I> i, std::size_t /*capacity*/) const
-			{
-				return section(i);
+				return utility::storage_data<this_type, Is...>(*this, get<Is>(arrays).data()...);
 			}
 
-			utility::storage_data<this_type> sections()
-			{
-				return sections_impl(mpl::make_index_sequence_for<Ts...>{});
-			}
-			utility::const_storage_data<this_type> sections() const
-			{
-				return sections_impl(mpl::make_index_sequence_for<Ts...>{});
-			}
-			utility::storage_data<this_type> sections(std::size_t /*capacity*/)
-			{
-				return sections();
-			}
-			utility::const_storage_data<this_type> sections(std::size_t /*capacity*/) const
-			{
-				return sections();
-			}
-		private:
 			template <std::size_t ...Is>
-			utility::storage_data<this_type> sections_impl(mpl::index_sequence<Is...>)
+			auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>) const
 			{
-				return utility::storage_data<this_type>(utility::storage_iterator<this_type>(*this, get<Is>(arrays).data()...));
+				return utility::const_storage_data<this_type, Is...>(*this, get<Is>(arrays).data()...);
 			}
-			template <std::size_t ...Is>
-			utility::const_storage_data<this_type> sections_impl(mpl::index_sequence<Is...>) const
+
+			auto sections(std::size_t capacity)
 			{
-				return utility::const_storage_data<this_type>(utility::const_storage_iterator<this_type>(*this, get<Is>(arrays).data()...));
+				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
+			}
+
+			auto sections(std::size_t capacity) const
+			{
+				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
 			}
 		};
 
 		template <template <typename> class Allocator, typename ...Ts>
-		class dynamic_storage_impl
+		class dynamic_storage
 		{
-		private:
-			using this_type = dynamic_storage_impl<Allocator, Ts...>;
+			using this_type = dynamic_storage<Allocator, Ts...>;
 
 		public:
-			using value_types = mpl::type_list<Ts...>;
+			using value_type = utility::compound_type<Ts...>;
+			using allocator_type = utility::aggregation_allocator<Allocator, void, Ts...>;
+			using size_type = std::size_t;
+			using difference_type = std::ptrdiff_t;
+			using reference = utility::compound_type<Ts &...>;
+			using const_reference = utility::compound_type<const Ts &...>;
+			using rvalue_reference = utility::compound_type<Ts &&...>;
+			using pointer = utility::zip_type<utility::zip_iterator, Ts *...>;
+			using const_pointer = utility::zip_type<utility::zip_iterator, const Ts *...>;
 
 			template <std::size_t I>
-			using value_type_at = mpl::type_at<I, Ts...>;
+			using value_type_at = mpl::type_at<I, Ts...>; // todo remove
 			template <typename Storing>
 			using value_type_for = Storing;
 			template <typename T>
 			using storing_type_for = T;
 
-			using allocator_type = utility::aggregation_allocator<Allocator, void, Ts...>;
-
-			using iterator = utility::storage_iterator<this_type>;
-			using const_iterator = utility::const_storage_iterator<this_type>;
-
 			using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<Ts>...>;
+
+			using storing_trivially_copyable =
+				mpl::apply<mpl::conjunction,
+				           mpl::transform<std::is_trivially_copyable,
+				                          Ts...>>;
+			using storing_trivially_destructible =
+				mpl::apply<mpl::conjunction,
+				           mpl::transform<std::is_trivially_destructible,
+				                          Ts...>>;
+			using storing_trivially_default_constructible =
+				mpl::apply<mpl::conjunction,
+				           mpl::transform<std::is_trivially_default_constructible,
+				                          Ts...>>;
+
 		private:
 			using allocator_traits = std::allocator_traits<allocator_type>;
 
@@ -922,99 +697,49 @@ namespace utility
 				return *p;
 			}
 
-			template <std::size_t I>
-			utility::section<this_type, value_type_at<I>> section(mpl::index_constant<I>, std::size_t capacity)
+			template <std::size_t ...Is>
+			auto sections_for(std::size_t capacity, mpl::index_sequence<Is...>)
 			{
 #if MODE_DEBUG
 				assert(storage() || capacity == 0);
 #endif
-				// there are times in which we will call allocator address
-				// with a garbage storage, but maybe that is okay as long
-				// as we never try to use that address?
-				return utility::section<this_type, value_type_at<I>>(utility::section_iterator<this_type, value_type_at<I>>(*this, allocator().template address<I>(storage(), capacity)));
-			}
-			template <std::size_t I>
-			utility::const_section<this_type, value_type_at<I>> section(mpl::index_constant<I>, std::size_t capacity) const
-			{
-#if MODE_DEBUG
-				assert(storage() || capacity == 0);
-#endif
-				// ditto
-				return utility::const_section<this_type, value_type_at<I>>(utility::const_section_iterator<this_type, value_type_at<I>>(*this, allocator().template address<I>(storage(), capacity)));
-			}
-			utility::section<this_type, value_type_at<0>> section(mpl::index_constant<0> i)
-			{
-				// we do not need the capacity to compute the first section
-				return section(i, 0);
-			}
-			utility::const_section<this_type, value_type_at<0>> section(mpl::index_constant<0> i) const
-			{
-				// ditto
-				return section(i, 0);
+				// note there are times when we will call allocator
+				// address with a garbage storage, but maybe that is okay
+				// since with a capacity of zero we should never actually
+				// use the address?
+				return utility::storage_data<this_type, Is...>(*this, allocator().template address<Is>(storage(), capacity)...);
 			}
 
-			utility::storage_data<this_type> sections(std::size_t capacity)
+			template <std::size_t ...Is>
+			auto sections_for(std::size_t capacity, mpl::index_sequence<Is...>) const
 			{
-				return sections_impl(mpl::make_index_sequence_for<Ts...>{}, capacity);
+#if MODE_DEBUG
+				assert(storage() || capacity == 0);
+#endif
+				// note there are times when we will call allocator
+				// address with a garbage storage, but maybe that is okay
+				// since with a capacity of zero we should never actually
+				// use the address?
+				return utility::const_storage_data<this_type, Is...>(*this, allocator().template address<Is>(storage(), capacity)...);
 			}
-			utility::const_storage_data<this_type> sections(std::size_t capacity) const
+
+			auto sections(std::size_t capacity)
 			{
-				return sections_impl(mpl::make_index_sequence_for<Ts...>{}, capacity);
+				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
 			}
+
+			auto sections(std::size_t capacity) const
+			{
+				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
+			}
+
 		private:
 			allocator_type & allocator() { return impl_; }
 			const allocator_type & allocator() const { return impl_; }
 
 			void * & storage() { return impl_.storage_; }
 			const void * storage() const { return impl_.storage_; }
-
-			template <std::size_t ...Is>
-			utility::storage_data<this_type> sections_impl(mpl::index_sequence<Is...>, std::size_t capacity)
-			{
-				return utility::storage_data<this_type>(utility::storage_iterator<this_type>(*this, allocator().template address<Is>(storage(), capacity)...));
-			}
-			template <std::size_t ...Is>
-			utility::const_storage_data<this_type> sections_impl(mpl::index_sequence<Is...>, std::size_t capacity) const
-			{
-				return utility::const_storage_data<this_type>(utility::const_storage_iterator<this_type>(*this, allocator().template address<Is>(storage(), capacity)...));
-			}
 		};
-	}
-
-	template <typename StorageImpl, int = StorageImpl::value_types::size>
-	class basic_storage
-		: public StorageImpl
-	{
-	public:
-		template <std::size_t I>
-		using value_type_at = typename StorageImpl::template value_type_at<I>;
-		template <typename T>
-		using storing_type_for = typename StorageImpl::template storing_type_for<T>;
-
-		using value_type = typename StorageImpl::iterator::value_type;
-		using reference = typename StorageImpl::iterator::reference;
-		using const_reference = typename StorageImpl::const_iterator::reference;
-		using rvalue_reference = typename StorageImpl::iterator::rvalue_reference;
-
-		using value_types = typename StorageImpl::value_types;
-		using storing_types = mpl::transform<storing_type_for, value_types>;
-
-		using storing_trivially_copyable = mpl::apply<mpl::conjunction,
-		                                              mpl::transform<std::is_trivially_copyable,
-		                                                             storing_types>>;
-		using storing_trivially_destructible = mpl::apply<mpl::conjunction,
-		                                                  mpl::transform<std::is_trivially_destructible,
-		                                                                 storing_types>>;
-		using storing_trivially_default_constructible =
-			mpl::apply<mpl::conjunction,
-			           mpl::transform<std::is_trivially_default_constructible,
-			                          storing_types>>;
-	};
-
-	template <template <typename> class Allocator, typename ...Ts>
-	using dynamic_storage = basic_storage<detail::dynamic_storage_impl<Allocator, Ts...>>;
-	template <std::size_t Capacity, typename ...Ts>
-	using static_storage = basic_storage<detail::static_storage_impl<Capacity, Ts...>>;
 
 	template <typename ...Ts>
 	using heap_storage = dynamic_storage<utility::heap_allocator, Ts...>;
@@ -1026,16 +751,19 @@ namespace utility
 	{
 		template <typename T>
 		using allocator_type = Allocator<T>;
-		template <typename ...Us>
-		using storage_type = dynamic_storage<Allocator, Us...>;
+		using type_list = mpl::type_list<Ts...>; // todo remove, and implement storage_element instead
 
 		template <typename ...Us>
-		using append = dynamic_storage<Allocator, Ts..., Us...>;
+		using storage_type = dynamic_storage<Allocator, Us...>;
+		template <typename ...Us>
+		using append = dynamic_storage<Allocator, Ts..., Us...>; // todo remove
 
 		using static_capacity = mpl::false_type;
 		using trivial_allocate = mpl::false_type;
 		using trivial_deallocate = mpl::false_type;
 		using moves_allocation = mpl::true_type;
+
+		static constexpr std::size_t size = sizeof...(Ts); // todo remove
 
 		static std::size_t grow(std::size_t capacity, std::size_t amount)
 		{
@@ -1053,17 +781,19 @@ namespace utility
 	{
 		template <typename T>
 		using allocator_type = utility::null_allocator<T>;
-		template <typename ...Us>
-		using storage_type = static_storage<Capacity, Us...>;
+		using type_list = mpl::type_list<Ts...>; // todo remove, and implement storage_element instead
 
 		template <typename ...Us>
-		using append = static_storage<Capacity, Ts..., Us...>;
+		using storage_type = static_storage<Capacity, Us...>;
+		template <typename ...Us>
+		using append = static_storage<Capacity, Ts..., Us...>; // todo remove
 
 		using static_capacity = mpl::true_type;
 		using trivial_allocate = mpl::true_type;
 		using trivial_deallocate = mpl::true_type;
 		using moves_allocation = mpl::false_type;
 
+		static constexpr std::size_t size = sizeof...(Ts); // todo remove
 		static constexpr std::size_t capacity_value = Capacity;
 
 		static constexpr std::size_t grow(std::size_t /*capacity*/, std::size_t /*amount*/)
@@ -1076,6 +806,9 @@ namespace utility
 			return capacity_value;
 		}
 	};
+
+	template <typename Storage>
+	using storage_size = mpl::index_constant<storage_traits<Storage>::size>;
 
 	template <std::size_t Capacity>
 	using static_storage_traits = storage_traits<static_storage<Capacity, int>>; // todo remove int?

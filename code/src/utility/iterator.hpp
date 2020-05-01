@@ -333,7 +333,10 @@ namespace utility
 
 	public:
 		using difference_type = typename std::iterator_traits<mpl::car<Its...>>::difference_type;
+		using value_type = utility::compound<typename std::iterator_traits<Its>::value_type...>;
+		using pointer = void; // ?
 		using reference = utility::compound<typename std::iterator_traits<Its>::reference...>;
+		using iterator_category = std::random_access_iterator_tag; // ?
 
 	public:
 		using base_type::base_type;
