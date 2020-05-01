@@ -548,7 +548,7 @@ namespace utility
 		explicit basic_string(std::size_t size)
 			: data_(size + 1)
 		{
-			data_.array_.chars().construct_fill(0, size + 1, '\0');
+			data_.array_.chars().construct_fill(0, size + 1, utility::zero_initialize);
 			data_.array_.set_size(size + 1);
 		}
 		template <typename Character>
@@ -712,7 +712,7 @@ namespace utility
 				construct_from = size;
 				data_.array_.chars().destruct_range(size, data_.array_.size());
 			}
-			data_.array_.chars().construct_fill(construct_from, size + 1, '\0');
+			data_.array_.chars().construct_fill(construct_from, size + 1, utility::zero_initialize);
 			data_.array_.set_size(size + 1);
 
 			return true;
