@@ -163,8 +163,40 @@ namespace core
 				}
 			};
 
+			struct reallocate_rehash
+			{
+				template <typename Data>
+				bool operator () (Data & new_data, Data & old_data)
+				{
+					const auto new_size = new_data.capacity();
+					new_data.set_size(new_size); //
+					auto new_slots = new_data.section(mpl::index_constant<0>{});
+					auto new_keys = new_data.section(mpl::index_constant<1>{});
+					new_slots.memset_fill(0, new_size, ext::byte{});
+					new_keys.memset_fill(0, new_size, ext::byte{});
+					// new_data.storage().memset_fill(0, new_size, ext::byte{});
+
+					const auto old_size = old_data.capacity();
+					auto old_slots = old_data.section(mpl::index_constant<0>{});
+					auto old_keys = old_data.section(mpl::index_constant<1>{});
+					for (auto i : ranges::index_sequence(old_size))
+					{
+						if (old_keys[i] == Key{})
+							continue; // empty
+
+						const auto new_bucket = find_empty_bucket(old_keys[i], new_keys.data(), new_size);
+						if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
+							return false; // todo try with bigger allocation?
+
+						new_slots[new_bucket] = old_slots[i];
+						new_keys[new_bucket] = old_keys[i];
+					}
+					return true;
+				}
+			};
+
 		private:
-			utility::array_nonempty<typename LookupStorageTraits::template storage_type<slot_t, Key>> lookup_;
+			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, reallocate_rehash> lookup_;
 			// todo keys before slots?
 			std::tuple<detail::bucket_array_t<ComponentStorages>...> arrays_;
 
@@ -398,36 +430,7 @@ namespace core
 					if (bucket != bucket_t(-1))
 						return bucket;
 
-					bool fatal_error = true;
-					if (!debug_verify(
-						    lookup_.try_reallocate_with(
-							    lookup_.capacity() * 2, // todo capacity_for? grow?
-							    [&fatal_error](auto & new_data, auto & old_data)
-							    {
-								    const auto new_size = new_data.capacity();
-								    new_data.set_size(new_size);
-								    auto new_slots = new_data.section(mpl::index_constant<0>{});
-								    auto new_keys = new_data.section(mpl::index_constant<1>{});
-								    new_slots.memset_fill(0, new_size, ext::byte{});
-								    new_keys.memset_fill(0, new_size, ext::byte{});
-
-								    const auto old_size = old_data.capacity();
-								    auto old_slots = old_data.section(mpl::index_constant<0>{});
-								    auto old_keys = old_data.section(mpl::index_constant<1>{});
-								    for (auto i : ranges::index_sequence(old_size))
-								    {
-									    if (old_keys[i] == Key{})
-										    continue; // empty
-
-									    const auto new_bucket = find_empty_bucket(old_keys[i], new_keys.data(), new_size);
-									    if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
-										    return fatal_error = false;
-
-									    new_slots[new_bucket] = old_slots[i];
-									    new_keys[new_bucket] = old_keys[i];
-								    }
-								    return true;
-							    })) && fatal_error)
+					if (!debug_verify(lookup_.try_reserve(lookup_.capacity() + 1)))
 						return bucket_t(-1);
 				}
 			}
@@ -989,8 +992,40 @@ namespace core
 				}
 			};
 
+			struct reallocate_rehash
+			{
+				template <typename Data>
+				bool operator () (Data & new_data, Data & old_data)
+				{
+					const auto new_size = new_data.capacity();
+					new_data.set_size(new_size); //
+					auto new_slots = new_data.section(mpl::index_constant<0>{});
+					auto new_keys = new_data.section(mpl::index_constant<1>{});
+					new_slots.memset_fill(0, new_size, ext::byte{});
+					new_keys.memset_fill(0, new_size, ext::byte{});
+					// new_data.storage().memset_fill(0, new_size, ext::byte{});
+
+					const auto old_size = old_data.capacity();
+					auto old_slots = old_data.section(mpl::index_constant<0>{});
+					auto old_keys = old_data.section(mpl::index_constant<1>{});
+					for (auto i : ranges::index_sequence(old_size))
+					{
+						if (old_keys[i] == Key{})
+							continue; // empty
+
+						const auto new_bucket = find_empty_bucket(old_keys[i], new_keys.data(), new_size);
+						if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
+							return false; // todo try with bigger allocation?
+
+						new_slots[new_bucket] = old_slots[i];
+						new_keys[new_bucket] = old_keys[i];
+					}
+					return true;
+				}
+			};
+
 		private:
-			utility::array_nonempty<typename LookupStorageTraits::template storage_type<slot_t, Key>> lookup_;
+			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, reallocate_rehash> lookup_;
 			std::tuple<utility::fragmentation<ComponentStorages>...> arrays_;
 
 			decltype(auto) slots() { return lookup_.section(mpl::index_constant<0>{}); }
@@ -1198,36 +1233,7 @@ namespace core
 					if (bucket != bucket_t(-1))
 						return bucket;
 
-					bool fatal_error = true;
-					if (!debug_verify(
-						    lookup_.try_reallocate_with(
-							    lookup_.capacity() * 2, // todo capacity_for? grow?
-							    [&fatal_error](auto & new_data, auto & old_data)
-							    {
-								    const auto new_size = new_data.capacity();
-								    new_data.set_size(new_size);
-								    auto new_slots = new_data.storage_.section(mpl::index_constant<0>{}, new_size);
-								    auto new_keys = new_data.storage_.section(mpl::index_constant<1>{}, new_size);
-								    new_slots.memset_fill(0, new_size, ext::byte{});
-								    new_keys.memset_fill(0, new_size, ext::byte{});
-
-								    const auto old_size = old_data.capacity();
-								    auto old_slots = old_data.storage_.section(mpl::index_constant<0>{}, old_size);
-								    auto old_keys = old_data.storage_.section(mpl::index_constant<1>{}, old_size);
-								    for (auto i : ranges::index_sequence(old_size))
-								    {
-									    if (old_keys[i] == Key{})
-										    continue; // empty
-
-									    const auto new_bucket = find_empty_bucket(old_keys[i], new_keys.data(), new_size);
-									    if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
-										    return fatal_error = false;
-
-									    new_slots[new_bucket] = old_slots[i];
-									    new_keys[new_bucket] = old_keys[i];
-								    }
-								    return true;
-							    })) && fatal_error)
+					if (!debug_verify(lookup_.try_reserve(lookup_.capacity() + 1)))
 						return bucket_t(-1);
 				}
 			}
