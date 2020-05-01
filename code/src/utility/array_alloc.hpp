@@ -16,6 +16,7 @@ namespace utility
 		{
 			data.set_capacity(0);
 			data.set_size(0);
+			data.initialize_empty();
 		}
 	};
 
@@ -29,12 +30,13 @@ namespace utility
 			{
 				data.set_capacity(capacity);
 				data.set_size(capacity);
-				data.storage_.sections(capacity).construct_fill(0, capacity, utility::zero_initialize);
+				data.initialize_fill(utility::zero_initialize);
 			}
 			else
 			{
 				data.set_capacity(0);
 				data.set_size(0);
+				data.initialize_empty();
 			}
 		}
 	};
@@ -157,6 +159,8 @@ namespace utility
 	struct array_data
 		: detail::array_data_impl<Storage>
 	{
+		friend InitializationStrategy;
+
 		using storage_traits = utility::storage_traits<Storage>;
 
 		// todo remove these
@@ -187,6 +191,12 @@ namespace utility
 			InitializationStrategy{}(*this);
 		}
 
+		template <typename ...Ps>
+		void initialize_fill(Ps && ...ps)
+		{
+			this->storage_.sections(this->capacity()).construct_fill(0, this->capacity(), std::forward<Ps>(ps)...);
+		}
+
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
 			this->storage_.sections(this->capacity()).construct_range(index, other.storage_.sections(other.capacity()).data() + from, other.storage_.sections(other.capacity()).data() + to);
@@ -209,12 +219,19 @@ namespace utility
 		}
 
 		constexpr std::size_t size() const { return this->capacity(); }
+
+	private:
+		void initialize_empty()
+		{
+		}
 	};
 
 	template <typename Storage, typename InitializationStrategy>
 	struct vector_data
 		: detail::vector_data_impl<Storage>
 	{
+		friend InitializationStrategy;
+
 		using storage_traits = utility::storage_traits<Storage>;
 
 		// todo remove these
@@ -259,6 +276,11 @@ namespace utility
 		}
 
 		std::size_t size() const { return this->size_; }
+
+	private:
+		void initialize_empty()
+		{
+		}
 	};
 
 	namespace detail
