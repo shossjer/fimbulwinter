@@ -426,320 +426,320 @@ namespace utility
 		const_pointer data() const { return to_address(it_); }
 	};
 
-		template <std::size_t Capacity, typename ...Ts>
-		class static_storage
+	template <std::size_t Capacity, typename ...Ts>
+	class static_storage
+	{
+		using this_type = static_storage<Capacity, Ts...>;
+
+	public:
+		using value_type = utility::compound_type<Ts...>;
+		using allocator_type = utility::null_allocator<char>;
+		using size_type = std::size_t; // todo size_for<Capacity>?
+		using difference_type = std::ptrdiff_t;
+		using reference = utility::compound_type<Ts &...>;
+		using const_reference = utility::compound_type<const Ts &...>;
+		using rvalue_reference = utility::compound_type<Ts &&...>;
+		using pointer = utility::zip_type<utility::zip_iterator, Ts *...>;
+		using const_pointer = utility::zip_type<utility::zip_iterator, const Ts *...>;
+
+		template <std::size_t I>
+		using value_type_at = mpl::type_at<I, Ts...>; // todo remove
+		template <typename Storing>
+		using value_type_for = typename Storing::value_type;
+		template <typename T>
+		using storing_type_for = utility::storing<T>;
+
+		using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<utility::storing<Ts>>...>;
+
+		using storing_trivially_copyable =
+			mpl::apply<mpl::conjunction,
+			           mpl::transform<std::is_trivially_copyable,
+			                          utility::storing<Ts>...>>;
+		using storing_trivially_destructible =
+			mpl::apply<mpl::conjunction,
+			           mpl::transform<std::is_trivially_destructible,
+			                          utility::storing<Ts>...>>;
+		using storing_trivially_default_constructible =
+			mpl::apply<mpl::conjunction,
+			           mpl::transform<std::is_trivially_default_constructible,
+			                          utility::storing<Ts>...>>;
+
+	private:
+		utility::tuple<std::array<storing_type_for<Ts>, Capacity>...> arrays;
+
+	public:
+		bool allocate(std::size_t capacity)
 		{
-			using this_type = static_storage<Capacity, Ts...>;
+			return capacity == Capacity;
+		}
 
-		public:
-			using value_type = utility::compound_type<Ts...>;
-			using allocator_type = utility::null_allocator<char>;
-			using size_type = std::size_t; // todo size_for<Capacity>?
-			using difference_type = std::ptrdiff_t;
-			using reference = utility::compound_type<Ts &...>;
-			using const_reference = utility::compound_type<const Ts &...>;
-			using rvalue_reference = utility::compound_type<Ts &&...>;
-			using pointer = utility::zip_type<utility::zip_iterator, Ts *...>;
-			using const_pointer = utility::zip_type<utility::zip_iterator, const Ts *...>;
-
-			template <std::size_t I>
-			using value_type_at = mpl::type_at<I, Ts...>; // todo remove
-			template <typename Storing>
-			using value_type_for = typename Storing::value_type;
-			template <typename T>
-			using storing_type_for = utility::storing<T>;
-
-			using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<utility::storing<Ts>>...>;
-
-			using storing_trivially_copyable =
-				mpl::apply<mpl::conjunction,
-				           mpl::transform<std::is_trivially_copyable,
-				                          utility::storing<Ts>...>>;
-			using storing_trivially_destructible =
-				mpl::apply<mpl::conjunction,
-				           mpl::transform<std::is_trivially_destructible,
-				                          utility::storing<Ts>...>>;
-			using storing_trivially_default_constructible =
-				mpl::apply<mpl::conjunction,
-				           mpl::transform<std::is_trivially_default_constructible,
-				                          utility::storing<Ts>...>>;
-
-		private:
-			utility::tuple<std::array<storing_type_for<Ts>, Capacity>...> arrays;
-
-		public:
-			bool allocate(std::size_t capacity)
-			{
-				return capacity == Capacity;
-			}
-
-			void deallocate(std::size_t capacity)
-			{
-				assert(capacity == Capacity);
-				static_cast<void>(capacity);
-			}
-
-			constexpr std::size_t max_size() const { return Capacity; }
-
-			template <typename StoringType, typename ...Ps>
-			typename StoringType::value_type & construct_at(StoringType * data_, std::ptrdiff_t index, Ps && ...ps)
-			{
-				assert(std::size_t(index) < Capacity);
-				return data_[index].construct(std::forward<Ps>(ps)...);
-			}
-
-			template <typename StoringType>
-			void destruct_at(StoringType * data_, std::ptrdiff_t index)
-			{
-				assert(std::size_t(index) < Capacity);
-				data_[index].destruct();
-			}
-
-			template <typename StoringType>
-			typename StoringType::value_type * data(StoringType * data_)
-			{
-				return &data_->value;
-			}
-			template <typename StoringType>
-			const typename StoringType::value_type * data(const StoringType * data_) const
-			{
-				return &data_->value;
-			}
-
-			template <typename StoringType>
-			std::ptrdiff_t index_of(const StoringType * data_, const typename StoringType::value_type & x) const
-			{
-				// x is pointer interconvertible with storing_t, since
-				// storing_t is a union containing a value_type member
-				return reinterpret_cast<const StoringType *>(std::addressof(x)) - data_;
-			}
-
-			template <typename StoringType>
-			typename StoringType::value_type & value_at(StoringType * p)
-			{
-				return p->value;
-			}
-			template <typename StoringType>
-			const typename StoringType::value_type & value_at(const StoringType * p) const
-			{
-				return p->value;
-			}
-
-			template <std::size_t ...Is>
-			auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>)
-			{
-				return utility::storage_data<this_type, Is...>(*this, get<Is>(arrays).data()...);
-			}
-
-			template <std::size_t ...Is>
-			auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>) const
-			{
-				return utility::const_storage_data<this_type, Is...>(*this, get<Is>(arrays).data()...);
-			}
-
-			auto sections(std::size_t capacity)
-			{
-				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
-			}
-
-			auto sections(std::size_t capacity) const
-			{
-				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
-			}
-		};
-
-		template <template <typename> class Allocator, typename ...Ts>
-		class dynamic_storage
+		void deallocate(std::size_t capacity)
 		{
-			using this_type = dynamic_storage<Allocator, Ts...>;
+			assert(capacity == Capacity);
+			static_cast<void>(capacity);
+		}
 
-		public:
-			using value_type = utility::compound_type<Ts...>;
-			using allocator_type = utility::aggregation_allocator<Allocator, void, Ts...>;
-			using size_type = std::size_t;
-			using difference_type = std::ptrdiff_t;
-			using reference = utility::compound_type<Ts &...>;
-			using const_reference = utility::compound_type<const Ts &...>;
-			using rvalue_reference = utility::compound_type<Ts &&...>;
-			using pointer = utility::zip_type<utility::zip_iterator, Ts *...>;
-			using const_pointer = utility::zip_type<utility::zip_iterator, const Ts *...>;
+		constexpr std::size_t max_size() const { return Capacity; }
 
-			template <std::size_t I>
-			using value_type_at = mpl::type_at<I, Ts...>; // todo remove
-			template <typename Storing>
-			using value_type_for = Storing;
-			template <typename T>
-			using storing_type_for = T;
+		template <typename StoringType, typename ...Ps>
+		typename StoringType::value_type & construct_at(StoringType * data_, std::ptrdiff_t index, Ps && ...ps)
+		{
+			assert(std::size_t(index) < Capacity);
+			return data_[index].construct(std::forward<Ps>(ps)...);
+		}
 
-			using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<Ts>...>;
+		template <typename StoringType>
+		void destruct_at(StoringType * data_, std::ptrdiff_t index)
+		{
+			assert(std::size_t(index) < Capacity);
+			data_[index].destruct();
+		}
 
-			using storing_trivially_copyable =
-				mpl::apply<mpl::conjunction,
-				           mpl::transform<std::is_trivially_copyable,
-				                          Ts...>>;
-			using storing_trivially_destructible =
-				mpl::apply<mpl::conjunction,
-				           mpl::transform<std::is_trivially_destructible,
-				                          Ts...>>;
-			using storing_trivially_default_constructible =
-				mpl::apply<mpl::conjunction,
-				           mpl::transform<std::is_trivially_default_constructible,
-				                          Ts...>>;
+		template <typename StoringType>
+		typename StoringType::value_type * data(StoringType * data_)
+		{
+			return &data_->value;
+		}
+		template <typename StoringType>
+		const typename StoringType::value_type * data(const StoringType * data_) const
+		{
+			return &data_->value;
+		}
 
-		private:
-			using allocator_traits = std::allocator_traits<allocator_type>;
+		template <typename StoringType>
+		std::ptrdiff_t index_of(const StoringType * data_, const typename StoringType::value_type & x) const
+		{
+			// x is pointer interconvertible with storing_t, since
+			// storing_t is a union containing a value_type member
+			return reinterpret_cast<const StoringType *>(std::addressof(x)) - data_;
+		}
 
-		private:
-			struct empty_allocator_hack : allocator_type
-			{
+		template <typename StoringType>
+		typename StoringType::value_type & value_at(StoringType * p)
+		{
+			return p->value;
+		}
+		template <typename StoringType>
+		const typename StoringType::value_type & value_at(const StoringType * p) const
+		{
+			return p->value;
+		}
+
+		template <std::size_t ...Is>
+		auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>)
+		{
+			return utility::storage_data<this_type, Is...>(*this, get<Is>(arrays).data()...);
+		}
+
+		template <std::size_t ...Is>
+		auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>) const
+		{
+			return utility::const_storage_data<this_type, Is...>(*this, get<Is>(arrays).data()...);
+		}
+
+		auto sections(std::size_t capacity)
+		{
+			return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
+		}
+
+		auto sections(std::size_t capacity) const
+		{
+			return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
+		}
+	};
+
+	template <template <typename> class Allocator, typename ...Ts>
+	class dynamic_storage
+	{
+		using this_type = dynamic_storage<Allocator, Ts...>;
+
+	public:
+		using value_type = utility::compound_type<Ts...>;
+		using allocator_type = utility::aggregation_allocator<Allocator, void, Ts...>;
+		using size_type = std::size_t;
+		using difference_type = std::ptrdiff_t;
+		using reference = utility::compound_type<Ts &...>;
+		using const_reference = utility::compound_type<const Ts &...>;
+		using rvalue_reference = utility::compound_type<Ts &&...>;
+		using pointer = utility::zip_type<utility::zip_iterator, Ts *...>;
+		using const_pointer = utility::zip_type<utility::zip_iterator, const Ts *...>;
+
+		template <std::size_t I>
+		using value_type_at = mpl::type_at<I, Ts...>; // todo remove
+		template <typename Storing>
+		using value_type_for = Storing;
+		template <typename T>
+		using storing_type_for = T;
+
+		using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<Ts>...>;
+
+		using storing_trivially_copyable =
+			mpl::apply<mpl::conjunction,
+			           mpl::transform<std::is_trivially_copyable,
+			                          Ts...>>;
+		using storing_trivially_destructible =
+			mpl::apply<mpl::conjunction,
+			           mpl::transform<std::is_trivially_destructible,
+			                          Ts...>>;
+		using storing_trivially_default_constructible =
+			mpl::apply<mpl::conjunction,
+			           mpl::transform<std::is_trivially_default_constructible,
+			                          Ts...>>;
+
+	private:
+		using allocator_traits = std::allocator_traits<allocator_type>;
+
+	private:
+		struct empty_allocator_hack : allocator_type
+		{
 #if MODE_DEBUG
-				void * storage_ = nullptr;
+			void * storage_ = nullptr;
 
-				~empty_allocator_hack()
-				{
-					assert(!storage_);
-				}
-				empty_allocator_hack() = default;
-				empty_allocator_hack(empty_allocator_hack && other)
-					: storage_(std::exchange(other.storage_, nullptr))
-				{}
-				empty_allocator_hack & operator = (empty_allocator_hack && other)
-				{
-					assert(!storage_);
+			~empty_allocator_hack()
+			{
+				assert(!storage_);
+			}
+			empty_allocator_hack() = default;
+			empty_allocator_hack(empty_allocator_hack && other)
+				: storage_(std::exchange(other.storage_, nullptr))
+			{}
+			empty_allocator_hack & operator = (empty_allocator_hack && other)
+			{
+				assert(!storage_);
 
-					storage_ = std::exchange(other.storage_, nullptr);
+				storage_ = std::exchange(other.storage_, nullptr);
 
-					return *this;
-				}
+				return *this;
+			}
 #else
-				void * storage_;
+			void * storage_;
 
-				empty_allocator_hack() = default;
-				empty_allocator_hack(empty_allocator_hack && other) = default;
-				empty_allocator_hack & operator = (empty_allocator_hack && other) = default;
+			empty_allocator_hack() = default;
+			empty_allocator_hack(empty_allocator_hack && other) = default;
+			empty_allocator_hack & operator = (empty_allocator_hack && other) = default;
 #endif
-			} impl_;
+		} impl_;
 
-		public:
-			bool allocate(std::size_t capacity)
-			{
+	public:
+		bool allocate(std::size_t capacity)
+		{
 #if MODE_DEBUG
-				assert(!storage());
+			assert(!storage());
 #endif
-				storage() = allocator_traits::allocate(allocator(), capacity);
-				return storage() != nullptr;
-			}
+			storage() = allocator_traits::allocate(allocator(), capacity);
+			return storage() != nullptr;
+		}
 
-			void deallocate(std::size_t capacity)
-			{
+		void deallocate(std::size_t capacity)
+		{
 #if MODE_DEBUG
-				assert(storage());
+			assert(storage());
 #endif
-				allocator_traits::deallocate(allocator(), storage(), capacity);
+			allocator_traits::deallocate(allocator(), storage(), capacity);
 #if MODE_DEBUG
-				storage() = nullptr;
+			storage() = nullptr;
 #endif
-			}
+		}
 
-			template <typename T, typename ...Ps>
-			T & construct_at(T * data_, std::ptrdiff_t index, Ps && ...ps)
-			{
+		template <typename T, typename ...Ps>
+		T & construct_at(T * data_, std::ptrdiff_t index, Ps && ...ps)
+		{
 #if MODE_DEBUG
-				assert(storage());
+			assert(storage());
 #endif
-				allocator_traits::construct(allocator(), data_ + index, std::forward<Ps>(ps)...);
-				return data_[index];
-			}
+			allocator_traits::construct(allocator(), data_ + index, std::forward<Ps>(ps)...);
+			return data_[index];
+		}
 
-			template <typename T>
-			void destruct_at(T * data_, std::ptrdiff_t index)
-			{
+		template <typename T>
+		void destruct_at(T * data_, std::ptrdiff_t index)
+		{
 #if MODE_DEBUG
-				assert(storage());
+			assert(storage());
 #endif
-				allocator_traits::destroy(allocator(), data_ + index);
-			}
+			allocator_traits::destroy(allocator(), data_ + index);
+		}
 
-			template <typename T>
-			T * data(T * data_)
-			{
-				return data_;
-			}
-			template <typename T>
-			const T * data(const T * data_) const
-			{
-				return data_;
-			}
+		template <typename T>
+		T * data(T * data_)
+		{
+			return data_;
+		}
+		template <typename T>
+		const T * data(const T * data_) const
+		{
+			return data_;
+		}
 
-			template <typename T>
-			std::ptrdiff_t index_of(const T * data_, const T & x) const
-			{
+		template <typename T>
+		std::ptrdiff_t index_of(const T * data_, const T & x) const
+		{
 #if MODE_DEBUG
-				assert(storage());
+			assert(storage());
 #endif
-				return std::addressof(x) - data_;
-			}
+			return std::addressof(x) - data_;
+		}
 
-			template <typename T>
-			T & value_at(T * p)
-			{
+		template <typename T>
+		T & value_at(T * p)
+		{
 #if MODE_DEBUG
-				assert(storage());
+			assert(storage());
 #endif
-				return *p;
-			}
-			template <typename T>
-			const T & value_at(const T * p) const
-			{
+			return *p;
+		}
+		template <typename T>
+		const T & value_at(const T * p) const
+		{
 #if MODE_DEBUG
-				assert(storage());
+			assert(storage());
 #endif
-				return *p;
-			}
+			return *p;
+		}
 
-			template <std::size_t ...Is>
-			auto sections_for(std::size_t capacity, mpl::index_sequence<Is...>)
-			{
+		template <std::size_t ...Is>
+		auto sections_for(std::size_t capacity, mpl::index_sequence<Is...>)
+		{
 #if MODE_DEBUG
-				assert(storage() || capacity == 0);
+			assert(storage() || capacity == 0);
 #endif
-				// note there are times when we will call allocator
-				// address with a garbage storage, but maybe that is okay
-				// since with a capacity of zero we should never actually
-				// use the address?
-				return utility::storage_data<this_type, Is...>(*this, allocator().template address<Is>(storage(), capacity)...);
-			}
+			// note there are times when we will call allocator
+			// address with a garbage storage, but maybe that is okay
+			// since with a capacity of zero we should never actually
+			// use the address?
+			return utility::storage_data<this_type, Is...>(*this, allocator().template address<Is>(storage(), capacity)...);
+		}
 
-			template <std::size_t ...Is>
-			auto sections_for(std::size_t capacity, mpl::index_sequence<Is...>) const
-			{
+		template <std::size_t ...Is>
+		auto sections_for(std::size_t capacity, mpl::index_sequence<Is...>) const
+		{
 #if MODE_DEBUG
-				assert(storage() || capacity == 0);
+			assert(storage() || capacity == 0);
 #endif
-				// note there are times when we will call allocator
-				// address with a garbage storage, but maybe that is okay
-				// since with a capacity of zero we should never actually
-				// use the address?
-				return utility::const_storage_data<this_type, Is...>(*this, allocator().template address<Is>(storage(), capacity)...);
-			}
+			// note there are times when we will call allocator
+			// address with a garbage storage, but maybe that is okay
+			// since with a capacity of zero we should never actually
+			// use the address?
+			return utility::const_storage_data<this_type, Is...>(*this, allocator().template address<Is>(storage(), capacity)...);
+		}
 
-			auto sections(std::size_t capacity)
-			{
-				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
-			}
+		auto sections(std::size_t capacity)
+		{
+			return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
+		}
 
-			auto sections(std::size_t capacity) const
-			{
-				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
-			}
+		auto sections(std::size_t capacity) const
+		{
+			return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
+		}
 
-		private:
-			allocator_type & allocator() { return impl_; }
-			const allocator_type & allocator() const { return impl_; }
+	private:
+		allocator_type & allocator() { return impl_; }
+		const allocator_type & allocator() const { return impl_; }
 
-			void * & storage() { return impl_.storage_; }
-			const void * storage() const { return impl_.storage_; }
-		};
+		void * & storage() { return impl_.storage_; }
+		const void * storage() const { return impl_.storage_; }
+	};
 
 	template <typename ...Ts>
 	using heap_storage = dynamic_storage<utility::heap_allocator, Ts...>;
