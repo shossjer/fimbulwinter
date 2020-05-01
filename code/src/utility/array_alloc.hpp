@@ -50,63 +50,97 @@ namespace utility
 	namespace detail
 	{
 		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
-		struct array_data_impl
+		class array_data_impl
 		{
 			using storage_traits = utility::storage_traits<Storage>;
 
+		public:
 			using size_type = utility::size_type_for<storage_traits::capacity_value>;
 
+		protected:
 			Storage storage_;
 
+		protected:
 			array_data_impl() = default;
 			explicit array_data_impl(utility::null_place_t) {}
 
+		public:
+			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
+
+			constexpr std::size_t size() const { return storage_traits::capacity_value; }
+
+		// protected: //
 			void set_capacity(std::size_t capacity)
 			{
 				assert(capacity == 0 || capacity == storage_traits::capacity_value);
 				static_cast<void>(capacity);
 			}
 
-			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
+			void set_size(std::size_t size)
+			{
+				assert(size == 0 || size == this->capacity());
+				static_cast<void>(size);
+			}
 		};
 
 		template <typename Storage>
-		struct array_data_impl<Storage, false /*static capacity*/>
+		class array_data_impl<Storage, false /*static capacity*/>
 		{
+		public:
 			using size_type = std::size_t;
-			using storage_traits = utility::storage_traits<Storage>;
 
+		protected:
 			size_type capacity_;
 			Storage storage_;
 
+		protected:
 			array_data_impl()
 				: capacity_{}
 			{}
 			explicit array_data_impl(utility::null_place_t) {}
 
+		public:
+			std::size_t capacity() const { return capacity_; }
+
+			std::size_t size() const { return capacity_; }
+
+		// protected: //
 			void set_capacity(std::size_t capacity)
 			{
 				capacity_ = capacity;
 			}
 
-			std::size_t capacity() const { return capacity_; }
+			void set_size(std::size_t size)
+			{
+				assert(size == 0 || size == this->capacity());
+				static_cast<void>(size);
+			}
 		};
 
 		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
-		struct vector_data_impl
+		class vector_data_impl
 		{
 			using storage_traits = utility::storage_traits<Storage>;
 
+		public:
 			using size_type = utility::size_type_for<storage_traits::capacity_value>;
 
+		protected:
 			size_type size_;
 			Storage storage_;
 
+		protected:
 			vector_data_impl()
 				: size_{}
 			{}
 			explicit vector_data_impl(utility::null_place_t) {}
 
+		public:
+			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
+
+			std::size_t size() const { return size_; }
+
+		// protected: //
 			void set_capacity(std::size_t capacity)
 			{
 				assert(capacity == 0 || capacity == storage_traits::capacity_value);
@@ -119,26 +153,32 @@ namespace utility
 
 				size_ = static_cast<size_type>(size);
 			}
-
-			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
 		};
 
 		template <typename Storage>
-		struct vector_data_impl<Storage, false /*static capacity*/>
+		class vector_data_impl<Storage, false /*static capacity*/>
 		{
+		public:
 			using size_type = std::size_t;
-			using storage_traits = utility::storage_traits<Storage>;
 
+		protected:
 			size_type size_;
 			size_type capacity_;
 			Storage storage_;
 
+		protected:
 			vector_data_impl()
 				: size_{}
 				, capacity_{}
 			{}
 			explicit vector_data_impl(utility::null_place_t) {}
 
+		public:
+			std::size_t capacity() const { return capacity_; }
+
+			std::size_t size() const { return size_; }
+
+		// protected: // todo
 			void set_capacity(std::size_t capacity)
 			{
 				capacity_ = capacity;
@@ -150,17 +190,19 @@ namespace utility
 
 				size_ = size;
 			}
-
-			std::size_t capacity() const { return capacity_; }
 		};
 	}
 
 	template <typename Storage, typename InitializationStrategy>
-	struct array_data
-		: detail::array_data_impl<Storage>
+	class array_data
+		: public detail::array_data_impl<Storage>
 	{
+		using this_type = array_data<Storage, InitializationStrategy>;
+		using base_type = detail::array_data_impl<Storage>;
+
 		friend InitializationStrategy;
 
+	public:
 		using storage_traits = utility::storage_traits<Storage>;
 
 		// todo remove these
@@ -169,10 +211,15 @@ namespace utility
 			mpl::conjunction<typename storage_traits::static_capacity,
 			                 utility::storage_is_trivially_default_constructible<Storage>>;
 
-		using this_type = array_data<Storage, InitializationStrategy>;
-		using base_type = detail::array_data_impl<Storage>;
+	public: // todo weird to allow write access
+		template <std::size_t I>
+		auto section(mpl::index_constant<I>) { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<I>{}); }
+		template <std::size_t I>
+		auto section(mpl::index_constant<I>) const { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<I>{}); }
 
-		using size_type = typename base_type::size_type;
+	// protected: // todo
+		auto storage() { return this->storage_.sections(this->capacity()); }
+		auto storage() const { return this->storage_.sections(this->capacity()); }
 
 		using base_type::base_type;
 
@@ -191,12 +238,6 @@ namespace utility
 			InitializationStrategy{}(*this);
 		}
 
-		template <typename ...Ps>
-		void initialize_fill(Ps && ...ps)
-		{
-			this->storage_.sections(this->capacity()).construct_fill(0, this->capacity(), std::forward<Ps>(ps)...);
-		}
-
 		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
 		{
 			this->storage_.sections(this->capacity()).construct_range(index, other.storage_.sections(other.capacity()).data() + from, other.storage_.sections(other.capacity()).data() + to);
@@ -212,17 +253,15 @@ namespace utility
 			this->storage_.sections(this->capacity()).destruct_range(from, to);
 		}
 
-		void set_size(std::size_t size)
-		{
-			assert(size == 0 || size == this->capacity());
-			static_cast<void>(size);
-		}
-
-		constexpr std::size_t size() const { return this->capacity(); }
-
 	private:
 		void initialize_empty()
 		{
+		}
+
+		template <typename ...Ps>
+		void initialize_fill(Ps && ...ps)
+		{
+			storage().construct_fill(0, this->capacity(), std::forward<Ps>(ps)...);
 		}
 	};
 
@@ -230,16 +269,27 @@ namespace utility
 	struct vector_data
 		: detail::vector_data_impl<Storage>
 	{
+		using this_type = vector_data<Storage, InitializationStrategy>;
+		using base_type = detail::vector_data_impl<Storage>;
+
 		friend InitializationStrategy;
 
+	public:
 		using storage_traits = utility::storage_traits<Storage>;
 
 		// todo remove these
 		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
 		using is_trivially_default_constructible = mpl::false_type;
 
-		using this_type = vector_data<Storage, InitializationStrategy>;
-		using base_type = detail::vector_data_impl<Storage>;
+	public: // todo weird to allow write access
+		template <std::size_t I>
+		auto section(mpl::index_constant<I>) { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<I>{}); }
+		template <std::size_t I>
+		auto section(mpl::index_constant<I>) const { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<I>{}); }
+
+	// protected: // todo
+		auto storage() { return this->storage_.sections(this->capacity()); }
+		auto storage() const { return this->storage_.sections(this->capacity()); }
 
 		using base_type::base_type;
 
@@ -275,11 +325,15 @@ namespace utility
 			this->storage_.sections(this->capacity()).destruct_range(from, to);
 		}
 
-		std::size_t size() const { return this->size_; }
-
 	private:
 		void initialize_empty()
 		{
+		}
+
+		template <typename ...Ps>
+		void initialize_fill(Ps && ...ps)
+		{
+			storage().construct_fill(0, this->capacity(), std::forward<Ps>(ps)...);
 		}
 	};
 
