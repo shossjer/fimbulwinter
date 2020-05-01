@@ -2,8 +2,8 @@
 #ifndef UTILITY_ARRAY_ALLOC_HPP
 #define UTILITY_ARRAY_ALLOC_HPP
 
-#include "storage.hpp"
-#include "utility.hpp"
+#include "utility/storage.hpp"
+#include "utility/utility.hpp"
 
 #include <cassert>
 
