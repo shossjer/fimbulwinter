@@ -41,9 +41,9 @@ namespace
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
-		201,
-		std::array<Armature, 101>,
-		std::array<engine::animation::object, 101>
+		utility::static_storage_traits<201>,
+		utility::static_storage<101, Armature>,
+		utility::static_storage<101, engine::animation::object>
 	>
 	sources;
 
@@ -543,13 +543,11 @@ namespace engine
 				{
 					void operator () (MessageRegisterArmature && x)
 					{
-						debug_assert(!sources.contains(x.asset));
-						sources.emplace<Armature>(x.asset, std::move(x.data));
+						debug_verify(sources.try_emplace<Armature>(x.asset, std::move(x.data)));
 					}
 					void operator () (MessageRegisterObject && x)
 					{
-						debug_assert(!sources.contains(x.asset));
-						sources.emplace<engine::animation::object>(x.asset, std::move(x.data));
+						debug_verify(sources.try_emplace<engine::animation::object>(x.asset, std::move(x.data)));
 					}
 				};
 				visit(ProcessMessage{}, std::move(asset_message));
@@ -562,17 +560,19 @@ namespace engine
 				{
 					void operator () (MessageAddCharacter && x)
 					{
-						debug_assert(sources.contains<Armature>(x.data.armature));
-						const auto & armature = sources.get<Armature>(x.data.armature);
+						const Armature * armature = sources.try_get<Armature>(x.data.armature);
+						if (!debug_assert(armature))
+							return;
 
-						debug_verify(components.try_emplace<Character>(x.entity, x.entity, armature));
+						debug_verify(components.try_emplace<Character>(x.entity, x.entity, *armature));
 					}
 					void operator () (MessageAddModel && x)
 					{
-						debug_assert(sources.contains<engine::animation::object>(x.data.object));
-						const auto & object = sources.get<engine::animation::object>(x.data.object);
+						const engine::animation::object * object = sources.try_get<engine::animation::object>(x.data.object);
+						if (!debug_assert(object))
+							return;
 
-						debug_verify(components.try_emplace<Model>(x.entity, x.entity, object));
+						debug_verify(components.try_emplace<Model>(x.entity, x.entity, *object));
 					}
 					void operator () (MessageUpdateAction && x)
 					{

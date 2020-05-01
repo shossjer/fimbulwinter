@@ -97,12 +97,12 @@ namespace
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
-		83,
-		std::array<DynamicFrame, 10>,
-		std::array<FixedFrame, 10>,
-		std::array<Root, 1>,
-		std::array<HorizontalSplit, 10>,
-		std::array<VerticalSplit, 10>
+		utility::static_storage_traits<83>,
+		utility::static_storage<10, DynamicFrame>,
+		utility::static_storage<10, FixedFrame>,
+		utility::static_storage<1, Root>,
+		utility::static_storage<10, HorizontalSplit>,
+		utility::static_storage<10, VerticalSplit>
 	>
 	nodes;
 
@@ -235,9 +235,9 @@ namespace
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
-		41,
-		std::array<Orthographic, 10>,
-		std::array<Perspective, 10>
+		utility::static_storage_traits<41>,
+		utility::static_storage<10, Orthographic>,
+		utility::static_storage<10, Perspective>
 	>
 	projections;
 
@@ -582,7 +582,7 @@ namespace engine
 	{
 		viewer::~viewer()
 		{
-			nodes.remove(engine::Asset("root"));
+			debug_verify(nodes.try_remove(engine::Asset("root")));
 
 			engine::Asset projections_not_unregistered[projections.max_size()];
 			const int projection_count = projections.get_all_keys(projections_not_unregistered, projections.max_size());
@@ -607,7 +607,7 @@ namespace engine
 		{
 			::renderer = &renderer;
 
-			nodes.emplace<Root>(engine::Asset("root"), engine::Asset::null());
+			debug_verify(nodes.try_emplace<Root>(engine::Asset("root"), engine::Asset::null()));
 		}
 
 		void update(viewer &)
@@ -641,33 +641,33 @@ namespace engine
 					{
 						debug_assert(nodes.contains(data.data.parent));
 						nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
-						nodes.emplace<DynamicFrame>(data.asset, std::move(data.data));
+						debug_verify(nodes.try_emplace<DynamicFrame>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddFrameFixed && data)
 					{
 						debug_assert(nodes.contains(data.data.parent));
 						nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
-						nodes.emplace<FixedFrame>(data.asset, std::move(data.data));
+						debug_verify(nodes.try_emplace<FixedFrame>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddProjectionOrthographic && data)
 					{
-						projections.emplace<Orthographic>(data.asset, std::move(data.data));
+						debug_verify(projections.try_emplace<Orthographic>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddProjectionPerspective && data)
 					{
-						projections.replace<Perspective>(data.asset, std::move(data.data));
+						debug_verify(projections.try_replace<Perspective>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddSplitHorizontal && data)
 					{
 						debug_assert(nodes.contains(data.data.parent));
 						nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
-						nodes.emplace<HorizontalSplit>(data.asset, std::move(data.data));
+						debug_verify(nodes.try_emplace<HorizontalSplit>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddSplitVertical && data)
 					{
 						debug_assert(nodes.contains(data.data.parent));
 						nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
-						nodes.emplace<VerticalSplit>(data.asset, std::move(data.data));
+						debug_verify(nodes.try_emplace<VerticalSplit>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageBind && data)
 					{
@@ -680,15 +680,15 @@ namespace engine
 					}
 					void operator () (MessageRemoveFrame && data)
 					{
-						nodes.remove(data.asset);
+						debug_verify(nodes.try_remove(data.asset));
 					}
 					void operator () (MessageRemoveProjection && data)
 					{
-						projections.remove(data.asset);
+						debug_verify(projections.try_remove(data.asset));
 					}
 					void operator () (MessageRemoveSplit && data)
 					{
-						nodes.remove(data.asset);
+						debug_verify(nodes.try_remove(data.asset));
 					}
 					void operator () (MessageUnbind && data)
 					{
