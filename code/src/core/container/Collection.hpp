@@ -56,66 +56,6 @@ namespace core
 #if defined(_MSC_VER)
 # pragma warning( pop )
 #endif
-
-			using bucket_t = uint32_t;
-
-			template <typename ComponentStorage>
-			class bucket_array_t
-			{
-			private:
-				utility::vector<typename utility::storage_traits<ComponentStorage>::template append<bucket_t>> data_;
-
-			public:
-				auto begin() { return components().data(); }
-				auto begin() const { return components().data(); }
-				auto end() { return components().data() + data_.size(); }
-				auto end() const { return components().data() + data_.size(); }
-
-				auto & get(std::ptrdiff_t index) { return components()[index]; }
-				auto & get(std::ptrdiff_t index) const { return components()[index]; }
-
-				bucket_t bucket_at(std::ptrdiff_t index) const { return buckets()[index]; }
-
-				constexpr std::size_t capacity() const { return data_.capacity(); }
-				std::size_t size() const { return data_.size(); }
-
-				void clear()
-				{
-					data_.destruct_range(0, data_.size());
-					data_.set_size(0);
-				}
-
-				template <typename ...Ps>
-				bool try_emplace_back(bucket_t bucket, Ps && ...ps)
-				{
-					if (!data_.try_grow())
-						return false;
-
-					components().construct_at(data_.size(), std::forward<Ps>(ps)...);
-					buckets().construct_at(data_.size(), bucket);
-					data_.set_size(data_.size() + 1);
-
-					return true;
-				}
-
-				void remove_at(std::ptrdiff_t index)
-				{
-					debug_assert(std::size_t(index) < data_.size());
-
-					const auto last = data_.size() - 1;
-
-					components()[index] = std::move(components()[last]);
-					buckets()[index] = std::move(buckets()[last]);
-					data_.destruct_range(last, data_.size());
-					data_.set_size(last);
-				}
-			private:
-				decltype(auto) components() { return data_.section(mpl::index_constant<0>{}); }
-				decltype(auto) components() const { return data_.section(mpl::index_constant<0>{}); }
-
-				decltype(auto) buckets() { return data_.section(mpl::index_constant<1>{}); }
-				decltype(auto) buckets() const { return data_.section(mpl::index_constant<1>{}); }
-			};
 		}
 
 		/**
@@ -132,7 +72,7 @@ namespace core
 			using component_types = mpl::type_list<typename ComponentStorages::template value_type_at<0>...>;
 
 		private:
-			using bucket_t = detail::bucket_t;
+			using bucket_t = uint32_t;
 			using uint24_t = uint32_t;
 
 		private:
@@ -198,7 +138,7 @@ namespace core
 		private:
 			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, reallocate_rehash> lookup_;
 			// todo keys before slots?
-			std::tuple<detail::bucket_array_t<ComponentStorages>...> arrays_;
+			std::tuple<utility::vector<typename utility::storage_traits<ComponentStorages>::template append<bucket_t>>...> arrays_;
 
 			decltype(auto) slots() { return lookup_.section(mpl::index_constant<0>{}); }
 			decltype(auto) slots() const { return lookup_.section(mpl::index_constant<0>{}); }
@@ -236,15 +176,17 @@ namespace core
 			}
 
 			template <typename C>
-			decltype(auto) get()
+			utility::span<C> get()
 			{
-				return std::get<mpl::index_of<C, component_types>::value>(arrays_);
+				auto & array = std::get<mpl::index_of<C, component_types>::value>(arrays_);
+				return {array.data().first, array.size()};
 			}
 
 			template <typename C>
-			decltype(auto) get() const
+			utility::span<const C> get() const
 			{
-				return std::get<mpl::index_of<C, component_types>::value>(arrays_);
+				const auto & array = std::get<mpl::index_of<C, component_types>::value>(arrays_);
+				return {array.data().first, array.size()};
 			}
 
 			template <typename C, typename K>
@@ -260,7 +202,7 @@ namespace core
 					return nullptr;
 
 				const auto index = slots()[bucket].get_index();
-				return &std::get<type>(arrays_).get(index);
+				return &std::get<type>(arrays_)[index].first;
 			}
 
 			template <typename C, typename K>
@@ -276,7 +218,7 @@ namespace core
 					return nullptr;
 
 				const auto index = slots()[bucket].get_index();
-				return &std::get<type>(arrays_).get(index);
+				return &std::get<type>(arrays_)[index].first;
 			}
 
 			template <typename C>
@@ -285,15 +227,26 @@ namespace core
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
 				const auto & array = std::get<type>(arrays_);
-				debug_assert(&component >= array.begin());
-				debug_assert(&component < array.end());
+				const auto index = &component - array.data().first;
+				if (!debug_assert(index < array.size()))
+					return Key{};
 
-				return keys()[array.bucket_at(std::distance(array.begin(), &component))];
+				return keys()[array[index].second];
 			}
 
 			void clear()
 			{
-				clear_all_impl(mpl::make_index_sequence<component_types::size>{});
+				utl::for_each(
+					arrays_,
+					[this](auto & array)
+					{
+						// todo benchmark which is faster: this or memset all keys
+						for (auto i : ranges::index_sequence_for(array))
+						{
+							keys()[array[i].second] = Key{};
+						}
+						array.clear();
+					});
 			}
 
 			template <typename Component, typename ...Ps>
@@ -310,13 +263,13 @@ namespace core
 				auto & array = std::get<type>(arrays_);
 				const auto index = array.size();
 
-				if (!array.try_emplace_back(bucket, std::forward<Ps>(ps)...))
+				if (!array.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(std::forward<Ps>(ps)...), std::forward_as_tuple(bucket)))
 					return nullptr;
 
 				slots()[bucket].set(type, index);
 				keys()[bucket] = key;
 
-				return &array.get(index);
+				return &array[index].first;
 			}
 
 			template <typename K>
@@ -435,34 +388,17 @@ namespace core
 				}
 			}
 
-			/**
-			 * Find the bucket where the key resides.
-			 */
 			template <typename K>
 			bucket_t find(K key) const
 			{
 				return find_bucket(key, keys().data(), lookup_.size());
 			}
 
-			void clear_all_impl(mpl::index_sequence<>)
-			{
-			}
-			template <size_t type, size_t ...types>
-			void clear_all_impl(mpl::index_sequence<type, types...>)
-			{
-				auto & array = std::get<type>(arrays_);
-				for (auto i : ranges::index_sequence_for(array))
-				{
-					keys()[array.bucket_at(i)] = Key{};
-				}
-				array.clear();
-
-				clear_all_impl(mpl::index_sequence<types...>{});
-			}
 			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t /*bucket*/, uint24_t /*index*/)
 			{
 				intrinsic_unreachable();
 			}
+
 			template <std::size_t type>
 			void remove_impl(mpl::index_constant<type>, bucket_t bucket, uint24_t index)
 			{
@@ -471,9 +407,9 @@ namespace core
 
 				const auto last = array.size() - 1;
 
-				slots()[array.bucket_at(last)].set_index(index);
+				slots()[array[last].second].set_index(index);
 				keys()[bucket] = Key{};
-				array.remove_at(index);
+				debug_verify(array.try_erase(index));
 			}
 
 #if defined(_MSC_VER)
@@ -497,7 +433,7 @@ namespace core
 				auto & array = std::get<type>(arrays_);
 				debug_assert(index < array.size());
 
-				return detail::call_impl_func(std::forward<F>(func), key, array.get(index));
+				return detail::call_impl_func(std::forward<F>(func), key, array[index].first);
 			}
 #if defined(_MSC_VER)
 # pragma warning( pop )
