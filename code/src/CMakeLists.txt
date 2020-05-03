@@ -151,6 +151,7 @@ set(HEADERS_UTILITY
 	src/utility/optional.hpp
 	src/utility/predicates.hpp
 	src/utility/preprocessor.hpp
+	src/utility/profiling.hpp
 	src/utility/property.hpp
 	src/utility/ranges.hpp
 	src/utility/scalar_alloc.hpp

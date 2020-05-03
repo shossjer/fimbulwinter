@@ -321,6 +321,28 @@ if(BUILD_BENCHMARKS)
 endif()
 
 # lookup features
+# coz
+message(STATUS "Looking for Coz")
+find_file(FILE_COZ_H coz.h)
+message(STATUS "Looking for Coz - ${FILE_COZ_H}")
+
+cmake_dependent_option(PROFILING_COZ "Enable Coz profiling" OFF "FILE_COZ_H" OFF)
+add_library(dep_profiling INTERFACE)
+if(PROFILING_COZ)
+	message(STATUS "Enabled Coz profiling")
+	target_compile_definitions(dep_profiling
+		INTERFACE
+		PROFILING_COZ=1
+		)
+	target_compile_options(dep_profiling
+		INTERFACE
+		$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+			-Og>
+		)
+else()
+	message(STATUS "Disabled profiling")
+endif()
+
 # sse
 message(STATUS "Looking for SSE")
 find_file(FILE_IMMINTRIN_H immintrin.h)

@@ -18,6 +18,7 @@
 #include "engine/physics/physics.hpp"
 
 #include "utility/predicates.hpp"
+#include "utility/profiling.hpp"
 #include "utility/variant.hpp"
 
 #include <cstdint>
@@ -537,6 +538,8 @@ namespace engine
 
 		void update(mixer &)
 		{
+			profile_scope("mixer update");
+
 			AssetMessage asset_message;
 			while (queue_assets.try_pop(asset_message))
 			{

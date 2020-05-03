@@ -11,6 +11,7 @@
 #include "engine/Asset.hpp"
 #include "engine/graphics/renderer.hpp"
 
+#include "utility/profiling.hpp"
 #include "utility/variant.hpp"
 
 debug_assets("root");
@@ -614,6 +615,8 @@ namespace engine
 
 		void update(viewer &)
 		{
+			profile_scope("viewer update");
+
 			bool rebuild_viewports = false;
 			bool rebuild_matrices = false;
 

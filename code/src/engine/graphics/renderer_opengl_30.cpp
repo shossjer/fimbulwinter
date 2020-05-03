@@ -32,6 +32,7 @@
 
 #include "utility/any.hpp"
 #include "utility/lookup_table.hpp"
+#include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
 #include "utility/unicode.hpp"
 #include "utility/variant.hpp"
@@ -1217,6 +1218,8 @@ namespace
 
 	void render_update()
 	{
+		profile_scope("renderer update (opengl 3.0)");
+
 		// poll events
 		poll_queues();
 		// update components

@@ -26,6 +26,7 @@
 #include "engine/graphics/viewer.hpp"
 
 #include "utility/any.hpp"
+#include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
@@ -915,6 +916,8 @@ namespace
 
 	void render_update()
 	{
+		profile_scope("renderer update (opengl 1.2)");
+
 		// poll events
 		poll_queues();
 		// update components

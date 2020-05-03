@@ -3,7 +3,7 @@
 Yet another game engine. Supported platforms are Windows and
 Linux. Written in C++14.
 
-## Build Instructions
+## Building
 
 If your project is using CMake it is recommended to add Fimbulwinter
 to it with a call to `add_subdirectory`. That way you can easily setup
@@ -12,7 +12,9 @@ dependencies) will just inherit everything.
 
 You can, of course, also build Fimbulwinter on its own.
 
-### Linux
+### Instructions
+
+#### Linux
 
 It is recommended that you make a separate directory for your
 build. Run cmake from there and build like you normally do:
@@ -23,7 +25,7 @@ cmake ..
 make
 ```
 
-### Windows - Visual Studio
+#### Windows - Visual Studio
 
 Run CMake from within the developer command prompt. This helps CMake
 know the location of your system libraries. It is recommended that you
@@ -32,7 +34,7 @@ make a separate directory for your build.
 After generating the build files you do not need to go through the
 step of running CMake from the developer command prompt again.
 
-## Build Options
+### Options
 
 * `CMAKE_BUILD_TYPE` (only for single configuration builds)
 
@@ -84,6 +86,8 @@ step of running CMake from the developer command prompt again.
 * `WINDOW_USE_USER32`
 
 * `WINDOW_USE_X11`
+
+* `PROFILING_COZ` (only for Linux)
 
 ### Dependencies
 
@@ -204,3 +208,17 @@ off) and the resulting executables will be labeled with `test` at the
 end. Running the tests is simply a matter of running the
 executables. The build process does this for you but can be turned off
 via the `RUN_TESTS` option.
+
+## Profiling
+
+Profiling is disabled by default but can be turned on if Coz (see
+https://github.com/plasma-umass/coz) is installed on your system. This
+is controlled via the CMake option `PROFILING_COZ`. When profiling is
+enabled you need to run your executable similar to this:
+
+```
+coz run --- /path/to/your/executable [args...]
+```
+
+Make use of https://plasma-umass.org/coz/ to make sense of the
+profiling being made. More about Coz can be read at their site.
