@@ -404,40 +404,106 @@ namespace utility
 	struct basic_string_array_data
 		: detail::StringStorageDataImpl<Storage>
 	{
-		using is_trivially_destructible = utility::storage_is_trivially_destructible<Storage>;
-		using is_trivially_default_constructible = mpl::false_type;
-
 		using this_type = basic_string_array_data<Storage>;
 		using base_type = detail::StringStorageDataImpl<Storage>;
+
+		using is_trivially_destructible = utility::storage_is_trivially_destructible<Storage>;
+		using is_trivially_default_constructible = mpl::false_type;
 
 		using storage_traits = utility::storage_traits<Storage>;
 
 		using size_type = typename base_type::size_type;
 
-		using base_type::base_type;
-
-		bool allocate_storage(std::size_t capacity)
-		{
-			return this->chars_.allocate(capacity);
-		}
-
-		void deallocate_storage(std::size_t capacity)
-		{
-			this->chars_.deallocate(capacity);
-		}
-
 		decltype(auto) chars() { return this->chars_.sections(this->capacity()); }
 		decltype(auto) chars() const { return this->chars_.sections(this->capacity()); }
 
-		void initialize()
+		using base_type::base_type;
+
+		explicit basic_string_array_data(std::size_t size)
+			: base_type(utility::null_place)
 		{
-			const auto capacity = storage_traits::capacity_for(1);
+			this->initialize(size);
+		}
+
+		bool try_reserve(std::size_t min_capacity)
+		{
+			if (min_capacity <= this->capacity())
+				return true;
+
+			const auto new_capacity = storage_traits::capacity_for(min_capacity);
+			if (new_capacity < min_capacity)
+				return false;
+
+			return this->try_reallocate(new_capacity);
+		}
+
+		std::size_t size() const { return this->size_; }
+		std::size_t size_without_null() const { return this->size_ - 1; }
+
+	protected:
+		bool allocate(const this_type & other)
+		{
+			const auto capacity = storage_traits::capacity_for(other.size());
 			if (this->chars_.allocate(capacity))
 			{
 				this->set_capacity(capacity);
+				return true;
+			}
+			else
+			{
+				this->set_capacity(0);
+				this->set_size(0);
+				return false;
+			}
+		}
 
-				this->set_size(1);
-				chars().construct_at(0, '\0');
+		constexpr bool fits(const this_type & other) const
+		{
+			return !(this->capacity() < other.size());
+		}
+
+		void clear()
+		{
+			if (0 < this->capacity())
+			{
+				chars().destruct_range(0, this->size());
+			}
+		}
+
+		void purge()
+		{
+			if (0 < this->capacity())
+			{
+				chars().destruct_range(0, this->size());
+				this->chars_.deallocate(this->capacity());
+			}
+		}
+
+		void copy(const this_type & other)
+		{
+			this->set_size(other.size());
+
+			chars().construct_range(0, other.chars().data(), other.chars().data() + other.size());
+		}
+
+		void move(this_type && other)
+		{
+			this->set_size(other.size());
+
+			chars().construct_range(0, std::make_move_iterator(other.chars().data()), std::make_move_iterator(other.chars().data() + other.size()));
+		}
+
+		void initialize(std::size_t size = 1)
+		{
+			assert(0 < size);
+
+			const auto new_capacity = storage_traits::capacity_for(size);
+			if (this->chars_.allocate(new_capacity))
+			{
+				this->set_capacity(new_capacity);
+
+				this->set_size(size);
+				chars().construct_at(size - 1, '\0');
 			}
 			else
 			{
@@ -446,23 +512,36 @@ namespace utility
 			}
 		}
 
-		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		constexpr bool try_reallocate(std::size_t new_capacity)
 		{
-			chars().construct_range(index, other.chars().data() + from, other.chars().data() + to);
+			return try_reallocate_impl(typename storage_traits::static_capacity{}, new_capacity);
 		}
 
-		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+	private:
+		constexpr bool try_reallocate_impl(mpl::true_type /*static capacity*/, std::size_t /*new_capacity*/)
 		{
-			chars().construct_range(index, std::make_move_iterator(other.chars().data() + from), std::make_move_iterator(other.chars().data() + to));
+			return false;
 		}
 
-		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
+		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t new_capacity)
 		{
-			chars().destruct_range(from, to);
-		}
+			this_type new_data;
+			if (!new_data.chars_.allocate(new_capacity))
+				return false;
 
-		std::size_t size() const { return this->size_; }
-		std::size_t size_without_null() const { return this->size_ - 1; }
+			new_data.set_capacity(new_capacity);
+
+			new_data.move(std::move(*this));
+
+			this->purge();
+
+			*this = std::move(new_data);
+
+			// todo is this even necessary?
+			new_data.set_capacity(0);
+			new_data.set_size(0); //
+			return true;
+		}
 	};
 
 	namespace detail
@@ -529,7 +608,7 @@ namespace utility
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 	private:
-		basic_string_data<utility::container<array_data>, Encoding> data_;
+		basic_string_data<utility::basic_container<array_data>, Encoding> data_;
 
 		struct repeat_char {};
 		struct repeat_str {};
@@ -582,29 +661,18 @@ namespace utility
 		{}
 		basic_string & operator = (const code_unit * s)
 		{
-			const auto len = ext::strlen(s);
-			const auto ret = data_.array_.try_replace_with(
-				len + 1,
-				[&](array_data & new_data, array_data & /*old_data*/)
-				{
-					new_data.set_size(len + 1);
-					new_data.chars().construct_range(0, s, s + len + 1);
-					return true;
-				});
-			assert(ret);
-			return *this;
+			return *this = basic_string_view<Encoding>(s);
 		}
 		basic_string & operator = (basic_string_view<Encoding> view)
 		{
-			const auto ret = data_.array_.try_replace_with(
-				view.size() + 1,
-				[&](array_data & new_data, array_data & /*old_data*/)
-				{
-					new_data.set_size(view.size() + 1);
-					new_data.chars().construct_range(0, view.data(), view.data() + view.size());
-					new_data.chars().construct_at(view.size(), '\0');
-					return true;
-				});
+			const auto ret = data_.array_.try_reserve(view.size() + 1);
+			if (ret)
+			{
+				data_.array_.chars().destruct_range(0, data_.array_.size());
+				data_.array_.set_size(view.size() + 1);
+				data_.array_.chars().construct_range(0, view.data(), view.data() + view.size());
+				data_.array_.chars().construct_at(view.size(), '\0');
+			}
 			assert(ret);
 			return *this;
 		}
@@ -807,7 +875,7 @@ namespace utility
 		}
 		bool try_append_impl(copy_str, const code_unit * s, size_type count)
 		{
-			if (!data_.array_.try_grow(count))
+			if (!data_.array_.try_reserve(data_.array_.size() + count))
 				return false;
 
 			data_.array_.chars().destruct_at(data_.array_.size() - 1);

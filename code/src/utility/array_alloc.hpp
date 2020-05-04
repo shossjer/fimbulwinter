@@ -237,32 +237,35 @@ namespace utility
 
 		using base_type::base_type;
 
-		bool allocate_storage(std::size_t capacity)
+		bool allocate(const this_type & other)
 		{
-			return this->storage_.allocate(capacity);
+			const auto capacity = storage_traits::capacity_for(other.size());
+			if (this->storage_.allocate(capacity))
+			{
+				this->set_capacity(capacity);
+				return true;
+			}
+			else
+			{
+				this->set_capacity(0);
+				this->set_size(0); //
+				return false;
+			}
 		}
 
-		void deallocate_storage(std::size_t capacity)
+		constexpr bool fits(const this_type & other) const
 		{
-			this->storage_.deallocate(capacity);
+			return !(this->capacity() < other.size());
 		}
 
-		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		void clear()
 		{
-			this->storage_.sections(this->capacity()).construct_range(index, other.storage_.sections(other.capacity()).data() + from, other.storage_.sections(other.capacity()).data() + to);
+			if (0 < this->capacity())
+			{
+				storage().destruct_range(0, this->size());
+			}
 		}
 
-		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			this->storage_.sections(this->capacity()).construct_range(index, std::make_move_iterator(other.storage_.sections(other.capacity()).data() + from), std::make_move_iterator(other.storage_.sections(other.capacity()).data() + to));
-		}
-
-		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			this->storage_.sections(this->capacity()).destruct_range(from, to);
-		}
-
-	protected:
 		void purge()
 		{
 			if (0 < this->capacity())
@@ -270,6 +273,13 @@ namespace utility
 				storage().destruct_range(0, this->size());
 				this->storage_.deallocate(this->capacity());
 			}
+		}
+
+		void copy(const this_type & other)
+		{
+			this->set_size(other.size());
+
+			storage().construct_range(0, other.storage().data(), other.storage().data() + other.size());
 		}
 
 		void move(this_type && other)
@@ -357,34 +367,35 @@ namespace utility
 
 		using base_type::base_type;
 
-		bool allocate_storage(std::size_t capacity)
+		bool allocate(const this_type & other)
 		{
-			return this->storage_.allocate(capacity);
+			const auto capacity = storage_traits::capacity_for(other.size());
+			if (this->storage_.allocate(capacity))
+			{
+				this->set_capacity(capacity);
+				return true;
+			}
+			else
+			{
+				this->set_capacity(0);
+				this->set_size(0);
+				return false;
+			}
 		}
 
-		void deallocate_storage(std::size_t capacity)
+		constexpr bool fits(const this_type & other) const
 		{
-			this->storage_.deallocate(capacity);
+			return !(this->capacity() < other.size());
 		}
 
-		void copy_construct_range(std::ptrdiff_t index, const this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
+		void clear()
 		{
-			auto other_sections = other.storage_.sections(other.capacity());
-			this->storage_.sections(this->capacity()).construct_range(index, other_sections.data() + from, other_sections.data() + to);
+			if (0 < this->capacity())
+			{
+				storage().destruct_range(0, this->size());
+			}
 		}
 
-		void move_construct_range(std::ptrdiff_t index, this_type & other, std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			auto other_sections = other.storage_.sections(other.capacity());
-			this->storage_.sections(this->capacity()).construct_range(index, std::make_move_iterator(other_sections.data() + from), std::make_move_iterator(other_sections.data() + to));
-		}
-
-		void destruct_range(std::ptrdiff_t from, std::ptrdiff_t to)
-		{
-			this->storage_.sections(this->capacity()).destruct_range(from, to);
-		}
-
-	protected:
 		void purge()
 		{
 			if (0 < this->capacity())
@@ -392,6 +403,13 @@ namespace utility
 				storage().destruct_range(0, this->size());
 				this->storage_.deallocate(this->capacity());
 			}
+		}
+
+		void copy(const this_type & other)
+		{
+			this->set_size(other.size());
+
+			storage().construct_range(0, other.storage().data(), other.storage().data() + other.size());
 		}
 
 		void move(this_type && other)
@@ -442,6 +460,7 @@ namespace utility
 
 			*this = std::move(new_data);
 
+			// todo is this even necessary?
 			new_data.set_capacity(0);
 			new_data.set_size(0);
 			return true;
@@ -450,9 +469,9 @@ namespace utility
 
 	template <typename Data>
 	class basic_array
-		: public detail::container_trivially_move_assignable<Data>
+		: public basic_container<Data>
 	{
-		using base_type = detail::container_trivially_move_assignable<Data>;
+		using base_type = basic_container<Data>;
 
 	private:
 		using typename Data::storage_traits;
@@ -473,9 +492,9 @@ namespace utility
 
 	template <typename Data>
 	class basic_vector
-		: public detail::container_trivially_move_assignable<Data>
+		: public basic_container<Data>
 	{
-		using base_type = detail::container_trivially_move_assignable<Data>;
+		using base_type = basic_container<Data>;
 
 		using typename base_type::storage_type;
 		using typename base_type::storage_traits;

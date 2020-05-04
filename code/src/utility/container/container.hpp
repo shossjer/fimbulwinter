@@ -25,11 +25,7 @@ namespace utility
 
 			~container_trivially_destructible()
 			{
-				if (this->capacity() > 0)
-				{
-					this->destruct_range(0, this->size());
-					this->deallocate_storage(this->capacity());
-				}
+				this->purge();
 			}
 			container_trivially_destructible() = default;
 			container_trivially_destructible(const this_type &) = default;
@@ -87,18 +83,9 @@ namespace utility
 			container_trivially_copy_constructible(const this_type & other)
 				: base_type(utility::null_place)
 			{
-				const auto capacity = Data::storage_traits::capacity_for(other.size());
-				if (this->allocate_storage(capacity))
+				if (this->allocate(other))
 				{
-					this->set_capacity(capacity);
-
-					this->set_size(other.size());
-					this->copy_construct_range(0, other, 0, other.size());
-				}
-				else
-				{
-					this->set_capacity(0);
-					this->set_size(0);
+					this->copy(other);
 				}
 			}
 			container_trivially_copy_constructible(this_type &&) = default;
@@ -128,29 +115,18 @@ namespace utility
 			container_trivially_copy_assignable(this_type &&) = default;
 			this_type & operator = (const this_type & other)
 			{
-				if (this->capacity() < other.size())
+				if (this->fits(other))
 				{
-					if (this->capacity() > 0)
-					{
-						this->destruct_range(0, this->size());
-						this->deallocate_storage(this->capacity());
-					}
-					const auto capacity = Data::storage_traits::capacity_for(other.size());
-					if (!this->allocate_storage(capacity))
-					{
-						this->set_capacity(0);
-						this->set_size(0);
+					this->clear();
+				}
+				else
+				{
+					this->purge();
 
+					if (!this->allocate(other))
 						return *this;
-					}
-					this->set_capacity(capacity);
 				}
-				else if (this->capacity() > 0)
-				{
-					this->destruct_range(0, this->size());
-				}
-				this->set_size(other.size());
-				this->copy_construct_range(0, other, 0, other.size());
+				this->copy(other);
 
 				return *this;
 			}
@@ -200,18 +176,9 @@ namespace utility
 			container_trivially_move_constructible(this_type && other)
 				: base_type(utility::null_place)
 			{
-				const auto capacity = Data::storage_traits::capacity_for(other.size());
-				if (this->allocate_storage(capacity))
+				if (this->allocate(other))
 				{
-					this->set_capacity(capacity);
-
-					this->set_size(other.size());
-					this->move_construct_range(0, other, 0, other.size());
-				}
-				else
-				{
-					this->set_capacity(0);
-					this->set_size(0);
+					this->move(std::move(other));
 				}
 			}
 			this_type & operator = (const this_type &) = default;
@@ -235,11 +202,7 @@ namespace utility
 			this_type & operator = (const this_type &) = default;
 			this_type & operator = (this_type && other)
 			{
-				if (this->capacity() > 0)
-				{
-					this->destruct_range(0, this->size());
-					this->deallocate_storage(this->capacity());
-				}
+				this->purge();
 
 				static_cast<base_type &>(*this) = std::move(other);
 
@@ -270,34 +233,26 @@ namespace utility
 			this_type & operator = (const this_type &) = default;
 			this_type & operator = (this_type && other)
 			{
-				if (this->capacity() < other.size())
+				if (this->fits(other))
 				{
-					if (this->capacity() > 0)
-					{
-						this->destruct_range(0, this->size());
-						this->deallocate_storage(this->capacity());
-					}
-					const auto capacity = Data::storage_traits::capacity_for(other.size());
-					if (!this->allocate_storage(capacity))
-					{
-						this->set_capacity(0);
-						this->set_size(0);
+					this->clear();
+				}
+				else
+				{
+					this->purge();
 
+					if (!this->allocate(other))
 						return *this;
-					}
-					this->set_capacity(capacity);
 				}
-				else if (this->capacity() > 0)
-				{
-					this->destruct_range(0, this->size());
-				}
-				this->set_size(other.size()); // x
-				this->move_construct_range(0, other, 0, other.size());
+				this->move(std::move(other));
 
 				return *this;
 			}
 		};
 	}
+
+	template <typename Data>
+	using basic_container = detail::container_trivially_move_assignable<Data>;
 
 	template <typename Data>
 	struct container : detail::container_trivially_move_assignable<Data>
