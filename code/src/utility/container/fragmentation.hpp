@@ -8,91 +8,13 @@
 
 namespace utility
 {
-	namespace detail
-	{
-		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
-		class fragmented_data_impl
-		{
-			using storage_traits = utility::storage_traits<Storage>;
-
-		public:
-			using size_type = utility::size_type_for<storage_traits::capacity_value>;
-
-		protected:
-			std::size_t size_;
-			Storage storage_;
-
-		protected:
-			fragmented_data_impl()
-				: size_{}
-			{}
-			explicit fragmented_data_impl(utility::null_place_t) {}
-
-		public:
-			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
-
-			std::size_t size() const { return size_; }
-
-		protected:
-			void set_capacity(std::size_t capacity)
-			{
-				assert(capacity == 0 || capacity == storage_traits::capacity_value);
-				static_cast<void>(capacity);
-			}
-
-			void set_size(std::size_t size)
-			{
-				assert(size <= size_type(-1) && size <= storage_traits::capacity_value);
-
-				size_ = static_cast<size_type>(size);
-			}
-		};
-
-		template <typename Storage>
-		class fragmented_data_impl<Storage, false /*static capacity*/>
-		{
-		public:
-			using size_type = std::size_t;
-
-		protected:
-			std::size_t size_;
-			std::size_t capacity_;
-			Storage storage_;
-
-		protected:
-			fragmented_data_impl()
-				: size_{}
-				, capacity_{}
-			{}
-			explicit fragmented_data_impl(utility::null_place_t) {}
-
-		public:
-			std::size_t capacity() const { return capacity_; }
-
-			std::size_t size() const { return size_; }
-
-		protected:
-			void set_capacity(std::size_t capacity)
-			{
-				capacity_ = capacity;
-			}
-
-			void set_size(std::size_t size)
-			{
-				assert(size <= capacity_);
-
-				size_ = size;
-			}
-		};
-	}
-
 	template <typename Storage, typename InitializationStrategy,
 	          typename ModedStorage = typename utility::storage_traits<Storage>::template append<std::size_t>>
 	class fragmented_data
-		: public detail::fragmented_data_impl<ModedStorage>
+		: public detail::vector_data_impl<ModedStorage>
 	{
 		using this_type = fragmented_data<Storage, InitializationStrategy, ModedStorage>;
-		using base_type = detail::fragmented_data_impl<ModedStorage>;
+		using base_type = detail::vector_data_impl<ModedStorage>;
 
 		friend InitializationStrategy;
 
