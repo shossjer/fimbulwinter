@@ -128,12 +128,13 @@ set(HEADERS_UTILITY
 	src/utility/any.hpp
 	src/utility/arithmetics.hpp
 	src/utility/array.hpp
-	src/utility/array_alloc.hpp
 	src/utility/bitmanip.hpp
 	src/utility/compound.hpp
 	src/utility/concepts.hpp
+	src/utility/container/array.hpp
 	src/utility/container/container.hpp
 	src/utility/container/fragmentation.hpp
+	src/utility/container/vector.hpp
 	src/utility/crypto/crc.hpp
 	src/utility/ext/stddef.hpp
 	src/utility/ext/string.hpp

@@ -1,9 +1,58 @@
 #pragma once
 
+#include "utility/storage.hpp"
 #include "utility/utility.hpp"
 
 namespace utility
 {
+	struct initialize_empty
+	{
+		template <typename Data>
+		void operator () (Data & data)
+		{
+			data.set_capacity(0);
+			data.set_size(0);
+			data.initialize_empty();
+		}
+	};
+
+	struct initialize_zero
+	{
+		template <typename Data>
+		void operator () (Data & data)
+		{
+			const auto capacity = Data::storage_traits::capacity_for(1);
+			if (data.storage_.allocate(capacity))
+			{
+				data.set_capacity(capacity);
+				data.set_size(capacity);
+				data.initialize_fill(utility::zero_initialize);
+			}
+			else
+			{
+				data.set_capacity(0);
+				data.set_size(0);
+				data.initialize_empty();
+			}
+		}
+	};
+
+	struct reallocate_move
+	{
+		template <typename Data>
+		bool operator () (Data & new_data, Data & old_data)
+		{
+			new_data.move(std::move(old_data));
+			return true;
+		}
+	};
+
+	template <std::size_t N>
+	using size_type_for =
+		mpl::conditional_t<(N < 0x100), std::uint8_t,
+		mpl::conditional_t<(N < 0x10000), std::uint16_t,
+		mpl::conditional_t<(N < 0x100000000), std::uint32_t, std::uint64_t>>>;
+
 	namespace detail
 	{
 		template <typename Data, bool = Data::is_trivially_destructible::value>

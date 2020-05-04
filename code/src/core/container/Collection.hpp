@@ -4,9 +4,10 @@
 
 #include "core/debug.hpp"
 
-#include "utility/array_alloc.hpp"
 #include "utility/bitmanip.hpp"
+#include "utility/container/array.hpp"
 #include "utility/container/fragmentation.hpp"
+#include "utility/container/vector.hpp"
 #include "utility/preprocessor.hpp"
 #include "utility/ranges.hpp"
 #include "utility/type_traits.hpp"

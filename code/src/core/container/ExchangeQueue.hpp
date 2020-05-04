@@ -2,8 +2,8 @@
 #ifndef CORE_CONTAINER_EXCHANGEQUEUE_HPP
 #define CORE_CONTAINER_EXCHANGEQUEUE_HPP
 
-#include <utility/array_alloc.hpp>
-#include <utility/spinlock.hpp>
+#include "utility/spinlock.hpp"
+#include "utility/storage.hpp"
 
 #include <atomic>
 #include <bitset>

@@ -2,7 +2,7 @@
 #ifndef UTILITY_STRING_HPP
 #define UTILITY_STRING_HPP
 
-#include "utility/array_alloc.hpp"
+#include "utility/container/container.hpp"
 #include "utility/encoding_traits.hpp"
 #include "utility/ext/string.hpp"
 #include "utility/ranges.hpp"
