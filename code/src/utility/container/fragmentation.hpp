@@ -202,9 +202,9 @@ namespace utility
 
 			const auto index = this->indices()[this->size()];
 
-			auto & e = this->storage().construct_at(index, std::forward<Ps>(ps)...);
+			auto && e = this->storage().construct_at(index, std::forward<Ps>(ps)...);
 			this->set_size(this->size() + 1);
-			return &e;
+			return std::pointer_traits<pointer>::pointer_to(e);
 		}
 
 		bool try_erase(ext::index index)
