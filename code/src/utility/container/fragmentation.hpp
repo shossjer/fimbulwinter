@@ -6,12 +6,12 @@
 
 namespace utility
 {
-	template <typename Storage, typename ReservationStrategy,
+	template <typename Storage, typename ReservationStrategy, typename RelocationStrategy,
 	          typename ModedStorage = typename utility::storage_traits<Storage>::template append<std::size_t>>
 	class fragmented_data
 		: public detail::vector_data_impl<ModedStorage>
 	{
-		using this_type = fragmented_data<Storage, ReservationStrategy, ModedStorage>;
+		using this_type = fragmented_data<Storage, ReservationStrategy, RelocationStrategy, ModedStorage>;
 		using base_type = detail::vector_data_impl<ModedStorage>;
 
 		using StorageTraits = utility::storage_traits<ModedStorage>;
@@ -119,6 +119,37 @@ namespace utility
 				this->storage_.deallocate(this->capacity());
 			}
 		}
+
+		constexpr bool try_reallocate(std::size_t min_capacity)
+		{
+			return try_reallocate_impl(typename StorageTraits::static_capacity{}, min_capacity);
+		}
+
+	private:
+		constexpr bool try_reallocate_impl(mpl::true_type /*static capacity*/, std::size_t /*min_capacity*/)
+		{
+			return false;
+		}
+
+		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t min_capacity)
+		{
+			const auto new_capacity = ReservationStrategy{}(min_capacity);
+			if (new_capacity < min_capacity)
+				return false;
+
+			this_type new_data;
+			if (!new_data.allocate(new_capacity))
+				return false;
+
+			if (!RelocationStrategy{}(new_data, *this))
+				return false;
+
+			this->purge();
+
+			*this = std::move(new_data);
+
+			return true;
+		}
 	};
 
 	template <typename Data>
@@ -155,10 +186,18 @@ namespace utility
 		reference operator [] (ext::index index) { return this->storage().data()[index]; }
 		const_reference operator [] (ext::index index) const { return this->storage().data()[index]; }
 
+		bool try_reserve(std::size_t min_capacity)
+		{
+			if (min_capacity <= this->capacity())
+				return true;
+
+			return this->try_reallocate(min_capacity);
+		}
+
 		template <typename ...Ps>
 		pointer try_emplace(Ps && ...ps)
 		{
-			if (!/*debug_assert*/(this->size() < this->capacity()))
+			if (!this->try_reserve(this->size() + 1))
 				return nullptr;
 
 			const auto index = this->indices()[this->size()];
@@ -183,9 +222,11 @@ namespace utility
 	};
 
 	template <typename Storage,
-	          template <typename> class ReservationStrategy = utility::reserve_power_of_two>
+	          template <typename> class ReservationStrategy = utility::reserve_power_of_two,
+	          typename RelocationStrategy = utility::relocate_move>
 	using fragmentation = basic_fragmentation<fragmented_data<Storage,
-	                                                          ReservationStrategy<Storage>>>;
+	                                                          ReservationStrategy<Storage>,
+	                                                          RelocationStrategy>>;
 
 	template <std::size_t Capacity, typename ...Ts>
 	using static_fragmentation = fragmentation<utility::static_storage<Capacity, Ts...>>;
