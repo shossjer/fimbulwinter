@@ -36,7 +36,7 @@ namespace utility
 		{
 			this->set_size(other.size());
 
-			indices().memcpy_range(0, other.indices().data(), other.indices().data() + other.capacity());
+			indices().memcpy_range(0, other.indices().data() + 0, other.indices().data() + other.capacity());
 			auto remaining_indices = ranges::index_sequence(other.capacity(), this->capacity());
 			indices().construct_range(other.capacity(), remaining_indices.begin(), remaining_indices.end());
 
@@ -50,7 +50,7 @@ namespace utility
 		{
 			this->set_size(other.size());
 
-			indices().memcpy_range(0, other.indices().data(), other.indices().data() + other.capacity());
+			indices().memcpy_range(0, other.indices().data() + 0, other.indices().data() + other.capacity());
 			auto remaining_indices = ranges::index_sequence(other.capacity(), this->capacity());
 			indices().construct_range(other.capacity(), remaining_indices.begin(), remaining_indices.end());
 

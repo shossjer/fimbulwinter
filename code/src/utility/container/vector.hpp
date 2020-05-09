@@ -97,14 +97,14 @@ namespace utility
 		{
 			this->set_size(other.size());
 
-			storage().construct_range(0, other.storage().data(), other.storage().data() + other.size());
+			storage().construct_range(0, other.storage().data() + 0, other.storage().data() + other.size());
 		}
 
 		void move(this_type && other)
 		{
 			this->set_size(other.size());
 
-			storage().construct_range(0, std::make_move_iterator(other.storage().data()), std::make_move_iterator(other.storage().data() + other.size()));
+			storage().construct_range(0, std::make_move_iterator(other.storage().data() + 0), std::make_move_iterator(other.storage().data() + other.size()));
 		}
 
 	protected:
@@ -208,10 +208,10 @@ namespace utility
 		using const_pointer = typename storage_type::const_pointer;
 
 	public:
-		pointer begin() { return this->storage().data(); }
-		const_pointer begin() const { return this->storage().data(); }
-		pointer end() { return this->storage().data() + this->size(); }
-		const_pointer end() const { return this->storage().data() + this->size(); }
+		auto begin() { return this->storage().data() + 0; }
+		auto begin() const { return this->storage().data() + 0; }
+		auto end() { return this->storage().data() + this->size(); }
+		auto end() const { return this->storage().data() + this->size(); }
 
 		pointer data() { return this->storage().data(); }
 		const_pointer data() const { return this->storage().data(); }

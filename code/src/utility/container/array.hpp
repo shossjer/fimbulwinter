@@ -78,14 +78,14 @@ namespace utility
 
 		void copy(const this_type & other)
 		{
-			storage().construct_range(0, other.storage().data(), other.storage().data() + other.capacity());
+			storage().construct_range(0, other.storage().data() + 0, other.storage().data() + other.capacity());
 
 			InitializationStrategy{}([this, &other](auto && ...ps){ storage().construct_fill(other.capacity(), this->capacity(), std::forward<decltype(ps)>(ps)...); });
 		}
 
 		void move(this_type && other)
 		{
-			storage().construct_range(0, std::make_move_iterator(other.storage().data()), std::make_move_iterator(other.storage().data() + other.capacity()));
+			storage().construct_range(0, std::make_move_iterator(other.storage().data() + 0), std::make_move_iterator(other.storage().data() + other.capacity()));
 
 			InitializationStrategy{}([this, &other](auto && ...ps){ storage().construct_fill(other.capacity(), this->capacity(), std::forward<decltype(ps)>(ps)...); });
 		}

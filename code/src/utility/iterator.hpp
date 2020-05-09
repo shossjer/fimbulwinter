@@ -332,11 +332,11 @@ namespace utility
 		using base_type = utility::compound<Its...>;
 
 	public:
-		using difference_type = typename std::iterator_traits<mpl::car<Its...>>::difference_type;
+		using difference_type = typename std::iterator_traits<mpl::car<Its...>>::difference_type; // ?
 		using value_type = utility::compound<typename std::iterator_traits<Its>::value_type...>;
-		using pointer = void; // ?
+		using pointer = utility::compound<typename std::iterator_traits<Its>::pointer...>;
 		using reference = utility::compound<typename std::iterator_traits<Its>::reference...>;
-		using iterator_category = std::random_access_iterator_tag; // ?
+		using iterator_category = typename std::iterator_traits<mpl::car<Its...>>::iterator_category; // ?
 
 	public:
 		using base_type::base_type;
@@ -410,6 +410,45 @@ namespace utility
 	{
 		return std::get<0>(i1) - std::get<0>(i2);
 	}
+
+	template <typename ...Ptrs>
+	class zip_pointer
+		: public utility::zip_iterator<Ptrs...>
+	{
+		template <typename ...Ptrs_>
+		friend class zip_pointer;
+
+		using this_type = zip_pointer<Ptrs...>;
+		using base_type = utility::zip_iterator<Ptrs...>;
+
+	public:
+		// note this is a great hack in order to get
+		// `std::pointer_traits<>::pointer_to` to work for proxy types.
+		using element_type = typename base_type::reference;
+
+	public:
+		static typename base_type::pointer pointer_to(typename base_type::reference element)
+		{
+			return ext::apply([](auto & ...ps){ return typename base_type::pointer(std::pointer_traits<Ptrs>::pointer_to(ps)...); }, element);
+		}
+
+	public:
+		using base_type::base_type;
+		using base_type::operator =;
+
+		zip_pointer(std::nullptr_t)
+			: base_type{}
+		{}
+
+	public:
+		explicit operator bool () const { return static_cast<bool>(std::get<0>(*this)); } // todo
+
+	private:
+		friend bool operator == (const this_type & x, std::nullptr_t) { return !static_cast<bool>(x); }
+		friend bool operator == (std::nullptr_t, const this_type & x) { return x == nullptr; }
+		friend bool operator != (const this_type & x, std::nullptr_t) { return !(x == nullptr); }
+		friend bool operator != (std::nullptr_t, const this_type & x) { return !(x == nullptr); }
+	};
 }
 
 #endif /* UTILITY_ITERATOR_HPP */

@@ -57,7 +57,7 @@ namespace utility
 	public:
 		using difference_type = typename iterator::difference_type;
 		using value_type = utility::compound_type<value_types>;
-		using pointer = utility::zip_type<utility::zip_iterator, pointers>;
+		using pointer = utility::zip_type<utility::zip_pointer, pointers>;
 		using reference = utility::compound_type<references>;
 		using rvalue_reference = utility::compound_type<rvalue_references>;
 		using iterator_category = std::random_access_iterator_tag; // ??
@@ -439,8 +439,9 @@ namespace utility
 		using reference = utility::compound_type<Ts &...>;
 		using const_reference = utility::compound_type<const Ts &...>;
 		using rvalue_reference = utility::compound_type<Ts &&...>;
-		using pointer = utility::zip_type<utility::zip_iterator, Ts *...>;
-		using const_pointer = utility::zip_type<utility::zip_iterator, const Ts *...>;
+		using const_rvalue_reference = utility::compound_type<const Ts &&...>;
+		using pointer = utility::zip_type<utility::zip_pointer, Ts *...>;
+		using const_pointer = utility::zip_type<utility::zip_pointer, const Ts *...>;
 
 		template <std::size_t I>
 		using value_type_at = mpl::type_at<I, Ts...>; // todo remove
@@ -566,8 +567,9 @@ namespace utility
 		using reference = utility::compound_type<Ts &...>;
 		using const_reference = utility::compound_type<const Ts &...>;
 		using rvalue_reference = utility::compound_type<Ts &&...>;
-		using pointer = utility::zip_type<utility::zip_iterator, Ts *...>;
-		using const_pointer = utility::zip_type<utility::zip_iterator, const Ts *...>;
+		using const_rvalue_reference = utility::compound_type<const Ts &&...>;
+		using pointer = utility::zip_type<utility::zip_pointer, Ts *...>;
+		using const_pointer = utility::zip_type<utility::zip_pointer, const Ts *...>;
 
 		template <std::size_t I>
 		using value_type_at = mpl::type_at<I, Ts...>; // todo remove
