@@ -104,48 +104,42 @@ namespace core
 				}
 			};
 
-			struct reallocate_rehash
+			struct relocate_rehash
 			{
 				template <typename Data>
 				bool operator () (Data & new_data, Data & old_data)
 				{
 					const auto new_size = new_data.capacity();
-					new_data.set_size(new_size); //
-					auto new_slots = new_data.section(mpl::index_constant<0>{});
-					auto new_keys = new_data.section(mpl::index_constant<1>{});
-					new_slots.memset_fill(0, new_size, ext::byte{});
-					new_keys.memset_fill(0, new_size, ext::byte{});
-					// new_data.storage().memset_fill(0, new_size, ext::byte{});
+					auto new_storage = new_data.storage();
+					new_storage.memset_fill(0, new_size, ext::byte{});
 
 					const auto old_size = old_data.capacity();
-					auto old_slots = old_data.section(mpl::index_constant<0>{});
-					auto old_keys = old_data.section(mpl::index_constant<1>{});
+					auto old_storage = old_data.storage();
 					for (auto i : ranges::index_sequence(old_size))
 					{
-						if (old_keys[i] == Key{})
+						if (old_storage[i].second == Key{})
 							continue; // empty
 
-						const auto new_bucket = find_empty_bucket(old_keys[i], new_keys.data(), new_size);
+						const auto new_bucket = find_empty_bucket(old_storage[i].second, new_storage.data().second, new_size);
 						if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
 							return false; // todo try with bigger allocation?
 
-						new_slots[new_bucket] = old_slots[i];
-						new_keys[new_bucket] = old_keys[i];
+						new_storage[new_bucket] = std::move(old_storage[i]);
 					}
 					return true;
 				}
 			};
 
 		private:
-			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, reallocate_rehash> lookup_;
+			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type, relocate_rehash> lookup_;
 			// todo keys before slots?
 			std::tuple<utility::vector<typename utility::storage_traits<ComponentStorages>::template append<bucket_t>>...> arrays_;
 
-			decltype(auto) slots() { return lookup_.section(mpl::index_constant<0>{}); }
-			decltype(auto) slots() const { return lookup_.section(mpl::index_constant<0>{}); }
+			decltype(auto) slots() { return lookup_.data().first; }
+			decltype(auto) slots() const { return lookup_.data().first; }
 
-			decltype(auto) keys() { return lookup_.section(mpl::index_constant<1>{}); }
-			decltype(auto) keys() const { return lookup_.section(mpl::index_constant<1>{}); }
+			decltype(auto) keys() { return lookup_.data().second; }
+			decltype(auto) keys() const { return lookup_.data().second; }
 
 		public:
 			template <typename K>
@@ -155,7 +149,7 @@ namespace core
 				if (bucket == bucket_t(-1))
 					return nullptr; // todo weird
 
-				return keys().data() + bucket;
+				return keys() + bucket;
 			}
 
 			template <typename K>
@@ -380,7 +374,7 @@ namespace core
 			{
 				while (true)
 				{
-					const auto bucket = find_empty_bucket(key, keys().data(), lookup_.size());
+					const auto bucket = find_empty_bucket(key, keys(), lookup_.size());
 					if (bucket != bucket_t(-1))
 						return bucket;
 
@@ -392,7 +386,7 @@ namespace core
 			template <typename K>
 			bucket_t find(K key) const
 			{
-				return find_bucket(key, keys().data(), lookup_.size());
+				return find_bucket(key, keys(), lookup_.size());
 			}
 
 			void remove_impl(mpl::index_constant<std::size_t(-1)>, bucket_t /*bucket*/, uint24_t /*index*/)
@@ -929,47 +923,41 @@ namespace core
 				}
 			};
 
-			struct reallocate_rehash
+			struct relocate_rehash
 			{
 				template <typename Data>
 				bool operator () (Data & new_data, Data & old_data)
 				{
 					const auto new_size = new_data.capacity();
-					new_data.set_size(new_size); //
-					auto new_slots = new_data.section(mpl::index_constant<0>{});
-					auto new_keys = new_data.section(mpl::index_constant<1>{});
-					new_slots.memset_fill(0, new_size, ext::byte{});
-					new_keys.memset_fill(0, new_size, ext::byte{});
-					// new_data.storage().memset_fill(0, new_size, ext::byte{});
+					auto new_storage = new_data.storage();
+					new_storage.memset_fill(0, new_size, ext::byte{});
 
 					const auto old_size = old_data.capacity();
-					auto old_slots = old_data.section(mpl::index_constant<0>{});
-					auto old_keys = old_data.section(mpl::index_constant<1>{});
+					auto old_storage = old_data.storage();
 					for (auto i : ranges::index_sequence(old_size))
 					{
-						if (old_keys[i] == Key{})
+						if (old_storage[i].second == Key{})
 							continue; // empty
 
-						const auto new_bucket = find_empty_bucket(old_keys[i], new_keys.data(), new_size);
+						const auto new_bucket = find_empty_bucket(old_storage[i].second, new_storage.data().second, new_size);
 						if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
 							return false; // todo try with bigger allocation?
 
-						new_slots[new_bucket] = old_slots[i];
-						new_keys[new_bucket] = old_keys[i];
+						new_storage[new_bucket] = std::move(old_storage[i]);
 					}
 					return true;
 				}
 			};
 
 		private:
-			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, reallocate_rehash> lookup_;
+			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type, relocate_rehash> lookup_;
 			std::tuple<utility::fragmentation<ComponentStorages>...> arrays_;
 
-			decltype(auto) slots() { return lookup_.section(mpl::index_constant<0>{}); }
-			decltype(auto) slots() const { return lookup_.section(mpl::index_constant<0>{}); }
+			decltype(auto) slots() { return lookup_.data().first; }
+			decltype(auto) slots() const { return lookup_.data().first; }
 
-			decltype(auto) keys() { return lookup_.section(mpl::index_constant<1>{}); }
-			decltype(auto) keys() const { return lookup_.section(mpl::index_constant<1>{}); }
+			decltype(auto) keys() { return lookup_.data().second; }
+			decltype(auto) keys() const { return lookup_.data().second; }
 
 		public:
 			template <typename K>
@@ -979,7 +967,7 @@ namespace core
 				if (bucket == bucket_t(-1))
 					return nullptr; // todo weird
 
-				return keys().data() + bucket;
+				return keys() + bucket;
 			}
 
 			template <typename K>
@@ -1166,7 +1154,7 @@ namespace core
 			{
 				while (true)
 				{
-					const auto bucket = find_empty_bucket(key, keys().data(), lookup_.size());
+					const auto bucket = find_empty_bucket(key, keys(), lookup_.size());
 					if (bucket != bucket_t(-1))
 						return bucket;
 
@@ -1178,7 +1166,7 @@ namespace core
 			template <typename K>
 			bucket_t find(K key) const
 			{
-				return find_bucket(key, keys().data(), lookup_.size());
+				return find_bucket(key, keys(), lookup_.size());
 			}
 
 			template <typename Component, typename ...Ps>

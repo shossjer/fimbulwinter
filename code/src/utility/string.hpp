@@ -327,10 +327,7 @@ namespace utility
 			size_type size_;
 			Storage chars_;
 
-			StringStorageDataImpl()
-				: size_{}
-			{}
-			explicit StringStorageDataImpl(utility::null_place_t) {}
+			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
 
 			void set_capacity(std::size_t capacity)
 			{
@@ -344,15 +341,14 @@ namespace utility
 
 				size_ = static_cast<size_type>(size);
 			}
-
-			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
 		};
 
 		template <typename Storage>
 		struct StringStorageDataImpl<Storage, false /*static capacity*/>
 		{
-			using size_type = std::size_t;
 			using storage_traits = utility::storage_traits<Storage>;
+
+			using size_type = std::size_t;
 
 			// private:
 			// struct Big
@@ -378,11 +374,7 @@ namespace utility
 			size_type size_;
 			Storage chars_;
 
-			StringStorageDataImpl()
-				: capacity_{}
-				, size_{}
-			{}
-			explicit StringStorageDataImpl(utility::null_place_t) {}
+			std::size_t capacity() const { return capacity_; }
 
 			void set_capacity(std::size_t capacity)
 			{
@@ -395,34 +387,46 @@ namespace utility
 
 				size_ = size;
 			}
-
-			std::size_t capacity() const { return capacity_; }
 		};
 	}
 
-	template <typename Storage>
-	struct basic_string_array_data
-		: detail::StringStorageDataImpl<Storage>
+	template <typename Storage, typename ReservationStrategy = utility::reserve_power_of_two<Storage>, typename RelocationStrategy = utility::relocate_move>
+	class basic_string_array_data
+		: public detail::StringStorageDataImpl<Storage>
 	{
 		using this_type = basic_string_array_data<Storage>;
 		using base_type = detail::StringStorageDataImpl<Storage>;
 
-		using is_trivially_destructible = utility::storage_is_trivially_destructible<Storage>;
+		using StorageTraits = utility::storage_traits<Storage>;
+
+	public:
+		using storage_type = Storage;
+
+		using is_trivially_destructible =
+			mpl::conjunction<typename Storage::storing_trivially_destructible,
+			                 typename StorageTraits::trivial_deallocate>;
+
 		using is_trivially_default_constructible = mpl::false_type;
 
-		using storage_traits = utility::storage_traits<Storage>;
-
-		using size_type = typename base_type::size_type;
-
+	public:
 		decltype(auto) chars() { return this->chars_.sections(this->capacity()); }
 		decltype(auto) chars() const { return this->chars_.sections(this->capacity()); }
 
-		using base_type::base_type;
+		std::size_t size() const { return this->size_; }
+		std::size_t size_without_null() const { return this->size_ - 1; }
 
-		explicit basic_string_array_data(std::size_t size)
-			: base_type(utility::null_place)
+		void copy(const this_type & other)
 		{
-			this->initialize(size);
+			this->set_size(other.size());
+
+			chars().construct_range(0, other.chars().data(), other.chars().data() + other.size());
+		}
+
+		void move(this_type && other)
+		{
+			this->set_size(other.size());
+
+			chars().construct_range(0, std::make_move_iterator(other.chars().data()), std::make_move_iterator(other.chars().data() + other.size()));
 		}
 
 		bool try_reserve(std::size_t min_capacity)
@@ -430,20 +434,36 @@ namespace utility
 			if (min_capacity <= this->capacity())
 				return true;
 
-			const auto new_capacity = storage_traits::capacity_for(min_capacity);
-			if (new_capacity < min_capacity)
-				return false;
-
-			return this->try_reallocate(new_capacity);
+			return this->try_reallocate(min_capacity);
 		}
 
-		std::size_t size() const { return this->size_; }
-		std::size_t size_without_null() const { return this->size_ - 1; }
+		basic_string_array_data() = default;
+
+		explicit basic_string_array_data(std::size_t size)
+		{
+			size += 1; // null character
+			if (allocate(ReservationStrategy{}(size)))
+			{
+				this->set_size(size);
+
+				chars().construct_at(size - 1, '\0');
+			}
+		}
 
 	protected:
-		bool allocate(const this_type & other)
+		// todo release should not allocate anything
+		void release()
 		{
-			const auto capacity = storage_traits::capacity_for(other.size());
+			if (allocate(ReservationStrategy{}(1)))
+			{
+				this->set_size(1);
+
+				chars().construct_at(0, '\0');
+			}
+		}
+
+		bool allocate(std::size_t capacity)
+		{
 			if (this->chars_.allocate(capacity))
 			{
 				this->set_capacity(capacity);
@@ -455,6 +475,11 @@ namespace utility
 				this->set_size(0);
 				return false;
 			}
+		}
+
+		constexpr std::size_t capacity_for(const this_type & other) const
+		{
+			return ReservationStrategy{}(other.size());
 		}
 
 		constexpr bool fits(const this_type & other) const
@@ -479,67 +504,34 @@ namespace utility
 			}
 		}
 
-		void copy(const this_type & other)
+		constexpr bool try_reallocate(std::size_t min_capacity)
 		{
-			this->set_size(other.size());
-
-			chars().construct_range(0, other.chars().data(), other.chars().data() + other.size());
-		}
-
-		void move(this_type && other)
-		{
-			this->set_size(other.size());
-
-			chars().construct_range(0, std::make_move_iterator(other.chars().data()), std::make_move_iterator(other.chars().data() + other.size()));
-		}
-
-		void initialize(std::size_t size = 1)
-		{
-			assert(0 < size);
-
-			const auto new_capacity = storage_traits::capacity_for(size);
-			if (this->chars_.allocate(new_capacity))
-			{
-				this->set_capacity(new_capacity);
-
-				this->set_size(size);
-				chars().construct_at(size - 1, '\0');
-			}
-			else
-			{
-				this->set_capacity(0);
-				this->set_size(0);
-			}
-		}
-
-		constexpr bool try_reallocate(std::size_t new_capacity)
-		{
-			return try_reallocate_impl(typename storage_traits::static_capacity{}, new_capacity);
+			return try_reallocate_impl(typename StorageTraits::static_capacity{}, min_capacity);
 		}
 
 	private:
-		constexpr bool try_reallocate_impl(mpl::true_type /*static capacity*/, std::size_t /*new_capacity*/)
+		constexpr bool try_reallocate_impl(mpl::true_type /*static capacity*/, std::size_t /*min_capacity*/)
 		{
 			return false;
 		}
 
-		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t new_capacity)
+		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t min_capacity)
 		{
-			this_type new_data;
-			if (!new_data.chars_.allocate(new_capacity))
+			const auto new_capacity = ReservationStrategy{}(min_capacity);
+			if (new_capacity < min_capacity)
 				return false;
 
-			new_data.set_capacity(new_capacity);
+			this_type new_data;
+			if (!new_data.allocate(new_capacity))
+				return false;
 
-			new_data.move(std::move(*this));
+			if (!RelocationStrategy{}(new_data, *this))
+				return false;
 
 			this->purge();
 
 			*this = std::move(new_data);
 
-			// todo is this even necessary?
-			new_data.set_capacity(0);
-			new_data.set_size(0); //
 			return true;
 		}
 	};
@@ -552,8 +544,10 @@ namespace utility
 			utility::type_id_t encoding_;
 			Array array_;
 
-			basic_string_data_impl(std::size_t capacity)
-				: array_(capacity)
+			basic_string_data_impl() = default;
+
+			explicit basic_string_data_impl(std::size_t size)
+				: array_(size)
 			{}
 
 			void set_encoding(utility::type_id_t encoding)
@@ -563,13 +557,16 @@ namespace utility
 
 			utility::type_id_t encoding() const { return encoding_; }
 		};
+
 		template <typename Array, typename Encoding>
 		struct basic_string_data_impl<Array, Encoding, false /*trivial encoding type*/>
 		{
 			Array array_;
 
-			basic_string_data_impl(std::size_t capacity)
-				: array_(capacity)
+			basic_string_data_impl() = default;
+
+			explicit basic_string_data_impl(std::size_t size)
+				: array_(size)
 			{}
 
 			void set_encoding(utility::type_id_t encoding)
@@ -618,18 +615,12 @@ namespace utility
 		struct other_substr {};
 
 	public:
-		basic_string()
-			: data_(1)
-		{
-			data_.array_.chars().construct_at(0, '\0');
-			data_.array_.set_size(1);
-		}
+		basic_string() = default;
+
 		explicit basic_string(std::size_t size)
-			: data_(size + 1)
-		{
-			data_.array_.chars().construct_fill(0, size + 1, utility::zero_initialize);
-			data_.array_.set_size(size + 1);
-		}
+			: data_(size)
+		{}
+
 		template <typename Character>
 		basic_string(std::size_t repeat, Character && character)
 			: basic_string(repeat_char{}, repeat, std::forward<Character>(character), 0)
@@ -678,11 +669,9 @@ namespace utility
 		}
 	private:
 		basic_string(repeat_char, std::size_t repeat, code_unit c, int)
-			: data_(repeat + 1)
+			: data_(repeat)
 		{
-			data_.array_.set_size(repeat + 1);
 			data_.array_.chars().construct_fill(0, repeat, c);
-			data_.array_.chars().construct_at(repeat, '\0');
 		}
 		basic_string(repeat_char, std::size_t repeat, code_point cp, ...)
 			: basic_string(repeat_char{}, repeat, cp, std::array<code_unit, encoding_traits::max_size()>{}, 0)
@@ -694,24 +683,20 @@ namespace utility
 			: basic_string(repeat_str{}, repeat, chars.data(), encoding_traits::get(cp, chars.data()))
 		{}
 		basic_string(repeat_str, std::size_t repeat, const code_unit * s, std::size_t count)
-			: data_(repeat * count + 1)
+			: data_(repeat * count)
 		{
 			// assert(count != 1); // more efficient to call basic_string(repeat, c)
 
 			const auto len = repeat * count;
-			data_.array_.set_size(len + 1);
 			for (std::ptrdiff_t i : ranges::index_sequence(len))
 			{
 				data_.array_.chars().construct_at(i, s[i % count]);
 			}
-			data_.array_.chars().construct_at(len, '\0');
 		}
 		basic_string(copy_str, const code_unit * s, std::size_t count)
-			: data_(count + 1)
+			: data_(count)
 		{
-			data_.array_.set_size(count + 1);
 			data_.array_.chars().construct_range(0, s, s + count);
-			data_.array_.chars().construct_at(count, '\0');
 		}
 		basic_string(other_offset, const this_type & other, size_type position)
 			: basic_string(copy_str{}, other.data() + position, other.data_.array_.size_without_null() - position)
@@ -721,12 +706,10 @@ namespace utility
 			: basic_string(copy_str{}, other.data() + position, encoding_traits::next(other.data() + position, std::forward<Count>(count)))
 		{}
 		basic_string(const code_unit * s, size_type ls, const code_unit * t, size_type lt)
-			: data_(ls + lt + 1)
+			: data_(ls + lt)
 		{
-			data_.array_.set_size(ls + lt + 1);
 			data_.array_.chars().construct_range(0, s, s + ls);
 			data_.array_.chars().construct_range(ls, t, t + lt);
-			data_.array_.chars().construct_at(ls + lt, '\0');
 		}
 
 	public:

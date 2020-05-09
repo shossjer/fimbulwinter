@@ -5,39 +5,31 @@
 
 namespace utility
 {
-	struct initialize_empty
+	template <typename Storage>
+	struct initialize_default
 	{
-		template <typename Data>
-		void operator () (Data & data)
+		using is_trivial = typename Storage::storing_trivially_default_constructible;
+
+		template <typename Callback>
+		void operator () (Callback && callback)
 		{
-			data.set_capacity(0);
-			data.set_size(0);
-			data.initialize_empty();
+			callback();
 		}
 	};
 
+	template <typename Storage>
 	struct initialize_zero
 	{
-		template <typename Data>
-		void operator () (Data & data)
+		using is_trivial = mpl::false_type;
+
+		template <typename Callback>
+		void operator () (Callback && callback)
 		{
-			const auto capacity = Data::storage_traits::capacity_for(1);
-			if (data.storage_.allocate(capacity))
-			{
-				data.set_capacity(capacity);
-				data.set_size(capacity);
-				data.initialize_fill(utility::zero_initialize);
-			}
-			else
-			{
-				data.set_capacity(0);
-				data.set_size(0);
-				data.initialize_empty();
-			}
+			callback(utility::zero_initialize);
 		}
 	};
 
-	struct reallocate_move
+	struct relocate_move
 	{
 		template <typename Data>
 		bool operator () (Data & new_data, Data & old_data)
@@ -83,56 +75,27 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename Data, bool = Data::is_trivially_default_constructible::value>
-		struct container_trivially_default_constructible
-			: container_trivially_destructible<Data>
-		{
-			using base_type = container_trivially_destructible<Data>;
-
-			using base_type::base_type;
-		};
-		template <typename Data>
-		struct container_trivially_default_constructible<Data, false /*trivially default constructible*/>
-			: container_trivially_destructible<Data>
-		{
-			using base_type = container_trivially_destructible<Data>;
-			using this_type = container_trivially_default_constructible<Data, false>;
-
-			using base_type::base_type;
-
-			container_trivially_default_constructible()
-				: base_type(utility::null_place)
-			{
-				this->initialize();
-			}
-			container_trivially_default_constructible(const this_type &) = default;
-			container_trivially_default_constructible(this_type &&) = default;
-			this_type & operator = (const this_type &) = default;
-			this_type & operator = (this_type &&) = default;
-		};
-
 		template <typename Data, bool = std::is_copy_constructible<Data>::value>
 		struct container_trivially_copy_constructible
-			: container_trivially_default_constructible<Data>
+			: container_trivially_destructible<Data>
 		{
-			using base_type = container_trivially_default_constructible<Data>;
+			using base_type = container_trivially_destructible<Data>;
 
 			using base_type::base_type;
 		};
 		template <typename Data>
 		struct container_trivially_copy_constructible<Data, false /*copy constructible*/>
-			: container_trivially_default_constructible<Data>
+			: container_trivially_destructible<Data>
 		{
-			using base_type = container_trivially_default_constructible<Data>;
+			using base_type = container_trivially_destructible<Data>;
 			using this_type = container_trivially_copy_constructible<Data, false>;
 
 			using base_type::base_type;
 
 			container_trivially_copy_constructible() = default;
 			container_trivially_copy_constructible(const this_type & other)
-				: base_type(utility::null_place)
 			{
-				if (this->allocate(other))
+				if (this->allocate(this->capacity_for(other)))
 				{
 					this->copy(other);
 				}
@@ -172,7 +135,7 @@ namespace utility
 				{
 					this->purge();
 
-					if (!this->allocate(other))
+					if (!this->allocate(this->capacity_for(other)))
 						return *this;
 				}
 				this->copy(other);
@@ -182,7 +145,7 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename Data, bool move_constructible = std::is_move_constructible<Data>::value, bool moves_allocation = Data::storage_traits::moves_allocation::value>
+		template <typename Data, bool move_constructible = std::is_move_constructible<Data>::value, bool moves_allocation = utility::storage_traits<typename Data::storage_type>::moves_allocation::value>
 		struct container_trivially_move_constructible
 			: container_trivially_copy_assignable<Data>
 		{
@@ -198,7 +161,7 @@ namespace utility
 			container_trivially_move_constructible(this_type && other)
 				: base_type(std::move(other))
 			{
-				other.initialize();
+				other.release();
 			}
 			this_type & operator = (const this_type &) = default;
 			this_type & operator = (this_type &&) = default;
@@ -223,9 +186,8 @@ namespace utility
 			container_trivially_move_constructible() = default;
 			container_trivially_move_constructible(const this_type &) = default;
 			container_trivially_move_constructible(this_type && other)
-				: base_type(utility::null_place)
 			{
-				if (this->allocate(other))
+				if (this->allocate(this->capacity_for(other)))
 				{
 					this->move(std::move(other));
 				}
@@ -234,7 +196,7 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename Data, bool move_assignable = std::is_move_assignable<Data>::value, bool moves_allocation = Data::storage_traits::moves_allocation::value>
+		template <typename Data, bool move_assignable = std::is_move_assignable<Data>::value, bool moves_allocation = utility::storage_traits<typename Data::storage_type>::moves_allocation::value>
 		struct container_trivially_move_assignable
 			: container_trivially_move_constructible<Data>
 		{
@@ -255,7 +217,7 @@ namespace utility
 
 				static_cast<base_type &>(*this) = std::move(other);
 
-				other.initialize();
+				other.release();
 				return *this;
 			}
 		};
@@ -290,7 +252,7 @@ namespace utility
 				{
 					this->purge();
 
-					if (!this->allocate(other))
+					if (!this->allocate(this->capacity_for(other)))
 						return *this;
 				}
 				this->move(std::move(other));
@@ -298,8 +260,34 @@ namespace utility
 				return *this;
 			}
 		};
+
+		template <typename Data, bool = Data::is_trivially_default_constructible::value>
+		struct container_trivially_default_constructible
+			: container_trivially_move_assignable<Data>
+		{
+			using base_type = container_trivially_move_assignable<Data>;
+
+			using base_type::base_type;
+		};
+		template <typename Data>
+		struct container_trivially_default_constructible<Data, false /*trivially default constructible*/>
+			: container_trivially_move_assignable<Data>
+		{
+			using base_type = container_trivially_move_assignable<Data>;
+			using this_type = container_trivially_default_constructible<Data, false>;
+
+			using base_type::base_type;
+
+			container_trivially_default_constructible()
+				: base_type(0)
+			{}
+			container_trivially_default_constructible(const this_type &) = default;
+			container_trivially_default_constructible(this_type &&) = default;
+			this_type & operator = (const this_type &) = default;
+			this_type & operator = (this_type &&) = default;
+		};
 	}
 
 	template <typename Data>
-	using basic_container = detail::container_trivially_move_assignable<Data>;
+	using basic_container = detail::container_trivially_default_constructible<Data>;
 }

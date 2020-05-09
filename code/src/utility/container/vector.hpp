@@ -20,12 +20,6 @@ namespace utility
 			size_type size_;
 			Storage storage_;
 
-		protected:
-			vector_data_impl()
-				: size_{}
-			{}
-			explicit vector_data_impl(utility::null_place_t) {}
-
 		public:
 			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
 
@@ -57,13 +51,6 @@ namespace utility
 			size_type capacity_;
 			Storage storage_;
 
-		protected:
-			vector_data_impl()
-				: size_{}
-				, capacity_{}
-			{}
-			explicit vector_data_impl(utility::null_place_t) {}
-
 		public:
 			std::size_t capacity() const { return capacity_; }
 
@@ -84,74 +71,27 @@ namespace utility
 		};
 	}
 
-	template <typename Storage, typename InitializationStrategy, typename ReallocationStrategy>
-	struct vector_data
-		: detail::vector_data_impl<Storage>
+	template <typename Storage, typename ReservationStrategy, typename RelocationStrategy>
+	class vector_data
+		: public detail::vector_data_impl<Storage>
 	{
-		using this_type = vector_data<Storage, InitializationStrategy, ReallocationStrategy>;
+		using this_type = vector_data<Storage, ReservationStrategy, RelocationStrategy>;
 		using base_type = detail::vector_data_impl<Storage>;
 
-		friend InitializationStrategy;
-		friend ReallocationStrategy;
+		using StorageTraits = utility::storage_traits<Storage>;
 
 	public:
 		using storage_type = Storage;
 
-		using storage_traits = utility::storage_traits<Storage>;
+		using is_trivially_destructible =
+			mpl::conjunction<typename Storage::storing_trivially_destructible,
+			                 typename StorageTraits::trivial_deallocate>;
 
-		// todo remove these
-		using is_trivially_destructible = storage_is_trivially_destructible<Storage>;
 		using is_trivially_default_constructible = mpl::false_type;
 
-	public: // todo weird to allow write access
-		template <std::size_t I>
-		auto section(mpl::index_constant<I>) { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<I>{}); }
-		template <std::size_t I>
-		auto section(mpl::index_constant<I>) const { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<I>{}); }
-
-	protected:
+	public:
 		auto storage() { return this->storage_.sections(this->capacity()); }
 		auto storage() const { return this->storage_.sections(this->capacity()); }
-
-		using base_type::base_type;
-
-		bool allocate(const this_type & other)
-		{
-			const auto capacity = storage_traits::capacity_for(other.size());
-			if (this->storage_.allocate(capacity))
-			{
-				this->set_capacity(capacity);
-				return true;
-			}
-			else
-			{
-				this->set_capacity(0);
-				this->set_size(0);
-				return false;
-			}
-		}
-
-		constexpr bool fits(const this_type & other) const
-		{
-			return !(this->capacity() < other.size());
-		}
-
-		void clear()
-		{
-			if (0 < this->capacity())
-			{
-				storage().destruct_range(0, this->size());
-			}
-		}
-
-		void purge()
-		{
-			if (0 < this->capacity())
-			{
-				storage().destruct_range(0, this->size());
-				this->storage_.deallocate(this->capacity());
-			}
-		}
 
 		void copy(const this_type & other)
 		{
@@ -167,50 +107,84 @@ namespace utility
 			storage().construct_range(0, std::make_move_iterator(other.storage().data()), std::make_move_iterator(other.storage().data() + other.size()));
 		}
 
-		void initialize()
+	protected:
+		vector_data() = default;
+
+		explicit vector_data(std::size_t min_capacity)
 		{
-			InitializationStrategy{}(*this);
+			if (allocate(ReservationStrategy{}(min_capacity)))
+			{
+				this->set_size(0);
+			}
 		}
 
-		constexpr bool try_reallocate(std::size_t new_capacity)
+		void release()
 		{
-			return try_reallocate_impl(typename storage_traits::static_capacity{}, new_capacity);
+			this->set_capacity(0);
+			this->set_size(0);
+		}
+
+		bool allocate(std::size_t capacity)
+		{
+			if (this->storage_.allocate(capacity))
+			{
+				this->set_capacity(capacity);
+				return true;
+			}
+			else
+			{
+				release();
+				return false;
+			}
+		}
+
+		constexpr std::size_t capacity_for(const this_type & other) const
+		{
+			return ReservationStrategy{}(other.size());
+		}
+
+		constexpr bool fits(const this_type & other) const
+		{
+			return !(this->capacity() < other.size());
+		}
+
+		void purge()
+		{
+			if (this->storage_.good())
+			{
+				storage().destruct_range(0, this->size());
+				this->storage_.deallocate(this->capacity());
+			}
+		}
+
+		constexpr bool try_reallocate(std::size_t min_capacity)
+		{
+			return try_reallocate_impl(typename StorageTraits::static_capacity{}, min_capacity);
 		}
 
 	private:
-		void initialize_empty()
-		{
-		}
-
-		template <typename ...Ps>
-		void initialize_fill(Ps && ...ps)
-		{
-			storage().construct_fill(0, this->capacity(), std::forward<Ps>(ps)...);
-		}
-
-		constexpr bool try_reallocate_impl(mpl::true_type /*static capacity*/, std::size_t /*new_capacity*/)
+		constexpr bool try_reallocate_impl(mpl::true_type /*static capacity*/, std::size_t /*min_capacity*/)
 		{
 			return false;
 		}
 
-		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t new_capacity)
+		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t min_capacity)
 		{
-			this_type new_data;
-			if (!new_data.storage_.allocate(new_capacity))
+			const auto new_capacity = ReservationStrategy{}(min_capacity);
+			if (new_capacity < min_capacity)
 				return false;
 
-			new_data.set_capacity(new_capacity);
+			this_type new_data;
+			if (!new_data.allocate(new_capacity))
+				return false;
 
-			if (!ReallocationStrategy{}(new_data, *this))
+			if (!RelocationStrategy{}(new_data, *this))
 				return false;
 
 			this->purge();
 
 			*this = std::move(new_data);
 
-			// todo is this even necessary?
-			new_data.set_capacity(0);
-			new_data.set_size(0);
 			return true;
 		}
 	};
@@ -222,7 +196,6 @@ namespace utility
 		using base_type = basic_container<Data>;
 
 		using typename base_type::storage_type;
-		using typename base_type::storage_traits;
 
 	public:
 		using value_type = typename storage_type::value_type;
@@ -257,11 +230,7 @@ namespace utility
 			if (min_capacity <= this->capacity())
 				return true;
 
-			const auto new_capacity = storage_traits::capacity_for(min_capacity);
-			if (new_capacity < min_capacity)
-				return false;
-
-			return this->try_reallocate(new_capacity);
+			return this->try_reallocate(min_capacity);
 		}
 
 		template <typename ...Ps>
@@ -278,7 +247,7 @@ namespace utility
 
 		bool try_erase(ext::index index)
 		{
-			if (!debug_assert(index < this->size()))
+			if (!/*debug_assert*/(static_cast<std::size_t>(index) < this->size()))
 				return false;
 
 			const auto last = this->size() - 1;
@@ -293,9 +262,11 @@ namespace utility
 	};
 
 	template <typename Storage,
-	          typename InitializationStrategy = initialize_empty,
-	          typename ReallocationStrategy = reallocate_move>
-	using vector = basic_vector<vector_data<Storage, initialize_empty, ReallocationStrategy>>;
+	          template <typename> class ReservationStrategy = utility::reserve_power_of_two,
+	          typename RelocationStrategy = utility::relocate_move>
+	using vector = basic_vector<vector_data<Storage,
+	                                        ReservationStrategy<Storage>,
+	                                        RelocationStrategy>>;
 
 	template <template <typename> class Allocator, typename ...Ts>
 	using dynamic_vector = vector<dynamic_storage<Allocator, Ts...>>;

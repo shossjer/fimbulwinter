@@ -112,7 +112,7 @@ namespace core
 				SimpleQueueData_static_capacity()
 					: SimpleQueueData_static_capacity(utility::storage_traits<Storage>::capacity_value)
 				{}
-				SimpleQueueData_static_capacity(std::size_t capacity)
+				explicit SimpleQueueData_static_capacity(std::size_t capacity)
 					: readi_{0}
 					, readendi_{0}
 					, writei_{0}
@@ -133,7 +133,7 @@ namespace core
 
 				Storage storage_;
 
-				SimpleQueueData_static_capacity(std::size_t capacity)
+				explicit SimpleQueueData_static_capacity(std::size_t capacity)
 					: readi_{0}
 					, readendi_{0}
 					, writei_{0}
@@ -224,6 +224,8 @@ namespace core
 		template <typename Storage>
 		class PageQueue
 		{
+			using ReservationStrategy = utility::reserve_power_of_two<Storage>;
+
 		public:
 			using value_type = typename Storage::value_type;
 			using reference = typename Storage::reference;
@@ -275,7 +277,7 @@ namespace core
 		public:
 			PageQueue() = default;
 			PageQueue(std::size_t capacity)
-				: impl_(storage_traits::capacity_for(capacity))
+				: impl_(ReservationStrategy{}(capacity))
 			{}
 
 		public:
@@ -288,7 +290,7 @@ namespace core
 				std::size_t next;
 				while (!detail::checkout_write_slot(*header, slot, next))
 				{
-					const auto new_capacity = storage_traits::grow(header->capacity(), 1);
+					const auto new_capacity = ReservationStrategy{}(header->capacity() + 1);
 					Header * const new_header = allocator_traits::allocate(allocator(), new_capacity);
 					if (!new_header)
 						return false;
@@ -393,6 +395,8 @@ namespace core
 		template <typename Storage>
 		class SimpleQueue
 		{
+			using ReservationStrategy = utility::reserve_power_of_two<Storage>;
+
 		public:
 			using value_type = typename Storage::value_type;
 			using reference = typename Storage::reference;
@@ -406,8 +410,9 @@ namespace core
 
 		public:
 			SimpleQueue() = default;
-			SimpleQueue(std::size_t capacity)
-				: data(storage_traits::capacity_for(capacity))
+
+			explicit SimpleQueue(std::size_t size)
+				: data(ReservationStrategy{}(size))
 			{}
 
 		public:

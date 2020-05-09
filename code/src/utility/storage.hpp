@@ -470,7 +470,12 @@ namespace utility
 	public:
 		bool allocate(std::size_t capacity)
 		{
-			return capacity == Capacity;
+			return /*debug_assert*/(capacity == Capacity);
+		}
+
+		constexpr bool good() const
+		{
+			return true;
 		}
 
 		void deallocate(std::size_t capacity)
@@ -627,6 +632,11 @@ namespace utility
 			assert(!storage());
 #endif
 			storage() = allocator_traits::allocate(allocator(), capacity);
+			return good();
+		}
+
+		bool good() const
+		{
 			return storage() != nullptr;
 		}
 
@@ -764,17 +774,6 @@ namespace utility
 		using moves_allocation = mpl::true_type;
 
 		static constexpr std::size_t size = sizeof...(Ts); // todo remove
-
-		static std::size_t grow(std::size_t capacity, std::size_t amount)
-		{
-			assert(0 < amount);
-			return utility::clp2(capacity + amount);
-		}
-
-		static std::size_t capacity_for(std::size_t size)
-		{
-			return utility::clp2(size);
-		}
 	};
 	template <std::size_t Capacity, typename ...Ts>
 	struct storage_traits<static_storage<Capacity, Ts...>>
@@ -795,16 +794,6 @@ namespace utility
 
 		static constexpr std::size_t size = sizeof...(Ts); // todo remove
 		static constexpr std::size_t capacity_value = Capacity;
-
-		static constexpr std::size_t grow(std::size_t /*capacity*/, std::size_t /*amount*/)
-		{
-			return capacity_value;
-		}
-
-		static constexpr std::size_t capacity_for(std::size_t /*size*/)
-		{
-			return capacity_value;
-		}
 	};
 
 	template <typename Storage>
@@ -825,6 +814,55 @@ namespace utility
 	using storage_is_trivially_default_constructible =
 		mpl::conjunction<typename Storage::storing_trivially_default_constructible,
 		                 typename storage_traits<Storage>::trivial_allocate>;
+
+	template <typename Storage>
+	struct reserve_exact
+	{
+		template <typename StorageTraits = storage_traits<Storage>,
+		          REQUIRES((StorageTraits::static_capacity::value))>
+		constexpr std::size_t operator () (std::size_t /*size*/)
+		{
+			return StorageTraits::capacity_value;
+		}
+
+		template <typename StorageTraits = storage_traits<Storage>,
+		          REQUIRES((!StorageTraits::static_capacity::value))>
+		constexpr std::size_t operator () (std::size_t size)
+		{
+			return size;
+		}
+	};
+
+	template <typename Storage>
+	struct reserve_power_of_two
+	{
+		template <typename StorageTraits = storage_traits<Storage>,
+		          REQUIRES((StorageTraits::static_capacity::value))>
+		constexpr std::size_t operator () (std::size_t /*size*/)
+		{
+			return StorageTraits::capacity_value;
+		}
+
+		template <typename StorageTraits = storage_traits<Storage>,
+		          REQUIRES((!StorageTraits::static_capacity::value))>
+		/*constexpr*/ std::size_t operator () (std::size_t size)
+		{
+			return utility::clp2(size);
+		}
+	};
+
+	template <template <typename> class ReservationStrategy>
+	struct reserve_nonempty
+	{
+		template <typename Storage>
+		struct type
+		{
+			constexpr std::size_t operator () (std::size_t size)
+			{
+				return ReservationStrategy<Storage>{}(size == 0 ? 1 : size);
+			}
+		};
+	};
 }
 
 #endif /* UTILITY_STORAGE_HPP */

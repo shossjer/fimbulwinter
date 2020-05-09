@@ -6,92 +6,31 @@
 
 namespace utility
 {
-	template <typename Storage, typename InitializationStrategy,
+	template <typename Storage, typename ReservationStrategy,
 	          typename ModedStorage = typename utility::storage_traits<Storage>::template append<std::size_t>>
 	class fragmented_data
 		: public detail::vector_data_impl<ModedStorage>
 	{
-		using this_type = fragmented_data<Storage, InitializationStrategy, ModedStorage>;
+		using this_type = fragmented_data<Storage, ReservationStrategy, ModedStorage>;
 		using base_type = detail::vector_data_impl<ModedStorage>;
 
-		friend InitializationStrategy;
+		using StorageTraits = utility::storage_traits<ModedStorage>;
 
 	public:
 		using storage_type = Storage;
 
-		using storage_traits = utility::storage_traits<ModedStorage>;
+		using is_trivially_destructible =
+			mpl::conjunction<typename Storage::storing_trivially_destructible,
+			                 typename StorageTraits::trivial_deallocate>;
 
-		// todo remove these
-		using is_trivially_destructible = utility::storage_is_trivially_destructible<ModedStorage>;
-		using is_trivially_default_constructible =
-			mpl::conjunction<typename storage_traits::static_capacity,
-			                 utility::storage_is_trivially_default_constructible<ModedStorage>>;
+		using is_trivially_default_constructible = mpl::false_type;
 
-	protected:
+	public:
 		auto storage() { return this->storage_.sections_for(this->capacity(), mpl::make_index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
 		auto storage() const { return this->storage_.sections_for(this->capacity(), mpl::make_index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
 
 		auto indices() { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
 		auto indices() const { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
-
-		using base_type::base_type;
-
-		fragmented_data() // todo combine with trivial default constructor?
-			: base_type()
-		{
-			this->initialize();
-		}
-
-		bool allocate(const this_type & other)
-		{
-			const auto capacity = other.capacity();
-			if (this->storage_.allocate(capacity))
-			{
-				this->set_capacity(capacity);
-				return true;
-			}
-			else
-			{
-				this->set_capacity(0);
-				this->set_size(0);
-				return false;
-			}
-		}
-
-		void initialize()
-		{
-			InitializationStrategy{}(*this);
-		}
-
-		bool fits(const this_type & other) const
-		{
-			return !(this->capacity() < other.capacity());
-		}
-
-		void clear()
-		{
-			if (0 < this->capacity())
-			{
-				for (auto index : utility::span<std::size_t>(indices().data(), this->size()))
-				{
-					storage().destruct_at(index);
-				}
-				// indices().destruct_range(0, this->capacity()); // note trivial
-			}
-		}
-
-		void purge()
-		{
-			if (0 < this->capacity())
-			{
-				for (auto index : utility::span<std::size_t>(indices().data(), this->size()))
-				{
-					storage().destruct_at(index);
-				}
-				// indices().destruct_range(0, this->capacity()); // note trivial
-				this->storage_.deallocate(this->capacity());
-			}
-		}
 
 		void copy(const this_type & other)
 		{
@@ -121,26 +60,70 @@ namespace utility
 			}
 		}
 
-	private:
-		void initialize_empty()
+	protected:
+		fragmented_data() = default;
+
+		explicit fragmented_data(std::size_t min_capacity)
 		{
-			if (0 < this->capacity())
+			if (allocate(ReservationStrategy{}(min_capacity)))
 			{
+				this->set_size(0);
+
 				indices().construct_range(0, ranges::iota_iterator<ext::index>(0), ranges::iota_iterator<ext::index>(this->capacity()));
 			}
 		}
 
-		template <typename ...Ps>
-		void initialize_fill(Ps && ...ps)
+		void release()
 		{
-			storage().construct_fill(0, this->capacity(), std::forward<Ps>(ps)...);
-			indices().construct_range(0, ranges::iota_iterator<ext::index>(0), ranges::iota_iterator<ext::index>(this->capacity()));
+			this->set_capacity(0);
+			this->set_size(0);
+		}
+
+		bool allocate(std::size_t capacity)
+		{
+			if (this->storage_.allocate(capacity))
+			{
+				this->set_capacity(capacity);
+				return true;
+			}
+			else
+			{
+				release();
+				return false;
+			}
+		}
+
+		bool fits(const this_type & other) const
+		{
+			return !(this->capacity() < other.capacity());
+		}
+
+		void clear()
+		{
+			for (auto index : utility::span<std::size_t>(indices().data(), this->size()))
+			{
+				storage().destruct_at(index);
+			}
+			// indices().destruct_range(0, this->capacity()); // note trivial
+		}
+
+		void purge()
+		{
+			if (this->storage_.good())
+			{
+				for (auto index : utility::span<std::size_t>(indices().data(), this->size()))
+				{
+					storage().destruct_at(index);
+				}
+				// indices().destruct_range(0, this->capacity()); // note trivial
+				this->storage_.deallocate(this->capacity());
+			}
 		}
 	};
 
 	template <typename Data>
 	class basic_fragmentation
-		: public basic_container<Data>
+		: basic_container<Data>
 	{
 		using base_type = basic_container<Data>;
 
@@ -157,6 +140,15 @@ namespace utility
 		using const_pointer = typename storage_type::const_pointer;
 
 	public:
+		basic_fragmentation() = default;
+
+		explicit basic_fragmentation(std::size_t size)
+			: base_type(size)
+		{}
+
+		constexpr std::size_t capacity() const { return base_type::capacity(); }
+		std::size_t size() const { return base_type::size(); }
+
 		pointer data() { return this->storage().data(); }
 		const_pointer data() const { return this->storage().data(); }
 
@@ -190,11 +182,13 @@ namespace utility
 		}
 	};
 
-	template <typename Storage>
-	using fragmentation = basic_fragmentation<fragmented_data<Storage, utility::initialize_empty>>;
+	template <typename Storage,
+	          template <typename> class ReservationStrategy = utility::reserve_power_of_two>
+	using fragmentation = basic_fragmentation<fragmented_data<Storage,
+	                                                          ReservationStrategy<Storage>>>;
 
 	template <std::size_t Capacity, typename ...Ts>
-	using static_fragmentation = basic_fragmentation<fragmented_data<utility::static_storage<Capacity, Ts...>, utility::initialize_empty>>;
+	using static_fragmentation = fragmentation<utility::static_storage<Capacity, Ts...>>;
 	template <typename ...Ts>
-	using heap_fragmentation = basic_fragmentation<fragmented_data<utility::heap_storage<Ts...>, utility::initialize_empty>>;
+	using heap_fragmentation = fragmentation<utility::heap_storage<Ts...>>;
 }
