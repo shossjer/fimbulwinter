@@ -376,6 +376,7 @@ namespace engine
 				Player player;
 			} common_header;
 			static_assert(std::is_trivial<CommonHeader>::value, "");
+			static_assert(sizeof(CommonHeader) <= 8, "");
 
 			struct AxisValue
 			{
@@ -390,6 +391,7 @@ namespace engine
 				};
 			}  axis_value;
 			static_assert(std::is_trivial<AxisValue>::value, "");
+			static_assert(sizeof(AxisValue) <= 8, "");
 
 			struct ButtonState
 			{
@@ -400,6 +402,7 @@ namespace engine
 				// int24_t unused;
 			} button_state;
 			static_assert(std::is_trivial<ButtonState>::value, "");
+			static_assert(sizeof(ButtonState) <= 8, "");
 
 			struct CursorMove
 			{
@@ -420,6 +423,7 @@ namespace engine
 #endif
 			} cursor_move;
 			static_assert(std::is_trivial<CursorMove>::value, "");
+			static_assert(sizeof(CursorMove) <= 8, "");
 
 			struct KeyCharacter
 			{
@@ -429,6 +433,7 @@ namespace engine
 				utility::unicode_code_point unicode;
 			} key_character;
 			static_assert(std::is_trivial<KeyCharacter>::value, "");
+			static_assert(sizeof(KeyCharacter) <= 8, "");
 
 		public:
 			friend Input AxisTiltInput(int_fast8_t player, Axis code, int32_t value);
