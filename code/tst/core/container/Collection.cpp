@@ -124,7 +124,7 @@ TEST_CASE( "collection heap_storage", "[core][container]" )
 	core::container::Collection
 	<
 		unsigned int,
-		10,
+		utility::heap_storage_traits,
 		utility::heap_storage<int>
 	>
 	collection;
@@ -141,7 +141,7 @@ TEST_CASE( "collection static_storage", "[core][container]" )
 	core::container::Collection
 	<
 		unsigned int,
-		10,
+		utility::static_storage_traits<10>,
 		utility::static_storage<5, int>
 	>
 	collection;

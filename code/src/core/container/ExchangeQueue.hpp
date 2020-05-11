@@ -2,8 +2,8 @@
 #ifndef CORE_CONTAINER_EXCHANGEQUEUE_HPP
 #define CORE_CONTAINER_EXCHANGEQUEUE_HPP
 
-#include <utility/array_alloc.hpp>
-#include <utility/spinlock.hpp>
+#include "utility/spinlock.hpp"
+#include "utility/storage.hpp"
 
 #include <atomic>
 #include <bitset>
@@ -35,7 +35,10 @@ namespace core
 			int readi;
 			int writei;
 			std::bitset<3> writebits;
-			utility::static_storage<3, T> buffer;
+			utility::static_storage<3, T> buffer_;
+
+			decltype(auto) buffer() { return buffer_.sections(buffer_.max_size()); }
+			decltype(auto) buffer() const { return buffer_.sections(buffer_.max_size()); }
 
 		public:
 			ExchangeQueue() :
@@ -54,9 +57,9 @@ namespace core
 				readi = lasti.exchange(readi, std::memory_order_acquire);
 				if (writebits.test(readi))
 				{
-					item = std::move(buffer[readi]);
+					item = std::move(buffer()[readi]);
 					writebits.reset(readi);
-					buffer.destruct_at(readi);
+					buffer().destruct_at(readi);
 					return true;
 				}
 				return false;
@@ -69,12 +72,12 @@ namespace core
 			bool try_push(Ps && ...ps)
 			{
 				writebits.set(writei);
-				buffer.construct_at(writei, std::forward<Ps>(ps)...);
+				buffer().construct_at(writei, std::forward<Ps>(ps)...);
 				writei = lasti.exchange(writei, std::memory_order_release);
 				// remove any unread item
 				if (writebits.test(writei))
 				{
-					buffer.destruct_at(writei);
+					buffer().destruct_at(writei);
 				}
 				return true;
 			}
@@ -88,8 +91,11 @@ namespace core
 			int readi;
 			int writei;
 			std::bitset<3> writebits;
-			utility::static_storage<3, T> buffer;
+			utility::static_storage<3, T> buffer_;
 			utility::spinlock writelock;
+
+			decltype(auto) buffer() { return buffer_.section(mpl::index_constant<0>{}); }
+			decltype(auto) buffer() const { return buffer_.section(mpl::index_constant<0>{}); }
 
 		public:
 			ExchangeQueue() :
@@ -108,9 +114,9 @@ namespace core
 				readi = lasti.exchange(readi, std::memory_order_acquire);
 				if (writebits.test(readi))
 				{
-					item = std::move(buffer[readi]);
+					item = std::move(buffer()[readi]);
 					writebits.reset(readi);
-					buffer.destruct_at(readi);
+					buffer().destruct_at(readi);
 					return true;
 				}
 				return false;
@@ -125,12 +131,12 @@ namespace core
 				std::lock_guard<utility::spinlock> lock{this->writelock};
 
 				writebits.set(writei);
-				buffer.construct_at(writei, std::forward<Ps>(ps)...);
+				buffer().construct_at(writei, std::forward<Ps>(ps)...);
 				writei = lasti.exchange(writei, std::memory_order_acq_rel); // release?
 				// remove any unread item
 				if (writebits.test(writei))
 				{
-					buffer.destruct_at(writei);
+					buffer().destruct_at(writei);
 				}
 				return true;
 			}

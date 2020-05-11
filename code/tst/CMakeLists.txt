@@ -37,8 +37,11 @@ set(FILES_UTILITY
 	tst/utility/algorithm.cpp
 	tst/utility/any.cpp
 	tst/utility/array.cpp
-	tst/utility/array_alloc.cpp
 	tst/utility/bitmanip.cpp
+	tst/utility/compound.cpp
+	tst/utility/container/array.cpp
+	tst/utility/container/fragmentation.cpp
+	tst/utility/container/vector.cpp
 	tst/utility/crypto/crc.cpp
 	tst/utility/ext/string.cpp
 	tst/utility/iterator.cpp
@@ -46,6 +49,8 @@ set(FILES_UTILITY
 	tst/utility/optional.cpp
 	tst/utility/property.cpp
 	tst/utility/ranges.cpp
+	tst/utility/span.cpp
+	tst/utility/storage.cpp
 	tst/utility/storing.cpp
 	tst/utility/string.cpp
 	tst/utility/string_conversions.cpp

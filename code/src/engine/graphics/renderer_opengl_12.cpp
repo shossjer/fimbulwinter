@@ -174,7 +174,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Asset,
-		21,
+		utility::static_storage_traits<23>,
 		utility::static_storage<10, display_t>
 	>
 	displays;
@@ -264,10 +264,10 @@ namespace
 	core::container::UnorderedCollection
 	<
 		engine::Asset,
-		401,
-		std::array<mesh_t, 100>,
-		std::array<ColorClass, 100>,
-		std::array<DefaultClass, 100>
+		utility::static_storage_traits<401>,
+		utility::static_storage<100, mesh_t>,
+		utility::static_storage<100, ColorClass>,
+		utility::static_storage<100, DefaultClass>
 	>
 	resources;
 
@@ -290,8 +290,8 @@ namespace
 	core::container::UnorderedCollection
 	<
 		engine::MutableEntity,
-		201,
-		std::array<ColorMaterial, 100>
+		utility::static_storage_traits<201>,
+		utility::static_storage<100, ColorMaterial>
 	>
 	materials;
 
@@ -322,9 +322,9 @@ namespace
 	core::container::UnorderedCollection
 	<
 		engine::MutableEntity,
-		1601,
-		std::array<object_modelview, 600>,
-		std::array<object_modelview_vertices, 200>
+		utility::static_storage_traits<1601>,
+		utility::static_storage<600, object_modelview>,
+		utility::static_storage<200, object_modelview_vertices>
 	>
 	objects;
 
@@ -420,7 +420,7 @@ namespace
 	core::container::Collection
 	<
 		engine::MutableEntity,
-		1601,
+		utility::heap_storage_traits,
 		utility::heap_storage<Character>,
 		utility::heap_storage<MeshObject>
 	>
@@ -447,7 +447,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		1601,
+		utility::heap_storage_traits,
 		utility::heap_storage<selectable_character_t>
 	>
 	selectable_components;
@@ -517,7 +517,7 @@ namespace
 	core::container::Collection
 	<
 		engine::Entity,
-		1601,
+		utility::heap_storage_traits,
 		utility::heap_storage<updateable_character_t>
 	>
 	updateable_components;
@@ -604,25 +604,24 @@ namespace
 
 				void operator () (MessageRegisterCharacter && x)
 				{
-					debug_assert(!resources.contains(x.asset));
-					resources.emplace<mesh_t>(x.asset, std::move(x.mesh));
+					debug_verify(resources.try_emplace<mesh_t>(x.asset, std::move(x.mesh)));
 				}
 
 				void operator () (MessageRegisterMaterial && x)
 				{
 					if (x.material.data_opengl_12.diffuse)
 					{
-						resources.replace<ColorClass>(x.asset, x.material.data_opengl_12.diffuse.value());
+						resources.try_replace<ColorClass>(x.asset, x.material.data_opengl_12.diffuse.value());
 					}
 					else
 					{
-						resources.replace<DefaultClass>(x.asset);
+						resources.try_replace<DefaultClass>(x.asset);
 					}
 				}
 
 				void operator () (MessageRegisterMesh && x)
 				{
-					resources.replace<mesh_t>(x.asset, std::move(x.mesh));
+					resources.try_replace<mesh_t>(x.asset, std::move(x.mesh));
 				}
 
 				void operator () (MessageRegisterTexture && /*x*/)
@@ -640,14 +639,14 @@ namespace
 						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
 							return; // error
 
-						materials.remove(*key); // todo use iterators
+						materials.try_remove(*key); // todo use iterators
 					}
-					materials.emplace<ColorMaterial>(x.entity, x.data.diffuse, x.data.materialclass);
+					debug_verify(materials.try_emplace<ColorMaterial>(x.entity, x.data.diffuse, x.data.materialclass));
 				}
 
 				void operator () (MessageDestroy && x)
 				{
-					materials.remove(x.entity);
+					materials.try_remove(x.entity);
 				}
 
 				void operator () (MessageAddMeshObject && x)
@@ -657,13 +656,13 @@ namespace
 						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
 							return; // error
 
-						objects.remove(*key); // todo use iterators
+						objects.try_remove(*key); // todo use iterators
 					}
-					auto & object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
+					auto * const object = objects.try_emplace<object_modelview>(x.entity, std::move(x.object.matrix));
 
 					if (resources.contains<mesh_t>(x.object.mesh))
 					{
-						mesh_t & mesh = resources.get<mesh_t>(x.object.mesh);
+						auto * const mesh = resources.try_get<mesh_t>(x.object.mesh);
 
 						if (const engine::MutableEntity * const key = components.find_key(x.entity.entity()))
 						{
@@ -672,7 +671,7 @@ namespace
 
 							components.remove(*key); // todo use iterators
 						}
-						debug_verify(components.try_emplace<MeshObject>(x.entity, &object, &mesh, x.object.material));
+						debug_verify(components.try_emplace<MeshObject>(x.entity, object, mesh, x.object.material));
 					}
 					else
 					{
@@ -754,10 +753,7 @@ namespace
 						updateable_components.remove(x.entity);
 					}
 					components.remove(x.entity);
-					if (objects.contains(x.entity))
-					{
-						objects.remove(x.entity);
-					}
+					objects.try_remove(x.entity);
 				}
 
 				void operator () (MessageUpdateCharacterSkinning && x)
@@ -1071,17 +1067,13 @@ namespace
 		{
 			engine::graphics::opengl::Color4ub color(0, 0, 0, 0);
 
-			if (materials.contains<ColorMaterial>(component.material))
+			if (auto * const material = materials.try_get<ColorMaterial>(component.material))
 			{
-				auto & material = materials.get<ColorMaterial>(component.material);
+				color = material->diffuse;
 
-				color = material.diffuse;
-
-				if (resources.contains<ColorClass>(material.materialclass))
+				if (auto * const class_ = resources.try_get<ColorClass>(material->materialclass))
 				{
-					auto & class_ = resources.get<ColorClass>(material.materialclass);
-
-					color = class_.diffuse;
+					color = class_->diffuse;
 				}
 			}
 

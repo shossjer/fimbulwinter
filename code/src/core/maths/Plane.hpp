@@ -77,9 +77,9 @@ namespace core
 		public:
 			Vector<D, T> normal() const
 			{
-				return utl::unpack_for(this->values,
-				                       mpl::make_index_sequence<D>{},
-				                       utl::constructor<Vector<D, T>>{});
+				return ext::apply_for(utl::constructor<Vector<D, T>>{},
+				                      this->values,
+				                      mpl::make_index_sequence<D>{});
 			}
 			T offset() const
 			{

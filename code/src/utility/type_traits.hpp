@@ -439,12 +439,6 @@ namespace mpl
 	template <typename T, T B, T E, T D = 1>
 	using integral_enumerate = integral_shift<T, integral_scale<T, make_integral_sequence<T, ((E - B) / D)>, D>, B>;
 
-	// make_*_sequence
-	template <typename T>
-	using make_tuple_sequence = make_index_sequence<std::tuple_size<T>::value>;
-	template <typename T>
-	using make_array_sequence = make_tuple_sequence<T>;
-
 	/** transpose_sequence
 	 * \tparam R Number of rows in resulting matrix, or number of columns in existing matrix.
 	 * \tparam C Number of columns in resulting matrix, or number of rows in existing matrix.
@@ -524,11 +518,6 @@ namespace mpl
 	//  stuff
 	//
 	////////////////
-	template <typename T, typename Tuple, typename Indices = mpl::make_tuple_sequence<mpl::remove_cvref_t<Tuple>>>
-	struct is_constructible_from_tuple;
-	template <typename T, typename Tuple, std::size_t ...Is>
-	struct is_constructible_from_tuple<T, Tuple, mpl::index_sequence<Is...>> : std::is_constructible<T, decltype(std::get<Is>(std::declval<Tuple>()))...> {};
-
 	namespace detail
 	{
 		template <typename T, typename ...Ts>
