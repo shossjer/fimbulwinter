@@ -126,7 +126,9 @@ TEST_CASE("trivial static fragmentation", "[utility][container][fragmentation]")
 	CHECK(a.capacity() == 10);
 	CHECK(a.size() == 0);
 
-	REQUIRE(a.try_emplace(1, 2., '3') - a.data() == 0);
+	auto index_of = [&a](auto ptr){ return ptr - a.data(); };
+
+	REQUIRE(index_of(a.try_emplace(1, 2., '3')) == 0);
 	CHECK(a.capacity() == 10);
 	CHECK(a.size() == 1);
 	CHECK(std::get<0>(a[0]) == 1);
@@ -135,15 +137,15 @@ TEST_CASE("trivial static fragmentation", "[utility][container][fragmentation]")
 
 	SECTION("can be filled")
 	{
-		REQUIRE(a.try_emplace(1, 2., '3') - a.data() == 1);
-		CHECK(a.try_emplace(1, 2., '3') - a.data() == 2);
-		CHECK(a.try_emplace(1, 2., '3') - a.data() == 3);
-		CHECK(a.try_emplace(1, 2., '3') - a.data() == 4);
-		CHECK(a.try_emplace(1, 2., '3') - a.data() == 5);
-		CHECK(a.try_emplace(1, 2., '3') - a.data() == 6);
-		CHECK(a.try_emplace(1, 2., '3') - a.data() == 7);
-		CHECK(a.try_emplace(1, 2., '3') - a.data() == 8);
-		REQUIRE(a.try_emplace(1, 2., '3') - a.data() == 9);
+		REQUIRE(index_of(a.try_emplace(1, 2., '3')) == 1);
+		CHECK(index_of(a.try_emplace(1, 2., '3')) == 2);
+		CHECK(index_of(a.try_emplace(1, 2., '3')) == 3);
+		CHECK(index_of(a.try_emplace(1, 2., '3')) == 4);
+		CHECK(index_of(a.try_emplace(1, 2., '3')) == 5);
+		CHECK(index_of(a.try_emplace(1, 2., '3')) == 6);
+		CHECK(index_of(a.try_emplace(1, 2., '3')) == 7);
+		CHECK(index_of(a.try_emplace(1, 2., '3')) == 8);
+		REQUIRE(index_of(a.try_emplace(1, 2., '3')) == 9);
 		CHECK(a.capacity() == 10);
 		CHECK(a.size() == 10);
 		CHECK(std::get<0>(a[0]) == 1);
@@ -217,7 +219,9 @@ TEST_CASE("trivial heap fragmentation", "[utility][container][fragmentation]")
 	CHECK(a.capacity() == 0);
 	CHECK(a.size() == 0);
 
-	REQUIRE(a.try_emplace(1, 2., '3') - a.data() == 0);
+	auto index_of = [&a](auto ptr){ return ptr - a.data(); };
+
+	REQUIRE(index_of(a.try_emplace(1, 2., '3')) == 0);
 	CHECK(a.capacity() >= 1);
 	CHECK(a.size() == 1);
 	CHECK(std::get<0>(a[0]) == 1);
@@ -230,7 +234,7 @@ TEST_CASE("trivial heap fragmentation", "[utility][container][fragmentation]")
 
 		for (ext::index i = a.size(); static_cast<std::size_t>(i) < old_cap; i++)
 		{
-			REQUIRE(a.try_emplace(1, 2., '3') - a.data() == i);
+			REQUIRE(index_of(a.try_emplace(1, 2., '3')) == i);
 		}
 		CHECK(a.capacity() == old_cap);
 		CHECK(a.size() == old_cap);
@@ -243,7 +247,7 @@ TEST_CASE("trivial heap fragmentation", "[utility][container][fragmentation]")
 
 		SECTION("and will reallocate when adding more")
 		{
-			REQUIRE(a.try_emplace(1, 2., '3') - a.data() == old_cap);
+			REQUIRE(index_of(a.try_emplace(1, 2., '3')) == old_cap);
 			CHECK(a.capacity() > old_cap);
 			CHECK(a.size() == old_cap + 1);
 			CHECK(std::get<0>(a[0]) == 1);
@@ -310,7 +314,9 @@ TEST_CASE("static fragmentation", "[utility][container][fragmentation]")
 	CHECK(a.capacity() == 10);
 	CHECK(a.size() == 0);
 
-	REQUIRE(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 0);
+	auto index_of = [&a](auto ptr){ return ptr - a.data(); };
+
+	REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 0);
 	CHECK(a.capacity() == 10);
 	CHECK(a.size() == 1);
 	CHECK(std::get<0>(a[0]) == 1);
@@ -319,15 +325,15 @@ TEST_CASE("static fragmentation", "[utility][container][fragmentation]")
 
 	SECTION("can be filled")
 	{
-		REQUIRE(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 1);
-		CHECK(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 2);
-		CHECK(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 3);
-		CHECK(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 4);
-		CHECK(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 5);
-		CHECK(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 6);
-		CHECK(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 7);
-		CHECK(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 8);
-		REQUIRE(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 9);
+		REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 1);
+		CHECK(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 2);
+		CHECK(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 3);
+		CHECK(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 4);
+		CHECK(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 5);
+		CHECK(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 6);
+		CHECK(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 7);
+		CHECK(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 8);
+		REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 9);
 		CHECK(a.capacity() == 10);
 		CHECK(a.size() == 10);
 		CHECK(construction_counter::destruction_count == 0);
@@ -390,7 +396,9 @@ TEST_CASE("heap fragmentation", "[utility][container][fragmentation]")
 	CHECK(a.capacity() == 0);
 	CHECK(a.size() == a.capacity());
 
-	REQUIRE(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == 0);
+	auto index_of = [&a](auto ptr){ return ptr - a.data(); };
+
+	REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == 0);
 	CHECK(a.capacity() >= 1);
 	CHECK(a.size() == 1);
 	CHECK(std::get<0>(a[0]) == 1);
@@ -403,7 +411,7 @@ TEST_CASE("heap fragmentation", "[utility][container][fragmentation]")
 
 		for (ext::index i = a.size(); static_cast<std::size_t>(i) < old_cap; i++)
 		{
-			REQUIRE(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == i);
+			REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == i);
 		}
 		CHECK(a.capacity() == old_cap);
 		CHECK(a.size() == old_cap);
@@ -413,7 +421,7 @@ TEST_CASE("heap fragmentation", "[utility][container][fragmentation]")
 
 		SECTION("and will reallocate when adding more")
 		{
-			REQUIRE(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3')) - a.data() == old_cap);
+			REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == old_cap);
 			CHECK(a.capacity() > old_cap);
 			CHECK(a.size() == old_cap + 1);
 			CHECK(construction_counter::destruction_count == old_cap);
