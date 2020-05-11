@@ -113,6 +113,9 @@ namespace utility
 
 		friend pointer to_address(this_type x)
 		{
+#if defined(_MSC_VER) && _MSC_VER <= 1925
+			using pointer = pointer;
+#endif
 			return ext::apply([&](auto & ...ps){ return pointer(x.storage_->data(ps)...); }, x.ptr_);
 		}
 	};

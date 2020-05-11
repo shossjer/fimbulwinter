@@ -405,7 +405,7 @@ namespace engine
 			{
 				State state;
 				Player player;
-#if defined(_MSC_VER) && _MSC_VER <= 1916
+#if defined(_MSC_VER) && _MSC_VER <= 1925
 				uint8_t xs[3];
 				uint8_t ys[3];
 
@@ -477,7 +477,7 @@ namespace engine
 			{
 				switch (common_header.state)
 				{
-#if defined(_MSC_VER) && _MSC_VER <= 1916
+#if defined(_MSC_VER) && _MSC_VER <= 1925
 				case State::CURSOR_MOVE: return {cursor_move.x(), cursor_move.y()};
 #else
 				case State::CURSOR_MOVE: return {cursor_move.x, cursor_move.y};
@@ -593,7 +593,7 @@ namespace engine
 			Input input;
 			input.cursor_move.state = Input::State::CURSOR_MOVE;
 			input.cursor_move.player = player;
-#if defined(_MSC_VER) && _MSC_VER <= 1916
+#if defined(_MSC_VER) && _MSC_VER <= 1925
 			input.cursor_move.x(x);
 			input.cursor_move.y(y);
 #else

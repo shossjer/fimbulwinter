@@ -147,7 +147,7 @@ namespace utility
 			{
 				const TypePattern pattern = find_type_pattern(str.data() + i);
 
-#if defined(_MSC_VER) && _MSC_VER <= 1916
+#if defined(_MSC_VER) && _MSC_VER <= 1925
 				// the microsoft compiler does not support constexpr
 				// range for :facepalm:
 				//
