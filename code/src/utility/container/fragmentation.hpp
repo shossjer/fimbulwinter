@@ -209,7 +209,7 @@ namespace utility
 
 		bool try_erase(ext::index index)
 		{
-			if (!/*debug_assert*/(std::find(this->indices().data() + this->size(), this->indices().data() + this->capacity(), index) == this->indices().data() + this->capacity()))
+			if (!/*debug_assert*/(std::find(this->indices().data() + this->size(), this->indices().data() + this->capacity(), static_cast<std::size_t>(index)) == this->indices().data() + this->capacity()))
 				return false;
 
 			const auto last = this->size() - 1;

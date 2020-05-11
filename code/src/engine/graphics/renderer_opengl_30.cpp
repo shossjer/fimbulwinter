@@ -1447,14 +1447,14 @@ namespace
 			{
 				color = material->diffuse;
 
-				if (auto * const class_ = resources.try_get<ColorClass>(material->materialclass))
+				if (auto * const color_class = resources.try_get<ColorClass>(material->materialclass))
 				{
-					color = class_->diffuse;
-					shader = class_->shader;
+					color = color_class->diffuse;
+					shader = color_class->shader;
 				}
-				else if (auto * const class_ = resources.try_get<ShaderClass>(material->materialclass))
+				else if (auto * const shader_class = resources.try_get<ShaderClass>(material->materialclass))
 				{
-					shader = class_->shader;
+					shader = shader_class->shader;
 				}
 			}
 

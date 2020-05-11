@@ -10,7 +10,8 @@ set(test_compile_options
 		-Wno-self-move>
 	# self-move - explicitly moving variable of type A to itself
 	$<$<CXX_COMPILER_ID:MSVC>:
-		/wd4456>
+		/wd4389 /wd4456>
+	# C4389 - 'operator' : signed/unsigned mismatch
 	# C4456 - declaration of 'identifier' hides previous local
 	# declaration
 	)
