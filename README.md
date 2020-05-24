@@ -45,11 +45,16 @@ step of running CMake from the developer command prompt again.
   A semicolon separated list of names for which there exists matching
   `CMAKE_*_FLAGS_name` variables, e.g. `CMAKE_CXX_FLAGS_name`.
 
+* `BUILD_TESTS`
+
+  `ON` if tests should be built, which is the default if Catch (see
+  [Dependencies](#dependencies)) is available. `OFF` otherwise.
+
 * `RUN_TESTS`
 
   `ON` or `OFF` depending on whether tests should be run as part of
-  the build process. Really useful when developing Fimbulwinter. Its
-  default value is `ON`.
+  the build process, see [Testing](#testing). Really useful when
+  developing Fimbulwinter. Its default value is `ON`.
 
 * `AUDIO_USE_FMOD`
 

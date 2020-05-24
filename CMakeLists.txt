@@ -291,6 +291,28 @@ else()
 	message(FATAL_ERROR "Thread - Disabled")
 endif()
 
+# build settings
+cmake_dependent_option(BUILD_TESTS "Build tests" ON "TARGET dep_catch" OFF)
+add_library(lib_test INTERFACE)
+if(BUILD_TESTS)
+	target_link_libraries(lib_test INTERFACE dep_catch)
+	target_compile_options(lib_test INTERFACE
+		$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+			-Wno-sign-compare -Wno-sign-conversion>
+		# sign-conversion - Warn for implicit conversions that may
+		#   change the sign of an integer value, like assigning a signed
+		#   integer expression to an unsigned integer variable.
+		$<$<CXX_COMPILER_ID:Clang>:
+			-Wno-self-move>
+		# self-move - explicitly moving variable of type A to itself
+		$<$<CXX_COMPILER_ID:MSVC>:
+			/wd4389 /wd4456>
+		# C4389 - 'operator' : signed/unsigned mismatch
+		# C4456 - declaration of 'identifier' hides previous local
+		#   declaration
+	)
+endif()
+
 # lookup features
 # sse
 message(STATUS "Looking for SSE")
