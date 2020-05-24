@@ -67,7 +67,7 @@ if(RUN_TESTS)
 endif()
 target_sources(core PRIVATE ${SOURCES_CORE} ${HEADERS_CORE})
 target_include_directories(core PUBLIC "src")
-target_link_libraries(core PRIVATE generated utility PUBLIC dep_zlib dep_png thread_dep)
+target_link_libraries(core PRIVATE generated utility PUBLIC dep_zlib dep_libpng thread_dep)
 target_compile_options(core PRIVATE ${private_compile_options})
 target_compile_definitions(core PRIVATE ${private_compile_definitions})
 
