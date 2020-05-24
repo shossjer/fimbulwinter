@@ -9,7 +9,7 @@ include(ExternalProject)
 #set(_ep_install "@PROJECT_SOURCE_DIR@/.install")
 set(_ep_download "@PROJECT_SOURCE_DIR@/.download")
 set(_ep_source "@PROJECT_SOURCE_DIR@/.source")
-set(_timeout 10)
+set(_timeout 20)
 
 if(@BUILD_ZLIB@)
 	ExternalProject_Add(
@@ -19,8 +19,8 @@ if(@BUILD_ZLIB@)
 		SOURCE_DIR "${_ep_source}/zlib"
 
 		# download
-		URL "http://zlib.net/zlib-1.2.11.tar.gz"
-		# todo URL_HASH
+		URL "https://zlib.net/zlib-1.2.11.tar.xz"
+		URL_HASH "SHA256=4ff941449631ace0d4d203e3483be9dbc9da454084111f97ea0a2114e19bf066"
 		TIMEOUT ${_timeout}
 
 		# update
@@ -54,7 +54,7 @@ if(@BUILD_LIBPNG@)
 
 		# download
 		URL "ftp://ftp-osl.osuosl.org/pub/libpng/src/archive/xz/libpng16/libpng-1.6.30.tar.xz"
-		# todo URL_HASH
+		URL_HASH "SHA256=267c332ffff70cc599d3929207869f698798f1df143aa5f9597b007c14353666"
 		TIMEOUT ${_timeout}
 
 		# update
@@ -84,7 +84,6 @@ if(@BUILD_NLOHMANN_JSON@)
 		# download
 		GIT_REPOSITORY "https://github.com/nlohmann/json.git"
 		GIT_TAG "ce0b3fe5a334567825a554a08b76c725d0790500"
-		TIMEOUT ${_timeout}
 
 		# update
 		UPDATE_COMMAND ""
@@ -111,7 +110,6 @@ if(@BUILD_CATCH@)
 		# download
 		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
 		GIT_TAG "Catch1.x"
-		TIMEOUT ${_timeout}
 
 		# update
 		UPDATE_COMMAND ""
@@ -147,7 +145,7 @@ if(@BUILD_FREETYPE@)
 
 		# download
 		URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.8.1.tar.gz"
-		# todo URL_HASH
+		URL_HASH "SHA256=876711d064a6a1bd74beb18dd37f219af26100f72daaebd2d86cb493d7cd7ec6"
 		TIMEOUT ${_timeout}
 
 		# update
@@ -167,29 +165,58 @@ if(@BUILD_FREETYPE@)
 	unset(_dependencies)
 endif()
 
-if(NOT EXISTS "${CMAKE_INSTALL_PREFIX}/include/GL/glext.h")
-	file(
-		DOWNLOAD
-		"https://www.khronos.org/registry/OpenGL/api/GL/glext.h"
-		"${_ep_download}/glext.h"
+if(@BUILD_GLEXT@)
+	ExternalProject_Add(
+		khrplatform
 
+		DOWNLOAD_DIR "${_ep_download}"
+
+		# download
+		URL "https://www.khronos.org/registry/EGL/api/KHR/khrplatform.h"
+		DOWNLOAD_NO_EXTRACT True
 		TIMEOUT ${_timeout}
+
+		# update
+		UPDATE_COMMAND ""
+
+		# configure
+		CONFIGURE_COMMAND ""
+
+		# build
+		BUILD_COMMAND ""
+
+		# install
+		INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_INSTALL_PREFIX}/include/KHR"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_ep_download}/khrplatform.h" "${CMAKE_INSTALL_PREFIX}/include/KHR"
+
+		# test
+		TEST_COMMAND ""
 		)
-	file(
-		INSTALL "${_ep_download}/glext.h"
-		DESTINATION "${CMAKE_INSTALL_PREFIX}/include/GL")
-endif()
 
-if(NOT EXISTS "${CMAKE_INSTALL_PREFIX}/include/KHR/khrplatform.h")
-	file(
-		DOWNLOAD
-		"https://www.khronos.org/registry/EGL/api/KHR/khrplatform.h"
-		"${_ep_download}/khrplatform.h"
+	ExternalProject_Add(
+		glext
 
+		DOWNLOAD_DIR "${_ep_download}"
+
+		# download
+		URL "https://www.khronos.org/registry/OpenGL/api/GL/glext.h"
+		DOWNLOAD_NO_EXTRACT True
 		TIMEOUT ${_timeout}
-		)
-	file(
-		INSTALL "${_ep_download}/khrplatform.h"
-		DESTINATION "${CMAKE_INSTALL_PREFIX}/include/KHR"
+
+		# update
+		UPDATE_COMMAND ""
+
+		# configure
+		CONFIGURE_COMMAND ""
+
+		# build
+		BUILD_COMMAND ""
+
+		# install
+		INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_INSTALL_PREFIX}/include/GL"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_ep_download}/glext.h" "${CMAKE_INSTALL_PREFIX}/include/GL"
+
+		# test
+		TEST_COMMAND ""
 		)
 endif()
