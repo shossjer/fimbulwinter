@@ -1,6 +1,6 @@
 #include "utility/unicode.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -24,9 +24,6 @@ namespace
 	constexpr const int smiley_size = 4;
 
 	constexpr const utility::encoding_utf8::code_unit three_snowmen[] = u8"\u2603\u2603\u2603";
-	constexpr const int three_snowmen_size = sizeof(three_snowmen) - 1;
-	constexpr const int three_snowmen_length = sizeof(three_snowmen) - 1 - 3 * 2;
-	//                                    two extra bytes for 3-byte characters^
 
 	constexpr const utility::encoding_utf8::code_unit long_text[] = u8"This is a story about a \u2603, named Sn\u00f6gubben, who was very good at making \u0024 since his \U00010348 was one of the best a \u2603 could have, and then he died.";
 	constexpr const int long_text_size = sizeof(long_text) - 1;

@@ -3,7 +3,7 @@
 #include "engine/gui/view_refresh.hpp"
 #include "engine/gui/update.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 SCENARIO("Adding view (show) to already updated group.", "[gui][Visibility]")
 {

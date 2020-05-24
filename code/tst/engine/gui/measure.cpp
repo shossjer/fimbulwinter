@@ -2,7 +2,7 @@
 
 #include "engine/gui/view_refresh.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 // "refresh" hierarchy with "content updated" child (no group change)
 

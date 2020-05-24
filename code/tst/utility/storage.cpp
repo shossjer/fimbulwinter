@@ -1,6 +1,6 @@
 #include "utility/storage.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("static_storage<5, int>", "[utility]")
 {

@@ -1,12 +1,2 @@
 #define CATCH_CONFIG_MAIN
-#include <catch/catch.hpp>
-
-TEST_CASE( "Important test", "Make sure logic works" )
-{
-    REQUIRE((1 && 2));
-	REQUIRE_FALSE((1 & 2));
-
-	REQUIRE((1 || 2));
-	REQUIRE((1 | 2));
-	REQUIRE((1 | 2) == (1 | 3));
-}
+#include <catch2/catch.hpp>

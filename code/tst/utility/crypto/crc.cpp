@@ -1,6 +1,6 @@
 #include "utility/crypto/crc.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE( "crc32", "[utility][crypto]" )
 {

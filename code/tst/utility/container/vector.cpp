@@ -1,6 +1,6 @@
 #include "utility/container/vector.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 namespace
 {

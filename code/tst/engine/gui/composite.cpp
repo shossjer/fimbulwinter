@@ -3,7 +3,7 @@
 #include "engine/gui/view_refresh.hpp"
 #include "engine/gui/update.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 // Test to verify a PARENT sized Group with VERTICAL (or HORIZONTAL) layout;
 // will have its childrens offset updated if one of the children changes its size.

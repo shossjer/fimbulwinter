@@ -2,7 +2,7 @@
 
 #include "engine/audio/system.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("Audio System can be created and destroyed", "[engine][audio]")
 {

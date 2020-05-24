@@ -1,6 +1,6 @@
 #include "utility/string.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("string view can find", "[utility][string view]")
 {

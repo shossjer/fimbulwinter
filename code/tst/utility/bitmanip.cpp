@@ -1,6 +1,6 @@
 #include "utility/bitmanip.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("clp2", "[utility][bitmanip]")
 {

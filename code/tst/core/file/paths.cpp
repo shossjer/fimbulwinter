@@ -2,7 +2,7 @@
 
 #include "utility/unicode.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("", "[engine][file]")
 {

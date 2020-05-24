@@ -1,6 +1,6 @@
 #include "core/maths/Matrix.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 namespace
 {
@@ -16,22 +16,22 @@ namespace
 		typename core::maths::Matrix<M, N, T>::array_type aligned_buffer;
 		matrix.get_aligned(aligned_buffer);
 
-		  CHECK(aligned_buffer[ 0] == Approx(array[ 0]));
-		  CHECK(aligned_buffer[ 4] == Approx(array[ 1]));
-		  CHECK(aligned_buffer[ 8] == Approx(array[ 2]));
-		  CHECK(aligned_buffer[12] == Approx(array[ 3]));
-		  CHECK(aligned_buffer[ 1] == Approx(array[ 4]));
-		  CHECK(aligned_buffer[ 5] == Approx(array[ 5]));
-		  CHECK(aligned_buffer[ 9] == Approx(array[ 6]));
-		  CHECK(aligned_buffer[13] == Approx(array[ 7]));
-		  CHECK(aligned_buffer[ 2] == Approx(array[ 8]));
-		  CHECK(aligned_buffer[ 6] == Approx(array[ 9]));
-		  CHECK(aligned_buffer[10] == Approx(array[10]));
-		  CHECK(aligned_buffer[14] == Approx(array[11]));
-		  CHECK(aligned_buffer[ 3] == Approx(array[12]));
-		  CHECK(aligned_buffer[ 7] == Approx(array[13]));
-		  CHECK(aligned_buffer[11] == Approx(array[14]));
-		REQUIRE(aligned_buffer[15] == Approx(array[15]));
+		  CHECK(aligned_buffer[ 0] == Approx(array[ 0]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 4] == Approx(array[ 1]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 8] == Approx(array[ 2]).epsilon(0.001));
+		  CHECK(aligned_buffer[12] == Approx(array[ 3]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 1] == Approx(array[ 4]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 5] == Approx(array[ 5]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 9] == Approx(array[ 6]).epsilon(0.001));
+		  CHECK(aligned_buffer[13] == Approx(array[ 7]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 2] == Approx(array[ 8]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 6] == Approx(array[ 9]).epsilon(0.001));
+		  CHECK(aligned_buffer[10] == Approx(array[10]).epsilon(0.001));
+		  CHECK(aligned_buffer[14] == Approx(array[11]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 3] == Approx(array[12]).epsilon(0.001));
+		  CHECK(aligned_buffer[ 7] == Approx(array[13]).epsilon(0.001));
+		  CHECK(aligned_buffer[11] == Approx(array[14]).epsilon(0.001));
+		REQUIRE(aligned_buffer[15] == Approx(array[15]).epsilon(0.001));
 #if __GNUG__
 # pragma GCC diagnostic pop
 #endif /* __GNUG__ */

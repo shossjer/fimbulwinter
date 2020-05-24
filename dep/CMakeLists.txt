@@ -169,7 +169,8 @@ if(BUILD_CATCH)
 
 		DOWNLOAD_STEP
 		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
-		GIT_TAG "Catch1.x"
+		GIT_TAG "v2.12.1"
+		GIT_SHALLOW True
 
 		CMAKE_OPTIONS
 		-DCATCH_BUILD_TESTING=OFF

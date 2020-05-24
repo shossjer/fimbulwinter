@@ -1,6 +1,6 @@
 #include "utility/property.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 #include <type_traits>
 

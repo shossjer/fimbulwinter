@@ -1,6 +1,6 @@
 #include "engine/Asset.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("A zero initialized Asset", "[engine][asset]")
 {

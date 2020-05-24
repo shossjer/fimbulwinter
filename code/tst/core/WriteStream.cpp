@@ -1,6 +1,6 @@
 #include "core/WriteStream.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("WriteStream can write", "[core][stream]")
 {

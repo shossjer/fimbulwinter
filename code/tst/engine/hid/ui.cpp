@@ -1,6 +1,6 @@
 #include "engine/hid/ui.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("Human input device User input can be created and destroyed", "[engine][hid]")
 {

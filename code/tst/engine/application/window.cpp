@@ -3,7 +3,7 @@
 #include "engine/application/config.hpp"
 #include "engine/application/window.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 #if WINDOW_USE_USER32
 # include <Windows.h>
