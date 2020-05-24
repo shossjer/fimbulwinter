@@ -53,7 +53,7 @@ if(@BUILD_LIBPNG@)
 		SOURCE_DIR "${_ep_source}/libpng"
 
 		# download
-		URL "https://sourceforge.net/projects/libpng/files/libpng16/older-releases/1.6.30/libpng-1.6.30.tar.xz/download"
+		URL "ftp://ftp-osl.osuosl.org/pub/libpng/src/archive/xz/libpng16/libpng-1.6.30.tar.xz"
 		# todo URL_HASH
 		TIMEOUT ${_timeout}
 
