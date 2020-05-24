@@ -162,146 +162,165 @@ namespace utility
 
 	namespace detail
 	{
-		template <typename C>
-		decltype(auto) begin(C & c)
-		{
-			using std::begin;
-
-			return begin(c);
-		}
-		template <typename C>
-		decltype(auto) end(C & c)
-		{
-			using std::end;
-
-			return end(c);
-		}
+		template <typename T>
+		auto is_range_impl(const T & x, int) -> decltype(std::begin(x), std::end(x), mpl::true_type());
+		template <typename T>
+		auto is_range_impl(const T &, ...) -> mpl::false_type;
 	}
 
 	template <typename T>
-	struct is_contiguous_container :
-		mpl::conjunction<is_contiguous_iterator<decltype(detail::begin(std::declval<T &>()))>,
-		                 is_contiguous_iterator<decltype(detail::end(std::declval<T &>()))>> {};
-	template <typename T, std::size_t N>
-	struct is_contiguous_container<T[N]> : mpl::true_type {};
-	template <typename T, std::size_t N>
-	struct is_contiguous_container<std::array<T, N>> : mpl::true_type {};
+	using is_range = decltype(detail::is_range_impl(std::declval<T>(), 0));
+
+	namespace detail
+	{
+		template <typename T, std::size_t N>
+		auto is_contiguous_container_impl(const T (&)[N], int) -> mpl::true_type;
+		template <typename T, std::size_t N>
+		auto is_contiguous_container_impl(const std::array<T, N> &, int) -> mpl::true_type;
+		template <typename T>
+		auto is_contiguous_container_impl(const std::valarray<T> &, int) -> mpl::true_type;
+		template <typename T, typename Allocator>
+		auto is_contiguous_container_impl(const std::vector<T, Allocator> &, int) -> mpl::true_type;
+		template <typename T>
+		auto is_contiguous_container_impl(const T & x, int) -> mpl::conjunction<is_contiguous_iterator<decltype(std::begin(x))>, is_contiguous_iterator<decltype(std::end(x))>>;
+		template <typename T>
+		auto is_contiguous_container_impl(const T &, ...) -> mpl::false_type;
+	}
+
 	template <typename T>
-	struct is_contiguous_container<std::valarray<T>> : mpl::true_type {};
-	template <typename T, typename Allocator>
-	struct is_contiguous_container<std::vector<T, Allocator>> : mpl::true_type {};
+	using is_contiguous_container = decltype(detail::is_contiguous_container_impl(std::declval<T>(), 0));
 
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((!is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto begin(C & c)
 	{
 		return std::begin(c);
 	}
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto begin(C & c)
 	{
 		return make_contiguous_iterator(std::begin(c));
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto begin(C && c)
 	{
 		return std::make_move_iterator(utility::begin(c));
 	}
 
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto cbegin(const C & c)
 	{
 		return utility::begin(c);
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto cbegin(const C && c)
 	{
 		return utility::begin(std::move(c));
 	}
 
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((!is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto rbegin(C & c)
 	{
 		return std::rbegin(c);
 	}
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto rbegin(C & c)
 	{
 		return make_contiguous_iterator(std::rbegin(c));
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto rbegin(C && c)
 	{
 		return std::make_move_iterator(utility::rbegin(c));
 	}
 
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto crbegin(const C & c)
 	{
 		return utility::rbegin(c);
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto crbegin(const C && c)
 	{
 		return utility::rbegin(std::move(c));
 	}
 
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((!is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto end(C & c)
 	{
 		return std::end(c);
 	}
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto end(C & c)
 	{
 		return make_contiguous_iterator(std::end(c));
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto end(C && c)
 	{
 		return std::make_move_iterator(utility::end(c));
 	}
 
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto cend(const C & c)
 	{
 		return utility::end(c);
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto cend(const C && c)
 	{
 		return utility::end(std::move(c));
 	}
 
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((!is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto rend(C & c)
 	{
 		return std::rend(c);
 	}
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto rend(C & c)
 	{
 		return make_contiguous_iterator(std::rend(c));
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto rend(C && c)
 	{
 		return std::make_move_iterator(utility::rend(c));
 	}
 
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto crend(const C & c)
 	{
 		return utility::rend(c);
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto crend(const C && c)
 	{
 		return utility::rend(std::move(c));
