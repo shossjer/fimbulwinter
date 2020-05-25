@@ -50,6 +50,11 @@ step of running CMake from the developer command prompt again.
   `ON` if tests should be built, which is the default if Catch (see
   [Dependencies](#dependencies)) is available. `OFF` otherwise.
 
+* `BUILD_BENCHMARKS`
+
+  Default is `OFF` but can be turned `ON` if Catch (see
+  [Dependencies](#dependencies)) is available.
+
 * `RUN_TESTS`
 
   `ON` or `OFF` depending on whether tests should be run as part of

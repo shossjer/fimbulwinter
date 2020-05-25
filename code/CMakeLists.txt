@@ -20,6 +20,7 @@ function(run_tests name executable)
 		)
 endfunction()
 
+include (bnc/CMakeLists.txt)
 include (src/CMakeLists.txt)
 include (tst/CMakeLists.txt)
 
@@ -48,6 +49,19 @@ endif()
 if(RUN_TESTS)
 	run_tests(runutilitytest utilitytest)
 	set(utility_dependency runutilitytest)
+endif()
+
+if(BUILD_BENCHMARKS)
+	add_executable(utilitybenchmark "")
+	target_sources(utilitybenchmark PRIVATE ${BNC_UTILITY})
+	target_include_directories(utilitybenchmark PRIVATE "bnc")
+	target_link_libraries(utilitybenchmark PRIVATE generated utility lib_benchmark)
+	target_compile_options(utilitybenchmark PRIVATE ${private_compile_options})
+	target_compile_definitions(utilitybenchmark PRIVATE ${private_compile_definitions})
+
+	if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} VERSION_GREATER 3.7)
+		set_target_properties(utilitybenchmark PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_HOME_DIRECTORY}")
+	endif()
 endif()
 
 add_library(core "")

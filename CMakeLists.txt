@@ -313,6 +313,13 @@ if(BUILD_TESTS)
 	)
 endif()
 
+cmake_dependent_option(BUILD_BENCHMARKS "Build benchmarks" OFF "TARGET dep_catch" OFF)
+add_library(lib_benchmark INTERFACE)
+if(BUILD_BENCHMARKS)
+	target_link_libraries(lib_benchmark INTERFACE dep_catch)
+	target_compile_definitions(lib_benchmark INTERFACE CATCH_CONFIG_ENABLE_BENCHMARKING)
+endif()
+
 # lookup features
 # sse
 message(STATUS "Looking for SSE")
