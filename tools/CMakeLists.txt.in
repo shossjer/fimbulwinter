@@ -1,0 +1,59 @@
+cmake_minimum_required(VERSION 3.0)
+
+include(ExternalProject)
+
+project(tools-build NONE)
+
+#set(_ep_tmp "@PROJECT_SOURCE_DIR@/.tmp")
+#set(_ep_stamp "@PROJECT_SOURCE_DIR@/.stamp")
+#set(_ep_log "@PROJECT_SOURCE_DIR@/.log")
+#set(_ep_binary "@PROJECT_SOURCE_DIR@/.binary")
+#set(_ep_install "@PROJECT_SOURCE_DIR@/.install")
+set(_ep_download "@PROJECT_SOURCE_DIR@/.download")
+set(_ep_source "@PROJECT_SOURCE_DIR@/.source")
+
+if(@ENABLE_COMPILER_EXPLORER@)
+	ExternalProject_Add(
+		compiler-explorer
+
+		SOURCE_DIR "@PROJECT_SOURCE_DIR@/compiler-explorer"
+
+		# download
+		GIT_REPOSITORY "https://github.com/shossjer/compiler-explorer.git"
+		GIT_TAG "project-browsing"
+
+		# configure
+		CONFIGURE_COMMAND ""
+
+		# build
+		BUILD_COMMAND ""
+
+		# install
+		INSTALL_COMMAND ""
+
+		# test
+		TEST_COMMAND ""
+		)
+
+	if(NOT ${CMAKE_VERSION} VERSION_LESS 3.14)
+		file(MAKE_DIRECTORY "@CMAKE_BINARY_DIR@/.cmake/api/v1/query/client-compiler-explorer")
+		file(TOUCH "@CMAKE_BINARY_DIR@/.cmake/api/v1/query/client-compiler-explorer/codemodel-v2")
+
+		get_filename_component(_binary_dir_name "@CMAKE_BINARY_DIR@" NAME)
+
+		file(MAKE_DIRECTORY "@PROJECT_SOURCE_DIR@/compiler-explorer/projects")
+		file(WRITE "@PROJECT_SOURCE_DIR@/compiler-explorer/projects/${_binary_dir_name}" "@CMAKE_BINARY_DIR@")
+
+		unset(_binary_dir_name)
+	endif()
+else()
+	if(NOT ${CMAKE_VERSION} VERSION_LESS 3.14)
+		get_filename_component(_binary_dir_name "@CMAKE_BINARY_DIR@" NAME)
+
+		file(REMOVE "@PROJECT_SOURCE_DIR@/compiler-explorer/projects/${_binary_dir_name}")
+
+		unset(_binary_dir_name)
+
+		file(REMOVE_RECURSE "@CMAKE_BINARY_DIR@/.cmake/api/v1/query/client-compiler-explorer")
+	endif()
+endif()

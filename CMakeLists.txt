@@ -360,3 +360,5 @@ add_library(generated INTERFACE)
 target_include_directories(generated INTERFACE "${PROJECT_BINARY_DIR}/generated")
 
 add_subdirectory(code)
+
+add_subdirectory(tools)

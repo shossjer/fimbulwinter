@@ -122,6 +122,81 @@ be modular.
 
 And some additional system things (to be updated).
 
+## Benchmarking
+
+(Micro) benchmarks are turned off by default but can be turned on via the
+cmake option `BUILD_BENCHMARKS` but only if Catch is available.
+
+### Compiler Explorer
+
+As a way to help with benchmarking, Fimbulwinter can be configured to
+setup a local modified version of the Compiler Explorer (see
+https://github.com/compiler-explorer/compiler-explorer). This is
+controlled by the CMake option `ENABLE_COMPILER_EXPLORER`, which is
+`OFF` by default, and only available with CMake versions 3.14 and
+above.
+
+The modifications are meant to facilitate looking up project
+files, and a few other things that the otherwise amazing online
+version of Compiler Explorer cannot do, but are otherwise
+unnecessary. This tool, although originally added to help with
+benchmarking, is completely orthogonal to the benchmarking flags and
+can thus be enabled without them.
+
+#### Setup
+
+1) Set `ENABLE_COMPILER_EXPLORER` to `ON` and configure your
+   project. There should now be a directory
+   `/path/to/fimbulwinter/tools/compiler-explorer`.
+
+2) Configure your project a second time in order to generate some meta
+   data about your project that Compiler Explorer will tap into. There
+   should be a `.cmake` directory in your build directory after this
+   step, and a nested `reply` directory.
+
+3) Running Compiler Explorer requires Node.js (see https://nodejs.org)
+   which if you are not a script-kiddie might sound scary or even
+   humiliating, but this is where you need to come together and just
+   install it because Compiler Explorer is worth it, seriously.
+
+4) (WINDOWS ONLY) If you want to run Compiler Explorer from WSL, and
+   you want to access `cl.exe`, you need to manually modify
+   `path/to/fimbulwinter/tools/compiler-explorer/etc/config/c++.defaults.properties`
+   to something like this:
+
+   ```
+   # Default settings for C++
+   compilers=&gcc:&clang:&cl19
+   [...]
+   group.cl19.compilers=clx86:clx64
+   group.cl19.compilerType=wsl-vc
+   group.cl19.includeFlag=/I
+   group.cl19.versionFlag=/?
+   group.cl19.versionRe=^Microsoft \(R\) C/C\+\+.*$
+   group.cl19.demanglerClassFile=./demangler-win32
+   group.cl19.supportsBinary=false
+   # group.cl19.options=/IC:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.25.28610/include /IC:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/ucrt /IC:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/um /IC:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/shared <-- DOES NOT WORK
+   compiler.clx86.exe=/mnt/c/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.25.28610/bin/Hostx64/x86/cl.exe
+   compiler.clx86.name=msvc 2019 x86
+   compiler.clx86.demangler=/mnt/c/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.25.28610/bin/Hostx64/x86/undname.exe
+   compiler.clx64.exe=/mnt/c/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.25.28610/bin/Hostx64/x64/cl.exe
+   compiler.clx64.name=msvc 2019 x64
+   compiler.clx64.demangler=/mnt/c/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.25.28610/bin/Hostx64/x64/undname.exe
+   [...]
+   ```
+
+5) Start your favorite console and execute:
+
+   ```
+   cd /path/to/fimbulwinter/tools/compiler-explorer
+   make EXTRA_ARGS='--language c++'
+   ```
+
+   If everything works as intended, you will eventually be rewarded
+   with a link to a local web service.
+
+   Browsing project files can be done via the Save/Load button.
+
 ## Testing
 
 Tests will always be built (there currently is no option to turn them
