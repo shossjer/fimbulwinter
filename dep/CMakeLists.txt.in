@@ -1,6 +1,15 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.3)
 
 include(ExternalProject)
+
+macro(_should_build outvar)
+	set(_configs "${ARGN}")
+	if(_config IN_LIST _configs)
+		set(${outvar} ON)
+	else()
+		set(${outvar} OFF)
+	endif()
+endmacro()
 
 project(dep-build NONE)
 
@@ -21,7 +30,8 @@ set(_ep_download "@PROJECT_SOURCE_DIR@/.download")
 set(_ep_source "@PROJECT_SOURCE_DIR@/.source")
 set(_timeout 20)
 
-if(@BUILD_ZLIB@)
+_should_build(_build_zlib @_zlib_configs@)
+if(_build_zlib)
 	ExternalProject_Add(
 		zlib
 
@@ -48,9 +58,10 @@ if(@BUILD_ZLIB@)
 		)
 endif()
 
-if(@BUILD_LIBPNG@)
+_should_build(_build_libpng @_libpng_configs@)
+if(_build_libpng)
 	set(_dependencies)
-	if(@BUILD_ZLIB@)
+	if(_build_zlib)
 		set(_dependencies ${_dependencies} zlib)
 	endif()
 
@@ -84,7 +95,8 @@ if(@BUILD_LIBPNG@)
 	unset(_dependencies)
 endif()
 
-if(@BUILD_JSON@)
+_should_build(_build_json @_json_configs@)
+if(_build_json)
 	ExternalProject_Add(
 		nlohmann-json
 
@@ -110,7 +122,8 @@ if(@BUILD_JSON@)
 		)
 endif()
 
-if(@BUILD_CATCH@)
+_should_build(_build_catch @_catch_configs@)
+if(_build_catch)
 	ExternalProject_Add(
 		catch
 
@@ -136,12 +149,13 @@ if(@BUILD_CATCH@)
 		)
 endif()
 
-if(@BUILD_FREETYPE@)
+_should_build(_build_freetype @_freetype_configs@)
+if(_build_freetype)
 	set(_dependencies)
-	if(@BUILD_ZLIB@)
+	if(_build_zlib)
 		set(_dependencies ${_dependencies} zlib)
 	endif()
-	if(@BUILD_LIBPNG@)
+	if(_build_libpng)
 		set(_dependencies ${_dependencies} libpng)
 	endif()
 
@@ -162,7 +176,7 @@ if(@BUILD_FREETYPE@)
 		UPDATE_COMMAND ""
 
 		# configure
-		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" "-DCMAKE_PREFIX_PATH=${_install_prefix}" "-DCMAKE_INSTALL_PREFIX=${_install_prefix}" -DWITH_ZLIB=@BUILD_ZLIB@ -DWITH_PNG=@BUILD_LIBPNG@ -DWITH_BZip2=OFF -DWITH_HarfBuzz=OFF "${_ep_source}/freetype"
+		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" "-DCMAKE_PREFIX_PATH=${_install_prefix}" "-DCMAKE_INSTALL_PREFIX=${_install_prefix}" -DWITH_ZLIB=${_build_zlib} -DWITH_PNG=${_build_libpng} -DWITH_BZip2=OFF -DWITH_HarfBuzz=OFF "${_ep_source}/freetype"
 
 		# build
 
@@ -175,7 +189,8 @@ if(@BUILD_FREETYPE@)
 	unset(_dependencies)
 endif()
 
-if(@BUILD_GLEXT@)
+_should_build(_build_glext @_glext_configs@)
+if(_build_glext)
 	ExternalProject_Add(
 		khrplatform
 

@@ -1,6 +1,18 @@
 cmake_minimum_required(VERSION 3.5)
 
-include(CMakeDependentOption)
+macro(_set_configs outvar name)
+	string(TOUPPER "${name}" _big_name)
+
+	if(BUILD_${_big_name})
+		if(${ARGC} GREATER 2 AND "${ARGV2}" STREQUAL "SUPPORTS_DEBUG" AND DEP_DEBUG_CONFIG)
+			set(${outvar} ${DEP_RELEASE_CONFIG} ${DEP_DEBUG_CONFIG})
+		else()
+			set(${outvar} ${DEP_RELEASE_CONFIG})
+		endif()
+	else()
+		set(${outvar})
+	endif()
+endmacro()
 
 project(dep NONE)
 
@@ -28,6 +40,13 @@ option(BUILD_GLEXT "Build glext and other necessities" ON)
 option(BUILD_JSON "Build nlohmann-json" ON)
 option(BUILD_LIBPNG "Build libpng" ON)
 option(BUILD_ZLIB "Build zlib" ON)
+
+_set_configs(_catch_configs catch)
+_set_configs(_freetype_configs freetype SUPPORTS_DEBUG)
+_set_configs(_glext_configs glext)
+_set_configs(_json_configs json)
+_set_configs(_libpng_configs libpng SUPPORTS_DEBUG)
+_set_configs(_zlib_configs zlib SUPPORTS_DEBUG)
 
 set(_initial_cache "")
 get_cmake_property(_cache_variables CACHE_VARIABLES)
@@ -93,7 +112,7 @@ else()
 endif()
 
 function(_try_package name target)
-	set(_options SUPPORTS_DEBUG)
+	set(_options)
 	set(_single_values)
 	set(_multi_values DEPENDS ALL_FILES ONE_LIB)
 	cmake_parse_arguments(_parsed "${_options}" "${_single_values}" "${_multi_values}" ${ARGN})
@@ -103,14 +122,8 @@ function(_try_package name target)
 
 	string(TOUPPER "${name}" _big_name)
 
-	if(DEP_DEBUG_CONFIG AND _parsed_SUPPORTS_DEBUG)
-		set(_configs ${DEP_RELEASE_CONFIG} ${DEP_DEBUG_CONFIG})
-	else()
-		set(_configs ${DEP_RELEASE_CONFIG})
-	endif()
-
 	set(_valid True)
-	foreach(_config IN ITEMS ${_configs})
+	foreach(_config IN ITEMS ${_${name}_configs})
 		string(TOUPPER "${_config}" _big_config)
 
 		if(BUILD_${_big_name})
@@ -186,7 +199,7 @@ function(_try_package name target)
 	endforeach()
 
 	if(_valid)
-		foreach(_config IN ITEMS ${_configs})
+		foreach(_config IN ITEMS ${_${name}_configs})
 			string(TOUPPER "${_config}" _big_config)
 
 			add_library(${target}_${_config} INTERFACE)
