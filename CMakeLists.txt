@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.5.1)
 
+include(CMakeDependentOption)
+include(TestBigEndian)
+
 # usage:
 #
 #   _resolve_options(options... [| options...]*)
@@ -92,7 +95,6 @@ message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
 message("")
 
 # hardware settings
-include(TestBigEndian)
 test_big_endian(ENDIANESS)
 if (ENDIANESS)
   set(BIG_WORDS 1)
@@ -157,7 +159,6 @@ find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
 # module dependencies
-include(CMakeDependentOption)
 
 # audio
 if(FILE_FMOD_HPP AND (LIBRARY_FMOD OR LIBRARY_FMOD_VC))
