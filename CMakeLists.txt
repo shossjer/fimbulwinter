@@ -55,6 +55,7 @@ else()
 endif()
 
 add_subdirectory(dep)
+add_subdirectory(tools)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -321,23 +322,18 @@ if(BUILD_BENCHMARKS)
 endif()
 
 # lookup features
-# coz
-message(STATUS "Looking for Coz")
-find_file(FILE_COZ_H coz.h)
-message(STATUS "Looking for Coz - ${FILE_COZ_H}")
 
-cmake_dependent_option(PROFILING_COZ "Enable Coz profiling" OFF "FILE_COZ_H" OFF)
-add_library(dep_profiling INTERFACE)
+cmake_dependent_option(PROFILING_COZ "Enable Coz profiling" OFF "TARGET dep_coz" OFF)
+add_library(lib_profiling INTERFACE)
 if(PROFILING_COZ)
 	message(STATUS "Enabled Coz profiling")
-	target_compile_definitions(dep_profiling
-		INTERFACE
+	target_link_libraries(lib_profiling INTERFACE dep_coz)
+	target_compile_definitions(lib_profiling INTERFACE
 		PROFILING_COZ=1
 		)
-	target_compile_options(dep_profiling
-		INTERFACE
+	target_compile_options(lib_profiling INTERFACE
 		$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
-			-Og>
+			-g>
 		)
 else()
 	message(STATUS "Disabled profiling")
@@ -382,5 +378,3 @@ add_library(generated INTERFACE)
 target_include_directories(generated INTERFACE "${PROJECT_BINARY_DIR}/generated")
 
 add_subdirectory(code)
-
-add_subdirectory(tools)

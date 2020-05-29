@@ -89,6 +89,9 @@ step of running CMake from the developer command prompt again.
 
 * `PROFILING_COZ` (only for Linux)
 
+  Turns Coz (see [Tools](#tools)) profiling `ON` or `OFF`, see
+  #[Profiling](#profiling).
+
 ### Dependencies
 
 Libraries that are _needed_ for building and running a derivative of
@@ -201,6 +204,21 @@ can thus be enabled without them.
 
    Browsing project files can be done via the Save/Load button.
 
+### Tools
+
+Libraries that are not strictly _needed_ for running a derivative of
+Fimbulwinter, and other things that can be considered helpful, are
+collectively named "tools". These tools can be built as part of the
+configure process but are turned off by default.
+
+All tools are collected in the `tools` directory and can only be built
+in a release configuration, as determined by the variable
+`TOOLS_RELEASE_CONFIG`. It is `Release` by default.
+
+* Compiler Explorer - https://github.com/compiler-explorer/compiler-explorer
+
+* Coz: Causal Profiling - https://github.com/plasma-umass/coz
+
 ## Testing
 
 Tests will always be built (there currently is no option to turn them
@@ -212,12 +230,18 @@ via the `RUN_TESTS` option.
 ## Profiling
 
 Profiling is disabled by default but can be turned on if Coz (see
-https://github.com/plasma-umass/coz) is installed on your system. This
-is controlled via the CMake option `PROFILING_COZ`. When profiling is
-enabled you need to run your executable similar to this:
+[Tools](#tools)) can be found. This is controlled via the CMake option
+`PROFILING_COZ`. When Coz profiling is enabled you need to run your
+executable similar to this:
 
 ```
 coz run --- /path/to/your/executable [args...]
+```
+
+or, if you built Coz as part of the configure process, simply execute
+
+```
+/path/to/fimbulwinter/tools/coz/run /path/to/your/executable [args...]
 ```
 
 Make use of https://plasma-umass.org/coz/ to make sense of the

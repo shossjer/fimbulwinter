@@ -3,7 +3,10 @@ dep/*
 !dep/CMakeLists.txt.in
 
 tools/*
+!tools/.patch/
+!tools/.probe/
 !tools/CMakeLists.txt
 !tools/CMakeLists.txt.in
+!tools/coz/
 
 *~
