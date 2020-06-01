@@ -1,16 +1,98 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.7)
 
-macro(_set_configs outvar name)
-	string(TOUPPER "${name}" _big_name)
-
-	if(BUILD_${_big_name})
-		if(${ARGC} GREATER 2 AND "${ARGV2}" STREQUAL "SUPPORTS_DEBUG" AND DEP_DEBUG_CONFIG)
-			set(${outvar} ${DEP_RELEASE_CONFIG} ${DEP_DEBUG_CONFIG})
+# 3.12 string(JOIN ...)
+# except this function quotes all arguments
+function(_join glue outvar)
+	set(_str "")
+	foreach(_arg IN LISTS ARGN)
+		if(_str)
+			set(_str "${_str}${glue}\"${_arg}\"")
 		else()
-			set(${outvar} ${DEP_RELEASE_CONFIG})
+			set(_str "\"${_arg}\"")
 		endif()
+	endforeach()
+	set(${outvar} "${_str}" PARENT_SCOPE)
+endfunction()
+
+function(_build_dependency dependency)
+	set(_options FIND_GIT)
+	set(_multi_values BUILD_STEP CMAKE_OPTIONS CONFIGS CONFIGURE_STEP DOWNLOAD_STEP INSTALL_STEP UPDATE_STEP)
+	cmake_parse_arguments(PARSE_ARGV 0 _parsed "${_options}" "" "${_multi_values}")
+	# note we have to use the 3.7 syntax here in order to properly
+	# handle empty strings as arguments, read the discussion at
+	# https://gitlab.kitware.com/cmake/cmake/-/issues/16341
+	# for more details
+
+	set(_download_step "\"DOWNLOAD_COMMAND\" \"\"")
+	set(_update_step "\"UPDATE_COMMAND\" \"\"")
+	set(_configure_step "\"CONFIGURE_COMMAND\" \"\"")
+	set(_build_step "\"BUILD_COMMAND\" \"\"")
+	set(_install_step "\"INSTALL_COMMAND\" \"\"")
+
+	if(DEFINED _parsed_DOWNLOAD_STEP)
+		_join(" " _download_step "${_parsed_DOWNLOAD_STEP}")
+	endif()
+
+	if(DEFINED _parsed_UPDATE_STEP)
+		_join(" " _update_step "${_parsed_UPDATE_STEP}")
+	endif()
+
+	if(DEFINED _parsed_CONFIGURE_STEP)
+		_join(" " _configure_step "${_parsed_CONFIGURE_STEP}")
+	endif()
+
+	if(DEFINED _parsed_BUILD_STEP)
+		_join(" " _build_step "${_parsed_BUILD_STEP}")
+	endif()
+
+	if(DEFINED _parsed_INSTALL_STEP)
+		_join(" " _install_step "${_parsed_INSTALL_STEP}")
+	endif()
+
+	if(DEFINED _parsed_CMAKE_OPTIONS)
+		_join(" " _configure_step CONFIGURE_COMMAND \$\{CMAKE_COMMAND\} -C "${_initial_cache_file}" -DCMAKE_PREFIX_PATH=\$\{_install_prefix\} -DCMAKE_INSTALL_PREFIX=\$\{_install_prefix\} "${_parsed_CMAKE_OPTIONS}" \$\{_source_dir\})
+		set(_build_step "")
+		set(_install_step "")
+	endif()
+
+	set(_build_dir "${PROJECT_BINARY_DIR}/generated/${dependency}")
+
+	configure_file(
+		"${PROJECT_SOURCE_DIR}/CMakeLists.txt.in"
+		"${_build_dir}/CMakeLists.txt"
+		@ONLY
+		)
+
+	if(DEFINED CMAKE_CONFIGURATION_TYPES)
+		execute_process(
+			COMMAND ${CMAKE_COMMAND} "-DCMAKE_CONFIGURATION_TYPES=${_parsed_CONFIGS}" .
+			WORKING_DIRECTORY ${_build_dir}
+			)
+
+		foreach(_config IN LISTS _parsed_CONFIGS)
+			execute_process(
+				COMMAND ${CMAKE_COMMAND} --build . --config ${_config}
+				WORKING_DIRECTORY ${_build_dir}
+				)
+		endforeach()
+	elseif(${CMAKE_BUILD_TYPE} IN_LIST _parsed_CONFIGS)
+		execute_process(
+			COMMAND ${CMAKE_COMMAND} . -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+			WORKING_DIRECTORY ${_build_dir}
+			)
+
+		execute_process(
+			COMMAND ${CMAKE_COMMAND} --build .
+			WORKING_DIRECTORY ${_build_dir}
+			)
+	endif()
+endfunction()
+
+macro(_set_configs outvar)
+	if(${ARGC} GREATER 1 AND "${ARGV1}" STREQUAL "SUPPORTS_DEBUG" AND DEP_DEBUG_CONFIG)
+		set(${outvar} ${DEP_RELEASE_CONFIG} ${DEP_DEBUG_CONFIG})
 	else()
-		set(${outvar})
+		set(${outvar} ${DEP_RELEASE_CONFIG})
 	endif()
 endmacro()
 
@@ -24,7 +106,13 @@ if("${DEP_DEBUG_CONFIG}" STREQUAL "${DEP_RELEASE_CONFIG}")
 	set(DEP_DEBUG_CONFIG "")
 endif()
 
-if(NOT DEFINED CMAKE_CONFIGURATION_TYPES)
+if(DEFINED CMAKE_CONFIGURATION_TYPES)
+	if(DEP_DEBUG_CONFIG)
+		set(CMAKE_CONFIGURATION_TYPES ${DEP_RELEASE_CONFIG} ${DEP_DEBUG_CONFIG})
+	else()
+		set(CMAKE_CONFIGURATION_TYPES ${DEP_RELEASE_CONFIG})
+	endif()
+else()
 	get_property(_debug_configs GLOBAL PROPERTY DEBUG_CONFIGURATIONS)
 
 	if(DEP_DEBUG_CONFIG AND "${CMAKE_BUILD_TYPE}" IN_LIST _debug_configs)
@@ -41,12 +129,12 @@ option(BUILD_JSON "Build nlohmann-json" ON)
 option(BUILD_LIBPNG "Build libpng" ON)
 option(BUILD_ZLIB "Build zlib" ON)
 
-_set_configs(_catch_configs catch)
-_set_configs(_freetype_configs freetype SUPPORTS_DEBUG)
-_set_configs(_glext_configs glext)
-_set_configs(_json_configs json)
-_set_configs(_libpng_configs libpng SUPPORTS_DEBUG)
-_set_configs(_zlib_configs zlib SUPPORTS_DEBUG)
+_set_configs(_catch_configs)
+_set_configs(_freetype_configs SUPPORTS_DEBUG)
+_set_configs(_glext_configs)
+_set_configs(_json_configs)
+_set_configs(_libpng_configs SUPPORTS_DEBUG)
+_set_configs(_zlib_configs SUPPORTS_DEBUG)
 
 set(_initial_cache "")
 get_cmake_property(_cache_variables CACHE_VARIABLES)
@@ -73,49 +161,117 @@ file(WRITE ${_initial_cache_file} ${_initial_cache})
 
 unset(_initial_cache)
 
-configure_file(
-	"${PROJECT_SOURCE_DIR}/CMakeLists.txt.in"
-	"${PROJECT_BINARY_DIR}/generated/CMakeLists.txt"
-	@ONLY
-	)
+set(_timeout 20)
 
-unset(_initial_cache_file)
+if(BUILD_CATCH)
+	_build_dependency(catch
+		CONFIGS ${_catch_configs}
 
-if(DEFINED CMAKE_CONFIGURATION_TYPES)
-	execute_process(
-		COMMAND ${CMAKE_COMMAND} .
-		WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/generated"
+		DOWNLOAD_STEP
+		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
+		GIT_TAG "Catch1.x"
+
+		CMAKE_OPTIONS
+		-DCATCH_BUILD_TESTING=OFF
+		-DCATCH_INSTALL_DOCS=OFF
+		-DCATCH_INSTALL_HELPERS=OFF
+		)
+endif()
+
+if(BUILD_GLEXT)
+	_build_dependency(khrplatform
+		CONFIGS ${_glext_configs}
+
+		DOWNLOAD_STEP
+		URL "https://www.khronos.org/registry/EGL/api/KHR/khrplatform.h"
+		DOWNLOAD_NO_EXTRACT True
+		TIMEOUT ${_timeout}
+
+		INSTALL_STEP
+		INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory "\$\{_install_prefix\}/include/KHR"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "\$\{_download_dir\}/khrplatform.h" "\$\{_install_prefix\}/include/KHR"
 		)
 
-	if(DEP_DEBUG_CONFIG)
-		set(_configs ${DEP_RELEASE_CONFIG} ${DEP_DEBUG_CONFIG})
-	else()
-		set(_configs ${DEP_RELEASE_CONFIG})
-	endif()
+	_build_dependency(glext
+		CONFIGS ${_glext_configs}
 
-	foreach(_config IN ITEMS ${_configs})
-		execute_process(
-			COMMAND ${CMAKE_COMMAND} --build . --config ${_config}
-			WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/generated"
-			)
-	endforeach()
-else()
-	execute_process(
-		COMMAND ${CMAKE_COMMAND} . -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-		WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/generated"
+		DOWNLOAD_STEP
+		URL "https://www.khronos.org/registry/OpenGL/api/GL/glext.h"
+		DOWNLOAD_NO_EXTRACT True
+		TIMEOUT ${_timeout}
+
+		INSTALL_STEP
+		INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory "\$\{_install_prefix\}/include/GL"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "\$\{_download_dir\}/glext.h" "\$\{_install_prefix\}/include/GL"
 		)
+endif()
 
-	execute_process(
-		COMMAND ${CMAKE_COMMAND} --build .
-		WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/generated"
+if(BUILD_JSON)
+	_build_dependency(nlohmann-json
+		CONFIGS ${_json_configs}
+
+		DOWNLOAD_STEP
+		GIT_REPOSITORY "https://github.com/nlohmann/json.git"
+		GIT_TAG "ce0b3fe5a334567825a554a08b76c725d0790500"
+
+		CMAKE_OPTIONS
+		-DBuildTests=OFF
+		)
+endif()
+
+if(BUILD_ZLIB)
+	_build_dependency(zlib
+		CONFIGS ${_zlib_configs}
+
+		DOWNLOAD_STEP
+		URL "https://zlib.net/zlib-1.2.11.tar.xz"
+		URL_HASH "SHA256=4ff941449631ace0d4d203e3483be9dbc9da454084111f97ea0a2114e19bf066"
+		TIMEOUT ${_timeout}
+
+		CMAKE_OPTIONS
+		-DSKIP_INSTALL_FILES=ON
+		)
+endif()
+
+if(BUILD_LIBPNG)
+	_build_dependency(libpng
+		CONFIGS ${_libpng_configs}
+
+		DOWNLOAD_STEP
+		URL "ftp://ftp-osl.osuosl.org/pub/libpng/src/archive/xz/libpng16/libpng-1.6.30.tar.xz"
+		URL_HASH "SHA256=267c332ffff70cc599d3929207869f698798f1df143aa5f9597b007c14353666"
+		TIMEOUT ${_timeout}
+
+		CMAKE_OPTIONS
+		-Wno-dev
+		-DPNG_TESTS=OFF
+		-DSKIP_INSTALL_EXECUTABLES=ON
+		-DSKIP_INSTALL_PROGRAMS=ON
+		-DSKIP_INSTALL_FILES=ON
+		-DSKIP_INSTALL_EXPORT=ON
+		)
+endif()
+
+if(BUILD_FREETYPE)
+	_build_dependency(freetype
+		CONFIGS ${_freetype_configs}
+
+		DOWNLOAD_STEP
+		URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.8.1.tar.gz"
+		URL_HASH "SHA256=876711d064a6a1bd74beb18dd37f219af26100f72daaebd2d86cb493d7cd7ec6"
+		TIMEOUT ${_timeout}
+
+		CMAKE_OPTIONS
+		-DWITH_ZLIB=${BUILD_ZLIB}
+		-DWITH_PNG=${BUILD_LIBPNG}
+		-DWITH_BZip2=OFF
+		-DWITH_HarfBuzz=OFF
 		)
 endif()
 
 function(_try_package name target)
-	set(_options)
-	set(_single_values)
 	set(_multi_values DEPENDS ALL_FILES ONE_LIB)
-	cmake_parse_arguments(_parsed "${_options}" "${_single_values}" "${_multi_values}" ${ARGN})
+	cmake_parse_arguments(_parsed "" "" "${_multi_values}" ${ARGN})
 
 	cmake_parse_arguments(_parsed_ALL_FILES "" "" "IN" ${_parsed_ALL_FILES})
 	set(_parsed_ALL_FILES ${_parsed_ALL_FILES_UNPARSED_ARGUMENTS})
