@@ -30,7 +30,7 @@ namespace core
 				HANDLE hFile = reinterpret_cast<HANDLE>(data);
 
 				DWORD read;
-				if (!debug_verify(::ReadFile(hFile, dest, n, &read, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
+				if (!debug_verify(::ReadFile(hFile, dest, debug_cast<DWORD>(n), &read, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
 					return ext::ssize(-1);
 
 				return ext::ssize(read);

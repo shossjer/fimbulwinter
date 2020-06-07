@@ -96,7 +96,7 @@ namespace
 			async_type(HANDLE hDirectory, engine::Asset filepath_asset)
 				: hDirectory(hDirectory)
 			{
-				overlapped.hEvent = reinterpret_cast<HANDLE>(static_cast<engine::Asset::value_type>(filepath_asset));
+				overlapped.hEvent = reinterpret_cast<HANDLE>(static_cast<std::uintptr_t>(static_cast<engine::Asset::value_type>(filepath_asset)));
 			}
 		};
 		static_assert(std::is_standard_layout<async_type>::value, "`async_type` and `OVERLAPPED` must be pointer-interconvertible");
@@ -218,7 +218,7 @@ namespace
 			                        HANDLE hFile = reinterpret_cast<HANDLE>(data);
 
 			                        DWORD read;
-			                        if (!debug_verify(::ReadFile(hFile, dest, n, &read, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
+			                        if (!debug_verify(::ReadFile(hFile, dest, debug_cast<DWORD>(n), &read, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
 				                        return ext::ssize(-1);
 
 			                        return ext::ssize(read);
@@ -1263,7 +1263,7 @@ namespace
 											HANDLE hFile = reinterpret_cast<HANDLE>(data);
 
 											DWORD written;
-											if (!debug_verify(::WriteFile(hFile, src, n, &written, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
+											if (!debug_verify(::WriteFile(hFile, src, debug_cast<DWORD>(n), &written, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
 												return ext::ssize(-1);
 
 											return ext::ssize(written);

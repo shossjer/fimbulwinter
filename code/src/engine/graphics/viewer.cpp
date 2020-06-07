@@ -585,19 +585,21 @@ namespace engine
 			debug_verify(nodes.try_remove(engine::Asset("root")));
 
 			engine::Asset projections_not_unregistered[projections.max_size()];
-			const int projection_count = projections.get_all_keys(projections_not_unregistered, projections.max_size());
+			const auto projection_count = projections.get_all_keys(projections_not_unregistered, projections.max_size());
 			debug_printline(engine::asset_channel, projection_count, " projections not unregistered:");
-			for (int i = 0; i < projection_count; i++)
+			for (auto i : ranges::index_sequence(projection_count))
 			{
 				debug_printline(engine::asset_channel, projections_not_unregistered[i]);
+				static_cast<void>(i);
 			}
 
 			engine::Asset nodes_not_unregistered[nodes.max_size()];
-			const int node_count = nodes.get_all_keys(nodes_not_unregistered, nodes.max_size());
+			const auto node_count = nodes.get_all_keys(nodes_not_unregistered, nodes.max_size());
 			debug_printline(engine::asset_channel, node_count, " nodes not unregistered:");
-			for (int i = 0; i < node_count; i++)
+			for (auto i : ranges::index_sequence(node_count))
 			{
 				debug_printline(engine::asset_channel, nodes_not_unregistered[i]);
+				static_cast<void>(i);
 			}
 
 			::renderer = nullptr;

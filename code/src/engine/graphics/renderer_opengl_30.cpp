@@ -1575,19 +1575,21 @@ namespace
 		glDeleteFramebuffers(1, &framebuffer);
 
 		engine::Asset resources_not_unregistered[resources.max_size()];
-		const int resource_count = resources.get_all_keys(resources_not_unregistered, resources.max_size());
+		const auto resource_count = resources.get_all_keys(resources_not_unregistered, resources.max_size());
 		debug_printline(engine::asset_channel, resource_count, " resources not unregistered:");
-		for (int i = 0; i < resource_count; i++)
+		for (auto i : ranges::index_sequence(resource_count))
 		{
 			debug_printline(engine::asset_channel, resources_not_unregistered[i]);
+			static_cast<void>(i);
 		}
 
 		engine::MutableEntity materials_not_destroyed[materials.max_size()];
-		const int material_count = materials.get_all_keys(materials_not_destroyed, materials.max_size());
+		const auto material_count = materials.get_all_keys(materials_not_destroyed, materials.max_size());
 		debug_printline(engine::asset_channel, material_count, " materials not destroyed:");
-		for (int i = 0; i < material_count; i++)
+		for (auto i : ranges::index_sequence(material_count))
 		{
 			debug_printline(engine::asset_channel, materials_not_destroyed[i]);
+			static_cast<void>(i);
 		}
 	}
 }

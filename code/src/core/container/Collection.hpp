@@ -1024,9 +1024,9 @@ namespace core
 				return &std::get<type>(arrays_)[index];
 			}
 
-			int get_all_keys(Key * buffer, int size) const
+			ext::usize get_all_keys(Key * buffer, ext::usize size) const
 			{
-				int count = 0;
+				ext::usize count = 0;
 
 				for (auto bucket : ranges::index_sequence(lookup_.size()))
 				{
