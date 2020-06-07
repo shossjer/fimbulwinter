@@ -313,7 +313,7 @@ namespace utility
 		template <std::size_t K, typename ...Ps>
 		decltype(auto) construct_at_impl(mpl::index_sequence<K>, ext::index index, Ps && ...ps)
 		{
-			return it_.storage().construct_at(std::get<K>(it_.base()), index, std::forward<Ps>(ps)...);
+			return it_.storage().construct_at(std::get<K>(it_.base()) + index, std::forward<Ps>(ps)...);
 		}
 
 		template <std::size_t K, typename P>
@@ -386,7 +386,7 @@ namespace utility
 		template <std::size_t K>
 		void destruct_at_impl(mpl::index_sequence<K>, ext::index index)
 		{
-			it_.storage().destruct_at(std::get<K>(it_.base()), index);
+			it_.storage().destruct_at(std::get<K>(it_.base()) + index);
 		}
 
 		template <std::size_t ...Ks>
@@ -490,47 +490,52 @@ namespace utility
 
 		constexpr std::size_t max_size() const { return Capacity; }
 
-		template <typename StoringType, typename ...Ps>
-		typename StoringType::value_type & construct_at(StoringType * data_, std::ptrdiff_t index, Ps && ...ps)
+		template <typename T, typename ...Ps>
+		T & construct_at(utility::storing<T> * ptr_, Ps && ...ps)
 		{
-			assert(std::size_t(index) < Capacity);
-			return data_[index].construct(std::forward<Ps>(ps)...);
+			static_assert(mpl::member_of<T, Ts...>::value, "");
+			return ptr_->construct(std::forward<Ps>(ps)...);
 		}
 
-		template <typename StoringType>
-		void destruct_at(StoringType * data_, std::ptrdiff_t index)
+		template <typename T>
+		void destruct_at(utility::storing<T> * ptr_)
 		{
-			assert(std::size_t(index) < Capacity);
-			data_[index].destruct();
+			static_assert(mpl::member_of<T, Ts...>::value, "");
+			ptr_->destruct();
 		}
 
-		template <typename StoringType>
-		typename StoringType::value_type * data(StoringType * data_)
+		template <typename T>
+		T * data(utility::storing<T> * data_)
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return &data_->value;
 		}
-		template <typename StoringType>
-		const typename StoringType::value_type * data(const StoringType * data_) const
+		template <typename T>
+		const T * data(const utility::storing<T> * data_) const
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return &data_->value;
 		}
 
-		template <typename StoringType>
-		std::ptrdiff_t index_of(const StoringType * data_, const typename StoringType::value_type & x) const
+		template <typename T>
+		std::ptrdiff_t index_of(const utility::storing<T> * data_, const T & x) const
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 			// x is pointer interconvertible with storing_t, since
 			// storing_t is a union containing a value_type member
-			return reinterpret_cast<const StoringType *>(std::addressof(x)) - data_;
+			return reinterpret_cast<const utility::storing<T> *>(std::addressof(x)) - data_;
 		}
 
-		template <typename StoringType>
-		typename StoringType::value_type & value_at(StoringType * p)
+		template <typename T>
+		T & value_at(utility::storing<T> * p)
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return p->value;
 		}
-		template <typename StoringType>
-		const typename StoringType::value_type & value_at(const StoringType * p) const
+		template <typename T>
+		const T & value_at(const utility::storing<T> * p) const
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return p->value;
 		}
 
@@ -657,38 +662,43 @@ namespace utility
 		}
 
 		template <typename T, typename ...Ps>
-		T & construct_at(T * data_, std::ptrdiff_t index, Ps && ...ps)
+		T & construct_at(T * ptr_, Ps && ...ps)
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 #if MODE_DEBUG
 			assert(storage());
 #endif
-			allocator_traits::construct(allocator(), data_ + index, std::forward<Ps>(ps)...);
-			return data_[index];
+			allocator_traits::construct(allocator(), ptr_, std::forward<Ps>(ps)...);
+			return *ptr_;
 		}
 
 		template <typename T>
-		void destruct_at(T * data_, std::ptrdiff_t index)
+		void destruct_at(T * ptr_)
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 #if MODE_DEBUG
 			assert(storage());
 #endif
-			allocator_traits::destroy(allocator(), data_ + index);
+			allocator_traits::destroy(allocator(), ptr_);
 		}
 
 		template <typename T>
 		T * data(T * data_)
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return data_;
 		}
 		template <typename T>
 		const T * data(const T * data_) const
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return data_;
 		}
 
 		template <typename T>
 		std::ptrdiff_t index_of(const T * data_, const T & x) const
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 #if MODE_DEBUG
 			assert(storage());
 #endif
@@ -698,6 +708,7 @@ namespace utility
 		template <typename T>
 		T & value_at(T * p)
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 #if MODE_DEBUG
 			assert(storage());
 #endif
@@ -706,6 +717,7 @@ namespace utility
 		template <typename T>
 		const T & value_at(const T * p) const
 		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
 #if MODE_DEBUG
 			assert(storage());
 #endif
