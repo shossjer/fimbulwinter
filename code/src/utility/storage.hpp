@@ -27,107 +27,22 @@ namespace utility
 	};
 	constexpr zero_initialize_t zero_initialize = zero_initialize_t{};
 
-	template <typename Storage, bool Const, std::size_t ...Is>
-	class storage_iterator_impl
-	{
-		static_assert(0 < sizeof...(Is), "");
-
-		template <typename Storage_, bool Const_, std::size_t ...Is_>
-		friend class storage_iterator_impl;
-
-		using this_type = storage_iterator_impl<Storage, Const, Is...>;
-
-		using value_types = mpl::type_list<typename Storage::template value_type_at<Is>...>;
-		using storing_types = mpl::transform<Storage::template storing_type_for, value_types>;
-
-		template <typename T>
-		using constify = mpl::add_const_if<Const, T>;
-
-		using constified_storage_type = mpl::add_const_if<Const, Storage>;
-		using constified_value_types = mpl::transform<constify, value_types>;
-		using constified_storing_types = mpl::transform<constify, storing_types>;
-
-		using pointers = mpl::transform<std::add_pointer_t, constified_value_types>;
-		using references = mpl::transform<std::add_lvalue_reference_t, constified_value_types>;
-		using rvalue_references = mpl::transform<std::add_rvalue_reference_t, constified_value_types>;
-		using iterator = mpl::apply<utility::zip_iterator,
-		                            mpl::transform<std::add_pointer_t,
-		                                           constified_storing_types>>;
-
-	public:
-		using difference_type = typename iterator::difference_type;
-		using value_type = utility::compound_type<value_types>;
-		using pointer = utility::zip_type<utility::zip_pointer, pointers>;
-		using reference = utility::compound_type<references>;
-		using rvalue_reference = utility::compound_type<rvalue_references>;
-		using iterator_category = std::random_access_iterator_tag; // ??
-
-	private:
-		constified_storage_type * storage_;
-		iterator ptr_;
-
-	public:
-		template <typename ...Ps,
-		          REQUIRES((std::is_constructible<iterator, Ps...>::value))>
-		explicit storage_iterator_impl(constified_storage_type & storage_, Ps && ...ps)
-			: storage_(&storage_)
-			, ptr_(std::forward<Ps>(ps)...)
-		{}
-
-	public:
-		constified_storage_type & storage() { return *storage_; }
-		const Storage & storage() const { return *storage_; }
-
-		iterator & base() { return ptr_; }
-		const iterator & base() const { return ptr_; }
-
-		reference operator * () const
-		{
-			return ext::apply([this](auto & ...ps) -> reference { return reference(storage_->value_at(ps)...); }, ptr_);
-		}
-
-		reference operator [] (difference_type n) const
-		{
-			return ext::apply([this, n](auto & ...ps) -> reference { return reference(storage_->value_at(ps + n)...); }, ptr_);
-		}
-
-		this_type & operator ++ () { ++ptr_; return *this; }
-		this_type & operator -- () { --ptr_; return *this; }
-		this_type operator ++ (int) { return this_type(*storage_, ptr_++); }
-		this_type operator -- (int) { return this_type(*storage_, ptr_--); }
-		this_type operator + (difference_type n) { return this_type(*storage_, ptr_ + n); }
-		this_type operator - (difference_type n) { return this_type(*storage_, ptr_ - n); }
-		this_type & operator += (difference_type n) { ptr_ += n; return *this; }
-		this_type & operator -= (difference_type n) { ptr_ -= n; return *this; }
-
-		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
-
-	private:
-		friend rvalue_reference iter_move(this_type x)
-		{
-#if defined(_MSC_VER) && _MSC_VER <= 1916
-			using rvalue_reference = rvalue_reference;
-#endif
-			return ext::apply([&x](auto & ...ps) -> rvalue_reference { return rvalue_reference(std::move(x.storage_->value_at(ps))...); }, x.ptr_);
-		}
-
-		friend pointer to_address(this_type x)
-		{
-#if defined(_MSC_VER) && _MSC_VER <= 1925
-			using pointer = pointer;
-#endif
-			return ext::apply([&](auto & ...ps){ return pointer(x.storage_->data(ps)...); }, x.ptr_);
-		}
-	};
-
-	template <typename Storage, std::size_t ...Is>
-	using storage_iterator = storage_iterator_impl<Storage, false, Is...>;
-	template <typename Storage, std::size_t ...Is>
-	using const_storage_iterator = storage_iterator_impl<Storage, true, Is...>;
-
 	template <typename Storage, std::size_t ...Is>
 	class storage_data
 	{
+		using value_types = mpl::type_list<typename Storage::template value_type_at<Is>...>;
+		using const_value_types = mpl::transform<std::add_const_t, value_types>;
+		using storing_types = mpl::transform<Storage::template storing_type_for, value_types>;
+
+		using pointers = mpl::transform<std::add_pointer_t, value_types>;
+		using const_pointers = mpl::transform<std::add_pointer_t, const_value_types>;
+		using references = mpl::transform<std::add_lvalue_reference_t, value_types>;
+		using const_references = mpl::transform<std::add_lvalue_reference_t, const_value_types>;
+
+		using iterator = mpl::apply<utility::zip_iterator,
+		                            mpl::transform<std::add_pointer_t,
+		                                           storing_types>>;
+
 		template <std::size_t I>
 		using value_type_i = typename Storage::template value_type_at<I>;
 		template <std::size_t I>
@@ -144,15 +59,12 @@ namespace utility
 		template <std::size_t K>
 		using can_memset_k = std::is_trivially_copyable<storing_type_k<K>>;
 
-		using iterator = storage_iterator<Storage, Is...>;
-		using const_iterator = const_storage_iterator<Storage, Is...>;
-
 	public:
-		using value_type = typename iterator::value_type;
-		using reference = typename iterator::reference;
-		using const_reference = typename const_iterator::reference;
-		using pointer = typename iterator::pointer;
-		using const_pointer = typename const_iterator::pointer;
+		using value_type = utility::compound_type<value_types>;
+		using reference = utility::compound_type<references>;
+		using const_reference = utility::compound_type<const_references>;
+		using pointer = utility::zip_type<utility::zip_pointer, pointers>;
+		using const_pointer = utility::zip_type<utility::zip_pointer, const_pointers>;
 
 		template <typename InputIt>
 		using can_memcpy = mpl::conjunction<std::is_trivially_copyable<storing_type_i<Is>>...,
@@ -161,27 +73,35 @@ namespace utility
 		using can_memset = mpl::conjunction<std::is_trivially_copyable<storing_type_i<Is>>...>;
 
 	private:
+		Storage * storage_;
 		iterator it_;
 
 	public:
 		template <typename ...Ps>
 		explicit storage_data(Storage & storage, Ps && ...ps)
-			: it_(storage, std::forward<Ps>(ps)...)
+			: storage_(&storage)
+			, it_(std::forward<Ps>(ps)...)
 		{}
 
 	public:
 		reference operator [] (ext::index index)
 		{
-			return it_[index];
+			return ext::apply([&](auto & ...ps) -> reference { return reference(*storage_->data(ps + index)...); }, it_);
 		}
 
 		const_reference operator [] (ext::index index) const
 		{
-			return it_[index];
+			return ext::apply([&](auto & ...ps) -> const_reference { return const_reference(*storage_->data(ps + index)...); }, it_);
 		}
 
-		pointer data() { return to_address(it_); }
-		const_pointer data() const { return to_address(it_); }
+		pointer data()
+		{
+			return ext::apply([&](auto & ...ps){ return pointer(storage_->data(ps)...); }, it_);
+		}
+		const_pointer data() const
+		{
+			return ext::apply([&](auto & ...ps){ return const_pointer(storage_->data(ps)...); }, it_);
+		}
 
 		template <typename ...Ps>
 		void construct_fill(ext::index begin, ext::index end, Ps && ...ps)
@@ -276,7 +196,7 @@ namespace utility
 			auto range = raw_range(begin, end);
 
 			assert(range.first <= range.second);
-			std::memcpy(it_.storage().data(std::get<K>(it_.base())) + index, range.first, (range.second - range.first) * sizeof(value_type_k<K>));
+			std::memcpy(storage_->data(std::get<K>(it_)) + index, range.first, (range.second - range.first) * sizeof(value_type_k<K>));
 		}
 
 		template <std::size_t K, typename InputIt>
@@ -313,7 +233,7 @@ namespace utility
 		template <std::size_t K, typename ...Ps>
 		decltype(auto) construct_at_impl(mpl::index_sequence<K>, ext::index index, Ps && ...ps)
 		{
-			return it_.storage().construct_at(std::get<K>(it_.base()) + index, std::forward<Ps>(ps)...);
+			return storage_->construct_at(std::get<K>(it_) + index, std::forward<Ps>(ps)...);
 		}
 
 		template <std::size_t K, typename P>
@@ -357,7 +277,7 @@ namespace utility
 		template <std::size_t K>
 		void memset_fill_impl(mpl::index_sequence<K>, ext::index begin, ext::index end, ext::byte value)
 		{
-			std::memset(it_.storage().data(std::get<K>(it_.base())) + begin, static_cast<int>(value), (end - begin) * sizeof(value_type_k<K>));
+			std::memset(storage_->data(std::get<K>(it_)) + begin, static_cast<int>(value), (end - begin) * sizeof(value_type_k<K>));
 		}
 
 		template <std::size_t ...Ks>
@@ -386,7 +306,7 @@ namespace utility
 		template <std::size_t K>
 		void destruct_at_impl(mpl::index_sequence<K>, ext::index index)
 		{
-			it_.storage().destruct_at(std::get<K>(it_.base()) + index);
+			storage_->destruct_at(std::get<K>(it_) + index);
 		}
 
 		template <std::size_t ...Ks>
@@ -401,32 +321,44 @@ namespace utility
 	class const_storage_data
 	{
 	private:
-		using iterator = const_storage_iterator<Storage, Is...>;
-		using const_iterator = iterator;
+		using value_types = mpl::type_list<typename Storage::template value_type_at<Is>...>;
+		using const_value_types = mpl::transform<std::add_const_t, value_types>;
+		using storing_types = mpl::transform<Storage::template storing_type_for, value_types>;
+		using const_storing_types = mpl::transform<std::add_const_t, storing_types>;
+
+		using const_pointers = mpl::transform<std::add_pointer_t, const_value_types>;
+		using const_references = mpl::transform<std::add_lvalue_reference_t, const_value_types>;
+
+		using const_iterator = mpl::apply<utility::zip_iterator,
+		                                  mpl::transform<std::add_pointer_t,
+		                                                 const_storing_types>>;
 
 	public:
-		using value_type = typename iterator::value_type;
-		using reference = typename iterator::reference;
-		using const_reference = typename const_iterator::reference;
-		using pointer = typename iterator::pointer;
-		using const_pointer = typename const_iterator::pointer;
+		using value_type = utility::compound_type<value_types>;
+		using const_reference = utility::compound_type<const_references>;
+		using const_pointer = utility::zip_type<utility::zip_pointer, const_pointers>;
 
 	private:
-		iterator it_;
+		const Storage * storage_;
+		const_iterator it_;
 
 	public:
 		template <typename ...Ps>
 		explicit const_storage_data(const Storage & storage, Ps && ...ps)
-			: it_(storage, std::forward<Ps>(ps)...)
+			: storage_(&storage)
+			, it_(std::forward<Ps>(ps)...)
 		{}
 
 	public:
 		const_reference operator [] (ext::index index) const
 		{
-			return it_[index];
+			return ext::apply([&](auto & ...ps) -> const_reference { return const_reference(*storage_->data(ps + index)...); }, it_);
 		}
 
-		const_pointer data() const { return to_address(it_); }
+		const_pointer data() const
+		{
+			return ext::apply([&](auto & ...ps){ return const_pointer(storage_->data(ps)...); }, it_);
+		}
 	};
 
 	template <std::size_t Capacity, typename ...Ts>
