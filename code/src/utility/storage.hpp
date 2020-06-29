@@ -383,6 +383,8 @@ namespace utility
 		template <typename T>
 		using storing_type_for = utility::storing<T>;
 
+		using iterator = utility::combine<utility::zip_iterator, storing_type_for<Ts> *...>;
+		using const_iterator = utility::combine<utility::zip_iterator, const storing_type_for<Ts> *...>;
 		using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<utility::storing<Ts>>...>;
 
 		using storing_trivially_copyable =
@@ -447,6 +449,62 @@ namespace utility
 			return &data_->value;
 		}
 
+		template <std::size_t ...Is,
+		          typename Iterator = utility::combine<utility::zip_iterator,
+		                                               storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+		Iterator begin_for(mpl::index_sequence<Is...>)
+		{
+			return Iterator(get<Is>(arrays).data()...);
+		}
+
+		template <std::size_t ...Is,
+		          typename Iterator = utility::combine<utility::zip_iterator,
+		                                               const storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+		Iterator begin_for(mpl::index_sequence<Is...>) const
+		{
+			return Iterator(get<Is>(arrays).data()...);
+		}
+
+		auto begin()
+		{
+			return begin_for(mpl::make_index_sequence_for<Ts...>{});
+		}
+
+		auto begin() const
+		{
+			return begin_for(mpl::make_index_sequence_for<Ts...>{});
+		}
+
+		auto begin(std::size_t /*capacity*/)
+		{
+			return begin();
+		}
+
+		auto begin(std::size_t /*capacity*/) const
+		{
+			return begin();
+		}
+
+		pointer data()
+		{
+			return ext::apply([&](auto * ...ss){ return pointer(data(ss)...); }, begin());
+		}
+
+		const_pointer data() const
+		{
+			return ext::apply([&](auto * ...ss){ return const_pointer(data(ss)...); }, begin());
+		}
+
+		reference operator [] (ext::index index)
+		{
+			return data()[index];
+		}
+
+		const_reference operator [] (ext::index index) const
+		{
+			return data()[index];
+		}
+
 		template <std::size_t ...Is>
 		auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>)
 		{
@@ -494,6 +552,8 @@ namespace utility
 		template <typename T>
 		using storing_type_for = T;
 
+		using iterator = utility::combine<utility::zip_iterator, Ts *...>;
+		using const_iterator = utility::combine<utility::zip_iterator, const Ts *...>;
 		using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<Ts>...>;
 
 		using storing_trivially_copyable =
@@ -603,6 +663,34 @@ namespace utility
 			return data_;
 		}
 
+		mpl::car<Ts...> * begin_for(mpl::index_sequence<0>)
+		{
+			// note there are times when we will call allocator address
+			// with a garbage storage, but maybe that is okay since then
+			// the capacity must be zero and any access through the
+			// returned address is undefined :unicorn:
+			return allocator().template address<0>(storage(), 0);
+		}
+
+		const mpl::car<Ts...> * begin_for(mpl::index_sequence<0>) const
+		{
+			// note there are times when we will call allocator address
+			// with a garbage storage, but maybe that is okay since then
+			// the capacity must be zero and any access through the
+			// returned address is undefined :unicorn:
+			return allocator().template address<0>(storage(), 0);
+		}
+
+		iterator begin(std::size_t capacity)
+		{
+			return allocator().address(storage(), capacity);
+		}
+
+		const_iterator begin(std::size_t capacity) const
+		{
+			return allocator().address(storage(), capacity);
+		}
+
 		template <std::size_t ...Is>
 		auto sections_for(std::size_t capacity, mpl::index_sequence<Is...>)
 		{
@@ -647,6 +735,208 @@ namespace utility
 		const void * storage() const { return impl_.storage_; }
 	};
 
+	namespace detail
+	{
+		template <template <typename> class Allocator, typename T0, typename ...Ts>
+		struct unpacked_dynamic_storage_data
+		{
+			using storage_type = dynamic_storage<Allocator, T0, Ts...>;
+
+			storage_type storage_;
+			utility::zip_iterator<Ts *...> extra_begins_;
+
+			T0 * begin(mpl::index_constant<0>)
+			{
+				return storage_.begin_for(mpl::index_sequence<0>{});
+			}
+
+			const T0 * begin(mpl::index_constant<0>) const
+			{
+				return storage_.begin_for(mpl::index_sequence<0>{});
+			}
+
+			template <std::size_t I,
+			          REQUIRES((0 < I))>
+			mpl::type_at<(I - 1), Ts...> * begin(mpl::index_constant<I>)
+			{
+				return std::get<(I - 1)>(extra_begins_);
+			}
+
+			template <std::size_t I,
+			          REQUIRES((0 < I))>
+			const mpl::type_at<(I - 1), Ts...> * begin(mpl::index_constant<I>) const
+			{
+				return std::get<(I - 1)>(extra_begins_);
+			}
+
+			void set(utility::zip_iterator<T0 *, Ts *...> it)
+			{
+				extra_begins_ = utility::last<sizeof...(Ts)>(it);
+			}
+		};
+
+		template <template <typename> class Allocator, typename T>
+		struct unpacked_dynamic_storage_data<Allocator, T>
+		{
+			using storage_type = dynamic_storage<Allocator, T>;
+
+			storage_type storage_;
+
+			T * begin(mpl::index_constant<0>)
+			{
+				return storage_.begin_for(mpl::index_sequence<0>{});
+			}
+
+			const T * begin(mpl::index_constant<0>) const
+			{
+				return storage_.begin_for(mpl::index_sequence<0>{});
+			}
+
+			void set(utility::zip_iterator<T *> /*it*/)
+			{
+			}
+		};
+
+		template <template <typename> class Allocator, typename ...Ts>
+		class unpacked_dynamic_storage_impl
+		{
+		public:
+			using storage_type = typename unpacked_dynamic_storage_data<Allocator, Ts...>::storage_type;
+
+			using pointer = typename storage_type::pointer;
+			using const_pointer = typename storage_type::const_pointer;
+			using reference = typename storage_type::reference;
+			using const_reference = typename storage_type::const_reference;
+
+			template <typename Storing>
+			using value_type_for = Storing;
+			template <typename T>
+			using storing_type_for = T;
+
+		private:
+			unpacked_dynamic_storage_data<Allocator, Ts...> data_;
+
+		public:
+			bool allocate(std::size_t capacity)
+			{
+				const auto ret = data_.storage_.allocate(capacity);
+				data_.set(data_.storage_.begin(capacity));
+				return ret;
+			}
+
+			bool good() const
+			{
+				return data_.storage_.good();
+			}
+
+			void deallocate(std::size_t capacity)
+			{
+				return data_.storage_.deallocate(capacity);
+			}
+
+			template <typename T, typename ...Ps>
+			T & construct_at(T * ptr_, Ps && ...ps)
+			{
+				return data_.storage_.construct_at(ptr_, std::forward<Ps>(ps)...);
+			}
+
+			template <typename T>
+			void destruct_at(T * ptr_)
+			{
+				data_.storage_.destruct_at(ptr_);
+			}
+
+			template <typename T>
+			T * data(T * ptr_)
+			{
+				return data_.storage_.data(ptr_);
+			}
+			template <typename T>
+			const T * data(const T * ptr_) const
+			{
+				return data_.storage_.data(ptr_);
+			}
+
+			template <std::size_t ...Is,
+			          typename Iterator = utility::combine<utility::zip_iterator,
+			                                               typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+			Iterator begin_for(mpl::index_sequence<Is...>)
+			{
+				return Iterator(data_.begin(mpl::index_constant<Is>{})...);
+			}
+
+			template <std::size_t ...Is,
+			          typename Iterator = utility::combine<utility::zip_iterator,
+			                                               const typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+			Iterator begin_for(mpl::index_sequence<Is...>) const
+			{
+				return Iterator(data_.begin(mpl::index_constant<Is>{})...);
+			}
+
+			auto begin()
+			{
+				return begin_for(mpl::make_index_sequence_for<Ts...>{});
+			}
+
+			auto begin() const
+			{
+				return begin_for(mpl::make_index_sequence_for<Ts...>{});
+			}
+
+			auto begin(std::size_t /*capacity*/)
+			{
+				return begin();
+			}
+
+			auto begin(std::size_t /*capacity*/) const
+			{
+				return begin();
+			}
+
+			pointer data()
+			{
+				return ext::apply([&](auto * ...ss){ return pointer(data_.storage_.data(ss)...); }, begin());
+			}
+
+			const_pointer data() const
+			{
+				return ext::apply([&](auto * ...ss){ return const_pointer(data_.storage_.data(ss)...); }, begin());
+			}
+
+			reference operator [] (ext::index index)
+			{
+				return data()[index];
+			}
+
+			const_reference operator [] (ext::index index) const
+			{
+				return data()[index];
+			}
+
+			template <std::size_t ...Is>
+			auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>)
+			{
+				return utility::storage_data<storage_type, Is...>(data_.storage_, data_.begin(mpl::index_constant<Is>{})...);
+			}
+
+			template <std::size_t ...Is>
+			auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>) const
+			{
+				return utility::storage_data<storage_type, Is...>(data_.storage_, data_.begin(mpl::index_constant<Is>{})...);
+			}
+
+			auto sections(std::size_t capacity)
+			{
+				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
+			}
+
+			auto sections(std::size_t capacity) const
+			{
+				return sections_for(capacity, mpl::make_index_sequence_for<Ts...>{});
+			}
+		};
+	}
+
 	template <typename ...Ts>
 	using heap_storage = dynamic_storage<utility::heap_allocator, Ts...>;
 
@@ -663,6 +953,8 @@ namespace utility
 		using storage_type = dynamic_storage<Allocator, Us...>;
 		template <typename ...Us>
 		using append = dynamic_storage<Allocator, Ts..., Us...>; // todo remove
+
+		using unpacked = detail::unpacked_dynamic_storage_impl<Allocator, Ts...>; // todo remove
 
 		using static_capacity = mpl::false_type;
 		using trivial_allocate = mpl::false_type;
@@ -682,6 +974,8 @@ namespace utility
 		using storage_type = static_storage<Capacity, Us...>;
 		template <typename ...Us>
 		using append = static_storage<Capacity, Ts..., Us...>; // todo remove
+
+		using unpacked = static_storage<Capacity, Ts...>; // todo remove
 
 		using static_capacity = mpl::true_type;
 		using trivial_allocate = mpl::true_type;

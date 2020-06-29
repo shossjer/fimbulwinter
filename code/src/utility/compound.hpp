@@ -130,6 +130,24 @@ namespace utility
 		return compound<Ts &&...>(std::forward<Ts>(ts)...);
 	}
 
+	namespace detail
+	{
+		template <std::size_t N, typename Compound>
+		auto last_compound(Compound && compound)
+		{
+			return ext::apply_for([](auto && ...ps){ return forward_as_compound(std::forward<decltype(ps)>(ps)...); }, std::forward<Compound>(compound), mpl::integral_shift<std::size_t, mpl::make_index_sequence<N>, (ext::tuple_size<Compound>::value - N)>{});
+		}
+	}
+
+	template <std::size_t N, typename ...Ts>
+	auto last(compound<Ts...> & compound) { return detail::last_compound<N>(compound); }
+	template <std::size_t N, typename ...Ts>
+	auto last(const compound<Ts...> & compound) { return detail::last_compound<N>(compound); }
+	template <std::size_t N, typename ...Ts>
+	auto last(compound<Ts...> && compound) { return detail::last_compound<N>(std::move(compound)); }
+	template <std::size_t N, typename ...Ts>
+	auto last(const compound<Ts...> && compound) { return detail::last_compound<N>(std::move(compound)); }
+
 	template <template <typename ...> class P, typename ...Ts>
 	using combine = mpl::conditional_t<(mpl::concat<Ts...>::size == 1), mpl::car<Ts...>, mpl::apply<P, Ts...>>;
 
