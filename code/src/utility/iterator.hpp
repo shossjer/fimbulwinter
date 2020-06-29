@@ -1,6 +1,4 @@
-
-#ifndef UTILITY_ITERATOR_HPP
-#define UTILITY_ITERATOR_HPP
+#pragma once
 
 #include "utility/algorithm.hpp"
 #include "utility/compound.hpp"
@@ -497,5 +495,3 @@ namespace utility
 		friend bool operator != (std::nullptr_t, const this_type & x) { return !(x == nullptr); }
 	};
 }
-
-#endif /* UTILITY_ITERATOR_HPP */

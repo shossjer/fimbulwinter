@@ -1,6 +1,4 @@
-
-#ifndef UTILITY_STORAGE_HPP
-#define UTILITY_STORAGE_HPP
+#pragma once
 
 #include "config.h"
 
@@ -813,5 +811,3 @@ namespace utility
 		};
 	};
 }
-
-#endif /* UTILITY_STORAGE_HPP */
