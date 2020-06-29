@@ -6,6 +6,18 @@
 
 namespace utility
 {
+	struct no_reallocate_t
+	{
+		explicit no_reallocate_t() = default;
+	};
+	constexpr no_reallocate_t no_reallocate = no_reallocate_t{};
+
+	struct no_failure_t
+	{
+		explicit no_failure_t() = default;
+	};
+	constexpr no_failure_t no_failure = no_failure_t{};
+
 	namespace detail
 	{
 		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
@@ -248,16 +260,34 @@ namespace utility
 		}
 
 		template <typename ...Ps>
-		bool try_emplace_back(Ps && ...ps)
+		bool try_emplace_back(utility::no_failure_t, Ps && ...ps)
 		{
-			if (!this->try_reserve(this->size() + 1))
-				return false;
-
 			auto end = this->storage_end();
 			this->storage_.construct_at_(end, std::forward<Ps>(ps)...);
 			this->set_end(++end);
 
 			return true;
+		}
+
+		template <typename ...Ps>
+		bool try_emplace_back(utility::no_reallocate_t, Ps && ...ps)
+		{
+			if (this->size() < this->capacity())
+				return try_emplace_back(utility::no_failure, std::forward<Ps>(ps)...);
+
+			return false;
+		}
+
+		template <typename ...Ps>
+		bool try_emplace_back(Ps && ...ps)
+		{
+			if (try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...))
+				return true;
+
+			if (this->try_reserve(this->size() + 1))
+				return try_emplace_back(utility::no_failure, std::forward<Ps>(ps)...);
+
+			return false;
 		}
 
 		bool try_erase(ext::index index)
