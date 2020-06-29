@@ -61,8 +61,8 @@ namespace utility
 		using value_type = utility::combine<utility::compound, value_types>;
 		using reference = utility::combine<utility::compound, references>;
 		using const_reference = utility::combine<utility::compound, const_references>;
-		using pointer = utility::combine<utility::zip_pointer, pointers>;
-		using const_pointer = utility::combine<utility::zip_pointer, const_pointers>;
+		using pointer = utility::combine<utility::zip_iterator, pointers>;
+		using const_pointer = utility::combine<utility::zip_iterator, const_pointers>;
 
 		template <typename InputIt>
 		using can_memcpy = mpl::conjunction<std::is_trivially_copyable<storing_type_i<Is>>...,

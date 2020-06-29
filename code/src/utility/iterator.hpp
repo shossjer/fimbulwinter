@@ -387,6 +387,13 @@ namespace utility
 		using base_type::base_type;
 		using base_type::operator =;
 
+		// todo awkward
+		template <typename Tuple,
+		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
+		zip_iterator(Tuple && tuple)
+			: base_type(std::forward<Tuple>(tuple))
+		{}
+
 	public:
 		reference operator * () const
 		{
@@ -483,6 +490,13 @@ namespace utility
 
 		zip_pointer(std::nullptr_t)
 			: base_type{}
+		{}
+
+		// todo awkward
+		template <typename Tuple,
+		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
+		zip_pointer(Tuple && tuple)
+			: base_type(std::forward<Tuple>(tuple))
 		{}
 
 	public:
