@@ -253,8 +253,9 @@ namespace utility
 			if (!this->try_reserve(this->size() + 1))
 				return false;
 
-			this->storage_.construct_at(this->storage_end(), std::forward<Ps>(ps)...);
-			this->set_end(++this->storage_end());
+			auto end = this->storage_end();
+			this->storage_.construct_at_(end, std::forward<Ps>(ps)...);
+			this->set_end(++end);
 
 			return true;
 		}

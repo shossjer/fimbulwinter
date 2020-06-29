@@ -1038,33 +1038,35 @@ namespace utility
 			return ext::apply([this](auto * ...ss) -> Reference { return Reference(std::move(*this->data(ss))...); }, it);
 		}
 
-		using base_type::construct_at;
+		template <typename S, typename ...Ps>
+		decltype(auto) construct_at_(S * s, Ps && ...ps) { return this->construct_at(s, std::forward<Ps>(ps)...); }
 
 		template <typename S, typename P>
-		decltype(auto) construct_at(typename base_type::template storing_type_for<S> * ptr_, std::piecewise_construct_t, P && p)
+		decltype(auto) construct_at_(S * s, std::piecewise_construct_t, P && p)
 		{
-			return ext::apply([&ptr_, this](auto && ...ps) -> decltype(auto) { return construct_at(ptr_, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
+			return ext::apply([&s, this](auto && ...ps) -> decltype(auto) { return construct_at_(s, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
 		}
 
 		template <typename ...Ss, typename ...Ps,
-		          typename Reference = reference_for<Ss...>>
-		Reference construct_at(utility::zip_iterator<Ss *...> it, Ps && ...ps)
+		          typename Reference = reference_for<Ss...>,
+		          REQUIRES((!mpl::is_same<std::piecewise_construct_t, mpl::car<mpl::remove_cvref_t<Ps>..., void>>::value))>
+		Reference construct_at_(utility::zip_iterator<Ss *...> it, Ps && ...ps)
 		{
-			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at(ss, std::forward<Ps>(ps))...); }, it);
+			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at_(ss, std::forward<Ps>(ps))...); }, it);
 		}
 
 		template <typename ...Ss, typename P,
 		          REQUIRES((ext::tuple_size<P>::value == sizeof...(Ss)))>
-		decltype(auto) construct_at(utility::zip_iterator<Ss *...> it, P && p)
+		decltype(auto) construct_at_(utility::zip_iterator<Ss *...> it, P && p)
 		{
-			return ext::apply([&it, this](auto && ...ps) -> decltype(auto) { return construct_at(it, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
+			return ext::apply([&it, this](auto && ...ps) -> decltype(auto) { return construct_at_(it, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
 		}
 
 		template <typename ...Ss, typename ...Ps,
 		          typename Reference = reference_for<Ss...>>
-		Reference construct_at(utility::zip_iterator<Ss *...> it, std::piecewise_construct_t, Ps && ...ps)
+		Reference construct_at_(utility::zip_iterator<Ss *...> it, std::piecewise_construct_t, Ps && ...ps)
 		{
-			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at(ss, std::piecewise_construct, std::forward<Ps>(ps))...); }, it);
+			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at_(ss, std::piecewise_construct, std::forward<Ps>(ps))...); }, it);
 		}
 
 		template <typename S, typename InputIt>
@@ -1076,7 +1078,7 @@ namespace utility
 		template <typename ...Ss, typename InputIt>
 		auto construct_range(utility::zip_iterator<Ss *...> it, InputIt begin, InputIt end)
 		{
-			return construct_range_impl(mpl::make_index_sequence_for<Ss...>{}, it, begin, end);
+			return construct_range_impl(mpl::make_index_sequence_for<Ss...>{}, it, begin, end, 0);
 		}
 
 		using base_type::destruct_at;
@@ -1122,20 +1124,20 @@ namespace utility
 		{
 			for (; begin != end; start++, ++begin)
 			{
-				construct_at(start, *begin);
+				construct_at_(start, *begin);
 			}
 			return start;
 		}
 
 		template <std::size_t ...Is, typename ...Ss, typename InputIt>
-		auto construct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> it, InputIt begin, InputIt end)
+		auto construct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> it, InputIt begin, InputIt end, ...)
 		{
 			return utility::zip_iterator<Ss *...>(construct_range(std::get<Is>(it), std::get<Is>(begin), std::get<Is>(end))...);
 		}
 
 		// todo weird
 		template <std::size_t ...Is, typename ...Ss, typename InputIt>
-		auto construct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> it, std::move_iterator<InputIt> begin, std::move_iterator<InputIt> end)
+		auto construct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> it, std::move_iterator<InputIt> begin, std::move_iterator<InputIt> end, int)
 		{
 			return utility::zip_iterator<Ss *...>(construct_range(std::get<Is>(it), std::make_move_iterator(std::get<Is>(begin.base())), std::make_move_iterator(std::get<Is>(end.base())))...);
 		}
