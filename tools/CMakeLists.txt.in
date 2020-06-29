@@ -40,10 +40,12 @@ if(@ENABLE_COMPILER_EXPLORER@)
 		file(TOUCH "@CMAKE_BINARY_DIR@/.cmake/api/v1/query/client-compiler-explorer/codemodel-v2")
 
 		get_filename_component(_binary_dir_name "@CMAKE_BINARY_DIR@" NAME)
+		file(RELATIVE_PATH _binary_dir_path "@PROJECT_SOURCE_DIR@/compiler-explorer" "@CMAKE_BINARY_DIR@")
 
 		file(MAKE_DIRECTORY "@PROJECT_SOURCE_DIR@/compiler-explorer/projects")
-		file(WRITE "@PROJECT_SOURCE_DIR@/compiler-explorer/projects/${_binary_dir_name}" "@CMAKE_BINARY_DIR@")
+		file(WRITE "@PROJECT_SOURCE_DIR@/compiler-explorer/projects/${_binary_dir_name}" "${_binary_dir_path}")
 
+		unset(_binary_dir_path)
 		unset(_binary_dir_name)
 	endif()
 else()
