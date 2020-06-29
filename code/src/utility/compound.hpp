@@ -151,4 +151,17 @@ namespace utility
 	template <template <typename ...> class P, typename ...Ts>
 	using combine = mpl::conditional_t<(mpl::concat<Ts...>::size == 1), mpl::car<Ts...>, mpl::apply<P, Ts...>>;
 
+	template <std::size_t N, typename T,
+	          REQUIRES((1 == N))>
+	decltype(auto) select_first(T && t)
+	{
+		return std::forward<T>(t);
+	}
+
+	template <std::size_t N, typename T,
+	          REQUIRES((1 < N))>
+	decltype(auto) select_first(T && t)
+	{
+		return std::get<0>(std::forward<T>(t));
+	}
 }

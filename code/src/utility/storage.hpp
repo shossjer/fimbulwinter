@@ -385,6 +385,9 @@ namespace utility
 
 		using iterator = utility::combine<utility::zip_iterator, storing_type_for<Ts> *...>;
 		using const_iterator = utility::combine<utility::zip_iterator, const storing_type_for<Ts> *...>;
+		using position = storing_type_for<mpl::car<Ts...>> *;
+		using const_position = const storing_type_for<mpl::car<Ts...>> *;
+
 		using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<utility::storing<Ts>>...>;
 
 		using storing_trivially_copyable =
@@ -505,6 +508,30 @@ namespace utility
 			return data()[index];
 		}
 
+		position place(std::size_t index)
+		{
+			return begin_for(mpl::index_sequence<0>{}) + index;
+		}
+
+		const_position place(std::size_t index) const
+		{
+			return begin_for(mpl::index_sequence<0>{}) + index;
+		}
+
+		template <typename Position,
+		          REQUIRES((std::is_convertible<Position, const_position>::value))>
+		std::ptrdiff_t index_of(Position pos) const
+		{
+			return static_cast<const_position>(pos) - begin_for(mpl::index_sequence<0>{});
+		}
+
+		template <typename Iterator,
+		          REQUIRES((!std::is_convertible<Iterator, const_position>::value))>
+		std::ptrdiff_t index_of(Iterator it) const
+		{
+			return index_of(utility::select_first<sizeof...(Ts)>(it));
+		}
+
 		template <std::size_t ...Is>
 		auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>)
 		{
@@ -554,6 +581,9 @@ namespace utility
 
 		using iterator = utility::combine<utility::zip_iterator, Ts *...>;
 		using const_iterator = utility::combine<utility::zip_iterator, const Ts *...>;
+		using position = mpl::car<Ts...> *;
+		using const_position = const mpl::car<Ts...> *;
+
 		using data_trivially_copyable = mpl::conjunction<std::is_trivially_copyable<Ts>...>;
 
 		using storing_trivially_copyable =
@@ -691,6 +721,30 @@ namespace utility
 			return allocator().address(storage(), capacity);
 		}
 
+		position place(std::size_t index)
+		{
+			return begin_for(mpl::index_sequence<0>{}) + index;
+		}
+
+		const_position place(std::size_t index) const
+		{
+			return begin_for(mpl::index_sequence<0>{}) + index;
+		}
+
+		template <typename Position,
+		          REQUIRES((std::is_convertible<Position, const_position>::value))>
+		std::ptrdiff_t index_of(Position pos) const
+		{
+			return static_cast<Position>(pos) - begin_for(mpl::index_sequence<0>{});
+		}
+
+		template <typename Iterator,
+		          REQUIRES((!std::is_convertible<Iterator, const_position>::value))>
+		std::ptrdiff_t index_of(Iterator it) const
+		{
+			return index_of(utility::select_first<sizeof...(Ts)>(it));
+		}
+
 		template <std::size_t ...Is>
 		auto sections_for(std::size_t capacity, mpl::index_sequence<Is...>)
 		{
@@ -813,6 +867,9 @@ namespace utility
 			template <typename T>
 			using storing_type_for = T;
 
+			using position = typename storage_type::position;
+			using const_position = typename storage_type::const_position;
+
 		private:
 			unpacked_dynamic_storage_data<Allocator, Ts...> data_;
 
@@ -913,6 +970,22 @@ namespace utility
 				return data()[index];
 			}
 
+			position place(std::size_t index)
+			{
+				return begin_for(mpl::index_sequence<0>{}) + index;
+			}
+
+			const_position place(std::size_t index) const
+			{
+				return begin_for(mpl::index_sequence<0>{}) + index;
+			}
+
+			template <typename PositionOrIterator>
+			std::ptrdiff_t index_of(PositionOrIterator pos_or_it) const
+			{
+				return data_.storage_.index_of(pos_or_it);
+			}
+
 			template <std::size_t ...Is>
 			auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>)
 			{
@@ -957,6 +1030,14 @@ namespace utility
 		using can_memset = std::is_trivially_copyable<Storing>;
 
 	public:
+		// todo weird
+		template <typename ...Ss,
+		          typename Reference = rvalue_reference_for<Ss...>>
+		Reference iter_move(utility::zip_iterator<Ss *...> it)
+		{
+			return ext::apply([this](auto * ...ss) -> Reference { return Reference(std::move(*this->data(ss))...); }, it);
+		}
+
 		using base_type::construct_at;
 
 		template <typename S, typename P>
