@@ -1,18 +1,83 @@
 #pragma once
 
-#include "utility/container/vector.hpp"
+#include "utility/container/container.hpp"
 #include "utility/ranges.hpp"
 #include "utility/span.hpp"
 
 namespace utility
 {
+	namespace detail
+	{
+		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
+		class fragmentation_data_impl
+		{
+			using storage_traits = utility::storage_traits<Storage>;
+
+		public:
+			using size_type = utility::size_type_for<storage_traits::capacity_value>;
+
+		protected:
+			size_type size_;
+			Storage storage_;
+
+		public:
+			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
+
+			std::size_t size() const { return size_; }
+
+		protected:
+			void set_capacity(std::size_t capacity)
+			{
+				assert(capacity == 0 || capacity == storage_traits::capacity_value);
+				static_cast<void>(capacity);
+			}
+
+			void set_size(std::size_t size)
+			{
+				assert(size <= size_type(-1) && size <= storage_traits::capacity_value);
+
+				size_ = static_cast<size_type>(size);
+			}
+		};
+
+		template <typename Storage>
+		class fragmentation_data_impl<Storage, false /*static capacity*/>
+		{
+		public:
+			using size_type = std::size_t;
+
+		protected:
+			size_type size_;
+			size_type capacity_;
+			Storage storage_;
+
+		public:
+			std::size_t capacity() const { return capacity_; }
+
+			std::size_t size() const { return size_; }
+
+		protected:
+			void set_capacity(std::size_t capacity)
+			{
+				capacity_ = capacity;
+			}
+
+			void set_size(std::size_t size)
+			{
+				assert(size <= capacity_);
+
+				size_ = size;
+			}
+		};
+	}
+
 	template <typename Storage, typename ReservationStrategy, typename RelocationStrategy,
 	          typename ModedStorage = typename utility::storage_traits<Storage>::template append<std::size_t>>
 	class fragmented_data
-		: public detail::vector_data_impl<ModedStorage>
+		: public detail::fragmentation_data_impl<ModedStorage>
 	{
 		using this_type = fragmented_data<Storage, ReservationStrategy, RelocationStrategy, ModedStorage>;
-		using base_type = detail::vector_data_impl<ModedStorage>;
+		using base_type = detail::fragmentation_data_impl<ModedStorage>;
 
 		using StorageTraits = utility::storage_traits<ModedStorage>;
 
