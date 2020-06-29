@@ -77,7 +77,7 @@ namespace utility
 
 	public:
 		template <typename ...Ps,
-		          REQUIRES((!is_compound<Ps...>::value)),
+		          REQUIRES((!is_compound<mpl::remove_cvref_t<Ps>...>::value)),
 		          REQUIRES((!ext::is_tuple<Ps...>::value)),
 		          REQUIRES((std::is_constructible<base_type, Ps...>::value))>
 		compound(Ps && ...ps)
@@ -92,7 +92,7 @@ namespace utility
 		{}
 
 		template <typename Value,
-		          REQUIRES((!is_compound<Value>::value)),
+		          REQUIRES((!is_compound<mpl::remove_cvref_t<Value>>::value)),
 		          REQUIRES((!ext::is_tuple<Value>::value)),
 		          REQUIRES((std::is_assignable<base_type, Value>::value))>
 		this_type & operator = (Value && value)
