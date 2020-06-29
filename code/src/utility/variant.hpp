@@ -440,6 +440,11 @@ namespace utility
 				}
 				return *this;
 			}
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+			// C4702 - unreachable code
+#endif
 			template <size_t N, typename P>
 			void assign(in_place_index_t<N>, P && p)
 			{
@@ -455,6 +460,9 @@ namespace utility
 					index_ = N;
 				}
 			}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 			void swap(this_type & v)
 			{
 				if (v.index_ != variant_npos)
