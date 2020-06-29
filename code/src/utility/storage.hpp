@@ -360,9 +360,9 @@ namespace utility
 	};
 
 	template <std::size_t Capacity, typename ...Ts>
-	class static_storage
+	class static_storage_impl
 	{
-		using this_type = static_storage<Capacity, Ts...>;
+		using this_type = static_storage_impl<Capacity, Ts...>;
 
 	public:
 		using value_type = utility::combine<utility::compound, Ts...>;
@@ -529,9 +529,9 @@ namespace utility
 	};
 
 	template <template <typename> class Allocator, typename ...Ts>
-	class dynamic_storage
+	class dynamic_storage_impl
 	{
-		using this_type = dynamic_storage<Allocator, Ts...>;
+		using this_type = dynamic_storage_impl<Allocator, Ts...>;
 
 	public:
 		using value_type = utility::combine<utility::compound, Ts...>;
@@ -740,7 +740,7 @@ namespace utility
 		template <template <typename> class Allocator, typename T0, typename ...Ts>
 		struct unpacked_dynamic_storage_data
 		{
-			using storage_type = dynamic_storage<Allocator, T0, Ts...>;
+			using storage_type = dynamic_storage_impl<Allocator, T0, Ts...>;
 
 			storage_type storage_;
 			utility::zip_iterator<Ts *...> extra_begins_;
@@ -778,7 +778,7 @@ namespace utility
 		template <template <typename> class Allocator, typename T>
 		struct unpacked_dynamic_storage_data<Allocator, T>
 		{
-			using storage_type = dynamic_storage<Allocator, T>;
+			using storage_type = dynamic_storage_impl<Allocator, T>;
 
 			storage_type storage_;
 
@@ -937,6 +937,141 @@ namespace utility
 		};
 	}
 
+	template <typename Storage>
+	class basic_storage
+		: public Storage
+	{
+		using base_type = Storage;
+
+		template <typename ...Ss>
+		using reference_for = utility::combine<utility::compound,
+		                                       typename base_type::template value_type_for<Ss> &...>;
+		template <typename ...Ss>
+		using rvalue_reference_for = utility::combine<utility::compound,
+		                                              typename base_type::template value_type_for<Ss> &&...>;
+
+		template <typename Storing, typename InputIt>
+		using can_memcpy = mpl::conjunction<std::is_trivially_copyable<Storing>,
+		                                    utility::is_contiguous_iterator<InputIt>>;
+		template <typename Storing>
+		using can_memset = std::is_trivially_copyable<Storing>;
+
+	public:
+		using base_type::construct_at;
+
+		template <typename S, typename P>
+		decltype(auto) construct_at(typename base_type::template storing_type_for<S> * ptr_, std::piecewise_construct_t, P && p)
+		{
+			return ext::apply([&ptr_, this](auto && ...ps) -> decltype(auto) { return construct_at(ptr_, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
+		}
+
+		template <typename ...Ss, typename ...Ps,
+		          typename Reference = reference_for<Ss...>>
+		Reference construct_at(utility::zip_iterator<Ss *...> it, Ps && ...ps)
+		{
+			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at(ss, std::forward<Ps>(ps))...); }, it);
+		}
+
+		template <typename ...Ss, typename P,
+		          REQUIRES((ext::tuple_size<P>::value == sizeof...(Ss)))>
+		decltype(auto) construct_at(utility::zip_iterator<Ss *...> it, P && p)
+		{
+			return ext::apply([&it, this](auto && ...ps) -> decltype(auto) { return construct_at(it, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
+		}
+
+		template <typename ...Ss, typename ...Ps,
+		          typename Reference = reference_for<Ss...>>
+		Reference construct_at(utility::zip_iterator<Ss *...> it, std::piecewise_construct_t, Ps && ...ps)
+		{
+			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at(ss, std::piecewise_construct, std::forward<Ps>(ps))...); }, it);
+		}
+
+		template <typename S, typename InputIt>
+		S * construct_range(S * start, InputIt begin, InputIt end)
+		{
+			return construct_range_or_memcpy_impl(can_memcpy<S, InputIt>{}, start, begin, end);
+		}
+
+		template <typename ...Ss, typename InputIt>
+		auto construct_range(utility::zip_iterator<Ss *...> it, InputIt begin, InputIt end)
+		{
+			return construct_range_impl(mpl::make_index_sequence_for<Ss...>{}, it, begin, end);
+		}
+
+		using base_type::destruct_at;
+
+		template <typename ...Ss>
+		void destruct_at(utility::zip_iterator<Ss *...> it)
+		{
+			utl::for_each(it, [this](auto * s){ destruct_at(s); });
+		}
+
+		template <typename S>
+		void destruct_range(S * begin, S * end)
+		{
+			for (; begin != end; begin++)
+			{
+				destruct_at(begin);
+			}
+		}
+
+		template <typename ...Ss>
+		void destruct_range(utility::zip_iterator<Ss *...> begin, utility::zip_iterator<Ss *...> end)
+		{
+			destruct_range_impl(mpl::make_index_sequence_for<Ss...>{}, begin, end);
+		}
+
+	private:
+		template <typename S, typename InputIt>
+		S * construct_range_or_memcpy_impl(mpl::true_type /*can_memcpy*/, S * start, InputIt begin, InputIt end)
+		{
+			static_assert(mpl::is_same<typename base_type::template value_type_for<S>, typename std::iterator_traits<InputIt>::value_type>::value, "Memcpying between different types seem like an error! Are you doing something you should not?");
+
+			using utility::raw_range;
+			auto range = raw_range(begin, end);
+
+			assert(range.first <= range.second);
+			std::memcpy(this->data(start), range.first, (range.second - range.first) * sizeof(S));
+
+			return start + (range.second - range.first);
+		}
+
+		template <typename S, typename InputIt>
+		S * construct_range_or_memcpy_impl(mpl::false_type /*can_memcpy*/, S * start, InputIt begin, InputIt end)
+		{
+			for (; begin != end; start++, ++begin)
+			{
+				construct_at(start, *begin);
+			}
+			return start;
+		}
+
+		template <std::size_t ...Is, typename ...Ss, typename InputIt>
+		auto construct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> it, InputIt begin, InputIt end)
+		{
+			return utility::zip_iterator<Ss *...>(construct_range(std::get<Is>(it), std::get<Is>(begin), std::get<Is>(end))...);
+		}
+
+		// todo weird
+		template <std::size_t ...Is, typename ...Ss, typename InputIt>
+		auto construct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> it, std::move_iterator<InputIt> begin, std::move_iterator<InputIt> end)
+		{
+			return utility::zip_iterator<Ss *...>(construct_range(std::get<Is>(it), std::make_move_iterator(std::get<Is>(begin.base())), std::make_move_iterator(std::get<Is>(end.base())))...);
+		}
+
+		template <std::size_t ...Is, typename ...Ss>
+		void destruct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> begin, utility::zip_iterator<Ss *...> end)
+		{
+			int expansion_hack[] = {(destruct_range(std::get<Is>(begin), std::get<Is>(end)), 0)...};
+			static_cast<void>(expansion_hack);
+		}
+	};
+
+	template <std::size_t Capacity, typename ...Ts>
+	using static_storage = basic_storage<static_storage_impl<Capacity, Ts...>>;
+	template <template <typename> class Allocator, typename ...Ts>
+	using dynamic_storage = basic_storage<dynamic_storage_impl<Allocator, Ts...>>;
+
 	template <typename ...Ts>
 	using heap_storage = dynamic_storage<utility::heap_allocator, Ts...>;
 
@@ -954,7 +1089,7 @@ namespace utility
 		template <typename ...Us>
 		using append = dynamic_storage<Allocator, Ts..., Us...>; // todo remove
 
-		using unpacked = detail::unpacked_dynamic_storage_impl<Allocator, Ts...>; // todo remove
+		using unpacked = basic_storage<detail::unpacked_dynamic_storage_impl<Allocator, Ts...>>; // todo remove
 
 		using static_capacity = mpl::false_type;
 		using trivial_allocate = mpl::false_type;
