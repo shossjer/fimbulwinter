@@ -131,8 +131,6 @@ namespace utility
 	}
 
 	template <template <typename ...> class P, typename ...Ts>
-	using zip_type = mpl::conditional_t<(mpl::concat<Ts...>::size == 1), mpl::car<Ts...>, mpl::apply<P, Ts...>>;
+	using combine = mpl::conditional_t<(mpl::concat<Ts...>::size == 1), mpl::car<Ts...>, mpl::apply<P, Ts...>>;
 
-	template <typename ...Ts>
-	using compound_type = zip_type<utility::compound, Ts...>;
 }

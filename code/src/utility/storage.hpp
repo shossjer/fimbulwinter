@@ -58,11 +58,11 @@ namespace utility
 		using can_memset_k = std::is_trivially_copyable<storing_type_k<K>>;
 
 	public:
-		using value_type = utility::compound_type<value_types>;
-		using reference = utility::compound_type<references>;
-		using const_reference = utility::compound_type<const_references>;
-		using pointer = utility::zip_type<utility::zip_pointer, pointers>;
-		using const_pointer = utility::zip_type<utility::zip_pointer, const_pointers>;
+		using value_type = utility::combine<utility::compound, value_types>;
+		using reference = utility::combine<utility::compound, references>;
+		using const_reference = utility::combine<utility::compound, const_references>;
+		using pointer = utility::combine<utility::zip_pointer, pointers>;
+		using const_pointer = utility::combine<utility::zip_pointer, const_pointers>;
 
 		template <typename InputIt>
 		using can_memcpy = mpl::conjunction<std::is_trivially_copyable<storing_type_i<Is>>...,
@@ -332,9 +332,9 @@ namespace utility
 		                                                 const_storing_types>>;
 
 	public:
-		using value_type = utility::compound_type<value_types>;
-		using const_reference = utility::compound_type<const_references>;
-		using const_pointer = utility::zip_type<utility::zip_pointer, const_pointers>;
+		using value_type = utility::combine<utility::compound, value_types>;
+		using const_reference = utility::combine<utility::compound, const_references>;
+		using const_pointer = utility::combine<utility::zip_pointer, const_pointers>;
 
 	private:
 		const Storage * storage_;
@@ -365,16 +365,16 @@ namespace utility
 		using this_type = static_storage<Capacity, Ts...>;
 
 	public:
-		using value_type = utility::compound_type<Ts...>;
+		using value_type = utility::combine<utility::compound, Ts...>;
 		using allocator_type = utility::null_allocator<char>;
 		using size_type = std::size_t; // todo size_for<Capacity>?
 		using difference_type = std::ptrdiff_t;
-		using reference = utility::compound_type<Ts &...>;
-		using const_reference = utility::compound_type<const Ts &...>;
-		using rvalue_reference = utility::compound_type<Ts &&...>;
-		using const_rvalue_reference = utility::compound_type<const Ts &&...>;
-		using pointer = utility::zip_type<utility::zip_pointer, Ts *...>;
-		using const_pointer = utility::zip_type<utility::zip_pointer, const Ts *...>;
+		using reference = utility::combine<utility::compound, Ts &...>;
+		using const_reference = utility::combine<utility::compound, const Ts &...>;
+		using rvalue_reference = utility::combine<utility::compound, Ts &&...>;
+		using const_rvalue_reference = utility::combine<utility::compound, const Ts &&...>;
+		using pointer = utility::combine<utility::zip_pointer, Ts *...>;
+		using const_pointer = utility::combine<utility::zip_pointer, const Ts *...>;
 
 		template <std::size_t I>
 		using value_type_at = mpl::type_at<I, Ts...>; // todo remove
@@ -476,16 +476,16 @@ namespace utility
 		using this_type = dynamic_storage<Allocator, Ts...>;
 
 	public:
-		using value_type = utility::compound_type<Ts...>;
+		using value_type = utility::combine<utility::compound, Ts...>;
 		using allocator_type = utility::aggregation_allocator<Allocator, void, Ts...>;
 		using size_type = std::size_t;
 		using difference_type = std::ptrdiff_t;
-		using reference = utility::compound_type<Ts &...>;
-		using const_reference = utility::compound_type<const Ts &...>;
-		using rvalue_reference = utility::compound_type<Ts &&...>;
-		using const_rvalue_reference = utility::compound_type<const Ts &&...>;
-		using pointer = utility::zip_type<utility::zip_pointer, Ts *...>;
-		using const_pointer = utility::zip_type<utility::zip_pointer, const Ts *...>;
+		using reference = utility::combine<utility::compound, Ts &...>;
+		using const_reference = utility::combine<utility::compound, const Ts &...>;
+		using rvalue_reference = utility::combine<utility::compound, Ts &&...>;
+		using const_rvalue_reference = utility::combine<utility::compound, const Ts &&...>;
+		using pointer = utility::combine<utility::zip_pointer, Ts *...>;
+		using const_pointer = utility::combine<utility::zip_pointer, const Ts *...>;
 
 		template <std::size_t I>
 		using value_type_at = mpl::type_at<I, Ts...>; // todo remove
