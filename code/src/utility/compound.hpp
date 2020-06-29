@@ -17,11 +17,6 @@ namespace utility
 	template <typename ...Rs>
 	struct is_compound<compound<Rs...>> : mpl::true_type {};
 
-	template <typename T>
-	struct compound_size;
-	template <typename ...Rs>
-	struct compound_size<compound<Rs...>> : mpl::index_constant<sizeof...(Rs)> {};
-
 	namespace detail
 	{
 		template <std::size_t N>

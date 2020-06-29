@@ -447,28 +447,6 @@ namespace utility
 			return &data_->value;
 		}
 
-		template <typename T>
-		std::ptrdiff_t index_of(const utility::storing<T> * data_, const T & x) const
-		{
-			static_assert(mpl::member_of<T, Ts...>::value, "");
-			// x is pointer interconvertible with storing_t, since
-			// storing_t is a union containing a value_type member
-			return reinterpret_cast<const utility::storing<T> *>(std::addressof(x)) - data_;
-		}
-
-		template <typename T>
-		T & value_at(utility::storing<T> * p)
-		{
-			static_assert(mpl::member_of<T, Ts...>::value, "");
-			return p->value;
-		}
-		template <typename T>
-		const T & value_at(const utility::storing<T> * p) const
-		{
-			static_assert(mpl::member_of<T, Ts...>::value, "");
-			return p->value;
-		}
-
 		template <std::size_t ...Is>
 		auto sections_for(std::size_t /*capacity*/, mpl::index_sequence<Is...>)
 		{
@@ -623,35 +601,6 @@ namespace utility
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return data_;
-		}
-
-		template <typename T>
-		std::ptrdiff_t index_of(const T * data_, const T & x) const
-		{
-			static_assert(mpl::member_of<T, Ts...>::value, "");
-#if MODE_DEBUG
-			assert(storage());
-#endif
-			return std::addressof(x) - data_;
-		}
-
-		template <typename T>
-		T & value_at(T * p)
-		{
-			static_assert(mpl::member_of<T, Ts...>::value, "");
-#if MODE_DEBUG
-			assert(storage());
-#endif
-			return *p;
-		}
-		template <typename T>
-		const T & value_at(const T * p) const
-		{
-			static_assert(mpl::member_of<T, Ts...>::value, "");
-#if MODE_DEBUG
-			assert(storage());
-#endif
-			return *p;
 		}
 
 		template <std::size_t ...Is>
