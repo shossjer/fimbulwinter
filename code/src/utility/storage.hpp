@@ -503,6 +503,42 @@ namespace utility
 			return begin();
 		}
 
+		template <std::size_t ...Is,
+		          typename Iterator = utility::combine<utility::zip_iterator,
+		                                               storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+		Iterator end_for(mpl::index_sequence<Is...>)
+		{
+			return Iterator(get<Is>(arrays).data() + Capacity...);
+		}
+
+		template <std::size_t ...Is,
+		          typename Iterator = utility::combine<utility::zip_iterator,
+		                                               const storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+		Iterator end_for(mpl::index_sequence<Is...>) const
+		{
+			return Iterator(get<Is>(arrays).data() + Capacity...);
+		}
+
+		auto end()
+		{
+			return end_for(mpl::make_index_sequence_for<Ts...>{});
+		}
+
+		auto end() const
+		{
+			return end_for(mpl::make_index_sequence_for<Ts...>{});
+		}
+
+		auto end(std::size_t /*capacity*/)
+		{
+			return end();
+		}
+
+		auto end(std::size_t /*capacity*/) const
+		{
+			return end();
+		}
+
 		position place(std::size_t index)
 		{
 			return begin_for(mpl::index_sequence<0>{}) + index;
@@ -729,6 +765,16 @@ namespace utility
 		const_iterator begin(std::size_t capacity) const
 		{
 			return allocator().address(storage(), capacity);
+		}
+
+		iterator end(std::size_t capacity)
+		{
+			return begin(capacity) + capacity;
+		}
+
+		const_iterator end(std::size_t capacity) const
+		{
+			return begin(capacity) + capacity;
 		}
 
 		position place(std::size_t index)
@@ -975,6 +1021,16 @@ namespace utility
 				return begin();
 			}
 
+			auto end(std::size_t capacity)
+			{
+				return data_.storage_.end(capacity);
+			}
+
+			auto end(std::size_t capacity) const
+			{
+				return data_.storage_.end(capacity);
+			}
+
 			position place(std::size_t index)
 			{
 				return begin_for(mpl::index_sequence<0>{}) + index;
@@ -1074,6 +1130,62 @@ namespace utility
 			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at_(ss, std::piecewise_construct, std::forward<Ps>(ps))...); }, it);
 		}
 
+		template <typename S, typename ...Ps>
+		S * construct_fill(S * begin, ext::usize count, Ps && ...ps)
+		{
+			for (const S * const end = begin + count; begin != end; begin++)
+			{
+				construct_at_(begin, ps...);
+			}
+			return begin;
+		}
+
+		template <typename S>
+		S * construct_fill(S * begin, ext::usize count, utility::zero_initialize_t)
+		{
+			return construct_fill_zero_initialize_impl(can_memset<S>{}, begin, count);
+		}
+
+		template <typename ...Ss, typename ...Ps>
+		auto construct_fill(utility::zip_iterator<Ss *...> it, ext::usize count)
+		{
+			return ext::apply([this, count](auto * ...ss){ return utility::zip_iterator<Ss *...>(this->construct_fill(ss, count)...); }, it);
+		}
+
+		template <typename ...Ss, typename ...Ps>
+		auto construct_fill(utility::zip_iterator<Ss *...> it, ext::usize count, Ps && ...ps)
+		{
+			return ext::apply([&ps..., this, count](auto * ...ss){ return utility::zip_iterator<Ss *...>(this->construct_fill(ss, count, ps)...); }, it);
+		}
+
+		template <typename ...Ss>
+		auto construct_fill(utility::zip_iterator<Ss *...> it, ext::usize count, utility::zero_initialize_t)
+		{
+			return ext::apply([this, count](auto * ...ss){ return utility::zip_iterator<Ss *...>(this->construct_fill(ss, count, utility::zero_initialize)...); }, it);
+		}
+
+		template <typename ...Ss, typename ...Ps>
+		auto construct_fill(utility::zip_iterator<Ss *...> it, ext::usize count, std::piecewise_construct_t, Ps && ...ps)
+		{
+			return ext::apply([&ps..., this, count](auto * ...ss){ return utility::zip_iterator<Ss *...>(this->construct_fill(ss, count, std::piecewise_construct, std::forward<Ps>(ps))...); }, it);
+		}
+
+		template <typename S,
+		          REQUIRES((can_memset<S>::value))>
+		S * memset_fill(S * start, ext::usize count, ext::byte value)
+		{
+			std::memset(this->data(start), static_cast<int>(value), count * sizeof(S));
+
+			return start + count;
+		}
+
+		template <typename ...Ss,
+		          REQUIRES((mpl::conjunction<can_memset<Ss>...>::value))>
+		auto memset_fill(utility::zip_iterator<Ss *...> it, ext::usize count, ext::byte value)
+		{
+			return ext::apply([this, count, value](auto * ...ss){ return utility::zip_iterator<Ss *...>(this->memset_fill(ss, count, value)...); }, it);
+		}
+
 		template <typename S, typename InputIt>
 		S * construct_range(S * start, InputIt begin, InputIt end)
 		{
@@ -1110,6 +1222,19 @@ namespace utility
 		}
 
 	private:
+		template <typename S>
+		S * construct_fill_zero_initialize_impl(mpl::true_type /*can_memset*/, S * begin, ext::usize count)
+		{
+			return memset_fill(begin, count, ext::byte{});
+		}
+
+		template <typename S>
+		S * construct_fill_zero_initialize_impl(mpl::false_type /*can_memset*/, S * begin, ext::usize count)
+		{
+			// todo forward initialization strategy
+			return construct_fill(begin, count);
+		}
+
 		template <typename S, typename InputIt>
 		S * construct_range_or_memcpy_impl(mpl::true_type /*can_memcpy*/, S * start, InputIt begin, InputIt end)
 		{

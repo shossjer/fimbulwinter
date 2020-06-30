@@ -465,7 +465,7 @@ namespace utility
 
 	template <typename ...Ptrs>
 	class zip_pointer
-		: public utility::zip_iterator<Ptrs...>
+		: public utility::zip_iterator<Ptrs...> // todo remove
 	{
 		template <typename ...Ptrs_>
 		friend class zip_pointer;
@@ -477,6 +477,8 @@ namespace utility
 		// note this is a great hack in order to get
 		// `std::pointer_traits<>::pointer_to` to work for proxy types.
 		using element_type = typename base_type::reference;
+
+		using difference_type = typename base_type::difference_type;
 
 	public:
 		static typename base_type::pointer pointer_to(typename base_type::reference element)
@@ -499,13 +501,28 @@ namespace utility
 			: base_type(std::forward<Tuple>(tuple))
 		{}
 
+	private:
+		base_type & base() { return *this; }
+		const base_type & base() const { return *this; }
+
 	public:
 		explicit operator bool () const { return static_cast<bool>(std::get<0>(*this)); } // todo
+
+		this_type & operator ++ () { ++base(); return *this; }
+		this_type & operator -- () { --base(); return *this; }
+		this_type operator ++ (int) { return base()++; }
+		this_type operator -- (int) { return base()--; }
+		this_type operator + (difference_type n) { return base() + n; }
+		this_type operator - (difference_type n) { return base() - n; }
+		this_type & operator += (difference_type n) { base() += n; return *this; }
+		this_type & operator -= (difference_type n) { base() -= n; return *this; }
 
 	private:
 		friend bool operator == (const this_type & x, std::nullptr_t) { return !static_cast<bool>(x); }
 		friend bool operator == (std::nullptr_t, const this_type & x) { return x == nullptr; }
 		friend bool operator != (const this_type & x, std::nullptr_t) { return !(x == nullptr); }
 		friend bool operator != (std::nullptr_t, const this_type & x) { return !(x == nullptr); }
+
+		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
 	};
 }

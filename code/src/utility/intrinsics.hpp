@@ -6,6 +6,12 @@
 # include <intrin.h>
 #endif
 
+#if defined(__GNUG__)
+# define intrinsic_likely(x) __builtin_expect(!!(x), 1)
+#else
+# define intrinsic_likely(x) !!(x)
+#endif
+
 /**
  * Hint to the compiler that this path will never be reached.
  */

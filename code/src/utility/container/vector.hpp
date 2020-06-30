@@ -38,6 +38,9 @@ namespace utility
 			std::size_t size() const { return storage_.index_of(end_); }
 
 		protected:
+			auto position_end() const { return utility::select_first<storage_traits::size>(end_); }
+			auto position_cap() const { return storage_.place(capacity()); }
+
 			void set_cap(typename Storage::position /*cap*/)
 			{
 			}
@@ -67,6 +70,9 @@ namespace utility
 			std::size_t size() const { return storage_.index_of(end_); }
 
 		protected:
+			auto position_end() const { return utility::select_first<storage_traits::size>(end_); }
+			auto position_cap() const { return cap_; }
+
 			void set_cap(typename Storage::position cap)
 			{
 				cap_ = cap;
@@ -241,7 +247,7 @@ namespace utility
 
 		bool try_reserve(std::size_t min_capacity)
 		{
-			if (min_capacity <= this->capacity())
+			if (intrinsic_likely(min_capacity <= this->capacity()))
 				return true;
 
 			return this->try_reallocate(min_capacity);
@@ -260,7 +266,7 @@ namespace utility
 		template <typename ...Ps>
 		bool try_emplace_back(utility::no_reallocate_t, Ps && ...ps)
 		{
-			if (this->size() < this->capacity())
+			if (intrinsic_likely(this->position_end() != this->position_cap()))
 				return try_emplace_back(utility::no_failure, std::forward<Ps>(ps)...);
 
 			return false;
@@ -269,7 +275,7 @@ namespace utility
 		template <typename ...Ps>
 		bool try_emplace_back(Ps && ...ps)
 		{
-			if (try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...))
+			if (intrinsic_likely(try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...)))
 				return true;
 
 			if (this->try_reserve(this->size() + 1))
