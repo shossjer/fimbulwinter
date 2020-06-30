@@ -326,6 +326,34 @@ namespace utility
 		return utility::rend(std::move(c));
 	}
 
+	template <typename It>
+	class basic_range
+	{
+	public:
+		using iterator = It;
+
+	private:
+		It begin_;
+		It end_;
+
+	public:
+		explicit constexpr basic_range(It begin, It end)
+			: begin_(begin)
+			, end_(end)
+		{}
+
+	public:
+		constexpr iterator begin() const { return begin_; }
+		constexpr iterator end() const { return end_; }
+	};
+
+	template <typename R,
+	          REQUIRES((is_range<R>::value))>
+	auto reverse(R && range)
+	{
+		return basic_range<decltype(utility::rbegin(std::forward<R>(range)))>(utility::rbegin(std::forward<R>(range)), utility::rend(std::forward<R>(range)));
+	}
+
 	// eric niebler is a god :pray:
 	//
 	// http://ericniebler.com/2015/02/03/iterators-plus-plus-part-1/

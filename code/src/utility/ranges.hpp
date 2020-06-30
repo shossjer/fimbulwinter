@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <iterator>
 #include <type_traits>
 
 namespace ranges
@@ -12,8 +13,11 @@ namespace ranges
 		using this_type = iota_iterator<T>;
 
 	public:
+		using difference_type = std::ptrdiff_t;
 		using value_type = T;
+		using pointer = void; // ?
 		using reference = T;
+		using iterator_category = std::bidirectional_iterator_tag;
 
 	private:
 		T value_;
@@ -27,6 +31,8 @@ namespace ranges
 		constexpr reference operator * () const { return value_; }
 		constexpr this_type & operator ++ () { ++value_; return *this; }
 		constexpr this_type operator ++ (int) { return this_type(value_++); }
+		constexpr this_type& operator -- () { --value_; return *this; }
+		constexpr this_type operator -- (int) { return this_type(value_--); }
 
 	private:
 		friend constexpr bool operator == (this_type a, this_type b) { return a.value_ == b.value_; }
@@ -53,6 +59,8 @@ namespace ranges
 	public:
 		constexpr iterator begin() const { return iterator(begin_); }
 		constexpr iterator end() const { return iterator(end_); }
+		/*constexpr */auto rbegin() const { return std::make_reverse_iterator(end()); }
+		/*constexpr */auto rend() const { return std::make_reverse_iterator(begin()); }
 	};
 
 	inline constexpr auto index_sequence(std::ptrdiff_t from, std::ptrdiff_t to)
