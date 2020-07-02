@@ -483,25 +483,11 @@ namespace utility
 			return Iterator(get<Is>(arrays).data()...);
 		}
 
-		auto begin()
-		{
-			return begin_for(mpl::make_index_sequence_for<Ts...>{});
-		}
+		auto begin() { return begin_for(mpl::make_index_sequence_for<Ts...>{}); }
+		auto begin() const { return begin_for(mpl::make_index_sequence_for<Ts...>{}); }
 
-		auto begin() const
-		{
-			return begin_for(mpl::make_index_sequence_for<Ts...>{});
-		}
-
-		auto begin(std::size_t /*capacity*/)
-		{
-			return begin();
-		}
-
-		auto begin(std::size_t /*capacity*/) const
-		{
-			return begin();
-		}
+		auto begin(std::size_t /*capacity*/) { return begin(); }
+		auto begin(std::size_t /*capacity*/) const { return begin(); }
 
 		template <std::size_t ...Is,
 		          typename Iterator = utility::combine<utility::zip_iterator,
@@ -519,25 +505,11 @@ namespace utility
 			return Iterator(get<Is>(arrays).data() + Capacity...);
 		}
 
-		auto end()
-		{
-			return end_for(mpl::make_index_sequence_for<Ts...>{});
-		}
+		auto end() { return end_for(mpl::make_index_sequence_for<Ts...>{}); }
+		auto end() const { return end_for(mpl::make_index_sequence_for<Ts...>{}); }
 
-		auto end() const
-		{
-			return end_for(mpl::make_index_sequence_for<Ts...>{});
-		}
-
-		auto end(std::size_t /*capacity*/)
-		{
-			return end();
-		}
-
-		auto end(std::size_t /*capacity*/) const
-		{
-			return end();
-		}
+		auto end(std::size_t /*capacity*/) { return end(); }
+		auto end(std::size_t /*capacity*/) const { return end(); }
 
 		position place(std::size_t index)
 		{
@@ -1001,35 +973,14 @@ namespace utility
 				return Iterator(data_.begin(mpl::index_constant<Is>{})...);
 			}
 
-			auto begin()
-			{
-				return begin_for(mpl::make_index_sequence_for<Ts...>{});
-			}
+			auto begin() { return begin_for(mpl::make_index_sequence_for<Ts...>{}); }
+			auto begin() const { return begin_for(mpl::make_index_sequence_for<Ts...>{}); }
 
-			auto begin() const
-			{
-				return begin_for(mpl::make_index_sequence_for<Ts...>{});
-			}
+			auto begin(std::size_t /*capacity*/) { return begin(); }
+			auto begin(std::size_t /*capacity*/) const { return begin(); }
 
-			auto begin(std::size_t /*capacity*/)
-			{
-				return begin();
-			}
-
-			auto begin(std::size_t /*capacity*/) const
-			{
-				return begin();
-			}
-
-			auto end(std::size_t capacity)
-			{
-				return data_.storage_.end(capacity);
-			}
-
-			auto end(std::size_t capacity) const
-			{
-				return data_.storage_.end(capacity);
-			}
+			auto end(std::size_t capacity) { return data_.storage_.end(capacity); }
+			auto end(std::size_t capacity) const { return data_.storage_.end(capacity); }
 
 			position place(std::size_t index)
 			{
@@ -1198,6 +1149,20 @@ namespace utility
 			return construct_range_impl(mpl::make_index_sequence_for<Ss...>{}, it, begin, end, 0);
 		}
 
+		template <typename S, typename InputIt,
+		          REQUIRES((can_memcpy<S, InputIt>::value))>
+		S * memcpy_range(S * start, InputIt begin, InputIt end)
+		{
+			return construct_range_or_memcpy_impl(mpl::true_type{}, start, begin, end);
+		}
+
+		template <typename ...Ss, typename InputIt,
+		          REQUIRES((mpl::conjunction<can_memcpy<Ss, ext::tuple_element<mpl::index_of<Ss, Ss...>::value, InputIt>>...>::value))>
+		auto memcpy_range(utility::zip_iterator<Ss *...> it, InputIt begin, InputIt end)
+		{
+			return memcpy_range_impl(mpl::make_index_sequence_for<Ss...>{}, it, begin, end);
+		}
+
 		using base_type::destruct_at;
 
 		template <typename ...Ss>
@@ -1270,6 +1235,12 @@ namespace utility
 		auto construct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> it, std::move_iterator<InputIt> begin, std::move_iterator<InputIt> end, int)
 		{
 			return utility::zip_iterator<Ss *...>(construct_range(std::get<Is>(it), std::make_move_iterator(std::get<Is>(begin.base())), std::make_move_iterator(std::get<Is>(end.base())))...);
+		}
+
+		template <std::size_t ...Is, typename ...Ss, typename InputIt>
+		auto memcpy_range(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> it, InputIt begin, InputIt end)
+		{
+			return utility::zip_iterator<Ss *...>(construct_range_or_memcpy_impl(mpl::true_type{}, std::get<Is>(it), std::get<Is>(begin), std::get<Is>(end))...);
 		}
 
 		template <std::size_t ...Is, typename ...Ss>

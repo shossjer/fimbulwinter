@@ -18,7 +18,7 @@ namespace utility
 
 		protected:
 			size_type size_;
-			Storage storage_;
+			typename storage_traits::unpacked storage_;
 
 		public:
 			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
@@ -43,13 +43,15 @@ namespace utility
 		template <typename Storage>
 		class fragmentation_data_impl<Storage, false /*static capacity*/>
 		{
+			using storage_traits = utility::storage_traits<Storage>;
+
 		public:
 			using size_type = std::size_t;
 
 		protected:
 			size_type size_;
 			size_type capacity_;
-			Storage storage_;
+			typename storage_traits::unpacked storage_;
 
 		public:
 			std::size_t capacity() const { return capacity_; }
@@ -91,23 +93,26 @@ namespace utility
 		using is_trivially_default_constructible = mpl::false_type;
 
 	public:
-		auto storage() { return this->storage_.sections_for(this->capacity(), mpl::make_index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
-		auto storage() const { return this->storage_.sections_for(this->capacity(), mpl::make_index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
+		auto begin_indices() { return this->storage_.begin_for(mpl::index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
+		auto begin_indices() const { return this->storage_.begin_for(mpl::index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
 
-		auto indices() { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
-		auto indices() const { return this->storage_.sections_for(this->capacity(), mpl::index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
+		auto end_indices() { return begin_indices() + this->capacity(); }
+		auto end_indices() const { return begin_indices() + this->capacity(); }
+
+		auto begin_storage() { return this->storage_.begin_for(mpl::make_index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
+		auto begin_storage() const { return this->storage_.begin_for(mpl::make_index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
 
 		void copy(const this_type & other)
 		{
 			this->set_size(other.size());
 
-			indices().memcpy_range(0, other.indices().data() + 0, other.indices().data() + other.capacity());
+			const auto end_indices = this->storage_.memcpy_range(begin_indices(), other.storage_.data(other.begin_indices()), other.storage_.data(other.end_indices()));
 			auto remaining_indices = ranges::index_sequence(other.capacity(), this->capacity());
-			indices().construct_range(other.capacity(), remaining_indices.begin(), remaining_indices.end());
+			this->storage_.construct_range(end_indices, remaining_indices.begin(), remaining_indices.end());
 
-			for (auto index : utility::span<std::size_t>(indices().data(), this->size()))
+			for (auto index : utility::span<std::size_t>(this->storage_.data(begin_indices()), this->size()))
 			{
-				storage().construct_at(index, other.storage()[index]);
+				this->storage_.construct_at_(begin_storage() + index, other.storage_.data(other.begin_storage())[index]);
 			}
 		}
 
@@ -115,13 +120,14 @@ namespace utility
 		{
 			this->set_size(other.size());
 
-			indices().memcpy_range(0, other.indices().data() + 0, other.indices().data() + other.capacity());
+			const auto end_indices = this->storage_.memcpy_range(begin_indices(), other.storage_.data(other.begin_indices()), other.storage_.data(other.end_indices()));
 			auto remaining_indices = ranges::index_sequence(other.capacity(), this->capacity());
-			indices().construct_range(other.capacity(), remaining_indices.begin(), remaining_indices.end());
+			this->storage_.construct_range(end_indices, remaining_indices.begin(), remaining_indices.end());
 
-			for (auto index : utility::span<std::size_t>(indices().data(), this->size()))
+			for (auto index : utility::span<std::size_t>(this->storage_.data(begin_indices()), this->size()))
 			{
-				storage().construct_at(index, std::move(other.storage()[index]));
+				using utility::iter_move;
+				this->storage_.construct_at_(begin_storage() + index, iter_move(other.storage_.data(other.begin_storage() + index)));
 			}
 		}
 
@@ -134,7 +140,7 @@ namespace utility
 			{
 				this->set_size(0);
 
-				indices().construct_range(0, ranges::iota_iterator<ext::index>(0), ranges::iota_iterator<ext::index>(this->capacity()));
+				this->storage_.construct_range(begin_indices(), ranges::iota_iterator<ext::index>(0), ranges::iota_iterator<ext::index>(this->capacity()));
 			}
 		}
 
@@ -165,20 +171,20 @@ namespace utility
 
 		void clear()
 		{
-			for (auto index : utility::span<std::size_t>(indices().data(), this->size()))
+			for (auto index : utility::span<std::size_t>(this->storage_.data(begin_indices()), this->size()))
 			{
-				storage().destruct_at(index);
+				this->storage_.destruct_at(begin_storage() + index);
 			}
-			// indices().destruct_range(0, this->capacity()); // note trivial
+			// this->storage_.destruct_range(begin_indices(), end_indices()); // note trivial
 		}
 
 		void purge()
 		{
 			if (this->storage_.good())
 			{
-				for (auto index : utility::span<std::size_t>(indices().data(), this->size()))
+				for (auto index : utility::span<std::size_t>(this->storage_.data(begin_indices()), this->size()))
 				{
-					storage().destruct_at(index);
+					this->storage_.destruct_at(begin_storage() + index);
 				}
 				// indices().destruct_range(0, this->capacity()); // note trivial
 				this->storage_.deallocate(this->capacity());
@@ -245,11 +251,11 @@ namespace utility
 		constexpr std::size_t capacity() const { return base_type::capacity(); }
 		std::size_t size() const { return base_type::size(); }
 
-		pointer data() { return this->storage().data(); }
-		const_pointer data() const { return this->storage().data(); }
+		auto data() { return this->storage_.data(this->begin_storage()); }
+		auto data() const { return this->storage_.data(this->begin_storage()); }
 
-		reference operator [] (ext::index index) { return this->storage().data()[index]; }
-		const_reference operator [] (ext::index index) const { return this->storage().data()[index]; }
+		reference operator [] (ext::index index) { return data()[index]; }
+		const_reference operator [] (ext::index index) const { return data()[index]; }
 
 		bool try_reserve(std::size_t min_capacity)
 		{
@@ -265,22 +271,22 @@ namespace utility
 			if (!this->try_reserve(this->size() + 1))
 				return nullptr;
 
-			const auto index = this->indices()[this->size()];
+			const auto index = this->storage_.data(this->begin_indices())[this->size()];
 
-			auto && e = this->storage().construct_at(index, std::forward<Ps>(ps)...);
+			auto && e = this->storage_.construct_at_(this->begin_storage() + index, std::forward<Ps>(ps)...);
 			this->set_size(this->size() + 1);
 			return std::pointer_traits<pointer>::pointer_to(e);
 		}
 
 		bool try_erase(ext::index index)
 		{
-			if (!/*debug_assert*/(std::find(this->indices().data() + this->size(), this->indices().data() + this->capacity(), static_cast<std::size_t>(index)) == this->indices().data() + this->capacity()))
+			if (!/*debug_assert*/(std::find(this->storage_.data(this->begin_indices()) + this->size(), this->storage_.data(this->begin_indices()) + this->capacity(), static_cast<std::size_t>(index)) == this->storage_.data(this->begin_indices()) + this->capacity()))
 				return false;
 
 			const auto last = this->size() - 1;
 
-			this->storage().destruct_at(index);
-			this->indices()[last] = index; // todo swap?
+			this->storage_.destruct_at(this->begin_storage() + index);
+			this->storage_.data(this->begin_indices())[last] = index; // todo swap?
 			this->set_size(last);
 			return true;
 		}
