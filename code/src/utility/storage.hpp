@@ -1042,14 +1042,6 @@ namespace utility
 		using can_memset = std::is_trivially_copyable<Storing>;
 
 	public:
-		// todo weird
-		template <typename ...Ss,
-		          typename Reference = rvalue_reference_for<Ss...>>
-		Reference iter_move(utility::zip_iterator<Ss *...> it)
-		{
-			return ext::apply([this](auto * ...ss) -> Reference { return Reference(std::move(*this->data(ss))...); }, it);
-		}
-
 		template <typename S, typename ...Ps>
 		decltype(auto) construct_at_(S * s, Ps && ...ps) { return this->construct_at(s, std::forward<Ps>(ps)...); }
 

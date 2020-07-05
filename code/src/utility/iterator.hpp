@@ -524,5 +524,11 @@ namespace utility
 		friend bool operator != (std::nullptr_t, const this_type & x) { return !(x == nullptr); }
 
 		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
+
+		friend auto iter_move(this_type x)
+		{
+			using utility::iter_move;
+			return ext::apply([](auto & ...ps){ return utility::forward_as_compound(iter_move(ps)...); }, x);
+		}
 	};
 }
