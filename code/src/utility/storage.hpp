@@ -445,11 +445,26 @@ namespace utility
 			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return &data_->value;
 		}
+
 		template <typename T>
 		const T * data(const utility::storing<T> * data_) const
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return &data_->value;
+		}
+
+		template <typename ...Us,
+		          typename Pointer = utility::zip_pointer<Us *...>>
+		Pointer data(utility::zip_iterator<utility::storing<Us> *...> it)
+		{
+			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
+		}
+
+		template <typename ...Us,
+		          typename Pointer = utility::zip_pointer<const Us *...>>
+		Pointer data(utility::zip_iterator<const utility::storing<Us> *...> it) const
+		{
+			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
 		}
 
 		template <std::size_t ...Is,
@@ -486,26 +501,6 @@ namespace utility
 		auto begin(std::size_t /*capacity*/) const
 		{
 			return begin();
-		}
-
-		pointer data()
-		{
-			return ext::apply([&](auto * ...ss){ return pointer(data(ss)...); }, begin());
-		}
-
-		const_pointer data() const
-		{
-			return ext::apply([&](auto * ...ss){ return const_pointer(data(ss)...); }, begin());
-		}
-
-		reference operator [] (ext::index index)
-		{
-			return data()[index];
-		}
-
-		const_reference operator [] (ext::index index) const
-		{
-			return data()[index];
 		}
 
 		position place(std::size_t index)
@@ -686,11 +681,26 @@ namespace utility
 			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return data_;
 		}
+
 		template <typename T>
 		const T * data(const T * data_) const
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
 			return data_;
+		}
+
+		template <typename ...Us,
+		          typename Pointer = utility::zip_pointer<Us *...>>
+		Pointer data(utility::zip_iterator<Us *...> it)
+		{
+			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
+		}
+
+		template <typename ...Us,
+		          typename Pointer = utility::zip_pointer<const Us *...>>
+		Pointer data(utility::zip_iterator<const Us *...> it) const
+		{
+			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
 		}
 
 		mpl::car<Ts...> * begin_for(mpl::index_sequence<0>)
@@ -908,10 +918,25 @@ namespace utility
 			{
 				return data_.storage_.data(ptr_);
 			}
+
 			template <typename T>
 			const T * data(const T * ptr_) const
 			{
 				return data_.storage_.data(ptr_);
+			}
+
+			template <typename ...Us,
+			          typename Pointer = utility::zip_pointer<Us *...>>
+			Pointer data(utility::zip_iterator<Us *...> it)
+			{
+				return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
+			}
+
+			template <typename ...Us,
+			          typename Pointer = utility::zip_pointer<const Us *...>>
+			Pointer data(utility::zip_iterator<const Us *...> it) const
+			{
+				return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
 			}
 
 			template <std::size_t ...Is,
@@ -948,26 +973,6 @@ namespace utility
 			auto begin(std::size_t /*capacity*/) const
 			{
 				return begin();
-			}
-
-			pointer data()
-			{
-				return ext::apply([&](auto * ...ss){ return pointer(data_.storage_.data(ss)...); }, begin());
-			}
-
-			const_pointer data() const
-			{
-				return ext::apply([&](auto * ...ss){ return const_pointer(data_.storage_.data(ss)...); }, begin());
-			}
-
-			reference operator [] (ext::index index)
-			{
-				return data()[index];
-			}
-
-			const_reference operator [] (ext::index index) const
-			{
-				return data()[index];
 			}
 
 			position place(std::size_t index)
