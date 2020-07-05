@@ -587,8 +587,24 @@ namespace utility
 			auto begin(std::size_t /*capacity*/) { return begin(); }
 			auto begin(std::size_t /*capacity*/) const { return begin(); }
 
-			auto end(std::size_t capacity) { return data_.storage_.end(capacity); }
-			auto end(std::size_t capacity) const { return data_.storage_.end(capacity); }
+			template <std::size_t ...Is,
+			          typename Iterator = utility::combine<utility::zip_iterator,
+			                                               typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+			Iterator end_for(std::size_t capacity, mpl::index_sequence<Is...>)
+			{
+				return Iterator(data_.begin(mpl::index_constant<Is>{}) + capacity...);
+			}
+
+			template <std::size_t ...Is,
+			          typename Iterator = utility::combine<utility::zip_iterator,
+			                                               const typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+			Iterator end_for(std::size_t capacity, mpl::index_sequence<Is...>) const
+			{
+				return Iterator(data_.begin(mpl::index_constant<Is>{}) + capacity...);
+			}
+
+			auto end(std::size_t capacity) { return end_for(capacity, mpl::make_index_sequence_for<Ts...>{}); }
+			auto end(std::size_t capacity) const { return end_for(capacity, mpl::make_index_sequence_for<Ts...>{}); }
 
 			position place(std::size_t index)
 			{
