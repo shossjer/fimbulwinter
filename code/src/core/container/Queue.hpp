@@ -169,15 +169,14 @@ namespace core
 					const std::size_t barrier = this->readendi_.load(std::memory_order_acquire);
 					debug_assert(barrier == this->writei_.load(std::memory_order_relaxed));
 
-					auto sections = this->storage_.sections(this->capacity());
 					if (barrier < readi)
 					{
-						sections.destruct_range(0, barrier);
-						sections.destruct_range(readi, this->capacity());
+						this->storage_.destruct_range(this->storage_.begin(this->capacity()), this->storage_.begin(this->capacity()) + barrier);
+						this->storage_.destruct_range(this->storage_.begin(this->capacity()) + readi, this->storage_.begin(this->capacity()) + this->capacity());
 					}
 					else
 					{
-						sections.destruct_range(readi, barrier);
+						this->storage_.destruct_range(this->storage_.begin(this->capacity()) + readi, this->storage_.begin(this->capacity()) + barrier);
 					}
 					this->storage_.deallocate(this->capacity());
 				}
@@ -426,7 +425,7 @@ namespace core
 				if (!detail::checkout_write_slot(data, slot, next))
 					return false;
 
-				data.storage_.sections(data.capacity()).construct_at(slot, std::forward<Ps>(ps)...);
+				data.storage_.construct_at_(data.storage_.begin(data.capacity()) + slot, std::forward<Ps>(ps)...);
 
 				detail::checkin_write_slot(data, slot, next);
 
@@ -443,9 +442,8 @@ namespace core
 				std::atomic_thread_fence(std::memory_order_acquire);
 
 				using utility::iter_move;
-				auto sections = data.storage_.sections(data.capacity());
-				value = iter_move(sections.data() + slot);
-				sections.destruct_at(slot);
+				value = iter_move(data.storage_.data(data.storage_.begin(data.capacity())) + slot);
+				data.storage_.destruct_at(data.storage_.begin(data.capacity()) + slot);
 
 				const std::size_t next = utility::wrap_reset(slot + 1, data.capacity());
 				data.readi_.store(next, std::memory_order_relaxed);
