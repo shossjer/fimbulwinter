@@ -38,11 +38,6 @@ namespace utility
 			std::size_t size() const { return storage_.index_of(end_); }
 
 		protected:
-			auto storage_begin() { return storage_.begin(); }
-			auto storage_begin() const { return storage_.begin(); }
-			auto storage_end() { return end_; }
-			auto storage_end() const { return end_; }
-
 			void set_cap(typename Storage::position /*cap*/)
 			{
 			}
@@ -72,11 +67,6 @@ namespace utility
 			std::size_t size() const { return storage_.index_of(end_); }
 
 		protected:
-			auto storage_begin() { return storage_.begin(); }
-			auto storage_begin() const { return storage_.begin(); }
-			auto storage_end() { return end_; }
-			auto storage_end() const { return end_; }
-
 			void set_cap(typename Storage::position cap)
 			{
 				cap_ = cap;
@@ -108,17 +98,23 @@ namespace utility
 		using is_trivially_default_constructible = mpl::false_type;
 
 	public:
-		auto storage() { return this->storage_.sections(this->capacity()); }
-		auto storage() const { return this->storage_.sections(this->capacity()); }
+		auto & storage() { return this->storage_; }
+		const auto & storage() const { return this->storage_; }
+
+		auto begin_storage() { return this->storage_.begin(); }
+		auto begin_storage() const { return this->storage_.begin(); }
+
+		typename Storage::iterator end_storage() { return this->end_; }
+		typename Storage::const_iterator end_storage() const { return this->end_; }
 
 		void copy(const this_type & other)
 		{
-			this->set_end(this->storage_.construct_range(this->storage_.begin(), other.storage().data(), other.storage().data() + other.size()));
+			this->set_end(this->storage_.construct_range(begin_storage(), other.storage_.data(other.begin_storage()), other.storage_.data(other.end_storage())));
 		}
 
 		void move(this_type && other)
 		{
-			this->set_end(this->storage_.construct_range(this->storage_.begin(), std::make_move_iterator(other.storage().data()), std::make_move_iterator(other.storage().data() + other.size())));
+			this->set_end(this->storage_.construct_range(begin_storage(), std::make_move_iterator(other.storage_.data(other.begin_storage())), std::make_move_iterator(other.storage_.data(other.end_storage()))));
 		}
 
 	protected:
@@ -128,14 +124,14 @@ namespace utility
 		{
 			if (allocate(ReservationStrategy{}(min_capacity)))
 			{
-				this->set_end(this->storage_.begin());
+				this->set_end(begin_storage());
 			}
 		}
 
 		void release()
 		{
 			this->set_cap(this->storage_.place(0));
-			this->set_end(this->storage_.begin());
+			this->set_end(begin_storage());
 		}
 
 		bool allocate(std::size_t capacity)
@@ -166,7 +162,7 @@ namespace utility
 		{
 			if (this->storage_.good())
 			{
-				this->storage_.destruct_range(this->storage_.begin(), this->end_);
+				this->storage_.destruct_range(begin_storage(), end_storage());
 				this->storage_.deallocate(this->capacity());
 			}
 		}
@@ -205,7 +201,7 @@ namespace utility
 
 	template <typename Data>
 	class basic_vector
-		: public basic_container<Data>
+		: basic_container<Data>
 	{
 		using base_type = basic_container<Data>;
 
@@ -222,33 +218,25 @@ namespace utility
 		using const_pointer = typename storage_type::const_pointer;
 
 	public:
-		auto begin()
-		{
-			return this->storage_.data();
-		}
-		auto begin() const
-		{
-			return this->storage_.data();
-		}
-		auto end()
-		{
-			return ext::apply([&](auto & ...ps){ return pointer(this->storage_.data(ps)...); }, this->storage_end());
-		}
-		auto end() const
-		{
-			return ext::apply([&](auto & ...ps){ return const_pointer(this->storage_.data(ps)...); }, this->storage_end());
-		}
+		constexpr std::size_t capacity() const { return base_type::capacity(); }
+		std::size_t size() const { return base_type::size(); }
 
-		auto data() { return this->storage_.data(); }
-		auto data() const { return this->storage_.data(); }
+		auto begin() { return this->storage_.data(this->begin_storage()); }
+		auto begin() const { return this->storage_.data(this->begin_storage()); }
+
+		auto end() { return this->storage_.data(this->end_storage()); }
+		auto end() const { return this->storage_.data(this->end_storage()); }
+
+		auto data() { return this->storage_.data(this->begin_storage()); }
+		auto data() const { return this->storage_.data(this->begin_storage()); }
 
 		reference operator [] (ext::index index) { return data()[index]; }
 		const_reference operator [] (ext::index index) const { return data()[index]; }
 
 		void clear()
 		{
-			this->storage_.destruct_range(this->storage_begin(), this->storage_end());
-			this->set_end(this->storage_begin());
+			this->storage_.destruct_range(this->begin_storage(), this->end_storage());
+			this->set_end(this->begin_storage());
 		}
 
 		bool try_reserve(std::size_t min_capacity)
@@ -262,7 +250,7 @@ namespace utility
 		template <typename ...Ps>
 		bool try_emplace_back(utility::no_failure_t, Ps && ...ps)
 		{
-			auto end = this->storage_end();
+			auto end = this->end_storage();
 			this->storage_.construct_at_(end, std::forward<Ps>(ps)...);
 			this->set_end(++end);
 
@@ -295,9 +283,10 @@ namespace utility
 			if (!/*debug_assert*/(static_cast<std::size_t>(index) < this->size()))
 				return false;
 
-			const auto last = --this->storage_end();
+			const auto last = --this->end_storage();
 
-			this->storage_[index] = this->storage_.iter_move(last);
+			using utility::iter_move;
+			data()[index] = iter_move(this->storage_.data(last));
 			this->storage_.destruct_at(last);
 			this->set_end(last);
 
