@@ -75,20 +75,6 @@ TEST_CASE("static string type traits", "[utility][unicode]")
 	static_assert(std::is_trivially_move_assignable<string_utf8>::value, "");
 }
 
-TEST_CASE("static string is not bigger than necessary", "[utility][unicode]")
-{
-	static_assert(sizeof(utility::static_string_utf8<1>) == 2, "");
-	static_assert(sizeof(utility::static_string_utf8<0xff>) == (0xff + 1), "");
-	static_assert(sizeof(utility::static_string_utf8<0x100>) == (0x100 + 2), "");
-	static_assert(sizeof(utility::static_string_utf8<0xffff>) == (0xffff + 1 + 2), "");
-	static_assert(sizeof(utility::static_string_utf8<0x10000>) == (0x10000 + 4), "");
-#ifdef _MSC_VER
-	// error C2148: total size of array must not exceed 0x7fffffff bytes
-#else
-	static_assert(sizeof(utility::static_string_utf8<0xffffffff>) == (0xffffffffll + 1 + 4), "");
-#endif
-}
-
 TEST_CASE("code point can advance correctly in utf8 strings", "[utility][unicode]")
 {
 	CHECK(utility::unicode_code_point::count(long_text, long_text + long_text_size) == long_text_length);

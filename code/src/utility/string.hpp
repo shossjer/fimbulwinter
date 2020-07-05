@@ -322,24 +322,25 @@ namespace utility
 		{
 			using storage_traits = utility::storage_traits<Storage>;
 
-			using size_type = utility::size_type_for<storage_traits::capacity_value>;
+			using size_type = std::size_t;
 
-			size_type size_;
-			Storage chars_;
+			typename storage_traits::unpacked chars_;
+			typename Storage::iterator end_;
 
 			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
 
-			void set_capacity(std::size_t capacity)
+			std::size_t size() const { return chars_.index_of(end_); }
+
+			auto position_end() const { return utility::select_first<storage_traits::size>(end_); }
+			auto position_cap() const { return chars_.place(capacity()); }
+
+			void set_cap(typename Storage::position /*cap*/)
 			{
-				assert(capacity == 0 || capacity == storage_traits::capacity_value);
-				static_cast<void>(capacity);
 			}
 
-			void set_size(std::size_t size)
+			void set_end(typename Storage::iterator end)
 			{
-				assert(size <= size_type(-1) && size <= storage_traits::capacity_value);
-
-				size_ = static_cast<size_type>(size);
+				end_ = end;
 			}
 		};
 
@@ -370,22 +371,25 @@ namespace utility
 			// 	Big big;
 			// };
 
-			size_type capacity_;
-			size_type size_;
-			Storage chars_;
+			typename storage_traits::unpacked chars_;
+			typename Storage::position cap_;
+			typename Storage::iterator end_;
 
-			std::size_t capacity() const { return capacity_; }
+			std::size_t capacity() const { return chars_.index_of(cap_); }
 
-			void set_capacity(std::size_t capacity)
+			std::size_t size() const { return chars_.index_of(end_); }
+
+			auto position_end() const { return utility::select_first<storage_traits::size>(end_); }
+			auto position_cap() const { return cap_; }
+
+			void set_cap(typename Storage::position cap)
 			{
-				capacity_ = capacity;
+				cap_ = cap;
 			}
 
-			void set_size(std::size_t size)
+			void set_end(typename Storage::iterator end)
 			{
-				assert(size <= capacity_);
-
-				size_ = size;
+				end_ = end;
 			}
 		};
 	}
@@ -409,26 +413,31 @@ namespace utility
 		using is_trivially_default_constructible = mpl::false_type;
 
 	public:
-		decltype(auto) chars() { return this->chars_.sections(this->capacity()); }
-		decltype(auto) chars() const { return this->chars_.sections(this->capacity()); }
+		auto begin_storage() { return this->chars_.begin(); }
+		auto begin_storage() const { return this->chars_.begin(); }
 
-		std::size_t size() const { return this->size_; }
-		std::size_t size_without_null() const { return this->size_ - 1; }
+		typename Storage::iterator end_storage() { return this->end_; }
+		typename Storage::const_iterator end_storage() const { return this->end_; }
+
+		// todo terrible name
+		typename Storage::iterator end2_storage() { return this->end_ + 1; }
+		typename Storage::const_iterator end2_storage() const { return this->end_ + 1; }
 
 		void copy(const this_type & other)
 		{
-			this->set_size(other.size());
-
-			chars().construct_range(0, other.chars().data(), other.chars().data() + other.size());
+			const auto end = this->chars_.construct_range(begin_storage(), other.chars_.data(other.begin_storage()), other.chars_.data(other.end_storage()));
+			this->chars_.construct_at_(end, '\0');
+			this->set_end(end);
 		}
 
 		void move(this_type && other)
 		{
-			this->set_size(other.size());
-
-			chars().construct_range(0, std::make_move_iterator(other.chars().data()), std::make_move_iterator(other.chars().data() + other.size()));
+			const auto end = this->chars_.construct_range(begin_storage(), std::make_move_iterator(other.chars_.data(other.begin_storage())), std::make_move_iterator(other.chars_.data(other.end_storage())));
+			this->chars_.construct_at_(end, '\0');
+			this->set_end(end);
 		}
 
+		// todo move this out
 		bool try_reserve(std::size_t min_capacity)
 		{
 			if (min_capacity <= this->capacity())
@@ -441,12 +450,12 @@ namespace utility
 
 		explicit basic_string_array_data(std::size_t size)
 		{
-			size += 1; // null character
-			if (allocate(ReservationStrategy{}(size)))
+			// todo make a resvervation strategy for adding one
+			if (allocate(ReservationStrategy{}(size + 1))) // null character
 			{
-				this->set_size(size);
-
-				chars().construct_at(size - 1, '\0');
+				// todo move filling to here
+				this->chars_.construct_at_(begin_storage() + size, '\0');
+				this->set_end(begin_storage() + size);
 			}
 		}
 
@@ -456,9 +465,8 @@ namespace utility
 		{
 			if (allocate(ReservationStrategy{}(1)))
 			{
-				this->set_size(1);
-
-				chars().construct_at(0, '\0');
+				this->chars_.construct_at_(begin_storage(), '\0');
+				this->set_end(begin_storage());
 			}
 		}
 
@@ -466,13 +474,13 @@ namespace utility
 		{
 			if (this->chars_.allocate(capacity))
 			{
-				this->set_capacity(capacity);
+				this->set_cap(this->chars_.place(capacity));
 				return true;
 			}
 			else
 			{
-				this->set_capacity(0);
-				this->set_size(0);
+				this->set_cap(this->chars_.place(0));
+				this->set_end(begin_storage());
 				return false;
 			}
 		}
@@ -489,17 +497,14 @@ namespace utility
 
 		void clear()
 		{
-			if (0 < this->capacity())
-			{
-				chars().destruct_range(0, this->size());
-			}
+			this->chars_.destruct_range(begin_storage(), end2_storage());
 		}
 
 		void purge()
 		{
-			if (0 < this->capacity())
+			if (this->chars_.good())
 			{
-				chars().destruct_range(0, this->size());
+				this->chars_.destruct_range(begin_storage(), end2_storage());
 				this->chars_.deallocate(this->capacity());
 			}
 		}
@@ -619,7 +624,9 @@ namespace utility
 
 		explicit basic_string(std::size_t size)
 			: data_(size)
-		{}
+		{
+			data_.array_.chars_.construct_fill(data_.array_.begin_storage(), size);
+		}
 
 		template <typename Character>
 		basic_string(std::size_t repeat, Character && character)
@@ -659,10 +666,10 @@ namespace utility
 			const auto ret = data_.array_.try_reserve(view.size() + 1);
 			if (ret)
 			{
-				data_.array_.chars().destruct_range(0, data_.array_.size());
-				data_.array_.set_size(view.size() + 1);
-				data_.array_.chars().construct_range(0, view.data(), view.data() + view.size());
-				data_.array_.chars().construct_at(view.size(), '\0');
+				data_.array_.chars_.destruct_range(data_.array_.begin_storage(), data_.array_.end2_storage());
+				const auto end = data_.array_.chars_.construct_range(data_.array_.begin_storage(), view.data(), view.data() + view.size());
+				data_.array_.chars_.construct_at_(end, '\0');
+				data_.array_.set_end(end);
 			}
 			assert(ret);
 			return *this;
@@ -671,7 +678,7 @@ namespace utility
 		basic_string(repeat_char, std::size_t repeat, code_unit c, int)
 			: data_(repeat)
 		{
-			data_.array_.chars().construct_fill(0, repeat, c);
+			data_.array_.chars_.construct_fill(data_.array_.begin_storage(), repeat, c);
 		}
 		basic_string(repeat_char, std::size_t repeat, code_point cp, ...)
 			: basic_string(repeat_char{}, repeat, cp, std::array<code_unit, encoding_traits::max_size()>{}, 0)
@@ -690,16 +697,16 @@ namespace utility
 			const auto len = repeat * count;
 			for (std::ptrdiff_t i : ranges::index_sequence(len))
 			{
-				data_.array_.chars().construct_at(i, s[i % count]);
+				data_.array_.chars_.construct_at_(data_.array_.begin_storage() + i, s[i % count]);
 			}
 		}
 		basic_string(copy_str, const code_unit * s, std::size_t count)
 			: data_(count)
 		{
-			data_.array_.chars().construct_range(0, s, s + count);
+			data_.array_.chars_.construct_range(data_.array_.begin_storage(), s, s + count);
 		}
 		basic_string(other_offset, const this_type & other, size_type position)
-			: basic_string(copy_str{}, other.data() + position, other.data_.array_.size_without_null() - position)
+			: basic_string(copy_str{}, other.data() + position, other.data_.array_.size() - position)
 		{}
 		template <typename Count>
 		basic_string(other_substr, const this_type & other, size_type position, Count && count)
@@ -708,17 +715,17 @@ namespace utility
 		basic_string(const code_unit * s, size_type ls, const code_unit * t, size_type lt)
 			: data_(ls + lt)
 		{
-			data_.array_.chars().construct_range(0, s, s + ls);
-			data_.array_.chars().construct_range(ls, t, t + lt);
+			const auto middle = data_.array_.chars_.construct_range(data_.array_.begin_storage(), s, s + ls);
+			data_.array_.chars_.construct_range(middle, t, t + lt);
 		}
 
 	public:
-		iterator begin() { return iterator(data()); }
-		const_iterator begin() const { return const_iterator(data()); }
-		const_iterator cbegin() const { return const_iterator(data()); }
-		iterator end() { return iterator(data() + data_.array_.size_without_null()); }
-		const_iterator end() const { return const_iterator(data() + data_.array_.size_without_null()); }
-		const_iterator cend() const { return const_iterator(data() + data_.array_.size_without_null()); }
+		iterator begin() { return data_.array_.chars_.data(data_.array_.begin_storage()); }
+		const_iterator begin() const { return data_.array_.chars_.data(data_.array_.begin_storage()); }
+		const_iterator cbegin() const { return data_.array_.chars_.data(data_.array_.begin_storage()); }
+		iterator end() { return data_.array_.chars_.data(data_.array_.end_storage()); }
+		const_iterator end() const { return data_.array_.chars_.data(data_.array_.end_storage()); }
+		const_iterator cend() const { return data_.array_.chars_.data(data_.array_.end_storage()); }
 		reverse_iterator rbegin() { return std::make_reverse_iterator(end()); }
 		const_reverse_iterator rbegin() const { return std::make_reverse_iterator(end()); }
 		const_reverse_iterator crbegin() const { return std::make_reverse_iterator(cend()); }
@@ -736,20 +743,20 @@ namespace utility
 		decltype(auto) front() const { return *begin(); }
 		decltype(auto) back() { return *--end(); }
 		decltype(auto) back() const { return *--end(); }
-		value_type * data() { return data_.array_.chars().data(); }
-		const value_type * data() const { return data_.array_.chars().data(); }
+		value_type * data() { return data_.array_.chars_.data(data_.array_.begin_storage()); }
+		const value_type * data() const { return data_.array_.chars_.data(data_.array_.begin_storage()); }
 
 		constexpr utility::type_id_t encoding() const { return data_.encoding(); }
 		constexpr std::size_t capacity() const { return data_.array_.capacity(); }
-		std::size_t size() const { return data_.array_.size_without_null(); }
+		std::size_t size() const { return data_.array_.size(); }
 		decltype(auto) length() const { return end() - begin(); }
-		bool empty() const { return data_.array_.size() <= 1; }
+		bool empty() const { return data_.array_.begin_storage() == data_.array_.position_end(); }
 
 		void clear()
 		{
-			data_.array_.chars().destruct_range(0, data_.array_.size());
-			data_.array_.set_size(1);
-			data_.array_.chars().construct_at(0, '\0');
+			data_.array_.chars_.destruct_range(data_.array_.begin_storage(), data_.array_.end2_storage());
+			data_.array_.set_end(data_.array_.begin_storage());
+			data_.array_.chars_.construct_at_(data_.array_.begin_storage(), '\0');
 		}
 
 		bool try_resize(std::size_t size)
@@ -757,15 +764,20 @@ namespace utility
 			if (!data_.array_.try_reserve(size + 1))
 				return false;
 
-			std::size_t construct_from = data_.array_.size();
-			if (size + 1 < data_.array_.size())
+			const ext::ssize diff = size - this->size();
+			if (0 < diff)
 			{
-				construct_from = size;
-				data_.array_.chars().destruct_range(size, data_.array_.size());
+				const auto end = data_.array_.chars_.construct_fill(data_.array_.end2_storage(), diff - 1);
+				data_.array_.chars_.construct_at_(end, '\0');
+				data_.array_.set_end(end);
 			}
-			data_.array_.chars().construct_fill(construct_from, size + 1, utility::zero_initialize);
-			data_.array_.set_size(size + 1);
-
+			else if (diff < 0)
+			{
+				const auto end = data_.array_.end_storage() + diff;
+				data_.array_.chars_.destruct_range(end, data_.array_.end2_storage());
+				data_.array_.chars_.construct_at_(end, '\0');
+				data_.array_.set_end(end);
+			}
 			return true;
 		}
 
@@ -775,7 +787,7 @@ namespace utility
 		}
 		void pop_back()
 		{
-			reduce_impl(encoding_traits::previous(data() + data_.array_.size_without_null()));
+			reduce_impl(encoding_traits::previous(data() + data_.array_.size()));
 		}
 
 		template <typename Character>
@@ -795,7 +807,7 @@ namespace utility
 		}
 		bool try_append(const this_type & other)
 		{
-			return try_append_impl(copy_str{}, other.data(), other.data_.array_.size_without_null());
+			return try_append_impl(copy_str{}, other.data(), other.data_.array_.size());
 		}
 		template <typename Position>
 		bool try_append(const this_type & other, Position && position)
@@ -821,17 +833,14 @@ namespace utility
 		template <typename Count>
 		void reduce(Count && count)
 		{
-			reduce_impl(encoding_traits::previous(data() + data_.array_.size_without_null(),
-			                                      std::forward<Count>(count)));
+			reduce_impl(encoding_traits::previous(data() + data_.array_.size(), std::forward<Count>(count)));
 		}
 
 		int compare(const code_unit * s) const { return compare_data(data(), s); }
 
 		difference_type find(code_unit c) const
 		{
-			return encoding_traits::difference(data(), ext::strfind(data(),
-			                                                        data() + data_.array_.size_without_null(),
-			                                                        c));
+			return encoding_traits::difference(data(), ext::strfind(data(), data() + data_.array_.size(), c));
 		}
 		template <typename Count>
 		difference_type find(code_unit c, Count && from) const
@@ -839,14 +848,12 @@ namespace utility
 			return encoding_traits::difference(data(),
 			                                   ext::strfind(data() + encoding_traits::next(data(),
 			                                                                               std::forward<Count>(from)),
-			                                                data() + data_.array_.size_without_null(),
+			                                                data() + data_.array_.size(),
 			                                                c));
 		}
 		difference_type rfind(code_unit c) const
 		{
-			return encoding_traits::difference(data(), ext::strrfind(data(),
-			                                                         data() + data_.array_.size_without_null(),
-			                                                         c));
+			return encoding_traits::difference(data(), ext::strrfind(data(), data() + data_.array_.size(), c));
 		}
 	private:
 		bool try_append_impl(copy_char, code_unit c, int) { return try_append_impl(copy_str{}, &c, 1); }
@@ -858,21 +865,19 @@ namespace utility
 		}
 		bool try_append_impl(copy_str, const code_unit * s, size_type count)
 		{
-			if (!data_.array_.try_reserve(data_.array_.size() + count))
+			if (!data_.array_.try_reserve(data_.array_.size() + count + 1))
 				return false;
 
-			data_.array_.chars().destruct_at(data_.array_.size() - 1);
-			data_.array_.set_size(data_.array_.size() + count);
-			data_.array_.chars().construct_range(data_.array_.size() - 1 - count, s, s + count);
-			data_.array_.chars().construct_at(data_.array_.size() - 1, '\0');
+			data_.array_.chars_.destruct_at(data_.array_.end_storage());
+			const auto end = data_.array_.chars_.construct_range(data_.array_.end_storage(), s, s + count);
+			data_.array_.chars_.construct_at_(end, '\0');
+			data_.array_.set_end(end);
 
 			return true;
 		}
 		bool try_append_impl(other_offset, const this_type & other, size_type position)
 		{
-			return try_append_impl(copy_str{},
-			                       other.data() + position,
-			                       other.data_.array_.size_without_null() - position);
+			return try_append_impl(copy_str{}, other.data() + position, other.data_.array_.size() - position);
 		}
 		template <typename Count>
 		bool try_append_impl(other_substr, const this_type & other, size_type position, Count && count)
@@ -884,11 +889,12 @@ namespace utility
 
 		void reduce_impl(size_type count)
 		{
-			assert(data_.array_.size() > count);
+			assert(count <= data_.array_.size());
 
-			data_.array_.chars().destruct_range(data_.array_.size() - count, data_.array_.size());
-			data_.array_.set_size(data_.array_.size() - count);
-			data()[data_.array_.size() - 1] = '\0';
+			data_.array_.chars_.destruct_range(data_.array_.end2_storage() - count, data_.array_.end2_storage());
+			const auto end = data_.array_.end_storage() - count;
+			data_.array_.set_end(end);
+			data()[end] = '\0';
 		}
 
 		static int compare_data(const code_unit * a, const code_unit * b)
@@ -903,26 +909,23 @@ namespace utility
 	public:
 		friend this_type operator + (const this_type & x, const this_type & other)
 		{
-			return this_type(x.data(),
-			                 x.data_.array_.size_without_null(),
-			                 other.data(),
-			                 other.data_.array_.size_without_null());
+			return this_type(x.data(), x.data_.array_.size(), other.data(), other.data_.array_.size());
 		}
 		friend this_type operator + (const this_type & x, const value_type * s)
 		{
-			return this_type(x.data(), x.data_.array_.size_without_null(), s, ext::strlen(s));
+			return this_type(x.data(), x.data_.array_.size(), s, ext::strlen(s));
 		}
 		friend this_type operator + (const this_type & x, const basic_string_view<Encoding> & v)
 		{
-			return this_type(x.data(), x.data_.array_.size_without_null(), v.data(), v.size());
+			return this_type(x.data(), x.data_.array_.size(), v.data(), v.size());
 		}
 		friend this_type operator + (const value_type * s, const this_type & x)
 		{
-			return this_type(s, ext::strlen(s), x.data(), x.data_.array_.size_without_null());
+			return this_type(s, ext::strlen(s), x.data(), x.data_.array_.size());
 		}
 		friend this_type operator + (const basic_string_view<Encoding> & v, const this_type & x)
 		{
-			return this_type(v.data(), v.size(), x.data(), x.data_.array_.size_without_null());
+			return this_type(v.data(), v.size(), x.data(), x.data_.array_.size());
 		}
 		friend this_type && operator + (this_type && x, const this_type & other)
 		{
@@ -980,7 +983,7 @@ namespace utility
 		template <typename Traits>
 		friend std::basic_ostream<value_type, Traits> & operator << (std::basic_ostream<value_type, Traits> & os, const this_type & x)
 		{
-			return os.write(x.data(), x.data_.array_.size_without_null());
+			return os.write(x.data(), x.data_.array_.size());
 		}
 	};
 
