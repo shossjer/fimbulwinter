@@ -92,6 +92,11 @@ namespace utility
 
 		using is_trivially_default_constructible = mpl::false_type;
 
+		using is_trivially_copy_constructible = std::is_trivially_copy_constructible<Storage>;
+		using is_trivially_copy_assignable = std::is_trivially_copy_constructible<Storage>;
+		using is_trivially_move_constructible = std::is_trivially_move_constructible<Storage>;
+		using is_trivially_move_assignable = std::is_trivially_move_constructible<Storage>;
+
 	public:
 		auto begin_indices() { return this->storage_.begin_for(mpl::index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
 		auto begin_indices() const { return this->storage_.begin_for(mpl::index_sequence<(utility::storage_size<ModedStorage>::value - 1)>{}); }
@@ -144,10 +149,17 @@ namespace utility
 			}
 		}
 
+		void init(const this_type & /*other*/)
+		{
+		}
+
 		void release()
 		{
-			this->set_capacity(0);
-			this->set_size(0);
+			if (StorageTraits::moves_allocation::value)
+			{
+				this->set_capacity(0);
+				this->set_size(0);
+			}
 		}
 
 		bool allocate(std::size_t capacity)

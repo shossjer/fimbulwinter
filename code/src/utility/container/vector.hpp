@@ -103,6 +103,11 @@ namespace utility
 
 		using is_trivially_default_constructible = mpl::false_type;
 
+		using is_trivially_copy_constructible = mpl::false_type;
+		using is_trivially_copy_assignable = mpl::false_type;
+		using is_trivially_move_constructible = mpl::false_type;
+		using is_trivially_move_assignable = mpl::false_type;
+
 	public:
 		auto & storage() { return this->storage_; }
 		const auto & storage() const { return this->storage_; }
@@ -134,10 +139,22 @@ namespace utility
 			}
 		}
 
+		void init(const this_type & other)
+		{
+			if (!StorageTraits::moves_allocation::value)
+			{
+				this->set_cap(this->storage_.place(other.capacity()));
+				this->set_end(begin_storage() + other.size());
+			}
+		}
+
 		void release()
 		{
-			this->set_cap(this->storage_.place(0));
-			this->set_end(begin_storage());
+			if (StorageTraits::moves_allocation::value)
+			{
+				this->set_cap(this->storage_.place(0));
+				this->set_end(begin_storage());
+			}
 		}
 
 		bool allocate(std::size_t capacity)
@@ -162,6 +179,11 @@ namespace utility
 		constexpr bool fits(const this_type & other) const
 		{
 			return !(this->capacity() < other.size());
+		}
+
+		void clear()
+		{
+			this->storage_.destruct_range(begin_storage(), end_storage());
 		}
 
 		void purge()

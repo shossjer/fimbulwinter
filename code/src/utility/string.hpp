@@ -412,6 +412,11 @@ namespace utility
 
 		using is_trivially_default_constructible = mpl::false_type;
 
+		using is_trivially_copy_constructible = mpl::false_type;
+		using is_trivially_copy_assignable = mpl::false_type;
+		using is_trivially_move_constructible = mpl::false_type;
+		using is_trivially_move_assignable = mpl::false_type;
+
 	public:
 		auto begin_storage() { return this->chars_.begin(); }
 		auto begin_storage() const { return this->chars_.begin(); }
@@ -460,13 +465,25 @@ namespace utility
 		}
 
 	protected:
+		void init(const this_type & other)
+		{
+			if (!StorageTraits::moves_allocation::value)
+			{
+				this->set_cap(this->chars_.place(other.capacity()));
+				this->set_end(begin_storage() + other.size());
+			}
+		}
+
 		// todo release should not allocate anything
 		void release()
 		{
-			if (allocate(ReservationStrategy{}(1)))
+			if (StorageTraits::moves_allocation::value)
 			{
-				this->chars_.construct_at_(begin_storage(), '\0');
-				this->set_end(begin_storage());
+				if (allocate(ReservationStrategy{}(1)))
+				{
+					this->chars_.construct_at_(begin_storage(), '\0');
+					this->set_end(begin_storage());
+				}
 			}
 		}
 

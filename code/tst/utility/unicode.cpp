@@ -69,10 +69,14 @@ TEST_CASE("static string type traits", "[utility][unicode]")
 
 	static_assert(!std::is_trivially_default_constructible<string_utf8>::value, "");
 	static_assert(std::is_default_constructible<string_utf8>::value, "");
-	static_assert(std::is_trivially_copy_constructible<string_utf8>::value, "");
-	static_assert(std::is_trivially_move_constructible<string_utf8>::value, "");
-	static_assert(std::is_trivially_copy_assignable<string_utf8>::value, "");
-	static_assert(std::is_trivially_move_assignable<string_utf8>::value, "");
+	static_assert(!std::is_trivially_copy_constructible<string_utf8>::value, "");
+	static_assert(std::is_copy_constructible<string_utf8>::value, "");
+	static_assert(!std::is_trivially_move_constructible<string_utf8>::value, "");
+	static_assert(std::is_move_constructible<string_utf8>::value, "");
+	static_assert(!std::is_trivially_copy_assignable<string_utf8>::value, "");
+	static_assert(std::is_copy_assignable<string_utf8>::value, "");
+	static_assert(!std::is_trivially_move_assignable<string_utf8>::value, "");
+	static_assert(std::is_move_assignable<string_utf8>::value, "");
 }
 
 TEST_CASE("code point can advance correctly in utf8 strings", "[utility][unicode]")

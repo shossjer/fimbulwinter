@@ -44,10 +44,14 @@ TEST_CASE("", "")
 	static_assert(std::is_trivially_destructible<static_int_vector>::value, "");
 	static_assert(!std::is_trivially_default_constructible<static_int_vector>::value, "");
 	static_assert(std::is_default_constructible<static_int_vector>::value, "");
-	static_assert(std::is_trivially_copy_constructible<static_int_vector>::value, "");
-	static_assert(std::is_trivially_move_constructible<static_int_vector>::value, "");
-	static_assert(std::is_trivially_copy_assignable<static_int_vector>::value, "");
-	static_assert(std::is_trivially_move_assignable<static_int_vector>::value, "");
+	static_assert(!std::is_trivially_copy_constructible<static_int_vector>::value, "");
+	static_assert(std::is_copy_constructible<static_int_vector>::value, "");
+	static_assert(!std::is_trivially_move_constructible<static_int_vector>::value, "");
+	static_assert(std::is_move_constructible<static_int_vector>::value, "");
+	static_assert(!std::is_trivially_copy_assignable<static_int_vector>::value, "");
+	static_assert(std::is_copy_assignable<static_int_vector>::value, "");
+	static_assert(!std::is_trivially_move_assignable<static_int_vector>::value, "");
+	static_assert(std::is_move_assignable<static_int_vector>::value, "");
 
 	using static_unique_ptr_vector = utility::static_vector<5, std::unique_ptr<int>>;
 	static_assert(!std::is_trivially_destructible<static_unique_ptr_vector>::value, "");
@@ -132,6 +136,68 @@ TEST_CASE("trivial static vector", "[utility][container][vector]")
 	CHECK(std::get<0>(a[0]) == 1);
 	CHECK(std::get<1>(a[0]) == 2.);
 	CHECK(std::get<2>(a[0]) == '3');
+
+	SECTION("can be copy constructed")
+	{
+		utility::static_vector<10, int, double, char> b = a;
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == 1);
+		CHECK(std::get<0>(a[0]) == 1);
+		CHECK(std::get<1>(a[0]) == 2.);
+		CHECK(std::get<2>(a[0]) == '3');
+		CHECK(b.capacity() == 10);
+		REQUIRE(b.size() == 1);
+		CHECK(std::get<0>(b[0]) == 1);
+		CHECK(std::get<1>(b[0]) == 2.);
+		CHECK(std::get<2>(b[0]) == '3');
+	}
+
+	SECTION("can be copy assigned")
+	{
+		utility::static_vector<10, int, double, char> b;
+		b = a;
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == 1);
+		CHECK(std::get<0>(a[0]) == 1);
+		CHECK(std::get<1>(a[0]) == 2.);
+		CHECK(std::get<2>(a[0]) == '3');
+		CHECK(b.capacity() == 10);
+		REQUIRE(b.size() == 1);
+		CHECK(std::get<0>(b[0]) == 1);
+		CHECK(std::get<1>(b[0]) == 2.);
+		CHECK(std::get<2>(b[0]) == '3');
+	}
+
+	SECTION("can be move constructed")
+	{
+		utility::static_vector<10, int, double, char> b = std::move(a);
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == 1);
+		CHECK(std::get<0>(a[0]) == 1);
+		CHECK(std::get<1>(a[0]) == 2.);
+		CHECK(std::get<2>(a[0]) == '3');
+		CHECK(b.capacity() == 10);
+		REQUIRE(b.size() == 1);
+		CHECK(std::get<0>(b[0]) == 1);
+		CHECK(std::get<1>(b[0]) == 2.);
+		CHECK(std::get<2>(b[0]) == '3');
+	}
+
+	SECTION("can be move assigned")
+	{
+		utility::static_vector<10, int, double, char> b;
+		b = std::move(a);
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == 1);
+		CHECK(std::get<0>(a[0]) == 1);
+		CHECK(std::get<1>(a[0]) == 2.);
+		CHECK(std::get<2>(a[0]) == '3');
+		CHECK(b.capacity() == 10);
+		REQUIRE(b.size() == 1);
+		CHECK(std::get<0>(b[0]) == 1);
+		CHECK(std::get<1>(b[0]) == 2.);
+		CHECK(std::get<2>(b[0]) == '3');
+	}
 
 	SECTION("can be filled")
 	{
@@ -230,6 +296,62 @@ TEST_CASE("trivial heap vector", "[utility][container][vector]")
 	CHECK(std::get<0>(a[0]) == 1);
 	CHECK(std::get<1>(a[0]) == 2.);
 	CHECK(std::get<2>(a[0]) == '3');
+
+	SECTION("can be copy constructed")
+	{
+		utility::heap_vector<int, double, char> b = a;
+		CHECK(a.capacity() >= 1);
+		REQUIRE(a.size() == 1);
+		CHECK(std::get<0>(a[0]) == 1);
+		CHECK(std::get<1>(a[0]) == 2.);
+		CHECK(std::get<2>(a[0]) == '3');
+		CHECK(b.capacity() >= 1);
+		REQUIRE(b.size() == 1);
+		CHECK(std::get<0>(b[0]) == 1);
+		CHECK(std::get<1>(b[0]) == 2.);
+		CHECK(std::get<2>(b[0]) == '3');
+	}
+
+	SECTION("can be copy assigned")
+	{
+		utility::heap_vector<int, double, char> b;
+		b = a;
+		CHECK(a.capacity() >= 1);
+		REQUIRE(a.size() == 1);
+		CHECK(std::get<0>(a[0]) == 1);
+		CHECK(std::get<1>(a[0]) == 2.);
+		CHECK(std::get<2>(a[0]) == '3');
+		CHECK(b.capacity() >= 1);
+		REQUIRE(b.size() == 1);
+		CHECK(std::get<0>(b[0]) == 1);
+		CHECK(std::get<1>(b[0]) == 2.);
+		CHECK(std::get<2>(b[0]) == '3');
+	}
+
+	SECTION("can be move constructed")
+	{
+		utility::heap_vector<int, double, char> b = std::move(a);
+		CHECK(a.capacity() == 0);
+		CHECK(a.size() == 0);
+		CHECK(b.capacity() >= 1);
+		REQUIRE(b.size() == 1);
+		CHECK(std::get<0>(b[0]) == 1);
+		CHECK(std::get<1>(b[0]) == 2.);
+		CHECK(std::get<2>(b[0]) == '3');
+	}
+
+	SECTION("can be move assigned")
+	{
+		utility::heap_vector<int, double, char> b;
+		b = std::move(a);
+		CHECK(a.capacity() == 0);
+		CHECK(a.size() == 0);
+		CHECK(b.capacity() >= 1);
+		REQUIRE(b.size() == 1);
+		CHECK(std::get<0>(b[0]) == 1);
+		CHECK(std::get<1>(b[0]) == 2.);
+		CHECK(std::get<2>(b[0]) == '3');
+	}
 
 	SECTION("can be filled")
 	{

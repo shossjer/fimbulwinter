@@ -16,6 +16,11 @@ namespace utility
 		public:
 			using size_type = utility::size_type_for<storage_traits::capacity_value>;
 
+			using is_trivially_copy_constructible = std::is_trivially_copy_constructible<Storage>;
+			using is_trivially_copy_assignable = std::is_trivially_copy_assignable<Storage>;
+			using is_trivially_move_constructible = std::is_trivially_move_constructible<Storage>;
+			using is_trivially_move_assignable = std::is_trivially_move_assignable<Storage>;
+
 		protected:
 			typename storage_traits::unpacked storage_;
 
@@ -35,6 +40,11 @@ namespace utility
 
 		public:
 			using size_type = std::size_t;
+
+			using is_trivially_copy_constructible = mpl::false_type;
+			using is_trivially_copy_assignable = mpl::false_type;
+			using is_trivially_move_constructible = mpl::false_type;
+			using is_trivially_move_assignable = mpl::false_type;
 
 		protected:
 			typename storage_traits::unpacked storage_;
@@ -107,9 +117,21 @@ namespace utility
 			}
 		}
 
+		void init(const this_type & other)
+		{
+			if (!StorageTraits::moves_allocation::value)
+			{
+				this->set_cap(this->storage_.place(other.capacity()));
+				this->set_end(begin_storage() + other.size());
+			}
+		}
+
 		void release()
 		{
-			this->set_cap(this->storage_.place(0));
+			if (StorageTraits::moves_allocation::value)
+			{
+				this->set_cap(this->storage_.place(0));
+			}
 		}
 
 		bool allocate(std::size_t capacity)
