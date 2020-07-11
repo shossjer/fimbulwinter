@@ -691,7 +691,7 @@ namespace utility
 			return construct_fill_zero_initialize_impl(can_memset<S>{}, begin, count);
 		}
 
-		template <typename ...Ss, typename ...Ps>
+		template <typename ...Ss>
 		auto construct_fill(utility::zip_iterator<Ss *...> it, ext::usize count)
 		{
 			return ext::apply([this, count](auto * ...ss){ return utility::zip_iterator<Ss *...>(this->construct_fill(ss, count)...); }, it);
