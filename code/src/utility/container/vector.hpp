@@ -244,19 +244,21 @@ namespace utility
 		using rvalue_reference = typename storage_type::rvalue_reference;
 		using pointer = typename storage_type::pointer;
 		using const_pointer = typename storage_type::const_pointer;
+		using iterator = pointer;
+		using const_iterator = const_pointer;
 
 	public:
 		constexpr std::size_t capacity() const { return base_type::capacity(); }
 		std::size_t size() const { return base_type::size(); }
 
-		auto begin() { return this->storage_.data(this->begin_storage()); }
-		auto begin() const { return this->storage_.data(this->begin_storage()); }
+		iterator begin() { return this->storage_.data(this->begin_storage()); }
+		const_iterator begin() const { return this->storage_.data(this->begin_storage()); }
 
-		auto end() { return this->storage_.data(this->end_storage()); }
-		auto end() const { return this->storage_.data(this->end_storage()); }
+		iterator end() { return this->storage_.data(this->end_storage()); }
+		const_iterator end() const { return this->storage_.data(this->end_storage()); }
 
-		auto data() { return this->storage_.data(this->begin_storage()); }
-		auto data() const { return this->storage_.data(this->begin_storage()); }
+		pointer data() { return this->storage_.data(this->begin_storage()); }
+		const_pointer data() const { return this->storage_.data(this->begin_storage()); }
 
 		reference operator [] (ext::index index) { return data()[index]; }
 		const_reference operator [] (ext::index index) const { return data()[index]; }
@@ -306,19 +308,20 @@ namespace utility
 			return false;
 		}
 
-		bool try_erase(ext::index index)
+		iterator erase(iterator it) // todo const_iterator
 		{
-			if (!/*debug_assert*/(static_cast<std::size_t>(index) < this->size()))
-				return false;
+			if (!/*debug_assert*/(begin() <= it && it < end()))
+				return it;
 
-			const auto last = --this->end_storage();
+			auto last = this->end_storage();
+			--last;
 
 			using utility::iter_move;
-			data()[index] = iter_move(this->storage_.data(last));
+			*it = iter_move(this->storage_.data(last));
 			this->storage_.destruct_at(last);
 			this->set_end(last);
 
-			return true;
+			return it;
 		}
 	};
 

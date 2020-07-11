@@ -405,7 +405,7 @@ namespace core
 
 				slots()[array[last].second].set_index(index);
 				keys()[bucket] = Key{};
-				debug_verify(array.try_erase(index));
+				array.erase(array.begin() + index);
 			}
 
 #if defined(_MSC_VER)

@@ -241,7 +241,7 @@ TEST_CASE("trivial static vector", "[utility][container][vector]")
 
 		SECTION("and erase its first element")
 		{
-			CHECK(a.try_erase(0));
+			a.erase(a.begin());
 			CHECK(a.capacity() == 10);
 			REQUIRE(a.size() == 9);
 			CHECK(std::get<0>(a[0]) == 1);
@@ -392,7 +392,7 @@ TEST_CASE("trivial heap vector", "[utility][container][vector]")
 
 		SECTION("and erase its first element")
 		{
-			CHECK(a.try_erase(0));
+			a.erase(a.begin());
 			CHECK(a.capacity() == old_cap);
 			REQUIRE(a.size() == old_cap - 1);
 			CHECK(std::get<0>(a[0]) == 1);
@@ -489,7 +489,7 @@ TEST_CASE("static vector", "[utility][container][vector]")
 
 		SECTION("and erase its first element")
 		{
-			CHECK(a.try_erase(0));
+			a.erase(a.begin());
 			CHECK(a.capacity() == 10);
 			REQUIRE(a.size() == 9);
 			CHECK(std::get<1>(a[0]).i == 10);
@@ -573,7 +573,7 @@ TEST_CASE("heap vector", "[utility][container][vector]")
 
 		SECTION("and erase its first element")
 		{
-			CHECK(a.try_erase(0));
+			a.erase(a.begin());
 			CHECK(a.capacity() == old_cap);
 			REQUIRE(a.size() == old_cap - 1);
 			CHECK(std::get<1>(a[0]).i == old_cap);

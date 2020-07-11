@@ -449,37 +449,37 @@ namespace utility
 	template <typename ...Its, typename ...Jts>
 	bool operator == (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) == static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) == static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator != (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) != static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) != static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator < (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) < static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) < static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator <= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) <= static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) <= static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator > (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) > static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) > static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator >= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) >= static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) >= static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
