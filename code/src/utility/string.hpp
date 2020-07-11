@@ -327,7 +327,8 @@ namespace utility
 			typename storage_traits::unpacked chars_;
 			typename Storage::iterator end_;
 
-			constexpr std::size_t capacity() const { return storage_traits::capacity_value; }
+			static_assert(0 < storage_traits::capacity_value, "static capacity cannot hold null terminator");
+			constexpr std::size_t capacity() const { return storage_traits::capacity_value - 1; }
 
 			std::size_t size() const { return chars_.index_of(end_); }
 
@@ -479,7 +480,7 @@ namespace utility
 		{
 			if (StorageTraits::moves_allocation::value)
 			{
-				if (allocate(ReservationStrategy{}(1)))
+				if (allocate(ReservationStrategy{}(1))) // null character
 				{
 					this->chars_.construct_at_(begin_storage(), '\0');
 					this->set_end(begin_storage());
@@ -491,7 +492,7 @@ namespace utility
 		{
 			if (this->chars_.allocate(capacity))
 			{
-				this->set_cap(this->chars_.place(capacity));
+				this->set_cap(this->chars_.place(capacity - 1)); // no null character
 				return true;
 			}
 			else
@@ -504,7 +505,7 @@ namespace utility
 
 		constexpr std::size_t capacity_for(const this_type & other) const
 		{
-			return ReservationStrategy{}(other.size());
+			return ReservationStrategy{}(other.size() + 1); // null character
 		}
 
 		constexpr bool fits(const this_type & other) const
@@ -522,7 +523,7 @@ namespace utility
 			if (this->chars_.good())
 			{
 				this->chars_.destruct_range(begin_storage(), end2_storage());
-				this->chars_.deallocate(this->capacity());
+				this->chars_.deallocate(this->capacity() + 1); // null character
 			}
 		}
 
@@ -539,7 +540,7 @@ namespace utility
 
 		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t min_capacity)
 		{
-			const auto new_capacity = ReservationStrategy{}(min_capacity);
+			const auto new_capacity = ReservationStrategy{}(min_capacity + 1); // null character
 			if (new_capacity < min_capacity)
 				return false;
 
@@ -680,7 +681,7 @@ namespace utility
 		}
 		basic_string & operator = (basic_string_view<Encoding> view)
 		{
-			const auto ret = data_.array_.try_reserve(view.size() + 1);
+			const auto ret = data_.array_.try_reserve(view.size());
 			if (ret)
 			{
 				data_.array_.chars_.destruct_range(data_.array_.begin_storage(), data_.array_.end2_storage());
@@ -778,7 +779,7 @@ namespace utility
 
 		bool try_resize(std::size_t size)
 		{
-			if (!data_.array_.try_reserve(size + 1))
+			if (!data_.array_.try_reserve(size))
 				return false;
 
 			const ext::ssize diff = size - this->size();
@@ -882,7 +883,7 @@ namespace utility
 		}
 		bool try_append_impl(copy_str, const code_unit * s, size_type count)
 		{
-			if (!data_.array_.try_reserve(data_.array_.size() + count + 1))
+			if (!data_.array_.try_reserve(data_.array_.size() + count))
 				return false;
 
 			data_.array_.chars_.destruct_at(data_.array_.end_storage());
