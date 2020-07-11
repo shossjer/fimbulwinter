@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.5.1)
 
+include(CMakeDependentOption)
+include(TestBigEndian)
+
 # usage:
 #
 #   _resolve_options(options... [| options...]*)
@@ -52,10 +55,7 @@ else()
 endif()
 
 add_subdirectory(dep)
-
-# todo remove
-set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH};${PROJECT_SOURCE_DIR}/dep/include")
-set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${PROJECT_SOURCE_DIR}/dep/lib")
+add_subdirectory(tools)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -96,18 +96,12 @@ message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
 message("")
 
 # hardware settings
-include(TestBigEndian)
 test_big_endian(ENDIANESS)
 if (ENDIANESS)
   set(BIG_WORDS 1)
 endif ()
 
 # lookup dependencies
-
-# Catch
-message(STATUS "Looking for catch")
-find_file(FILE_CATCH_CATCH_HPP catch/catch.hpp)
-message(STATUS "Looking for catch - ${FILE_CATCH_CATCH_HPP}")
 
 # FMOD
 message(STATUS "Looking for FMOD")
@@ -118,15 +112,6 @@ find_library(LIBRARY_FMOD fmod_vc)
 message(STATUS "Looking for FMOD library - ${LIBRARY_FMOD}")
 message(STATUS "Looking for FMOD library - ${LIBRARY_FMOD_VC}")
 
-# Freetype
-message(STATUS "Looking for freetype")
-find_file(FILE_FREETYPE2_FT2BUILD_H freetype2/ft2build.h)
-message(STATUS "Looking for freetype - ${FILE_FREETYPE2_FT2BUILD_H}")
-find_library(LIBRARY_FREETYPE freetype)
-find_library(LIBRARY_FREETYPED freetyped)
-message(STATUS "Looking for freetype - ${LIBRARY_FREETYPE}")
-message(STATUS "Looking for freetype - ${LIBRARY_FREETYPED}")
-
 # Linux
 message(STATUS "Looking for Linux")
 find_file(FILE_SYS_INOTIFY_H sys/inotify.h)
@@ -135,9 +120,7 @@ message(STATUS "Looking for Linux inotify - ${FILE_SYS_INOTIFY_H}")
 # OpenGL
 message(STATUS "Looking for OpenGL")
 find_file(FILE_GL_GL_H GL/gl.h)
-find_file(FILE_GL_GLEXT_H GL/glext.h)
 message(STATUS "Looking for OpenGL - ${FILE_GL_GL_H}")
-message(STATUS "Looking for OpenGL - ${FILE_GL_GLEXT_H}")
 find_library(LIBRARY_GL GL)
 find_library(LIBRARY_OPENGL32 opengl32)
 message(STATUS "Looking for OpenGL - ${LIBRARY_GL}")
@@ -176,84 +159,7 @@ message(STATUS "Looking for X11 - ${FILE_X11_XLIB_H}")
 find_library(LIBRARY_X11 X11)
 message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
-# json
-find_file(FILE_NLOHMANN_JSON_HPP nlohmann/json.hpp)
-message(STATUS "Looking for json - ${FILE_NLOHMANN_JSON_HPP}")
-
-# zlib
-message(STATUS "Looking for z")
-find_file(FILE_ZLIB_H zlib.h)
-message(STATUS "Looking for z - ${FILE_ZLIB_H}")
-find_library(LIBRARY_Z z)
-message(STATUS "Looking for z - ${LIBRARY_Z}")
-find_library(LIBRARY_ZLIBSTATICD zlibd)
-message(STATUS "Looking for z - ${LIBRARY_ZLIBSTATICD}")
-
-# libpng
-message(STATUS "Looking for png")
-find_file(FILE_PNG_H png.h)
-message(STATUS "Looking for png - ${FILE_PNG_H}")
-find_file(FILE_LIBPNG16_PNG_H libpng16/png.h)
-message(STATUS "Looking for png - ${FILE_LIBPNG16_PNG_H}")
-find_library(LIBRARY_PNG png)
-message(STATUS "Looking for png - ${LIBRARY_PNG}")
-find_library(LIBRARY_LIBPNG16_STATICD libpng16_staticd)
-message(STATUS "Looking for png - ${LIBRARY_LIBPNG16_STATICD}")
-
-# general dependencies
-
-add_library(dep_json INTERFACE)
-if(FILE_NLOHMANN_JSON_HPP)
-	get_filename_component(_directory_nlohmann "${FILE_NLOHMANN_JSON_HPP}" DIRECTORY)
-	get_filename_component(_directory ".." ABSOLUTE BASE_DIR "${_directory_nlohmann}")
-
-	target_include_directories(dep_json INTERFACE "${_directory}")
-else()
-	message(FATAL_ERROR "Needs json nlohmann")
-endif()
-
-add_library(dep_png INTERFACE)
-if(FILE_PNG_H AND LIBRARY_PNG)
-	get_filename_component(_directory "${FILE_PNG_H}" DIRECTORY)
-
-	target_include_directories(dep_png INTERFACE "${_directory}")
-	target_link_libraries(dep_png INTERFACE "${LIBRARY_PNG}")
-elseif(FILE_LIBPNG16_PNG_H AND LIBRARY_LIBPNG16_STATICD)
-	get_filename_component(_directory "${FILE_LIBPNG16_PNG_H}" DIRECTORY)
-
-	target_include_directories(dep_png INTERFACE "${_directory}")
-	target_link_libraries(dep_png INTERFACE "${LIBRARY_LIBPNG16_STATICD}")
-else()
-	message(FATAL_ERROR "Needs png")
-endif()
-
-add_library(dep_zlib INTERFACE)
-if(FILE_ZLIB_H AND LIBRARY_Z)
-	get_filename_component(_directory "${FILE_ZLIB_H}" DIRECTORY)
-
-	target_include_directories(dep_zlib INTERFACE "${_directory}")
-	target_link_libraries(dep_zlib INTERFACE "${LIBRARY_Z}")
-elseif(FILE_ZLIB_H AND LIBRARY_ZLIBSTATICD)
-	get_filename_component(_directory "${FILE_ZLIB_H}" DIRECTORY)
-
-	target_include_directories(dep_zlib INTERFACE "${_directory}")
-	target_link_libraries(dep_zlib INTERFACE "${LIBRARY_ZLIBSTATICD}")
-else()
-	message(FATAL_ERROR "Needs zlib")
-endif()
-
-add_library(dep_catch INTERFACE)
-if(FILE_CATCH_CATCH_HPP)
-	get_filename_component(_directory_catch "${FILE_CATCH_CATCH_HPP}" DIRECTORY)
-	get_filename_component(_directory ".." ABSOLUTE BASE_DIR "${_directory_catch}")
-
-	target_include_directories(dep_catch INTERFACE "${_directory}")
-else()
-	message(WARNING "Missing catch")
-endif()
-
 # module dependencies
-include(CMakeDependentOption)
 
 # audio
 if(FILE_FMOD_HPP AND (LIBRARY_FMOD OR LIBRARY_FMOD_VC))
@@ -304,7 +210,7 @@ else()
 endif()
 
 # graphics
-if(FILE_GL_GL_H AND FILE_GL_GLEXT_H AND (LIBRARY_GL OR LIBRARY_OPENGL32))
+if(FILE_GL_GL_H AND TARGET dep_glext AND (LIBRARY_GL OR LIBRARY_OPENGL32))
 	set(FOUND_OPENGL 1)
 endif()
 # hack to simplify the expression for `cmake_dependent_option`
@@ -313,11 +219,7 @@ add_library(graphics_dep INTERFACE)
 if(GRAPHICS_USE_OPENGL)
 	message(STATUS "Graphics - OpenGL")
 
-	# note GL.h is a system header, glext.h is not
-	get_filename_component(_directory_gl "${FILE_GL_GLEXT_H}" DIRECTORY)
-	get_filename_component(_directory ".." ABSOLUTE BASE_DIR "${_directory_gl}")
-
-	target_include_directories(graphics_dep INTERFACE "${_directory}")
+	target_link_libraries(graphics_dep INTERFACE dep_glext)
 	if(LIBRARY_GL)
 		target_link_libraries(graphics_dep INTERFACE "${LIBRARY_GL}")
 	else()
@@ -356,11 +258,7 @@ if(INPUT_HAS_USER32_HID)
 endif()
 
 # text
-if(FILE_FREETYPE2_FT2BUILD_H AND (LIBRARY_FREETYPE OR LIBRARY_FREETYPED))
-	set(FOUND_FREETYPE 1)
-endif()
-# hack to simplify the expression for `cmake_dependent_option`
-cmake_dependent_option(TEXT_USE_FREETYPE "Use Freetype as text/font source" ON "FOUND_FREETYPE" OFF)
+cmake_dependent_option(TEXT_USE_FREETYPE "Use Freetype as text/font source" ON "TARGET dep_freetype" OFF)
 cmake_dependent_option(TEXT_USE_USER32 "Use the Windows API as text/font source" ON "WINDOW_USE_USER32" OFF)
 cmake_dependent_option(TEXT_USE_X11 "Use X11/Xlib as text/font source" ON "WINDOW_USE_X11" OFF)
 _resolve_options(TEXT_USE_FREETYPE | TEXT_USE_USER32 TEXT_USE_X11)
@@ -368,14 +266,7 @@ add_library(text_dep INTERFACE)
 if(TEXT_USE_FREETYPE)
 	message(STATUS "Text - Freetype")
 
-	get_filename_component(_directory_freetype2 "${FILE_FREETYPE2_FT2BUILD_H}" DIRECTORY)
-
-	target_include_directories(text_dep INTERFACE "${_directory_freetype2}")
-	if(LIBRARY_FREETYPE)
-		target_link_libraries(text_dep INTERFACE "${LIBRARY_FREETYPE}")
-	else()
-		target_link_libraries(text_dep INTERFACE "${LIBRARY_FREETYPED}")
-	endif()
+	target_link_libraries(text_dep INTERFACE dep_freetype)
 elseif(TEXT_USE_USER32)
 	message(WARNING "Text - User32")
 elseif(TEXT_USE_X11)
@@ -401,7 +292,53 @@ else()
 	message(FATAL_ERROR "Thread - Disabled")
 endif()
 
+# build settings
+cmake_dependent_option(BUILD_TESTS "Build tests" ON "TARGET dep_catch" OFF)
+add_library(lib_test INTERFACE)
+if(BUILD_TESTS)
+	target_link_libraries(lib_test INTERFACE dep_catch)
+	target_compile_options(lib_test INTERFACE
+		$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+			-Wno-sign-compare -Wno-sign-conversion>
+		# sign-conversion - Warn for implicit conversions that may
+		#   change the sign of an integer value, like assigning a signed
+		#   integer expression to an unsigned integer variable.
+		$<$<CXX_COMPILER_ID:Clang>:
+			-Wno-self-move>
+		# self-move - explicitly moving variable of type A to itself
+		$<$<CXX_COMPILER_ID:MSVC>:
+			/wd4389 /wd4456>
+		# C4389 - 'operator' : signed/unsigned mismatch
+		# C4456 - declaration of 'identifier' hides previous local
+		#   declaration
+	)
+endif()
+
+cmake_dependent_option(BUILD_BENCHMARKS "Build benchmarks" OFF "TARGET dep_catch" OFF)
+add_library(lib_benchmark INTERFACE)
+if(BUILD_BENCHMARKS)
+	target_link_libraries(lib_benchmark INTERFACE dep_catch)
+	target_compile_definitions(lib_benchmark INTERFACE CATCH_CONFIG_ENABLE_BENCHMARKING)
+endif()
+
 # lookup features
+
+cmake_dependent_option(PROFILING_COZ "Enable Coz profiling" OFF "TARGET dep_coz" OFF)
+add_library(lib_profiling INTERFACE)
+if(PROFILING_COZ)
+	message(STATUS "Enabled Coz profiling")
+	target_link_libraries(lib_profiling INTERFACE dep_coz)
+	target_compile_definitions(lib_profiling INTERFACE
+		PROFILING_COZ=1
+		)
+	target_compile_options(lib_profiling INTERFACE
+		$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+			-g>
+		)
+else()
+	message(STATUS "Disabled profiling")
+endif()
+
 # sse
 message(STATUS "Looking for SSE")
 find_file(FILE_IMMINTRIN_H immintrin.h)

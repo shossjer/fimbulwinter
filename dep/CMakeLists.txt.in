@@ -1,195 +1,40 @@
 cmake_minimum_required(VERSION 3.0)
 
 include(ExternalProject)
-
-#set(_ep_tmp "@PROJECT_SOURCE_DIR@/.tmp")
-#set(_ep_stamp "@PROJECT_SOURCE_DIR@/.stamp")
-#set(_ep_log "@PROJECT_SOURCE_DIR@/.log")
-#set(_ep_binary "@PROJECT_SOURCE_DIR@/.binary")
-#set(_ep_install "@PROJECT_SOURCE_DIR@/.install")
-set(_ep_download "@PROJECT_SOURCE_DIR@/.download")
-set(_ep_source "@PROJECT_SOURCE_DIR@/.source")
-set(_timeout 10)
-
-if(@BUILD_ZLIB@)
-	ExternalProject_Add(
-		zlib
-
-		DOWNLOAD_DIR "${_ep_download}"
-		SOURCE_DIR "${_ep_source}/zlib"
-
-		# download
-		URL "http://zlib.net/zlib-1.2.11.tar.gz"
-		# todo URL_HASH
-		TIMEOUT ${_timeout}
-
-		# update
-		UPDATE_COMMAND ""
-
-		# configure
-		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" "${_ep_source}/zlib"
-
-		# build
-
-		# install
-
-		# test
-		TEST_COMMAND ""
-		)
+if(@_parsed_FIND_GIT@)
+	include(FindGit)
 endif()
 
-if(@BUILD_LIBPNG@)
-	set(_dependencies)
-	if(@BUILD_ZLIB@)
-		set(_dependencies ${_dependencies} zlib)
-	endif()
+project(dep-build NONE)
 
-	ExternalProject_Add(
-		libpng
-
-		DEPENDS ${_dependencies}
-
-		DOWNLOAD_DIR "${_ep_download}"
-		SOURCE_DIR "${_ep_source}/libpng"
-
-		# download
-		URL "https://sourceforge.net/projects/libpng/files/libpng16/older-releases/1.6.30/libpng-1.6.30.tar.xz/download"
-		# todo URL_HASH
-		TIMEOUT ${_timeout}
-
-		# update
-		UPDATE_COMMAND ""
-
-		# configure
-		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" -DPNG_TESTS=OFF "${_ep_source}/libpng"
-
-		# build
-
-		# install
-
-		# test
-		TEST_COMMAND ""
-		)
-
-	unset(_dependencies)
+if(DEFINED CMAKE_CONFIGURATION_TYPES)
+	set(_install_prefix "@PROJECT_SOURCE_DIR@/${CMAKE_CFG_INTDIR}")
+else()
+	set(_install_prefix "@PROJECT_SOURCE_DIR@/${CMAKE_BUILD_TYPE}")
 endif()
 
-if(@BUILD_NLOHMANN_JSON@)
-	ExternalProject_Add(
-		nlohmann-json
+set(_download_dir "@PROJECT_SOURCE_DIR@/.download")
+set(_source_dir "@PROJECT_SOURCE_DIR@/.source/@dependency@")
 
-		DOWNLOAD_DIR "${_ep_download}"
-		SOURCE_DIR "${_ep_source}/nlohmann-json"
-
-		# download
-		GIT_REPOSITORY "https://github.com/nlohmann/json.git"
-		GIT_TAG "ce0b3fe5a334567825a554a08b76c725d0790500"
-		TIMEOUT ${_timeout}
-
-		# update
-		UPDATE_COMMAND ""
-
-		# configure
-		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" -DBuildTests=OFF "${_ep_source}/nlohmann-json"
-
-		# build
-
-		# install
-
-		# test
-		TEST_COMMAND ""
-		)
+if(@_parsed_FIND_GIT@)
+	find_package(Git)
 endif()
 
-if(@BUILD_CATCH@)
-	ExternalProject_Add(
-		catch
+ExternalProject_Add(
+	@dependency@
 
-		DOWNLOAD_DIR "${_ep_download}"
-		SOURCE_DIR "${_ep_source}/catch"
+	DOWNLOAD_DIR "${_download_dir}"
+	SOURCE_DIR "${_source_dir}"
 
-		# download
-		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
-		GIT_TAG "Catch1.x"
-		TIMEOUT ${_timeout}
+	@_download_step@
 
-		# update
-		UPDATE_COMMAND ""
+	@_update_step@
 
-		# configure
-		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" "${_ep_source}/catch"
+	@_configure_step@
 
-		# build
+	@_build_step@
 
-		# install
+	@_install_step@
 
-		# test
-		TEST_COMMAND ""
-		)
-endif()
-
-if(@BUILD_FREETYPE@)
-	set(_dependencies)
-	if(@BUILD_ZLIB@)
-		set(_dependencies ${_dependencies} zlib)
-	endif()
-	if(@BUILD_LIBPNG@)
-		set(_dependencies ${_dependencies} libpng)
-	endif()
-
-	ExternalProject_Add(
-		freetype
-
-		DEPENDS ${_dependencies}
-
-		DOWNLOAD_DIR "${_ep_download}"
-		SOURCE_DIR "${_ep_source}/freetype"
-
-		# download
-		URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.8.1.tar.gz"
-		# todo URL_HASH
-		TIMEOUT ${_timeout}
-
-		# update
-		UPDATE_COMMAND ""
-
-		# configure
-		CONFIGURE_COMMAND ${CMAKE_COMMAND} -C "@_initial_cache_file@" -DWITH_ZLIB=@BUILD_ZLIB@ -DWITH_PNG=@BUILD_LIBPNG@ -DWITH_BZip2=OFF -DWITH_HarfBuzz=OFF "${_ep_source}/freetype"
-
-		# build
-
-		# install
-
-		# test
-		TEST_COMMAND ""
-		)
-
-	unset(_dependencies)
-endif()
-
-if(NOT EXISTS "${CMAKE_INSTALL_PREFIX}/include/GL/glext.h")
-	file(
-		DOWNLOAD
-		"https://www.khronos.org/registry/OpenGL/api/GL/glext.h"
-		"${_ep_download}/glext.h"
-
-		TIMEOUT ${_timeout}
-		)
-	file(
-		INSTALL "${_ep_download}/glext.h"
-		DESTINATION "${CMAKE_INSTALL_PREFIX}/include/GL")
-endif()
-
-if(NOT EXISTS "${CMAKE_INSTALL_PREFIX}/include/KHR/khrplatform.h")
-	file(
-		DOWNLOAD
-		"https://www.khronos.org/registry/EGL/api/KHR/khrplatform.h"
-		"${_ep_download}/khrplatform.h"
-
-		TIMEOUT ${_timeout}
-		)
-	file(
-		INSTALL "${_ep_download}/khrplatform.h"
-		DESTINATION "${CMAKE_INSTALL_PREFIX}/include/KHR"
-		)
-endif()
+	TEST_COMMAND ""
+	)

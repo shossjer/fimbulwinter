@@ -1,6 +1,6 @@
 #include "utility/span.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 #define CHECK_SPAN_0(var, arr) \
 	CHECK(var.size() == 0); \

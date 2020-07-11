@@ -17,11 +17,6 @@ namespace utility
 	template <typename ...Rs>
 	struct is_compound<compound<Rs...>> : mpl::true_type {};
 
-	template <typename T>
-	struct compound_size;
-	template <typename ...Rs>
-	struct compound_size<compound<Rs...>> : mpl::index_constant<sizeof...(Rs)> {};
-
 	namespace detail
 	{
 		template <std::size_t N>
@@ -82,7 +77,7 @@ namespace utility
 
 	public:
 		template <typename ...Ps,
-		          REQUIRES((!is_compound<Ps...>::value)),
+		          REQUIRES((!is_compound<mpl::remove_cvref_t<Ps>...>::value)),
 		          REQUIRES((!ext::is_tuple<Ps...>::value)),
 		          REQUIRES((std::is_constructible<base_type, Ps...>::value))>
 		compound(Ps && ...ps)
@@ -97,7 +92,7 @@ namespace utility
 		{}
 
 		template <typename Value,
-		          REQUIRES((!is_compound<Value>::value)),
+		          REQUIRES((!is_compound<mpl::remove_cvref_t<Value>>::value)),
 		          REQUIRES((!ext::is_tuple<Value>::value)),
 		          REQUIRES((std::is_assignable<base_type, Value>::value))>
 		this_type & operator = (Value && value)
@@ -135,9 +130,38 @@ namespace utility
 		return compound<Ts &&...>(std::forward<Ts>(ts)...);
 	}
 
-	template <template <typename ...> class P, typename ...Ts>
-	using zip_type = mpl::conditional_t<(mpl::concat<Ts...>::size == 1), mpl::car<Ts...>, mpl::apply<P, Ts...>>;
+	namespace detail
+	{
+		template <std::size_t N, typename Compound>
+		auto last_compound(Compound && compound)
+		{
+			return ext::apply_for([](auto && ...ps){ return forward_as_compound(std::forward<decltype(ps)>(ps)...); }, std::forward<Compound>(compound), mpl::integral_shift<std::size_t, mpl::make_index_sequence<N>, (ext::tuple_size<Compound>::value - N)>{});
+		}
+	}
 
-	template <typename ...Ts>
-	using compound_type = zip_type<utility::compound, Ts...>;
+	template <std::size_t N, typename ...Ts>
+	auto last(compound<Ts...> & compound) { return detail::last_compound<N>(compound); }
+	template <std::size_t N, typename ...Ts>
+	auto last(const compound<Ts...> & compound) { return detail::last_compound<N>(compound); }
+	template <std::size_t N, typename ...Ts>
+	auto last(compound<Ts...> && compound) { return detail::last_compound<N>(std::move(compound)); }
+	template <std::size_t N, typename ...Ts>
+	auto last(const compound<Ts...> && compound) { return detail::last_compound<N>(std::move(compound)); }
+
+	template <template <typename ...> class P, typename ...Ts>
+	using combine = mpl::conditional_t<(mpl::concat<Ts...>::size == 1), mpl::car<Ts...>, mpl::apply<P, Ts...>>;
+
+	template <std::size_t N, typename T,
+	          REQUIRES((1 == N))>
+	decltype(auto) select_first(T && t)
+	{
+		return std::forward<T>(t);
+	}
+
+	template <std::size_t N, typename T,
+	          REQUIRES((1 < N))>
+	decltype(auto) select_first(T && t)
+	{
+		return std::get<0>(std::forward<T>(t));
+	}
 }

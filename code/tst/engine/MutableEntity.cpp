@@ -1,6 +1,6 @@
 #include "engine/MutableEntity.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("mutable entities", "[engine][entity]")
 {

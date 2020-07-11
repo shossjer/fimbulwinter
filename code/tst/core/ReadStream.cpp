@@ -1,6 +1,6 @@
 #include "core/ReadStream.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("ReadStream", "[core][stream]")
 {

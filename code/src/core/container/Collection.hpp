@@ -67,7 +67,7 @@ namespace core
 		template <typename Key, typename LookupStorageTraits, typename ...ComponentStorages>
 		class Collection
 		{
-#if !(defined(_MSC_VER) && _MSC_VER <= 1925)
+#if !(defined(_MSC_VER) && _MSC_VER <= 1926)
 			static_assert(mpl::conjunction<mpl::bool_constant<(utility::storage_size<ComponentStorages>::value == 1)>...>::value, "Collection does not support multi-type storages for components");
 #endif
 
@@ -112,21 +112,20 @@ namespace core
 				bool operator () (Data & new_data, Data & old_data)
 				{
 					const auto new_size = new_data.capacity();
-					auto new_storage = new_data.storage();
-					new_storage.memset_fill(0, new_size, ext::byte{});
+					new_data.storage().memset_fill(new_data.begin_storage(), new_size, ext::byte{});
 
 					const auto old_size = old_data.capacity();
-					auto old_storage = old_data.storage();
 					for (auto i : ranges::index_sequence(old_size))
 					{
-						if (old_storage[i].second == Key{})
+						if (old_data.storage().data(old_data.begin_storage())[i].second == Key{})
 							continue; // empty
 
-						const auto new_bucket = find_empty_bucket(old_storage[i].second, new_storage.data().second, new_size);
+						const auto new_bucket = find_empty_bucket(old_data.storage().data(old_data.begin_storage())[i].second, new_data.storage().data(new_data.begin_storage()).second, new_size);
 						if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
 							return false; // todo try with bigger allocation?
 
-						new_storage[new_bucket] = std::move(old_storage[i]);
+						using utility::iter_move;
+						new_data.storage().data(new_data.begin_storage())[new_bucket] = iter_move(old_data.storage().data(old_data.begin_storage()) + i);
 					}
 					return true;
 				}
@@ -460,23 +459,20 @@ namespace core
 				static constexpr std::size_t capacity = N;
 
 				std::size_t size = 0;
-				utility::static_storage<N, C> components_;
+				utility::static_storage<N, C> components_; // todo replace with vector
 				bucket_t buckets[N];
 
-				decltype(auto) components() { return components_.sections(N); }
-				decltype(auto) components() const { return components_.sections(N); }
+				C * begin() { return components_.data(components_.begin()); }
+				const C * begin() const { return components_.data(components_.begin()); }
+				C * end() { return components_.data(components_.begin()) + size; }
+				const C * end() const { return components_.data(components_.begin()) + size; }
 
-				C * begin() { return components().data(); }
-				const C * begin() const { return components().data(); }
-				C * end() { return components().data() + size; }
-				const C * end() const { return components().data() + size; }
-
-				C & get(const std::size_t index) { return components()[index]; }
-				const C & get(const std::size_t index) const { return components()[index]; }
+				C & get(const std::size_t index) { return begin()[index]; }
+				const C & get(const std::size_t index) const { return begin()[index]; }
 
 				template <typename ...Ps>
-				void construct(const std::size_t index, Ps && ...ps) { components().construct_at(index, std::forward<Ps>(ps)...); }
-				void destruct(const std::size_t index) { components().destruct_at(index); }
+				void construct(const std::size_t index, Ps && ...ps) { components_.construct_at_(components_.begin() + index, std::forward<Ps>(ps)...); }
+				void destruct(const std::size_t index) { components_.destruct_at(components_.begin() + index); }
 			};
 		private:
 			struct slot_t
@@ -888,7 +884,7 @@ namespace core
 		template <typename Key, typename LookupStorageTraits, typename ...ComponentStorages>
 		class UnorderedCollection
 		{
-#if !(defined(_MSC_VER) && _MSC_VER <= 1925)
+#if !(defined(_MSC_VER) && _MSC_VER <= 1926)
 			static_assert(mpl::conjunction<mpl::bool_constant<(utility::storage_size<ComponentStorages>::value == 1)>...>::value, "UnorderedCollection does not support multi-type storages for components");
 #endif
 
@@ -933,21 +929,20 @@ namespace core
 				bool operator () (Data & new_data, Data & old_data)
 				{
 					const auto new_size = new_data.capacity();
-					auto new_storage = new_data.storage();
-					new_storage.memset_fill(0, new_size, ext::byte{});
+					new_data.storage().memset_fill(new_data.begin_storage(), new_size, ext::byte{});
 
 					const auto old_size = old_data.capacity();
-					auto old_storage = old_data.storage();
 					for (auto i : ranges::index_sequence(old_size))
 					{
-						if (old_storage[i].second == Key{})
+						if (old_data.storage().data(old_data.begin_storage())[i].second == Key{})
 							continue; // empty
 
-						const auto new_bucket = find_empty_bucket(old_storage[i].second, new_storage.data().second, new_size);
+						const auto new_bucket = find_empty_bucket(old_data.storage().data(old_data.begin_storage())[i].second, new_data.storage().data(new_data.begin_storage()).second, new_size);
 						if (!debug_verify(new_bucket != bucket_t(-1), "collision when reallocating hash"))
 							return false; // todo try with bigger allocation?
 
-						new_storage[new_bucket] = std::move(old_storage[i]);
+						using utility::iter_move;
+						new_data.storage().data(new_data.begin_storage())[new_bucket] = iter_move(old_data.storage().data(old_data.begin_storage()) + i);
 					}
 					return true;
 				}
@@ -1024,9 +1019,9 @@ namespace core
 				return &std::get<type>(arrays_)[index];
 			}
 
-			int get_all_keys(Key * buffer, int size) const
+			ext::usize get_all_keys(Key * buffer, ext::usize size) const
 			{
-				int count = 0;
+				ext::usize count = 0;
 
 				for (auto bucket : ranges::index_sequence(lookup_.size()))
 				{

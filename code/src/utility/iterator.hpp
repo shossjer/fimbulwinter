@@ -1,6 +1,4 @@
-
-#ifndef UTILITY_ITERATOR_HPP
-#define UTILITY_ITERATOR_HPP
+#pragma once
 
 #include "utility/algorithm.hpp"
 #include "utility/compound.hpp"
@@ -162,149 +160,196 @@ namespace utility
 
 	namespace detail
 	{
-		template <typename C>
-		decltype(auto) begin(C & c)
-		{
-			using std::begin;
-
-			return begin(c);
-		}
-		template <typename C>
-		decltype(auto) end(C & c)
-		{
-			using std::end;
-
-			return end(c);
-		}
+		template <typename T>
+		auto is_range_impl(const T & x, int) -> decltype(std::begin(x), std::end(x), mpl::true_type());
+		template <typename T>
+		auto is_range_impl(const T &, ...) -> mpl::false_type;
 	}
 
 	template <typename T>
-	struct is_contiguous_container :
-		mpl::conjunction<is_contiguous_iterator<decltype(detail::begin(std::declval<T &>()))>,
-		                 is_contiguous_iterator<decltype(detail::end(std::declval<T &>()))>> {};
-	template <typename T, std::size_t N>
-	struct is_contiguous_container<T[N]> : mpl::true_type {};
-	template <typename T, std::size_t N>
-	struct is_contiguous_container<std::array<T, N>> : mpl::true_type {};
+	using is_range = decltype(detail::is_range_impl(std::declval<T>(), 0));
+
+	namespace detail
+	{
+		template <typename T, std::size_t N>
+		auto is_contiguous_container_impl(const T (&)[N], int) -> mpl::true_type;
+		template <typename T, std::size_t N>
+		auto is_contiguous_container_impl(const std::array<T, N> &, int) -> mpl::true_type;
+		template <typename T>
+		auto is_contiguous_container_impl(const std::valarray<T> &, int) -> mpl::true_type;
+		template <typename T, typename Allocator>
+		auto is_contiguous_container_impl(const std::vector<T, Allocator> &, int) -> mpl::true_type;
+		template <typename T>
+		auto is_contiguous_container_impl(const T & x, int) -> mpl::conjunction<is_contiguous_iterator<decltype(std::begin(x))>, is_contiguous_iterator<decltype(std::end(x))>>;
+		template <typename T>
+		auto is_contiguous_container_impl(const T &, ...) -> mpl::false_type;
+	}
+
 	template <typename T>
-	struct is_contiguous_container<std::valarray<T>> : mpl::true_type {};
-	template <typename T, typename Allocator>
-	struct is_contiguous_container<std::vector<T, Allocator>> : mpl::true_type {};
+	using is_contiguous_container = decltype(detail::is_contiguous_container_impl(std::declval<T>(), 0));
 
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((!is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto begin(C & c)
 	{
 		return std::begin(c);
 	}
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto begin(C & c)
 	{
 		return make_contiguous_iterator(std::begin(c));
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto begin(C && c)
 	{
 		return std::make_move_iterator(utility::begin(c));
 	}
 
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto cbegin(const C & c)
 	{
 		return utility::begin(c);
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto cbegin(const C && c)
 	{
 		return utility::begin(std::move(c));
 	}
 
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((!is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto rbegin(C & c)
 	{
 		return std::rbegin(c);
 	}
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto rbegin(C & c)
 	{
 		return make_contiguous_iterator(std::rbegin(c));
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto rbegin(C && c)
 	{
 		return std::make_move_iterator(utility::rbegin(c));
 	}
 
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto crbegin(const C & c)
 	{
 		return utility::rbegin(c);
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto crbegin(const C && c)
 	{
 		return utility::rbegin(std::move(c));
 	}
 
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((!is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto end(C & c)
 	{
 		return std::end(c);
 	}
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto end(C & c)
 	{
 		return make_contiguous_iterator(std::end(c));
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto end(C && c)
 	{
 		return std::make_move_iterator(utility::end(c));
 	}
 
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto cend(const C & c)
 	{
 		return utility::end(c);
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto cend(const C && c)
 	{
 		return utility::end(std::move(c));
 	}
 
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((!is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto rend(C & c)
 	{
 		return std::rend(c);
 	}
 	template <typename C,
+	          REQUIRES((is_range<C>::value)),
 	          REQUIRES((is_contiguous_container<std::remove_const_t<C>>::value))>
 	constexpr auto rend(C & c)
 	{
 		return make_contiguous_iterator(std::rend(c));
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto rend(C && c)
 	{
 		return std::make_move_iterator(utility::rend(c));
 	}
 
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto crend(const C & c)
 	{
 		return utility::rend(c);
 	}
-	template <typename C>
+	template <typename C,
+	          REQUIRES((is_range<C>::value))>
 	constexpr auto crend(const C && c)
 	{
 		return utility::rend(std::move(c));
+	}
+
+	template <typename It>
+	class basic_range
+	{
+	public:
+		using iterator = It;
+
+	private:
+		It begin_;
+		It end_;
+
+	public:
+		explicit constexpr basic_range(It begin, It end)
+			: begin_(begin)
+			, end_(end)
+		{}
+
+	public:
+		constexpr iterator begin() const { return begin_; }
+		constexpr iterator end() const { return end_; }
+	};
+
+	template <typename R,
+	          REQUIRES((is_range<R>::value))>
+	auto reverse(R && range)
+	{
+		return basic_range<decltype(utility::rbegin(std::forward<R>(range)))>(utility::rbegin(std::forward<R>(range)), utility::rend(std::forward<R>(range)));
 	}
 
 	// eric niebler is a god :pray:
@@ -320,6 +365,14 @@ namespace utility
 	{
 		return std::move(*it);
 	}
+
+	template <typename ...Its>
+	class zip_iterator;
+
+	template <typename ...Ts>
+	struct is_zip_iterator : mpl::false_type {};
+	template <typename ...Its>
+	struct is_zip_iterator<zip_iterator<Its...>> : mpl::true_type {};
 
 	template <typename ...Its>
 	class zip_iterator
@@ -339,8 +392,32 @@ namespace utility
 		using iterator_category = typename std::iterator_traits<mpl::car<Its...>>::iterator_category; // ?
 
 	public:
+#if defined(_MSC_VER) && _MSC_VER <= 1926
+		template <typename ...Ps,
+		          REQUIRES((!is_zip_iterator<mpl::remove_cvref_t<Ps>...>::value)),
+		          REQUIRES((!ext::is_tuple<Ps...>::value)),
+		          REQUIRES((std::is_constructible<base_type, Ps...>::value))>
+		zip_iterator(Ps && ...ps)
+			: base_type(std::forward<Ps>(ps)...)
+		{}
+
+		template <typename Tuple,
+		          REQUIRES((ext::tuple_size<Tuple>::value == sizeof...(Its))),
+		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
+		zip_iterator(Tuple && tuple)
+			: base_type(std::forward<Tuple>(tuple))
+		{}
+#else
 		using base_type::base_type;
 		using base_type::operator =;
+
+		// todo awkward
+		template <typename Tuple,
+		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
+		zip_iterator(Tuple && tuple)
+			: base_type(std::forward<Tuple>(tuple))
+		{}
+#endif
 
 	public:
 		reference operator * () const
@@ -412,8 +489,16 @@ namespace utility
 	}
 
 	template <typename ...Ptrs>
+	class zip_pointer;
+
+	template <typename ...Ts>
+	struct is_zip_pointer : mpl::false_type {};
+	template <typename ...Ptrs>
+	struct is_zip_pointer<zip_pointer<Ptrs...>> : mpl::true_type {};
+
+	template <typename ...Ptrs>
 	class zip_pointer
-		: public utility::zip_iterator<Ptrs...>
+		: public utility::zip_iterator<Ptrs...> // todo remove
 	{
 		template <typename ...Ptrs_>
 		friend class zip_pointer;
@@ -426,6 +511,8 @@ namespace utility
 		// `std::pointer_traits<>::pointer_to` to work for proxy types.
 		using element_type = typename base_type::reference;
 
+		using difference_type = typename base_type::difference_type;
+
 	public:
 		static typename base_type::pointer pointer_to(typename base_type::reference element)
 		{
@@ -433,22 +520,65 @@ namespace utility
 		}
 
 	public:
+#if defined(_MSC_VER) && _MSC_VER <= 1926
+		template <typename ...Ps,
+		          REQUIRES((!is_zip_pointer<mpl::remove_cvref_t<Ps>...>::value)),
+		          REQUIRES((!ext::is_tuple<Ps...>::value)),
+		          REQUIRES((std::is_constructible<base_type, Ps...>::value))>
+		zip_pointer(Ps && ...ps)
+			: base_type(std::forward<Ps>(ps)...)
+		{}
+
+		template <typename Tuple,
+		          REQUIRES((ext::tuple_size<Tuple>::value == sizeof...(Ptrs))),
+		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
+		zip_pointer(Tuple && tuple)
+			: base_type(std::forward<Tuple>(tuple))
+		{}
+#else
 		using base_type::base_type;
 		using base_type::operator =;
+
+		// todo awkward
+		template <typename Tuple,
+		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
+		zip_pointer(Tuple && tuple)
+			: base_type(std::forward<Tuple>(tuple))
+		{}
+#endif
 
 		zip_pointer(std::nullptr_t)
 			: base_type{}
 		{}
 
+	private:
+		base_type & base() { return *this; }
+		const base_type & base() const { return *this; }
+
 	public:
 		explicit operator bool () const { return static_cast<bool>(std::get<0>(*this)); } // todo
+
+		this_type & operator ++ () { ++base(); return *this; }
+		this_type & operator -- () { --base(); return *this; }
+		this_type operator ++ (int) { return base()++; }
+		this_type operator -- (int) { return base()--; }
+		this_type operator + (difference_type n) { return base() + n; }
+		this_type operator - (difference_type n) { return base() - n; }
+		this_type & operator += (difference_type n) { base() += n; return *this; }
+		this_type & operator -= (difference_type n) { base() -= n; return *this; }
 
 	private:
 		friend bool operator == (const this_type & x, std::nullptr_t) { return !static_cast<bool>(x); }
 		friend bool operator == (std::nullptr_t, const this_type & x) { return x == nullptr; }
 		friend bool operator != (const this_type & x, std::nullptr_t) { return !(x == nullptr); }
 		friend bool operator != (std::nullptr_t, const this_type & x) { return !(x == nullptr); }
+
+		friend this_type operator + (difference_type n, const this_type & x) { return x + n; }
+
+		friend auto iter_move(this_type x)
+		{
+			using utility::iter_move;
+			return ext::apply([](auto & ...ps){ return utility::forward_as_compound(iter_move(ps)...); }, x);
+		}
 	};
 }
-
-#endif /* UTILITY_ITERATOR_HPP */

@@ -26,6 +26,19 @@ namespace ext
 
 	namespace detail
 	{
+		template <std::size_t I, typename T, std::size_t N>
+		auto tuple_element_impl(const std::array<T, N> &) -> mpl::enable_if_t<(I < N), T>;
+		template <std::size_t I, typename T1, typename T2>
+		auto tuple_element_impl(const std::pair<T1, T2> &) -> mpl::type_at<I, T1, T2>;
+		template <std::size_t I, typename ...Ts>
+		auto tuple_element_impl(const std::tuple<Ts...> &) -> mpl::type_at<I, Ts...>;
+	}
+	// c++11
+	template <std::size_t I, typename T>
+	using tuple_element = decltype(detail::tuple_element_impl<I>(std::declval<T>()));
+
+	namespace detail
+	{
 		template <typename Tuple>
 		auto is_tuple_impl(int, Tuple && tuple) -> decltype(tuple_size_impl(std::forward<Tuple>(tuple)), mpl::true_type());
 		template <typename ...Ts>

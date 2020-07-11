@@ -1,6 +1,6 @@
 #include "utility/type_info.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 namespace
 {
@@ -1304,6 +1304,7 @@ TEST_CASE("type name", "[utility][type info]")
 		constexpr auto name = utility::type_name<in_function_type>();
 		// we do not promise any name in particular for a type in a function,
 		// which means its name can be anything :shrug:
+		static_cast<void>(name);
 	}
 }
 
@@ -1356,6 +1357,7 @@ TEST_CASE("type id", "[utility][type info]")
 		constexpr auto id = utility::type_id<anonymous_type>();
 		// we do not promise any name in particular for an anonymous type,
 		// which means its id can be anything :shrug:
+		static_cast<void>(id);
 	}
 
 	SECTION("of lambda_type")
@@ -1363,6 +1365,7 @@ TEST_CASE("type id", "[utility][type info]")
 		constexpr auto id = utility::type_id<lambda_type>();
 		// we do not promise any name in particular for a lambda type, which
 		// means its id can be anything :shrug:
+		static_cast<void>(id);
 	}
 
 	SECTION("of type in function")
@@ -1370,5 +1373,6 @@ TEST_CASE("type id", "[utility][type info]")
 		constexpr auto id = utility::type_id<in_function_type>();
 		// we do not promise any name in particular for a type in a function,
 		// which means its name can be anything :shrug:
+		static_cast<void>(id);
 	}
 }

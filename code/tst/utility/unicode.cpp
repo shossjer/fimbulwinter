@@ -1,6 +1,6 @@
 #include "utility/unicode.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -24,9 +24,6 @@ namespace
 	constexpr const int smiley_size = 4;
 
 	constexpr const utility::encoding_utf8::code_unit three_snowmen[] = u8"\u2603\u2603\u2603";
-	constexpr const int three_snowmen_size = sizeof(three_snowmen) - 1;
-	constexpr const int three_snowmen_length = sizeof(three_snowmen) - 1 - 3 * 2;
-	//                                    two extra bytes for 3-byte characters^
 
 	constexpr const utility::encoding_utf8::code_unit long_text[] = u8"This is a story about a \u2603, named Sn\u00f6gubben, who was very good at making \u0024 since his \U00010348 was one of the best a \u2603 could have, and then he died.";
 	constexpr const int long_text_size = sizeof(long_text) - 1;
@@ -72,24 +69,14 @@ TEST_CASE("static string type traits", "[utility][unicode]")
 
 	static_assert(!std::is_trivially_default_constructible<string_utf8>::value, "");
 	static_assert(std::is_default_constructible<string_utf8>::value, "");
-	static_assert(std::is_trivially_copy_constructible<string_utf8>::value, "");
-	static_assert(std::is_trivially_move_constructible<string_utf8>::value, "");
-	static_assert(std::is_trivially_copy_assignable<string_utf8>::value, "");
-	static_assert(std::is_trivially_move_assignable<string_utf8>::value, "");
-}
-
-TEST_CASE("static string is not bigger than necessary", "[utility][unicode]")
-{
-	static_assert(sizeof(utility::static_string_utf8<1>) == 2, "");
-	static_assert(sizeof(utility::static_string_utf8<0xff>) == (0xff + 1), "");
-	static_assert(sizeof(utility::static_string_utf8<0x100>) == (0x100 + 2), "");
-	static_assert(sizeof(utility::static_string_utf8<0xffff>) == (0xffff + 1 + 2), "");
-	static_assert(sizeof(utility::static_string_utf8<0x10000>) == (0x10000 + 4), "");
-#ifdef _MSC_VER
-	// error C2148: total size of array must not exceed 0x7fffffff bytes
-#else
-	static_assert(sizeof(utility::static_string_utf8<0xffffffff>) == (0xffffffffll + 1 + 4), "");
-#endif
+	static_assert(!std::is_trivially_copy_constructible<string_utf8>::value, "");
+	static_assert(std::is_copy_constructible<string_utf8>::value, "");
+	static_assert(!std::is_trivially_move_constructible<string_utf8>::value, "");
+	static_assert(std::is_move_constructible<string_utf8>::value, "");
+	static_assert(!std::is_trivially_copy_assignable<string_utf8>::value, "");
+	static_assert(std::is_copy_assignable<string_utf8>::value, "");
+	static_assert(!std::is_trivially_move_assignable<string_utf8>::value, "");
+	static_assert(std::is_move_assignable<string_utf8>::value, "");
 }
 
 TEST_CASE("code point can advance correctly in utf8 strings", "[utility][unicode]")

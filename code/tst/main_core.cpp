@@ -1,7 +1,7 @@
 #include "core/debug.hpp"
 
 #define CATCH_CONFIG_MAIN
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 // todo : extend catch's console reporter to print a better message when
 // asserts fail
@@ -24,14 +24,4 @@ namespace
 			core::debug::instance().set_fail_hook(test_fail_hook);
 		}
 	} setup_debug_hack;
-}
-
-TEST_CASE( "Important test", "Make sure logic works" )
-{
-    REQUIRE((1 && 2));
-	REQUIRE_FALSE((1 & 2));
-
-	REQUIRE((1 || 2));
-	REQUIRE((1 | 2));
-	REQUIRE((1 | 2) == (1 | 3));
 }

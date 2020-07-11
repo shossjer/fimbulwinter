@@ -1,6 +1,6 @@
 #include "utility/ext/string.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("strlen", "[utility][cstring][ext]")
 {

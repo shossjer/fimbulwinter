@@ -14,6 +14,7 @@
 #include "engine/hid/input.hpp"
 
 #include "utility/any.hpp"
+#include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
@@ -673,6 +674,8 @@ namespace hid
 
 	void update(ui &)
 	{
+		profile_scope("ui update");
+
 		dimension_t notification_dimension;
 		if (queue_dimension.try_pop(notification_dimension))
 		{

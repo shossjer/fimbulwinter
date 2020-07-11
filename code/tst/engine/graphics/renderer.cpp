@@ -5,7 +5,7 @@
 #include "engine/file/system.hpp"
 #include "engine/graphics/renderer.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 #if WINDOW_USE_USER32
 # include <Windows.h>

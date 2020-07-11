@@ -1,6 +1,6 @@
 //#include "core/async/delay.hpp"
 //
-//#include <catch/catch.hpp>
+//#include <catch2/catch.hpp>
 //
 //#include <chrono>
 //

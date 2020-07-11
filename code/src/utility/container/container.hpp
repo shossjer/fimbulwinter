@@ -75,7 +75,8 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename Data, bool = std::is_copy_constructible<Data>::value>
+		template <typename Data,
+		          bool = Data::is_trivially_copy_constructible::value>
 		struct container_trivially_copy_constructible
 			: container_trivially_destructible<Data>
 		{
@@ -83,8 +84,9 @@ namespace utility
 
 			using base_type::base_type;
 		};
+
 		template <typename Data>
-		struct container_trivially_copy_constructible<Data, false /*copy constructible*/>
+		struct container_trivially_copy_constructible<Data, false /*trivially copy constructible*/>
 			: container_trivially_destructible<Data>
 		{
 			using base_type = container_trivially_destructible<Data>;
@@ -105,7 +107,8 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename Data, bool = std::is_copy_assignable<Data>::value>
+		template <typename Data,
+		          bool = Data::is_trivially_copy_assignable::value>
 		struct container_trivially_copy_assignable
 			: container_trivially_copy_constructible<Data>
 		{
@@ -113,8 +116,9 @@ namespace utility
 
 			using base_type::base_type;
 		};
+
 		template <typename Data>
-		struct container_trivially_copy_assignable<Data, false /*copy assignable*/>
+		struct container_trivially_copy_assignable<Data, false /*trivially copy assignable*/>
 			: container_trivially_copy_constructible<Data>
 		{
 			using base_type = container_trivially_copy_constructible<Data>;
@@ -145,14 +149,23 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename Data, bool move_constructible = std::is_move_constructible<Data>::value, bool moves_allocation = utility::storage_traits<typename Data::storage_type>::moves_allocation::value>
+		template <typename Data,
+		          bool = Data::is_trivially_move_constructible::value,
+		          bool = std::is_move_constructible<Data>::value>
 		struct container_trivially_move_constructible
 			: container_trivially_copy_assignable<Data>
 		{
-			static_assert(move_constructible && moves_allocation, "");
-
 			using base_type = container_trivially_copy_assignable<Data>;
-			using this_type = container_trivially_move_constructible<Data, move_constructible, moves_allocation>;
+
+			using base_type::base_type;
+		};
+
+		template <typename Data>
+		struct container_trivially_move_constructible<Data, false /*trivially move constructible*/, true /*move constructible*/>
+			: container_trivially_copy_assignable<Data>
+		{
+			using this_type = container_trivially_move_constructible<Data, false, true>;
+			using base_type = container_trivially_copy_assignable<Data>;
 
 			using base_type::base_type;
 
@@ -161,25 +174,20 @@ namespace utility
 			container_trivially_move_constructible(this_type && other)
 				: base_type(std::move(other))
 			{
+				this->init(other);
+
 				other.release();
 			}
 			this_type & operator = (const this_type &) = default;
 			this_type & operator = (this_type &&) = default;
 		};
-		template <typename Data>
-		struct container_trivially_move_constructible<Data, true /*move constructible*/, false /*moves allocation*/>
-			: container_trivially_copy_assignable<Data>
-		{
-			using base_type = container_trivially_copy_assignable<Data>;
 
-			using base_type::base_type;
-		};
 		template <typename Data>
-		struct container_trivially_move_constructible<Data, false /*move constructible*/, false /*moves allocation*/>
+		struct container_trivially_move_constructible<Data, false /*trivially move constructible*/, false /*move constructible*/>
 			: container_trivially_copy_assignable<Data>
 		{
-			using base_type = container_trivially_copy_assignable<Data>;
 			using this_type = container_trivially_move_constructible<Data, false, false>;
+			using base_type = container_trivially_copy_assignable<Data>;
 
 			using base_type::base_type;
 
@@ -196,14 +204,23 @@ namespace utility
 			this_type & operator = (this_type &&) = default;
 		};
 
-		template <typename Data, bool move_assignable = std::is_move_assignable<Data>::value, bool moves_allocation = utility::storage_traits<typename Data::storage_type>::moves_allocation::value>
+		template <typename Data,
+		          bool = Data::is_trivially_move_assignable::value,
+		          bool = std::is_move_assignable<Data>::value>
 		struct container_trivially_move_assignable
 			: container_trivially_move_constructible<Data>
 		{
-			static_assert(move_assignable && moves_allocation, "");
-
 			using base_type = container_trivially_move_constructible<Data>;
-			using this_type = container_trivially_move_assignable<Data, move_assignable, moves_allocation>;
+
+			using base_type::base_type;
+		};
+
+		template <typename Data>
+		struct container_trivially_move_assignable<Data, false /*trivially move assignable*/, true /*move assignable*/>
+			: container_trivially_move_constructible<Data>
+		{
+			using this_type = container_trivially_move_assignable<Data, false, true>;
+			using base_type = container_trivially_move_constructible<Data>;
 
 			using base_type::base_type;
 
@@ -215,26 +232,21 @@ namespace utility
 			{
 				this->purge();
 
-				static_cast<base_type &>(*this) = std::move(other);
+				this->base_type::operator =(std::move(other));
+
+				this->init(other);
 
 				other.release();
 				return *this;
 			}
 		};
-		template <typename Data>
-		struct container_trivially_move_assignable<Data, true /*move assignable*/, false /*moves allocation*/>
-			: container_trivially_move_constructible<Data>
-		{
-			using base_type = container_trivially_move_constructible<Data>;
 
-			using base_type::base_type;
-		};
 		template <typename Data>
-		struct container_trivially_move_assignable<Data, false /*move assignable*/, false /*moves allocation*/>
+		struct container_trivially_move_assignable<Data, false /*trivially move assignable*/, false /*move assignable*/>
 			: container_trivially_move_constructible<Data>
 		{
-			using base_type = container_trivially_move_constructible<Data>;
 			using this_type = container_trivially_move_assignable<Data, false, false>;
+			using base_type = container_trivially_move_constructible<Data>;
 
 			using base_type::base_type;
 

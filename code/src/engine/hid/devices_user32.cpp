@@ -288,7 +288,7 @@ namespace
 
 		// todo which thread are we executing this in? it should be
 		// the same one as for add/remove_device
-		for (int i = devices.size() - 1; i >= 0; i--)
+		for (auto i : utility::reverse(ranges::index_sequence_for(devices)))
 		{
 			engine::hid::lost_device(devices[i].id);
 		}
@@ -461,11 +461,11 @@ namespace engine
 				HidP_GetButtonCaps(HidP_Output, button_caps.data() + caps.NumberInputButtonCaps, &nbutton_caps, preparsed_data);
 				HidP_GetButtonCaps(HidP_Feature, button_caps.data() + caps.NumberInputButtonCaps + caps.NumberOutputButtonCaps, &nbutton_caps, preparsed_data);
 
-				for (int i : ranges::index_sequence_for(button_caps))
+				for (ext::usize i : ranges::index_sequence_for(button_caps))
 				{
 					const auto & button_cap = button_caps[i];
 					const int offsets[] = { 0, caps.NumberInputButtonCaps, caps.NumberInputButtonCaps + caps.NumberOutputButtonCaps };
-					const HIDP_REPORT_TYPE type = i < offsets[1] ? HidP_Input : i < offsets[2] ? HidP_Output : HidP_Feature;
+					const HIDP_REPORT_TYPE type = i < static_cast<ext::usize>(offsets[1]) ? HidP_Input : i < static_cast<ext::usize>(offsets[2]) ? HidP_Output : HidP_Feature;
 
 # if PRINT_HID_INFO
 					debug_printline("button ", i, ":");
@@ -480,7 +480,7 @@ namespace engine
 							fields[field_offsets[type] + data_index].nbits = 1;
 							fields[field_offsets[type] + data_index].usage = button_cap.Range.UsageMin + r;
 							fields[field_offsets[type] + data_index].type = 0;
-							fields[field_offsets[type] + data_index].index = i;
+							fields[field_offsets[type] + data_index].index = static_cast<int>(i);
 						}
 					}
 					else
@@ -489,7 +489,7 @@ namespace engine
 						fields[field_offsets[type] + data_index].nbits = 1;
 						fields[field_offsets[type] + data_index].usage = button_cap.NotRange.Usage;
 						fields[field_offsets[type] + data_index].type = 0;
-						fields[field_offsets[type] + data_index].index = i;
+						fields[field_offsets[type] + data_index].index = static_cast<int>(i);
 					}
 				}
 
@@ -542,11 +542,11 @@ namespace engine
 				HidP_GetValueCaps(HidP_Output, value_caps.data() + caps.NumberInputValueCaps, &nvalue_caps, preparsed_data);
 				HidP_GetValueCaps(HidP_Feature, value_caps.data() + caps.NumberInputValueCaps + caps.NumberOutputValueCaps, &nvalue_caps, preparsed_data);
 
-				for (int i : ranges::index_sequence_for(value_caps))
+				for (ext::usize i : ranges::index_sequence_for(value_caps))
 				{
 					const auto & value_cap = value_caps[i];
 					const int offsets[] = { 0, caps.NumberInputValueCaps, caps.NumberInputValueCaps + caps.NumberOutputValueCaps };
-					const HIDP_REPORT_TYPE type = i < offsets[1] ? HidP_Input : i < offsets[2] ? HidP_Output : HidP_Feature;
+					const HIDP_REPORT_TYPE type = i < static_cast<ext::usize>(offsets[1]) ? HidP_Input : i < static_cast<ext::usize>(offsets[2]) ? HidP_Output : HidP_Feature;
 
 # if PRINT_HID_INFO
 					debug_printline("value ", i, ":");
@@ -561,7 +561,7 @@ namespace engine
 							fields[field_offsets[type] + data_index].nbits = value_cap.BitSize;
 							fields[field_offsets[type] + data_index].usage = value_cap.Range.UsageMin + r;
 							fields[field_offsets[type] + data_index].type = 1;
-							fields[field_offsets[type] + data_index].index = i;
+							fields[field_offsets[type] + data_index].index = static_cast<int>(i);
 						}
 					}
 					else
@@ -570,7 +570,7 @@ namespace engine
 						fields[field_offsets[type] + data_index].nbits = value_cap.BitSize;
 						fields[field_offsets[type] + data_index].usage = value_cap.NotRange.Usage;
 						fields[field_offsets[type] + data_index].type = 1;
-						fields[field_offsets[type] + data_index].index = i;
+						fields[field_offsets[type] + data_index].index = static_cast<int>(i);
 					}
 				}
 
@@ -578,10 +578,10 @@ namespace engine
 				fields.resize(field_offsets[1]);
 
 				int bit_offset = 0;
-				for (int i : ranges::index_sequence_for(fields))
+				for (ext::usize i : ranges::index_sequence_for(fields))
 				{
 					const auto & field = fields[i];
-					const HIDP_REPORT_TYPE type = i < field_offsets[1] ? HidP_Input : i < field_offsets[2] ? HidP_Output : HidP_Feature;
+					const HIDP_REPORT_TYPE type = i < static_cast<ext::usize>(field_offsets[1]) ? HidP_Input : i < static_cast<ext::usize>(field_offsets[2]) ? HidP_Output : HidP_Feature;
 					const char * const type_names[] = { "input", "output", "feature" };
 #if MODE_DEBUG
 					const char * const field_name = field.type ? "value" : "button";
@@ -967,7 +967,7 @@ namespace engine
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
 #endif
-			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), static_cast<int>(wParam)), true));
 		}
 
 		void key_up(devices & /*devices*/, WPARAM wParam, LPARAM lParam, LONG /*time*/)
@@ -976,7 +976,7 @@ namespace engine
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
 #endif
-			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), static_cast<int>(wParam)), false));
 		}
 
 		void syskey_down(devices & /*devices*/, WPARAM wParam, LPARAM lParam, LONG /*time*/)
@@ -985,7 +985,7 @@ namespace engine
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
 #endif
-			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), true));
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), static_cast<int>(wParam)), true));
 		}
 
 		void syskey_up(devices & /*devices*/, WPARAM wParam, LPARAM lParam, LONG /*time*/)
@@ -994,7 +994,7 @@ namespace engine
 			if (hardware_input.load(std::memory_order_relaxed))
 				return;
 #endif
-			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), wParam), false));
+			dispatch(ButtonStateInput(0, get_button((uint32_t(lParam & 0x00ff0000) >> 16) | (uint32_t(lParam & 0x01000000) >> 17), static_cast<int>(wParam)), false));
 		}
 
 		void lbutton_down(devices & /*devices*/, LONG /*time*/)

@@ -1,6 +1,6 @@
 #include "utility/string.hpp"
 
-#include <catch/catch.hpp>
+#include <catch2/catch.hpp>
 
 TEST_CASE("string view can find", "[utility][string view]")
 {
@@ -67,5 +67,119 @@ TEST_CASE("string can resize", "[utility][string]")
 	{
 		CHECK(a.try_resize(5));
 		CHECK(a.size() == 5);
+	}
+}
+
+TEST_CASE("trivial static string", "[utility][string]")
+{
+	utility::static_string<11, char> a;
+	CHECK(a.capacity() == 10);
+	CHECK(a.size() == 0);
+
+	CHECK(a.try_push_back('a'));
+	CHECK(a.capacity() == 10);
+	REQUIRE(a.size() == 1);
+	CHECK(a[0] == 'a');
+
+	SECTION("can be copy constructed")
+	{
+		utility::static_string<11, char> b = a;
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == 1);
+		CHECK(a[0] == 'a');
+		CHECK(b.capacity() == 10);
+		REQUIRE(b.size() == 1);
+		CHECK(b[0] == 'a');
+	}
+
+	SECTION("can be copy assigned")
+	{
+		utility::static_string<11, char> b;
+		b = a;
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == 1);
+		CHECK(a[0] == 'a');
+		CHECK(b.capacity() == 10);
+		REQUIRE(b.size() == 1);
+		CHECK(b[0] == 'a');
+	}
+
+	SECTION("can be move constructed")
+	{
+		utility::static_string<11, char> b = std::move(a);
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == 1);
+		CHECK(a[0] == 'a');
+		CHECK(b.capacity() == 10);
+		REQUIRE(b.size() == 1);
+		CHECK(b[0] == 'a');
+	}
+
+	SECTION("can be move assigned")
+	{
+		utility::static_string<11, char> b;
+		b = std::move(a);
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == 1);
+		CHECK(a[0] == 'a');
+		CHECK(b.capacity() == 10);
+		REQUIRE(b.size() == 1);
+		CHECK(b[0] == 'a');
+	}
+}
+
+TEST_CASE("trivial heap string", "[utility][string]")
+{
+	utility::heap_string<char> a;
+	CHECK(a.capacity() >= 0);
+	CHECK(a.size() == 0);
+
+	CHECK(a.try_push_back('a'));
+	CHECK(a.capacity() >= 1);
+	REQUIRE(a.size() == 1);
+	CHECK(a[0] == 'a');
+
+	SECTION("can be copy constructed")
+	{
+		utility::heap_string<char> b = a;
+		CHECK(a.capacity() >= 1);
+		REQUIRE(a.size() == 1);
+		CHECK(a[0] == 'a');
+		CHECK(b.capacity() >= 1);
+		REQUIRE(b.size() == 1);
+		CHECK(b[0] == 'a');
+	}
+
+	SECTION("can be copy assigned")
+	{
+		utility::heap_string<char> b;
+		b = a;
+		CHECK(a.capacity() >= 1);
+		REQUIRE(a.size() == 1);
+		CHECK(a[0] == 'a');
+		CHECK(b.capacity() >= 1);
+		REQUIRE(b.size() == 1);
+		CHECK(b[0] == 'a');
+	}
+
+	SECTION("can be move constructed")
+	{
+		utility::heap_string<char> b = std::move(a);
+		CHECK(a.capacity() >= 0);
+		CHECK(a.size() == 0);
+		CHECK(b.capacity() >= 1);
+		REQUIRE(b.size() == 1);
+		CHECK(b[0] == 'a');
+	}
+
+	SECTION("can be move assigned")
+	{
+		utility::heap_string<char> b;
+		b = std::move(a);
+		CHECK(a.capacity() >= 0);
+		CHECK(a.size() == 0);
+		CHECK(b.capacity() >= 1);
+		REQUIRE(b.size() == 1);
+		CHECK(b[0] == 'a');
 	}
 }

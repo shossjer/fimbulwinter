@@ -1,0 +1,164 @@
+cmake_minimum_required(VERSION 3.3)
+
+include(ExternalProject)
+
+macro(_should_build outvar)
+	set(_configs "${ARGN}")
+	if(_config IN_LIST _configs)
+		set(${outvar} ON)
+	else()
+		set(${outvar} OFF)
+	endif()
+endmacro()
+
+project(tools-build C)
+
+if(DEFINED CMAKE_CONFIGURATION_TYPES)
+	set(_config ${CMAKE_CFG_INTDIR})
+else()
+	set(_config ${CMAKE_BUILD_TYPE})
+endif()
+
+set(_install_prefix "@PROJECT_SOURCE_DIR@/${_config}")
+
+#set(_ep_tmp "@PROJECT_SOURCE_DIR@/.tmp")
+#set(_ep_stamp "@PROJECT_SOURCE_DIR@/.stamp")
+#set(_ep_log "@PROJECT_SOURCE_DIR@/.log")
+#set(_ep_binary "@PROJECT_SOURCE_DIR@/.binary")
+#set(_ep_install "@PROJECT_SOURCE_DIR@/.install")
+set(_ep_download "@PROJECT_SOURCE_DIR@/.download")
+set(_ep_source "@PROJECT_SOURCE_DIR@/.source")
+
+_should_build(_build_compiler_explorer @_compiler_explorer_configs@)
+if(_build_compiler_explorer)
+	ExternalProject_Add(
+		compiler-explorer
+
+		SOURCE_DIR "@PROJECT_SOURCE_DIR@/compiler-explorer"
+
+		# download
+		GIT_REPOSITORY "https://github.com/shossjer/compiler-explorer.git"
+		GIT_TAG "project-browsing"
+
+		# configure
+		CONFIGURE_COMMAND ""
+
+		# build
+		BUILD_COMMAND ""
+
+		# install
+		INSTALL_COMMAND ""
+
+		# test
+		TEST_COMMAND ""
+		)
+
+	if(NOT ${CMAKE_VERSION} VERSION_LESS 3.14)
+		file(MAKE_DIRECTORY "@CMAKE_BINARY_DIR@/.cmake/api/v1/query/client-compiler-explorer")
+		file(TOUCH "@CMAKE_BINARY_DIR@/.cmake/api/v1/query/client-compiler-explorer/codemodel-v2")
+
+		get_filename_component(_binary_dir_name "@CMAKE_BINARY_DIR@" NAME)
+		file(RELATIVE_PATH _binary_dir_path "@PROJECT_SOURCE_DIR@/compiler-explorer" "@CMAKE_BINARY_DIR@")
+
+		file(MAKE_DIRECTORY "@PROJECT_SOURCE_DIR@/compiler-explorer/projects")
+		file(WRITE "@PROJECT_SOURCE_DIR@/compiler-explorer/projects/${_binary_dir_name}" "${_binary_dir_path}")
+
+		unset(_binary_dir_path)
+		unset(_binary_dir_name)
+	endif()
+else()
+	if(NOT ${CMAKE_VERSION} VERSION_LESS 3.14)
+		get_filename_component(_binary_dir_name "@CMAKE_BINARY_DIR@" NAME)
+
+		file(REMOVE "@PROJECT_SOURCE_DIR@/compiler-explorer/projects/${_binary_dir_name}")
+
+		unset(_binary_dir_name)
+
+		file(REMOVE_RECURSE "@CMAKE_BINARY_DIR@/.cmake/api/v1/query/client-compiler-explorer")
+	endif()
+endif()
+
+_should_build(_build_coz @_coz_configs@)
+if(_build_coz)
+	file(READ "@_initial_cache_file@" _initial_cache)
+	string(REGEX MATCH "set\\(CMAKE_CXX_COMPILER \"[^\"]*" _cxx_compiler "${_initial_cache}")
+	string(SUBSTRING "${_cxx_compiler}" 24 -1 _cxx_compiler)
+	string(REGEX MATCH "set\\(CMAKE_C_COMPILER \"[^\"]*" _c_compiler "${_initial_cache}")
+	string(SUBSTRING "${_c_compiler}" 22 -1 _c_compiler)
+
+	ExternalProject_Add(
+		libelfin
+
+		DOWNLOAD_DIR "${_ep_download}"
+		SOURCE_DIR "${_ep_source}/libelfin"
+
+		# download
+		GIT_REPOSITORY "https://github.com/aclements/libelfin.git"
+		GIT_TAG "ac45a094fadba77ad840063fb7aab82571546be0"
+
+		# update
+		UPDATE_COMMAND ""
+
+		# configure
+		CONFIGURE_COMMAND ""
+
+		# build
+		BUILD_COMMAND "CXX=${_cxx_compiler}" make
+		BUILD_IN_SOURCE True
+
+		# install
+		INSTALL_COMMAND "PREFIX=${_install_prefix}" make install
+
+		# test
+		TEST_COMMAND ""
+		)
+
+	try_compile(
+		_has_gettid
+
+		"${PROJECT_BINARY_DIR}/probe/gettid"
+		"@PROJECT_SOURCE_DIR@/.probe/gettid.c"
+
+		CMAKE_FLAGS "-DCMAKE_C_COMPILER=${_c_compiler}"
+		)
+	if(_has_gettid)
+		set(_update_step UPDATE_COMMAND "")
+	else()
+		set(_update_step PATCH_COMMAND ${GIT_EXECUTABLE} apply --index "@PROJECT_SOURCE_DIR@/.patch/coz-gettid.patch")
+	endif()
+
+	ExternalProject_Add(
+		coz
+
+		DEPENDS libelfin
+
+		DOWNLOAD_DIR "${_ep_download}"
+		SOURCE_DIR "${_ep_source}/coz"
+
+		# download
+		GIT_REPOSITORY "https://github.com/plasma-umass/coz.git"
+		GIT_TAG "96b45326ad61333161decf4173192930d89f2fbd"
+
+		# update
+		${_update_step}
+
+		# configure
+		CONFIGURE_COMMAND ""
+
+		# build
+		BUILD_COMMAND "PKG_CONFIG_LIBDIR=${_install_prefix}/lib/pkgconfig" "CC=${_c_compiler}" "CXX=${_cxx_compiler}" make
+		BUILD_IN_SOURCE True
+
+		# install
+		INSTALL_COMMAND "PKG_CONFIG_LIBDIR=${_install_prefix}/lib/pkgconfig" "prefix=${_install_prefix}" make install
+
+		# test
+		TEST_COMMAND ""
+		)
+
+	configure_file(
+		"@PROJECT_SOURCE_DIR@/coz/run.in"
+		"@PROJECT_SOURCE_DIR@/coz/run"
+		@ONLY
+		)
+endif()

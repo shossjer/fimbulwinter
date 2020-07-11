@@ -238,7 +238,7 @@ namespace
 				                    return debug_verify(::rmdir(filepath) != -1, "failed with errno ", errno) ? 0 : -1;
 			                    case FTW_DNR:
 			                    case FTW_NS:
-				                    debug_fail("unknown file"); return -1;
+				                    return debug_fail("unknown file") ? 0 : -1;
 			                    default:
 				                    debug_unreachable("unknown file type");
 			                    }

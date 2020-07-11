@@ -18,6 +18,7 @@
 #include "engine/physics/physics.hpp"
 
 #include "utility/predicates.hpp"
+#include "utility/profiling.hpp"
 #include "utility/variant.hpp"
 
 #include <cstdint>
@@ -509,11 +510,12 @@ namespace engine
 		mixer::~mixer()
 		{
 			engine::Asset sources_not_unregistered[sources.max_size()];
-			const int source_count = sources.get_all_keys(sources_not_unregistered, sources.max_size());
+			const auto source_count = sources.get_all_keys(sources_not_unregistered, sources.max_size());
 			debug_printline(source_count, " sources not unregistered:");
-			for (int i = 0; i < source_count; i++)
+			for (auto i : ranges::index_sequence(source_count))
 			{
 				debug_printline(sources_not_unregistered[i]);
+				static_cast<void>(i);
 			}
 
 			::simulation = nullptr;
@@ -536,6 +538,8 @@ namespace engine
 
 		void update(mixer &)
 		{
+			profile_scope("mixer update");
+
 			AssetMessage asset_message;
 			while (queue_assets.try_pop(asset_message))
 			{
