@@ -254,30 +254,29 @@ namespace utility
 		{
 #if MODE_DEBUG
 			void * storage_ = nullptr;
+#else
+			void * storage_;
+#endif
 
+#if MODE_DEBUG
 			~empty_allocator_hack()
 			{
 				assert(!storage_);
 			}
+#endif
 			empty_allocator_hack() = default;
 			empty_allocator_hack(empty_allocator_hack && other)
 				: storage_(std::exchange(other.storage_, nullptr))
 			{}
 			empty_allocator_hack & operator = (empty_allocator_hack && other)
 			{
+#if MODE_DEBUG
 				assert(!storage_);
-
+#endif
 				storage_ = std::exchange(other.storage_, nullptr);
 
 				return *this;
 			}
-#else
-			void * storage_;
-
-			empty_allocator_hack() = default;
-			empty_allocator_hack(empty_allocator_hack &&) = default;
-			empty_allocator_hack & operator = (empty_allocator_hack &&) = default;
-#endif
 		} impl_;
 
 	public:
