@@ -275,8 +275,8 @@ namespace utility
 			void * storage_;
 
 			empty_allocator_hack() = default;
-			empty_allocator_hack(empty_allocator_hack && other) = default;
-			empty_allocator_hack & operator = (empty_allocator_hack && other) = default;
+			empty_allocator_hack(empty_allocator_hack &&) = default;
+			empty_allocator_hack & operator = (empty_allocator_hack &&) = default;
 #endif
 		} impl_;
 
