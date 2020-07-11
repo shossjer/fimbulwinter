@@ -55,6 +55,7 @@ else()
 endif()
 
 add_subdirectory(dep)
+add_subdirectory(tools)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -321,6 +322,23 @@ if(BUILD_BENCHMARKS)
 endif()
 
 # lookup features
+
+cmake_dependent_option(PROFILING_COZ "Enable Coz profiling" OFF "TARGET dep_coz" OFF)
+add_library(lib_profiling INTERFACE)
+if(PROFILING_COZ)
+	message(STATUS "Enabled Coz profiling")
+	target_link_libraries(lib_profiling INTERFACE dep_coz)
+	target_compile_definitions(lib_profiling INTERFACE
+		PROFILING_COZ=1
+		)
+	target_compile_options(lib_profiling INTERFACE
+		$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+			-g>
+		)
+else()
+	message(STATUS "Disabled profiling")
+endif()
+
 # sse
 message(STATUS "Looking for SSE")
 find_file(FILE_IMMINTRIN_H immintrin.h)
@@ -360,5 +378,3 @@ add_library(generated INTERFACE)
 target_include_directories(generated INTERFACE "${PROJECT_BINARY_DIR}/generated")
 
 add_subdirectory(code)
-
-add_subdirectory(tools)

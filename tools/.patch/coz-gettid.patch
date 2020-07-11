@@ -1,0 +1,34 @@
+diff --git a/libcoz/ccutil/timer.h b/libcoz/ccutil/timer.h
+index 507152c27c97d061a2184e793aae5246d1bfbe2d..c8117d25929beae90832d373f238e2d769f8f1e0 100644
+--- a/libcoz/ccutil/timer.h
++++ b/libcoz/ccutil/timer.h
+@@ -2,11 +2,17 @@
+ #define CCUTIL_TIMER_H
+ 
+ #include <string.h>
++#include <sys/syscall.h>
+ #include <time.h>
+ #include <unistd.h>
+ 
+ #include "log.h"
+ 
++inline pid_t gettid()
++{
++	return syscall(SYS_gettid);
++}
++
+ class timer {
+ public:
+   timer() : _initialized(false) {}
+diff --git a/libcoz/perf.cpp b/libcoz/perf.cpp
+index 388bcd4e4b3d8a20eca5824eeb46bd741d648bec..15bba50718e9cd7324487dcea32a4254e7142293 100644
+--- a/libcoz/perf.cpp
++++ b/libcoz/perf.cpp
+@@ -25,6 +25,7 @@
+ 
+ #include "ccutil/log.h"
+ #include "ccutil/spinlock.h"
++#include "ccutil/timer.h"
+ #include "ccutil/wrapped_array.h"
+ 
+ using ccutil::wrapped_array;

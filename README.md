@@ -3,7 +3,7 @@
 Yet another game engine. Supported platforms are Windows and
 Linux. Written in C++14.
 
-## Build Instructions
+## Building
 
 If your project is using CMake it is recommended to add Fimbulwinter
 to it with a call to `add_subdirectory`. That way you can easily setup
@@ -12,7 +12,9 @@ dependencies) will just inherit everything.
 
 You can, of course, also build Fimbulwinter on its own.
 
-### Linux
+### Instructions
+
+#### Linux
 
 It is recommended that you make a separate directory for your
 build. Run cmake from there and build like you normally do:
@@ -23,7 +25,7 @@ cmake ..
 make
 ```
 
-### Windows - Visual Studio
+#### Windows - Visual Studio
 
 Run CMake from within the developer command prompt. This helps CMake
 know the location of your system libraries. It is recommended that you
@@ -32,7 +34,7 @@ make a separate directory for your build.
 After generating the build files you do not need to go through the
 step of running CMake from the developer command prompt again.
 
-## Build Options
+### Options
 
 * `CMAKE_BUILD_TYPE` (only for single configuration builds)
 
@@ -84,6 +86,11 @@ step of running CMake from the developer command prompt again.
 * `WINDOW_USE_USER32`
 
 * `WINDOW_USE_X11`
+
+* `PROFILING_COZ` (only for Linux)
+
+  Turns Coz (see [Tools](#tools)) profiling `ON` or `OFF`, see
+  #[Profiling](#profiling).
 
 ### Dependencies
 
@@ -197,6 +204,21 @@ can thus be enabled without them.
 
    Browsing project files can be done via the Save/Load button.
 
+### Tools
+
+Libraries that are not strictly _needed_ for running a derivative of
+Fimbulwinter, and other things that can be considered helpful, are
+collectively named "tools". These tools can be built as part of the
+configure process but are turned off by default.
+
+All tools are collected in the `tools` directory and can only be built
+in a release configuration, as determined by the variable
+`TOOLS_RELEASE_CONFIG`. It is `Release` by default.
+
+* Compiler Explorer - https://github.com/compiler-explorer/compiler-explorer
+
+* Coz: Causal Profiling - https://github.com/plasma-umass/coz
+
 ## Testing
 
 Tests will always be built (there currently is no option to turn them
@@ -204,3 +226,23 @@ off) and the resulting executables will be labeled with `test` at the
 end. Running the tests is simply a matter of running the
 executables. The build process does this for you but can be turned off
 via the `RUN_TESTS` option.
+
+## Profiling
+
+Profiling is disabled by default but can be turned on if Coz (see
+[Tools](#tools)) can be found. This is controlled via the CMake option
+`PROFILING_COZ`. When Coz profiling is enabled you need to run your
+executable similar to this:
+
+```
+coz run --- /path/to/your/executable [args...]
+```
+
+or, if you built Coz as part of the configure process, simply execute
+
+```
+/path/to/fimbulwinter/tools/coz/run /path/to/your/executable [args...]
+```
+
+Make use of https://plasma-umass.org/coz/ to make sense of the
+profiling being made. More about Coz can be read at their site.

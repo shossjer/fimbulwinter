@@ -213,6 +213,7 @@ namespace core
 	{
 		constexpr auto type_name = utility::type_name<T>();
 		debug_unreachable("`", type_name, "` cannot be assigned a `string_view_utf8`, try overload `assign_string`");
+		static_cast<void>(type_name);
 	}
 	template <typename T,
 	          REQUIRES((!std::is_enum<T>::value))>
