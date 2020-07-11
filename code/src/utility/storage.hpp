@@ -655,6 +655,7 @@ namespace utility
 
 		template <typename ...Ss, typename ...Ps,
 		          typename Reference = reference_for<Ss...>,
+		          REQUIRES((!ext::is_tuple<Ps...>::value)),
 		          REQUIRES((!mpl::is_same<std::piecewise_construct_t, mpl::car<mpl::remove_cvref_t<Ps>..., void>>::value))>
 		Reference construct_at_(utility::zip_iterator<Ss *...> it, Ps && ...ps)
 		{
@@ -697,7 +698,9 @@ namespace utility
 			return ext::apply([this, count](auto * ...ss){ return utility::zip_iterator<Ss *...>(this->construct_fill(ss, count)...); }, it);
 		}
 
-		template <typename ...Ss, typename ...Ps>
+		template <typename ...Ss, typename ...Ps,
+		          REQUIRES((0 < sizeof...(Ps))),
+		          REQUIRES((!mpl::is_same<utility::zero_initialize_t, mpl::car<mpl::remove_cvref_t<Ps>..., void>>::value))>
 		auto construct_fill(utility::zip_iterator<Ss *...> it, ext::usize count, Ps && ...ps)
 		{
 			return ext::apply([&ps..., this, count](auto * ...ss){ return utility::zip_iterator<Ss *...>(this->construct_fill(ss, count, ps)...); }, it);
