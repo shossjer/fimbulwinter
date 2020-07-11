@@ -367,6 +367,14 @@ namespace utility
 	}
 
 	template <typename ...Its>
+	class zip_iterator;
+
+	template <typename ...Ts>
+	struct is_zip_iterator : mpl::false_type {};
+	template <typename ...Its>
+	struct is_zip_iterator<zip_iterator<Its...>> : mpl::true_type {};
+
+	template <typename ...Its>
 	class zip_iterator
 		: public utility::compound<Its...>
 	{
@@ -384,6 +392,22 @@ namespace utility
 		using iterator_category = typename std::iterator_traits<mpl::car<Its...>>::iterator_category; // ?
 
 	public:
+#if defined(_MSC_VER) && _MSC_VER <= 1926
+		template <typename ...Ps,
+		          REQUIRES((!is_zip_iterator<mpl::remove_cvref_t<Ps>...>::value)),
+		          REQUIRES((!ext::is_tuple<Ps...>::value)),
+		          REQUIRES((std::is_constructible<base_type, Ps...>::value))>
+		zip_iterator(Ps && ...ps)
+			: base_type(std::forward<Ps>(ps)...)
+		{}
+
+		template <typename Tuple,
+		          REQUIRES((ext::tuple_size<Tuple>::value == sizeof...(Its))),
+		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
+		zip_iterator(Tuple && tuple)
+			: base_type(std::forward<Tuple>(tuple))
+		{}
+#else
 		using base_type::base_type;
 		using base_type::operator =;
 
@@ -393,6 +417,7 @@ namespace utility
 		zip_iterator(Tuple && tuple)
 			: base_type(std::forward<Tuple>(tuple))
 		{}
+#endif
 
 	public:
 		reference operator * () const
@@ -464,6 +489,14 @@ namespace utility
 	}
 
 	template <typename ...Ptrs>
+	class zip_pointer;
+
+	template <typename ...Ts>
+	struct is_zip_pointer : mpl::false_type {};
+	template <typename ...Ptrs>
+	struct is_zip_pointer<zip_pointer<Ptrs...>> : mpl::true_type {};
+
+	template <typename ...Ptrs>
 	class zip_pointer
 		: public utility::zip_iterator<Ptrs...> // todo remove
 	{
@@ -487,18 +520,35 @@ namespace utility
 		}
 
 	public:
+#if defined(_MSC_VER) && _MSC_VER <= 1926
+		template <typename ...Ps,
+		          REQUIRES((!is_zip_pointer<mpl::remove_cvref_t<Ps>...>::value)),
+		          REQUIRES((!ext::is_tuple<Ps...>::value)),
+		          REQUIRES((std::is_constructible<base_type, Ps...>::value))>
+		zip_pointer(Ps && ...ps)
+			: base_type(std::forward<Ps>(ps)...)
+		{}
+
+		template <typename Tuple,
+		          REQUIRES((ext::tuple_size<Tuple>::value == sizeof...(Ptrs))),
+		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
+		zip_pointer(Tuple && tuple)
+			: base_type(std::forward<Tuple>(tuple))
+		{}
+#else
 		using base_type::base_type;
 		using base_type::operator =;
-
-		zip_pointer(std::nullptr_t)
-			: base_type{}
-		{}
 
 		// todo awkward
 		template <typename Tuple,
 		          REQUIRES((std::is_constructible<base_type, Tuple>::value))>
 		zip_pointer(Tuple && tuple)
 			: base_type(std::forward<Tuple>(tuple))
+		{}
+#endif
+
+		zip_pointer(std::nullptr_t)
+			: base_type{}
 		{}
 
 	private:
