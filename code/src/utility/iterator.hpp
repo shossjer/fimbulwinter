@@ -582,3 +582,49 @@ namespace utility
 		}
 	};
 }
+
+namespace ext
+{
+	template <typename Container>
+	class back_inserter_iterator
+	{
+		using this_type = back_inserter_iterator<Container>;
+
+	public:
+		using difference_type = void;
+		using value_type = void;
+		using pointer_type = void;
+		using reference_type = void;
+		using iterator_category = std::output_iterator_tag;
+
+	private:
+		Container * container;
+
+	public:
+		explicit back_inserter_iterator(Container & container)
+			: container(std::addressof(container))
+		{}
+
+		this_type & operator = (typename Container::const_reference p)
+		{
+			container->push_back(p); // todo report error
+			return *this;
+		}
+
+		this_type & operator = (typename Container::rvalue_reference p)
+		{
+			container->push_back(std::move(p)); // todo report error
+			return *this;
+		}
+
+		this_type & operator * () { return *this; }
+		this_type & operator ++ () { return *this; }
+		this_type & operator ++ (int) { return *this; }
+	};
+
+	template <typename Container>
+	back_inserter_iterator<Container> back_inserter(Container & container)
+	{
+		return back_inserter_iterator<Container>(container);
+	};
+}
