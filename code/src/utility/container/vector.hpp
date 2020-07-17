@@ -337,4 +337,34 @@ namespace utility
 
 	template <std::size_t Capacity, typename ...Ts>
 	using static_vector = vector<static_storage<Capacity, Ts...>>;
+
+#if (defined(_MSVC_LANG) && 201703L <=_MSVC_LANG) || 201703L <= __cplusplus
+	namespace detail
+	{
+		template <template <typename> class Allocator>
+		struct dynamic_vector_of
+		{
+			template <typename ...Ts>
+			using type = dynamic_vector<Allocator, Ts...>;
+		};
+	}
+	template <template <typename> class Allocator, typename T>
+	using dynamic_vector_of = mpl::apply<typename detail::dynamic_vector_of<Allocator>::template type, utility::member_types<T>>;
+
+	template <typename T>
+	using heap_vector_of = mpl::apply<heap_vector, utility::member_types<T>>;
+
+	namespace detail
+	{
+		template <std::size_t Capacity>
+		struct static_vector_of
+		{
+			template <typename ...Ts>
+			using type = static_vector<Capacity, Ts...>;
+		};
+	}
+	template <std::size_t Capacity, typename T>
+	using static_vector_of = mpl::apply<typename detail::static_vector_of<Capacity>::template type, utility::member_types<T>>;
+#endif
+
 }
