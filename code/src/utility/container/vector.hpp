@@ -308,6 +308,9 @@ namespace utility
 			return false;
 		}
 
+		bool push_back(const_reference p) { return try_emplace_back(p); }
+		bool push_back(rvalue_reference p) { return try_emplace_back(std::move(p)); }
+
 		iterator erase(iterator it) // todo const_iterator
 		{
 			if (!/*debug_assert*/(begin() <= it && it < end()))
@@ -322,6 +325,27 @@ namespace utility
 			this->set_end(last);
 
 			return it;
+		}
+
+		iterator erase(iterator from, const_iterator to) // todo const_iterator
+		{
+			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
+				return from;
+
+			auto last = this->end_storage();
+
+			// idea split loop into two
+			for (iterator it = from; it != to; ++it)
+			{
+				--last;
+
+				using utility::iter_move;
+				*it = iter_move(this->storage_.data(last));
+				this->storage_.destruct_at(last);
+			}
+			this->set_end(last);
+
+			return from;
 		}
 	};
 
@@ -340,4 +364,54 @@ namespace utility
 
 	template <std::size_t Capacity, typename ...Ts>
 	using static_vector = vector<static_storage<Capacity, Ts...>>;
+}
+
+namespace ext
+{
+	template <typename Data>
+	decltype(auto) back(utility::basic_vector<Data> & vector)
+	{
+		auto it = vector.end();
+		return *--it;
+	}
+
+	template <typename Data>
+	decltype(auto) back(const utility::basic_vector<Data> & vector)
+	{
+		auto it = vector.end();
+		return *--it;
+	}
+
+	template <typename Data>
+	decltype(auto) back(utility::basic_vector<Data> && vector)
+	{
+		auto it = vector.end();
+		using utility::iter_move;
+		return iter_move(--it);
+	}
+
+	template <typename Data>
+	decltype(auto) back(const utility::basic_vector<Data> && vector)
+	{
+		auto it = vector.end();
+		using utility::iter_move;
+		return iter_move(--it);
+	}
+
+	template <typename Data>
+	decltype(auto) empty(const utility::basic_vector<Data> & vector) { return vector.begin() == vector.end(); }
+
+	template <typename Data>
+	void pop_back(utility::basic_vector<Data> & vector)
+	{
+		auto it = vector.end();
+		vector.erase(--it);
+	}
+
+	template <typename Data>
+	void pop_back(utility::basic_vector<Data> && vector)
+	{
+		auto it = vector.end();
+		vector.erase(--it);
+	}
 }
