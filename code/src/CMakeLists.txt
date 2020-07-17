@@ -126,6 +126,7 @@ set(HEADERS_UTILITY
 	src/utility/aggregation_allocator.hpp
 	src/utility/algorithm.hpp
 	src/utility/algorithm/find.hpp
+	src/utility/algorithm/remove.hpp
 	src/utility/alias.hpp
 	src/utility/any.hpp
 	src/utility/arithmetics.hpp

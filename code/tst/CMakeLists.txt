@@ -35,6 +35,7 @@ set(FILES_UTILITY
 	tst/main.cpp
 	tst/utility/aggregation_allocator.cpp
 	tst/utility/algorithm.cpp
+	tst/utility/algorithm/remove.cpp
 	tst/utility/any.cpp
 	tst/utility/array.cpp
 	tst/utility/bitmanip.cpp
