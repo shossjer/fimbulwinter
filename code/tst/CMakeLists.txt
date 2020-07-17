@@ -45,6 +45,7 @@ set(FILES_UTILITY
 	tst/utility/crypto/crc.cpp
 	tst/utility/ext/string.cpp
 	tst/utility/iterator.cpp
+	tst/utility/member_info.cpp
 	tst/utility/null_allocator.cpp
 	tst/utility/optional.cpp
 	tst/utility/property.cpp

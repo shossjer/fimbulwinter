@@ -147,6 +147,7 @@ set(HEADERS_UTILITY
 	src/utility/iterator.hpp
 	src/utility/json.hpp
 	src/utility/lookup_table.hpp
+	src/utility/member_info.hpp
 	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
 	src/utility/predicates.hpp
