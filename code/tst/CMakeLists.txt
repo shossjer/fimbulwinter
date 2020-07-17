@@ -47,6 +47,8 @@ set(FILES_UTILITY
 	tst/utility/iterator.cpp
 	tst/utility/null_allocator.cpp
 	tst/utility/optional.cpp
+	tst/utility/preprocessor/count_arguments.cpp
+	tst/utility/preprocessor/for_each.cpp
 	tst/utility/property.cpp
 	tst/utility/ranges.cpp
 	tst/utility/span.cpp

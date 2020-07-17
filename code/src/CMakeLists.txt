@@ -150,7 +150,10 @@ set(HEADERS_UTILITY
 	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
 	src/utility/predicates.hpp
-	src/utility/preprocessor.hpp
+	src/utility/preprocessor/common.hpp
+	src/utility/preprocessor/count_arguments.hpp
+	src/utility/preprocessor/expand.hpp
+	src/utility/preprocessor/for_each.hpp
 	src/utility/profiling.hpp
 	src/utility/property.hpp
 	src/utility/ranges.hpp

@@ -6,7 +6,7 @@
 
 #include "utility/lookup_table.hpp"
 #include "utility/optional.hpp"
-#include "utility/preprocessor.hpp"
+#include "utility/preprocessor/expand.hpp"
 #include "utility/string_view.hpp"
 #include "utility/type_traits.hpp"
 #include "utility/unicode.hpp"
