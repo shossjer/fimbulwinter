@@ -144,6 +144,10 @@ set(HEADERS_UTILITY
 	src/utility/ext/unistd.hpp
 	src/utility/encoding_traits.hpp
 	src/utility/functional.hpp
+	src/utility/functional/common.hpp
+	src/utility/functional/comparison.hpp
+	src/utility/functional/find.hpp
+	src/utility/functional/utility.hpp
 	src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp

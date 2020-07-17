@@ -45,6 +45,8 @@ set(FILES_UTILITY
 	tst/utility/container/vector.cpp
 	tst/utility/crypto/crc.cpp
 	tst/utility/ext/string.cpp
+	tst/utility/functional/comparison.cpp
+	tst/utility/functional/utility.cpp
 	tst/utility/iterator.cpp
 	tst/utility/null_allocator.cpp
 	tst/utility/optional.cpp
