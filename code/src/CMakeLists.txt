@@ -125,6 +125,7 @@ set(SOURCES_UTILITY
 set(HEADERS_UTILITY
 	src/utility/aggregation_allocator.hpp
 	src/utility/algorithm.hpp
+	src/utility/alias.hpp
 	src/utility/any.hpp
 	src/utility/arithmetics.hpp
 	src/utility/array.hpp
