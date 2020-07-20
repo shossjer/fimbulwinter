@@ -34,6 +34,8 @@
 #include <fstream>
 #include <utility>
 
+debug_assets("material directory", "shader directory");
+
 using namespace engine::graphics::opengl;
 
 namespace engine
