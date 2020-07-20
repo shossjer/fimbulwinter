@@ -22,7 +22,7 @@ namespace
 	};
 }
 
-TEST_CASE( "multicollection", "[core][container]" )
+TEST_CASE("multicollection", "[core][container]")
 {
 	core::container::MultiCollection
 	<
@@ -119,7 +119,7 @@ TEST_CASE( "multicollection", "[core][container]" )
 	CHECK(!collection.contains<char>(5u));
 }
 
-TEST_CASE( "collection heap_storage", "[core][container]" )
+TEST_CASE("collection heap_storage", "[core][container]")
 {
 	core::container::Collection
 	<
@@ -134,9 +134,33 @@ TEST_CASE( "collection heap_storage", "[core][container]" )
 	CHECK(collection.try_emplace<int>(3u, 3));
 	CHECK(collection.try_emplace<int>(4u, 4));
 	CHECK(collection.try_emplace<int>(5u, 5));
+
+	SECTION("can get the key for values")
+	{
+		auto ints = collection.get<int>();
+		REQUIRE(ints.size() == 5);
+
+		auto it = ints.begin();
+		CHECK(*it == 1);
+		CHECK(collection.get_key(*it) == 1u);
+		++it;
+		CHECK(*it == 2);
+		CHECK(collection.get_key(*it) == 2u);
+		++it;
+		CHECK(*it == 3);
+		CHECK(collection.get_key(*it) == 3u);
+		++it;
+		CHECK(*it == 4);
+		CHECK(collection.get_key(*it) == 4u);
+		++it;
+		CHECK(*it == 5);
+		CHECK(collection.get_key(*it) == 5u);
+		++it;
+		CHECK(it == ints.end());
+	}
 }
 
-TEST_CASE( "collection static_storage", "[core][container]" )
+TEST_CASE("collection static_storage", "[core][container]")
 {
 	core::container::Collection
 	<
@@ -151,4 +175,33 @@ TEST_CASE( "collection static_storage", "[core][container]" )
 	CHECK(collection.try_emplace<int>(3u, 3));
 	CHECK(collection.try_emplace<int>(4u, 4));
 	CHECK(collection.try_emplace<int>(5u, 5));
+
+	SECTION("fails to emplace when full")
+	{
+		CHECK(!collection.try_emplace<int>(6u, 6));
+	}
+
+	SECTION("can get the key for values")
+	{
+		auto ints = collection.get<int>();
+		REQUIRE(ints.size() == 5);
+
+		auto it = ints.begin();
+		CHECK(*it == 1);
+		CHECK(collection.get_key(*it) == 1u);
+		++it;
+		CHECK(*it == 2);
+		CHECK(collection.get_key(*it) == 2u);
+		++it;
+		CHECK(*it == 3);
+		CHECK(collection.get_key(*it) == 3u);
+		++it;
+		CHECK(*it == 4);
+		CHECK(collection.get_key(*it) == 4u);
+		++it;
+		CHECK(*it == 5);
+		CHECK(collection.get_key(*it) == 5u);
+		++it;
+		CHECK(it == ints.end());
+	}
 }

@@ -134,7 +134,7 @@ namespace core
 		private:
 			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type, relocate_rehash> lookup_;
 			// todo keys before slots?
-			std::tuple<utility::vector<typename utility::storage_traits<ComponentStorages>::template append<bucket_t>>...> arrays_;
+			std::tuple<utility::vector<typename utility::storage_traits<ComponentStorages>::template append<Key>>...> arrays_;
 
 			decltype(auto) slots() { return lookup_.data().first; }
 			decltype(auto) slots() const { return lookup_.data().first; }
@@ -227,7 +227,7 @@ namespace core
 				if (!debug_assert(index < array.size()))
 					return Key{};
 
-				return keys()[array[index].second];
+				return array[index].second;
 			}
 
 			void clear()
@@ -236,11 +236,8 @@ namespace core
 					arrays_,
 					[this](auto & array)
 					{
-						// todo benchmark which is faster: this or memset all keys
-						for (auto i : ranges::index_sequence_for(array))
-						{
-							keys()[array[i].second] = Key{};
-						}
+						// todo add memset to ext
+						std::memset(array.data().second, static_cast<int>(ext::byte{}), array.size() * sizeof(Key));
 						array.clear();
 					});
 			}
@@ -259,7 +256,7 @@ namespace core
 				auto & array = std::get<type>(arrays_);
 				const auto index = array.size();
 
-				if (!array.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(std::forward<Ps>(ps)...), std::forward_as_tuple(bucket)))
+				if (!array.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(std::forward<Ps>(ps)...), std::forward_as_tuple(key)))
 					return nullptr;
 
 				slots()[bucket].set(type, index);
@@ -401,9 +398,10 @@ namespace core
 				auto & array = std::get<type>(arrays_);
 				debug_assert(index < array.size());
 
-				const auto last = array.size() - 1;
+				const auto last_index = array.size() - 1;
+				const auto last_bucket = find(array[last_index].second);
 
-				slots()[array[last].second].set_index(index);
+				slots()[last_bucket].set_index(index);
 				keys()[bucket] = Key{};
 				array.erase(array.begin() + index);
 			}
