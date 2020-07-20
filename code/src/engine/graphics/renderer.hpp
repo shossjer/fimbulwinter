@@ -205,8 +205,10 @@ namespace engine
 
 		// todo this feels hacky
 		void set_material_directory(renderer & renderer, utility::heap_string_utf8 && directory);
+		void unset_material_directory(renderer & renderer);
 		// todo this feels hacky
 		void set_shader_directory(renderer & renderer, utility::heap_string_utf8 && directory);
+		void unset_shader_directory(renderer & renderer);
 
 		// void notify(renderer & renderer, renderer::Camera2D && data);
 		// void notify(renderer & renderer, renderer::Camera3D && data);

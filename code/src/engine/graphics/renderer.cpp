@@ -165,6 +165,11 @@ namespace engine
 			engine::file::watch(engine::Asset("material directory"), u8"*.json", material_callback, utility::any(&renderer));
 		}
 
+		void unset_material_directory(renderer & /*renderer*/)
+		{
+			engine::file::unregister_directory(engine::Asset("material directory"));
+		}
+
 		// todo remove dependency to file
 		void set_shader_directory(renderer & /*renderer*/, utility::heap_string_utf8 && directory)
 		{
@@ -180,6 +185,11 @@ namespace engine
 				// shaders not supported
 				break;
 			}
+		}
+
+		void unset_shader_directory(renderer & /*renderer*/)
+		{
+			engine::file::unregister_directory(engine::Asset("shader directory"));
 		}
 
 		void post_add_display(renderer &, engine::Asset asset, data::display && data)
