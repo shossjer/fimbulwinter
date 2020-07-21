@@ -4,6 +4,7 @@
 
 #include "core/debug.hpp"
 
+#include "utility/annotate.hpp"
 #include "utility/bitmanip.hpp"
 #include "utility/container/array.hpp"
 #include "utility/container/fragmentation.hpp"
@@ -144,6 +145,7 @@ namespace core
 
 		public:
 			template <typename K>
+			annotate_nodiscard
 			const Key * find_key(K key) const
 			{
 				const auto bucket = find(key);
@@ -154,12 +156,14 @@ namespace core
 			}
 
 			template <typename K>
+			annotate_nodiscard
 			bool contains(K key) const
 			{
 				return find(key) != bucket_t(-1);
 			}
 
 			template <typename C, typename K>
+			annotate_nodiscard
 			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
@@ -172,6 +176,7 @@ namespace core
 			}
 
 			template <typename C>
+			annotate_nodiscard
 			utility::span<C> get()
 			{
 				auto & array = std::get<mpl::index_of<C, component_types>::value>(arrays_);
@@ -179,6 +184,7 @@ namespace core
 			}
 
 			template <typename C>
+			annotate_nodiscard
 			utility::span<const C> get() const
 			{
 				const auto & array = std::get<mpl::index_of<C, component_types>::value>(arrays_);
@@ -186,6 +192,7 @@ namespace core
 			}
 
 			template <typename C, typename K>
+			annotate_nodiscard
 			C * try_get(K key)
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
@@ -202,6 +209,7 @@ namespace core
 			}
 
 			template <typename C, typename K>
+			annotate_nodiscard
 			const C * try_get(Key key) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
@@ -218,6 +226,7 @@ namespace core
 			}
 
 			template <typename C>
+			annotate_nodiscard
 			Key get_key(const C & component) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
@@ -243,6 +252,7 @@ namespace core
 			}
 
 			template <typename Component, typename ...Ps>
+			annotate_nodiscard
 			Component * try_emplace(Key key, Ps && ...ps)
 			{
 				constexpr auto type = mpl::index_of<Component, component_types>::value;
@@ -528,11 +538,14 @@ namespace core
 			K keys[M];
 
 		public:
+			annotate_nodiscard
 			bool contains(K key) const
 			{
 				return try_find(key) != bucket_t(-1);
 			}
+
 			template <typename C>
+			annotate_nodiscard
 			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
@@ -543,19 +556,25 @@ namespace core
 
 				return !slots[bucket].template empty<type>();
 			}
+
 			template <typename C>
+			annotate_nodiscard
 			auto get() ->
 				decltype(std::get<mpl::index_of<C, mpl::type_list<Cs...>>::value>(arrays))
 			{
 				return std::get<mpl::index_of<C, mpl::type_list<Cs...>>::value>(arrays);
 			}
+
 			template <typename C>
+			annotate_nodiscard
 			auto get() const ->
 				decltype(std::get<mpl::index_of<C, mpl::type_list<Cs...>>::value>(arrays))
 			{
 				return std::get<mpl::index_of<C, mpl::type_list<Cs...>>::value>(arrays);
 			}
+
 			template <typename C>
+			annotate_nodiscard
 			C & get(K key)
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
@@ -566,7 +585,9 @@ namespace core
 
 				return std::get<type>(arrays).get(index);
 			}
+
 			template <typename C>
+			annotate_nodiscard
 			const C & get(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
@@ -579,6 +600,7 @@ namespace core
 			}
 
 			template <typename C>
+			annotate_nodiscard
 			K get_key(const C & component) const
 			{
 				constexpr auto type = mpl::index_of<C, mpl::type_list<Cs...>>::value;
@@ -610,6 +632,7 @@ namespace core
 
 				return array.get(index);
 			}
+
 			template <typename C>
 			void remove(K key)
 			{
@@ -621,10 +644,12 @@ namespace core
 
 				remove_at_impl<type>(bucket, index);
 			}
+
 			void remove(K key)
 			{
 				remove_impl(find(key), mpl::make_index_sequence<sizeof...(Cs)>{});
 			}
+
 			template <typename C>
 			void try_remove(K key)
 			{
@@ -659,6 +684,7 @@ namespace core
 					                 key, bucket, std::forward<F>(func));
 				}
 			}
+
 			template <typename C, typename F>
 			auto call(K key, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
@@ -668,6 +694,7 @@ namespace core
 				return call_impl(mpl::index_constant<type>{},
 				                 key, find(key), std::forward<F>(func));
 			}
+
 			template <typename F>
 			void call_all(K key, F && func)
 			{
@@ -695,6 +722,7 @@ namespace core
 					                 key, bucket, std::forward<F>(func));
 				}
 			}
+
 			template <typename C, typename F>
 			auto try_call(K key, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), key, std::declval<mpl::car<Cs...> &>()))
@@ -711,6 +739,7 @@ namespace core
 				return call_impl(mpl::index_constant<type>{},
 				                 key, bucket, std::forward<F>(func));
 			}
+
 			template <typename F>
 			void try_call_all(K key, F && func)
 			{
@@ -726,6 +755,7 @@ namespace core
 			{
 				return (std::size_t(key) * std::size_t(key)) % M;
 			}
+
 			/**
 			 * Find an empty bucket where the key can be placed.
 			 */
@@ -746,6 +776,7 @@ namespace core
 				}
 				return bucket;
 			}
+
 			/**
 			 * Find the bucket where the key resides.
 			 */
@@ -763,6 +794,7 @@ namespace core
 				}
 				return bucket;
 			}
+
 			/**
 			 * Find the bucket where the key resides.
 			 */
@@ -958,6 +990,7 @@ namespace core
 
 		public:
 			template <typename K>
+			annotate_nodiscard
 			const Key * find_key(K key) const
 			{
 				const auto bucket = find(key);
@@ -968,12 +1001,14 @@ namespace core
 			}
 
 			template <typename K>
+			annotate_nodiscard
 			bool contains(K key) const
 			{
 				return find(key) != bucket_t(-1);
 			}
 
 			template <typename C, typename K>
+			annotate_nodiscard
 			bool contains(K key) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
@@ -986,6 +1021,7 @@ namespace core
 			}
 
 			template <typename C, typename K>
+			annotate_nodiscard
 			C * try_get(K key)
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
@@ -1002,6 +1038,7 @@ namespace core
 			}
 
 			template <typename C, typename K>
+			annotate_nodiscard
 			const C * try_get(Key key) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
@@ -1017,6 +1054,7 @@ namespace core
 				return &std::get<type>(arrays_)[index];
 			}
 
+			annotate_nodiscard
 			ext::usize get_all_keys(Key * buffer, ext::usize size) const
 			{
 				ext::usize count = 0;
@@ -1036,6 +1074,7 @@ namespace core
 				return count;
 			}
 
+			annotate_nodiscard
 			constexpr std::size_t max_size() const { return lookup_.size(); } // todo lookup_.max_size()?
 
 			void clear()
@@ -1046,6 +1085,7 @@ namespace core
 			}
 
 			template <typename Component, typename ...Ps>
+			annotate_nodiscard
 			Component * try_emplace(Key key, Ps && ...ps)
 			{
 				debug_assert(!contains(key));
@@ -1058,6 +1098,7 @@ namespace core
 			}
 
 			template <typename Component, typename ...Ps>
+			annotate_nodiscard
 			Component * try_replace(Key key, Ps && ... ps)
 			{
 				auto bucket = find(key);
@@ -1076,6 +1117,7 @@ namespace core
 			}
 
 			template <typename K>
+			annotate_nodiscard
 			bool try_remove(K key)
 			{
 				const auto bucket = find(key);
