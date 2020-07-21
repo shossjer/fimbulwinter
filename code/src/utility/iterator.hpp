@@ -607,13 +607,13 @@ namespace ext
 
 		this_type & operator = (typename Container::const_reference p)
 		{
-			container->push_back(p); // todo report error
+			static_cast<void>(container->push_back(p)); // todo report error
 			return *this;
 		}
 
 		this_type & operator = (typename Container::rvalue_reference p)
 		{
-			container->push_back(std::move(p)); // todo report error
+			static_cast<void>(container->push_back(std::move(p))); // todo report error
 			return *this;
 		}
 

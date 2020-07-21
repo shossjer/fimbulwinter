@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utility/annotate.hpp"
 #include "utility/container/container.hpp"
 #include "utility/ranges.hpp"
 #include "utility/span.hpp"
@@ -260,15 +261,22 @@ namespace utility
 			: base_type(size)
 		{}
 
+		annotate_nodiscard
 		constexpr std::size_t capacity() const { return base_type::capacity(); }
+		annotate_nodiscard
 		std::size_t size() const { return base_type::size(); }
 
+		annotate_nodiscard
 		auto data() { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
 		auto data() const { return this->storage_.data(this->begin_storage()); }
 
+		annotate_nodiscard
 		reference operator [] (ext::index index) { return data()[index]; }
+		annotate_nodiscard
 		const_reference operator [] (ext::index index) const { return data()[index]; }
 
+		annotate_nodiscard
 		bool try_reserve(std::size_t min_capacity)
 		{
 			if (min_capacity <= this->capacity())
@@ -278,6 +286,7 @@ namespace utility
 		}
 
 		template <typename ...Ps>
+		annotate_nodiscard
 		pointer try_emplace(Ps && ...ps)
 		{
 			if (!this->try_reserve(this->size() + 1))
@@ -290,6 +299,7 @@ namespace utility
 			return std::pointer_traits<pointer>::pointer_to(e);
 		}
 
+		annotate_nodiscard
 		bool try_erase(ext::index index)
 		{
 			if (!/*debug_assert*/(std::find(this->storage_.data(this->begin_indices()) + this->size(), this->storage_.data(this->begin_indices()) + this->capacity(), static_cast<std::size_t>(index)) == this->storage_.data(this->begin_indices()) + this->capacity()))

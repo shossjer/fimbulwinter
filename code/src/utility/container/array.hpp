@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utility/annotate.hpp"
 #include "utility/container/container.hpp"
 
 #include <cassert>
@@ -229,12 +230,17 @@ namespace utility
 			: base_type(size)
 		{}
 
+		annotate_nodiscard
 		constexpr std::size_t capacity() const { return base_type::capacity(); }
+		annotate_nodiscard
 		constexpr std::size_t size() const { return capacity(); }
 
+		annotate_nodiscard
 		auto data() { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
 		auto data() const { return this->storage_.data(this->begin_storage()); }
 
+		annotate_nodiscard
 		bool try_reserve(std::size_t min_capacity)
 		{
 			if (min_capacity <= this->capacity())

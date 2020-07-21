@@ -1195,7 +1195,7 @@ namespace core
 					return;
 
 				keys()[bucket] = Key{};
-				array.try_erase(index);
+				debug_verify(array.try_erase(index));
 			}
 
 			void remove_impl(bucket_t bucket)

@@ -111,7 +111,7 @@ TEST_CASE("heap_storage<int>", "[utility]")
 	static_assert(!utility::storage_traits<heap_storage>::trivial_deallocate::value, "");
 
 	heap_storage aa1;
-	aa1.allocate(5);
+	REQUIRE(aa1.allocate(5));
 	aa1.construct_at(aa1.begin(5) + 0, 5);
 	aa1.construct_at(aa1.begin(5) + 1, 4);
 	aa1.construct_at(aa1.begin(5) + 2, 3);
@@ -162,7 +162,7 @@ TEST_CASE("heap_storage<unique_ptr>", "[utility]")
 	static_assert(!utility::storage_traits<heap_storage>::trivial_deallocate::value, "");
 
 	heap_storage aa1;
-	aa1.allocate(5);
+	REQUIRE(aa1.allocate(5));
 	aa1.construct_at(aa1.begin(5) + 0, new int(5));
 	aa1.construct_at(aa1.begin(5) + 1, new int(4));
 	aa1.construct_at(aa1.begin(5) + 2, new int(3));
