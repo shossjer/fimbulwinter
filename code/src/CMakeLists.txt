@@ -128,6 +128,7 @@ set(HEADERS_UTILITY
 	src/utility/algorithm/find.hpp
 	src/utility/algorithm/remove.hpp
 	src/utility/alias.hpp
+	src/utility/annotate.hpp
 	src/utility/any.hpp
 	src/utility/arithmetics.hpp
 	src/utility/array.hpp
