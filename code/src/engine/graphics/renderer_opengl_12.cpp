@@ -612,17 +612,17 @@ namespace
 				{
 					if (x.material.data_opengl_12.diffuse)
 					{
-						resources.try_replace<ColorClass>(x.asset, x.material.data_opengl_12.diffuse.value());
+						debug_verify(resources.try_replace<ColorClass>(x.asset, x.material.data_opengl_12.diffuse.value()));
 					}
 					else
 					{
-						resources.try_replace<DefaultClass>(x.asset);
+						debug_verify(resources.try_replace<DefaultClass>(x.asset));
 					}
 				}
 
 				void operator () (MessageRegisterMesh && x)
 				{
-					resources.try_replace<mesh_t>(x.asset, std::move(x.mesh));
+					debug_verify(resources.try_replace<mesh_t>(x.asset, std::move(x.mesh)));
 				}
 
 				void operator () (MessageRegisterTexture && /*x*/)
@@ -640,14 +640,14 @@ namespace
 						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
 							return; // error
 
-						materials.try_remove(*key); // todo use iterators
+						debug_verify(materials.try_remove(*key)); // todo use iterators
 					}
 					debug_verify(materials.try_emplace<ColorMaterial>(x.entity, x.data.diffuse, x.data.materialclass));
 				}
 
 				void operator () (MessageDestroy && x)
 				{
-					materials.try_remove(x.entity);
+					debug_verify(materials.try_remove(x.entity));
 				}
 
 				void operator () (MessageAddMeshObject && x)
@@ -657,7 +657,7 @@ namespace
 						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
 							return; // error
 
-						objects.try_remove(*key); // todo use iterators
+						debug_verify(objects.try_remove(*key)); // todo use iterators
 					}
 					auto * const object = objects.try_emplace<object_modelview>(x.entity, std::move(x.object.matrix));
 
@@ -754,7 +754,7 @@ namespace
 						updateable_components.remove(x.entity);
 					}
 					components.remove(x.entity);
-					objects.try_remove(x.entity);
+					debug_verify(objects.try_remove(x.entity));
 				}
 
 				void operator () (MessageUpdateCharacterSkinning && x)

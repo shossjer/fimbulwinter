@@ -891,17 +891,17 @@ namespace
 				{
 					if (x.material.data_opengl_30.diffuse)
 					{
-						resources.try_replace<ColorClass>(x.asset, x.material.data_opengl_30.diffuse.value(), x.material.data_opengl_30.shader);
+						debug_verify(resources.try_replace<ColorClass>(x.asset, x.material.data_opengl_30.diffuse.value(), x.material.data_opengl_30.shader));
 					}
 					else
 					{
-						resources.try_replace<ShaderClass>(x.asset, x.material.data_opengl_30.shader);
+						debug_verify(resources.try_replace<ShaderClass>(x.asset, x.material.data_opengl_30.shader));
 					}
 				}
 
 				void operator () (MessageRegisterMesh && x)
 				{
-					resources.try_replace<mesh_t>(x.asset, std::move(x.mesh));
+					debug_verify(resources.try_replace<mesh_t>(x.asset, std::move(x.mesh)));
 				}
 
 				void operator () (MessageRegisterTexture && /*x*/)
@@ -921,14 +921,14 @@ namespace
 						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
 							return; // error
 
-						materials.try_remove(*key); // todo use iterators
+						debug_verify(materials.try_remove(*key)); // todo use iterators
 					}
 					debug_verify(materials.try_emplace<ShaderMaterial>(x.entity, x.data.diffuse, std::move(textures), x.data.materialclass));
 				}
 
 				void operator () (MessageDestroy && x)
 				{
-					materials.try_remove(x.entity);
+					debug_verify(materials.try_remove(x.entity));
 				}
 
 				void operator () (MessageAddMeshObject && x)
@@ -938,7 +938,7 @@ namespace
 						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
 							return; // error
 
-						objects.try_remove(*key); // todo use iterators
+						debug_verify(objects.try_remove(*key)); // todo use iterators
 					}
 					auto * const object = objects.try_emplace<object_modelview>(x.entity, std::move(x.object.matrix));
 
@@ -1033,7 +1033,7 @@ namespace
 						updateable_components.remove(x.entity);
 					}
 					components.remove(x.entity);
-					objects.try_remove(x.entity);
+					debug_verify(objects.try_remove(x.entity));
 				}
 
 				void operator () (MessageUpdateCharacterSkinning && x)
