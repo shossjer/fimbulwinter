@@ -800,7 +800,7 @@ namespace
 
 							auto && watch = as_watch(*watch_it);
 
-							alias.meta.watches.push_back(watch.id);
+							debug_verify(alias.meta.watches.push_back(watch.id));
 
 							debug_expression(bool added_any_match = false);
 							auto from = utility::unit_difference(0);

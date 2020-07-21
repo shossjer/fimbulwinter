@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utility/annotate.hpp"
 #include "utility/container/container.hpp"
 
 #include <cassert>
@@ -248,19 +249,29 @@ namespace utility
 		using const_iterator = const_pointer;
 
 	public:
+		annotate_nodiscard
 		constexpr std::size_t capacity() const { return base_type::capacity(); }
+		annotate_nodiscard
 		std::size_t size() const { return base_type::size(); }
 
+		annotate_nodiscard
 		iterator begin() { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
 		const_iterator begin() const { return this->storage_.data(this->begin_storage()); }
 
+		annotate_nodiscard
 		iterator end() { return this->storage_.data(this->end_storage()); }
+		annotate_nodiscard
 		const_iterator end() const { return this->storage_.data(this->end_storage()); }
 
+		annotate_nodiscard
 		pointer data() { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
 		const_pointer data() const { return this->storage_.data(this->begin_storage()); }
 
+		annotate_nodiscard
 		reference operator [] (ext::index index) { return data()[index]; }
+		annotate_nodiscard
 		const_reference operator [] (ext::index index) const { return data()[index]; }
 
 		void clear()
@@ -269,6 +280,7 @@ namespace utility
 			this->set_end(this->begin_storage());
 		}
 
+		annotate_nodiscard
 		bool try_reserve(std::size_t min_capacity)
 		{
 			if (intrinsic_likely(min_capacity <= this->capacity()))
@@ -288,6 +300,7 @@ namespace utility
 		}
 
 		template <typename ...Ps>
+		annotate_nodiscard
 		bool try_emplace_back(utility::no_reallocate_t, Ps && ...ps)
 		{
 			if (intrinsic_likely(this->position_end() != this->position_cap()))
@@ -297,6 +310,7 @@ namespace utility
 		}
 
 		template <typename ...Ps>
+		annotate_nodiscard
 		bool try_emplace_back(Ps && ...ps)
 		{
 			if (intrinsic_likely(try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...)))
@@ -308,7 +322,9 @@ namespace utility
 			return false;
 		}
 
+		annotate_nodiscard
 		bool push_back(const_reference p) { return try_emplace_back(p); }
+		annotate_nodiscard
 		bool push_back(rvalue_reference p) { return try_emplace_back(std::move(p)); }
 
 		iterator erase(iterator it) // todo const_iterator
