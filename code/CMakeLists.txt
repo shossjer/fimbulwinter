@@ -66,7 +66,7 @@ endif()
 
 add_library(core "")
 add_dependencies(core ${utility_dependency})
-target_sources(core PRIVATE ${SOURCES_CORE} ${HEADERS_CORE})
+target_sources(core PRIVATE ${SOURCES_CORE} ${HEADERS_CORE} ${${CMAKE_CXX_COMPILER_ID}_CORE})
 target_include_directories(core PUBLIC "src")
 target_link_libraries(core PRIVATE generated utility lib_profiling PUBLIC dep_zlib dep_libpng thread_dep)
 target_compile_options(core PRIVATE ${private_compile_options})
