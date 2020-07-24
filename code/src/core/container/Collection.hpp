@@ -58,6 +58,24 @@ namespace core
 #if defined(_MSC_VER)
 # pragma warning( pop )
 #endif
+
+			template <typename Collection>
+			class CollectionHandle
+			{
+				using this_type = CollectionHandle<Collection>;
+
+				friend Collection;
+
+			private:
+				uint32_t bucket_; // todo lookup iterator
+
+			public:
+				explicit CollectionHandle(uint32_t bucket) : bucket_(bucket) {}
+
+			private:
+				friend bool operator == (this_type x, this_type y) { return x.bucket_ == y.bucket_; }
+				friend bool operator != (this_type x, this_type y) { return !(x == y); }
+			};
 		}
 
 		/**
@@ -72,8 +90,13 @@ namespace core
 			static_assert(mpl::conjunction<mpl::bool_constant<(utility::storage_size<ComponentStorages>::value == 1)>...>::value, "Collection does not support multi-type storages for components");
 #endif
 
-		private:
+			using this_type = Collection<Key, LookupStorageTraits, ComponentStorages...>;
+
 			using component_types = mpl::type_list<typename ComponentStorages::template value_type_at<0>...>;
+
+		public:
+			using const_iterator = detail::CollectionHandle<this_type>;
+			using iterator = const_iterator;
 
 		private:
 			using bucket_t = uint32_t;
@@ -144,35 +167,19 @@ namespace core
 			decltype(auto) keys() const { return lookup_.data().second; }
 
 		public:
-			template <typename K>
 			annotate_nodiscard
-			const Key * find_key(K key) const
-			{
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
-					return nullptr; // todo weird
+			const_iterator end() const { return const_iterator(bucket_t(-1)); }
 
-				return keys() + bucket;
-			}
-
-			template <typename K>
+			template <typename C>
 			annotate_nodiscard
-			bool contains(K key) const
-			{
-				return find(key) != bucket_t(-1);
-			}
-
-			template <typename C, typename K>
-			annotate_nodiscard
-			bool contains(K key) const
+			bool contains(const_iterator it) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
 					return false;
 
-				return slots()[bucket].get_type() == type;
+				return slots()[it.bucket_].get_type() == type;
 			}
 
 			template <typename C>
@@ -191,37 +198,35 @@ namespace core
 				return {array.data().first, array.size()};
 			}
 
-			template <typename C, typename K>
+			template <typename C>
 			annotate_nodiscard
-			C * try_get(K key)
+			C * get(const_iterator it)
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
 					return nullptr;
 
-				if (slots()[bucket].get_type() != type)
+				if (slots()[it.bucket_].get_type() != type)
 					return nullptr;
 
-				const auto index = slots()[bucket].get_index();
+				const auto index = slots()[it.bucket_].get_index();
 				return &std::get<type>(arrays_)[index].first;
 			}
 
-			template <typename C, typename K>
+			template <typename C>
 			annotate_nodiscard
-			const C * try_get(Key key) const
+			const C * get(const_iterator it) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
 					return nullptr;
 
-				if (slots()[bucket].get_type() != type)
+				if (slots()[it.bucket_].get_type() != type)
 					return nullptr;
 
-				const auto index = slots()[bucket].get_index();
+				const auto index = slots()[it.bucket_].get_index();
 				return &std::get<type>(arrays_)[index].first;
 			}
 
@@ -239,6 +244,15 @@ namespace core
 				return array[index].second;
 			}
 
+			annotate_nodiscard
+			Key get_key(const_iterator it) const
+			{
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
+					return Key{};
+
+				return keys()[it.bucket_];
+			}
+
 			void clear()
 			{
 				utl::for_each(
@@ -253,11 +267,12 @@ namespace core
 
 			template <typename Component, typename ...Ps>
 			annotate_nodiscard
-			Component * try_emplace(Key key, Ps && ...ps)
+			Component * emplace(Key key, Ps && ...ps)
 			{
 				constexpr auto type = mpl::index_of<Component, component_types>::value;
 
-				debug_assert(!contains(key));
+				if (!debug_assert(find(key) == bucket_t(-1)))
+					return nullptr;
 
 				const auto bucket = try_place(key);
 				if (bucket == bucket_t(-1))
@@ -275,16 +290,17 @@ namespace core
 				return &array[index].first;
 			}
 
-			template <typename K>
-			void remove(K key)
+			void erase(const_iterator it)
 			{
-				const auto bucket = find(key);
-				const auto index = slots()[bucket].get_index();
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
+					return;
 
-				switch (slots()[bucket].get_type())
+				const auto index = slots()[it.bucket_].get_index();
+
+				switch (slots()[it.bucket_].get_type())
 				{
 #define CASE(n) case (n):	  \
-					remove_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, bucket, index); \
+					remove_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, it.bucket_, index); \
 					break
 
 					PP_EXPAND_128(CASE, 0);
@@ -294,48 +310,25 @@ namespace core
 				}
 			}
 
-			template <typename K, typename F>
-			auto call(K key, F && func) ->
+			template <typename F>
+			auto call(const_iterator it, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), std::declval<Key>(), std::declval<mpl::car<component_types> &>()))
 			{
-				const auto bucket = find(key);
-				const auto index = slots()[bucket].get_index();
+				debug_assert(it.bucket_ != bucket_t(-1));
 
-				switch (slots()[bucket].get_type())
+				const auto index = slots()[it.bucket_].get_index();
+
+				switch (slots()[it.bucket_].get_type())
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, \
-					                 keys()[bucket], index, std::forward<F>(func))
+					                 keys()[it.bucket_], index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 keys()[bucket], index, std::forward<F>(func));
-				}
-			}
-
-			template <typename K, typename F>
-			auto try_call(K key, F && func) ->
-				decltype(detail::call_impl_func(std::forward<F>(func), std::declval<Key>(), std::declval<mpl::car<component_types> &>()))
-			{
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
-					return detail::call_impl_func(std::forward<F>(func), key);
-
-				const auto index = slots()[bucket].get_index();
-
-				switch (slots()[bucket].get_type())
-				{
-#define CASE(n) case (n):	  \
-					return call_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, \
-					                 keys()[bucket], index, std::forward<F>(func))
-
-					PP_EXPAND_128(CASE, 0);
-#undef CASE
-				default:
-					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 keys()[bucket], index, std::forward<F>(func));
+					                 keys()[it.bucket_], index, std::forward<F>(func));
 				}
 			}
 
@@ -442,6 +435,10 @@ namespace core
 #if defined(_MSC_VER)
 # pragma warning( pop )
 #endif
+
+			template <typename K>
+			annotate_nodiscard
+			friend const_iterator find(const this_type & x, K key) { return const_iterator(x.find(key)); }
 		};
 
 		/**
@@ -918,8 +915,13 @@ namespace core
 			static_assert(mpl::conjunction<mpl::bool_constant<(utility::storage_size<ComponentStorages>::value == 1)>...>::value, "UnorderedCollection does not support multi-type storages for components");
 #endif
 
-		private:
+			using this_type = UnorderedCollection<Key, LookupStorageTraits, ComponentStorages...>;
+
 			using component_types = mpl::type_list<typename ComponentStorages::template value_type_at<0>...>;
+
+		public:
+			using const_iterator = detail::CollectionHandle<this_type>;
+			using iterator = const_iterator;
 
 		private:
 			using bucket_t = uint32_t;
@@ -989,69 +991,60 @@ namespace core
 			decltype(auto) keys() const { return lookup_.data().second; }
 
 		public:
-			template <typename K>
 			annotate_nodiscard
-			const Key * find_key(K key) const
-			{
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
-					return nullptr; // todo weird
+			const_iterator end() const { return const_iterator(bucket_t(-1)); }
 
-				return keys() + bucket;
-			}
-
-			template <typename K>
+			template <typename C>
 			annotate_nodiscard
-			bool contains(K key) const
-			{
-				return find(key) != bucket_t(-1);
-			}
-
-			template <typename C, typename K>
-			annotate_nodiscard
-			bool contains(K key) const
+			bool contains(const_iterator it) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
 					return false;
 
-				return slots()[bucket].get_type() == type;
+				return slots()[it.bucket_].get_type() == type;
 			}
 
-			template <typename C, typename K>
+			template <typename C>
 			annotate_nodiscard
-			C * try_get(K key)
+			C * get(const_iterator it)
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
 					return nullptr;
 
-				if (slots()[bucket].get_type() != type)
+				if (slots()[it.bucket_].get_type() != type)
 					return nullptr;
 
-				const auto index = slots()[bucket].get_index();
+				const auto index = slots()[it.bucket_].get_index();
 				return &std::get<type>(arrays_)[index];
 			}
 
-			template <typename C, typename K>
+			template <typename C>
 			annotate_nodiscard
-			const C * try_get(Key key) const
+			const C * get(const_iterator it) const
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
 					return nullptr;
 
-				if (slots()[bucket].get_type() != type)
+				if (slots()[it.bucket_].get_type() != type)
 					return nullptr;
 
-				const auto index = slots()[bucket].get_index();
+				const auto index = slots()[it.bucket_].get_index();
 				return &std::get<type>(arrays_)[index];
+			}
+
+			annotate_nodiscard
+			Key get_key(const_iterator it) const
+			{
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
+					return Key{};
+
+				return keys()[it.bucket_];
 			}
 
 			annotate_nodiscard
@@ -1086,9 +1079,10 @@ namespace core
 
 			template <typename Component, typename ...Ps>
 			annotate_nodiscard
-			Component * try_emplace(Key key, Ps && ...ps)
+			Component * emplace(Key key, Ps && ...ps)
 			{
-				debug_assert(!contains(key));
+				if (!debug_assert(find(key) == bucket_t(-1)))
+					return nullptr;
 
 				const auto bucket = try_place(key);
 				if (bucket == bucket_t(-1))
@@ -1099,7 +1093,7 @@ namespace core
 
 			template <typename Component, typename ...Ps>
 			annotate_nodiscard
-			Component * try_replace(Key key, Ps && ... ps)
+			Component * replace(Key key, Ps && ... ps)
 			{
 				auto bucket = find(key);
 				if (bucket == bucket_t(-1))
@@ -1116,37 +1110,33 @@ namespace core
 				return add_impl<Component>(bucket, key, std::forward<Ps>(ps)...);
 			}
 
-			template <typename K>
-			annotate_nodiscard
-			bool try_remove(K key)
+			void erase(const_iterator it)
 			{
-				const auto bucket = find(key);
-				if (bucket == bucket_t(-1))
-					return false;
+				if (!debug_assert(it.bucket_ != bucket_t(-1)))
+					return;
 
-				remove_impl(bucket);
-
-				return true;
+				remove_impl(it.bucket_);
 			}
 
-			template <typename K, typename F>
-			auto call(K key, F && func) ->
+			template <typename F>
+			auto call(const_iterator it, F && func) ->
 				decltype(detail::call_impl_func(std::forward<F>(func), std::declval<Key>(), std::declval<mpl::car<component_types> &>()))
 			{
-				const auto bucket = find(key);
-				const auto index = slots()[bucket].get_index();
+				debug_assert(it.bucket_ != bucket_t(-1));
 
-				switch (slots()[bucket].get_type())
+				const auto index = slots()[it.bucket_].get_index();
+
+				switch (slots()[it.bucket_].get_type())
 				{
 #define CASE(n) case (n):	  \
 					return call_impl(mpl::index_constant<((n) < component_types::size ? (n) : std::size_t(-1))>{}, \
-					                 keys()[bucket], index, std::forward<F>(func))
+					                 keys()[it.bucket_], index, std::forward<F>(func))
 
 					PP_EXPAND_128(CASE, 0);
 #undef CASE
 				default:
 					return call_impl(mpl::index_constant<std::size_t(-1)>{},
-					                 keys()[bucket], index, std::forward<F>(func));
+					                 keys()[it.bucket_], index, std::forward<F>(func));
 				}
 			}
 
@@ -1282,6 +1272,10 @@ namespace core
 
 				return detail::call_impl_func(std::forward<F>(func), key, array[index]);
 			}
+
+			template <typename K>
+			annotate_nodiscard
+			friend const_iterator find(const this_type & x, K key) { return const_iterator(x.find(key)); }
 		};
 	}
 }
