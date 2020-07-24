@@ -515,12 +515,6 @@ namespace
 
 		const engine::hid::Input & input;
 
-		void operator () (utility::monostate)
-		{
-			// this device axis is not bound to any filter
-			debug_printline(engine::hid_channel, "no filter for axis move");
-		}
-
 		void operator () (const AxisMove & x)
 		{
 			callback(x.command_x, static_cast<float>(input.getPosition().x), data);
@@ -541,12 +535,6 @@ namespace
 		void * data;
 
 		const engine::hid::Input & input;
-
-		void operator () (utility::monostate)
-		{
-			// this device axis is not bound to any filter
-			debug_printline(engine::hid_channel, "no filter for ", core::value_table<engine::hid::Input::Axis>::get_key(input.getAxis()));
-		}
 
 		void operator () (const AxisTilt & x)
 		{
@@ -573,12 +561,6 @@ namespace
 		void * data;
 
 		const engine::hid::Input & input;
-
-		void operator () (utility::monostate)
-		{
-			// this device button is not bound to any filter
-			debug_printline(engine::hid_channel, "no filter for ", core::value_table<engine::hid::Input::Button>::get_key(input.getButton()));
-		}
 
 		void operator () (const ButtonPress & x)
 		{
