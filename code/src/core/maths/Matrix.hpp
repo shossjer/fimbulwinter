@@ -300,6 +300,8 @@ namespace core
 		using Matrix2x2f = Matrix<2, 2, float>;
 		using Matrix2x4d = Matrix<2, 4, double>;
 		using Matrix2x4f = Matrix<2, 4, float>;
+		using Matrix3x3d = Matrix<3, 3, double>;
+		using Matrix3x3f = Matrix<3, 3, float>;
 		using Matrix3x4d = Matrix<3, 4, double>;
 		using Matrix3x4f = Matrix<3, 4, float>;
 		using Matrix4x4d = Matrix<4, 4, double>;

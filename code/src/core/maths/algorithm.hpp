@@ -47,8 +47,77 @@ namespace core
 		struct algorithm
 		{
 			template <typename T>
+			void compose(Matrix<4, 4, T> & m, const Vector<3, T> & t, const Matrix<3, 3, T> & r, const Vector<3, T> & s)
+			{
+				// m = t * r * s
+
+				// r * s
+				m.values[0] = r.values[0] * s.values[0];
+				m.values[1] = r.values[1] * s.values[0];
+				m.values[2] = r.values[2] * s.values[0];
+				m.values[3] = T{};
+				m.values[4] = r.values[3] * s.values[1];
+				m.values[5] = r.values[4] * s.values[1];
+				m.values[6] = r.values[5] * s.values[1];
+				m.values[7] = T{};
+				m.values[8] = r.values[6] * s.values[2];
+				m.values[9] = r.values[7] * s.values[2];
+				m.values[10] = r.values[8] * s.values[2];
+				m.values[11] = T{};
+
+				// t
+				m.values[12] = t.values[0];
+				m.values[13] = t.values[1];
+				m.values[14] = t.values[2];
+				m.values[15] = T{1};
+			}
+
+			template <typename T>
+			void decompose(const Matrix<4, 4, T> & m, Vector<3, T> & t, Matrix<3, 3, T> & r, Vector<3, T> & s)
+			{
+				// m = t * r * s
+
+				// t
+				const auto tx = m.values[12];
+				const auto ty = m.values[13];
+				const auto tz = m.values[14];
+				t.set(tx, ty, tz);
+				// s
+				const auto xx = m.values[0];
+				const auto xy = m.values[1];
+				const auto xz = m.values[2];
+				const auto yx = m.values[4];
+				const auto yy = m.values[5];
+				const auto yz = m.values[6];
+				const auto zx = m.values[8];
+				const auto zy = m.values[9];
+				const auto zz = m.values[10];
+
+				const auto sx = std::sqrt(xx * xx + xy * xy + xz * xz);
+				const auto sy = std::sqrt(yx * yx + yy * yy + yz * yz);
+				const auto sz = std::sqrt(zx * zx + zy * zy + zz * zz);
+				s.set(sx, sy, sz);
+				// r
+				const auto rxx = xx / sx;
+				const auto rxy = xy / sx;
+				const auto rxz = xz / sx;
+				const auto ryx = yx / sy;
+				const auto ryy = yy / sy;
+				const auto ryz = yz / sy;
+				const auto rzx = zx / sz;
+				const auto rzy = zy / sz;
+				const auto rzz = zz / sz;
+
+				r.set(rxx, ryx, rzx,
+				      rxy, ryy, rzy,
+				      rxz, ryz, rzz);
+			}
+
+			template <typename T>
 			void decompose(const Matrix<4, 4, T> & m, Vector<3, T> & t, Quaternion<T> & r, Vector<3, T> & s)
 			{
+				// m = t * r * s
+
 				// t
 				const auto tx = m.values[12];
 				const auto ty = m.values[13];
@@ -198,6 +267,18 @@ namespace core
 		////////////////////////////////////////////////////////////////////////
 		template <std::size_t D, typename T>
 		Scalar<T> dot(const Plane<D, T> & plane, const Vector<D, T> & point);
+
+		template <typename T>
+		void compose(Matrix<4, 4, T> & m, const Vector<3, T> & t, const Matrix<3, 3, T> & r, const Vector<3, T> & s)
+		{
+			algorithm{}.compose(m, t, r, s);
+		}
+
+		template <typename T>
+		void decompose(const Matrix<4, 4, T> & m, Vector<3, T> & t, Matrix<3, 3, T> & r, Vector<3, T> & s)
+		{
+			algorithm{}.decompose(m, t, r, s);
+		}
 
 		template <typename T>
 		void decompose(const Matrix<4, 4, T> & m, Vector<3, T> & t, Quaternion<T> & r, Vector<3, T> & s)
