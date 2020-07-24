@@ -27,39 +27,50 @@ TEST_CASE("multicollection", "[core][container]")
 	core::container::MultiCollection
 	<
 		unsigned,
-		100,
-		std::array<float, 10>,
-		std::array<int, 10>,
-		std::array<long long, 10>,
-		std::array<char, 10>
+		utility::static_storage_traits<101>,
+		utility::static_storage<10, float>,
+		utility::static_storage<10, int>,
+		utility::static_storage<10, long long>,
+		utility::static_storage<10, char>
 	> collection;
 
-	CHECK(!collection.contains(7u));
-	CHECK(!collection.contains<float>(7u));
-	CHECK(!collection.contains<int>(7u));
-	CHECK(!collection.contains<long long>(7u));
-	CHECK(!collection.contains<char>(7u));
+	SECTION("is empty by default")
+	{
+		const auto it = find(collection, 7u);
+		CHECK(it == collection.end());
+	}
 
-	collection.emplace<int>(7u, 2);
-	collection.emplace<long long>(7u, 3ll);
-	REQUIRE(collection.contains(7u));
-	CHECK(!collection.contains<float>(7u));
-	CHECK(!collection.contains<char>(7u));
-	REQUIRE(collection.contains<int>(7u));
-	REQUIRE(collection.contains<long long>(7u));
-	CHECK(collection.get<int>(7u) == 2);
-	CHECK(collection.get<long long>(7u) == 3ll);
+	CHECK(collection.emplace<int>(7u, 2));
+	CHECK(collection.emplace<long long>(7u, 3ll));
+	const auto seven_it = find(collection, 7u);
+	REQUIRE(seven_it != collection.end());
+	CHECK_FALSE(collection.contains<float>(seven_it));
+	CHECK_FALSE(collection.contains<char>(seven_it));
+	CHECK(collection.contains<int>(seven_it));
+	CHECK(collection.contains<long long>(seven_it));
+	CHECK_FALSE(collection.get<float>(seven_it));
+	CHECK_FALSE(collection.get<char>(seven_it));
+	REQUIRE(collection.get<int>(seven_it));
+	CHECK(*collection.get<int>(seven_it) == 2);
+	REQUIRE(collection.get<long long>(seven_it));
+	CHECK(*collection.get<long long>(seven_it) == 3ll);
 
-	collection.emplace<int>(5u, 5);
-	collection.emplace<char>(5u, 'g');
-	CHECK(collection.contains(7u));
-	REQUIRE(collection.contains(5u));
-	CHECK(!collection.contains<float>(5u));
-	CHECK(!collection.contains<long long>(5u));
-	REQUIRE(collection.contains<int>(5u));
-	REQUIRE(collection.contains<char>(5u));
-	CHECK(collection.get<int>(5u) == 5);
-	CHECK(collection.get<char>(5u) == 'g');
+	CHECK(collection.emplace<int>(5u, 5));
+	CHECK(collection.emplace<char>(5u, 'g'));
+	const auto five_it = find(collection, 5u);
+	REQUIRE(five_it != collection.end());
+	CHECK_FALSE(collection.contains<float>(five_it));
+	CHECK_FALSE(collection.contains<long long>(five_it));
+	CHECK(collection.contains<int>(five_it));
+	CHECK(collection.contains<char>(five_it));
+	CHECK_FALSE(collection.get<float>(five_it));
+	CHECK_FALSE(collection.get<long long>(five_it));
+	REQUIRE(collection.get<int>(five_it));
+	CHECK(*collection.get<int>(five_it) == 5);
+	REQUIRE(collection.get<char>(five_it));
+	CHECK(*collection.get<char>(five_it) == 'g');
+
+	REQUIRE(find(collection, 7u) == seven_it);
 
 	for (auto && x : collection.get<int>())
 	{
@@ -69,54 +80,23 @@ TEST_CASE("multicollection", "[core][container]")
 	}
 
 	{
-		const int val_int = collection.call<int>(7u, get_value{});
-		const int val_long_long = collection.call<long long>(7u, get_value{});
-		CHECK(val_int == 2);
-		CHECK(val_long_long == 3);
-		CHECK_THROWS(collection.call<char>(5u, get_value{}));
-	}
-	{
-		const int val_int = collection.call(7u, get_value{});
-		CHECK(val_int == 2);
-	}
-	{
-		collection.call_all(7u, set_value{});
-	}
-	{
-		const int val_int = collection.try_call<int>(7u, get_value{});
-		const int val_long_long = collection.try_call<long long>(7u, get_value{});
-		const int val_invalid_id = collection.try_call<int>(3u, get_value{});
-		const int val_invalid_type = collection.try_call<char>(7u, get_value{});
-		CHECK(val_int == 5);
-		CHECK(val_long_long == 5);
-		CHECK(val_invalid_id == -1);
-		CHECK(val_invalid_type == -1);
-	}
-	{
-		const int val_int = collection.try_call(7u, get_value{});
-		const int val_invalid_id = collection.try_call(3u, get_value{});
-		CHECK(val_int == 5);
-		CHECK(val_invalid_id == -1);
-	}
-	{
-		collection.try_call_all(7u, set_value{});
-		collection.try_call_all(3u, set_value{});
+		collection.call(seven_it, set_value{});
 	}
 
-	collection.remove<int>(7u);
-	CHECK(collection.contains(7u));
-	CHECK(!collection.contains<int>(7u));
-	CHECK(!collection.contains<float>(7u));
-	CHECK(!collection.contains<char>(7u));
-	CHECK(collection.contains<long long>(7u));
+	collection.erase<int>(seven_it);
+	CHECK(find(collection, 7u) == seven_it);
+	CHECK_FALSE(collection.contains<int>(seven_it));
+	CHECK_FALSE(collection.contains<float>(seven_it));
+	CHECK_FALSE(collection.contains<char>(seven_it));
+	CHECK(collection.contains<long long>(seven_it));
 
-	collection.remove(5u);
-	CHECK(collection.contains(7u));
-	CHECK(!collection.contains(5u));
-	CHECK(!collection.contains<float>(5u));
-	CHECK(!collection.contains<int>(5u));
-	CHECK(!collection.contains<long long>(5u));
-	CHECK(!collection.contains<char>(5u));
+	collection.erase(five_it);
+	CHECK(find(collection, 7u) == seven_it);
+	CHECK(find(collection, 5u) != five_it);
+	CHECK_FALSE(collection.contains<float>(five_it));
+	CHECK_FALSE(collection.contains<int>(five_it));
+	CHECK_FALSE(collection.contains<long long>(five_it));
+	CHECK_FALSE(collection.contains<char>(five_it));
 }
 
 TEST_CASE("collection heap_storage", "[core][container]")

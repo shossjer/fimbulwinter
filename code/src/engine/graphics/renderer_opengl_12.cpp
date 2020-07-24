@@ -548,9 +548,9 @@ namespace
 	core::container::MultiCollection
 	<
 		engine::Entity,
-		201,
-		std::array<highlighted_t, 100>,
-		std::array<selected_t, 100>
+		utility::heap_storage_traits,
+		utility::heap_storage<highlighted_t>,
+		utility::heap_storage<selected_t>
 	>
 	selected_components;
 }
@@ -760,22 +760,36 @@ namespace
 
 				void operator () (MessageMakeDehighlighted && x)
 				{
-					selected_components.try_remove<highlighted_t>(x.entity);
+					const auto selected_it = find(selected_components, x.entity);
+					if (selected_it != selected_components.end())
+					{
+						if (selected_components.contains<highlighted_t>(selected_it))
+						{
+							selected_components.erase<highlighted_t>(selected_it);
+						}
+					}
 				}
 
 				void operator () (MessageMakeDeselect && x)
 				{
-					selected_components.try_remove<selected_t>(x.entity);
+					const auto selected_it = find(selected_components, x.entity);
+					if (selected_it != selected_components.end())
+					{
+						if (selected_components.contains<selected_t>(selected_it))
+						{
+							selected_components.erase<selected_t>(selected_it);
+						}
+					}
 				}
 
 				void operator () (MessageMakeHighlighted && x)
 				{
-					selected_components.emplace<highlighted_t>(x.entity);
+					debug_verify(selected_components.emplace<highlighted_t>(x.entity));
 				}
 
 				void operator () (MessageMakeSelect && x)
 				{
-					selected_components.emplace<selected_t>(x.entity);
+					debug_verify(selected_components.emplace<selected_t>(x.entity));
 				}
 
 				void operator () (MessageRemove && x)
@@ -1105,8 +1119,9 @@ namespace
 			glLoadMatrix(modelview_matrix);
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity.entity());
-			const bool is_selected = selected_components.contains<selected_t>(entity.entity());
+			const auto selected_it = find(selected_components, entity.entity());
+			const bool is_highlighted = selected_it != selected_components.end() && selected_components.contains<highlighted_t>(selected_it);
+			const bool is_selected = selected_it != selected_components.end() && selected_components.contains<selected_t>(selected_it);
 
 			if (is_highlighted)
 				glColor(highlighted_color);
