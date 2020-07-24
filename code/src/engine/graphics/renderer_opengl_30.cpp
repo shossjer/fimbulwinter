@@ -76,7 +76,7 @@ namespace engine
 	}
 }
 
-static_hashes("box", "cuboid", "dude", "my_png", "photo");
+static_hashes("box", "cuboid", "dude", "my_png", "photo", "__entity__");
 
 namespace
 {
@@ -279,6 +279,9 @@ namespace
 				debug_printline("program entity failed to link with: ", buffer);
 			}
 
+			if (!debug_assert(glGetError() == GL_NO_ERROR))
+				return -1;
+
 			const auto index = std::find(assets, assets + count, asset) - assets;
 			if (index < count)
 			{
@@ -294,8 +297,6 @@ namespace
 			programs[index] = p;
 			vertices[index] = vs;
 			fragments[index] = fs;
-
-			debug_assert(glGetError() == GL_NO_ERROR);
 
 			return p;
 		}
@@ -1259,6 +1260,49 @@ namespace
 		return buffer;
 	}
 
+	constexpr const auto entity_shader = engine::Asset("__entity__");
+
+	void initialize_builtin_shaders()
+	{
+		ShaderData entity_shader_data;
+		entity_shader_data.inputs.push_back({"in_vertex", 4});
+		entity_shader_data.inputs.push_back({"in_color", 5});
+		entity_shader_data.vertex_source = R"###(
+#version 130
+
+uniform mat4 projection_matrix;
+uniform mat4 modelview_matrix;
+
+in vec3 in_vertex;
+in vec4 in_color;
+
+out vec4 color;
+
+void main()
+{
+	gl_Position = projection_matrix * modelview_matrix * vec4(in_vertex.xyz, 1.f);
+	color = in_color;
+}
+)###";
+		entity_shader_data.outputs.push_back({"out_framebuffer", 0});
+		entity_shader_data.outputs.push_back({"out_entitytex", 1});
+		entity_shader_data.fragment_source = R"###(
+#version 130
+
+in vec4 color;
+
+out vec4 out_framebuffer;
+out vec4 out_entitytex;
+
+void main()
+{
+	out_framebuffer = color;
+	out_entitytex = color;
+}
+)###";
+		queue_shaders.try_emplace(entity_shader, std::move(entity_shader_data));
+	}
+
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
@@ -1283,6 +1327,8 @@ namespace
 		glGenRenderbuffers(2, entitybuffers);
 		glGenTextures(1, &entitytexture);
 
+		initialize_builtin_shaders();
+
 		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 
@@ -1301,7 +1347,6 @@ namespace
 		if (framebuffer_width == 0 || framebuffer_height == 0)
 			return;
 
-		const GLint p_entity = shader_manager.get(engine::Asset("res/gfx/entity.130.glsl"));
 		const GLint p_tex = shader_manager.get(engine::Asset("res/gfx/texture.130.glsl"));
 
 		glStencilMask(0x000000ff);
@@ -1317,72 +1362,80 @@ namespace
 		//  entity buffer
 		//
 		////////////////////////////////////////
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
-		glViewport(0, 0, framebuffer_width, framebuffer_height);
-		glClearColor(0.f, 0.f, 0.f, 0.f); // null entity
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		debug_assert(glGetError() == GL_NO_ERROR);
-
-		glDisable(GL_LIGHTING);
-		glEnable(GL_DEPTH_TEST);
-
-		for (const auto & display : displays.get<display_t>())
+		const auto entity_program = shader_manager.get(entity_shader);
+		if (debug_assert(entity_program >= 0))
 		{
-			glViewport(display.x, display.y, display.width, display.height);
-
-		// setup 3D
-		glMatrixMode(GL_PROJECTION);
-		glLoadMatrix(display.projection_3d);
-		glMatrixMode(GL_MODELVIEW);
-		modelview_matrix.load(display.view_3d);
-
-		if (p_entity >= 0)
-		{
-		glUseProgram(p_entity);
-		glUniform(p_entity, "projection_matrix", display.projection_3d);
-		for (const auto & component : selectable_components.get<selectable_character_t>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			glUniform(p_entity, "modelview_matrix", modelview_matrix.top());
-
-			const auto color_location = 5;// glGetAttribLocation(p_tex, "status_flags");
-			glVertexAttrib4f(color_location, component.selectable_color[0] / 255.f, component.selectable_color[1] / 255.f, component.selectable_color[2] / 255.f, component.selectable_color[3] / 255.f);
-
-			const auto vertex_location = 4;// glGetAttribLocation(p_tex, "in_vertex");
-			glEnableVertexAttribArray(vertex_location);
-			glVertexAttribPointer(
-				vertex_location,
-				3,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				component.object->vertices.data());
-			glDrawElements(
-				GL_TRIANGLES,
-				debug_cast<GLsizei>(component.mesh->triangles.count()),
-				GL_UNSIGNED_SHORT, // TODO
-				component.mesh->triangles.data());
-			glDisableVertexAttribArray(vertex_location);
-
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
+			glViewport(0, 0, framebuffer_width, framebuffer_height);
+			glClearColor(0.f, 0.f, 0.f, 0.f); // null entity
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			debug_assert(glGetError() == GL_NO_ERROR);
 
-			modelview_matrix.pop();
+			glDisable(GL_LIGHTING);
+			glEnable(GL_DEPTH_TEST);
+
+			glUseProgram(entity_program);
+
+			for (const auto & display : displays.get<display_t>())
+			{
+				glViewport(display.x, display.y, display.width, display.height);
+
+				// setup 3D
+				glMatrixMode(GL_PROJECTION);
+				glLoadMatrix(display.projection_3d);
+				glUniform(entity_program, "projection_matrix", display.projection_3d);
+				glMatrixMode(GL_MODELVIEW);
+				modelview_matrix.load(display.view_3d);
+
+				debug_assert(glGetError() == GL_NO_ERROR);
+
+				for (const auto & component : selectable_components.get<selectable_character_t>())
+				{
+					modelview_matrix.push();
+					modelview_matrix.mult(component.object->modelview);
+					glUniform(entity_program, "modelview_matrix", modelview_matrix.top());
+
+					const auto vertex_location = 4;
+					glEnableVertexAttribArray(vertex_location);
+					glVertexAttribPointer(
+						vertex_location,
+						3, // todo support 2d coordinates?
+						GL_FLOAT,
+						GL_FALSE,
+						0,
+						component.object->vertices.data());
+
+					const auto color_location = 5;
+					glVertexAttrib4f(color_location, component.selectable_color[0] / 255.f, component.selectable_color[1] / 255.f, component.selectable_color[2] / 255.f, component.selectable_color[3] / 255.f);
+
+					glDrawElements(
+						GL_TRIANGLES,
+						debug_cast<GLsizei>(component.mesh->triangles.count()),
+						GL_UNSIGNED_SHORT, // TODO
+						component.mesh->triangles.data());
+
+					glDisableVertexAttribArray(vertex_location);
+
+					debug_assert(glGetError() == GL_NO_ERROR);
+
+					modelview_matrix.pop();
+				}
+
+				// setup 2D
+				glMatrixMode(GL_PROJECTION);
+				glLoadMatrix(display.projection_2d);
+				glUniform(entity_program, "projection_matrix", display.projection_2d);
+				glMatrixMode(GL_MODELVIEW);
+				modelview_matrix.load(display.view_2d);
+			}
+
+			glUseProgram(0);
+
+			glDisable(GL_DEPTH_TEST);
+			glEnable(GL_LIGHTING);
+
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		}
-		}
-
-		// setup 2D
-		glMatrixMode(GL_PROJECTION);
-		glLoadMatrix(display.projection_2d);
-		glMatrixMode(GL_MODELVIEW);
-		modelview_matrix.load(display.view_2d);
-
-		}
-
-		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_LIGHTING);
-
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
 
 		glReadPixels(0, 0, framebuffer_width, framebuffer_height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, entitypixels.data());
