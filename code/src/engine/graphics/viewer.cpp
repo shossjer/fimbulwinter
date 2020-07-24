@@ -348,8 +348,6 @@ namespace
 	{
 		engine::graphics::viewer::translation && data;
 
-		void operator () (utility::monostate)
-		{}
 		void operator () (Camera & x)
 		{
 			x.translation = data.v;
