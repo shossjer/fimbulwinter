@@ -99,7 +99,7 @@ namespace camera
 	// TODO: make thread safe when needed
 	void add(simulation & simulation, engine::Entity id, core::maths::Vector3f position, bool bounded)
 	{
-		debug_verify(components.try_emplace<Camera>(id, Camera{ bounded, position }));
+		debug_verify(components.emplace<Camera>(id, Camera{ bounded, position }));
 
 		// snap new camera to bounds
 		update(simulation, id, core::maths::Vector3f{ 0.f, 0.f, 0.f });
@@ -108,9 +108,13 @@ namespace camera
 	// TODO: make thread safe when needed
 	void update(simulation &, engine::Entity id, core::maths::Vector3f movement)
 	{
-		const auto camera = components.try_get<Camera>(id);
-		if (!debug_verify(camera != nullptr))
-			return;
+		const auto component_it = find(components, id);
+		if (!debug_verify(component_it != components.end()))
+			return; // error
+
+		auto * const camera = components.get<Camera>(component_it);
+		if (!debug_verify(camera))
+			return; // error
 
 		camera->update(movement);
 
@@ -238,28 +242,43 @@ namespace physics
 			{
 				void operator () (MessageAddObject && x)
 				{
-					debug_assert(!objects.contains(x.entity));
-					debug_verify(objects.try_emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat)));
+					const auto object_it = find(objects, x.entity);
+					if (!debug_assert(object_it != objects.end()))
+						return; // error
+
+					debug_verify(objects.emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat)));
 				}
 				void operator () (MessageRemove && x)
 				{
-					debug_assert(objects.contains(x.entity));
-					objects.remove(x.entity);
+					const auto object_it = find(objects, x.entity);
+					if (!debug_assert(object_it != objects.end()))
+						return; // error
+
+					objects.erase(object_it);
 				}
 				void operator () (MessageUpdateMovement && x)
 				{
-					debug_assert(objects.contains(x.entity));
-					objects.call(x.entity, update_movement{std::move(x.movement.vec)});
+					const auto object_it = find(objects, x.entity);
+					if (!debug_assert(object_it != objects.end()))
+						return; // error
+
+					objects.call(object_it, update_movement{std::move(x.movement.vec)});
 				}
 				void operator () (MessageUpdateOrientationMovement && x)
 				{
-					debug_assert(objects.contains(x.entity));
-					objects.call(x.entity, update_orientation_movement{std::move(x.movement.quaternion)});
+					const auto object_it = find(objects, x.entity);
+					if (!debug_assert(object_it != objects.end()))
+						return; // error
+
+					objects.call(object_it, update_orientation_movement{std::move(x.movement.quaternion)});
 				}
 				void operator () (MessageUpdateTransform && x)
 				{
-					debug_assert(objects.contains(x.entity));
-					objects.call(x.entity, update_transform{std::move(x.transform)});
+					const auto object_it = find(objects, x.entity);
+					if (!debug_assert(object_it != objects.end()))
+						return; // error
+
+					objects.call(object_it, update_transform{std::move(x.transform)});
 				}
 			};
 			visit(ProcessMessage{}, std::move(entity_message));

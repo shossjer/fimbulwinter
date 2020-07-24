@@ -129,11 +129,11 @@ TEST_CASE("collection heap_storage", "[core][container]")
 	>
 	collection;
 
-	CHECK(collection.try_emplace<int>(1u, 1));
-	CHECK(collection.try_emplace<int>(2u, 2));
-	CHECK(collection.try_emplace<int>(3u, 3));
-	CHECK(collection.try_emplace<int>(4u, 4));
-	CHECK(collection.try_emplace<int>(5u, 5));
+	CHECK(collection.emplace<int>(1u, 1));
+	CHECK(collection.emplace<int>(2u, 2));
+	CHECK(collection.emplace<int>(3u, 3));
+	CHECK(collection.emplace<int>(4u, 4));
+	CHECK(collection.emplace<int>(5u, 5));
 
 	SECTION("can get the key for values")
 	{
@@ -170,15 +170,15 @@ TEST_CASE("collection static_storage", "[core][container]")
 	>
 	collection;
 
-	CHECK(collection.try_emplace<int>(1u, 1));
-	CHECK(collection.try_emplace<int>(2u, 2));
-	CHECK(collection.try_emplace<int>(3u, 3));
-	CHECK(collection.try_emplace<int>(4u, 4));
-	CHECK(collection.try_emplace<int>(5u, 5));
+	CHECK(collection.emplace<int>(1u, 1));
+	CHECK(collection.emplace<int>(2u, 2));
+	CHECK(collection.emplace<int>(3u, 3));
+	CHECK(collection.emplace<int>(4u, 4));
+	CHECK(collection.emplace<int>(5u, 5));
 
 	SECTION("fails to emplace when full")
 	{
-		CHECK(!collection.try_emplace<int>(6u, 6));
+		CHECK(!collection.emplace<int>(6u, 6));
 	}
 
 	SECTION("can get the key for values")
