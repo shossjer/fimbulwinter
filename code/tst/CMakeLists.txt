@@ -54,6 +54,7 @@ set(FILES_UTILITY
 	tst/utility/preprocessor/for_each.cpp
 	tst/utility/property.cpp
 	tst/utility/ranges.cpp
+	tst/utility/regex.cpp
 	tst/utility/span.cpp
 	tst/utility/storage.cpp
 	tst/utility/storing.cpp

@@ -165,6 +165,7 @@ set(HEADERS_UTILITY
 	src/utility/profiling.hpp
 	src/utility/property.hpp
 	src/utility/ranges.hpp
+	src/utility/regex.hpp
 	src/utility/scalar_alloc.hpp
 	src/utility/span.hpp
 	src/utility/spinlock.hpp
