@@ -1,6 +1,4 @@
-
-#ifndef CORE_SERIALIZATION_HPP
-#define CORE_SERIALIZATION_HPP
+#pragma once
 
 #include "core/debug.hpp"
 
@@ -168,7 +166,6 @@ namespace core
 	template <typename T>
 	using has_lookup_table = typename has_lookup_table_impl<T>::type;
 
-	// todo separate utilities from customization points; `try_assign` is a utility, `for_each` is a customization point
 	template <typename T, typename F>
 	auto for_each(T & x, std::size_t count, F && f)
 		-> decltype(x.resize(count), bool())
@@ -183,73 +180,119 @@ namespace core
 		return true;
 	}
 
-	template <typename T,
-	          REQUIRES((std::is_enum<T>::value)),
-	          REQUIRES((core::has_lookup_table<T>::value))>
-	bool assign_string(T & x, utility::string_view_utf8 str)
+	namespace detail
 	{
-		if (!core::value_table<T>::has(str.data()))
-			return debug_fail("unknown enum value");
+		template <typename T, typename F>
+		bool for_each(mpl::index_constant<std::size_t(-1)>, T &, std::size_t, F &&)
+		{
+			return false;
+		}
 
-		x = core::value_table<T>::get(str.data());
-		return true;
+		template <std::size_t I, typename T, typename F>
+		bool for_each(mpl::index_constant<I>, T & x, std::size_t count, F && f)
+		{
+			return core::for_each(core::member_table<T>::template get<I>(x), count, std::forward<F>(f));
+		}
 	}
-	template <typename T>
-	auto assign_string_nonenum(T & x, utility::string_view_utf8 str, int)
-		-> decltype(x = str, bool())
-	{
-		x = str;
-		return true;
-	}
-	template <typename T>
-	auto assign_string_nonenum(T & x, utility::string_view_utf8 str, float)
-		-> decltype(x = T(str), bool())
-	{
-		x = T(str);
-		return true;
-	}
-	template <typename T>
-	bool assign_string_nonenum(T & /*x*/, utility::string_view_utf8 /*str*/, ...)
-	{
-		constexpr auto type_name = utility::type_name<T>();
-		debug_unreachable("`", type_name, "` cannot be assigned a `string_view_utf8`, try overload `assign_string`");
-		static_cast<void>(type_name);
-	}
-	template <typename T,
-	          REQUIRES((!std::is_enum<T>::value))>
-	bool assign_string(T & x, utility::string_view_utf8 str)
-	{
-		return assign_string_nonenum(x, str, 0);
-	}
-
-	template <typename T>
-	T & value(utility::optional<T> & x)
-	{
-		return x.has_value() ? x.value() : x.emplace();
-	}
-	template <typename T>
-	T & value(T & x) { return x; }
 
 	template <std::size_t I, typename T, typename F>
-	void assign(T & x, F && f)
+	bool for_each(T & x, std::size_t count, F && f)
 	{
-		member_table<T>::template get<I>(x) = std::forward<F>(f)();
+		return detail::for_each(mpl::index_constant<I>{}, x, count, std::forward<F>(f));
 	}
 
 	namespace detail
 	{
-		template <typename T, typename F>
-		bool try_assign_impl(mpl::index_constant<std::size_t(-1)>, T &, F &&) { return false; }
-		template <std::size_t I, typename T, typename F>
-		bool try_assign_impl(mpl::index_constant<I>, T & x, F && f)
+		// todo implement invoke and simplify object
+		template <typename T, typename Object,
+		          REQUIRES((std::is_scalar<mpl::remove_cvref_t<T>>::value)),
+		          REQUIRES((std::is_scalar<mpl::remove_cvref_t<decltype(std::declval<Object>()())>>::value))>
+		auto serialize(T & x, Object && object, int)
+			-> decltype(x = object(), bool())
 		{
-			assign<I>(x, std::forward<F>(f));
-
+			x = debug_cast<T>(object());
 			return true;
 		}
-	}
-	template <std::size_t I, typename T, typename F>
-	bool try_assign(T & x, F && f) { return detail::try_assign_impl(mpl::index_constant<I>{}, x, std::forward<F>(f)); }
-}
 
-#endif /* CORE_SERIALIZATION_HPP */
+		template <typename T, typename Object>
+		auto serialize(T & x, Object && object, float)
+			-> decltype(x = object(), bool())
+		{
+			x = object();
+			return true;
+		}
+
+		template <typename T, typename Object,
+		          REQUIRES((std::is_scalar<mpl::remove_cvref_t<T>>::value)),
+		          REQUIRES((std::is_scalar<mpl::remove_cvref_t<Object>>::value))>
+		auto serialize(T & x, Object && object, int)
+			-> decltype(x = std::forward<Object>(object), bool())
+		{
+			x = debug_cast<T>(std::forward<Object>(object));
+			return true;
+		}
+
+		template <typename T, typename Object>
+		auto serialize(T & x, Object && object, float)
+			-> decltype(x = std::forward<Object>(object), bool())
+		{
+			x = std::forward<Object>(object);
+			return true;
+		}
+
+		template <typename T, typename Object>
+		bool serialize(T &, Object &&, ...)
+		{
+			constexpr auto value_name = utility::type_name<T>();
+			constexpr auto object_name = utility::type_name<Object>();
+			debug_unreachable("cannot serialize value of type '", value_name, "' to/from from object of type '", object_name, "', maybe you are missing an overload to 'serialize'?");
+		}
+	}
+
+	template <typename T, typename Object>
+	bool serialize(T & x, Object && object)
+	{
+		return detail::serialize(x, std::forward<Object>(object), 0);
+	}
+
+	namespace detail
+	{
+		template <typename T, typename Object>
+		bool serialize(mpl::index_constant<std::size_t(-1)>, T &, Object &&)
+		{
+			return false;
+		}
+
+		template <std::size_t I, typename T, typename Object>
+		bool serialize(mpl::index_constant<I>, T & x, Object && object)
+		{
+			return core::serialize(core::member_table<T>::template get<I>(x), std::forward<Object>(object));
+		}
+	}
+
+	template <std::size_t I, typename T, typename Object>
+	bool serialize(T & x, Object && object)
+	{
+		return detail::serialize(mpl::index_constant<I>{}, x, std::forward<Object>(object));
+	}
+
+	template <typename T, typename Object,
+	          REQUIRES((std::is_scalar<mpl::remove_cvref_t<T>>::value)),
+	          REQUIRES((std::is_scalar<mpl::remove_cvref_t<decltype(std::declval<Object>()())>>::value))>
+	auto serialize(utility::optional<T> & x, Object && object)
+		-> decltype(x = object(), bool())
+	{
+		x = debug_cast<T>(object());
+		return true;
+	}
+
+	template <typename T, typename Object,
+	          REQUIRES((std::is_scalar<mpl::remove_cvref_t<T>>::value)),
+	          REQUIRES((std::is_scalar<mpl::remove_cvref_t<Object>>::value))>
+	auto serialize(utility::optional<T> & x, Object && object)
+		-> decltype(x = std::forward<Object>(object), bool())
+	{
+		x = debug_cast<T>(std::forward<Object>(object));
+		return true;
+	}
+}
