@@ -1,6 +1,4 @@
-
-#ifndef CORE_SHADERSTRUCTURER_HPP
-#define CORE_SHADERSTRUCTURER_HPP
+#pragma once
 
 #include "core/BufferedStream.hpp"
 #include "core/debug.hpp"
@@ -122,8 +120,7 @@ namespace core
 			static_assert(core::member_table<T>::has("name"), "");
 			if (!core::member_table<T>::call("name", x.back(), [&](auto & y){ return parse(y); }))
 			{
-				debug_printline("failed to parse 'name' in '", stream.filepath(), "'");
-				return false;
+				return debug_fail("failed to parse 'name' in '", stream.filepath(), "'");
 			}
 
 			debug_verify(parse(whitespace), "'name' and 'value' should be separated by whitespace in '", stream.filepath(), "'");
@@ -131,8 +128,7 @@ namespace core
 			static_assert(core::member_table<T>::has("value"), "");
 			if (!core::member_table<T>::call("value", x.back(), [&](auto & y){ return parse(y); }))
 			{
-				debug_printline("failed to parse 'value' in '", stream.filepath(), "'");
-				return false;
+				return debug_fail("failed to parse 'value' in '", stream.filepath(), "'");
 			}
 
 			return true;
@@ -261,7 +257,8 @@ namespace core
 				if (!stream.valid())
 					return false;
 			}
-			if (!assign_string(x, utility::string_view_utf8(stream.data(from), utility::unit_difference(stream.pos() - from))))
+			using core::serialize;
+			if (!serialize(x, utility::string_view_utf8(stream.data(from), utility::unit_difference(stream.pos() - from))))
 				return false;
 
 			return parse_impl(std::forward<Ps>(ps)...);
@@ -313,10 +310,10 @@ namespace core
 		template <typename T>
 		void parse_region(std::ptrdiff_t from, std::ptrdiff_t to, T & x)
 		{
-			using core::assign_string;
 			debug_assert(from == stream.pos());
 
-			if (!assign_string(x, utility::string_view_utf8(stream.data(from), utility::unit_difference(to - from))))
+			using core::serialize;
+			if (!serialize(x, utility::string_view_utf8(stream.data(from), utility::unit_difference(to - from))))
 				return; // error
 
 			stream.seek(to);
@@ -346,5 +343,3 @@ namespace core
 		}
 	};
 }
-
-#endif /* CORE_SHADERSTRUCTURER_HPP */

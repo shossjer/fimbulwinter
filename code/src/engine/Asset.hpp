@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_ASSET_HPP
-#define ENGINE_ASSET_HPP
+#pragma once
 
 #include "config.h"
 
@@ -128,6 +126,12 @@ namespace engine
 			return stream;
 		}
 	};
+
+	inline bool serialize(Asset & x, utility::string_view_utf8 object)
+	{
+		x = Asset(object);
+		return true;
+	}
 }
 
 namespace std
@@ -171,5 +175,3 @@ namespace std
 #else
 # define debug_assets(...) static_assert(true, "")
 #endif
-
-#endif /* ENGINE_ASSET_HPP */
