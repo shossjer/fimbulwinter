@@ -7,84 +7,75 @@
 
 namespace utility
 {
-	template <typename Encoding, bool Const>
+	template <typename Boundary, bool Const>
 	class string_iterator_impl
 	{
-		template <typename Encoding_, bool Const_>
+		template <typename Boundary_, bool Const_>
 		friend class string_iterator_impl;
 
-		using this_type = string_iterator_impl<Encoding, Const>;
-
-		using encoding_traits = encoding_traits<Encoding>;
+		using this_type = string_iterator_impl<Boundary, Const>;
 
 	public:
-		using difference_type = typename encoding_traits::difference_type;
-		using value_type = typename encoding_traits::code_unit;
-		using pointer = mpl::add_const_if<Const, value_type> *;
-		using reference = typename encoding_traits::code_point; // todo typename Encoding::references
-		using iterator_category = std::random_access_iterator_tag;
-		using size_type = std::size_t;
-	private:
-		using code_unit = typename encoding_traits::code_unit;
-		using code_point = typename encoding_traits::code_point;
+
+		using value_type = typename Boundary::value_type;
+		using pointer = mpl::conditional_t<Const,
+		                                   typename Boundary::const_pointer,
+		                                   typename Boundary::pointer>;
+		using reference = mpl::conditional_t<Const,
+		                                     typename Boundary::const_reference,
+		                                     typename Boundary::reference>;
+		using difference_type = typename Boundary::difference_type;
+		using iterator_category = std::random_access_iterator_tag; // todo iff unit boundary, else bidirectional
 
 	private:
+
 		pointer ptr_;
 
 	public:
+
 		string_iterator_impl() = default;
-		constexpr string_iterator_impl(pointer ptr) : ptr_(ptr) {}
+
+		explicit constexpr string_iterator_impl(pointer ptr) : ptr_(ptr) {}
+
 		template <bool ConstOther,
-		          REQUIRES((std::is_constructible<pointer,
-		                    typename string_iterator_impl<Encoding, ConstOther>::pointer>::value))>
-		string_iterator_impl(string_iterator_impl<Encoding, ConstOther> other) :
-			ptr_(other.ptr_)
+		          REQUIRES((std::is_constructible<
+			                    pointer,
+			                    typename string_iterator_impl<Boundary, ConstOther>::pointer>::value))>
+		explicit constexpr string_iterator_impl(string_iterator_impl<Boundary, ConstOther> other)
+			: ptr_(other.ptr_)
 		{}
 
 	public:
-		constexpr reference operator * () const { return encoding_traits::dereference(ptr_); }
 
-		constexpr this_type & operator ++ () { ptr_ += encoding_traits::next(ptr_); return *this; }
-		constexpr this_type operator ++ (int) { auto tmp = *this; ptr_ += encoding_traits::next(ptr_); return tmp; }
-		constexpr this_type & operator -- () { ptr_ -= encoding_traits::previous(ptr_); return *this; }
-		constexpr this_type operator -- (int) { auto tmp = *this; ptr_ -= encoding_traits::previous(ptr_); return tmp; }
+		constexpr reference operator * () const { return Boundary::dereference(ptr_); }
 
-		template <typename Difference>
-		constexpr this_type & operator += (Difference && difference)
+		constexpr this_type & operator ++ () { ptr_ += Boundary::next(ptr_); return *this; }
+		constexpr this_type operator ++ (int) { auto tmp = *this; ptr_ += Boundary::next(ptr_); return tmp; }
+		constexpr this_type & operator -- () { ptr_ -= Boundary::previous(ptr_); return *this; }
+		constexpr this_type operator -- (int) { auto tmp = *this; ptr_ -= Boundary::previous(ptr_); return tmp; }
+
+		constexpr this_type & operator += (ext::ssize count)
 		{
-			ptr_ += encoding_traits::next(ptr_, std::forward<Difference>(difference));
-			return *this;
-		}
-		template <typename Difference>
-		constexpr this_type & operator -= (Difference && difference)
-		{
-			ptr_ -= encoding_traits::previous(ptr_, std::forward<Difference>(difference));
+			ptr_ += Boundary::next(ptr_, count);
 			return *this;
 		}
 
-		template <typename Difference>
-		constexpr reference operator [] (Difference && difference) const
+		constexpr this_type & operator -= (ext::ssize count)
 		{
-			return encoding_traits::dereference(ptr_ + encoding_traits::next(ptr_, std::forward<Difference>(difference)));
+			ptr_ -= Boundary::previous(ptr_, count);
+			return *this;
+		}
+
+		constexpr reference operator [] (ext::ssize count) const
+		{
+			return Boundary::dereference(ptr_ + Boundary::next(ptr_, count));
 		}
 
 		constexpr pointer get() const { return ptr_; }
 
-		template <typename Difference>
-		friend constexpr this_type operator + (this_type x, Difference && difference)
-		{
-			return x += std::forward<Difference>(difference);
-		}
-		template <typename Difference>
-		friend constexpr this_type operator + (Difference && difference, this_type x)
-		{
-			return x += std::forward<Difference>(difference);
-		}
-		template <typename Difference>
-		friend constexpr this_type operator - (this_type x, Difference && difference)
-		{
-			return x -= std::forward<Difference>(difference);
-		}
+		friend constexpr this_type operator + (this_type x, ext::ssize count) { return x += count; }
+		friend constexpr this_type operator + (ext::ssize count, this_type x) { return x += count; }
+		friend constexpr this_type operator - (this_type x, ext::ssize count) { return x -= count; }
 
 		friend constexpr bool operator == (this_type x, this_type y) { return x.ptr_ == y.ptr_; }
 		friend constexpr bool operator != (this_type x, this_type y) { return !(x == y); }
@@ -93,11 +84,11 @@ namespace utility
 		friend constexpr bool operator > (this_type x, this_type y) { return y < x; }
 		friend constexpr bool operator >= (this_type x, this_type y) { return !(x < y); }
 
-		friend constexpr difference_type operator - (this_type x, this_type y) { return encoding_traits::difference(y.ptr_, x.ptr_); }
+		friend constexpr difference_type operator - (this_type x, this_type y) { return x.ptr_ - y.ptr_; }
 	};
 
-	template <typename Encoding>
-	using string_iterator = string_iterator_impl<Encoding, false>;
-	template <typename Encoding>
-	using const_string_iterator = string_iterator_impl<Encoding, true>;
+	template <typename Boundary>
+	using string_iterator = string_iterator_impl<Boundary, false>;
+	template <typename Boundary>
+	using const_string_iterator = string_iterator_impl<Boundary, true>;
 }

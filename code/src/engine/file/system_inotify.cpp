@@ -377,7 +377,7 @@ namespace
 
 		while (struct dirent * const entry = ::readdir(dir))
 		{
-			const auto filename = utility::string_view_utf8(entry->d_name);
+			const auto filename = utility::string_units_utf8(entry->d_name);
 
 			const engine::Asset full_asset(filename.data(), filename.size());
 			const auto full_it = directory_meta.fulls.find_by_asset(full_asset);
@@ -392,7 +392,7 @@ namespace
 				continue;
 			}
 
-			const auto dot = utility::unit_difference(filename.rfind('.')).get();
+			const auto dot = filename.rfind('.');
 			if (dot == ext::index_invalid)
 				return false; // not eligible for partial matching
 
@@ -624,7 +624,10 @@ namespace
 
 						void operator () (RegisterDirectory && x)
 						{
-							if (x.filepath.back() != '/')
+							if (!debug_assert(!empty(x.filepath)))
+								return;
+
+							if (back(x.filepath) != '/')
 							{
 								if (!debug_verify(x.filepath.try_append('/')))
 									return; // error
@@ -701,23 +704,23 @@ namespace
 							directory_meta temporary_meta(utility::heap_string_utf8(directory.meta.filepath), false);
 
 							debug_expression(bool added_any_match = false);
-							auto from = utility::unit_difference(0);
+							ext::usize from = 0;
 							while (true)
 							{
-								auto found = utility::unit_difference(x.pattern.find('|', from));
+								auto found = x.pattern.find('|', from);
 								if (debug_assert(found != from, "found empty pattern, please sanitize your data!"))
 								{
-									if (x.pattern.data()[from.get()] == '*') // extension
+									if (x.pattern.data()[from] == '*') // extension
 									{
-										const utility::string_view_utf8 extension(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
+										const utility::string_units_utf8 extension(x.pattern.data() + from + 1, found - from - 1); // ingnore '*'
 										const engine::Asset asset(extension.data(), extension.size());
 
 										debug_verify(temporary_meta.extensions.add_match(asset, engine::Asset{}, watch_id{}));
 										debug_expression(added_any_match = true);
 									}
-									else if (x.pattern.data()[found.get() - 1] == '*') // name
+									else if (x.pattern.data()[found - 1] == '*') // name
 									{
-										const utility::string_view_utf8 name(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
+										const utility::string_units_utf8 name(x.pattern.data() + from, found - from - 1); // ingnore '*'
 										const engine::Asset asset(name.data(), name.size());
 
 										debug_verify(temporary_meta.names.add_match(asset, engine::Asset{}, watch_id{}));
@@ -725,7 +728,7 @@ namespace
 									}
 									else // full
 									{
-										const utility::string_view_utf8 full(x.pattern.data() + from.get(), found - from);
+										const utility::string_units_utf8 full(x.pattern.data() + from, found - from);
 										const engine::Asset asset(full.data(), full.size());
 
 										debug_verify(temporary_meta.fulls.add_match(asset, engine::Asset{}, watch_id{}));
@@ -733,7 +736,7 @@ namespace
 									}
 								}
 
-								if (found == x.pattern.size())
+								if (static_cast<ext::usize>(found) == x.pattern.size())
 									break; // done
 
 								from = found + 1; // skip '|'
@@ -744,7 +747,7 @@ namespace
 
 							const ext::usize number_of_matches = scan_directory(
 								temporary_meta,
-								[&temporary_meta, &watch_callback](utility::string_view_utf8 filename, auto && match)
+								[&temporary_meta, &watch_callback](utility::string_units_utf8 filename, auto && match)
 								{
 									try_read(temporary_meta.filepath + filename, watch_callback, match.asset);
 									return true;
@@ -772,7 +775,7 @@ namespace
 
 							scan_directory(
 								directory.meta,
-								[&directory](utility::string_view_utf8 filename, auto && /*match*/)
+								[&directory](utility::string_units_utf8 filename, auto && /*match*/)
 								{
 									auto filepath = directory.meta.filepath + filename;
 									debug_verify(::unlink(filepath.data()) != -1, "failed with errno ", errno);
@@ -803,24 +806,24 @@ namespace
 							debug_verify(alias.meta.watches.push_back(watch.id));
 
 							debug_expression(bool added_any_match = false);
-							auto from = utility::unit_difference(0);
+							ext::usize from = 0;
 							while (true)
 							{
-								auto found = utility::unit_difference(x.pattern.find('|', from));
+								auto found = x.pattern.find('|', from);
 								if (debug_assert(found != from, "found empty pattern, please sanitize your data!"))
 								{
-									if (x.pattern.data()[from.get()] == '*') // extension
+									if (x.pattern.data()[from] == '*') // extension
 									{
-										const utility::string_view_utf8 extension(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
+										const utility::string_units_utf8 extension(x.pattern.data() + from + 1, found - from - 1); // ingnore '*'
 										debug_printline("adding extension \"", extension, "\" to watch for \"", directory.meta.filepath, "\"");
 										const engine::Asset asset(extension.data(), extension.size());
 
 										debug_verify(directory.meta.extensions.add_match(asset, x.directory, watch.id));
 										debug_expression(added_any_match = true);
 									}
-									else if (x.pattern.data()[found.get() - 1] == '*') // name
+									else if (x.pattern.data()[found - 1] == '*') // name
 									{
-										const utility::string_view_utf8 name(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
+										const utility::string_units_utf8 name(x.pattern.data() + from, found - from - 1); // ingnore '*'
 										debug_printline("adding name \"", name, "\" to watch for \"", directory.meta.filepath, "\"");
 										const engine::Asset asset(name.data(), name.size());
 
@@ -829,7 +832,7 @@ namespace
 									}
 									else // full
 									{
-										const utility::string_view_utf8 full(x.pattern.data() + from.get(), found - from);
+										const utility::string_units_utf8 full(x.pattern.data() + from, found - from);
 										debug_printline("adding full \"", full, "\" to watch for \"", directory.meta.filepath, "\"");
 										const engine::Asset asset(full.data(), full.size());
 
@@ -838,7 +841,7 @@ namespace
 									}
 								}
 
-								if (found == x.pattern.size())
+								if (static_cast<ext::usize>(found) == x.pattern.size())
 									break; // done
 
 								from = found + 1; // skip '|'
@@ -849,7 +852,7 @@ namespace
 							{
 								ext::usize number_of_matches = scan_directory(
 									directory.meta,
-									[&directory, &watch](utility::string_view_utf8 filename, auto && match)
+									[&directory, &watch](utility::string_units_utf8 filename, auto && match)
 									{
 										if (match.watch != watch.id) // todo always newly added
 											return false;
@@ -984,7 +987,7 @@ namespace
 
 						auto && directory = as_directory(*directory_it);
 
-						const auto filename = utility::string_view_utf8(event->name);
+						const auto filename = utility::string_units_utf8(event->name);
 
 						const engine::Asset full_asset(filename.data(), filename.size());
 						const auto full_it = directory.meta.fulls.find_by_asset(full_asset);
@@ -1009,7 +1012,7 @@ namespace
 								{
 									const auto number_of_matches = scan_directory(
 										directory.meta,
-										[&watch](utility::string_view_utf8 /*filename*/, auto && match)
+										[&watch](utility::string_units_utf8 /*filename*/, auto && match)
 										{
 											return match.watch == watch.id;
 										});
@@ -1036,7 +1039,7 @@ namespace
 							continue;
 						}
 
-						const auto dot = utility::unit_difference(filename.rfind('.')).get();
+						const auto dot = filename.rfind('.');
 						if (dot == ext::index_invalid)
 							continue; // not eligible for partial matching
 
@@ -1063,7 +1066,7 @@ namespace
 								{
 									const auto number_of_matches = scan_directory(
 										directory.meta,
-										[&watch](utility::string_view_utf8 /*filename*/, auto && match)
+										[&watch](utility::string_units_utf8 /*filename*/, auto && match)
 										{
 											return match.watch == watch.id;
 										});
@@ -1113,7 +1116,7 @@ namespace
 								{
 									const auto number_of_matches = scan_directory(
 										directory.meta,
-										[&watch](utility::string_view_utf8 /*filename*/, auto && match)
+										[&watch](utility::string_units_utf8 /*filename*/, auto && match)
 										{
 											return match.watch == watch.id;
 										});

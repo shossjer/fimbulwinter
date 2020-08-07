@@ -59,7 +59,6 @@ set(FILES_UTILITY
 	tst/utility/storage.cpp
 	tst/utility/storing.cpp
 	tst/utility/string.cpp
-	tst/utility/string_conversions.cpp
 	tst/utility/string_view.cpp
 	tst/utility/type_info.cpp
 	tst/utility/type_traits.cpp

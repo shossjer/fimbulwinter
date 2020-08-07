@@ -5,11 +5,23 @@
 namespace ext
 {
 	template <typename Char>
+	constexpr Char * strend(Char * str, Char term = Char{})
+	{
+		for (; *str != term; str++);
+		return str;
+	}
+
+	template <typename Char>
+	constexpr const Char * strend(const Char * str, Char term = Char{})
+	{
+		for (; *str != term; str++);
+		return str;
+	}
+
+	template <typename Char>
 	constexpr usize strlen(const Char * str, Char term = Char{})
 	{
-		const Char * const begin = str;
-		for (; *str != term; str++);
-		return static_cast<usize>(str - begin);
+		return strend(str, term) - str;
 	}
 
 	template <typename Char>

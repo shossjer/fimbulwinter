@@ -985,7 +985,7 @@ namespace hid
 		debug_verify(queue_input.try_emplace(utility::in_place_type<DeviceLost>, id));
 	}
 
-	void notify_add_source(ui &, int id, std::string && path, int type, utility::string_view_utf8 name)
+	void notify_add_source(ui &, int id, std::string && path, int type, utility::string_units_utf8 name)
 	{
 		debug_verify(queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), utility::heap_string_utf8(name)));
 	}

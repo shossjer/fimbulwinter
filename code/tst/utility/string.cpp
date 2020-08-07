@@ -4,7 +4,7 @@
 
 TEST_CASE("string view can find", "[utility][string view]")
 {
-	utility::basic_string_view<char> a = "abcddf";
+	utility::basic_string_view<utility::boundary_unit<char>> a = "abcddf";
 
 	SECTION("existing characters")
 	{
@@ -33,7 +33,7 @@ TEST_CASE("string view can find", "[utility][string view]")
 
 TEST_CASE("string view cannot find", "[utility][string view]")
 {
-	utility::basic_string_view<char> a = "abcdef";
+	utility::basic_string_view<utility::boundary_unit<char>> a = "abcdef";
 
 	SECTION("nonexisting characters")
 	{
@@ -79,17 +79,17 @@ TEST_CASE("trivial static string", "[utility][string]")
 	CHECK(a.try_push_back('a'));
 	CHECK(a.capacity() == 10);
 	REQUIRE(a.size() == 1);
-	CHECK(a[0] == 'a');
+	CHECK(a.data()[0] == 'a');
 
 	SECTION("can be copy constructed")
 	{
 		utility::static_string<11, char> b = a;
 		CHECK(a.capacity() == 10);
 		REQUIRE(a.size() == 1);
-		CHECK(a[0] == 'a');
+		CHECK(a.data()[0] == 'a');
 		CHECK(b.capacity() == 10);
 		REQUIRE(b.size() == 1);
-		CHECK(b[0] == 'a');
+		CHECK(b.data()[0] == 'a');
 	}
 
 	SECTION("can be copy assigned")
@@ -98,10 +98,10 @@ TEST_CASE("trivial static string", "[utility][string]")
 		b = a;
 		CHECK(a.capacity() == 10);
 		REQUIRE(a.size() == 1);
-		CHECK(a[0] == 'a');
+		CHECK(a.data()[0] == 'a');
 		CHECK(b.capacity() == 10);
 		REQUIRE(b.size() == 1);
-		CHECK(b[0] == 'a');
+		CHECK(b.data()[0] == 'a');
 	}
 
 	SECTION("can be move constructed")
@@ -109,10 +109,10 @@ TEST_CASE("trivial static string", "[utility][string]")
 		utility::static_string<11, char> b = std::move(a);
 		CHECK(a.capacity() == 10);
 		REQUIRE(a.size() == 1);
-		CHECK(a[0] == 'a');
+		CHECK(a.data()[0] == 'a');
 		CHECK(b.capacity() == 10);
 		REQUIRE(b.size() == 1);
-		CHECK(b[0] == 'a');
+		CHECK(b.data()[0] == 'a');
 	}
 
 	SECTION("can be move assigned")
@@ -121,10 +121,10 @@ TEST_CASE("trivial static string", "[utility][string]")
 		b = std::move(a);
 		CHECK(a.capacity() == 10);
 		REQUIRE(a.size() == 1);
-		CHECK(a[0] == 'a');
+		CHECK(a.data()[0] == 'a');
 		CHECK(b.capacity() == 10);
 		REQUIRE(b.size() == 1);
-		CHECK(b[0] == 'a');
+		CHECK(b.data()[0] == 'a');
 	}
 }
 
@@ -137,17 +137,17 @@ TEST_CASE("trivial heap string", "[utility][string]")
 	CHECK(a.try_push_back('a'));
 	CHECK(a.capacity() >= 1);
 	REQUIRE(a.size() == 1);
-	CHECK(a[0] == 'a');
+	CHECK(a.data()[0] == 'a');
 
 	SECTION("can be copy constructed")
 	{
 		utility::heap_string<char> b = a;
 		CHECK(a.capacity() >= 1);
 		REQUIRE(a.size() == 1);
-		CHECK(a[0] == 'a');
+		CHECK(a.data()[0] == 'a');
 		CHECK(b.capacity() >= 1);
 		REQUIRE(b.size() == 1);
-		CHECK(b[0] == 'a');
+		CHECK(b.data()[0] == 'a');
 	}
 
 	SECTION("can be copy assigned")
@@ -156,10 +156,10 @@ TEST_CASE("trivial heap string", "[utility][string]")
 		b = a;
 		CHECK(a.capacity() >= 1);
 		REQUIRE(a.size() == 1);
-		CHECK(a[0] == 'a');
+		CHECK(a.data()[0] == 'a');
 		CHECK(b.capacity() >= 1);
 		REQUIRE(b.size() == 1);
-		CHECK(b[0] == 'a');
+		CHECK(b.data()[0] == 'a');
 	}
 
 	SECTION("can be move constructed")
@@ -169,7 +169,7 @@ TEST_CASE("trivial heap string", "[utility][string]")
 		CHECK(a.size() == 0);
 		CHECK(b.capacity() >= 1);
 		REQUIRE(b.size() == 1);
-		CHECK(b[0] == 'a');
+		CHECK(b.data()[0] == 'a');
 	}
 
 	SECTION("can be move assigned")
@@ -180,6 +180,6 @@ TEST_CASE("trivial heap string", "[utility][string]")
 		CHECK(a.size() == 0);
 		CHECK(b.capacity() >= 1);
 		REQUIRE(b.size() == 1);
-		CHECK(b[0] == 'a');
+		CHECK(b.data()[0] == 'a');
 	}
 }

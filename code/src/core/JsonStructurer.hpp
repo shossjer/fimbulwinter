@@ -228,7 +228,7 @@ namespace core
 					const typename json::string_t & string = v;
 
 					using core::serialize;
-					serialize(x.back(), utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
+					serialize(x.back(), utility::string_units_utf8(string.data(), string.size()));
 				}
 				else
 				{
@@ -308,7 +308,7 @@ namespace core
 					const typename json::string_t & string = v;
 
 					using core::serialize;
-					serialize(x.back(), utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
+					serialize(x.back(), utility::string_units_utf8(string.data(), string.size()));
 				}
 				else
 				{
@@ -356,7 +356,7 @@ namespace core
 							const typename json::string_t & string = v;
 
 							using core::serialize;
-							serialize(y, utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
+							serialize(y, utility::string_units_utf8(string.data(), string.size()));
 						});
 				}
 				else

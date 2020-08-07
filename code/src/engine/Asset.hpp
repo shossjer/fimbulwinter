@@ -42,7 +42,7 @@ namespace engine
 		explicit constexpr Asset(const char * const str, const std::size_t n)
 			: id{utility::crypto::crc32(str, n)}
 		{}
-		explicit constexpr Asset(utility::string_view_utf8 str)
+		explicit constexpr Asset(utility::string_units_utf8 str)
 			: id{utility::crypto::crc32(str.data(), str.size())}
 		{}
 		template <typename StorageTraits>
@@ -127,7 +127,7 @@ namespace engine
 		}
 	};
 
-	inline bool serialize(Asset & x, utility::string_view_utf8 object)
+	inline bool serialize(Asset & x, utility::string_units_utf8 object)
 	{
 		x = Asset(object);
 		return true;

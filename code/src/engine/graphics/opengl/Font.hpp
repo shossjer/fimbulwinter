@@ -75,7 +75,7 @@ namespace engine
 				public:
 					void free();
 #if TEXT_USE_FREETYPE
-					bool load(utility::string_view_utf8 name, int height);
+					bool load(utility::string_units_utf8 name, int height);
 #elif TEXT_USE_USER32 || TEXT_USE_X11
 					bool load(engine::application::window & window, utility::string_view_utf8 name, int height);
 #endif
