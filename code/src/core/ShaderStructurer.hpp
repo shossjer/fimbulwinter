@@ -258,7 +258,7 @@ namespace core
 					return false;
 			}
 			using core::serialize;
-			if (!serialize(x, utility::string_view_utf8(stream.data(from), utility::unit_difference(stream.pos() - from))))
+			if (!serialize(x, utility::string_units_utf8(stream.data(from), stream.pos() - from)))
 				return false;
 
 			return parse_impl(std::forward<Ps>(ps)...);
@@ -313,7 +313,7 @@ namespace core
 			debug_assert(from == stream.pos());
 
 			using core::serialize;
-			if (!serialize(x, utility::string_view_utf8(stream.data(from), utility::unit_difference(to - from))))
+			if (!serialize(x, utility::string_units_utf8(stream.data(from), to - from)))
 				return; // error
 
 			stream.seek(to);

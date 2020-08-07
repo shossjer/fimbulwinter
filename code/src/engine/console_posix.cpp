@@ -19,7 +19,7 @@ namespace engine
 {
 	namespace detail
 	{
-		void read_input(utility::string_view_utf8 line);
+		void read_input(utility::string_units_utf8 line);
 	}
 }
 
@@ -64,7 +64,7 @@ namespace
 					break;
 				}
 
-				engine::detail::read_input(utility::string_view_utf8(line.data(), utility::unit_difference(line.size())));
+				engine::detail::read_input(utility::string_units_utf8(line.data(), line.size()));
 			}
 		}
 		close(interupt_pipe[0]);

@@ -115,14 +115,14 @@ namespace rex
 
 	namespace detail
 	{
-		template <typename Encoding>
+		template <typename Boundary>
 		class string_t
 		{
 		private:
-			utility::basic_string_view<Encoding> str;
+			utility::basic_string_view<Boundary> str;
 
 		public:
-			explicit string_t(utility::basic_string_view<Encoding> str)
+			explicit string_t(utility::basic_string_view<Boundary> str)
 				: str(str)
 			{}
 
@@ -147,7 +147,7 @@ namespace rex
 
 	inline auto string(const char * str)
 	{
-		return pattern<detail::string_t<char>>(str);
+		return pattern<detail::string_t<utility::boundary_unit<char>>>(str);
 	}
 
 

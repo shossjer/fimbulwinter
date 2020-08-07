@@ -442,14 +442,15 @@ namespace
 			return find(asset) < count;
 		}
 
-		void compile(engine::Asset asset, utility::string_view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
+		// todo boundary_symbol
+		void compile(engine::Asset asset, utility::string_points_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
 			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			const FontInfo & info = infos[index];
 
-			const std::ptrdiff_t len = utility::point_difference(text.length()).get();
+			const std::ptrdiff_t len = text.length();
 			vertices.resize<float>(4 * len * 2);
 			texcoords.resize<float>(4 * len * 2);
 

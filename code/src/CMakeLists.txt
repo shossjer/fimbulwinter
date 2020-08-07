@@ -173,7 +173,6 @@ set(HEADERS_UTILITY
 	src/utility/storing.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
-	src/utility/string_conversions.hpp
 	src/utility/string_iterator.hpp
 	src/utility/string_view.hpp
 	src/utility/tuple.hpp
