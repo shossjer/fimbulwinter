@@ -1,4 +1,4 @@
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 #include <catch2/catch.hpp>
 

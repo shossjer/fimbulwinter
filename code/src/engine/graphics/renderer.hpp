@@ -13,7 +13,7 @@
 
 #include "utility/optional.hpp"
 // todo forward declare
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 #include <vector>
 

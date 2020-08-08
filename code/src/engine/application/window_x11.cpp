@@ -8,7 +8,7 @@
 #include "engine/debug.hpp"
 
 #include "utility/string.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string_view.hpp"
 
 #include <X11/X.h>
 #include <X11/Xlib.h>

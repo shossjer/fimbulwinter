@@ -14,7 +14,7 @@
 
 #include "utility/algorithm.hpp"
 #include "utility/ranges.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 #include <climits>
 #include <vector>

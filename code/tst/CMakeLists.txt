@@ -61,6 +61,6 @@ set(FILES_UTILITY
 	tst/utility/string.cpp
 	tst/utility/type_info.cpp
 	tst/utility/type_traits.cpp
-	tst/utility/unicode.cpp
+	tst/utility/unicode/string.cpp
 	tst/utility/variant.cpp
 	)

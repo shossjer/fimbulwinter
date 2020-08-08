@@ -3,7 +3,7 @@
 #include "core/debug.hpp"
 
 #include "utility/ext/stddef.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 namespace core
 {

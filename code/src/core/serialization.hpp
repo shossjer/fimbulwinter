@@ -6,7 +6,7 @@
 #include "utility/optional.hpp"
 #include "utility/preprocessor/expand.hpp"
 #include "utility/type_traits.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string_view.hpp"
 #include "utility/utility.hpp"
 
 namespace core

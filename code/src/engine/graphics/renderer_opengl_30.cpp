@@ -34,7 +34,7 @@
 #include "utility/lookup_table.hpp"
 #include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>

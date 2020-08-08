@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 namespace core
 {
