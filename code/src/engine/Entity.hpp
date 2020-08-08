@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_ENTITY_HPP
-#define ENGINE_ENTITY_HPP
+#pragma once
 
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
@@ -46,7 +44,7 @@ namespace engine
 		static constexpr auto serialization()
 		{
 			return utility::make_lookup_table(
-				std::make_pair(utility::string_view("id"), &Entity::id)
+				std::make_pair(utility::string_units_utf8("id"), &Entity::id)
 				);
 		}
 
@@ -83,5 +81,3 @@ namespace std
 		}
 	};
 }
-
-#endif /* ENGINE_ENTITY_HPP */

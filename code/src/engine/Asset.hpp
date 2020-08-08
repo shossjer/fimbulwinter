@@ -104,7 +104,7 @@ namespace engine
 		static constexpr auto serialization()
 		{
 			return utility::make_lookup_table(
-				std::make_pair(utility::string_view("id"), &Asset::id)
+				std::make_pair(utility::string_units_utf8("id"), &Asset::id)
 				);
 		}
 

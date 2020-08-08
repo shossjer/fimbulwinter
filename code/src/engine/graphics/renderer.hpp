@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_GRAPHICS_RENDERER_HPP
-#define ENGINE_GRAPHICS_RENDERER_HPP
+#pragma once
 
 #include "core/container/Buffer.hpp"
 #include "core/graphics/Image.hpp"
@@ -58,8 +56,8 @@ namespace engine
 		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)
 		{
 			return utility::make_lookup_table(
-				std::make_pair(utility::string_view("opengl1.2"), renderer::Type::OPENGL_1_2),
-				std::make_pair(utility::string_view("opengl3.0"), renderer::Type::OPENGL_3_0)
+				std::make_pair(utility::string_units_utf8("opengl1.2"), renderer::Type::OPENGL_1_2),
+				std::make_pair(utility::string_units_utf8("opengl3.0"), renderer::Type::OPENGL_3_0)
 				);
 		}
 
@@ -73,8 +71,8 @@ namespace engine
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table(
-						std::make_pair(utility::string_view("x"), &Cursor::x),
-						std::make_pair(utility::string_view("y"), &Cursor::y)
+						std::make_pair(utility::string_units_utf8("x"), &Cursor::x),
+						std::make_pair(utility::string_units_utf8("y"), &Cursor::y)
 					);
 				}
 			};
@@ -87,8 +85,8 @@ namespace engine
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table(
-						std::make_pair(utility::string_view("entity"), &SelectData::entity),
-						std::make_pair(utility::string_view("cursor"), &SelectData::cursor)
+						std::make_pair(utility::string_units_utf8("entity"), &SelectData::entity),
+						std::make_pair(utility::string_units_utf8("cursor"), &SelectData::cursor)
 					);
 				}
 			};
@@ -133,7 +131,7 @@ namespace engine
 					static constexpr auto serialization()
 					{
 						return utility::make_lookup_table(
-							std::make_pair(utility::string_view("diffuse"), &material_opengl_12::diffuse)
+							std::make_pair(utility::string_units_utf8("diffuse"), &material_opengl_12::diffuse)
 						);
 					}
 				};
@@ -146,8 +144,8 @@ namespace engine
 					static constexpr auto serialization()
 					{
 						return utility::make_lookup_table(
-							std::make_pair(utility::string_view("diffuse"), &material_opengl_30::diffuse),
-							std::make_pair(utility::string_view("shader"), &material_opengl_30::shader)
+							std::make_pair(utility::string_units_utf8("diffuse"), &material_opengl_30::diffuse),
+							std::make_pair(utility::string_units_utf8("shader"), &material_opengl_30::shader)
 						);
 					}
 				};
@@ -252,5 +250,3 @@ namespace engine
 		void toggle_up(renderer & renderer);
 	}
 }
-
-#endif /* ENGINE_GRAPHICS_RENDERER_HPP */

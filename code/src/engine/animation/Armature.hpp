@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_ANIMATION_ARMATURE_HPP
-#define ENGINE_ANIMATION_ARMATURE_HPP
+#pragma once
 
 #include <core/maths/Matrix.hpp>
 #include <core/maths/Quaternion.hpp>
@@ -29,10 +27,10 @@ namespace engine
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table(
-						std::make_pair(utility::string_view("name"), &Joint::name),
-						std::make_pair(utility::string_view("inv_matrix"), &Joint::inv_matrix),
-						std::make_pair(utility::string_view("parent"), &Joint::parenti),
-						std::make_pair(utility::string_view("children"), &Joint::nchildren)
+						std::make_pair(utility::string_units_utf8("name"), &Joint::name),
+						std::make_pair(utility::string_units_utf8("inv_matrix"), &Joint::inv_matrix),
+						std::make_pair(utility::string_units_utf8("parent"), &Joint::parenti),
+						std::make_pair(utility::string_units_utf8("children"), &Joint::nchildren)
 						);
 				}
 			};
@@ -50,9 +48,9 @@ namespace engine
 						static constexpr auto serialization()
 						{
 							return utility::make_lookup_table(
-								std::make_pair(utility::string_view("translation"), &Channel::translation),
-								std::make_pair(utility::string_view("rotation"), &Channel::rotation),
-								std::make_pair(utility::string_view("scale"), &Channel::scale)
+								std::make_pair(utility::string_units_utf8("translation"), &Channel::translation),
+								std::make_pair(utility::string_units_utf8("rotation"), &Channel::rotation),
+								std::make_pair(utility::string_units_utf8("scale"), &Channel::scale)
 								);
 						}
 					};
@@ -66,7 +64,7 @@ namespace engine
 					static constexpr auto serialization()
 					{
 						return utility::make_lookup_table(
-							std::make_pair(utility::string_view("channels"), &Frame::channels)
+							std::make_pair(utility::string_units_utf8("channels"), &Frame::channels)
 							);
 					}
 				};
@@ -82,11 +80,11 @@ namespace engine
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table(
-						std::make_pair(utility::string_view("name"), &Action::name),
-						std::make_pair(utility::string_view("length"), &Action::length),
-						std::make_pair(utility::string_view("frames"), &Action::frames),
-						std::make_pair(utility::string_view("positions"), &Action::positions),
-						std::make_pair(utility::string_view("orientations"), &Action::orientations)
+						std::make_pair(utility::string_units_utf8("name"), &Action::name),
+						std::make_pair(utility::string_units_utf8("length"), &Action::length),
+						std::make_pair(utility::string_units_utf8("frames"), &Action::frames),
+						std::make_pair(utility::string_units_utf8("positions"), &Action::positions),
+						std::make_pair(utility::string_units_utf8("orientations"), &Action::orientations)
 						);
 				}
 			};
@@ -99,13 +97,11 @@ namespace engine
 			static constexpr auto serialization()
 			{
 				return utility::make_lookup_table(
-					std::make_pair(utility::string_view("name"), &Armature::name),
-					std::make_pair(utility::string_view("joints"), &Armature::joints),
-					std::make_pair(utility::string_view("actions"), &Armature::actions)
+					std::make_pair(utility::string_units_utf8("name"), &Armature::name),
+					std::make_pair(utility::string_units_utf8("joints"), &Armature::joints),
+					std::make_pair(utility::string_units_utf8("actions"), &Armature::actions)
 					);
 			}
 		};
 	}
 }
-
-#endif /* ENGINE_ANIMATION_ARMATURE_HPP */

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utility/concepts.hpp"
 #include "utility/encoding_traits.hpp"
 #include "utility/type_traits.hpp"
 

@@ -325,7 +325,7 @@ namespace core
 			for (auto it = j.begin(); it != j.end(); ++it)
 			{
 				const auto key_string = it.key();
-				const utility::string_view key = key_string.c_str();
+				const utility::string_units_utf8 key = key_string.c_str();
 				if (!member_table<T>::has(key))
 					continue;
 

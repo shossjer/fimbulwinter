@@ -1,142 +1,219 @@
-
-#ifndef UTILITY_STRING_VIEW_HPP
-#define UTILITY_STRING_VIEW_HPP
+#pragma once
 
 #include "utility/ext/string.hpp"
+#include "utility/string_iterator.hpp"
 
-#include <algorithm>
-#include <ostream>
+#include <iostream>
 
 namespace utility
 {
-	template <typename T>
-	constexpr const T & min(const T & a, const T & b)
+	template <typename Boundary>
+	class basic_string_view
 	{
-		return b < a ? b : a;
-	}
+		using this_type = basic_string_view<Boundary>;
 
-	class string_view
-	{
+	public:
+
+		using value_type = typename Boundary::value_type;
+		using const_pointer = typename Boundary::const_pointer;
+		using const_reference = typename Boundary::const_reference;
+		using size_type = typename Boundary::size_type;
+		using difference_type = typename Boundary::difference_type;
+
+		using const_iterator = const_string_iterator<Boundary>;
+		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
 	private:
-		const char * str_;
-		std::size_t len_;
+
+		const_pointer ptr_;
+		size_type size_;
+
+		struct other_offset {};
+		struct other_substr {};
 
 	public:
-		constexpr string_view() noexcept
-			: str_(nullptr)
-			, len_(0)
+
+		basic_string_view() = default;
+
+		constexpr basic_string_view(const_pointer s)
+			: ptr_(s)
+			, size_(ext::strlen(s))
 		{}
-		constexpr string_view(const string_view &) noexcept = default;
-		constexpr string_view(const char * str, std::size_t len)
-			: str_(str)
-			, len_(len)
+
+		constexpr basic_string_view(const_pointer begin, const_pointer end)
+			: ptr_(begin)
+			, size_(end - begin)
 		{}
-		constexpr string_view(const char * str)
-			: str_(str)
-			, len_(ext::strlen(str))
+
+		explicit constexpr basic_string_view(const_pointer s, size_type count)
+			: ptr_(s)
+			, size_(Boundary::next(s, count))
 		{}
-		constexpr string_view & operator = (const string_view &) noexcept = default;
 
-	public:
-		constexpr const char * begin() const noexcept { return str_; }
-		constexpr const char * cbegin() const noexcept { return str_; }
+		explicit constexpr basic_string_view(const this_type & other, size_type position)
+			: basic_string_view(other_offset{}, other, Boundary::next(other.data(), position))
+		{}
 
-		constexpr const char * end() const noexcept { return str_ + len_; }
-		constexpr const char * cend() const noexcept { return str_ + len_; }
+		explicit constexpr basic_string_view(const this_type & other, size_type position, size_type count)
+			: basic_string_view(other_substr{}, other, Boundary::next(other.data(), position), count)
+		{}
 
-	public:
-		constexpr const char & operator [] (int index) const { return str_[index]; }
-
-		constexpr const char * data() const { return str_; }
-
-	public:
-		constexpr std::size_t size() const { return len_; }
-		constexpr std::size_t length() const { return len_; }
-
-		constexpr bool empty() const { return len_ == 0; }
-
-	public:
-		constexpr int compare(string_view that) const noexcept
-		{
-			return compare_impl(that, compare_data(str_, that.str_, min(len_, that.len_)));
-		}
-		constexpr int compare(std::size_t pos1, std::size_t count1, string_view that) const
-		{
-			return string_view(str_ + pos1, count1).compare(that);
-		}
-		constexpr int compare(std::size_t pos1, std::size_t count1, string_view that, std::size_t pos2, std::size_t count2) const
-		{
-			return string_view(str_ + pos1, count1).compare(string_view(that.str_ + pos2, count2));
-		}
-		constexpr int compare(const char * cstr) const
-		{
-			return compare(string_view(cstr));
-		}
-		constexpr int compare(std::size_t pos1, std::size_t count1, const char * cstr) const
-		{
-			return string_view(str_ + pos1, count1).compare(string_view(cstr));
-		}
-		constexpr int compare(std::size_t pos1, std::size_t count1, const char * cstr, std::size_t count2) const
-		{
-			return string_view(str_ + pos1, count1).compare(string_view(cstr, count2));
-		}
-
-		constexpr std::size_t find(string_view that, std::size_t pos = 0) const
-		{
-			return find_impl(that, len_ < that.len_ ? std::size_t(-1) : pos);
-		}
-		constexpr std::size_t find(const char * str, std::size_t pos = 0) const
-		{
-			return find(string_view(str), pos);
-		}
-		constexpr std::size_t rfind(string_view that, std::size_t pos = std::size_t(-1)) const
-		{
-			return rfind_impl(that, len_ < that.len_ ? std::size_t(-1) : std::min(pos, len_ - that.len_));
-		}
-		constexpr std::size_t rfind(const char * str, std::size_t pos = std::size_t(-1)) const
-		{
-			return rfind(string_view(str), pos);
-		}
 	private:
-		constexpr static int compare_data(const char * a, const char * b, std::size_t count)
+
+		explicit constexpr basic_string_view(other_offset, const this_type & other, size_type offset)
+			: ptr_(other.data() + offset)
+			, size_(other.size() - offset)
+		{}
+
+		explicit constexpr basic_string_view(other_substr, const this_type & other, size_type offset, size_type count)
+			: ptr_(other.data() + offset)
+			, size_(Boundary::next(other.data() + offset, count))
+		{}
+
+	public:
+
+		constexpr const_iterator begin() const { return const_iterator(this->data()); }
+		constexpr const_iterator cbegin() const { return const_iterator(this->data()); }
+		constexpr const_iterator end() const { return const_iterator(this->data() + this->size()); }
+		constexpr const_iterator cend() const { return const_iterator(this->data() + this->size()); }
+		const_reverse_iterator rbegin() const { return std::make_reverse_iterator(end()); }
+		const_reverse_iterator crbegin() const { return std::make_reverse_iterator(cend()); }
+		const_reverse_iterator rend() const { return std::make_reverse_iterator(begin()); }
+		const_reverse_iterator crend() const { return std::make_reverse_iterator(cbegin()); }
+
+		constexpr size_type size() const { return size_; }
+		constexpr size_type length() const { return Boundary::length(this->data(), this->data() + this->size()); }
+
+		constexpr const_pointer data() const { return ptr_; }
+
+		constexpr const_reference operator [] (size_type position) const { return begin()[position]; }
+
+		constexpr int compare(this_type other) const
 		{
-			return count == 0 ? 0 :
+			return compare_impl(compare_data(ptr_,
+			                                 other.ptr_,
+			                                 std::min(size_, other.size_)),
+			                    size_,
+			                    other.size_);
+		}
+
+		constexpr int compare(size_type pos1, size_type count1, this_type other) const
+		{
+			return compare_impl(compare_data(ptr_ + pos1,
+			                                 other.ptr_,
+			                                 std::min(count1, other.size_)),
+			                    count1,
+			                    other.size_);
+		}
+
+		constexpr int compare(size_type pos1, size_type count1, this_type other, size_type pos2, size_type count2) const
+		{
+			return compare_impl(compare_data(ptr_ + pos1,
+			                                 other.ptr_ + pos2,
+			                                 std::min(count1, count2)),
+			                    count1,
+			                    count2);
+		}
+
+		constexpr int compare(size_type pos1, size_type count1, const_pointer s, size_type count2) const
+		{
+			return s ? compare_impl(compare_data(ptr_ + pos1, s, std::min(count1, count2)),
+			                        count1,
+			                        count2) : count1 != 0;
+		}
+
+		constexpr ext::index find(value_type c) const
+		{
+			return ext::strfind(ptr_, ptr_ + size_, c) - ptr_;
+		}
+
+		constexpr ext::index find(value_type c, size_type from) const
+		{
+			return ext::strfind(ptr_ + from, ptr_ + size_, c) - ptr_;
+		}
+
+		constexpr ext::index find(this_type that, size_type from = 0) const
+		{
+			return find_impl(that, size_ < that.size_ ? ext::usize(-1) : from);
+		}
+
+		constexpr ext::index rfind(value_type c) const
+		{
+			return ext::strrfind(ptr_, ptr_ + size_, c) - ptr_;
+		}
+
+		constexpr ext::index rfind(this_type that, size_type from = size_type(-1)) const
+		{
+			return rfind_impl(that, size_ < that.size_ ? size_type(-1) : std::min(from, size_ - that.size_));
+		}
+
+	private:
+
+		static constexpr int compare_data(const_pointer a, const_pointer b, size_type count)
+		{
+			return
+				count <= 0 ? 0 :
 				*a < *b ? -1 :
 				*b < *a ? 1 :
 				compare_data(a + 1, b + 1, count - 1);
 		}
-		constexpr int compare_impl(string_view that, int value) const
+
+		static constexpr int compare_data_null_terminated(const_pointer a_from, const_pointer a_to, const_pointer b)
 		{
-			return value != 0 ? value :
-				len_ < that.len_ ? -1 :
-				that.len_ < len_ ? 1 :
+			return
+				a_from == a_to ? (*b == 0 ? 0 : -1) :
+				*a_from < *b ? -1 :
+				*b < *a_from ? 1 :
+				compare_data_null_terminated(a_from + 1, a_to, b + 1);
+		}
+
+		static constexpr int compare_impl(int res, size_type counta, size_type countb)
+		{
+			return
+				res != 0 ? res :
+				counta < countb ? -1 :
+				countb < counta ? 1 :
 				0;
 		}
 
-		constexpr std::size_t find_impl(string_view that, std::size_t pos) const
+		constexpr ext::index find_impl(this_type that, size_type from) const
 		{
-			return pos > len_ - that.len_ ? std::size_t(-1) : compare_data(str_ + pos, that.str_, that.len_) == 0 ? pos : find_impl(that, pos + 1);
-		}
-		constexpr std::size_t rfind_impl(string_view that, std::size_t pos) const
-		{
-			return pos > len_ ? std::size_t(-1) : compare_data(str_ + pos, that.str_, that.len_) == 0 ? pos : rfind_impl(that, pos - 1);
+			return from > size_ - that.size_ ? ext::index_invalid : compare_data(ptr_ + from, that.ptr_, that.size_) == 0 ? from : find_impl(that, from + 1);
 		}
 
-		friend constexpr bool operator == (string_view a, string_view b) noexcept { return a.compare(b) == 0; }
-		friend constexpr bool operator != (string_view a, string_view b) noexcept { return a.compare(b) != 0; }
-		friend constexpr bool operator < (string_view a, string_view b) noexcept { return a.compare(b) < 0; }
-		friend constexpr bool operator <= (string_view a, string_view b) noexcept { return a.compare(b) <= 0; }
-		friend constexpr bool operator > (string_view a, string_view b) noexcept { return a.compare(b) > 0; }
-		friend constexpr bool operator >= (string_view a, string_view b) noexcept { return a.compare(b) >= 0; }
-
-		friend std::ostream & operator << (std::ostream & s, string_view v)
+		constexpr ext::index rfind_impl(this_type that, size_type from) const
 		{
-			for (char c : v)
-				s.put(c);
+			return from > size_ ? ext::index_invalid : compare_data(ptr_ + from, that.ptr_, that.size_) == 0 ? from : rfind_impl(that, from - 1);
+		}
 
-			return s;
+	public:
+
+		friend constexpr bool operator == (this_type x, this_type y) { return x.compare(y) == 0; }
+		friend constexpr bool operator == (this_type x, const value_type * s) { return x.compare(s) == 0; }
+		friend constexpr bool operator == (const value_type * s, this_type y) { return y.compare(s) == 0; }
+		friend constexpr bool operator != (this_type x, this_type y) { return !(x == y); }
+		friend constexpr bool operator != (this_type x, const value_type * s) { return !(x == s); }
+		friend constexpr bool operator != (const value_type * s, this_type y) { return !(s == y); }
+		friend constexpr bool operator < (this_type x, this_type y) { return x.compare(y) < 0; }
+		friend constexpr bool operator < (this_type x, const value_type * s) { return x.compare(s) < 0; }
+		friend constexpr bool operator < (const value_type * s, this_type y) { return y.compare(s) > 0; }
+		friend constexpr bool operator <= (this_type x, this_type y) { return !(y < x); }
+		friend constexpr bool operator <= (this_type x, const value_type * s) { return !(s < x); }
+		friend constexpr bool operator <= (const value_type * s, this_type y) { return !(y < s); }
+		friend constexpr bool operator > (this_type x, this_type y) { return y < x; }
+		friend constexpr bool operator > (this_type x, const value_type * s) { return s < x; }
+		friend constexpr bool operator > (const value_type * s, this_type y) { return y < s; }
+		friend constexpr bool operator >= (this_type x, this_type y) { return !(x < y); }
+		friend constexpr bool operator >= (this_type x, const value_type * s) { return !(x < s); }
+		friend constexpr bool operator >= (const value_type * s, this_type y) { return !(s < y); }
+
+		template <typename Traits>
+		friend std::basic_ostream<value_type, Traits> & operator << (std::basic_ostream<value_type, Traits> & os, this_type x)
+		{
+			return os.write(x.ptr_, x.size_);
 		}
 	};
-}
 
-#endif /* UTILITY_STRING_VIEW_HPP */
+	template <typename Boundary>
+	constexpr bool empty(basic_string_view<Boundary> view) { return view.begin() == view.end(); }
+}

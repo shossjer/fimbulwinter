@@ -1,6 +1,4 @@
-
-#ifndef UTILITY_STREAM_HPP
-#define UTILITY_STREAM_HPP
+#pragma once
 
 #include "type_info.hpp"
 #include "type_traits.hpp"
@@ -118,5 +116,3 @@ namespace utility
 		return words;
 	}
 }
-
-#endif /* UTILITY_STREAM_HPP */

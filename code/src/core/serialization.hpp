@@ -5,7 +5,6 @@
 #include "utility/lookup_table.hpp"
 #include "utility/optional.hpp"
 #include "utility/preprocessor/expand.hpp"
-#include "utility/string_view.hpp"
 #include "utility/type_traits.hpp"
 #include "utility/unicode.hpp"
 #include "utility/utility.hpp"
@@ -27,12 +26,12 @@ namespace core
 		static_assert(lookup_table.all_values_same_type, "");
 
 	public:
-		static constexpr bool has(utility::string_view name)
+		static constexpr bool has(utility::string_units_utf8 name)
 		{
 			return lookup_table.contains(name);
 		}
 
-		static constexpr decltype(auto) get(utility::string_view name)
+		static constexpr decltype(auto) get(utility::string_units_utf8 name)
 		{
 			return lookup_table.get_value(lookup_table.find(name));
 		}
@@ -57,18 +56,18 @@ namespace core
 		static constexpr lookup_table_t lookup_table = serialization(utility::in_place_type<T>);
 
 	public:
-		static constexpr bool has(utility::string_view name)
+		static constexpr bool has(utility::string_units_utf8 name)
 		{
 			return lookup_table.contains(name);
 		}
 
-		static constexpr std::size_t find(utility::string_view name)
+		static constexpr std::size_t find(utility::string_units_utf8 name)
 		{
 			return lookup_table.find(name);
 		}
 
 		template <typename X, typename F>
-		static decltype(auto) call(utility::string_view name, X && x, F && f)
+		static decltype(auto) call(utility::string_units_utf8 name, X && x, F && f)
 		{
 			switch (lookup_table.find(name))
 			{

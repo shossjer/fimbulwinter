@@ -1,6 +1,4 @@
-
-#ifndef CORE_INISTRUCTURER_HPP
-#define CORE_INISTRUCTURER_HPP
+#pragma once
 
 #include "core/BufferedStream.hpp"
 #include "core/debug.hpp"
@@ -90,7 +88,7 @@ namespace core
 					throw std::runtime_error("unexpected eof");
 			}
 			const std::ptrdiff_t header_to = stream.pos();
-			const utility::string_view header_name(stream.data(header_from), header_to - header_from);
+			const utility::string_units_utf8 header_name(stream.data(header_from), header_to - header_from);
 
 			stream.next(); // ']'
 			if (!stream.valid())
@@ -116,20 +114,20 @@ namespace core
 			}
 		}
 
-		void parse_value(std::string & x, utility::string_view value_string)
+		void parse_value(std::string & x, utility::string_units_utf8 value_string)
 		{
 			x = std::string(value_string.begin(), value_string.end());
 		}
 		template <typename T,
 		          REQUIRES((!std::is_enum<T>::value)),
 		          REQUIRES((!std::is_class<T>::value))>
-		void parse_value(T & x, utility::string_view value_string)
+		void parse_value(T & x, utility::string_units_utf8 value_string)
 		{
 			utility::from_string(std::string(value_string.begin(), value_string.end()), x);
 		}
 		template <typename T,
 		          REQUIRES((std::is_enum<T>::value))>
-		void parse_value(T & x, utility::string_view value_string)
+		void parse_value(T & x, utility::string_units_utf8 value_string)
 		{
 			if (core::value_table<T>::has(value_string))
 			{
@@ -142,7 +140,7 @@ namespace core
 		}
 		template <typename T,
 		          REQUIRES((std::is_class<T>::value))>
-		void parse_value(T &, utility::string_view /*value_string*/)
+		void parse_value(T &, utility::string_units_utf8 /*value_string*/)
 		{
 			debug_fail("this is a strange type");
 		}
@@ -163,7 +161,7 @@ namespace core
 					throw std::runtime_error("unexpected eof");
 			}
 			const std::ptrdiff_t key_to = stream.pos();
-			const utility::string_view key_name(stream.data(key_from), key_to - key_from);
+			const utility::string_units_utf8 key_name(stream.data(key_from), key_to - key_from);
 
 			stream.next(); // '='
 			if (!stream.valid())
@@ -177,7 +175,7 @@ namespace core
 					throw std::runtime_error("unexpected eof");
 			}
 			const std::ptrdiff_t value_to = stream.pos();
-			const utility::string_view value_string(stream.data(value_from), value_to - value_from);
+			const utility::string_units_utf8 value_string(stream.data(value_from), value_to - value_from);
 
 			core::member_table<T>::call(key_name, x, [&](auto & y){ return parse_value(y, value_string); });
 		}
@@ -198,5 +196,3 @@ namespace core
 		}
 	};
 }
-
-#endif /* CORE_INISTRUCTURER_HPP */

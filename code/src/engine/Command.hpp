@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_COMMAND_HPP
-#define ENGINE_COMMAND_HPP
+#pragma once
 
 #include "core/serialization.hpp"
 
@@ -36,7 +34,7 @@ namespace engine
 		static constexpr auto serialization()
 		{
 			return utility::make_lookup_table(
-				std::make_pair(utility::string_view("asset"), &Command::asset)
+				std::make_pair(utility::string_units_utf8("asset"), &Command::asset)
 				);
 		}
 
@@ -46,5 +44,3 @@ namespace engine
 		}
 	};
 }
-
-#endif /* ENGINE_COMMAND_HPP */

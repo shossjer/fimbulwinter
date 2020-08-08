@@ -1,6 +1,4 @@
-
-#ifndef CORE_JSONSERIALIZER_HPP
-#define CORE_JSONSERIALIZER_HPP
+#pragma once
 
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
@@ -74,11 +72,9 @@ namespace core
 			member_table<T>::for_each_member(x, [&](const auto& name, const auto& y){ write_(j[std::string(name.begin(), name.end())], y); } );
 		}
 
-		void write_string(json & j, const utility::string_view & x)
+		void write_string(json & j, const utility::string_units_utf8 & x)
 		{
 			j = std::string(x.begin(), x.end());
 		}
 	};
 }
-
-#endif /* CORE_JSONSERIALIZER_HPP */
