@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_HID_CONFIG_HPP
-#define ENGINE_HID_CONFIG_HPP
+#pragma once
 
 #include "core/serialization.hpp"
 
@@ -15,11 +13,9 @@ namespace engine
 			static constexpr auto serialization()
 			{
 				return utility::make_lookup_table(
-					std::make_pair(utility::string_view("hardware-input"), &config_t::hardware_input)
+					std::make_pair(utility::string_units_utf8("hardware-input"), &config_t::hardware_input)
 					);
 			}
 		};
 	}
 }
-
-#endif /* ENGINE_HID_CONFIG_HPP */

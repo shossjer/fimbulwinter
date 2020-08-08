@@ -1,6 +1,4 @@
-
-#ifndef CORE_GRAPHICS_IMAGE_HPP
-#define CORE_GRAPHICS_IMAGE_HPP
+#pragma once
 
 #include "core/container/Buffer.hpp"
 #include "core/graphics/types.hpp"
@@ -51,16 +49,14 @@ namespace core
 			static constexpr auto serialization()
 			{
 				return utility::make_lookup_table(
-					std::make_pair(utility::string_view("width"), &Image::width_),
-					std::make_pair(utility::string_view("height"), &Image::height_),
-					std::make_pair(utility::string_view("bit_depth"), &Image::bit_depth_),
-					std::make_pair(utility::string_view("channel_count"), &Image::channel_count_),
-					std::make_pair(utility::string_view("color_type"), &Image::color_),
-					std::make_pair(utility::string_view("pixel_data"), &Image::pixels_)
+					std::make_pair(utility::string_units_utf8("width"), &Image::width_),
+					std::make_pair(utility::string_units_utf8("height"), &Image::height_),
+					std::make_pair(utility::string_units_utf8("bit_depth"), &Image::bit_depth_),
+					std::make_pair(utility::string_units_utf8("channel_count"), &Image::channel_count_),
+					std::make_pair(utility::string_units_utf8("color_type"), &Image::color_),
+					std::make_pair(utility::string_units_utf8("pixel_data"), &Image::pixels_)
 					);
 			}
 		};
 	}
 }
-
-#endif /* CORE_GRAPHICS_IMAGE_HPP */

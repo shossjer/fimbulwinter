@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_COMMON_HPP
-#define ENGINE_COMMON_HPP
+#pragma once
 
 #include "core/maths/util.hpp"
 #include "core/maths/Matrix.hpp"
@@ -25,11 +23,9 @@ namespace engine
 		static constexpr auto serialization()
 		{
 			return utility::make_lookup_table(
-				std::make_pair(utility::string_view("pos"), &transform_t::pos),
-				std::make_pair(utility::string_view("quat"), &transform_t::quat)
+				std::make_pair(utility::string_units_utf8("pos"), &transform_t::pos),
+				std::make_pair(utility::string_units_utf8("quat"), &transform_t::quat)
 				);
 		}
 	};
 }
-
-#endif /* ENGINE_COMMON_HPP */

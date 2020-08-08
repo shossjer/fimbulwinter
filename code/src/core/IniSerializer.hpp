@@ -1,13 +1,10 @@
-
-#ifndef CORE_INISERIALIZER_HPP
-#define CORE_INISERIALIZER_HPP
+#pragma once
 
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
 #include "core/WriteStream.hpp"
 
 #include "utility/string.hpp"
-#include "utility/string_view.hpp"
 
 #include <string>
 #include <cstdint>
@@ -35,25 +32,25 @@ namespace core
 		template <typename T,
 		          REQUIRES((core::has_lookup_table<T>::value)),
 		          REQUIRES((std::is_class<T>::value))>
-		void write_key_value(const utility::string_view &, const T &)
+		void write_key_value(const utility::string_units_utf8 &, const T &)
 		{
 		}
 		template <typename T,
 		          REQUIRES((core::has_lookup_table<T>::value)),
 		          REQUIRES((std::is_enum<T>::value))>
-		void write_key_value(const utility::string_view & name, const T & x)
+		void write_key_value(const utility::string_units_utf8 & name, const T & x)
 		{
 			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
 			debug_verify(stream.write_all("=", sizeof "=" - 1) == sizeof "=" - 1);
 
-			utility::string_view value = value_table<T>::get_key(x);
+			utility::string_units_utf8 value = value_table<T>::get_key(x);
 			debug_verify(stream.write_all(value.data(), value.size()) == value.size());
 
 			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
 		}
 		template <typename T,
 		          REQUIRES((!core::has_lookup_table<T>::value))>
-		void write_key_value(const utility::string_view & name, const T & x)
+		void write_key_value(const utility::string_units_utf8 & name, const T & x)
 		{
 			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
 			debug_verify(stream.write_all("=", sizeof "=" - 1) == sizeof "=" - 1);
@@ -74,7 +71,7 @@ namespace core
 		template <typename T,
 		          REQUIRES((core::has_lookup_table<T>::value)),
 		          REQUIRES((std::is_class<T>::value))>
-		void write_header(const utility::string_view & name, const T & x)
+		void write_header(const utility::string_units_utf8 & name, const T & x)
 		{
 			debug_verify(stream.write_all("[", sizeof "[" - 1) == sizeof "[" - 1);
 			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
@@ -88,7 +85,7 @@ namespace core
 		template <typename T,
 		          REQUIRES((core::has_lookup_table<T>::value)),
 		          REQUIRES((!std::is_class<T>::value))>
-		void write_header(const utility::string_view &, const T &)
+		void write_header(const utility::string_units_utf8 &, const T &)
 		{
 		}
 
@@ -100,5 +97,3 @@ namespace core
 		}
 	};
 }
-
-#endif /* CORE_INISERIALIZER_HPP */
