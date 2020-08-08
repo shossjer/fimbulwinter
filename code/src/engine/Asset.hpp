@@ -6,7 +6,7 @@
 
 #include "utility/concepts.hpp"
 #include "utility/crypto/crc.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 #include <ostream>
 
@@ -14,7 +14,6 @@
 # include "engine/debug.hpp"
 
 # include "utility/spinlock.hpp"
-# include "utility/string.hpp"
 
 # include <mutex>
 # include <unordered_map>

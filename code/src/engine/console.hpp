@@ -1,7 +1,7 @@
 #pragma once
 
 #include "utility/type_traits.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string_view.hpp"
 #include "utility/variant.hpp"
 
 #include <memory>

@@ -178,8 +178,8 @@ set(HEADERS_UTILITY
 	src/utility/tuple.hpp
 	src/utility/type_info.hpp
 	src/utility/type_traits.hpp
-	src/utility/unicode.hpp
 	src/utility/unicode/encoding_traits.hpp
+	src/utility/unicode/string.hpp
 	src/utility/unicode/string_view.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp

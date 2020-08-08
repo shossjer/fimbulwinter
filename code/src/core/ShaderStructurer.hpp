@@ -4,7 +4,7 @@
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
 
-#include "utility/unicode.hpp"
+#include "utility/unicode/string_view.hpp"
 
 #include <algorithm>
 #include <cstdlib>

@@ -1,13 +1,11 @@
-
-#ifndef ENGINE_GRAPHICS_OPENGL_FONT_HPP
-#define ENGINE_GRAPHICS_OPENGL_FONT_HPP
+#pragma once
 
 #include "config.h"
 
 #include "engine/graphics/opengl.hpp"
 
 #include "utility/string.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string_view.hpp"
 
 # include <string>
 
@@ -160,5 +158,3 @@ namespace engine
 		}
 	}
 }
-
-#endif /* ENGINE_GRAPHICS_OPENGL_FONT_HPP */

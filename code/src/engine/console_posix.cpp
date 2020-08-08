@@ -7,7 +7,7 @@
 #include "core/async/Thread.hpp"
 #include "core/debug.hpp"
 
-#include "utility/unicode.hpp"
+#include "utility/unicode/string_view.hpp"
 
 #include <iostream>
 #include <string>
