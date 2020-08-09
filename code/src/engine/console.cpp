@@ -85,12 +85,12 @@ namespace engine
 			if (empty(line))
 				return;
 
-			const auto command_end = line.find(' ');
+			const auto command_end = find(line, ' ');
 
-			const auto command_name = utility::string_units_utf8(line, 0, command_end);
+			const auto command_name = utility::string_units_utf8(line.begin(), command_end);
 			const engine::Asset command_key(command_name);
 
-			const std::vector<Argument> params = parse_params(utility::string_units_utf8(line, command_end + 1));
+			const std::vector<Argument> params = parse_params(utility::string_units_utf8(command_end + 1, line.end()));
 
 			for (auto & observer : observers)
 			{

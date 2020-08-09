@@ -28,13 +28,15 @@ namespace utility
 
 		unicode_code_point() = default;
 
-		explicit constexpr unicode_code_point(int32_t value)
-			: value_(value)
-		{}
+		unicode_code_point(unicode_code_unit_utf8 c) : value_(c) {}
+		unicode_code_point(unicode_code_unit_utf16 c) : value_(c) {}
+		unicode_code_point(unicode_code_unit_utf32 c) : value_(c) {}
+#if defined(_MSC_VER) && defined(_UNICODE)
+		unicode_code_point(unicode_code_unit_utfw c) : value_(c) {}
+#endif
 
-		explicit constexpr unicode_code_point(uint32_t value)
-			: value_(value)
-		{}
+		explicit constexpr unicode_code_point(int32_t value) : value_(value) {}
+		explicit constexpr unicode_code_point(uint32_t value) : value_(value) {}
 
 		explicit constexpr unicode_code_point(const unicode_code_unit_utf8 * s)
 			: value_(extract_value(s, extract_size(s)))

@@ -392,11 +392,11 @@ namespace
 				continue;
 			}
 
-			const auto dot = filename.rfind('.');
-			if (dot == ext::index_invalid)
+			const auto dot = rfind(filename, '.');
+			if (dot == filename.end())
 				return false; // not eligible for partial matching
 
-			const engine::Asset name_asset(filename.data(), dot);
+			const engine::Asset name_asset(utility::string_units_utf8(filename.begin(), dot));
 			const auto name_it = directory_meta.names.find_by_asset(name_asset);
 			if (name_it != directory_meta.names.end())
 			{
@@ -409,7 +409,7 @@ namespace
 				continue;
 			}
 
-			const engine::Asset extension_asset(filename.data() + dot, filename.size() - dot);
+			const engine::Asset extension_asset(utility::string_units_utf8(dot, filename.end()));
 			const auto extension_it = directory_meta.extensions.find_by_asset(extension_asset);
 			if (extension_it != directory_meta.extensions.end())
 			{
@@ -704,23 +704,23 @@ namespace
 							directory_meta temporary_meta(utility::heap_string_utf8(directory.meta.filepath), false);
 
 							debug_expression(bool added_any_match = false);
-							ext::usize from = 0;
+							auto from = x.pattern.begin();
 							while (true)
 							{
-								auto found = x.pattern.find('|', from);
+								auto found = find(from, x.pattern.end(), '|');
 								if (debug_assert(found != from, "found empty pattern, please sanitize your data!"))
 								{
-									if (x.pattern.data()[from] == '*') // extension
+									if (*from == '*') // extension
 									{
-										const utility::string_units_utf8 extension(x.pattern.data() + from + 1, found - from - 1); // ingnore '*'
+										const utility::string_units_utf8 extension(from + 1, found); // ingnore '*'
 										const engine::Asset asset(extension.data(), extension.size());
 
 										debug_verify(temporary_meta.extensions.add_match(asset, engine::Asset{}, watch_id{}));
 										debug_expression(added_any_match = true);
 									}
-									else if (x.pattern.data()[found - 1] == '*') // name
+									else if (*(found - 1) == '*') // name
 									{
-										const utility::string_units_utf8 name(x.pattern.data() + from, found - from - 1); // ingnore '*'
+										const utility::string_units_utf8 name(from, found - 1); // ingnore '*'
 										const engine::Asset asset(name.data(), name.size());
 
 										debug_verify(temporary_meta.names.add_match(asset, engine::Asset{}, watch_id{}));
@@ -728,7 +728,7 @@ namespace
 									}
 									else // full
 									{
-										const utility::string_units_utf8 full(x.pattern.data() + from, found - from);
+										const utility::string_units_utf8 full(from, found);
 										const engine::Asset asset(full.data(), full.size());
 
 										debug_verify(temporary_meta.fulls.add_match(asset, engine::Asset{}, watch_id{}));
@@ -736,7 +736,7 @@ namespace
 									}
 								}
 
-								if (static_cast<ext::usize>(found) == x.pattern.size())
+								if (found == x.pattern.end())
 									break; // done
 
 								from = found + 1; // skip '|'
@@ -806,24 +806,24 @@ namespace
 							debug_verify(alias.meta.watches.push_back(watch.id));
 
 							debug_expression(bool added_any_match = false);
-							ext::usize from = 0;
+							auto from = x.pattern.begin();
 							while (true)
 							{
-								auto found = x.pattern.find('|', from);
+								auto found = find(from, x.pattern.end(), '|');
 								if (debug_assert(found != from, "found empty pattern, please sanitize your data!"))
 								{
-									if (x.pattern.data()[from] == '*') // extension
+									if (*from == '*') // extension
 									{
-										const utility::string_units_utf8 extension(x.pattern.data() + from + 1, found - from - 1); // ingnore '*'
+										const utility::string_units_utf8 extension(from + 1, found); // ingnore '*'
 										debug_printline("adding extension \"", extension, "\" to watch for \"", directory.meta.filepath, "\"");
 										const engine::Asset asset(extension.data(), extension.size());
 
 										debug_verify(directory.meta.extensions.add_match(asset, x.directory, watch.id));
 										debug_expression(added_any_match = true);
 									}
-									else if (x.pattern.data()[found - 1] == '*') // name
+									else if (*(found - 1) == '*') // name
 									{
-										const utility::string_units_utf8 name(x.pattern.data() + from, found - from - 1); // ingnore '*'
+										const utility::string_units_utf8 name(from, found - 1); // ingnore '*'
 										debug_printline("adding name \"", name, "\" to watch for \"", directory.meta.filepath, "\"");
 										const engine::Asset asset(name.data(), name.size());
 
@@ -832,7 +832,7 @@ namespace
 									}
 									else // full
 									{
-										const utility::string_units_utf8 full(x.pattern.data() + from, found - from);
+										const utility::string_units_utf8 full(from, found);
 										debug_printline("adding full \"", full, "\" to watch for \"", directory.meta.filepath, "\"");
 										const engine::Asset asset(full.data(), full.size());
 
@@ -841,7 +841,7 @@ namespace
 									}
 								}
 
-								if (static_cast<ext::usize>(found) == x.pattern.size())
+								if (found == x.pattern.end())
 									break; // done
 
 								from = found + 1; // skip '|'
@@ -1039,11 +1039,11 @@ namespace
 							continue;
 						}
 
-						const auto dot = filename.rfind('.');
-						if (dot == ext::index_invalid)
+						const auto dot = rfind(filename, '.');
+						if (dot == filename.end())
 							continue; // not eligible for partial matching
 
-						const engine::Asset name_asset(filename.data(), dot);
+						const engine::Asset name_asset(utility::string_units_utf8(filename.begin(), dot));
 						const auto name_it = directory.meta.names.find_by_asset(name_asset);
 						if (name_it != directory.meta.names.end())
 						{
@@ -1093,7 +1093,7 @@ namespace
 							continue;
 						}
 
-						const engine::Asset extension_asset(filename.data() + dot, filename.size() - dot);
+						const engine::Asset extension_asset(utility::string_units_utf8(dot, filename.end()));
 						const auto extension_it = directory.meta.extensions.find_by_asset(extension_asset);
 						if (extension_it != directory.meta.extensions.end())
 						{

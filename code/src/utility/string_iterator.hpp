@@ -42,7 +42,7 @@ namespace utility
 		          REQUIRES((std::is_constructible<
 			                    pointer,
 			                    typename string_iterator_impl<Boundary, ConstOther>::pointer>::value))>
-		explicit constexpr string_iterator_impl(string_iterator_impl<Boundary, ConstOther> other)
+		constexpr string_iterator_impl(string_iterator_impl<Boundary, ConstOther> other)
 			: ptr_(other.ptr_)
 		{}
 
@@ -92,4 +92,66 @@ namespace utility
 	using string_iterator = string_iterator_impl<Boundary, false>;
 	template <typename Boundary>
 	using const_string_iterator = string_iterator_impl<Boundary, true>;
+
+	template <typename Boundary, bool Const>
+	constexpr string_iterator_impl<Boundary, Const>
+	find(
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
+		typename Boundary::const_reference c)
+	{
+		return ext::strfind(begin, end, c);
+	}
+
+	template <typename Encoding, bool Const>
+	constexpr string_iterator_impl<boundary_unit<Encoding>, Const>
+	find(
+		string_iterator_impl<boundary_unit<Encoding>, Const> begin,
+		string_iterator_impl<boundary_unit<Encoding>, Const> end,
+		typename boundary_unit<Encoding>::const_pointer expr)
+	{
+		return ext::strfind(begin, end, expr, ext::strend(expr));
+	}
+
+	template <typename Boundary, bool Const>
+	constexpr string_iterator_impl<Boundary, Const>
+	find(
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
+		const_string_iterator<Boundary> exprbegin,
+		const_string_iterator<Boundary> exprend)
+	{
+		return ext::strfind(begin, end, exprbegin.get(), exprend.get());
+	}
+
+	template <typename Boundary, bool Const>
+	constexpr string_iterator_impl<Boundary, Const>
+	rfind(
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
+		typename Boundary::const_reference c)
+	{
+		return ext::strrfind(begin, end, c);
+	}
+
+	template <typename Encoding, bool Const>
+	constexpr string_iterator_impl<boundary_unit<Encoding>, Const>
+	rfind(
+		string_iterator_impl<boundary_unit<Encoding>, Const> begin,
+		string_iterator_impl<boundary_unit<Encoding>, Const> end,
+		typename boundary_unit<Encoding>::const_pointer expr)
+	{
+		return ext::strrfind(begin, end, expr, ext::strend(expr));
+	}
+
+	template <typename Boundary, bool Const>
+	constexpr string_iterator_impl<Boundary, Const>
+	rfind(
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
+		const_string_iterator<Boundary> exprbegin,
+		const_string_iterator<Boundary> exprend)
+	{
+		return ext::strrfind(begin, end, exprbegin.get(), exprend.get());
+	}
 }

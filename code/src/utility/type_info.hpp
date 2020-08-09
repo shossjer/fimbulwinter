@@ -34,14 +34,14 @@ namespace utility
 			string_units_utf8 signature = get_function_signature<T>();
 
 #if defined(__GNUG__)
-			const std::size_t from = signature.find("T = ") + 4;
-			const std::size_t to = signature.rfind("]");
+			const auto from = find(signature, "T = ") + 4;
+			const auto to = rfind(signature, "]");
 #elif defined(_MSC_VER)
-			const std::size_t from = signature.find("utility::detail::get_function_signature<") + 40;
-			const std::size_t to = signature.rfind(">(");
+			const auto from = find(signature, "utility::detail::get_function_signature<") + 40;
+			const auto to = rfind(signature, ">(");
 #endif
 
-			return string_units_utf8(signature.data() + from, signature.data() + to);
+			return string_units_utf8(from, to);
 		}
 
 		// in order to make the names platform independent (to the best of our
