@@ -680,19 +680,6 @@ namespace utility
 			reduce_impl(count);
 		}
 
-		ext::index find(value_type c) const
-		{
-			return ext::strfind(data(), data() + data_.array_.size(), c) - data();
-		}
-		ext::index find(value_type c, size_type from) const
-		{
-			return ext::strfind(data() + from, data() + data_.array_.size(), c) - data();
-		}
-		ext::index rfind(value_type c) const
-		{
-			return ext::strrfind(data(), data() + data_.array_.size(), c) - data();
-		}
-
 	private:
 
 		bool try_append_impl(copy_char, value_type c) { return try_append_impl(copy_str{}, &c, 1); }
@@ -835,14 +822,68 @@ namespace utility
 		}
 	};
 
+	template <typename Encoding>
+	using heap_string = basic_string<utility::heap_storage_traits, Encoding>;
+	template <std::size_t Capacity, typename Encoding>
+	using static_string = basic_string<utility::static_storage_traits<Capacity>, Encoding>;
+
 	template <typename Storage, typename Encoding>
 	decltype(auto) back(const basic_string<Storage, Encoding> & string) { return *(string.data() + string.size() - 1); }
 
 	template <typename Storage, typename Encoding>
 	bool empty(const basic_string<Storage, Encoding> & string) { return string.size() == 0; } // todo check iterators, or add empty check to storage data
 
-	template <typename Encoding>
-	using heap_string = basic_string<utility::heap_storage_traits, Encoding>;
-	template <std::size_t Capacity, typename Encoding>
-	using static_string = basic_string<utility::static_storage_traits<Capacity>, Encoding>;
+	template <typename StorageTraits, typename Encoding>
+	constexpr const_string_iterator<boundary_unit<Encoding>>
+	find(
+		const basic_string<StorageTraits, Encoding> & str,
+		typename Encoding::value_type c)
+	{
+		return utility::find(str.begin(), str.end(), c);
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr const_string_iterator<boundary_unit<Encoding>>
+	find(
+		const basic_string<StorageTraits, Encoding> & str,
+		basic_string_view<boundary_unit<Encoding>> expr)
+	{
+		return utility::find(str.begin(), str.end(), expr.begin(), expr.end());
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr const_string_iterator<boundary_unit<Encoding>>
+	find(
+		const basic_string<StorageTraits, Encoding> & str,
+		typename Encoding::const_pointer expr)
+	{
+		return utility::find(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr const_string_iterator<boundary_unit<Encoding>>
+	rfind(
+		const basic_string<StorageTraits, Encoding> & str,
+		typename Encoding::value_type c)
+	{
+		return utility::rfind(str.begin(), str.end(), c);
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr const_string_iterator<boundary_unit<Encoding>>
+	rfind(
+		const basic_string<StorageTraits, Encoding> & str,
+		basic_string_view<boundary_unit<Encoding>> expr)
+	{
+		return utility::rfind(str.begin(), str.end(), expr.begin(), expr.end());
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr const_string_iterator<boundary_unit<Encoding>>
+	rfind(
+		const basic_string<StorageTraits, Encoding> & str,
+		typename Encoding::const_pointer expr)
+	{
+		return utility::rfind(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));
+	}
 }

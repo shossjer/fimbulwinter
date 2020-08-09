@@ -9,19 +9,19 @@ namespace core
 		// todo generalize
 		inline utility::string_units_utf8 filename(utility::string_units_utf8 filepath)
 		{
-			auto from = filepath.rfind('/');
-			if (static_cast<ext::usize>(from) == filepath.size())
+			auto from = rfind(filepath, '/');
+			if (from == filepath.end())
 			{
-				from = 0;
+				from = filepath.begin();
 			}
 			else
 			{
-				from++; // do not include '/'
+				++from; // do not include '/'
 			}
 
-			auto to = filepath.rfind('.');
+			auto to = rfind(from, filepath.end(), '.');
 
-			return utility::string_units_utf8(filepath, from, to - from);
+			return utility::string_units_utf8(from, to);
 		}
 
 		template <typename StorageTraits, typename Encoding>

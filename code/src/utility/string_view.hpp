@@ -35,6 +35,11 @@ namespace utility
 
 		basic_string_view() = default;
 
+		constexpr basic_string_view(const_iterator begin, const_iterator end)
+			: ptr_(begin.get())
+			, size_(end - begin)
+		{}
+
 		constexpr basic_string_view(const_pointer s)
 			: ptr_(s)
 			, size_(ext::strlen(s))
@@ -122,31 +127,6 @@ namespace utility
 			                        count2) : count1 != 0;
 		}
 
-		constexpr ext::index find(value_type c) const
-		{
-			return ext::strfind(ptr_, ptr_ + size_, c) - ptr_;
-		}
-
-		constexpr ext::index find(value_type c, size_type from) const
-		{
-			return ext::strfind(ptr_ + from, ptr_ + size_, c) - ptr_;
-		}
-
-		constexpr ext::index find(this_type that, size_type from = 0) const
-		{
-			return find_impl(that, size_ < that.size_ ? ext::usize(-1) : from);
-		}
-
-		constexpr ext::index rfind(value_type c) const
-		{
-			return ext::strrfind(ptr_, ptr_ + size_, c) - ptr_;
-		}
-
-		constexpr ext::index rfind(this_type that, size_type from = size_type(-1)) const
-		{
-			return rfind_impl(that, size_ < that.size_ ? size_type(-1) : std::min(from, size_ - that.size_));
-		}
-
 	private:
 
 		static constexpr int compare_data(const_pointer a, const_pointer b, size_type count)
@@ -174,16 +154,6 @@ namespace utility
 				counta < countb ? -1 :
 				countb < counta ? 1 :
 				0;
-		}
-
-		constexpr ext::index find_impl(this_type that, size_type from) const
-		{
-			return from > size_ - that.size_ ? ext::index_invalid : compare_data(ptr_ + from, that.ptr_, that.size_) == 0 ? from : find_impl(that, from + 1);
-		}
-
-		constexpr ext::index rfind_impl(this_type that, size_type from) const
-		{
-			return from > size_ ? ext::index_invalid : compare_data(ptr_ + from, that.ptr_, that.size_) == 0 ? from : rfind_impl(that, from - 1);
 		}
 
 	public:
@@ -216,4 +186,78 @@ namespace utility
 
 	template <typename Boundary>
 	constexpr bool empty(basic_string_view<Boundary> view) { return view.begin() == view.end(); }
+
+	template <typename Boundary>
+	constexpr const_string_iterator<Boundary>
+	find(
+		basic_string_view<Boundary> view,
+		typename Boundary::const_reference c)
+	{
+		return utility::find(view.begin(), view.end(), c);
+	}
+
+	template <typename Encoding>
+	constexpr const_string_iterator<boundary_unit<Encoding>>
+	find(
+		basic_string_view<boundary_unit<Encoding>> view,
+		typename boundary_unit<Encoding>::const_pointer expr)
+	{
+		return utility::find(view.begin(), view.end(), expr);
+	}
+
+	template <typename Boundary, bool Const>
+	constexpr string_iterator_impl<Boundary, Const>
+	find(
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
+		basic_string_view<Boundary> expr)
+	{
+		return utility::find(begin, end, expr.begin(), expr.end());
+	}
+
+	template <typename Boundary>
+	constexpr const_string_iterator<Boundary>
+	find(
+		basic_string_view<Boundary> view,
+		basic_string_view<Boundary> expr)
+	{
+		return utility::find(view.begin(), view.end(), expr.begin(), expr.end());
+	}
+
+	template <typename Boundary>
+	constexpr const_string_iterator<Boundary>
+	rfind(
+		basic_string_view<Boundary> view,
+		typename Boundary::const_reference c)
+	{
+		return utility::rfind(view.begin(), view.end(), c);
+	}
+
+	template <typename Encoding>
+	constexpr const_string_iterator<boundary_unit<Encoding>>
+	rfind(
+		basic_string_view<boundary_unit<Encoding>> view,
+		typename boundary_unit<Encoding>::const_pointer expr)
+	{
+		return utility::rfind(view.begin(), view.end(), expr);
+	}
+
+	template <typename Boundary, bool Const>
+	constexpr string_iterator_impl<Boundary, Const>
+	rfind(
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
+		basic_string_view<Boundary> expr)
+	{
+		return utility::rfind(begin, end, expr.begin(), expr.end());
+	}
+
+	template <typename Boundary>
+	constexpr const_string_iterator<Boundary>
+	rfind(
+		basic_string_view<Boundary> view,
+		basic_string_view<Boundary> expr)
+	{
+		return utility::rfind(view.begin(), view.end(), expr.begin(), expr.end());
+	}
 }

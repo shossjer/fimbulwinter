@@ -2,47 +2,42 @@
 
 #include <catch2/catch.hpp>
 
-TEST_CASE("string view can find", "[utility][string view]")
+TEST_CASE("string view", "[utility][string view]")
 {
 	utility::basic_string_view<utility::boundary_unit<char>> a = "abcddf";
 
-	SECTION("existing characters")
+	SECTION("can find existing characters")
 	{
-		CHECK(a.find('a') == 0);
-		CHECK(a.find('c') == 2);
-		CHECK(a.find('f') == 5);
+		CHECK(find(a, 'a') == a.begin() + 0);
+		CHECK(find(a, 'c') == a.begin() + 2);
+		CHECK(find(a, 'f') == a.begin() + 5);
 	}
 
-	SECTION("existing characters in reverse")
+	SECTION("can find existing characters in reverse")
 	{
-		CHECK(a.rfind('a') == 0);
-		CHECK(a.rfind('c') == 2);
-		CHECK(a.rfind('f') == 5);
+		CHECK(rfind(a, 'a') == a.begin() + 0);
+		CHECK(rfind(a, 'c') == a.begin() + 2);
+		CHECK(rfind(a, 'f') == a.begin() + 5);
 	}
 
-	SECTION("the first of multiple matches")
+	SECTION("can find the first of multiple matches")
 	{
-		CHECK(a.find('d') == 3);
+		CHECK(find(a, 'd') == a.begin() + 3);
 	}
 
-	SECTION("the first of multiple matches in reverse")
+	SECTION("can find the first of multiple matches in reverse")
 	{
-		CHECK(a.rfind('d') == 4);
-	}
-}
-
-TEST_CASE("string view cannot find", "[utility][string view]")
-{
-	utility::basic_string_view<utility::boundary_unit<char>> a = "abcdef";
-
-	SECTION("nonexisting characters")
-	{
-		CHECK(a.find('g') == 6);
+		CHECK(rfind(a, 'd') == a.begin() + 4);
 	}
 
-	SECTION("nonexisting characters in reverse")
+	SECTION("cannot find nonexisting characters")
 	{
-		CHECK(a.rfind('g') == 6);
+		CHECK(find(a, 'g') == a.begin() + 6);
+	}
+
+	SECTION("cannot find nonexisting characters in reverse")
+	{
+		CHECK(rfind(a, 'g') == a.begin() + 6);
 	}
 }
 
