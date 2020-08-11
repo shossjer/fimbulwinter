@@ -481,7 +481,7 @@ TEST_CASE("static string", "[utility][unicode]")
 	CHECK_FALSE(empty(sv));
 	CHECK(sv.size() == long_text_size);
 	CHECK(sv.length() == long_text_length);
-	CHECK(sv.compare(long_text) == 0);
+	CHECK(compare(sv, long_text) == 0);
 
 	CHECK(sv[long_text_symbol_1_point] == utility::unicode_code_point(snowman));
 	CHECK(sv[long_text_symbol_2_point] == utility::unicode_code_point(german));
@@ -538,7 +538,7 @@ TEST_CASE("heap string", "[utility][unicode]")
 		CHECK_FALSE(empty(sv));
 		CHECK(sv.size() == long_text_size);
 		CHECK(sv.length() == long_text_length);
-		CHECK(sv.compare(long_text) == 0);
+		CHECK(compare(sv, long_text) == 0);
 
 		CHECK(sv[long_text_symbol_1_point] == utility::unicode_code_point(snowman));
 		CHECK(sv[long_text_symbol_2_point] == utility::unicode_code_point(german));

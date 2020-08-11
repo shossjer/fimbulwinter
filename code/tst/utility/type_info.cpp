@@ -1208,9 +1208,9 @@ TEST_CASE("type signature", "[utility][type info]")
 		// we do not promise any name in particular for an anonymous type, but
 		// everything up to the point of its name must be correct
 #if defined(__GNUG__)
-		CHECK(signature.compare(0, 23, "(anonymous namespace)::") == 0);
+		CHECK(compare(signature.begin() + 0, signature.begin() + 23, "(anonymous namespace)::") == 0);
 #elif defined(_MSC_VER)
-		CHECK(signature.compare(0, 23, "`anonymous-namespace'::") == 0);
+		CHECK(compare(signature.begin() + 0, signature.begin() + 23, "`anonymous-namespace'::") == 0);
 #endif
 	}
 
@@ -1220,9 +1220,9 @@ TEST_CASE("type signature", "[utility][type info]")
 		// we do not promise any name in particular for a lambda type, but
 		// everything up to the point of its name must be correct
 #if defined(__GNUG__)
-		CHECK(signature.compare(0, 23, "(anonymous namespace)::") == 0);
+		CHECK(compare(signature.begin() + 0, signature.begin() + 23, "(anonymous namespace)::") == 0);
 #elif defined(_MSC_VER)
-		CHECK(signature.compare(0, 29, "class `anonymous-namespace'::") == 0);
+		CHECK(compare(signature.begin() + 0, signature.begin() + 29, "class `anonymous-namespace'::") == 0);
 #endif
 	}
 
@@ -1288,7 +1288,7 @@ TEST_CASE("type name", "[utility][type info]")
 		constexpr auto name = utility::type_name<anonymous_type>();
 		// we do not promise any name in particular for an anonymous type, but
 		// everything up to the point of its name must be correct
-		CHECK(name.compare(0, 21, "anonymous-namespace::") == 0);
+		CHECK(compare(name.begin() + 0, name.begin() + 21, "anonymous-namespace::") == 0);
 	}
 
 	SECTION("of lambda_type")
@@ -1296,7 +1296,7 @@ TEST_CASE("type name", "[utility][type info]")
 		constexpr auto name = utility::type_name<lambda_type>();
 		// we do not promise any name in particular for a lambda type, but
 		// everything up to the point of its name must be correct
-		CHECK(name.compare(0, 21, "anonymous-namespace::") == 0);
+		CHECK(compare(name.begin() + 0, name.begin() + 21, "anonymous-namespace::") == 0);
 	}
 
 	SECTION("of type in function")

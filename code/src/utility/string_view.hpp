@@ -93,80 +93,17 @@ namespace utility
 
 		constexpr const_reference operator [] (size_type position) const { return begin()[position]; }
 
-		constexpr int compare(this_type other) const
-		{
-			return compare_impl(compare_data(ptr_,
-			                                 other.ptr_,
-			                                 std::min(size_, other.size_)),
-			                    size_,
-			                    other.size_);
-		}
-
-		constexpr int compare(size_type pos1, size_type count1, this_type other) const
-		{
-			return compare_impl(compare_data(ptr_ + pos1,
-			                                 other.ptr_,
-			                                 std::min(count1, other.size_)),
-			                    count1,
-			                    other.size_);
-		}
-
-		constexpr int compare(size_type pos1, size_type count1, this_type other, size_type pos2, size_type count2) const
-		{
-			return compare_impl(compare_data(ptr_ + pos1,
-			                                 other.ptr_ + pos2,
-			                                 std::min(count1, count2)),
-			                    count1,
-			                    count2);
-		}
-
-		constexpr int compare(size_type pos1, size_type count1, const_pointer s, size_type count2) const
-		{
-			return s ? compare_impl(compare_data(ptr_ + pos1, s, std::min(count1, count2)),
-			                        count1,
-			                        count2) : count1 != 0;
-		}
-
-	private:
-
-		static constexpr int compare_data(const_pointer a, const_pointer b, size_type count)
-		{
-			return
-				count <= 0 ? 0 :
-				*a < *b ? -1 :
-				*b < *a ? 1 :
-				compare_data(a + 1, b + 1, count - 1);
-		}
-
-		static constexpr int compare_data_null_terminated(const_pointer a_from, const_pointer a_to, const_pointer b)
-		{
-			return
-				a_from == a_to ? (*b == 0 ? 0 : -1) :
-				*a_from < *b ? -1 :
-				*b < *a_from ? 1 :
-				compare_data_null_terminated(a_from + 1, a_to, b + 1);
-		}
-
-		static constexpr int compare_impl(int res, size_type counta, size_type countb)
-		{
-			return
-				res != 0 ? res :
-				counta < countb ? -1 :
-				countb < counta ? 1 :
-				0;
-		}
-
 	public:
 
-		friend constexpr bool operator == (this_type x, this_type y) { return x.compare(y) == 0; }
-		friend constexpr bool operator == (this_type x, const value_type * s) { return x.compare(s) == 0; }
-		friend constexpr bool operator == (const value_type * s, this_type y) { return y.compare(s) == 0; }
+		friend constexpr bool operator == (this_type x, this_type y) { return compare(x.begin(), x.end(), y.begin(), y.end()) == 0; }
+		friend constexpr bool operator == (this_type x, const value_type * s) { return compare(x.begin(), x.end(), s) == 0; }
+		friend constexpr bool operator == (const value_type * s, this_type y) { return compare(y.begin(), y.end(), s) == 0; }
 		friend constexpr bool operator != (this_type x, this_type y) { return !(x == y); }
 		friend constexpr bool operator != (this_type x, const value_type * s) { return !(x == s); }
 		friend constexpr bool operator != (const value_type * s, this_type y) { return !(s == y); }
-		friend constexpr bool operator < (this_type x, this_type y) { return x.compare(y) < 0; }
-		friend constexpr bool operator < (this_type x, const value_type * s) { return x.compare(s) < 0; }
-		friend constexpr bool operator < (const value_type * s, this_type y) { return y.compare(s) > 0; }
+		friend constexpr bool operator < (this_type x, this_type y) { return compare(x.begin(), x.end(), y.begin(), y.end()) < 0; }
+		friend constexpr bool operator < (this_type x, const value_type * s) { return compare(x.begin(), x.end(), s) < 0; }
+		friend constexpr bool operator < (const value_type * s, this_type y) { return compare(y.begin(), y.end(), s) > 0; }
 		friend constexpr bool operator <= (this_type x, this_type y) { return !(y < x); }
 		friend constexpr bool operator <= (this_type x, const value_type * s) { return !(s < x); }
 		friend constexpr bool operator <= (const value_type * s, this_type y) { return !(y < s); }
@@ -186,6 +123,43 @@ namespace utility
 
 	template <typename Boundary>
 	constexpr bool empty(basic_string_view<Boundary> view) { return view.begin() == view.end(); }
+
+	template <typename Boundary>
+	constexpr int
+	compare(
+		basic_string_view<Boundary> view,
+		typename Boundary::value_type c)
+	{
+		return utility::compare(view.begin(), view.end(), c);
+	}
+
+	template <typename Boundary>
+	constexpr int
+	compare(
+		const_string_iterator<Boundary> begin,
+		const_string_iterator<Boundary> end,
+		basic_string_view<Boundary> str)
+	{
+		return utility::compare(begin, end, str.begin(), str.end());
+	}
+
+	template <typename Boundary>
+	constexpr int
+	compare(
+		basic_string_view<Boundary> view,
+		typename Boundary::const_pointer str)
+	{
+		return utility::compare(view.begin(), view.end(), str);
+	}
+
+	template <typename Boundary>
+	constexpr int
+	compare(
+		basic_string_view<Boundary> view,
+		basic_string_view<Boundary> str)
+	{
+		return utility::compare(view.begin(), view.end(), str.begin(), str.end());
+	}
 
 	template <typename Boundary>
 	constexpr const_string_iterator<Boundary>
@@ -259,5 +233,52 @@ namespace utility
 		basic_string_view<Boundary> expr)
 	{
 		return utility::rfind(view.begin(), view.end(), expr.begin(), expr.end());
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	starts_with(
+		basic_string_view<Boundary> view,
+		typename Boundary::value_type c)
+	{
+		return utility::starts_with(view.begin(), view.end(), c);
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	starts_with(
+		basic_string_view<Boundary> view,
+		typename Boundary::const_pointer str)
+	{
+		return utility::starts_with(view.begin(), view.end(), str);
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	starts_with(
+		const_string_iterator<Boundary> begin,
+		const_string_iterator<Boundary> end,
+		basic_string_view<Boundary> expr)
+	{
+		return utility::starts_with(begin, end, expr.begin(), expr.end());
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	starts_with(
+		basic_string_view<Boundary> view,
+		const_string_iterator<Boundary> exprbegin,
+		const_string_iterator<Boundary> exprend)
+	{
+		return utility::starts_with(view.begin(), view.end(), exprbegin, exprend);
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	starts_with(
+		basic_string_view<Boundary> view,
+		basic_string_view<Boundary> expr)
+	{
+		return utility::starts_with(view.begin(), view.end(), expr.begin(), expr.end());
 	}
 }

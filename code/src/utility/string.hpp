@@ -725,15 +725,6 @@ namespace utility
 			data()[end] = '\0';
 		}
 
-		static int compare_data(const_pointer a, const_pointer b)
-		{
-			return
-				*a < *b ? -1 :
-				*b < *a ? 1 :
-				*a == '\0' ? 0 :
-				compare_data(a + 1, b + 1);
-		}
-
 	public:
 
 		friend this_type operator + (const this_type & x, const this_type & other)
@@ -778,32 +769,32 @@ namespace utility
 			return std::move(x);
 		}
 
-		friend bool operator == (const this_type & x, const value_type * s)
-		{
-			return compare_data(x.data(), s) == 0;
-		}
 		friend bool operator == (const this_type & x, const this_type & other)
 		{
-			return compare_data(x.data(), other.data()) == 0;
+			return compare(x.begin(), x.begin(), other.begin(), other.end()) == 0;
+		}
+		friend bool operator == (const this_type & x, const value_type * s)
+		{
+			return compare(x.begin(), x.end(), s) == 0;
 		}
 		friend bool operator == (const value_type * s, const this_type & x)
 		{
-			return compare_data(s, x.data()) == 0;
+			return compare(x.begin(), x.end(), s) == 0;
 		}
-		friend bool operator != (const this_type & x, const value_type * s) { return !(x == s); }
 		friend bool operator != (const this_type & x, const this_type & other) { return !(x == other); }
+		friend bool operator != (const this_type & x, const value_type * s) { return !(x == s); }
 		friend bool operator != (const value_type * s, const this_type & x) { return !(s == x); }
-		friend bool operator < (const this_type & x, const value_type * s)
-		{
-			return compare_data(x.data(), s) < 0;
-		}
 		friend bool operator < (const this_type & x, const this_type & other)
 		{
-			return compare_data(x.data(), other.data()) < 0;
+			return compare(x.begin(), x.end(), other.begin(), other.end()) < 0;
+		}
+		friend bool operator < (const this_type & x, const value_type * s)
+		{
+			return compare(x.begin(), x.end(), s) < 0;
 		}
 		friend bool operator < (const value_type * s, const this_type & x)
 		{
-			return compare_data(s, x.data()) < 0;
+			return compare(x.begin(), x.end(), s) > 0;
 		}
 		friend bool operator <= (const this_type & x, const value_type * s) { return !(s < x); }
 		friend bool operator <= (const this_type & x, const this_type & other) { return !(other < x); }
