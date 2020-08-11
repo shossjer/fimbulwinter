@@ -47,11 +47,11 @@ namespace engine
 				}
 
 				auto word = utility::string_units_utf8(begin, to - begin);
-				if (word.compare("true") == 0)
+				if (word == "true")
 				{
 					params.emplace_back(utility::in_place_type<bool>, true);
 				}
-				else if (word.compare("false") == 0)
+				else if (word == "false")
 				{
 					params.emplace_back(utility::in_place_type<bool>, false);
 				}

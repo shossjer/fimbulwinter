@@ -85,28 +85,28 @@ namespace utility
 		{
 			return
 #if defined(__GNUG__)
-				string_units_utf8(cstr, 9).compare("long long") == 0 ? TypePattern{ 9, string_units_utf8("long long int") } :
+				starts_with(string_units_utf8(cstr), "long long") ? TypePattern{ 9, string_units_utf8("long long int") } :
 #elif defined(_MSC_VER)
-				string_units_utf8(cstr, 15).compare("volatile const ") == 0 && is_identifier_character(*(cstr + 15)) ? TypePattern{ 15, string_units_utf8("const volatile ") } :
-				string_units_utf8(cstr, 14).compare("volatile const") == 0 && !is_identifier_character(*(cstr + 14)) ? TypePattern{ 14, string_units_utf8("const volatile") } :
+				starts_with(string_units_utf8(cstr), "volatile const ") && is_identifier_character(*(cstr + 15)) ? TypePattern{ 15, string_units_utf8("const volatile ") } :
+				starts_with(string_units_utf8(cstr), "volatile const") && !is_identifier_character(*(cstr + 14)) ? TypePattern{ 14, string_units_utf8("const volatile") } :
 #endif
-				string_units_utf8(cstr, 6).compare("const ") == 0 && is_identifier_character(*(cstr + 6)) ? TypePattern{ 6, string_units_utf8("const ") } :
-				string_units_utf8(cstr, 7).compare("signed ") == 0 && is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_units_utf8("signed ") } :
-				string_units_utf8(cstr, 9).compare("unsigned ") == 0 && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("unsigned ") } :
-				string_units_utf8(cstr, 9).compare("volatile ") == 0 && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("volatile ") } :
-				string_units_utf8(cstr, 11).compare("long double") == 0 ? TypePattern{ 11, string_units_utf8("long double") } :
-				string_units_utf8(cstr, 4).compare("long") == 0 && !is_identifier_character(*(cstr + 4)) ? TypePattern{ 4, string_units_utf8("long int") } :
-				string_units_utf8(cstr, 5).compare("short") == 0 && !is_identifier_character(*(cstr + 5)) ? TypePattern{ 5, string_units_utf8("short int") } :
+				starts_with(string_units_utf8(cstr), "const ") && is_identifier_character(*(cstr + 6)) ? TypePattern{ 6, string_units_utf8("const ") } :
+				starts_with(string_units_utf8(cstr), "signed ") && is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_units_utf8("signed ") } :
+				starts_with(string_units_utf8(cstr), "unsigned ") && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("unsigned ") } :
+				starts_with(string_units_utf8(cstr), "volatile ") && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("volatile ") } :
+				starts_with(string_units_utf8(cstr), "long double") ? TypePattern{ 11, string_units_utf8("long double") } :
+				starts_with(string_units_utf8(cstr), "long") && !is_identifier_character(*(cstr + 4)) ? TypePattern{ 4, string_units_utf8("long int") } :
+				starts_with(string_units_utf8(cstr), "short") && !is_identifier_character(*(cstr + 5)) ? TypePattern{ 5, string_units_utf8("short int") } :
 #if defined(__GNUG__)
-				string_units_utf8(cstr, 9).compare("nullptr_t") == 0 && !is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("std::nullptr_t") } :
-				string_units_utf8(cstr, 21).compare("(anonymous namespace)") == 0 ? TypePattern{ 21, string_units_utf8("anonymous-namespace") } :
+				starts_with(string_units_utf8(cstr), "nullptr_t") && !is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("std::nullptr_t") } :
+				starts_with(string_units_utf8(cstr), "(anonymous namespace)") ? TypePattern{ 21, string_units_utf8("anonymous-namespace") } :
 #elif defined(_MSC_VER)
-				string_units_utf8(cstr, 6).compare("class ") == 0 ? TypePattern{ 6, string_units_utf8() } :
-				string_units_utf8(cstr, 7).compare("struct ") == 0 ? TypePattern{ 7, string_units_utf8() } :
-				string_units_utf8(cstr, 7).compare("__int64") == 0 && !is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_units_utf8("long long int") } :
-				string_units_utf8(cstr, 21).compare("`anonymous-namespace'") == 0 ? TypePattern{ 21, string_units_utf8("anonymous-namespace") } :
+				starts_with(string_units_utf8(cstr), "class ") ? TypePattern{ 6, string_units_utf8() } :
+				starts_with(string_units_utf8(cstr), "struct ") ? TypePattern{ 7, string_units_utf8() } :
+				starts_with(string_units_utf8(cstr), "__int64") && !is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_units_utf8("long long int") } :
+				starts_with(string_units_utf8(cstr), "`anonymous-namespace'") ? TypePattern{ 21, string_units_utf8("anonymous-namespace") } :
 #endif
-				string_units_utf8(cstr, 1).compare(" ") == 0 ? TypePattern{ 1, string_units_utf8() } :
+				starts_with(string_units_utf8(cstr), " ") ? TypePattern{ 1, string_units_utf8() } :
 				next_word(cstr);
 		}
 
