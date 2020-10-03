@@ -394,7 +394,7 @@ namespace
 
 			const auto dot = rfind(filename, '.');
 			if (dot == filename.end())
-				return false; // not eligible for partial matching
+				continue; // not eligible for partial matching
 
 			const engine::Asset name_asset(utility::string_units_utf8(filename.begin(), dot));
 			const auto name_it = directory_meta.names.find_by_asset(name_asset);
