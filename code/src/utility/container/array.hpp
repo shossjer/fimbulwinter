@@ -240,6 +240,9 @@ namespace utility
 		annotate_nodiscard
 		auto data() const { return this->storage_.data(this->begin_storage()); }
 
+		decltype(auto) operator [] (ext::index i) { return data()[i]; }
+		decltype(auto) operator [] (ext::index i) const { return data()[i]; }
+
 		annotate_nodiscard
 		bool try_reserve(std::size_t min_capacity)
 		{
