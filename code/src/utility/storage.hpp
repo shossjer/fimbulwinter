@@ -1015,16 +1015,19 @@ namespace utility
 		}
 	};
 
-	template <template <typename> class ReservationStrategy>
-	struct reserve_nonempty
+	template <std::size_t Size, template <typename> class ReservationStrategy>
+	struct reserve_at_least
 	{
 		template <typename Storage>
 		struct type
 		{
 			constexpr std::size_t operator () (std::size_t size)
 			{
-				return ReservationStrategy<Storage>{}(size == 0 ? 1 : size);
+				return ReservationStrategy<Storage>{}(size < Size ? Size : size);
 			}
 		};
 	};
+
+	template <template <typename> class ReservationStrategy>
+	using reserve_nonempty = reserve_at_least<1, ReservationStrategy>;
 }
