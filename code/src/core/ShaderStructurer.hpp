@@ -1,345 +1,146 @@
 #pragma once
 
-#include "core/BufferedStream.hpp"
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
+#include "core/StringStream.hpp"
 
+#include "utility/regex.hpp"
 #include "utility/unicode/string_view.hpp"
-
-#include <algorithm>
-#include <cstdlib>
-#include <vector>
 
 namespace core
 {
-	struct beginline_t { explicit constexpr beginline_t(int) {} };
-	struct endline_t { explicit constexpr endline_t(int) {} };
-	struct endoffile_t { explicit constexpr endoffile_t(int) {} };
-	struct newline_t { explicit constexpr newline_t(int) {} };
-	struct whitespace_t { explicit constexpr whitespace_t(int) {} };
-
-	constexpr beginline_t beginline{ 0 };
-	constexpr endline_t endline{ 0 };
-	constexpr endoffile_t endoffile{ 0 };
-	constexpr newline_t newline{ 0 };
-	constexpr whitespace_t whitespace{ 0 };
-
 	class ShaderStructurer
 	{
 	private:
-		BufferedStream stream;
+
+		StringStream<utility::heap_storage_traits, utility::encoding_utf8> stream_;
+
+		using Parser = rex::parser_for<StringStream<utility::heap_storage_traits, utility::encoding_utf8>>;
 
 	public:
+
 		ShaderStructurer(ReadStream && stream)
-			: stream(std::move(stream))
+			: stream_(std::move(stream))
 		{}
 
 	public:
+
 		template <typename T>
 		void read(T & x)
 		{
-			debug_verify(parse("[vertex]", newline), "expected vertex section in '", stream.filepath(), "'");
-			static_assert(core::member_table<T>::has("inputs"), "");
-			// if (core::member_table<T>::has("inputs"))
-			{
-				while (parse("[bind", whitespace))
-				{
-					if (core::member_table<T>::call("inputs", x, [&](auto & y){ return read_name_value(y); }))
-					{
-						debug_verify(parse("]", newline), "expected ending bracket in '", stream.filepath(), "'");
-					}
-					else
-					{
-						skip_line();
-					}
-				}
-			}
-			// else
-			// {
-			// 	while (parse("["))
-			// 	{
-			// 		skip_line();
-			// 	}
-			// }
-			stream.consume();
-			const std::ptrdiff_t vertex_source_begin = stream.pos();
-			const std::ptrdiff_t vertex_source_end = find(beginline, "[fragment]", endline);
-			if (core::member_table<T>::has("vertex_source"))
-			{
-				parse_region(vertex_source_begin, vertex_source_end, x.vertex_source);
-			}
-			else
-			{
-				skip_region(vertex_source_begin, vertex_source_end);
-			}
+			Parser parser = rex::parse(stream_);
 
-			stream.consume();
-			debug_verify(parse("[fragment]", newline), "expected fragment section in '", stream.filepath(), "'");
-			static_assert(core::member_table<T>::has("outputs"), "");
-			// if (core::member_table<T>::has("outputs"))
-			{
-				while (parse("[bind", whitespace))
-				{
-					if (core::member_table<T>::call("outputs", x, [&](auto & y){ return read_name_value(y); }))
-					{
-						debug_verify(parse("]", newline), "expected ending bracket in '", stream.filepath(), "'");
-					}
-					else
-					{
-						skip_line();
-					}
-				}
-			}
-			// else
-			// {
-			// 	while (parse("["))
-			// 	{
-			// 		skip_line();
-			// 	}
-			// }
-			stream.consume();
-			const std::ptrdiff_t fragment_source_begin = stream.pos();
-			const std::ptrdiff_t fragment_source_end = find(endoffile);
-			if (core::member_table<T>::has("fragment_source"))
-			{
-				parse_region(fragment_source_begin, fragment_source_end, x.fragment_source);
-			}
-			else
-			{
-				skip_region(fragment_source_begin, fragment_source_end);
-			}
-
-			debug_assert(!stream.valid());
-		}
-	private:
-		template <typename T>
-		bool read_name_value(std::vector<T> & x)
-		{
-			x.emplace_back();
-
-			static_assert(core::member_table<T>::has("name"), "");
-			if (!core::member_table<T>::call("name", x.back(), [&](auto & y){ return parse(y); }))
-			{
-				return debug_fail("failed to parse 'name' in '", stream.filepath(), "'");
-			}
-
-			debug_verify(parse(whitespace), "'name' and 'value' should be separated by whitespace in '", stream.filepath(), "'");
-
-			static_assert(core::member_table<T>::has("value"), "");
-			if (!core::member_table<T>::call("value", x.back(), [&](auto & y){ return parse(y); }))
-			{
-				return debug_fail("failed to parse 'value' in '", stream.filepath(), "'");
-			}
-
-			return true;
-		}
-		template <typename T>
-		bool read_name_value(T &)
-		{
-			debug_unreachable();
-		}
-
-		bool parse_impl() const
-		{
-			return true;
-		}
-
-		template <typename ...Ps>
-		bool parse_impl(beginline_t, Ps && ...ps)
-		{
-			if (!stream.valid())
-				return false;
-
-			if (!(stream.pos() <= 0 ||
-			      (stream.peek(stream.pos() - 1) == '\n' ||
-			       stream.peek(stream.pos() - 1) == '\r')))
-				return false;
-
-			return parse_impl(std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		bool parse_impl(endline_t, Ps && ...ps)
-		{
-			if (!stream.valid())
-				return false;
-
-			while (stream.peek() == '\n' ||
-			       stream.peek() == '\r')
-			{
-				stream.next();
-				if (!stream.valid())
-					break;
-			}
-
-			return parse_impl(std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		bool parse_impl(newline_t, Ps && ...ps)
-		{
-			return parse_impl(endline, std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		bool parse_impl(whitespace_t, Ps && ...ps)
-		{
-			if (!stream.valid())
-				return false;
-
-			while (stream.peek() == '\n' ||
-			       stream.peek() == '\r' ||
-			       stream.peek() == '\t' ||
-			       stream.peek() == ' ')
-			{
-				stream.next();
-				if (!stream.valid())
-					return false;
-			}
-
-			return parse_impl(std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		bool parse_impl(const char * pattern, Ps && ...ps)
-		{
-			for (const char * p = pattern; *p != '\0'; p++)
-			{
-				if (!stream.valid())
-					return false;
-
-				if (*p != stream.peek())
-					return false;
-
-				stream.next();
-				if (!stream.valid())
-					return false;
-			}
-
-			return parse_impl(std::forward<Ps>(ps)...);
-		}
-
-		template <typename ...Ps>
-		bool parse_impl(int & x, Ps && ...ps)
-		{
-			if (!stream.valid())
-				return false;
-
-			const auto from = stream.pos();
-			while (stream.peek() >= '0' && stream.peek() <= '9')
-			{
-				stream.next();
-				if (!stream.valid())
-					return false;
-			}
-			// todo error handling
-			x = debug_cast<int>(std::strtol(stream.data(from), nullptr, 0));
-
-			return parse_impl(std::forward<Ps>(ps)...);
-		}
-
-		template <typename T, typename ...Ps>
-		bool parse_impl(T & x, Ps && ...ps)
-		{
-			if (!stream.valid())
-				return false;
-
-			if (stream.peek() == '"')
-				return debug_fail();
-
-			const auto from = stream.pos();
-			while (!(stream.peek() == '\n' ||
-				        stream.peek() == '\r' ||
-				        stream.peek() == '\t' ||
-				        stream.peek() == ' '))
-			{
-				stream.next();
-				if (!stream.valid())
-					return false;
-			}
-			using core::serialize;
-			if (!serialize(x, utility::string_units_utf8(stream.data(from), stream.pos() - from)))
-				return false;
-
-			return parse_impl(std::forward<Ps>(ps)...);
-		}
-
-		template <typename P1, typename ...Ps>
-		bool parse(P1 && p1, Ps && ...ps)
-		{
-			const auto pos = stream.pos();
-			if (parse_impl(std::forward<P1>(p1), std::forward<Ps>(ps)...))
-				return true;
-
-			stream.seek(pos);
-			return false;
-		}
-
-		std::ptrdiff_t find(endoffile_t)
-		{
-			const auto bak = stream.pos();
-			while (stream.valid())
-			{
-				stream.next();
-			}
-			const auto pos = stream.pos();
-			stream.seek(bak);
-			return pos;
-		}
-
-		template <typename P1, typename ...Ps>
-		std::ptrdiff_t find(P1 && p1, Ps && ...ps)
-		{
-			const auto bak = stream.pos();
-			while (stream.valid())
-			{
-				const auto pos = stream.pos();
-				const auto match = parse_impl(p1, ps...);
-				stream.seek(pos);
-
-				if (match)
-					break;
-
-				stream.next();
-			}
-			const auto pos = stream.pos();
-			stream.seek(bak);
-			return pos;
-		}
-
-		template <typename T>
-		void parse_region(std::ptrdiff_t from, std::ptrdiff_t to, T & x)
-		{
-			debug_assert(from == stream.pos());
-
-			using core::serialize;
-			if (!serialize(x, utility::string_units_utf8(stream.data(from), to - from)))
+			const auto vertex_section = parser.match(rex::str("[vertex]") >> rex::newline);
+			if (!debug_verify(vertex_section.first, stream_.filepath(), ":", vertex_section.second - stream_.begin(), ": expected vertex section and newline"))
 				return; // error
 
-			stream.seek(to);
+			parser.seek(vertex_section.second);
+
+			using core::clear;
+			clear<core::member_table<T>::find("inputs")>(x);
+			while (true)
+			{
+				const auto property = parser.match(rex::ch('['));
+				if (!property.first)
+					break;
+
+				parser.seek(property.second);
+
+				const auto bind = parser.match(rex::str("bind") >> rex::blank);
+				if (!bind.first)
+					return; // error
+
+				parser.seek(bind.second);
+
+				const auto bind_name_value = read_name_value(x, mpl::index_constant<core::member_table<T>::find("inputs")>{}, parser);
+				if (!bind_name_value.first)
+					return; // error
+
+				parser.seek(bind_name_value.second);
+
+				const auto bind_name_value_end = parser.match(rex::str("]") >> rex::newline);
+				if (!debug_verify(bind_name_value_end.first, stream_.filepath(), ":", vertex_section.second - stream_.begin(), ": expected ending bracket and newline"))
+					return; // error
+
+				parser.seek(bind_name_value_end.second);
+			}
+
+			const auto fragment_section = parser.find(rex::str("[fragment]") >> rex::newline); // todo beginline
+			if (!debug_verify(fragment_section.first != fragment_section.second, stream_.filepath(), ":?", ": expected fragment section and newline"))
+				return; // error
+
+			using core::serialize;
+			debug_verify(serialize<core::member_table<T>::find("vertex_source")>(x, utility::string_units_utf8(parser.begin().get(), fragment_section.first.get())));
+
+			parser.seek(fragment_section.second);
+
+			using core::clear;
+			clear<core::member_table<T>::find("outputs")>(x);
+			while (true)
+			{
+				const auto bind = parser.match(rex::str("[bind") >> rex::blank);
+				if (!bind.first)
+					break;
+
+				parser.seek(bind.second);
+
+				const auto bind_name_value = read_name_value(x, mpl::index_constant<core::member_table<T>::find("outputs")>{}, parser);
+				if (!bind_name_value.first)
+					return; // error
+
+				parser.seek(bind_name_value.second);
+
+				const auto bind_name_value_end = parser.match(rex::str("]") >> rex::newline);
+				if (!debug_verify(bind_name_value_end.first, stream_.filepath(), ":", vertex_section.second - stream_.begin(), ": expected ending bracket and newline"))
+					return; // error
+
+				parser.seek(bind_name_value_end.second);
+			}
+
+			const auto end = parser.find(rex::end);
+
+			using core::serialize;
+			debug_verify(serialize<core::member_table<T>::find("fragment_source")>(x, utility::string_units_utf8(parser.begin().get(), end.first.get())));
 		}
 
-		void skip_line()
+	private:
+
+		template <typename T>
+		auto read_name_value(T & /*x*/, mpl::index_constant<std::size_t(-1)>, Parser parser)
 		{
-			while (stream.valid() &&
-			       !(stream.peek() == '\n' ||
-			         stream.peek() == '\r'))
-			{
-				stream.next();
-			}
-			while (stream.valid() &&
-			       (stream.peek() == '\n' ||
-			        stream.peek() == '\r'))
-			{
-				stream.next();
-			}
+			const auto nextline = parser.find(rex::str("]"));
+			return std::make_pair(true, nextline.first);
 		}
 
-		void skip_region(std::ptrdiff_t debug_expression(from), std::ptrdiff_t to)
+		template <typename T, std::size_t I>
+		auto read_name_value(T & x, mpl::index_constant<I>, Parser parser)
 		{
-			debug_assert(from == stream.pos());
+			using core::grow;
+			auto & y = grow(core::member_table<T>::template get<I>(x));
 
-			stream.seek(to);
+			using core::serialize;
+
+			const auto name = parser.match(+rex::word);
+			if (!name.first)
+				return name;
+
+			debug_verify(serialize<core::member_table<mpl::remove_cvref_t<decltype(y)>>::find("name")>(y, utility::string_units_utf8(parser.begin().get(), name.second.get())));
+
+			parser.seek(name.second);
+
+			const auto space = parser.match(rex::blank);
+			if (!space.first)
+				return space;
+
+			parser.seek(space.second);
+
+			const auto value = parser.match(+rex::digit);
+			if (!value.first)
+				return value;
+
+			debug_verify(serialize<core::member_table<mpl::remove_cvref_t<decltype(y)>>::find("value")>(y, utility::string_units_utf8(parser.begin().get(), value.second.get())));
+
+			return value;
 		}
 	};
 }

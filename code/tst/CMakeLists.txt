@@ -6,11 +6,14 @@ set(FILES_CORE
 	tst/core/container/Queue.cpp
 	tst/core/debug.cpp
 	tst/core/file/paths.cpp
+	tst/core/IniStructurer.cpp
 	tst/core/maths/Matrix.cpp
 	tst/core/maths/Quaternion.cpp
 	tst/core/maths/Vector.cpp
 	tst/core/maths/util.cpp
 	tst/core/ReadStream.cpp
+	tst/core/serialization.cpp
+	tst/core/StringStream.cpp
 	tst/core/WriteStream.cpp
 	)
 

@@ -326,30 +326,31 @@ namespace core
 			{
 				const auto key_string = it.key();
 				const utility::string_units_utf8 key = key_string.c_str();
-				if (!member_table<T>::has(key))
+				const auto key_index = member_table<T>::find(key);
+				if (key_index == std::size_t(-1))
 					continue;
 
 				const json & v = it.value();
 				if (v.is_array())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_array(v, y); });
+					member_table<T>::call(key_index, x, [&](auto & y){ read_array(v, y); });
 				}
 				else if (v.is_boolean())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_bool(v, y); });
+					member_table<T>::call(key_index, x, [&](auto & y){ read_bool(v, y); });
 				}
 				else if (v.is_number())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_number(v, y); });
+					member_table<T>::call(key_index, x, [&](auto & y){ read_number(v, y); });
 				}
 				else if (v.is_object())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_object(v, y); });
+					member_table<T>::call(key_index, x, [&](auto & y){ read_object(v, y); });
 				}
 				else if (v.is_string())
 				{
 					member_table<T>::call(
-						key,
+						key_index,
 						x,
 						[&](auto & y)
 						{
