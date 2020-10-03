@@ -9,50 +9,65 @@ namespace rex
 
 	namespace detail
 	{
-		template <typename T>
-		struct any_number_of
-			: T
+		template <typename P, typename Q>
+		struct conjunction
 		{
-			template <typename ...Ps>
-			explicit any_number_of(Ps && ...ps)
-				: T(std::forward<Ps>(ps)...)
-			{}
+			P p;
+			Q q;
+
+			explicit conjunction(P p, Q q) : p(p), q(q) {}
 
 			template <typename BeginIt, typename EndIt>
-			match_result<BeginIt> operator () (BeginIt begin, EndIt end) const
+			auto operator () (BeginIt begin, EndIt end, mpl::false_type negation) const
 			{
-				while (true)
+				auto result = p(begin, end, negation);
+				if (result.first)
 				{
-					const auto more = this->T::operator () (begin, end);
-					if (!more.first)
-						break;
-
-					begin = more.second;
+					result = q(begin, result.second, negation);
 				}
-				return {true, begin};
+				return result;
+			}
+
+			template <typename BeginIt, typename EndIt>
+			auto operator () (BeginIt begin, EndIt end, mpl::true_type negation) const
+			{
+				// todo same as disjunction false_type
+				auto result = p(begin, end, negation);
+				if (!result.first)
+				{
+					result = q(result.second, end, negation);
+				}
+				return result;
 			}
 		};
 
-		template <typename T>
-		struct at_least_one
-			: T
+		template <typename P, typename Q>
+		struct disjunction
 		{
-			template <typename ...Ps>
-			explicit at_least_one(Ps && ...ps)
-				: T(std::forward<Ps>(ps)...)
-			{}
+			P p;
+			Q q;
+
+			explicit disjunction(P p, Q q) : p(p), q(q) {}
 
 			template <typename BeginIt, typename EndIt>
-			match_result<BeginIt> operator () (BeginIt begin, EndIt end) const
+			auto operator () (BeginIt begin, EndIt end, mpl::false_type negation) const
 			{
-				auto result = this->T::operator () (begin, end);
-				while (result.first)
+				auto result = p(begin, end, negation);
+				if (!result.first)
 				{
-					const auto more = this->T::operator () (result.second, end);
-					if (!more.first)
-						break;
+					result = q(result.second, end, negation);
+				}
+				return result;
+			}
 
-					result.second = more.second;
+			template <typename BeginIt, typename EndIt>
+			auto operator () (BeginIt begin, EndIt end, mpl::true_type negation) const
+			{
+				// todo same as conjunction false_type
+				auto result = p(begin, end, negation);
+				if (result.first)
+				{
+					result = q(begin, result.second, negation);
 				}
 				return result;
 			}
@@ -68,27 +83,143 @@ namespace rex
 			: T(std::forward<Ps>(ps)...)
 		{}
 
-		friend auto operator + (pattern<T> p)
+		friend auto operator ! (pattern<T> p)
 		{
-			return pattern<detail::at_least_one<T>>(p);
+			auto opposite = [p](auto begin, auto end, auto negation)
+			{
+				return p(begin, end, typename mpl::negation<decltype(negation)>::type{});
+			};
+			return pattern<decltype(opposite)>(opposite);
 		}
 
 		friend auto operator * (pattern<T> p)
 		{
-			return pattern<detail::any_number_of<T>>(p);
+			auto any_number_of = [p](auto begin, auto end, mpl::false_type negation) -> match_result<decltype(begin)>
+			{
+				while (true)
+				{
+					const auto more = p(begin, end, negation);
+					if (!more.first)
+						break;
+
+					begin = more.second;
+				}
+				return {true, begin};
+			};
+			return pattern<decltype(any_number_of)>(any_number_of);
+		}
+
+		friend auto operator + (pattern<T> p)
+		{
+			auto at_least_one = [p](auto begin, auto end, mpl::false_type negation)
+			{
+				auto result = p(begin, end, negation);
+				while (result.first)
+				{
+					const auto more = p(result.second, end, negation);
+					if (!more.first)
+						break;
+
+					result.second = more.second;
+				}
+				return result;
+			};
+			return pattern<decltype(at_least_one)>(at_least_one);
+		}
+
+		friend auto operator - (pattern<T> p)
+		{
+			auto at_most_one = [p](auto begin, auto end, mpl::false_type negation) -> match_result<decltype(begin)>
+			{
+				const auto result = p(begin, end, negation);
+
+				return {true, result.first ? result.second : begin};
+			};
+			return pattern<decltype(at_most_one)>(at_most_one);
+		}
+
+		template <typename U>
+		friend auto operator >> (pattern<T> p, pattern<U> q)
+		{
+			auto composition = [p, q](auto begin, auto end, mpl::false_type negation)
+			{
+				auto result = p(begin, end, negation);
+				if (result.first)
+				{
+					result = q(result.second, end, negation);
+				}
+				return result;
+			};
+			return pattern<decltype(composition)>(composition);
+		}
+
+		template <typename U>
+		friend auto operator & (pattern<T> p, pattern<U> q)
+		{
+			return pattern<detail::conjunction<pattern<T>, pattern<U>>>(p, q);
+		}
+
+		template <typename U>
+		friend auto operator | (pattern<T> p, pattern<U> q)
+		{
+			return pattern<detail::disjunction<pattern<T>, pattern<U>>>(p, q);
+		}
+
+		template <typename U>
+		friend auto operator - (pattern<T> p, pattern<U> q)
+		{
+			return p & !q;
 		}
 	};
 
-
-
 	namespace detail
 	{
+		struct blank
+		{
+			explicit blank() = default;
+
+			template <typename BeginIt, typename EndIt, bool Negation>
+			match_result<BeginIt> operator () (BeginIt begin, EndIt end, mpl::bool_constant<Negation>) const
+			{
+				if (begin == end)
+					return {false, begin};
+
+				const bool is_blank = *begin == ' ' || *begin == '\t';
+				if (is_blank != Negation)
+				{
+					++begin;
+				}
+
+				return {is_blank != Negation, begin};
+			}
+		};
+
+		struct digit
+		{
+			explicit digit() = default;
+
+			template <typename BeginIt, typename EndIt, bool Negation>
+			match_result<BeginIt> operator () (BeginIt begin, EndIt end, mpl::bool_constant<Negation>) const
+			{
+				if (begin == end)
+					return {false, begin};
+
+				const bool is_digit = *begin >= '0' && *begin <= '9';
+				if (is_digit != Negation)
+				{
+					++begin;
+				}
+
+				return {is_digit != Negation, begin};
+			}
+		};
+
 		struct newline
 		{
 			explicit newline() = default;
 
 			template <typename BeginIt, typename EndIt>
-			match_result<BeginIt> operator () (BeginIt begin, EndIt end) const
+			match_result<BeginIt> operator () (BeginIt begin, EndIt end, mpl::false_type /*negation*/) const
 			{
 				if (begin == end)
 					return {false, begin};
@@ -97,6 +228,8 @@ namespace rex
 				if (is_r)
 				{
 					++begin;
+					if (begin == end)
+						return {true, begin};
 				}
 
 				const bool is_n = *begin == '\n';
@@ -107,14 +240,94 @@ namespace rex
 
 				return {is_r || is_n, begin};
 			}
+
+			template <typename BeginIt, typename EndIt>
+			match_result<BeginIt> operator () (BeginIt begin, EndIt end, mpl::true_type /*negation*/) const
+			{
+				if (begin == end)
+					return {false, begin};
+
+				const bool is_neither_r_or_n = !(*begin == '\r' || *begin == '\n');
+				if (is_neither_r_or_n)
+				{
+					++begin;
+				}
+
+				return {is_neither_r_or_n, begin};
+			}
+		};
+
+		struct word
+		{
+			explicit word() = default;
+
+			template <typename BeginIt, typename EndIt, bool Negation>
+			match_result<BeginIt> operator () (BeginIt begin, EndIt end, mpl::bool_constant<Negation>) const
+			{
+				if (begin == end)
+					return {false, begin};
+
+				const bool is_word =
+					(*begin >= '0' && *begin <= '9') ||
+					(*begin >= 'A' && *begin <= 'Z') ||
+					(*begin >= 'a' && *begin <= 'z') ||
+					*begin == '_';
+				if (is_word != Negation)
+				{
+					++begin;
+				}
+
+				return {is_word != Negation, begin};
+			}
+		};
+
+		struct end
+		{
+			explicit end() = default;
+
+			template <typename BeginIt, typename EndIt>
+			match_result<BeginIt> operator () (BeginIt begin, EndIt end, mpl::false_type /*negation*/) const
+			{
+				return {begin == end, begin};
+			}
 		};
 	}
 
+	const auto blank = pattern<detail::blank>();
+	const auto digit = pattern<detail::digit>();
 	const auto newline = pattern<detail::newline>();
+	const auto word = pattern<detail::word>();
 
+	const auto end = pattern<detail::end>();
 
 	namespace detail
 	{
+		template <typename T>
+		class char_t
+		{
+		private:
+			T c;
+
+		public:
+			explicit char_t(T c) : c(c) {}
+
+		public:
+			template <typename BeginIt, typename EndIt, bool Negation>
+			match_result<BeginIt> operator () (BeginIt begin, EndIt end, mpl::bool_constant<Negation>) const
+			{
+				if (begin == end)
+					return {false, begin};
+
+				const bool is_char = *begin == c;
+				if (is_char != Negation)
+				{
+					++begin;
+				}
+
+				return {is_char != Negation, begin};
+			}
+		};
+
 		template <typename Boundary>
 		class string_t
 		{
@@ -122,13 +335,11 @@ namespace rex
 			utility::basic_string_view<Boundary> str;
 
 		public:
-			explicit string_t(utility::basic_string_view<Boundary> str)
-				: str(str)
-			{}
+			explicit string_t(utility::basic_string_view<Boundary> str) : str(str) {}
 
 		public:
-			template <typename BeginIt, typename EndIt>
-			match_result<BeginIt> operator () (BeginIt begin, EndIt end) const
+			template <typename BeginIt, typename EndIt, bool Negation>
+			match_result<BeginIt> operator () (BeginIt begin, EndIt end, mpl::bool_constant<Negation>) const
 			{
 				for (const auto c : str)
 				{
@@ -136,56 +347,86 @@ namespace rex
 						return {false, begin};
 
 					if (!(*begin == c))
-						return {false, begin};
+						return {Negation, begin};
 
 					++begin;
 				}
-				return {true, begin};
+				return {!Negation, begin};
 			}
 		};
 	}
 
-	inline auto string(const char * str)
+	inline auto ch(char c)
+	{
+		return pattern<detail::char_t<char>>(c);
+	}
+
+	inline auto str(const char * str)
 	{
 		return pattern<detail::string_t<utility::boundary_unit<char>>>(str);
 	}
 
-
 	template <typename BeginIt, typename EndIt>
-	class match_t
+	class parser
 	{
-		using this_type = match_t<BeginIt, EndIt>;
-
-	public:
-		bool first;
-		BeginIt second;
 	private:
-		EndIt end;
+		BeginIt begin_;
+		EndIt end_;
 
 	public:
-		explicit match_t(BeginIt begin, EndIt end)
-			: first(true)
-			, second(begin)
-			, end(end)
+		explicit parser(BeginIt begin, EndIt end)
+			: begin_(begin)
+			, end_(end)
 		{}
 
-	private:
+	public:
+		BeginIt begin() const { return begin_; }
+		EndIt end() const { return end_; }
+
 		template <typename T>
-		friend this_type operator >> (this_type x, const pattern<T> & pattern)
+		std::pair<BeginIt, BeginIt> find(const pattern<T> & p) const
 		{
-			if (x.first)
+			for (auto it = begin_;; ++it)
 			{
-				const auto result = pattern(x.second, x.end);
-				x.first = result.first;
-				x.second = result.second;
+				const auto result = p(it, end_, mpl::false_type{});
+				if (result.first)
+					return {it, result.second};
+
+				if (result.second == end_)
+					return {result.second, result.second};
 			}
-			return x;
+		}
+
+		template <typename T>
+		match_result<BeginIt> match(const pattern<T> & p) const
+		{
+			return p(begin_, end_, mpl::false_type{});
+		}
+
+		void seek(BeginIt it)
+		{
+			begin_ = it;
 		}
 	};
 
 	template <typename BeginIt, typename EndIt>
-	match_t<BeginIt, EndIt> match(BeginIt begin, EndIt end)
+	auto parse(BeginIt begin, EndIt end)
 	{
-		return match_t<BeginIt, EndIt>(begin, end);
+		return parser<BeginIt, EndIt>(begin, end);
 	}
+
+	template <typename Range>
+	auto parse(const Range & range)
+	{
+		return parse(utility::begin(range), utility::end(range));
+	}
+
+	template <typename Range>
+	using parser_for = decltype(parse(std::declval<Range>()));
+}
+
+namespace ext
+{
+	template <typename BeginIt, typename EndIt>
+	bool empty(const rex::parser<BeginIt, EndIt> & parser) { return parser.begin() == parser.end(); }
 }

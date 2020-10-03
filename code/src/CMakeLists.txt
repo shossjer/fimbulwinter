@@ -43,6 +43,7 @@ set(HEADERS_CORE
 	src/core/serialization.hpp
 	src/core/ShaderStructurer.hpp
 	src/core/StringSerializer.hpp
+	src/core/StringStream.hpp
 	src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp

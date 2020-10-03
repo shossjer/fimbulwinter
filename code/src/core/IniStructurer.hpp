@@ -1,198 +1,216 @@
 #pragma once
 
-#include "core/BufferedStream.hpp"
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
+#include "core/StringStream.hpp"
 
+#include "utility/regex.hpp"
 #include "utility/string.hpp"
-
-#include <exception>
-#include <string>
 
 namespace core
 {
 	class IniStructurer
 	{
 	private:
-		BufferedStream stream;
+
+		StringStream<utility::heap_storage_traits, utility::encoding_utf8> stream_;
+
+		using Parser = rex::parser_for<StringStream<utility::heap_storage_traits, utility::encoding_utf8>>;
 
 	public:
+
 		IniStructurer(ReadStream && stream)
-			: stream(std::move(stream))
+			: stream_(std::move(stream))
 		{}
 
 	public:
+
 		template <typename T>
-		void read(T & x)
+		bool read(T & x)
 		{
-			read_key_values(x);
-			read_headers(x);
+			Parser parser = rex::parse(stream_);
+
+			const auto key_values = read_key_values(x, parser);
+			if (!key_values.first)
+				return false; // error
+
+			parser.seek(key_values.second);
+
+			const auto headers = read_headers(x, parser);
+			if (!headers.first)
+				return false; // error
+
+			return debug_verify(headers.second == parser.end());
 		}
+
 	private:
-		bool fast_forward()
+
+		auto skip_key_value(Parser parser)
 		{
-			while (stream.peek() == ';' || is_newline())
-			{
-				skip_line();
-				if (!stream.valid())
-					return false;
-			}
-			return true;
+			const auto key_match = parser.match(+(!rex::ch('=') - rex::newline));
+			if (!debug_verify(key_match.first))
+				return key_match;
+
+			parser.seek(key_match.second);
+
+			const auto equals_match = parser.match(rex::ch('='));
+			if (!debug_verify(equals_match.first, equals_match.second - stream_.begin()))
+				return equals_match;
+
+			parser.seek(equals_match.second);
+
+			const auto value_match = parser.match(*!rex::newline);
+			if (!debug_verify(value_match.first))
+				return value_match;
+
+			return value_match;
 		}
 
-		void skip_line()
+		auto skip_key_values(Parser parser)
 		{
-			stream.consume();
-			while (!is_newline())
+			do
 			{
-				stream.next();
-				if (!stream.valid())
-					throw std::runtime_error("unexpected eof");
-			}
-			while (is_newline())
-			{
-				stream.next();
-				if (!stream.valid())
-					return;
-			}
-		}
+				parser.seek(parser.match(*(-(rex::ch(';') >> *!rex::newline) >> rex::newline)).second);
+				if (ext::empty(parser))
+					break;
 
-		bool is_header() const
-		{
-			return stream.peek() == '[';
-		}
+				const auto maybe_header = parser.match(rex::ch('['));
+				if (maybe_header.first)
+					break;
 
-		bool is_newline() const
-		{
-			return stream.peek() == '\n' || stream.peek() == '\r';
+				const auto key_value = skip_key_value(parser);
+				if (!key_value.first)
+					return key_value;
+
+				parser.seek(key_value.second);
+			}
+			while (!ext::empty(parser));
+
+			return std::make_pair(true, parser.begin());
 		}
 
 		template <typename T>
-		void read_header(T & x)
+		auto read_header(T & x, Parser parser)
 		{
-			debug_assert(is_header());
+			const auto bracket_open = parser.match(rex::ch('['));
+			if (!debug_verify(bracket_open.first))
+				return bracket_open;
 
-			stream.consume();
-			stream.next(); // '['
-			if (!stream.valid())
-				throw std::runtime_error("unexpected eof");
+			parser.seek(bracket_open.second);
 
-			const std::ptrdiff_t header_from = stream.pos();
-			while (stream.peek() != ']')
+			const auto bracket_close = parser.find(rex::ch(']') | rex::newline);
+			if (!debug_verify(bracket_close.first != parser.end()))
+				return std::make_pair(false, bracket_close.first);
+
+			const auto header_name = utility::string_units_utf8(bracket_open.second.get(), bracket_close.first.get());
+
+			parser.seek(bracket_close.first);
+
+			if (!debug_verify(parser.match(rex::ch(']')).first))
+				return std::make_pair(false, bracket_close.first);
+
+			parser.seek(bracket_close.second);
+
+			const auto member = core::member_table<T>::find(header_name);
+			if (member != std::size_t(-1))
 			{
-				if (is_newline())
-					throw std::runtime_error("unexpected eol");
-
-				stream.next();
-				if (!stream.valid())
-					throw std::runtime_error("unexpected eof");
-			}
-			const std::ptrdiff_t header_to = stream.pos();
-			const utility::string_units_utf8 header_name(stream.data(header_from), header_to - header_from);
-
-			stream.next(); // ']'
-			if (!stream.valid())
-				throw std::runtime_error("unexpected eof");
-
-			if (!is_newline())
-				throw std::runtime_error("expected eol");
-
-			core::member_table<T>::call(header_name, x, [&](auto & y){ return read_key_values(y); });
-		}
-
-		template <typename T>
-		void read_headers(T & x)
-		{
-			while (stream.valid())
-			{
-				fast_forward();
-				if (!stream.valid())
-					return;
-
-				debug_assert(is_header());
-				read_header(x);
-			}
-		}
-
-		void parse_value(std::string & x, utility::string_units_utf8 value_string)
-		{
-			x = std::string(value_string.begin(), value_string.end());
-		}
-		template <typename T,
-		          REQUIRES((!std::is_enum<T>::value)),
-		          REQUIRES((!std::is_class<T>::value))>
-		void parse_value(T & x, utility::string_units_utf8 value_string)
-		{
-			utility::from_string(std::string(value_string.begin(), value_string.end()), x);
-		}
-		template <typename T,
-		          REQUIRES((std::is_enum<T>::value))>
-		void parse_value(T & x, utility::string_units_utf8 value_string)
-		{
-			if (core::value_table<T>::has(value_string))
-			{
-				x = core::value_table<T>::get(value_string);
+				return core::member_table<T>::call(member, x, [&](auto & y){ return read_key_values(y, parser); });
 			}
 			else
 			{
-				debug_fail("what is this enum thing!?");
+				return skip_key_values(parser);
 			}
 		}
+
+		template <typename T>
+		auto read_headers(T & x, Parser parser)
+		{
+			do
+			{
+				parser.seek(parser.match(*(-(rex::ch(';') >> *!rex::newline) >> rex::newline)).second);
+				if (ext::empty(parser))
+					break;
+
+				const auto header = read_header(x, parser);
+				if (!header.first)
+					return header;
+
+				parser.seek(header.second);
+			}
+			while (!ext::empty(parser));
+
+			return std::make_pair(true, parser.begin());
+		}
+
+		template <typename T>
+		auto read_key_value(T & x, Parser parser)
+		{
+			const auto key_match = parser.match(+(!rex::ch('=') - rex::newline));
+			if (!debug_verify(key_match.first))
+				return key_match;
+
+			const auto key = utility::string_units_utf8(parser.begin().get(), key_match.second.get());
+
+			parser.seek(key_match.second);
+
+			const auto equals_match = parser.match(rex::ch('='));
+			if (!debug_verify(equals_match.first))
+				return equals_match;
+
+			parser.seek(equals_match.second);
+
+			const auto value_match = parser.match(*!rex::newline);
+			if (!debug_verify(value_match.first))
+				return value_match;
+
+			const auto value = utility::string_units_utf8(parser.begin().get(), value_match.second.get());
+
+			const auto member = core::member_table<T>::find(key);
+			if (member != std::size_t(-1))
+			{
+				if (!core::member_table<T>::call(member, x,
+				                                 [&](auto & y)
+				                                 {
+					                                 using core::serialize;
+					                                 return serialize(y, value);
+				                                 }))
+					return std::make_pair(false, equals_match.second);
+			}
+			return value_match;
+		}
+
 		template <typename T,
 		          REQUIRES((std::is_class<T>::value))>
-		void parse_value(T &, utility::string_units_utf8 /*value_string*/)
+		auto read_key_values(T & x, Parser parser)
 		{
-			debug_fail("this is a strange type");
+			do
+			{
+				parser.seek(parser.match(*(-(rex::ch(';') >> *!rex::newline) >> rex::newline)).second);
+				if (ext::empty(parser))
+					break;
+
+				const auto maybe_header = parser.match(rex::ch('['));
+				if (maybe_header.first)
+					break;
+
+				const auto key_value = read_key_value(x, parser);
+				if (!key_value.first)
+					return key_value;
+
+				parser.seek(key_value.second);
+			}
+			while (!ext::empty(parser));
+
+			return std::make_pair(true, parser.begin());
 		}
 
-		template <typename T>
-		void read_key_value(T & x)
+		template <typename T,
+		          REQUIRES((!std::is_class<T>::value))>
+		auto read_key_values(T &, Parser parser)
 		{
-			stream.consume();
+			constexpr auto type_name = utility::type_name<T>();
 
-			const std::ptrdiff_t key_from = stream.pos();
-			while (stream.peek() != '=')
-			{
-				if (is_newline())
-					throw std::runtime_error("unexpected eol");
-
-				stream.next();
-				if (!stream.valid())
-					throw std::runtime_error("unexpected eof");
-			}
-			const std::ptrdiff_t key_to = stream.pos();
-			const utility::string_units_utf8 key_name(stream.data(key_from), key_to - key_from);
-
-			stream.next(); // '='
-			if (!stream.valid())
-				throw std::runtime_error("unexpected eof");
-
-			const std::ptrdiff_t value_from = stream.pos();
-			while (!is_newline())
-			{
-				stream.next();
-				if (!stream.valid())
-					throw std::runtime_error("unexpected eof");
-			}
-			const std::ptrdiff_t value_to = stream.pos();
-			const utility::string_units_utf8 value_string(stream.data(value_from), value_to - value_from);
-
-			core::member_table<T>::call(key_name, x, [&](auto & y){ return parse_value(y, value_string); });
-		}
-
-		template <typename T>
-		void read_key_values(T & x)
-		{
-			while (stream.valid())
-			{
-				fast_forward();
-				if (!stream.valid())
-					return;
-				if (is_header())
-					return;
-
-				read_key_value(x);
-			}
+			return std::make_pair(debug_fail("cannot read key values into object of type '", type_name, "'"), parser.begin());
 		}
 	};
 }
