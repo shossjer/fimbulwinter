@@ -20,31 +20,14 @@
 
 namespace utility
 {
-	/**
-	 */
-	template <typename T>
-	T &from_string(const std::string &string, T &t, const bool full_match = false)
+	template <typename Boundary, typename T>
+	bool from_string(utility::basic_string_view<Boundary> view, T & t, const bool full_match = false)
 	{
-		std::istringstream stream(string);
+		std::istringstream stream(view);
 
-		from_stream(stream, t);
-
-		if (full_match && !stream.eof())
-			throw std::invalid_argument("");
-
-		return t;
+		return from_stream(stream, t, full_match);
 	}
-	/**
-	 */
-	template <typename T>
-	inline T from_string(const std::string &string, const bool full_match = false)
-	{
-		T t;
 
-		return from_string(string, t, full_match);
-	}
-	/**
-	 */
 	template <typename ...Ts>
 	std::string to_string(Ts &&...ts)
 	{
