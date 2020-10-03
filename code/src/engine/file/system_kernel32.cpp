@@ -279,7 +279,7 @@ namespace
 
 			const auto dot = utility::unit_difference(match_name.rfind('.')).get();
 			if (dot == ext::index_invalid)
-				return false; // not eligible for partial matching
+				continue; // not eligible for partial matching
 
 			const auto name_asset = engine::Asset(match_name.data(), dot);
 			const auto maybe_name = std::find(directory_meta.names.assets.begin(), directory_meta.names.assets.end(), name_asset);
