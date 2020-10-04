@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utility/overflow.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <climits>
@@ -169,8 +171,8 @@ namespace ext
 			{
 				digit--;
 
-				x += pattern.value(*digit) * magnitude;
-				magnitude *= pattern.base;
+				x += static_cast<T>(pattern.value(*digit)) * magnitude;
+				magnitude *= static_cast<T>(pattern.base);
 			}
 
 			if (digit != begin)
@@ -178,10 +180,10 @@ namespace ext
 				digit--;
 
 				T term;
-				if (__builtin_mul_overflow(static_cast<T>(pattern.value(*digit)), magnitude, &term))
+				if (utility::mul_overflow(static_cast<T>(pattern.value(*digit)), magnitude, &term))
 					return {end, std::errc::result_out_of_range};
 
-				if (__builtin_add_overflow(x, term, &x))
+				if (utility::add_overflow(x, term, &x))
 					return {end, std::errc::result_out_of_range};
 
 				for (; digit != begin;)
@@ -215,8 +217,8 @@ namespace ext
 			{
 				digit--;
 
-				x += pattern.value(*digit) * magnitude;
-				magnitude *= pattern.base;
+				x += static_cast<T>(pattern.value(*digit)) * magnitude;
+				magnitude *= static_cast<T>(pattern.base);
 			}
 
 			if (digit != begin)
@@ -224,10 +226,10 @@ namespace ext
 				digit--;
 
 				T term;
-				if (__builtin_mul_overflow(static_cast<T>(pattern.value(*digit)), magnitude, &term))
+				if (utility::mul_overflow(static_cast<T>(pattern.value(*digit)), magnitude, &term))
 					return {end, std::errc::result_out_of_range};
 
-				if (__builtin_add_overflow(x, term, &x))
+				if (utility::add_overflow(x, term, &x))
 					return {end, std::errc::result_out_of_range};
 
 				for (; digit != begin;)
