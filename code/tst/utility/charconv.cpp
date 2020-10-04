@@ -7,31 +7,31 @@ TEST_CASE("from string to signed 8 bit integer", "[utility][charconv]")
   std::int8_t value = -1;
 
 	CHECK(ext::from_chars("0", "0" + 1, value).ec == std::errc{});
-	CHECK(value == 0);
+	CHECK((int)value == 0);
 
 	CHECK(ext::from_chars("127", "127" + 3, value).ec == std::errc{});
-	CHECK(value == 127);
+	CHECK((int)value == 127);
 
 	CHECK(ext::from_chars("128", "128" + 3, value).ec == std::errc::result_out_of_range);
-	CHECK(value == 127);
+	CHECK((int)value == 127);
 
 	CHECK(ext::from_chars("200", "200" + 3, value).ec == std::errc::result_out_of_range);
-	CHECK(value == 127);
+	CHECK((int)value == 127);
 
 	CHECK(ext::from_chars("1000", "1000" + 4, value).ec == std::errc::result_out_of_range);
-	CHECK(value == 127);
+	CHECK((int)value == 127);
 
 	CHECK(ext::from_chars("-128", "-128" + 4, value).ec == std::errc{});
-	CHECK(value == -127 - 1);
+	CHECK((int)value == -127 - 1);
 
 	CHECK(ext::from_chars("-129", "-129" + 4, value).ec == std::errc::result_out_of_range);
-	CHECK(value == -127 - 1);
+	CHECK((int)value == -127 - 1);
 
 	CHECK(ext::from_chars("-200", "-200" + 4, value).ec == std::errc::result_out_of_range);
-	CHECK(value == -127 - 1);
+	CHECK((int)value == -127 - 1);
 
 	CHECK(ext::from_chars("-1000", "-1000" + 5, value).ec == std::errc::result_out_of_range);
-	CHECK(value == -127 - 1);
+	CHECK((int)value == -127 - 1);
 }
 
 TEST_CASE("from string to signed 16 bit integer", "[utility][charconv]")
@@ -132,19 +132,19 @@ TEST_CASE("from string to unsigned 8 bit integer", "[utility][charconv]")
   std::uint8_t value = 1;
 
 	CHECK(ext::from_chars("0", "0" + 1, value).ec == std::errc{});
-	CHECK(value == 0);
+	CHECK((int)value == 0);
 
 	CHECK(ext::from_chars("255", "255" + 3, value).ec == std::errc{});
-	CHECK(value == 255);
+	CHECK((int)value == 255);
 
 	CHECK(ext::from_chars("256", "256" + 3, value).ec == std::errc::result_out_of_range);
-	CHECK(value == 255);
+	CHECK((int)value == 255);
 
 	CHECK(ext::from_chars("300", "300" + 3, value).ec == std::errc::result_out_of_range);
-	CHECK(value == 255);
+	CHECK((int)value == 255);
 
 	CHECK(ext::from_chars("1000", "1000" + 4, value).ec == std::errc::result_out_of_range);
-	CHECK(value == 255);
+	CHECK((int)value == 255);
 }
 
 TEST_CASE("from string to unsigned 16 bit integer", "[utility][charconv]")
