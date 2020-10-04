@@ -27,11 +27,8 @@ namespace utility
 	//
 	// http://utf8everywhere.org/#how.cvt
 	template <typename StorageTraits>
-	bool try_narrow(utility::string_range_utfw<utility::boundary_point> in, utility::basic_string<StorageTraits, utility::encoding_utf8> & out)
+	bool try_narrow(utility::string_points_utfw in, utility::basic_string<StorageTraits, utility::encoding_utf8> & out)
 	{
-		if (!/*debug_assert*/(in.size() <= out.max_size())) // note assert lower bound
-			return false;
-
 		if (!out.try_resize(in.size() * 2)) // note greedily allocate upper bound
 		{
 			ext::usize size = 0;
@@ -39,7 +36,7 @@ namespace utility
 			typename utility::encoding_traits_utf8::buffer_type buffer;
 			for (auto cp : in)
 			{
-				size += cp.get(buffer.get());
+				size += cp.get(buffer.data());
 			}
 
 			if (!out.try_resize(size))
@@ -59,7 +56,7 @@ namespace utility
 	}
 
 	template <typename StorageTraits, typename Encoding>
-	auto narrow(utility::string_range_utfw<utility::boundary_point> in)
+	auto narrow(utility::string_points_utfw in)
 	{
 		basic_string<StorageTraits, Encoding> out;
 
@@ -69,31 +66,29 @@ namespace utility
 	}
 
 	template <std::size_t Capacity, typename Encoding>
-	auto static_narrow(utility::string_range_utfw<utility::boundary_point> in)
+	auto static_narrow(utility::string_points_utfw in)
 	{
 		return narrow<utility::static_storage_traits<Capacity>, Encoding>(in);
 	}
 
 	template <typename Encoding>
-	auto heap_narrow(utility::string_range_utfw<utility::boundary_point> in)
+	auto heap_narrow(utility::string_points_utfw in)
 	{
 		return narrow<utility::heap_storage_traits, Encoding>(in);
 	}
 
 	template <typename StorageTraits>
-	bool try_widen(utility::string_range_utf8<utility::boundary_point> in, utility::basic_string<StorageTraits, utility::encoding_utfw> & out)
+	bool try_widen(utility::string_points_utf8 in, utility::basic_string<StorageTraits, utility::encoding_utfw> & out)
 	{
-		if (!/*debug_assert*/((in.size() + 1) / 2 <= out.max_size())) // note assert lower bound
-			return false;
-
-		if (!out.try_resize(in.size()) // note greedily allocate upper bound
+		const auto no_matching_token_found_left_brace_vs_hack = out.try_resize(in.size());
+		if (!no_matching_token_found_left_brace_vs_hack)
 		{
 			ext::usize size = 0;
 
 			typename utility::encoding_traits_utfw::buffer_type buffer;
 			for (auto cp : in)
 			{
-				size += cp.get(buffer.get());
+				size += cp.get(buffer.data());
 			}
 
 			if (!out.try_resize(size))
@@ -113,12 +108,9 @@ namespace utility
 	}
 
 	template <typename StorageTraits>
-	bool try_widen_append(utility::string_range_utf8<utility::boundary_point> in, utility::basic_string<StorageTraits, utility::encoding_utfw> & out)
+	bool try_widen_append(utility::string_points_utf8 in, utility::basic_string<StorageTraits, utility::encoding_utfw> & out)
 	{
 		const auto offset = out.size();
-
-		if (!/*debug_assert*/((in.size() + 1) / 2 <= out.max_size() - offset)) // note assert lower bound
-			return false;
 
 		if (!out.try_resize(offset + in.size())) // note greedily allocate upper bound
 		{
@@ -127,7 +119,7 @@ namespace utility
 			typename utility::encoding_traits_utfw::buffer_type buffer;
 			for (auto cp : in)
 			{
-				size += cp.get(buffer.get());
+				size += cp.get(buffer.data());
 			}
 
 			if (!out.try_resize(size))
@@ -147,7 +139,7 @@ namespace utility
 	}
 
 	template <typename StorageTraits>
-	auto widen(utility::string_range_utf8<utility::boundary_point> in)
+	auto widen(utility::string_points_utf8 in)
 	{
 		basic_string<StorageTraits, utility::encoding_utfw> out;
 
@@ -157,12 +149,12 @@ namespace utility
 	}
 
 	template <std::size_t Capacity>
-	auto static_widen(utility::string_range_utf8<utility::boundary_point> in)
+	auto static_widen(utility::string_points_utf8 in)
 	{
 		return widen<utility::static_storage_traits<Capacity>>(in);
 	}
 
-	auto heap_widen(utility::string_range_utf8<utility::boundary_point> in)
+	auto heap_widen(utility::string_points_utf8 in)
 	{
 		return widen<utility::heap_storage_traits>(in);
 	}
