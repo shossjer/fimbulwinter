@@ -157,6 +157,7 @@ set(HEADERS_UTILITY
 	src/utility/lookup_table.hpp
 	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
+	src/utility/overflow.hpp
 	src/utility/predicates.hpp
 	src/utility/preprocessor/common.hpp
 	src/utility/preprocessor/count_arguments.hpp
