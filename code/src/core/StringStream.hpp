@@ -104,10 +104,18 @@ namespace core
 		}
 
 	private:
+#if defined(_MSC_VER)
+		// bullshit error C2248: 'core::StringStream<utility::heap_storage_traits,utility::encoding_utf8>::size': cannot access private member declared in class 'core::StringStream<utility::heap_storage_traits,utility::encoding_utf8>'
+	public:
+#endif
 
 		// todo reinterpret_cast is ugly
 		const value_type * data() const { return reinterpret_cast<const value_type *>(buffered_stream_.data()); }
 		ext::usize size() const { return buffered_stream_.size() / sizeof(value_type); }
+
+#if defined(_MSC_VER)
+	private:
+#endif
 
 		template <typename Boundary>
 		void read_more(ext::ssize index) const
