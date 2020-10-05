@@ -9,6 +9,7 @@
 
 #include "utility/any.hpp"
 #include "utility/ext/stddef.hpp"
+#include "utility/string.hpp"
 
 #include <Windows.h>
 
@@ -164,7 +165,7 @@ namespace
 		if (!debug_assert((filepath.data()[0] == L'\\' && filepath.data()[1] == L'\\' && filepath.data()[2] == L'?' && filepath.data()[3] == L'\\')))
 			return;
 
-		if (!debug_assert(filepath.back() == L'\\'))
+		if (!debug_assert(back(filepath) == L'\\'))
 			return;
 
 		filepath.data()[filepath.size() - 1] = L'\0';
@@ -210,7 +211,7 @@ namespace
 		if (!debug_verify(hFile != INVALID_HANDLE_VALUE, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\"failed with last error ", ::GetLastError()))
 			return false;
 
-		auto filepath_utf8 = utility::heap_narrow<utility::encoding_utf8>(utility::string_view_utfw(filepath, utility::unit_difference(4))); // skip "\\\\?\\"
+		auto filepath_utf8 = utility::heap_narrow<utility::encoding_utf8>(utility::string_points_utfw(filepath, 4)); // skip "\\\\?\\"
 		std::replace(filepath_utf8.data(), filepath_utf8.data() + filepath_utf8.size(), '\\', '/');
 
 		core::ReadStream stream([](void * dest, ext::usize n, void * data)
@@ -256,7 +257,7 @@ namespace
 		bool break_early = false;
 		do
 		{
-			const auto filename = utility::string_view_utfw(data.cFileName);
+			const auto filename = utility::string_points_utfw(data.cFileName);
 
 			if (!debug_verify(utility::try_narrow(filename, match_name)))
 				continue;
@@ -277,11 +278,11 @@ namespace
 				continue;
 			}
 
-			const auto dot = utility::unit_difference(match_name.rfind('.')).get();
-			if (dot == ext::index_invalid)
+			const auto dot = rfind(match_name, '.');
+			if (dot == match_name.end())
 				continue; // not eligible for partial matching
 
-			const auto name_asset = engine::Asset(match_name.data(), dot);
+			const auto name_asset = engine::Asset(utility::string_units_utf8(match_name.begin(), dot));
 			const auto maybe_name = std::find(directory_meta.names.assets.begin(), directory_meta.names.assets.end(), name_asset);
 			if (maybe_name != directory_meta.names.assets.end())
 			{
@@ -297,7 +298,7 @@ namespace
 				continue;
 			}
 
-			const auto extension_asset = engine::Asset(match_name.data() + dot, match_name.size() - dot);
+			const auto extension_asset = engine::Asset(utility::string_units_utf8(dot, match_name.end()));
 			const auto maybe_extension = std::find(directory_meta.extensions.assets.begin(), directory_meta.extensions.assets.end(), extension_asset);
 			if (maybe_extension != directory_meta.extensions.assets.end())
 			{
@@ -558,10 +559,10 @@ namespace
 		debug_assert(std::find(maybe_watch, alias_metas[alias_index].watches.end(), watch) == alias_metas[alias_index].watches.end());
 	}
 
-	bool try_get_fullpath(utility::string_view_utfw filepath, utility::heap_string_utfw & fullpath)
+	bool try_get_fullpath(utility::string_units_utfw filepath, utility::heap_string_utfw & fullpath)
 	{
 		const bool missing_prefix = !(filepath.data()[0] == L'\\' && filepath.data()[1] == L'\\' && filepath.data()[2] == L'?' && filepath.data()[3] == L'\\');
-		const bool missing_postfix = filepath.back() != L'/';
+		const bool missing_postfix = filepath.data()[filepath.size() - 1] != L'/';
 
 		const auto len = ::GetFullPathNameW(filepath.data(), 0, nullptr, nullptr);
 		if (!debug_verify(len != 0, "GetFullPathNameW failed with last error ", ::GetLastError()))
@@ -681,7 +682,7 @@ namespace
 					chunk_done = info->NextEntryOffset == 0;
 					offset += info->NextEntryOffset;
 
-					const utility::string_view_utfw filename(info->FileName, utility::unit_difference(info->FileNameLength / sizeof(wchar_t)));
+					const utility::string_points_utfw filename(info->FileName, info->FileNameLength / sizeof(wchar_t));
 
 					utility::heap_string_utf8 match_name;
 					if (!debug_verify(utility::try_narrow(filename, match_name)))
@@ -735,7 +736,7 @@ namespace
 							{
 								const auto number_of_matches = scan_directory(
 									directory_meta,
-									[watch_id](utility::string_view_utfw /*filename*/, const struct directory_meta::match & match, ext::index match_index)
+									[watch_id](utility::string_points_utfw /*filename*/, const struct directory_meta::match & match, ext::index match_index)
 								{
 									return match.watches[match_index] == watch_id;
 								});
@@ -762,11 +763,11 @@ namespace
 						continue;
 					}
 
-					const auto dot = utility::unit_difference(match_name.rfind('.')).get();
-					if (dot == ext::index_invalid)
+					const auto dot = rfind(match_name, '.');
+					if (dot == match_name.end())
 						continue; // not eligible for partial matching
 
-					const auto name_asset = engine::Asset(match_name.data(), dot);
+					const auto name_asset = engine::Asset(utility::string_units_utf8(match_name.begin(), dot));
 					const auto maybe_name = std::find(directory_meta.names.assets.begin(), directory_meta.names.assets.end(), name_asset);
 					if (maybe_name != directory_meta.names.assets.end())
 					{
@@ -789,7 +790,7 @@ namespace
 							{
 								const auto number_of_matches = scan_directory(
 									directory_meta,
-									[watch_id](utility::string_view_utfw /*filename*/, const struct directory_meta::match & match, ext::index match_index)
+									[watch_id](utility::string_points_utfw /*filename*/, const struct directory_meta::match & match, ext::index match_index)
 								{
 									return match.watches[match_index] == watch_id;
 								});
@@ -816,7 +817,7 @@ namespace
 						continue;
 					}
 
-					const auto extension_asset = engine::Asset(match_name.data() + dot, match_name.size() - dot);
+					const auto extension_asset = engine::Asset(utility::string_units_utf8(dot, match_name.end()));
 					const auto maybe_extension = std::find(directory_meta.extensions.assets.begin(), directory_meta.extensions.assets.end(), extension_asset);
 					if (maybe_extension != directory_meta.extensions.assets.end())
 					{
@@ -839,7 +840,7 @@ namespace
 							{
 								const auto number_of_matches = scan_directory(
 									directory_meta,
-									[watch_id](utility::string_view_utfw /*filename*/, const struct directory_meta::match & match, ext::index match_index)
+									[watch_id](utility::string_points_utfw /*filename*/, const struct directory_meta::match & match, ext::index match_index)
 								{
 									return match.watches[match_index] == watch_id;
 								});
@@ -997,23 +998,23 @@ namespace
 			directory_meta temporary_meta(utility::heap_string_utfw(directory_metas[directory_index].filepath), false);
 
 			debug_expression(bool added_any_match = false);
-			auto from = utility::unit_difference(0);
+			auto from = x.pattern.begin();
 			while (true)
 			{
-				auto found = utility::unit_difference(x.pattern.find('|', from));
+				auto found = find(from, x.pattern.end(), '|');
 				if (debug_assert(found != from, "found empty pattern, please sanitize your data!"))
 				{
-					if (x.pattern.data()[from.get()] == '*') // extension
+					if (*from == '*') // extension
 					{
-						const auto extension = utility::string_view_utf8(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
+						const auto extension = utility::string_units_utf8(from + 1, found); // ingnore '*'
 						const auto asset = engine::Asset(extension);
 
 						temporary_meta.extensions.assets.push_back(asset);
 						debug_expression(added_any_match = true);
 					}
-					else if (x.pattern.data()[found.get() - 1] == '*') // name
+					else if (*(found - 1) == '*') // name
 					{
-						const auto name = utility::string_view_utf8(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
+						const auto name = utility::string_units_utf8(from, found - 1); // ingnore '*'
 						const auto asset = engine::Asset(name);
 
 						temporary_meta.names.assets.push_back(asset);
@@ -1021,7 +1022,7 @@ namespace
 					}
 					else // full
 					{
-						const auto full = utility::string_view_utf8(x.pattern.data() + from.get(), found - from);
+						const auto full = utility::string_units_utf8(from, found);
 						const auto asset = engine::Asset(full);
 
 						temporary_meta.fulls.assets.push_back(asset);
@@ -1029,7 +1030,7 @@ namespace
 					}
 				}
 
-				if (found == x.pattern.size())
+				if (found == x.pattern.end())
 					break; // done
 
 				from = found + 1; // skip '|'
@@ -1040,7 +1041,7 @@ namespace
 
 			const ext::usize number_of_matches = scan_directory(
 				temporary_meta,
-				[&temporary_meta, &watch_callback](utility::string_view_utfw filename, const struct directory_meta::match & match, ext::index match_index)
+				[&temporary_meta, &watch_callback](utility::string_points_utfw filename, const struct directory_meta::match & match, ext::index match_index)
 			{
 				try_read(temporary_meta.filepath + filename, watch_callback, match.assets[match_index]);
 				return true;
@@ -1075,7 +1076,7 @@ namespace
 
 			scan_directory(
 				directory_meta,
-				[&directory_meta](utility::string_view_utfw filename, const struct directory_meta::match & /*match*/, ext::index /*match_index*/)
+				[&directory_meta](utility::string_points_utfw filename, const struct directory_meta::match & /*match*/, ext::index /*match_index*/)
 			{
 				auto filepath = directory_meta.filepath + filename;
 				debug_verify(::DeleteFileW(filepath.data()) != FALSE, "failed with last error ", ::GetLastError());
@@ -1112,15 +1113,15 @@ namespace
 			alias_metas[alias_index].watches.push_back(watch_id);
 
 			debug_expression(bool added_any_match = false);
-			auto from = utility::unit_difference(0);
+			auto from = x.pattern.begin();
 			while (true)
 			{
-				auto found = utility::unit_difference(x.pattern.find('|', from));
+				auto found = find(from, x.pattern.end(), '|');
 				if (debug_assert(found != from, "found empty pattern, please sanitize your data!"))
 				{
-					if (x.pattern.data()[from.get()] == '*') // extension
+					if (*from == '*') // extension
 					{
-						const auto extension = utility::string_view_utf8(x.pattern.data() + from.get() + 1, found - from - 1); // ingnore '*'
+						const auto extension = utility::string_units_utf8(from + 1, found); // ingnore '*'
 						debug_printline("adding extension \"", extension, "\" to watch for \"", utility::heap_narrow<utility::encoding_utf8>(directory_meta.filepath), "\"");
 						const auto asset = engine::Asset(extension);
 
@@ -1129,9 +1130,9 @@ namespace
 						directory_meta.extensions.watches.push_back(watch_id);
 						debug_expression(added_any_match = true);
 					}
-					else if (x.pattern.data()[found.get() - 1] == '*') // name
+					else if (*(found - 1) == '*') // name
 					{
-						const auto name = utility::string_view_utf8(x.pattern.data() + from.get(), found - from - 1); // ingnore '*'
+						const auto name = utility::string_units_utf8(from, found - 1); // ingnore '*'
 						debug_printline("adding name \"", name, "\" to watch for \"", utility::heap_narrow<utility::encoding_utf8>(directory_meta.filepath), "\"");
 						const auto asset = engine::Asset(name);
 
@@ -1142,7 +1143,7 @@ namespace
 					}
 					else // full
 					{
-						const auto full = utility::string_view_utf8(x.pattern.data() + from.get(), found - from);
+						const auto full = utility::string_units_utf8(from, found);
 						debug_printline("adding full \"", full, "\" to watch for \"", utility::heap_narrow<utility::encoding_utf8>(directory_meta.filepath), "\"");
 						const auto asset = engine::Asset(full);
 
@@ -1153,7 +1154,7 @@ namespace
 					}
 				}
 
-				if (found == x.pattern.size())
+				if (found == x.pattern.end())
 					break; // done
 
 				from = found + 1; // skip '|'
@@ -1169,7 +1170,7 @@ namespace
 
 				ext::usize number_of_matches = scan_directory(
 					directory_meta,
-					[&directory_meta, &watch_callback, watch_id](utility::string_view_utfw filename, const struct directory_meta::match & match, ext::index match_index)
+					[&directory_meta, &watch_callback, watch_id](utility::string_points_utfw filename, const struct directory_meta::match & match, ext::index match_index)
 				{
 					if (match.watches[match_index] != watch_id) // todo always newly added
 						return false;
@@ -1255,7 +1256,7 @@ namespace
 				return;
 			}
 
-			auto filepath_utf8 = utility::heap_narrow<utility::encoding_utf8>(utility::string_view_utfw(filepath, utility::unit_difference(4))); // skip "\\\\?\\"
+			auto filepath_utf8 = utility::heap_narrow<utility::encoding_utf8>(utility::string_points_utfw(filepath, 4)); // skip "\\\\?\\"
 			std::replace(filepath_utf8.data(), filepath_utf8.data() + filepath_utf8.size(), '\\', '/');
 
 			core::WriteStream stream([](const void * src, ext::usize n, void * data)

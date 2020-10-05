@@ -7,7 +7,7 @@
 #include "core/async/Thread.hpp"
 #include "core/debug.hpp"
 
-#include "utility/unicode.hpp"
+#include "utility/unicode/string_view.hpp"
 
 #include <iostream>
 #include <string>
@@ -18,7 +18,7 @@ namespace engine
 {
 	namespace detail
 	{
-		void read_input(utility::string_view_utf8 line);
+		void read_input(utility::string_units_utf8 line);
 	}
 }
 
@@ -45,7 +45,7 @@ namespace
 				break;
 			}
 
-			engine::detail::read_input(utility::string_view_utf8(line.data(), utility::unit_difference(line.size())));
+			engine::detail::read_input(utility::string_units_utf8(line.data(), line.size()));
 		}
 
 		debug_printline("console thread stopping");
