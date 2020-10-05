@@ -73,7 +73,8 @@ set(private_compile_options
 	# missing-braces - Warn if an aggregate or union initializer is not
 	# fully bracketed.
 	$<$<CXX_COMPILER_ID:MSVC>:
-		/W4 /WX>
+		/W4 /WX
+		/constexpr:steps5000000>
 	)
 
 set(private_compile_definitions
