@@ -1,7 +1,7 @@
 #pragma once
 
 #include "utility/crypto/crc.hpp"
-#if !(defined(_MSC_VER) && _MSC_VER <= 1916)
+#if !defined(_MSC_VER)
 # include "utility/ranges.hpp"
 #endif
 #include "utility/unicode/string_view.hpp"
@@ -145,7 +145,7 @@ namespace utility
 			{
 				const TypePattern pattern = find_type_pattern(str.data() + i);
 
-#if defined(_MSC_VER) && _MSC_VER <= 1926
+#if defined(_MSC_VER)
 				// the microsoft compiler does not support constexpr
 				// range for :facepalm:
 				//

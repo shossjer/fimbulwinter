@@ -392,7 +392,7 @@ namespace utility
 		using iterator_category = typename std::iterator_traits<mpl::car<Its...>>::iterator_category; // ?
 
 	public:
-#if defined(_MSC_VER) && _MSC_VER <= 1926
+#if defined(_MSC_VER)
 		template <typename ...Ps,
 		          REQUIRES((!is_zip_iterator<mpl::remove_cvref_t<Ps>...>::value)),
 		          REQUIRES((!ext::is_tuple<Ps...>::value)),
@@ -520,7 +520,7 @@ namespace utility
 		}
 
 	public:
-#if defined(_MSC_VER) && _MSC_VER <= 1926
+#if defined(_MSC_VER)
 		template <typename ...Ps,
 		          REQUIRES((!is_zip_pointer<mpl::remove_cvref_t<Ps>...>::value)),
 		          REQUIRES((!ext::is_tuple<Ps...>::value)),

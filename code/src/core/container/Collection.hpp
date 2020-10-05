@@ -73,7 +73,7 @@ namespace core
 		template <typename Key, typename LookupStorageTraits, typename ...ComponentStorages>
 		class Collection
 		{
-#if !(defined(_MSC_VER) && _MSC_VER <= 1926)
+#if !defined(_MSC_VER)
 			static_assert(mpl::conjunction<mpl::bool_constant<(utility::storage_size<ComponentStorages>::value == 1)>...>::value, "Collection does not support multi-type storages for components");
 #endif
 
@@ -439,7 +439,7 @@ namespace core
 		template <typename Key, typename LookupStorageTraits, typename ...ComponentStorages>
 		class MultiCollection
 		{
-#if !(defined(_MSC_VER) && _MSC_VER <= 1926)
+#if !defined(_MSC_VER)
 			static_assert(mpl::conjunction<mpl::bool_constant<(utility::storage_size<ComponentStorages>::value == 1)>...>::value, "MultiCollection does not support multi-type storages for components");
 #endif
 
@@ -813,7 +813,7 @@ namespace core
 		template <typename Key, typename LookupStorageTraits, typename ...ComponentStorages>
 		class UnorderedCollection
 		{
-#if !(defined(_MSC_VER) && _MSC_VER <= 1926)
+#if !defined(_MSC_VER)
 			static_assert(mpl::conjunction<mpl::bool_constant<(utility::storage_size<ComponentStorages>::value == 1)>...>::value, "UnorderedCollection does not support multi-type storages for components");
 #endif
 
