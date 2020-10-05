@@ -1,10 +1,9 @@
-
-#ifndef UTILITY_CRYPTO_CRC_HPP
-#define UTILITY_CRYPTO_CRC_HPP
+#pragma once
 
 #include "utility/type_traits.hpp"
 
 #include <array>
+#include <cstdint>
 
 namespace utility
 {
@@ -42,7 +41,7 @@ namespace utility
 		}
 
 		template <std::size_t N>
-		inline constexpr uint32_t crc32(const char (& str)[N])
+		constexpr uint32_t crc32(const char (& str)[N])
 		{
 			return ~detail::crc32_append(~0u, str, N - 1);
 		}
@@ -52,5 +51,3 @@ namespace utility
 		}
 	}
 }
-
-#endif /* UTILITY_CRYPTO_CRC_HPP */

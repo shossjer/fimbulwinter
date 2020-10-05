@@ -1,8 +1,8 @@
-
-#ifndef CORE_MATHS_UTIL_HPP
-#define CORE_MATHS_UTIL_HPP
+#pragma once
 
 #include <utility/type_traits.hpp>
+
+#include <cstdint>
 
 namespace core
 {
@@ -54,12 +54,12 @@ namespace core
 		};
 
 		template <typename T>
-		inline degree<T> make_degree(const T value)
+		degree<T> make_degree(const T value)
 		{
 			return degree<T>{value};
 		}
 		template <typename T, typename U>
-		inline degree<T> make_degree(const degree<U> & degree)
+		degree<T> make_degree(const degree<U> & degree)
 		{
 			return make_degree(T(degree.get()));
 		}
@@ -98,12 +98,12 @@ namespace core
 		};
 
 		template <typename T>
-		inline radian<T> make_radian(const T value)
+		radian<T> make_radian(const T value)
 		{
 			return radian<T>{value};
 		}
 		template <typename T, typename U>
-		inline radian<T> make_radian(const radian<U> & radian)
+		radian<T> make_radian(const radian<U> & radian)
 		{
 			return make_radian(T(radian.get()));
 		}
@@ -120,5 +120,3 @@ namespace core
 		}
 	}
 }
-
-#endif /* CORE_MATHS_UTIL_HPP */
