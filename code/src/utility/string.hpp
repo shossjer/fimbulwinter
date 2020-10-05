@@ -811,7 +811,7 @@ namespace utility
 	constexpr const_string_iterator<boundary_unit<Encoding>>
 	find(
 		const basic_string<StorageTraits, Encoding> & str,
-		typename Encoding::value_type c)
+		typename utility::encoding_traits<Encoding>::value_type c)
 	{
 		return utility::find(str.begin(), str.end(), c);
 	}
@@ -829,7 +829,7 @@ namespace utility
 	constexpr const_string_iterator<boundary_unit<Encoding>>
 	find(
 		const basic_string<StorageTraits, Encoding> & str,
-		typename Encoding::const_pointer expr)
+		typename utility::encoding_traits<Encoding>::const_pointer expr)
 	{
 		return utility::find(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));
 	}
@@ -838,7 +838,7 @@ namespace utility
 	constexpr const_string_iterator<boundary_unit<Encoding>>
 	rfind(
 		const basic_string<StorageTraits, Encoding> & str,
-		typename Encoding::value_type c)
+		typename utility::encoding_traits<Encoding>::value_type c)
 	{
 		return utility::rfind(str.begin(), str.end(), c);
 	}
@@ -856,7 +856,7 @@ namespace utility
 	constexpr const_string_iterator<boundary_unit<Encoding>>
 	rfind(
 		const basic_string<StorageTraits, Encoding> & str,
-		typename Encoding::const_pointer expr)
+		typename utility::encoding_traits<Encoding>::const_pointer expr)
 	{
 		return utility::rfind(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));
 	}
