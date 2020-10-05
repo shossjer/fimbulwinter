@@ -154,7 +154,7 @@ namespace utility
 		return widen<utility::static_storage_traits<Capacity>>(in);
 	}
 
-	auto heap_widen(utility::string_points_utf8 in)
+	inline auto heap_widen(utility::string_points_utf8 in)
 	{
 		return widen<utility::heap_storage_traits>(in);
 	}

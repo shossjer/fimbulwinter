@@ -8,8 +8,7 @@
 #include "engine/hid/input.hpp"
 
 #include "utility/ranges.hpp"
-#include "utility/string.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 #if INPUT_HAS_USER32_RAWINPUT
 # include <vector>
@@ -49,7 +48,7 @@ namespace engine
 		extern void found_device(int id, int vendor, int product);
 		extern void lost_device(int id);
 
-		extern void add_source(int id, const char * path, int type, utility::string_view_utf8 name);
+		extern void add_source(int id, const char * path, int type, utility::string_units_utf8 name);
 		extern void remove_source(int id, const char * path);
 
 		extern void dispatch(const Input & input);

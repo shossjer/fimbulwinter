@@ -7,7 +7,9 @@
 #include "engine/application/config.hpp"
 #include "engine/debug.hpp"
 
-#include "utility/unicode.hpp"
+#if TEXT_USE_USER32
+# include "utility/unicode/string_view.hpp"
+#endif
 
 #include <windowsx.h>
 #include <windows.h>
@@ -323,7 +325,7 @@ namespace engine
 			DeleteObject(hFont);
 		}
 
-		HFONT loadFont(window & /*window*/, utility::string_view_utf8 name, int height)
+		HFONT loadFont(window & /*window*/, utility::string_units_utf8 name, int height)
 		{
 			return CreateFontW(height,
 			                   0,
