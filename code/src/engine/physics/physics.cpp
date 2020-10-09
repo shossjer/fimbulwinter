@@ -130,13 +130,10 @@ namespace
 {
 	struct object_t
 	{
-		core::maths::Vector3f position;
-		core::maths::Quaternionf orientation;
+		core::maths::Matrix4x4f matrix;
 
-		object_t(core::maths::Vector3f position,
-		         core::maths::Quaternionf orientation)
-			: position(position)
-			, orientation(orientation)
+		explicit object_t(core::maths::Matrix4x4f matrix)
+			: matrix(std::move(matrix))
 		{}
 	};
 
@@ -147,35 +144,6 @@ namespace
 		utility::heap_storage<object_t>
 	>
 	objects;
-
-	struct update_movement
-	{
-		core::maths::Vector3f && movement;
-
-		void operator () (object_t & x)
-		{
-			x.position += rotate(movement, x.orientation);
-		}
-	};
-	struct update_orientation_movement
-	{
-		core::maths::Quaternionf && movement;
-
-		void operator () (object_t & x)
-		{
-			x.orientation *= movement;
-		}
-	};
-	struct update_transform
-	{
-		engine::transform_t && transform;
-
-		void operator () (object_t & x)
-		{
-			x.position = std::move(transform.pos);
-			x.orientation = std::move(transform.quat);
-		}
-	};
 }
 
 namespace
@@ -185,32 +153,23 @@ namespace
 		engine::Token entity;
 		engine::transform_t transform;
 	};
+
 	struct MessageRemove
 	{
 		engine::Token entity;
 	};
-	struct MessageUpdateMovement
+
+	struct MessageSetTransformComponents
 	{
 		engine::Token entity;
-		engine::physics::movement_data movement;
+		engine::physics::TransformComponents data;
 	};
-	struct MessageUpdateOrientationMovement
-	{
-		engine::Token entity;
-		engine::physics::orientation_movement movement;
-	};
-	struct MessageUpdateTransform
-	{
-		engine::Token entity;
-		engine::transform_t transform;
-	};
+
 	using EntityMessage = utility::variant
 	<
 		MessageAddObject,
 		MessageRemove,
-		MessageUpdateMovement,
-		MessageUpdateOrientationMovement,
-		MessageUpdateTransform
+		MessageSetTransformComponents
 	>;
 
 	core::container::PageQueue<utility::heap_storage<EntityMessage>> queue_entities;
@@ -241,42 +200,135 @@ namespace physics
 			{
 				void operator () (MessageAddObject && x)
 				{
-					if (!debug_assert(find(objects, x.entity) != objects.end()))
-						return; // error
-
-					fiw_unused(debug_verify(objects.emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat))));
+					debug_verify(objects.emplace<object_t>(x.entity, std::move(x.transform.matrix)));
 				}
+
 				void operator () (MessageRemove && x)
 				{
 					const auto object_it = find(objects, x.entity);
-					if (!debug_assert(object_it != objects.end()))
-						return; // error
-
-					objects.erase(object_it);
+					if (debug_verify(object_it != objects.end()))
+					{
+						objects.erase(object_it);
+					}
 				}
-				void operator () (MessageUpdateMovement && x)
-				{
-					const auto object_it = find(objects, x.entity);
-					if (!debug_assert(object_it != objects.end()))
-						return; // error
 
-					objects.call(object_it, update_movement{std::move(x.movement.vec)});
-				}
-				void operator () (MessageUpdateOrientationMovement && x)
+				void operator () (MessageSetTransformComponents && x)
 				{
-					const auto object_it = find(objects, x.entity);
-					if (!debug_assert(object_it != objects.end()))
-						return; // error
+					const auto handle = find(objects, x.entity);
+					if (!debug_verify(handle != objects.end()))
+						return;
 
-					objects.call(object_it, update_orientation_movement{std::move(x.movement.quaternion)});
-				}
-				void operator () (MessageUpdateTransform && x)
-				{
-					const auto object_it = find(objects, x.entity);
-					if (!debug_assert(object_it != objects.end()))
-						return; // error
+					struct
+					{
+						engine::physics::TransformComponents && transform;
 
-					objects.call(object_it, update_transform{std::move(x.transform)});
+						void operator () (object_t & x)
+						{
+							debug_assert((transform.mask & ~(0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020)) == 0, "unknown mask");
+
+							core::maths::Vector3f translation;
+							core::maths::Matrix3x3f rotation;
+							core::maths::Vector3f scale;
+							core::maths::decompose(x.matrix, translation, rotation, scale);
+
+							if (transform.mask & (0x0001 | 0x0002 | 0x0004))
+							{
+								core::maths::Vector3f::array_type buffer;
+								translation.get(buffer);
+
+								if (transform.mask & 0x0001)
+								{
+									buffer[0] = transform.values[0];
+								}
+								if (transform.mask & 0x0002)
+								{
+									buffer[1] = transform.values[1];
+								}
+								if (transform.mask & 0x0004)
+								{
+									buffer[2] = transform.values[2];
+								}
+
+								translation.set(buffer);
+							}
+
+							if (transform.mask & (0x0008 | 0x0010 | 0x0020))
+							{
+								core::maths::Matrix3x3f::array_type buffer;
+								rotation.get(buffer);
+
+								// XYZ rotation = Z(gamma) * Y(beta) * X(alpha)
+								// cos b cos c  sin b sin a cos c - cos a sin c  sin b cos a cos c + sin a sin c
+								// cos b sin c  sin b sin a sin c + cos a cos c  sin b cos a sin c - sin a cos c
+								//   - sin b              cos b sin a                      cos b cos a
+
+								const auto rxz = buffer[2];
+
+								float alpha;
+								float beta;
+								float gamma;
+
+								if (debug_assert(-1.f < rxz) &&
+									debug_assert(rxz < 1.f))
+								{
+									const auto rxx = buffer[0];
+									const auto rxy = buffer[1];
+									const auto ryz = buffer[5];
+									const auto rzz = buffer[8];
+
+									alpha = std::atan2(ryz, rzz);
+									beta = std::asin(-rxz);
+									gamma = std::atan2(rxy, rxx);
+								}
+								else
+								{
+									// the matrix can be simplified to
+									//  0   sin(a - c)    cos(a - c)
+									//  0   cos(a - c)  - sin(a - c)
+									// - 1      0             0
+									// when rxz == - 1, and
+									// 0  - sin(a + c)  - cos(a + c)
+									// 0    cos(a + c)  - sin(a + c)
+									// 1        0             0
+									// when rxz == 1
+
+									alpha = 0.f;
+									beta = 0.f;
+									gamma = 0.f;
+								}
+
+								if (transform.mask & 0x0008)
+								{
+									alpha = transform.values[3];
+								}
+								if (transform.mask & 0x0010)
+								{
+									beta = transform.values[4];
+								}
+								if (transform.mask & 0x0020)
+								{
+									gamma = transform.values[5];
+								}
+
+								const auto sa = std::sin(alpha);
+								const auto ca = std::cos(alpha);
+								const auto sb = std::sin(beta);
+								const auto cb = std::cos(beta);
+								const auto sc = std::sin(gamma);
+								const auto cc = std::cos(gamma);
+
+								rotation.set(
+									cb * cc, sb * sa * cc - ca * sc, sb * ca * cc + sa * sc,
+									cb * sc, sb * sa * sc + ca * cc, sb * ca * sc - sa * cc,
+									  -sb  ,        cb * sa        ,        cb * ca        );
+							}
+
+							core::maths::compose(x.matrix, translation, rotation, scale);
+						}
+					}
+					set_transform_components{std::move(x.data)};
+
+					objects.call(handle, set_transform_components);
 				}
 			};
 			visit(ProcessMessage{}, std::move(entity_message));
@@ -290,8 +342,7 @@ namespace physics
 	{
 		for (const auto & object : objects.get<object_t>())
 		{
-			auto matrix = make_translation_matrix(object.position) * make_matrix(object.orientation);
-			post_update_modelviewmatrix(*::renderer, objects.get_key(object), engine::graphics::data::ModelviewMatrix{std::move(matrix)});
+			post_update_modelviewmatrix(*::renderer, objects.get_key(object), engine::graphics::data::ModelviewMatrix{object.matrix});
 		}
 	}
 
@@ -305,22 +356,9 @@ namespace physics
 		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity));
 	}
 
-	void post_update_movement(simulation &, engine::Token entity, movement_data && data)
+	void set_transform_components(simulation & /*simulation*/, engine::Token entity, TransformComponents && data)
 	{
-		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateMovement>, entity, std::move(data)));
-	}
-
-	void post_update_movement(simulation &, const engine::Token /*id*/, const transform_t /*translation*/)
-	{}
-
-	void post_update_orientation_movement(simulation &, engine::Token entity, orientation_movement && data)
-	{
-		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateOrientationMovement>, entity, std::move(data)));
-	}
-
-	void post_update_transform(simulation &, engine::Token entity, engine::transform_t && data)
-	{
-		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateTransform>, entity, std::move(data)));
+		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageSetTransformComponents>, entity, std::move(data)));
 	}
 }
 }

@@ -13,8 +13,10 @@
 #include "engine/physics/physics.hpp"
 #include "engine/Token.hpp"
 
+#include "utility/algorithm.hpp"
+#include "utility/algorithm/find.hpp"
+#include "utility/functional/utility.hpp"
 #include "utility/predicates.hpp"
-#include "utility/profiling.hpp"
 #include "utility/variant.hpp"
 
 namespace
@@ -22,375 +24,162 @@ namespace
 	engine::graphics::renderer * renderer = nullptr;
 	engine::physics::simulation * simulation = nullptr;
 
-	using Action = engine::animation::Armature::Action;
-	using Armature = engine::animation::Armature;
-	using Joint = engine::animation::Armature::Joint;
-	using Mixer = unsigned int;
+	template <typename T>
+	bool try_clamp_above(T & value, const T & hi)
+	{
+		if (value < hi)
+			return false;
 
-	constexpr auto invalid_mixer = Mixer(-1);
-
-	const engine::animation::Callbacks * pCallbacks;
+		value = hi;
+		return true;
+	}
 
 	core::container::UnorderedCollection
 	<
 		engine::Token,
 		utility::static_storage_traits<201>,
-		utility::static_storage<101, Armature>,
-		utility::static_storage<101, engine::animation::object>
+		utility::static_storage<101, engine::animation::TransformSource>
 	>
 	sources;
 
-	struct Fade
+	struct TransformUpdateResult
 	{
-		float elapsed;
-		float stepsize;
-
-		Mixer from;
-		Mixer to;
-
-		Action::Frame compute()
-		{
-			debug_unreachable();
-		}
+		uint16_t mask;
+		bool done;
+		float values[9]; // todo
 	};
-	struct Fadein
+	static_assert(sizeof(TransformUpdateResult) == sizeof(float[10]), "bool is probably messing with alignment");
+
+	struct TransformPlaybackAnimation
 	{
-		Mixer to;
-	};
-	struct Fadeout
-	{
-		Mixer from;
-	};
-	struct Playback
-	{
-		const Armature * armature;
-		const Action * action_;
+		const engine::animation::TransformSource & source;
 
-		float elapsed;
-		float stepsize;
-		float length_;
-		int times_to_play;
+		const engine::animation::TransformSource::Action * action;
+		float frame;
+		float speed;
 
-		bool repeat;
-		bool finished;
-		int framei_;
-
-		// vvvvvvvv tmp
-		utility::heap_array<core::maths::Matrix4x4f> matrices;
-		core::maths::Vector3f position_movement;
-		core::maths::Quaternionf orientation_movement;
-
-		Playback(const Armature & armature, bool repeat)
-			: armature(&armature)
-			, action_(nullptr)
-			, repeat(repeat)
-			, finished(false)
-			, framei_(0)
-			, matrices(armature.joints.size())
+		explicit TransformPlaybackAnimation(const engine::animation::TransformSource & source)
+			: source(source)
+			, action(nullptr)
+			, frame(0.f)
+			, speed(0.f)
 		{}
-		// ^^^"^^^^ tmp
 
-		bool isFinished() const
+		void update(utility::heap_vector<TransformUpdateResult> & results)
 		{
-			return finished;
-		}
+			results.try_emplace_back();
+			ext::back(results).mask = 0;
+			ext::back(results).done = true;
 
-		void update()
-		{
-			if (action_ == nullptr)
-				return;
-
-			framei_ += 1;
-			if (framei_ >= action_->length)
-			{
-				if (!repeat)
-				{
-					finished = true;
-				}
-
-				framei_ %= action_->length;
-			}
-
-			int rooti = 0;
-			while (rooti < static_cast<int>(armature->joints.size()))
-				rooti = update(*action_, rooti, core::maths::Matrix4x4f::identity(), framei_);
-
-			if (!action_->positions.empty())
-			{
-				position_movement = action_->positions[framei_ + 1] - action_->positions[framei_];
-			}
-			if (!action_->orientations.empty())
-			{
-				orientation_movement = inverse(action_->orientations[framei_]) * action_->orientations[framei_ + 1];
-			}
-		}
-
-		int update(const Action & action, int mei, const core::maths::Matrix4x4f & parent_matrix, int framei)
-		{
-			const auto pos = action.frames[framei].channels[mei].translation;
-			const auto rot = action.frames[framei].channels[mei].rotation;
-			const auto scale = action.frames[framei].channels[mei].scale;
-
-			// vvvvvvvv tmp
-			const auto pose =
-				make_translation_matrix(pos) *
-				make_matrix(rot) *
-				make_scale_matrix(scale);
-
-			matrices[mei] = parent_matrix * pose;
-			// ^^^"^^^^ tmp
-
-			int childi = mei + 1;
-			for (int i = 0; i < static_cast<int>(armature->joints[mei].nchildren); i++)
-				childi = update(action, childi, matrices[mei], framei);
-			return childi;
-		}
-
-		void extract(utility::heap_array<core::maths::Matrix4x4f> & matrix_pallet) const
-		{
-			// vvvvvvvv tmp
-			if (matrix_pallet.resize(matrices.size()))
-			{
-				for (int i = 0; i < static_cast<int>(armature->joints.size()); i++)
-					matrix_pallet[i] = matrices[i] * armature->joints[i].inv_matrix;
-			}
-			// ^^^"^^^^ tmp
-		}
-
-		bool extract_position_movement(core::maths::Vector3f & movement) const
-		{
-			if (!action_->positions.empty())
-			{
-				movement = position_movement;
-				return true;
-			}
-			return false;
-		}
-
-		bool extract_orientation_movement(core::maths::Quaternionf & movement) const
-		{
-			if (!action_->orientations.empty())
-			{
-				movement = orientation_movement;
-				return true;
-			}
-			return false;
-		}
-	};
-
-	struct ObjectPlayback
-	{
-		const engine::animation::object * object;
-		const engine::animation::object::action * action;
-
-		bool repeat;
-		bool finished;
-		int framei;
-
-		ObjectPlayback(const engine::animation::object & object, bool repeat) :
-			object(& object),
-			action(nullptr),
-			repeat(repeat),
-			finished(false),
-			framei(0) {}
-
-		void update()
-		{
-			debug_assert(!finished);
 			if (action == nullptr)
 				return;
 
-			// const int framei_prev = framei;
-			const int framei_next = framei + 1;
+			const float length = static_cast<float>(std::max({
+				action->positionx.size(),
+				action->positiony.size(),
+				action->positionz.size(),
+				action->rotationx.size(),
+				action->rotationy.size(),
+				action->rotationz.size()
+				}));
+			if (!debug_assert(0 < length))
+				return;
 
-			// movement = action->keys[framei_next].translation - action->keys[framei_prev].translation;
+			ext::back(results).done = try_clamp_above(frame += speed, length - 1.f);
 
-			debug_assert(!action->keys.empty());
-			const int action_length = debug_cast<int>(action->keys.size()) - 1;
-			if (framei_next < action_length)
+			if (0 < action->positionx.size())
 			{
-				framei = framei_next;
+				ext::back(results).mask |= 0x0001;
+				ext::back(results).values[0] = action->positionx.data_as<float>()[static_cast<int>(frame)];
 			}
-			else if (repeat)
-			{
-				framei = framei_next % action_length;
-			}
-			else
-			{
-				finished = true;
-				framei = action_length;
-			}
-		}
 
-		engine::transform_t extract_translation() const
-		{
-			const auto & val = action->keys[framei];
-			return engine::transform_t {val.translation, val.rotation};
+			if (0 < action->positiony.size())
+			{
+				ext::back(results).mask |= 0x0002;
+				ext::back(results).values[1] = action->positiony.data_as<float>()[static_cast<int>(frame)];
+			}
+
+			if (0 < action->positionz.size())
+			{
+				ext::back(results).mask |= 0x0004;
+				ext::back(results).values[2] = action->positionz.data_as<float>()[static_cast<int>(frame)];
+			}
+
+			if (0 < action->rotationx.size())
+			{
+				ext::back(results).mask |= 0x0008;
+				ext::back(results).values[3] = action->rotationx.data_as<float>()[static_cast<int>(frame)];
+			}
+
+			if (0 < action->rotationy.size())
+			{
+				ext::back(results).mask |= 0x0010;
+				ext::back(results).values[4] = action->rotationy.data_as<float>()[static_cast<int>(frame)];
+			}
+
+			if (0 < action->rotationz.size())
+			{
+				ext::back(results).mask |= 0x0020;
+				ext::back(results).values[5] = action->rotationz.data_as<float>()[static_cast<int>(frame)];
+			}
 		}
 	};
 
-	core::container::Collection
+	core::container::UnorderedCollection
 	<
-		Mixer,
-		utility::heap_storage_traits,
-		utility::heap_storage<Fade>,
-		utility::heap_storage<Fadein>,
-		utility::heap_storage<Fadeout>,
-		utility::heap_storage<Playback>,
-		utility::heap_storage<ObjectPlayback>
+		engine::Token,
+		utility::static_storage_traits<201>,
+		utility::static_storage<101, TransformPlaybackAnimation>
 	>
-	mixers;
+	animations;
 
-	Mixer next_mixer_key = 0;
-
-	struct extract_position_movement
+	utility::heap_vector<engine::Token> step_animation(engine::Token animation)
 	{
-		core::maths::Vector3f & movement;
+		utility::heap_vector<engine::Token> order;
 
-		bool operator () (Playback & x)
+		utility::heap_vector<engine::Token, float> stack;
+		stack.try_emplace_back(animation, 1.f);
+		while (!ext::empty(stack))
 		{
-			return x.extract_position_movement(movement);
-		}
-		template <typename X>
-		bool operator () (X &)
-		{
-			debug_unreachable();
-		}
-	};
-	struct extract_orientation_movement
-	{
-		core::maths::Quaternionf & movement;
+			const auto current = ext::back(stack);
+			ext::pop_back(stack);
 
-		bool operator () (Playback & x)
-		{
-			return x.extract_orientation_movement(movement);
-		}
-		template <typename X>
-		bool operator () (X &)
-		{
-			debug_unreachable();
-		}
-	};
-	struct extract_pallet
-	{
-		utility::heap_array<core::maths::Matrix4x4f> & matrix_pallet;
+			order.push_back(current.first);
 
-		void operator () (Playback & x)
-		{
-			x.extract(matrix_pallet);
-		}
-		template <typename X>
-		void operator () (X &)
-		{
-			debug_unreachable();
-		}
-	};
-	struct extract_translation
-	{
-		engine::transform_t operator () (const ObjectPlayback & x)
-		{
-			return x.extract_translation();
-		}
-		template <typename X>
-		engine::transform_t operator () (const X &)
-		{
-			debug_unreachable();
-		}
-	};
-	struct is_finished
-	{
-		bool operator () (Playback & x)
-		{
-			return x.isFinished();
-		}
-		bool operator () (ObjectPlayback & x)
-		{
-			return x.finished;
-		}
-		template <typename X>
-		bool operator () (X &)
-		{
-			debug_unreachable();
-		}
-	};
-
-	struct Character
-	{
-		engine::Token me;
-
-		const Armature * armature;
-
-		Mixer mixer;
-
-		core::maths::Vector3f position_movement;
-		core::maths::Quaternionf orientation_movement;
-
-		Character(engine::Token me, const Armature & armature)
-			: me(me)
-			, armature(&armature)
-			, mixer(invalid_mixer)
-		{}
-
-		void finalize()
-		{
-			if (mixer == invalid_mixer)
-				return;
-
-			const auto mixer_it = find(mixers, mixer);
-
-			if (mixers.call(mixer_it, is_finished{}))
+			struct
 			{
-				pCallbacks->onFinish(this->me);
-			}
+				float scale;
 
-			utility::heap_array<core::maths::Matrix4x4f> matrix_pallet;
-			mixers.call(mixer_it, extract_pallet{matrix_pallet});
-			const bool has_position_movement = mixers.call(mixer_it, extract_position_movement{position_movement});
-			const bool has_orientation_movement = mixers.call(mixer_it, extract_orientation_movement{orientation_movement});
-			post_update_characterskinning(
-				*renderer,
-				me,
-				engine::graphics::data::CharacterSkinning{std::move(matrix_pallet)});
-			if (has_position_movement)
-			{
-				post_update_movement(*::simulation, me, engine::physics::movement_data{engine::physics::movement_data::Type::CHARACTER, position_movement});
+				utility::heap_vector<engine::Token, float> & stack;
+
+				void operator () (TransformPlaybackAnimation & x)
+				{
+					if (x.action == nullptr)
+						return;
+
+					const auto unit = x.speed * scale;
+					x.frame += unit;
+				}
 			}
-			if (has_orientation_movement)
-			{
-				post_update_orientation_movement(*::simulation, me, engine::physics::orientation_movement{orientation_movement});
-			}
+			visit_children_in_reverse{current.second, stack};
+
+			const auto handle = find(animations, current.first);
+			debug_assert(handle != animations.end());
+			animations.call(handle, visit_children_in_reverse);
 		}
-	};
-	struct Model
+
+		std::reverse(order.begin(), order.end());
+
+		return order;
+	}
+
+	struct Object
 	{
-		engine::Token me;
+		engine::Token animation;
 
-		const engine::animation::object * object;
-
-		Mixer mixer;
-
-		Model(engine::Token me, const engine::animation::object & object)
-			: me(me)
-			, object(&object)
-			, mixer(invalid_mixer)
-		{}
-
-		void finalize()
+		explicit Object(engine::Token animation)
+			: animation(animation)
 		{
-			if (mixer == invalid_mixer)
-				return;
-
-			const auto mixer_it = find(mixers, mixer);
-
-			post_update_movement(*::simulation, me, mixers.call(mixer_it, extract_translation{}));
-
-			if (mixers.call(mixer_it, is_finished{}))
-			{
-				//pCallbacks->onFinish(this->me);
-				// TODO: this needs to be changed when we start animation blending
-				mixers.erase(mixer_it);
-				mixer = invalid_mixer;
-			}
 		}
 	};
 
@@ -398,110 +187,77 @@ namespace
 	<
 		engine::Token,
 		utility::heap_storage_traits,
-		utility::heap_storage<Character>,
-		utility::heap_storage<Model>
+		utility::heap_storage<Object>
 	>
-	components;
+	objects;
 
-	struct set_action
+	TransformUpdateResult update_animation(engine::Token animation)
 	{
-		engine::animation::action data;
+		auto order = step_animation(animation);
 
-		void operator () (Character & x)
+		utility::heap_vector<TransformUpdateResult> results;
+		for (auto i : ranges::index_sequence_for(order))
 		{
-			const Mixer mixer = next_mixer_key++;
-			auto * const playback = mixers.emplace<Playback>(mixer, *x.armature, data.repetative);
-			if (!debug_verify(playback))
-				return; // error
-			{
-				auto action = std::find(x.armature->actions.begin(),
-				                        x.armature->actions.end(),
-				                        utility::if_name_is(data.name));
-				if (action == x.armature->actions.end())
-				{
-					debug_printline(engine::animation_channel, "Could not find action ", ful::view_utf8(data.name), " in armature ", x.armature->name);
-				}
-				else
-				{
-					playback->action_ = &*action;
-				}
-			}
-			// set mixer
-			if (x.mixer != invalid_mixer)
-				mixers.erase(find(mixers, x.mixer));
-			x.mixer = mixer;
+			const auto handle = find(animations, order[i]);
+			debug_assert(handle != animations.end());
+			animations.call(handle, [&](auto & x){ x.update(results); });
 		}
-		void operator () (Model & x)
-		{
-			const Mixer mixer = next_mixer_key++;
-			auto * const objectplayback = mixers.emplace<ObjectPlayback>(mixer, *x.object, data.repetative);
-			if (!debug_verify(objectplayback))
-				return; // error
-			{
-				auto action = std::find(x.object->actions.begin(),
-				                        x.object->actions.end(),
-				                        utility::if_name_is(data.name));
-				if (action == x.object->actions.end())
-				{
-					debug_printline(engine::animation_channel, "Could not find action ", ful::view_utf8(data.name), " in object ", ful::view_utf8(x.object->name));
-				}
-				else
-				{
-					objectplayback->action = &*action;
-				}
-			}
-			// set mixer
-			if (x.mixer != invalid_mixer)
-				mixers.erase(find(mixers, x.mixer));
-			x.mixer = mixer;
-		}
+		debug_assert(results.size() == 1);
+
+		return ext::front(results);
+	}
+
+	struct MessageCreateTransformSource
+	{
+		engine::Token source;
+		engine::animation::TransformSource data;
 	};
 
-	struct MessageRegisterArmature
+	struct MessageDestroySource
 	{
-		engine::Token asset;
-		engine::animation::Armature data;
+		engine::Token source;
 	};
-	struct MessageRegisterObject
+
+	struct MessageAttachPlaybackAnimation
 	{
-		engine::Token asset;
-		engine::animation::object data;
+		engine::Token animation;
+		engine::Token source;
 	};
-	using AssetMessage = utility::variant
+
+	struct MessageDetachAnimation
+	{
+		engine::Token animation;
+	};
+
+	struct MessageAddObject
+	{
+		engine::Token object;
+		engine::Token animation;
+	};
+
+	struct MessageRemoveObject
+	{
+		engine::Token object;
+	};
+
+	struct MessageSetAnimationAction
+	{
+		engine::Token animation;
+		engine::Asset action;
+	};
+
+	using Message = utility::variant
 	<
-		MessageRegisterArmature,
-		MessageRegisterObject
+		MessageCreateTransformSource,
+		MessageDestroySource,
+		MessageAttachPlaybackAnimation,
+		MessageDetachAnimation,
+		MessageAddObject,
+		MessageRemoveObject,
+		MessageSetAnimationAction
 	>;
 
-	struct MessageAddCharacter
-	{
-		engine::Token entity;
-		engine::animation::character data;
-	};
-	struct MessageAddModel
-	{
-		engine::Token entity;
-		engine::animation::model data;
-	};
-	struct MessageUpdateAction
-	{
-		engine::Token entity;
-		engine::animation::action data;
-	};
-	struct MessageRemove
-	{
-		engine::Token entity;
-	};
-	using EntityMessage = utility::variant
-	<
-		MessageAddCharacter,
-		MessageAddModel,
-		MessageUpdateAction,
-		MessageRemove
-	>;
-
-	core::container::PageQueue<utility::heap_storage<AssetMessage>> queue_assets;
-	core::container::PageQueue<utility::heap_storage<EntityMessage>> queue_entities;
+	core::container::PageQueue<utility::heap_storage<Message>> message_queue;
 }
 
 namespace engine
@@ -510,6 +266,14 @@ namespace engine
 	{
 		mixer::~mixer()
 		{
+			engine::Token animations_not_unregistered[animations.max_size()];
+			const auto animation_count = animations.get_all_keys(animations_not_unregistered, animations.max_size());
+			debug_printline(animation_count, " animations not detached:");
+			for (auto i : ranges::index_sequence(animation_count))
+			{
+				debug_printline(animations_not_unregistered[i]);
+			}
+
 			engine::Token sources_not_unregistered[sources.max_size()];
 			const auto source_count = sources.get_all_keys(sources_not_unregistered, sources.max_size());
 			debug_printline(source_count, " sources not unregistered:");
@@ -529,133 +293,170 @@ namespace engine
 			::simulation = &simulation_;
 		}
 
-		/**
-		 * Sets callback instance, called from looper during setup
-		 */
-		void initialize(mixer &, const Callbacks & callbacks)
-		{
-			pCallbacks = &callbacks;
-		}
-
 		void update(mixer &)
 		{
-			profile_scope("mixer update");
-
-			AssetMessage asset_message;
-			while (queue_assets.try_pop(asset_message))
+			Message message;
+			while (message_queue.try_pop(message))
 			{
-				struct ProcessMessage
+				struct
 				{
-					void operator () (MessageRegisterArmature && x)
+					void operator () (MessageCreateTransformSource && x)
 					{
-						fiw_unused(debug_verify(sources.emplace<Armature>(x.asset, std::move(x.data))));
-					}
-					void operator () (MessageRegisterObject && x)
-					{
-						fiw_unused(debug_verify(sources.emplace<engine::animation::object>(x.asset, std::move(x.data))));
-					}
-				};
-				visit(ProcessMessage{}, std::move(asset_message));
-			}
-
-			EntityMessage entity_message;
-			while (queue_entities.try_pop(entity_message))
-			{
-				struct ProcessMessage
-				{
-					void operator () (MessageAddCharacter && x)
-					{
-						const auto source_it = find(sources, x.data.armature);
-						if (!debug_assert(source_it != sources.end()))
-							return; // error
-
-						const Armature * const armature = sources.get<Armature>(source_it);
-						if (!debug_assert(armature))
-							return; // error
-
-						fiw_unused(debug_verify(components.emplace<Character>(x.entity, x.entity, *armature)));
-					}
-					void operator () (MessageAddModel && x)
-					{
-						const auto source_it = find(sources, x.data.object);
-						if (!debug_assert(source_it != sources.end()))
-							return; // error
-
-						const engine::animation::object * const object = sources.get<engine::animation::object>(source_it);
-						if (!debug_assert(object))
-							return; // error
-
-						fiw_unused(debug_verify(components.emplace<Model>(x.entity, x.entity, *object)));
-					}
-					void operator () (MessageUpdateAction && x)
-					{
-						const auto component_it = find(components, x.entity);
-						if (debug_assert(component_it != components.end()))
+						const auto handle = find(sources, x.source);
+						if (handle != sources.end())
 						{
-							components.call(component_it, set_action{std::move(x.data)});
+							sources.erase(handle);
+						}
+						debug_verify(sources.emplace<TransformSource>(x.source, std::move(x.data)));
+					}
+
+					void operator () (MessageDestroySource && x)
+					{
+						const auto handle = find(sources, x.source);
+						if (debug_verify(handle != sources.end()))
+						{
+							sources.erase(handle);
 						}
 					}
-					void operator () (MessageRemove && x)
+
+					void operator () (MessageAttachPlaybackAnimation && x)
 					{
-						const auto component_it = find(components, x.entity);
-						if (debug_assert(component_it != components.end()))
+						const auto handle = find(sources, x.source);
+						if (!debug_verify(handle != sources.end()))
+							return; // error
+
+						struct
 						{
-							components.erase(component_it);
+							engine::Token animation;
+
+							void operator () (const TransformSource & x)
+							{
+								debug_verify(animations.emplace<TransformPlaybackAnimation>(animation, x));
+							}
+						}
+						construct_animation{x.animation};
+
+						sources.call(handle, construct_animation);
+					}
+
+					void operator () (MessageDetachAnimation && x)
+					{
+						const auto handle = find(animations, x.animation);
+						if (debug_verify(handle != animations.end()))
+						{
+							animations.erase(handle);
 						}
 					}
-				};
-				visit(ProcessMessage{}, std::move(entity_message));
+
+					void operator () (MessageAddObject && x)
+					{
+						debug_verify(objects.emplace<Object>(x.object, x.animation));
+					}
+
+					void operator () (MessageRemoveObject && x)
+					{
+						const auto handle = find(objects, x.object);
+						if (debug_verify(handle != objects.end()))
+						{
+							objects.erase(handle);
+						}
+					}
+
+					void operator () (MessageSetAnimationAction && x)
+					{
+						const auto handle = find(animations, x.animation);
+						if (!debug_verify(handle != animations.end()))
+							return; // error
+
+						struct
+						{
+							engine::Asset name;
+
+							void operator () (TransformPlaybackAnimation & x)
+							{
+								auto maybe = std::find(x.source.actions.begin(), x.source.actions.end(), utility::if_name_is(name));
+								if (!debug_verify(maybe != x.source.actions.end()))
+									return;
+
+								x.action = &*maybe;
+								x.frame = 0.f; // todo
+								x.speed = 1.f; // todo
+							}
+						}
+						visitor{x.action};
+
+						animations.call(handle, visitor);
+					}
+				}
+				visitor;
+
+				visit(visitor, std::move(message));
 			}
 
-			// update stuff
-			for (auto & playback : mixers.get<Playback>())
+			utility::heap_vector<engine::Token, TransformUpdateResult> active_animations;
+			debug_verify(active_animations.try_reserve(objects.get<Object>().size()));
+			for (auto & object : objects.get<Object>())
 			{
-				playback.update();
+				if (ext::find_if(active_animations, fun::first == object.animation) == active_animations.end())
+				{
+					active_animations.try_emplace_back(object.animation, update_animation(object.animation));
+				}
 			}
-			for (auto & objectplayback : mixers.get<ObjectPlayback>())
+
+			for (auto & object : objects.get<Object>())
 			{
-				objectplayback.update();
+				auto animation_it = ext::find_if(active_animations, fun::first == object.animation);
+				debug_assert(animation_it != active_animations.end());
+
+				if (!/*debug_verify*/((*animation_it).second.mask != 0, "an animation evaluated to nothing"))
+					continue;
+
+				const auto entity = objects.get_key(object);
+
+				engine::physics::TransformComponents transform;
+				transform.mask = (*animation_it).second.mask;
+				for (auto i : ranges::index_sequence_for((*animation_it).second.values))
+				{
+					transform.values[i] = (*animation_it).second.values[i];
+				}
+
+				engine::physics::set_transform_components(*::simulation, entity, std::move(transform));
 			}
-
-			// send messages
-			for (auto & character : components.get<Character>())
-			{
-				character.finalize();
-			}
-			for (auto & model : components.get<Model>())
-			{
-				model.finalize();
-			}
 		}
 
-		void post_register_armature(mixer &, engine::Token asset, engine::animation::Armature && data)
+		bool create_transform_source(mixer & /*mixer*/, engine::Token source, TransformSource && data)
 		{
-			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterArmature>, asset, std::move(data)));
+			return debug_verify(message_queue.try_emplace(utility::in_place_type<MessageCreateTransformSource>, source, std::move(data)));
 		}
 
-		void post_register_object(mixer &, engine::Token asset, engine::animation::object && data)
+		bool destroy_source(mixer & /*mixer*/, engine::Token source)
 		{
-			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterObject>, asset, std::move(data)));
+			return debug_verify(message_queue.try_emplace(utility::in_place_type<MessageDestroySource>, source));
 		}
 
-		void post_add_character(mixer &, engine::Token entity, engine::animation::character && data)
+		bool attach_playback_animation(mixer & /*mixer*/, engine::Token animation, engine::Token source)
 		{
-			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddCharacter>, entity, std::move(data)));
+			return debug_verify(message_queue.try_emplace(utility::in_place_type<MessageAttachPlaybackAnimation>, animation, source));
 		}
 
-		void post_add_model(mixer &, engine::Token entity, engine::animation::model && data)
+		bool detach_animation(mixer & /*mixer*/, engine::Token animation)
 		{
-			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddModel>, entity, std::move(data)));
+			return debug_verify(message_queue.try_emplace(utility::in_place_type<MessageDetachAnimation>, animation));
 		}
 
-		void post_update_action(mixer &, engine::Token entity, engine::animation::action && data)
+		bool set_animation_action(mixer & /*mixer*/, engine::Token animation, engine::Asset action)
 		{
-			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateAction>, entity, std::move(data)));
+			return debug_verify(message_queue.try_emplace(utility::in_place_type<MessageSetAnimationAction>, animation, action));
 		}
 
-		void post_remove(mixer &, engine::Token entity)
+		bool add_object(mixer & /*mixer*/, engine::Token object, engine::Token animation)
 		{
-			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity));
+			return debug_verify(message_queue.try_emplace(utility::in_place_type<MessageAddObject>, object, animation));
+		}
+
+		bool remove_object(mixer & /*mixer*/, engine::Token object)
+		{
+			return debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRemoveObject>, object));
 		}
 	}
 }
