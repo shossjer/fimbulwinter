@@ -515,12 +515,6 @@ namespace
 
 		const engine::hid::Input & input;
 
-		void operator () (utility::monostate)
-		{
-			// this device axis is not bound to any filter
-			debug_printline(engine::hid_channel, "no filter for axis move");
-		}
-
 		void operator () (const AxisMove & x)
 		{
 			callback(x.command_x, static_cast<float>(input.getPosition().x), data);
@@ -541,12 +535,6 @@ namespace
 		void * data;
 
 		const engine::hid::Input & input;
-
-		void operator () (utility::monostate)
-		{
-			// this device axis is not bound to any filter
-			debug_printline(engine::hid_channel, "no filter for ", core::value_table<engine::hid::Input::Axis>::get_key(input.getAxis()));
-		}
 
 		void operator () (const AxisTilt & x)
 		{
@@ -573,12 +561,6 @@ namespace
 		void * data;
 
 		const engine::hid::Input & input;
-
-		void operator () (utility::monostate)
-		{
-			// this device button is not bound to any filter
-			debug_printline(engine::hid_channel, "no filter for ", core::value_table<engine::hid::Input::Button>::get_key(input.getButton()));
-		}
 
 		void operator () (const ButtonPress & x)
 		{
@@ -691,7 +673,7 @@ namespace hid
 				void operator () (AddAxisMove && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.try_emplace<AxisMove>(filter, x.command_x, x.command_y));
+					debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -701,7 +683,7 @@ namespace hid
 				void operator () (AddAxisTilt && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.try_emplace<AxisTilt>(filter, x.command_min, x.command_max));
+					debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -711,7 +693,7 @@ namespace hid
 				void operator () (AddButtonPress && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.try_emplace<ButtonPress>(filter, x.command));
+					debug_verify(filters.emplace<ButtonPress>(filter, x.command));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -721,7 +703,7 @@ namespace hid
 				void operator () (AddButtonRelease && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.try_emplace<ButtonRelease>(filter, x.command));
+					debug_verify(filters.emplace<ButtonRelease>(filter, x.command));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -941,19 +923,43 @@ namespace hid
 					switch (input.getState())
 					{
 					case engine::hid::Input::State::AXIS_TILT:
-						filters.try_call(device_mapping.axis_filters[static_cast<int>(input.getAxis())], HandleAxisTilt{device_mapping.axis_callbacks[static_cast<int>(input.getAxis())], device_mapping.axis_datas[static_cast<int>(input.getAxis())], input});
+					{
+						const auto filter_it = find(filters, device_mapping.axis_filters[static_cast<int>(input.getAxis())]);
+						if (filter_it != filters.end())
+						{
+							filters.call(filter_it, HandleAxisTilt{device_mapping.axis_callbacks[static_cast<int>(input.getAxis())], device_mapping.axis_datas[static_cast<int>(input.getAxis())], input});
+						}
 						break;
+					}
 					case engine::hid::Input::State::AXIS_TRIGGER:
 						break;
 					case engine::hid::Input::State::BUTTON_DOWN:
-						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], HandleButton<false>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], device_mapping.button_datas[static_cast<int>(input.getButton())], input});
+					{
+						const auto filter_it = find(filters, device_mapping.button_filters[static_cast<int>(input.getButton())]);
+						if (filter_it != filters.end())
+						{
+							filters.call(filter_it, HandleButton<false>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], device_mapping.button_datas[static_cast<int>(input.getButton())], input});
+						}
 						break;
+					}
 					case engine::hid::Input::State::BUTTON_UP:
-						filters.try_call(device_mapping.button_filters[static_cast<int>(input.getButton())], HandleButton<true>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], device_mapping.button_datas[static_cast<int>(input.getButton())], input});
+					{
+						const auto filter_it = find(filters, device_mapping.button_filters[static_cast<int>(input.getButton())]);
+						if (filter_it != filters.end())
+						{
+							filters.call(filter_it, HandleButton<true>{device_mapping.button_callbacks[static_cast<int>(input.getButton())], device_mapping.button_datas[static_cast<int>(input.getButton())], input});
+						}
 						break;
+					}
 					case engine::hid::Input::State::CURSOR_MOVE:
-						filters.try_call(device_mapping.axis_filters[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], HandleAxisMove{device_mapping.axis_callbacks[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], device_mapping.axis_datas[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], input});
+					{
+						const auto filter_it = find(filters, device_mapping.axis_filters[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)]);
+						if (filter_it != filters.end())
+						{
+							filters.call(filter_it, HandleAxisMove{device_mapping.axis_callbacks[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], device_mapping.axis_datas[static_cast<int>(engine::hid::Input::Axis::MOUSE_MOVE)], input});
+						}
 						break;
+					}
 					case engine::hid::Input::State::KEY_CHARACTER:
 						break;
 					}
@@ -979,7 +985,7 @@ namespace hid
 		debug_verify(queue_input.try_emplace(utility::in_place_type<DeviceLost>, id));
 	}
 
-	void notify_add_source(ui &, int id, std::string && path, int type, utility::string_view_utf8 name)
+	void notify_add_source(ui &, int id, std::string && path, int type, utility::string_units_utf8 name)
 	{
 		debug_verify(queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), utility::heap_string_utf8(name)));
 	}

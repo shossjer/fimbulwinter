@@ -341,17 +341,19 @@ namespace
 
 		void finalize()
 		{
-			if (this->mixer == invalid_mixer)
+			if (mixer == invalid_mixer)
 				return;
 
-			if (mixers.call(mixer, is_finished{}))
+			const auto mixer_it = find(mixers, mixer);
+
+			if (mixers.call(mixer_it, is_finished{}))
 			{
 				pCallbacks->onFinish(this->me);
 			}
 
-			mixers.call(mixer, extract_pallet{matrix_pallet});
-			const bool has_position_movement = mixers.call(mixer, extract_position_movement{position_movement});
-			const bool has_orientation_movement = mixers.call(mixer, extract_orientation_movement{orientation_movement});
+			mixers.call(mixer_it, extract_pallet{matrix_pallet});
+			const bool has_position_movement = mixers.call(mixer_it, extract_position_movement{position_movement});
+			const bool has_orientation_movement = mixers.call(mixer_it, extract_orientation_movement{orientation_movement});
 			post_update_characterskinning(
 				*renderer,
 				me,
@@ -382,16 +384,18 @@ namespace
 
 		void finalize()
 		{
-			if (this->mixer == invalid_mixer)
+			if (mixer == invalid_mixer)
 				return;
 
-			post_update_movement(*::simulation, me, mixers.call(mixer, extract_translation {}));
+			const auto mixer_it = find(mixers, mixer);
 
-			if (mixers.call(mixer, is_finished{}))
+			post_update_movement(*::simulation, me, mixers.call(mixer_it, extract_translation{}));
+
+			if (mixers.call(mixer_it, is_finished{}))
 			{
 				//pCallbacks->onFinish(this->me);
 				// TODO: this needs to be changed when we start animation blending
-				mixers.remove(mixer);
+				mixers.erase(mixer_it);
 				mixer = invalid_mixer;
 			}
 		}
@@ -413,7 +417,9 @@ namespace
 		void operator () (Character & x)
 		{
 			const Mixer mixer = next_mixer_key++;
-			auto & playback = *mixers.try_emplace<Playback>(mixer, *x.armature, data.repetative);
+			auto * const playback = mixers.emplace<Playback>(mixer, *x.armature, data.repetative);
+			if (!debug_verify(playback))
+				return; // error
 			{
 				auto action = std::find(x.armature->actions.begin(),
 				                        x.armature->actions.end(),
@@ -424,18 +430,20 @@ namespace
 				}
 				else
 				{
-					playback.action_ = &*action;
+					playback->action_ = &*action;
 				}
 			}
 			// set mixer
 			if (x.mixer != invalid_mixer)
-				mixers.remove(x.mixer);
+				mixers.erase(find(mixers, x.mixer));
 			x.mixer = mixer;
 		}
 		void operator () (Model & x)
 		{
 			const Mixer mixer = next_mixer_key++;
-			auto & objectplayback = *mixers.try_emplace<ObjectPlayback>(mixer, *x.object, data.repetative);
+			auto * const objectplayback = mixers.emplace<ObjectPlayback>(mixer, *x.object, data.repetative);
+			if (!debug_verify(objectplayback))
+				return; // error
 			{
 				auto action = std::find(x.object->actions.begin(),
 				                        x.object->actions.end(),
@@ -446,12 +454,12 @@ namespace
 				}
 				else
 				{
-					objectplayback.action = &*action;
+					objectplayback->action = &*action;
 				}
 			}
 			// set mixer
 			if (x.mixer != invalid_mixer)
-				mixers.remove(x.mixer);
+				mixers.erase(find(mixers, x.mixer));
 			x.mixer = mixer;
 		}
 	};
@@ -547,11 +555,11 @@ namespace engine
 				{
 					void operator () (MessageRegisterArmature && x)
 					{
-						debug_verify(sources.try_emplace<Armature>(x.asset, std::move(x.data)));
+						debug_verify(sources.emplace<Armature>(x.asset, std::move(x.data)));
 					}
 					void operator () (MessageRegisterObject && x)
 					{
-						debug_verify(sources.try_emplace<engine::animation::object>(x.asset, std::move(x.data)));
+						debug_verify(sources.emplace<engine::animation::object>(x.asset, std::move(x.data)));
 					}
 				};
 				visit(ProcessMessage{}, std::move(asset_message));
@@ -564,27 +572,43 @@ namespace engine
 				{
 					void operator () (MessageAddCharacter && x)
 					{
-						const Armature * armature = sources.try_get<Armature>(x.data.armature);
-						if (!debug_assert(armature))
-							return;
+						const auto source_it = find(sources, x.data.armature);
+						if (!debug_assert(source_it != sources.end()))
+							return; // error
 
-						debug_verify(components.try_emplace<Character>(x.entity, x.entity, *armature));
+						const Armature * const armature = sources.get<Armature>(source_it);
+						if (!debug_assert(armature))
+							return; // error
+
+						debug_verify(components.emplace<Character>(x.entity, x.entity, *armature));
 					}
 					void operator () (MessageAddModel && x)
 					{
-						const engine::animation::object * object = sources.try_get<engine::animation::object>(x.data.object);
-						if (!debug_assert(object))
-							return;
+						const auto source_it = find(sources, x.data.object);
+						if (!debug_assert(source_it != sources.end()))
+							return; // error
 
-						debug_verify(components.try_emplace<Model>(x.entity, x.entity, *object));
+						const engine::animation::object * const object = sources.get<engine::animation::object>(source_it);
+						if (!debug_assert(object))
+							return; // error
+
+						debug_verify(components.emplace<Model>(x.entity, x.entity, *object));
 					}
 					void operator () (MessageUpdateAction && x)
 					{
-						components.call(x.entity, set_action{std::move(x.data)});
+						const auto component_it = find(components, x.entity);
+						if (debug_assert(component_it != components.end()))
+						{
+							components.call(component_it, set_action{std::move(x.data)});
+						}
 					}
 					void operator () (MessageRemove && x)
 					{
-						components.remove(x.entity);
+						const auto component_it = find(components, x.entity);
+						if (debug_assert(component_it != components.end()))
+						{
+							components.erase(component_it);
+						}
 					}
 				};
 				visit(ProcessMessage{}, std::move(entity_message));

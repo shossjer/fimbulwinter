@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utility/annotate.hpp"
 #include "utility/container/container.hpp"
 
 #include <cassert>
@@ -244,21 +245,33 @@ namespace utility
 		using rvalue_reference = typename storage_type::rvalue_reference;
 		using pointer = typename storage_type::pointer;
 		using const_pointer = typename storage_type::const_pointer;
+		using iterator = pointer;
+		using const_iterator = const_pointer;
 
 	public:
+		annotate_nodiscard
 		constexpr std::size_t capacity() const { return base_type::capacity(); }
+		annotate_nodiscard
 		std::size_t size() const { return base_type::size(); }
 
-		auto begin() { return this->storage_.data(this->begin_storage()); }
-		auto begin() const { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
+		iterator begin() { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
+		const_iterator begin() const { return this->storage_.data(this->begin_storage()); }
 
-		auto end() { return this->storage_.data(this->end_storage()); }
-		auto end() const { return this->storage_.data(this->end_storage()); }
+		annotate_nodiscard
+		iterator end() { return this->storage_.data(this->end_storage()); }
+		annotate_nodiscard
+		const_iterator end() const { return this->storage_.data(this->end_storage()); }
 
-		auto data() { return this->storage_.data(this->begin_storage()); }
-		auto data() const { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
+		pointer data() { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
+		const_pointer data() const { return this->storage_.data(this->begin_storage()); }
 
+		annotate_nodiscard
 		reference operator [] (ext::index index) { return data()[index]; }
+		annotate_nodiscard
 		const_reference operator [] (ext::index index) const { return data()[index]; }
 
 		void clear()
@@ -267,6 +280,7 @@ namespace utility
 			this->set_end(this->begin_storage());
 		}
 
+		annotate_nodiscard
 		bool try_reserve(std::size_t min_capacity)
 		{
 			if (intrinsic_likely(min_capacity <= this->capacity()))
@@ -286,6 +300,7 @@ namespace utility
 		}
 
 		template <typename ...Ps>
+		annotate_nodiscard
 		bool try_emplace_back(utility::no_reallocate_t, Ps && ...ps)
 		{
 			if (intrinsic_likely(this->position_end() != this->position_cap()))
@@ -295,6 +310,7 @@ namespace utility
 		}
 
 		template <typename ...Ps>
+		annotate_nodiscard
 		bool try_emplace_back(Ps && ...ps)
 		{
 			if (intrinsic_likely(try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...)))
@@ -306,19 +322,46 @@ namespace utility
 			return false;
 		}
 
-		bool try_erase(ext::index index)
-		{
-			if (!/*debug_assert*/(static_cast<std::size_t>(index) < this->size()))
-				return false;
+		annotate_nodiscard
+		bool push_back(const_reference p) { return try_emplace_back(p); }
+		annotate_nodiscard
+		bool push_back(rvalue_reference p) { return try_emplace_back(std::move(p)); }
 
-			const auto last = --this->end_storage();
+		iterator erase(iterator it) // todo const_iterator
+		{
+			if (!/*debug_assert*/(begin() <= it && it < end()))
+				return it;
+
+			auto last = this->end_storage();
+			--last;
 
 			using utility::iter_move;
-			data()[index] = iter_move(this->storage_.data(last));
+			*it = iter_move(this->storage_.data(last));
 			this->storage_.destruct_at(last);
 			this->set_end(last);
 
-			return true;
+			return it;
+		}
+
+		iterator erase(iterator from, const_iterator to) // todo const_iterator
+		{
+			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
+				return from;
+
+			auto last = this->end_storage();
+
+			// idea split loop into two
+			for (iterator it = from; it != to; ++it)
+			{
+				--last;
+
+				using utility::iter_move;
+				*it = iter_move(this->storage_.data(last));
+				this->storage_.destruct_at(last);
+			}
+			this->set_end(last);
+
+			return from;
 		}
 	};
 
@@ -337,4 +380,54 @@ namespace utility
 
 	template <std::size_t Capacity, typename ...Ts>
 	using static_vector = vector<static_storage<Capacity, Ts...>>;
+}
+
+namespace ext
+{
+	template <typename Data>
+	decltype(auto) back(utility::basic_vector<Data> & vector)
+	{
+		auto it = vector.end();
+		return *--it;
+	}
+
+	template <typename Data>
+	decltype(auto) back(const utility::basic_vector<Data> & vector)
+	{
+		auto it = vector.end();
+		return *--it;
+	}
+
+	template <typename Data>
+	decltype(auto) back(utility::basic_vector<Data> && vector)
+	{
+		auto it = vector.end();
+		using utility::iter_move;
+		return iter_move(--it);
+	}
+
+	template <typename Data>
+	decltype(auto) back(const utility::basic_vector<Data> && vector)
+	{
+		auto it = vector.end();
+		using utility::iter_move;
+		return iter_move(--it);
+	}
+
+	template <typename Data>
+	decltype(auto) empty(const utility::basic_vector<Data> & vector) { return vector.begin() == vector.end(); }
+
+	template <typename Data>
+	void pop_back(utility::basic_vector<Data> & vector)
+	{
+		auto it = vector.end();
+		vector.erase(--it);
+	}
+
+	template <typename Data>
+	void pop_back(utility::basic_vector<Data> && vector)
+	{
+		auto it = vector.end();
+		vector.erase(--it);
+	}
 }

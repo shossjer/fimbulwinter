@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_ASSET_HPP
-#define ENGINE_ASSET_HPP
+#pragma once
 
 #include "config.h"
 
@@ -8,7 +6,7 @@
 
 #include "utility/concepts.hpp"
 #include "utility/crypto/crc.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 #include <ostream>
 
@@ -16,7 +14,6 @@
 # include "engine/debug.hpp"
 
 # include "utility/spinlock.hpp"
-# include "utility/string.hpp"
 
 # include <mutex>
 # include <unordered_map>
@@ -44,7 +41,7 @@ namespace engine
 		explicit constexpr Asset(const char * const str, const std::size_t n)
 			: id{utility::crypto::crc32(str, n)}
 		{}
-		explicit constexpr Asset(utility::string_view_utf8 str)
+		explicit constexpr Asset(utility::string_units_utf8 str)
 			: id{utility::crypto::crc32(str.data(), str.size())}
 		{}
 		template <typename StorageTraits>
@@ -106,7 +103,7 @@ namespace engine
 		static constexpr auto serialization()
 		{
 			return utility::make_lookup_table(
-				std::make_pair(utility::string_view("id"), &Asset::id)
+				std::make_pair(utility::string_units_utf8("id"), &Asset::id)
 				);
 		}
 
@@ -128,6 +125,12 @@ namespace engine
 			return stream;
 		}
 	};
+
+	inline bool serialize(Asset & x, utility::string_units_utf8 object)
+	{
+		x = Asset(object);
+		return true;
+	}
 }
 
 namespace std
@@ -171,5 +174,3 @@ namespace std
 #else
 # define debug_assets(...) static_assert(true, "")
 #endif
-
-#endif /* ENGINE_ASSET_HPP */

@@ -34,7 +34,7 @@
 #include "utility/lookup_table.hpp"
 #include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>
@@ -172,8 +172,8 @@ namespace
 			static constexpr auto serialization()
 			{
 				return make_lookup_table(
-					std::make_pair(utility::string_view("name"), &FragmentOutput::name),
-					std::make_pair(utility::string_view("value"), &FragmentOutput::value)
+					std::make_pair(utility::string_units_utf8("name"), &FragmentOutput::name),
+					std::make_pair(utility::string_units_utf8("value"), &FragmentOutput::value)
 					);
 			}
 		};
@@ -186,8 +186,8 @@ namespace
 			static constexpr auto serialization()
 			{
 				return make_lookup_table(
-					std::make_pair(utility::string_view("name"), &VertexInput::name),
-					std::make_pair(utility::string_view("value"), &VertexInput::value)
+					std::make_pair(utility::string_units_utf8("name"), &VertexInput::name),
+					std::make_pair(utility::string_units_utf8("value"), &VertexInput::value)
 					);
 			}
 		};
@@ -200,10 +200,10 @@ namespace
 		static constexpr auto serialization()
 		{
 			return make_lookup_table(
-				std::make_pair(utility::string_view("inputs"), &ShaderData::inputs),
-				std::make_pair(utility::string_view("outputs"), &ShaderData::outputs),
-				std::make_pair(utility::string_view("vertex_source"), &ShaderData::vertex_source),
-				std::make_pair(utility::string_view("fragment_source"), &ShaderData::fragment_source)
+				std::make_pair(utility::string_units_utf8("inputs"), &ShaderData::inputs),
+				std::make_pair(utility::string_units_utf8("outputs"), &ShaderData::outputs),
+				std::make_pair(utility::string_units_utf8("vertex_source"), &ShaderData::vertex_source),
+				std::make_pair(utility::string_units_utf8("fragment_source"), &ShaderData::fragment_source)
 				);
 		}
 	};
@@ -442,14 +442,15 @@ namespace
 			return find(asset) < count;
 		}
 
-		void compile(engine::Asset asset, utility::string_view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
+		// todo boundary_symbol
+		void compile(engine::Asset asset, utility::string_points_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
 			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			const FontInfo & info = infos[index];
 
-			const std::ptrdiff_t len = utility::point_difference(text.length()).get();
+			const std::ptrdiff_t len = text.length();
 			vertices.resize<float>(4 * len * 2);
 			texcoords.resize<float>(4 * len * 2);
 
@@ -734,7 +735,7 @@ namespace
 
 		void operator () (engine::MutableEntity entity, Character & x)
 		{
-			debug_verify(selectable_components.try_emplace<selectable_character_t>(entity.entity(), x.mesh, x.object, color));
+			debug_verify(selectable_components.emplace<selectable_character_t>(entity.entity(), x.mesh, x.object, color));
 		}
 
 		template <typename T>
@@ -823,9 +824,9 @@ namespace
 	core::container::MultiCollection
 	<
 		engine::Entity,
-		201,
-		std::array<highlighted_t, 100>,
-		std::array<selected_t, 100>
+		utility::heap_storage_traits,
+		utility::heap_storage<highlighted_t>,
+		utility::heap_storage<selected_t>
 	>
 	selected_components;
 }
@@ -853,55 +854,72 @@ namespace
 
 				void operator () (MessageAddDisplay && x)
 				{
-					debug_verify(displays.try_emplace<display_t>(x.asset,
-					                                             x.display.viewport.x, x.display.viewport.y, x.display.viewport.width, x.display.viewport.height,
-					                                             x.display.camera_3d.projection, x.display.camera_3d.frame, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_frame, x.display.camera_3d.inv_view,
-					                                             x.display.camera_2d.projection, x.display.camera_2d.view));
+					debug_verify(displays.emplace<display_t>(
+						             x.asset,
+						             x.display.viewport.x, x.display.viewport.y, x.display.viewport.width, x.display.viewport.height,
+						             x.display.camera_3d.projection, x.display.camera_3d.frame, x.display.camera_3d.view, x.display.camera_3d.inv_projection, x.display.camera_3d.inv_frame, x.display.camera_3d.inv_view,
+						             x.display.camera_2d.projection, x.display.camera_2d.view));
 					should_maybe_resize_framebuffer = true;
 				}
 
 				void operator () (MessageRemoveDisplay && x)
 				{
-					displays.remove(x.asset);
-					should_maybe_resize_framebuffer = true;
+					const auto display_it = find(displays, x.asset);
+					if (debug_assert(display_it != displays.end()))
+					{
+						displays.erase(display_it);
+						should_maybe_resize_framebuffer = true;
+					}
 				}
 
 				void operator () (MessageUpdateDisplayCamera2D && x)
 				{
-					displays.call(x.asset, update_display_camera_2d{std::move(x.camera_2d)});
+					const auto display_it = find(displays, x.asset);
+					if (debug_assert(display_it != displays.end()))
+					{
+						displays.call(display_it, update_display_camera_2d{std::move(x.camera_2d)});
+					}
 				}
 
 				void operator () (MessageUpdateDisplayCamera3D && x)
 				{
-					displays.call(x.asset, update_display_camera_3d{std::move(x.camera_3d)});
+					const auto display_it = find(displays, x.asset);
+					if (debug_assert(display_it != displays.end()))
+					{
+						displays.call(display_it, update_display_camera_3d{std::move(x.camera_3d)});
+					}
 				}
 
 				void operator () (MessageUpdateDisplayViewport && x)
 				{
-					displays.call(x.asset, update_display_viewport{std::move(x.viewport)});
-					should_maybe_resize_framebuffer = true;
+					const auto display_it = find(displays, x.asset);
+					if (debug_assert(display_it != displays.end()))
+					{
+						displays.call(display_it, update_display_viewport{std::move(x.viewport)});
+						should_maybe_resize_framebuffer = true;
+					}
 				}
 
 				void operator () (MessageRegisterCharacter && x)
 				{
-					debug_verify(resources.try_emplace<mesh_t>(x.asset, std::move(x.mesh)));
+					debug_verify(resources.emplace<mesh_t>(x.asset, std::move(x.mesh)));
 				}
 
 				void operator () (MessageRegisterMaterial && x)
 				{
 					if (x.material.data_opengl_30.diffuse)
 					{
-						resources.try_replace<ColorClass>(x.asset, x.material.data_opengl_30.diffuse.value(), x.material.data_opengl_30.shader);
+						debug_verify(resources.replace<ColorClass>(x.asset, x.material.data_opengl_30.diffuse.value(), x.material.data_opengl_30.shader));
 					}
 					else
 					{
-						resources.try_replace<ShaderClass>(x.asset, x.material.data_opengl_30.shader);
+						debug_verify(resources.replace<ShaderClass>(x.asset, x.material.data_opengl_30.shader));
 					}
 				}
 
 				void operator () (MessageRegisterMesh && x)
 				{
-					resources.try_replace<mesh_t>(x.asset, std::move(x.mesh));
+					debug_verify(resources.replace<mesh_t>(x.asset, std::move(x.mesh)));
 				}
 
 				void operator () (MessageRegisterTexture && /*x*/)
@@ -911,64 +929,79 @@ namespace
 
 				void operator () (MessageCreateMaterialInstance && x)
 				{
-					if (!debug_verify(resources.contains(x.data.materialclass), x.data.materialclass))
+					if (!debug_verify(find(resources, x.data.materialclass) != resources.end(), x.data.materialclass))
 						return; // error
 
 					std::vector<engine::Asset> textures; // todo
 
-					if (const engine::MutableEntity * const key = materials.find_key(x.entity.entity()))
+					auto material_it = find(materials, x.entity.entity());
+					if (material_it != materials.end())
 					{
-						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
+						if (!debug_assert(materials.get_key(material_it) < x.entity, "trying to add an older version object"))
 							return; // error
 
-						materials.try_remove(*key); // todo use iterators
+						materials.erase(material_it);
 					}
-					debug_verify(materials.try_emplace<ShaderMaterial>(x.entity, x.data.diffuse, std::move(textures), x.data.materialclass));
+					debug_verify(materials.emplace<ShaderMaterial>(x.entity, x.data.diffuse, std::move(textures), x.data.materialclass));
 				}
 
 				void operator () (MessageDestroy && x)
 				{
-					materials.try_remove(x.entity);
+					auto material_it = find(materials, x.entity.entity());
+					if (material_it != materials.end())
+					{
+						materials.erase(material_it);
+					}
 				}
 
 				void operator () (MessageAddMeshObject && x)
 				{
-					if (const engine::MutableEntity * const key = objects.find_key(x.entity.entity()))
+					const auto object_it = find(objects, x.entity.entity());
+					if (object_it != objects.end())
 					{
-						if (!debug_assert(*key < x.entity, "trying to add an older version object"))
+						if (!debug_assert(objects.get_key(object_it) < x.entity, "trying to add an older version object"))
 							return; // error
 
-						objects.try_remove(*key); // todo use iterators
+						objects.erase(object_it);
 					}
-					auto * const object = objects.try_emplace<object_modelview>(x.entity, std::move(x.object.matrix));
+					auto * const object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
 
-					if (auto * const mesh = resources.try_get<mesh_t>(x.object.mesh))
-					{
-						if (const engine::MutableEntity * const key = components.find_key(x.entity.entity()))
-						{
-							if (!debug_assert(*key < x.entity, "trying to add an older version mesh"))
-								return; // error
+					const auto mesh_it = find(resources, x.object.mesh);
+					if (!debug_verify(mesh_it != resources.end(), "missing mesh"))
+						return; // error
 
-							components.remove(*key); // todo use iterators
-						}
-						debug_verify(components.try_emplace<MeshObject>(x.entity, object, mesh, x.object.material));
-					}
-					else
+					if (!debug_verify(resources.contains<mesh_t>(mesh_it), "invalid mesh"))
+						return; // error
+
+					mesh_t * const mesh = resources.get<mesh_t>(mesh_it);
+
+					const auto component_it = find(components, x.entity.entity());
+					if (component_it != components.end())
 					{
-						debug_fail("unknown object type");
+						if (!debug_assert(components.get_key(component_it) < x.entity, "trying to add an older version mesh"))
+							return; // error
+
+						components.erase(component_it);
 					}
+					debug_verify(components.emplace<MeshObject>(x.entity, object, mesh, x.object.material));
 				}
 
 				void operator () (MessageMakeObstruction && x)
 				{
 					const engine::graphics::opengl::Color4ub color = {0, 0, 0, 0};
-					if (selectable_components.contains(x.entity))
+
+					const auto selectable_it = find(selectable_components, x.entity);
+					if (selectable_it != selectable_components.end())
 					{
-						selectable_components.call(x.entity, set_selectable_color{color});
+						selectable_components.call(selectable_it, set_selectable_color{color});
 					}
 					else
 					{
-						components.call(x.entity, add_selectable_color{color});
+						const auto component_it = find(components, x.entity);
+						if (!debug_assert(component_it != components.end(), "unknown component ", x.entity))
+							return; // error
+
+						components.call(component_it, add_selectable_color{color});
 					}
 				}
 
@@ -978,21 +1011,28 @@ namespace
 					                                                  (x.entity & 0x0000ff00) >> 8,
 					                                                  (x.entity & 0x00ff0000) >> 16,
 					                                                  (x.entity & 0xff000000) >> 24};
-					if (selectable_components.contains(x.entity))
+
+					const auto selectable_it = find(selectable_components, x.entity);
+					if (selectable_it != selectable_components.end())
 					{
-						selectable_components.call(x.entity, set_selectable_color{color});
+						selectable_components.call(selectable_it, set_selectable_color{color});
 					}
 					else
 					{
-						components.call(x.entity, add_selectable_color{color});
+						const auto component_it = find(components, x.entity);
+						if (!debug_assert(component_it != components.end(), "unknown component ", x.entity))
+							return; // error
+
+						components.call(component_it, add_selectable_color{color});
 					}
 				}
 
 				void operator () (MessageMakeTransparent && x)
 				{
-					if (selectable_components.contains(x.entity))
+					const auto selectable_it = find(selectable_components, x.entity);
+					if (selectable_it != selectable_components.end())
 					{
-						selectable_components.remove(x.entity);
+						selectable_components.erase(selectable_it);
 					}
 				}
 
@@ -1003,49 +1043,81 @@ namespace
 
 				void operator () (MessageMakeDehighlighted && x)
 				{
-					selected_components.try_remove<highlighted_t>(x.entity);
+					const auto selected_it = find(selected_components, x.entity);
+					if (selected_it != selected_components.end())
+					{
+						if (selected_components.contains<highlighted_t>(selected_it))
+						{
+							selected_components.erase<highlighted_t>(selected_it);
+						}
+					}
 				}
 
 				void operator () (MessageMakeDeselect && x)
 				{
-					selected_components.try_remove<selected_t>(x.entity);
+					const auto selected_it = find(selected_components, x.entity);
+					if (selected_it != selected_components.end())
+					{
+						if (selected_components.contains<selected_t>(selected_it))
+						{
+							selected_components.erase<selected_t>(selected_it);
+						}
+					}
 				}
 
 				void operator () (MessageMakeHighlighted && x)
 				{
-					selected_components.emplace<highlighted_t>(x.entity);
+					debug_verify(selected_components.emplace<highlighted_t>(x.entity));
 				}
 
 				void operator () (MessageMakeSelect && x)
 				{
-					selected_components.emplace<selected_t>(x.entity);
+					debug_verify(selected_components.emplace<selected_t>(x.entity));
 				}
 
 				void operator () (MessageRemove && x)
 				{
-					debug_assert(components.contains(x.entity));
-					if (selectable_components.contains(x.entity))
+					const auto component_it = find(components, x.entity);
+					if (!debug_assert(component_it != components.end(), "unknown component ", x.entity))
+						return; // error
+
+					const auto selectable_it = find(selectable_components, x.entity);
+					if (selectable_it != selectable_components.end())
 					{
-						selectable_components.remove(x.entity);
+						selectable_components.erase(selectable_it);
 					}
-					if (updateable_components.contains(x.entity))
+
+					const auto updateable_it = find(updateable_components, x.entity);
+					if (updateable_it != updateable_components.end())
 					{
-						updateable_components.remove(x.entity);
+						updateable_components.erase(updateable_it);
 					}
-					components.remove(x.entity);
-					objects.try_remove(x.entity);
+
+					components.erase(component_it);
+
+					const auto object_it = find(objects, x.entity);
+					if (debug_assert(object_it != objects.end()))
+					{
+						objects.erase(object_it);
+					}
 				}
 
 				void operator () (MessageUpdateCharacterSkinning && x)
 				{
-					debug_assert(updateable_components.contains(x.entity));
-					updateable_components.call(x.entity, update_matrixpallet{std::move(x.character_skinning)});
+					const auto updateable_it = find(updateable_components, x.entity);
+					if (debug_assert(updateable_it != updateable_components.end()))
+					{
+						updateable_components.call(updateable_it, update_matrixpallet{std::move(x.character_skinning)});
+					}
 				}
 
 				void operator () (MessageUpdateModelviewMatrix && x)
 				{
-					debug_assert(objects.contains(x.entity));
-					objects.call(x.entity, update_modelview{std::move(x.modelview_matrix)});
+					const auto object_it = find(objects, x.entity);
+					if (debug_assert(object_it != objects.end()))
+					{
+						objects.call(object_it, update_modelview{std::move(x.modelview_matrix)});
+					}
 				}
 			};
 			visit(ProcessMessage{should_maybe_resize_framebuffer}, std::move(message));
@@ -1383,9 +1455,10 @@ namespace
 			glUniform(p_tex, "modelview_matrix", modelview_matrix.top());
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity.entity());
-			const bool is_selected = selected_components.contains<selected_t>(entity.entity());
-			const bool is_interactible = selectable_components.contains(entity.entity());
+			const auto selected_it = find(selected_components, entity.entity());
+			const bool is_highlighted = selected_it != selected_components.end() && selected_components.contains<highlighted_t>(selected_it);
+			const bool is_selected = selected_it != selected_components.end() && selected_components.contains<selected_t>(selected_it);
+			const bool is_interactible = find(selectable_components, entity.entity()) != selectable_components.end();
 
 			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
@@ -1446,18 +1519,26 @@ namespace
 			engine::graphics::opengl::Color4ub color(0, 0, 0, 0);
 			engine::Asset shader{};
 
-			if (auto * const material = materials.try_get<ShaderMaterial>(component.material))
+			const auto material_it = find(materials, component.material);
+			if (material_it != materials.end())
 			{
-				color = material->diffuse;
+				if (auto * const material = materials.get<ShaderMaterial>(material_it))
+				{
+					color = material->diffuse;
 
-				if (auto * const color_class = resources.try_get<ColorClass>(material->materialclass))
-				{
-					color = color_class->diffuse;
-					shader = color_class->shader;
-				}
-				else if (auto * const shader_class = resources.try_get<ShaderClass>(material->materialclass))
-				{
-					shader = shader_class->shader;
+					const auto resource_it = find(resources, material->materialclass);
+					if (resource_it != resources.end())
+					{
+						if (auto * const color_class = resources.get<ColorClass>(resource_it))
+						{
+							color = color_class->diffuse;
+							shader = color_class->shader;
+						}
+						else if (auto * const shader_class = resources.get<ShaderClass>(resource_it))
+						{
+							shader = shader_class->shader;
+						}
+					}
 				}
 			}
 
@@ -1481,9 +1562,10 @@ namespace
 			glUniform(program, "modelview_matrix", modelview_matrix.top());
 
 			const auto entity = components.get_key(component);
-			const bool is_highlighted = selected_components.contains<highlighted_t>(entity.entity());
-			const bool is_selected = selected_components.contains<selected_t>(entity.entity());
-			const bool is_interactible = selectable_components.contains(entity.entity());
+			const auto selected_it = find(selected_components, entity.entity());
+			const bool is_highlighted = selected_it != selected_components.end() && selected_components.contains<highlighted_t>(selected_it);
+			const bool is_selected = selected_it != selected_components.end() && selected_components.contains<selected_t>(selected_it);
+			const bool is_interactible = find(selectable_components, entity.entity()) != selectable_components.end();
 
 			const auto status_flags_location = 4;
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));

@@ -1,6 +1,4 @@
-
-#ifndef UTILITY_STREAM_HPP
-#define UTILITY_STREAM_HPP
+#pragma once
 
 #include "type_info.hpp"
 #include "type_traits.hpp"
@@ -23,34 +21,20 @@ namespace mpl
 
 namespace utility
 {
-	/**
-	 */
-	inline std::istream &from_stream(std::istream &stream)
+	inline bool from_stream(std::istream & /*stream*/)
 	{
-		return stream;
+		return true;
 	}
-	/**
-	 */
-	template <typename T, typename ...Ts>
-	inline std::istream &from_stream(std::istream &stream, T &t, Ts &...ts)
-	{
-		if (stream >> t) return from_stream(stream, ts...);
 
-		throw std::invalid_argument("");
-	}
-	/**
-	 */
-	template <typename T>
-	inline T from_stream(std::istream &stream)
+	template <typename T, typename ...Ts>
+	inline bool from_stream(std::istream & stream, T & t, Ts & ...ts)
 	{
-		T t;
-		{
-			from_stream(stream, t);
-		}
-		return t;
+		if (stream >> t)
+			return from_stream(stream, ts...);
+		else
+			return false;
 	}
-	/**
-	 */
+
 	inline std::ostream &to_stream(std::ostream &stream)
 	{
 		return stream;
@@ -118,5 +102,3 @@ namespace utility
 		return words;
 	}
 }
-
-#endif /* UTILITY_STREAM_HPP */

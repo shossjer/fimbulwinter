@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utility/arithmetics.hpp"
+#include "utility/ext/stddef.hpp"
 #include "utility/type_traits.hpp"
 
 namespace utility
@@ -8,64 +8,51 @@ namespace utility
 	template <typename T>
 	using trivial_encoding_type = mpl::negation<std::is_class<T>>;
 
-	template <typename T, bool = trivial_encoding_type<T>::value>
-	struct encoding_traits_impl
+	template <typename Encoding>
+	struct encoding_traits
 	{
-		using code_unit = T;
-		using code_point = T;
+		static_assert(trivial_encoding_type<Encoding>::value, "Unknown encoding type, did you forget to specialize `utility::encoding_traits`?");
 
-		using difference_type = std::ptrdiff_t;
+		using encoding_type = Encoding;
 
-		static constexpr code_point & dereference(code_unit * p) { return *p; }
-		static constexpr const code_point & dereference(const code_unit * p) { return *p; }
+		using value_type = Encoding;
+		using pointer = Encoding *;
+		using const_pointer = const Encoding *;
+		using reference = Encoding &;
+		using const_reference = const Encoding &;
+		using size_type = ext::usize;
+		using difference_type = ext::pdiff;
 
-		template <typename Char>
-		static constexpr std::size_t size(code_point) { return 1; }
-		static constexpr std::size_t max_size() { return 1; }
+		using buffer_type = std::array<Encoding, 1>;
 
-		template <typename Char>
-		static constexpr auto get(code_point cp, Char * buffer) -> decltype(*buffer = cp, std::ptrdiff_t()) { *buffer = cp; return 1; }
-
-		static constexpr std::ptrdiff_t next(const code_unit *) { return 1; }
-		static constexpr std::ptrdiff_t next(const code_unit *, std::ptrdiff_t count) { return count; }
-
-		static constexpr std::ptrdiff_t previous(const code_unit *) { return 1; }
-		static constexpr std::ptrdiff_t previous(const code_unit *, std::ptrdiff_t count) { return count; }
-
-		static constexpr std::ptrdiff_t count(const code_unit * begin, const code_unit * end) { return end - begin; }
-
-		static constexpr difference_type difference(const code_unit * begin, const code_unit * end) { return end - begin; }
-	};
-	template <typename T>
-	struct encoding_traits_impl<T, false /*trivial encoding type*/>
-	{
-		using code_unit = typename T::code_unit;
-		using code_point = typename T::code_point;
-
-		using difference_type = typename T::difference_type;
-
-		static constexpr code_point dereference(const code_unit * p) { return code_point(p); } // todo T::dereference
-
-		template <typename Char>
-		static constexpr std::size_t size(code_point cp) { return cp.template size<Char>(); } // todo T::size
-		static constexpr std::size_t max_size() { return T::max_size(); }
-
-		template <typename Char>
-		static constexpr std::ptrdiff_t get(code_point cp, Char * buffer) { return cp.get(buffer); } // todo T::get
-
-		static constexpr std::ptrdiff_t next(const code_unit * s) { return code_point::next(s); } // todo T::next
-		template <typename Count>
-		static constexpr std::ptrdiff_t next(const code_unit * s, Count && count) { return code_point::next(s, std::forward<Count>(count)); } // todo T::next
-
-		static constexpr std::ptrdiff_t previous(const code_unit * s) { return code_point::previous(s); } // todo T::previous
-		template <typename Count>
-		static constexpr std::ptrdiff_t previous(const code_unit * s, Count && count) { return code_point::previous(s, std::forward<Count>(count)); } // todo T::previous
-
-		static constexpr std::ptrdiff_t count(const code_unit * begin, const code_unit * end) { return code_point::count(begin, end); } // todo T::count
-
-		static constexpr difference_type difference(const code_unit * begin, const code_unit * end) { return T::difference(begin, end); }
+		static constexpr ext::usize get(Encoding code, Encoding * buffer) { return buffer[0] = code; return 1; }
 	};
 
-	template <typename T>
-	using encoding_traits = encoding_traits_impl<T>;
+	template <typename Encoding>
+	struct boundary_unit
+	{
+		static_assert(trivial_encoding_type<Encoding>::value, "Unknown encoding type, did you forget to specialize `utility::boundary_unit`?");
+
+		using encoding_type = Encoding;
+
+		using value_type = typename encoding_traits<Encoding>::value_type;
+		using pointer = typename encoding_traits<Encoding>::pointer;
+		using const_pointer = typename encoding_traits<Encoding>::const_pointer;
+		using reference = typename encoding_traits<Encoding>::reference;
+		using const_reference = typename encoding_traits<Encoding>::const_reference;
+		using size_type = typename encoding_traits<Encoding>::size_type;
+		using difference_type = typename encoding_traits<Encoding>::difference_type;
+
+		static constexpr reference dereference(pointer p) { return *p; }
+		static constexpr const_reference dereference(const_pointer p) { return *p; }
+
+		static constexpr ext::ssize next(const_pointer, ext::ssize count = 1) { return count; }
+
+		static constexpr ext::ssize previous(const_pointer, ext::ssize count = 1) { return count; }
+
+		static constexpr ext::usize length(const_pointer begin, const_pointer end) { return end - begin; }
+	};
+
+	template <typename Encoding>
+	struct boundary_point;
 }

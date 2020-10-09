@@ -74,11 +74,11 @@ namespace engine
 				face = nullptr;
 			}
 
-			bool Font::Data::load(utility::string_view_utf8 name, int height)
+			bool Font::Data::load(utility::string_units_utf8 name, int height)
 			{
 				debug_assert(face == nullptr);
 
-				if (!debug_assert(name[name.length()] == utility::unicode_code_point('\0'), "'name' must be null terminated, please sanitize your data!"))
+				if (!debug_assert(*(name.data() + name.size()) == '\0', "'name' must be null terminated, please sanitize your data!"))
 					return false;
 
 				// todo send file content to freetype

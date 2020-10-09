@@ -1,33 +1,33 @@
 #pragma once
 
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 namespace core
 {
 	namespace file
 	{
 		// todo generalize
-		inline utility::string_view_utf8 filename(utility::string_view_utf8 filepath)
+		inline utility::string_units_utf8 filename(utility::string_units_utf8 filepath)
 		{
-			auto from = utility::unit_difference(filepath.rfind('/'));
-			if (from == filepath.size())
+			auto from = rfind(filepath, '/');
+			if (from == filepath.end())
 			{
-				from = utility::unit_difference(0);
+				from = filepath.begin();
 			}
 			else
 			{
-				from++; // do not include '/'
+				++from; // do not include '/'
 			}
 
-			auto to = utility::unit_difference(filepath.rfind('.'));
+			auto to = rfind(from, filepath.end(), '.');
 
-			return utility::string_view_utf8(filepath, from, to - from);
+			return utility::string_units_utf8(from, to);
 		}
 
 		template <typename StorageTraits, typename Encoding>
-		utility::basic_string_view<Encoding> filename(const utility::basic_string<StorageTraits, Encoding> & filepath)
+		utility::string_units_utf8 filename(const utility::basic_string<StorageTraits, Encoding> & filepath)
 		{
-			return filename(static_cast<utility::basic_string_view<Encoding>>(filepath));
+			return filename(static_cast<utility::string_units_utf8>(filepath));
 		}
 	}
 }

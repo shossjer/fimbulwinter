@@ -4,7 +4,7 @@
 
 #include <utility/concepts.hpp>
 #include <utility/intrinsics.hpp>
-#include <utility/preprocessor.hpp>
+#include <utility/preprocessor/expand.hpp>
 #include <utility/property.hpp>
 #include <utility/type_traits.hpp>
 #include <utility/utility.hpp>

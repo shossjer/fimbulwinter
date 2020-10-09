@@ -14,7 +14,7 @@
 
 #include "utility/algorithm.hpp"
 #include "utility/ranges.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 #include <climits>
 #include <vector>
@@ -42,7 +42,7 @@ namespace engine
 		extern void found_device(int id, int vendor, int product);
 		extern void lost_device(int id);
 
-		extern void add_source(int id, const char * path, int type, utility::string_view_utf8 name);
+		extern void add_source(int id, const char * path, int type, utility::string_units_utf8 name);
 		extern void remove_source(int id, const char * path);
 
 		extern void dispatch(const Input & input);
@@ -513,11 +513,11 @@ namespace
 	constexpr auto serialization(utility::in_place_type_t<EventType>)
 	{
 		return utility::make_lookup_table(
-			std::make_pair(utility::string_view("unknown"), EventType::Unknown),
-			std::make_pair(utility::string_view("gamepad"), EventType::Gamepad),
-			std::make_pair(utility::string_view("keyboard"), EventType::Keyboard),
-			std::make_pair(utility::string_view("mouse"), EventType::Mouse),
-			std::make_pair(utility::string_view("touch"), EventType::Touch)
+			std::make_pair(utility::string_units_utf8("unknown"), EventType::Unknown),
+			std::make_pair(utility::string_units_utf8("gamepad"), EventType::Gamepad),
+			std::make_pair(utility::string_units_utf8("keyboard"), EventType::Keyboard),
+			std::make_pair(utility::string_units_utf8("mouse"), EventType::Mouse),
+			std::make_pair(utility::string_units_utf8("touch"), EventType::Touch)
 			);
 	}
 #endif

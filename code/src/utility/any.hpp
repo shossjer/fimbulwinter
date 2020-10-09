@@ -396,7 +396,9 @@ namespace utility
 
 	private:
 
-		friend std::ostream & operator << (std::ostream & stream, const this_type & x)
+		template <typename This,
+		          REQUIRES((mpl::is_same<any, mpl::remove_cvref_t<This>>::value))>
+		friend std::ostream & operator << (std::ostream & stream, This && x)
 		{
 			return x.data_.ostream(stream);
 		}

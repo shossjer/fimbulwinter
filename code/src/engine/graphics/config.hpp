@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_GRAPHICS_CONFIG_HPP
-#define ENGINE_GRAPHICS_CONFIG_HPP
+#pragma once
 
 #include "core/serialization.hpp"
 
@@ -17,11 +15,9 @@ namespace engine
 			static constexpr auto serialization()
 			{
 				return utility::make_lookup_table(
-					std::make_pair(utility::string_view("renderer"), &config_t::renderer_type)
+					std::make_pair(utility::string_units_utf8("renderer"), &config_t::renderer_type)
 					);
 			}
 		};
 	}
 }
-
-#endif /* ENGINE_GRAPHICS_CONFIG_HPP */

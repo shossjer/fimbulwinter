@@ -1,12 +1,10 @@
-
-#ifndef UTILITY_TYPE_INFO_HPP
-#define UTILITY_TYPE_INFO_HPP
+#pragma once
 
 #include "utility/crypto/crc.hpp"
-#if !(defined(_MSC_VER) && _MSC_VER <= 1916)
+#if !defined(_MSC_VER)
 # include "utility/ranges.hpp"
 #endif
-#include "utility/string_view.hpp"
+#include "utility/unicode/string_view.hpp"
 
 #include <cstdint>
 
@@ -31,19 +29,19 @@ namespace utility
 
 		// ditto
 		template <typename T>
-		constexpr string_view get_type_signature()
+		constexpr string_units_utf8 get_type_signature()
 		{
-			string_view signature = get_function_signature<T>();
+			string_units_utf8 signature = get_function_signature<T>();
 
 #if defined(__GNUG__)
-			const std::size_t from = signature.find("T = ") + 4;
-			const std::size_t to = signature.rfind("]");
+			const auto from = find(signature, "T = ") + 4;
+			const auto to = rfind(signature, "]");
 #elif defined(_MSC_VER)
-			const std::size_t from = signature.find("utility::detail::get_function_signature<") + 40;
-			const std::size_t to = signature.rfind(">(");
+			const auto from = find(signature, "utility::detail::get_function_signature<") + 40;
+			const auto to = rfind(signature, ">(");
 #endif
 
-			return string_view(signature.data() + from, to - from);
+			return string_units_utf8(from, to);
 		}
 
 		// in order to make the names platform independent (to the best of our
@@ -68,7 +66,7 @@ namespace utility
 		struct TypePattern
 		{
 			std::size_t replace;
-			string_view with;
+			string_units_utf8 with;
 		};
 
 		inline constexpr TypePattern next_word(const char * const cstr)
@@ -80,39 +78,39 @@ namespace utility
 				for (; is_identifier_character(cstr[count]); count++);
 			}
 
-			return TypePattern{count, string_view(cstr, count)};
+			return TypePattern{count, string_units_utf8(cstr, count)};
 		}
 
 		inline constexpr TypePattern find_type_pattern(const char * const cstr)
 		{
 			return
 #if defined(__GNUG__)
-				string_view(cstr, 9).compare("long long") == 0 ? TypePattern{ 9, string_view("long long int") } :
+				starts_with(string_units_utf8(cstr), "long long") ? TypePattern{ 9, string_units_utf8("long long int") } :
 #elif defined(_MSC_VER)
-				string_view(cstr, 15).compare("volatile const ") == 0 && is_identifier_character(*(cstr + 15)) ? TypePattern{ 15, string_view("const volatile ") } :
-				string_view(cstr, 14).compare("volatile const") == 0 && !is_identifier_character(*(cstr + 14)) ? TypePattern{ 14, string_view("const volatile") } :
+				starts_with(string_units_utf8(cstr), "volatile const ") && is_identifier_character(*(cstr + 15)) ? TypePattern{ 15, string_units_utf8("const volatile ") } :
+				starts_with(string_units_utf8(cstr), "volatile const") && !is_identifier_character(*(cstr + 14)) ? TypePattern{ 14, string_units_utf8("const volatile") } :
 #endif
-				string_view(cstr, 6).compare("const ") == 0 && is_identifier_character(*(cstr + 6)) ? TypePattern{ 6, string_view("const ") } :
-				string_view(cstr, 7).compare("signed ") == 0 && is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_view("signed ") } :
-				string_view(cstr, 9).compare("unsigned ") == 0 && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_view("unsigned ") } :
-				string_view(cstr, 9).compare("volatile ") == 0 && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_view("volatile ") } :
-				string_view(cstr, 11).compare("long double") == 0 ? TypePattern{ 11, string_view("long double") } :
-				string_view(cstr, 4).compare("long") == 0 && !is_identifier_character(*(cstr + 4)) ? TypePattern{ 4, string_view("long int") } :
-				string_view(cstr, 5).compare("short") == 0 && !is_identifier_character(*(cstr + 5)) ? TypePattern{ 5, string_view("short int") } :
+				starts_with(string_units_utf8(cstr), "const ") && is_identifier_character(*(cstr + 6)) ? TypePattern{ 6, string_units_utf8("const ") } :
+				starts_with(string_units_utf8(cstr), "signed ") && is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_units_utf8("signed ") } :
+				starts_with(string_units_utf8(cstr), "unsigned ") && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("unsigned ") } :
+				starts_with(string_units_utf8(cstr), "volatile ") && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("volatile ") } :
+				starts_with(string_units_utf8(cstr), "long double") ? TypePattern{ 11, string_units_utf8("long double") } :
+				starts_with(string_units_utf8(cstr), "long") && !is_identifier_character(*(cstr + 4)) ? TypePattern{ 4, string_units_utf8("long int") } :
+				starts_with(string_units_utf8(cstr), "short") && !is_identifier_character(*(cstr + 5)) ? TypePattern{ 5, string_units_utf8("short int") } :
 #if defined(__GNUG__)
-				string_view(cstr, 9).compare("nullptr_t") == 0 && !is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_view("std::nullptr_t") } :
-				string_view(cstr, 21).compare("(anonymous namespace)") == 0 ? TypePattern{ 21, string_view("anonymous-namespace") } :
+				starts_with(string_units_utf8(cstr), "nullptr_t") && !is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("std::nullptr_t") } :
+				starts_with(string_units_utf8(cstr), "(anonymous namespace)") ? TypePattern{ 21, string_units_utf8("anonymous-namespace") } :
 #elif defined(_MSC_VER)
-				string_view(cstr, 6).compare("class ") == 0 ? TypePattern{ 6, string_view() } :
-				string_view(cstr, 7).compare("struct ") == 0 ? TypePattern{ 7, string_view() } :
-				string_view(cstr, 7).compare("__int64") == 0 && !is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_view("long long int") } :
-				string_view(cstr, 21).compare("`anonymous-namespace'") == 0 ? TypePattern{ 21, string_view("anonymous-namespace") } :
+				starts_with(string_units_utf8(cstr), "class ") ? TypePattern{ 6, string_units_utf8() } :
+				starts_with(string_units_utf8(cstr), "struct ") ? TypePattern{ 7, string_units_utf8() } :
+				starts_with(string_units_utf8(cstr), "__int64") && !is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_units_utf8("long long int") } :
+				starts_with(string_units_utf8(cstr), "`anonymous-namespace'") ? TypePattern{ 21, string_units_utf8("anonymous-namespace") } :
 #endif
-				string_view(cstr, 1).compare(" ") == 0 ? TypePattern{ 1, string_view() } :
+				starts_with(string_units_utf8(cstr), " ") ? TypePattern{ 1, string_units_utf8() } :
 				next_word(cstr);
 		}
 
-		inline constexpr std::size_t length_of_type_name(string_view str)
+		inline constexpr std::size_t length_of_type_name(string_units_utf8 str)
 		{
 			std::size_t length = 0;
 
@@ -138,7 +136,7 @@ namespace utility
 		};
 
 		template <std::size_t N>
-		constexpr constexpr_array<N> build_type_name(string_view str)
+		constexpr constexpr_array<N> build_type_name(string_units_utf8 str)
 		{
 			constexpr_array<N> name{};
 			std::ptrdiff_t length = 0;
@@ -147,7 +145,7 @@ namespace utility
 			{
 				const TypePattern pattern = find_type_pattern(str.data() + i);
 
-#if defined(_MSC_VER) && _MSC_VER <= 1926
+#if defined(_MSC_VER)
 				// the microsoft compiler does not support constexpr
 				// range for :facepalm:
 				//
@@ -171,13 +169,13 @@ namespace utility
 	template <typename T>
 	struct type_info
 	{
-		static constexpr string_view type_signature = detail::get_type_signature<T>();
+		static constexpr string_units_utf8 type_signature = detail::get_type_signature<T>();
 		static constexpr auto type_name_length = detail::length_of_type_name(type_signature);
 		static constexpr detail::constexpr_array<type_name_length> type_name = detail::build_type_name<type_name_length>(type_signature);
 	};
 
 	template <typename T>
-	constexpr string_view type_info<T>::type_signature;
+	constexpr string_units_utf8 type_info<T>::type_signature;
 	template <typename T>
 	constexpr detail::constexpr_array<type_info<T>::type_name_length> type_info<T>::type_name;
 
@@ -197,8 +195,8 @@ namespace utility
 #endif
 
 	using type_id_t = uint32_t;
-	using type_name_t = string_view;
-	using type_signature_t = string_view;
+	using type_name_t = string_units_utf8;
+	using type_signature_t = string_units_utf8;
 
 	/*
 	 * \note The type id is plaform independant. Though keep in mind that aliases
@@ -212,7 +210,7 @@ namespace utility
 	 * aliases like `std::int64_t` is not the same type on all platforms!
 	 */
 	template <typename T>
-	constexpr type_name_t type_name() { return string_view(type_info<T>::type_name.data(), type_info<T>::type_name_length); }
+	constexpr type_name_t type_name() { return string_units_utf8(type_info<T>::type_name.data(), type_info<T>::type_name_length); }
 
 	/*
 	 * \note The type signature is platform dependant!
@@ -220,5 +218,3 @@ namespace utility
 	template <typename T>
 	constexpr type_signature_t type_signature() { return type_info<T>::type_signature; }
 }
-
-#endif /* UTILITY_TYPE_INFO_HPP */

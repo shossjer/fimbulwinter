@@ -392,7 +392,7 @@ namespace utility
 		using iterator_category = typename std::iterator_traits<mpl::car<Its...>>::iterator_category; // ?
 
 	public:
-#if defined(_MSC_VER) && _MSC_VER <= 1926
+#if defined(_MSC_VER)
 		template <typename ...Ps,
 		          REQUIRES((!is_zip_iterator<mpl::remove_cvref_t<Ps>...>::value)),
 		          REQUIRES((!ext::is_tuple<Ps...>::value)),
@@ -449,37 +449,37 @@ namespace utility
 	template <typename ...Its, typename ...Jts>
 	bool operator == (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) == static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) == static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator != (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) != static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) != static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator < (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) < static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) < static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator <= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) <= static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) <= static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator > (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) > static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) > static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
 	bool operator >= (const zip_iterator<Its...> & i1, const zip_iterator<Jts...> & i2)
 	{
-		return static_cast<const std::tuple<Its...> &>(i1) >= static_cast<const std::tuple<Its...> &>(i2);
+		return static_cast<const std::tuple<Its...> &>(i1) >= static_cast<const std::tuple<Jts...> &>(i2);
 	}
 
 	template <typename ...Its, typename ...Jts>
@@ -520,7 +520,7 @@ namespace utility
 		}
 
 	public:
-#if defined(_MSC_VER) && _MSC_VER <= 1926
+#if defined(_MSC_VER)
 		template <typename ...Ps,
 		          REQUIRES((!is_zip_pointer<mpl::remove_cvref_t<Ps>...>::value)),
 		          REQUIRES((!ext::is_tuple<Ps...>::value)),
@@ -580,5 +580,51 @@ namespace utility
 			using utility::iter_move;
 			return ext::apply([](auto & ...ps){ return utility::forward_as_compound(iter_move(ps)...); }, x);
 		}
+	};
+}
+
+namespace ext
+{
+	template <typename Container>
+	class back_inserter_iterator
+	{
+		using this_type = back_inserter_iterator<Container>;
+
+	public:
+		using difference_type = void;
+		using value_type = void;
+		using pointer_type = void;
+		using reference_type = void;
+		using iterator_category = std::output_iterator_tag;
+
+	private:
+		Container * container;
+
+	public:
+		explicit back_inserter_iterator(Container & container)
+			: container(std::addressof(container))
+		{}
+
+		this_type & operator = (typename Container::const_reference p)
+		{
+			static_cast<void>(container->push_back(p)); // todo report error
+			return *this;
+		}
+
+		this_type & operator = (typename Container::rvalue_reference p)
+		{
+			static_cast<void>(container->push_back(std::move(p))); // todo report error
+			return *this;
+		}
+
+		this_type & operator * () { return *this; }
+		this_type & operator ++ () { return *this; }
+		this_type & operator ++ (int) { return *this; }
+	};
+
+	template <typename Container>
+	back_inserter_iterator<Container> back_inserter(Container & container)
+	{
+		return back_inserter_iterator<Container>(container);
 	};
 }

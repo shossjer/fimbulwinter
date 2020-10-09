@@ -1,6 +1,4 @@
-
-#ifndef UTILITY_PREPROCESSOR_HPP
-#define UTILITY_PREPROCESSOR_HPP
+#pragma once
 
 #define PP_EXPAND_1(macro, n) macro((n))
 #define PP_EXPAND_2(macro, n) PP_EXPAND_1(macro, (n)); PP_EXPAND_1(macro, (n) + 1)
@@ -11,5 +9,3 @@
 #define PP_EXPAND_64(macro, n) PP_EXPAND_32(macro, (n)); PP_EXPAND_32(macro, (n) + 32)
 #define PP_EXPAND_128(macro, n) PP_EXPAND_64(macro, (n)); PP_EXPAND_64(macro, (n) + 64)
 #define PP_EXPAND_256(macro, n) PP_EXPAND_128(macro, (n)); PP_EXPAND_128(macro, (n) + 128)
-
-#endif /* UTILITY_PREPROCESSOR_HPP */

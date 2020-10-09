@@ -1,7 +1,7 @@
 #pragma once
 
 // todo forward declare
-#include "utility/unicode.hpp"
+#include "utility/unicode/string.hpp"
 
 namespace core
 {

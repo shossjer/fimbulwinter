@@ -1,6 +1,4 @@
-
-#ifndef CORE_JSONSTRUCTURER_HPP
-#define CORE_JSONSTRUCTURER_HPP
+#pragma once
 
 #include "core/color.hpp"
 #include "core/container/Buffer.hpp"
@@ -227,10 +225,10 @@ namespace core
 				}
 				else if (v.is_string())
 				{
-					using core::assign_string;
-
 					const typename json::string_t & string = v;
-					assign_string(x.back(), utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
+
+					using core::serialize;
+					serialize(x.back(), utility::string_units_utf8(string.data(), string.size()));
 				}
 				else
 				{
@@ -254,58 +252,22 @@ namespace core
 			debug_fail("attempting to read bool into a non bool type in json '", filepath_, "'");
 		}
 
-		template <typename T,
-		          REQUIRES((std::is_floating_point<T>::value))>
-		auto read_number_float(const json & j, T & x, int)
-			-> decltype(x = std::declval<typename json::number_float_t>(), void())
-		{
-			x = debug_cast<T>(static_cast<typename json::number_float_t>(j));
-		}
-		template <typename T>
-		void read_number_float(const json &, T &, ...)
-		{
-			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
-		}
-		template <typename T,
-		          REQUIRES((std::is_integral<T>::value))>
-		auto read_number_unsigned(const json & j, T & x, int)
-			-> decltype(x = std::declval<typename json::number_unsigned_t>(), void())
-		{
-			x = debug_cast<T>(static_cast<typename json::number_unsigned_t>(j));
-		}
-		template <typename T>
-		void read_number_unsigned(const json &, T &, ...)
-		{
-			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
-		}
-		template <typename T,
-		          REQUIRES((std::is_integral<T>::value))>
-		auto read_number_signed(const json & j, T & x, int)
-			-> decltype(x = std::declval<typename json::number_integer_t>(), void())
-		{
-			x = debug_cast<T>(static_cast<typename json::number_integer_t>(j));
-		}
-		template <typename T>
-		void read_number_signed(const json &, T &, ...)
-		{
-			debug_fail("attempting to read number into a non number type in json '", filepath_, "'");
-		}
 		template <typename T>
 		void read_number(const json & j, T & x)
 		{
-			using core::value;
+			using core::serialize;
 
 			if (j.is_number_float())
 			{
-				read_number_float(j, value(x), 0);
+				debug_verify(serialize(x, static_cast<typename json::number_float_t>(j)));
 			}
 			else if (j.is_number_unsigned())
 			{
-				read_number_unsigned(j, value(x), 0);
+				debug_verify(serialize(x, static_cast<typename json::number_unsigned_t>(j)));
 			}
 			else if (j.is_number_integer())
 			{
-				read_number_signed(j, value(x), 0);
+				debug_verify(serialize(x, static_cast<typename json::number_integer_t>(j)));
 			}
 			else
 			{
@@ -343,10 +305,10 @@ namespace core
 				}
 				else if (v.is_string())
 				{
-					using core::assign_string;
-
 					const typename json::string_t & string = v;
-					assign_string(x.back(), utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
+
+					using core::serialize;
+					serialize(x.back(), utility::string_units_utf8(string.data(), string.size()));
 				}
 				else
 				{
@@ -363,38 +325,39 @@ namespace core
 			for (auto it = j.begin(); it != j.end(); ++it)
 			{
 				const auto key_string = it.key();
-				const utility::string_view key = key_string.c_str();
-				if (!member_table<T>::has(key))
+				const utility::string_units_utf8 key = key_string.c_str();
+				const auto key_index = member_table<T>::find(key);
+				if (key_index == std::size_t(-1))
 					continue;
 
 				const json & v = it.value();
 				if (v.is_array())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_array(v, y); });
+					member_table<T>::call(key_index, x, [&](auto & y){ read_array(v, y); });
 				}
 				else if (v.is_boolean())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_bool(v, y); });
+					member_table<T>::call(key_index, x, [&](auto & y){ read_bool(v, y); });
 				}
 				else if (v.is_number())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_number(v, y); });
+					member_table<T>::call(key_index, x, [&](auto & y){ read_number(v, y); });
 				}
 				else if (v.is_object())
 				{
-					member_table<T>::call(key, x, [&](auto & y){ read_object(v, y); });
+					member_table<T>::call(key_index, x, [&](auto & y){ read_object(v, y); });
 				}
 				else if (v.is_string())
 				{
 					member_table<T>::call(
-						key,
+						key_index,
 						x,
 						[&](auto & y)
 						{
-							using core::assign_string;
-
 							const typename json::string_t & string = v;
-							assign_string(y, utility::string_view_utf8(string.data(), utility::unit_difference(string.size())));
+
+							using core::serialize;
+							serialize(y, utility::string_units_utf8(string.data(), string.size()));
 						});
 				}
 				else
@@ -418,5 +381,3 @@ namespace core
 		}
 	};
 }
-
-#endif /* CORE_JSONSTRUCTURER_HPP */

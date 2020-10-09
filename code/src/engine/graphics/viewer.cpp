@@ -348,8 +348,6 @@ namespace
 	{
 		engine::graphics::viewer::translation && data;
 
-		void operator () (utility::monostate)
-		{}
 		void operator () (Camera & x)
 		{
 			x.translation = data.v;
@@ -363,7 +361,16 @@ namespace
 		engine::graphics::data::camera_2d operator () (const Camera & x)
 		{
 			engine::graphics::data::camera_2d data;
-			projections.call(x.projection_2d, extract_projection_matrices_2d{viewport, data});
+
+			const auto projection_it = find(projections, x.projection_2d);
+			if (debug_assert(projection_it != projections.end()))
+			{
+				projections.call(projection_it, extract_projection_matrices_2d{viewport, data});
+			}
+			else
+			{
+				data.projection = core::maths::Matrix4x4f::identity();
+			}
 			data.view = core::maths::Matrix4x4f::identity();
 			return data;
 		}
@@ -376,7 +383,17 @@ namespace
 		engine::graphics::data::camera_3d operator () (const Camera & x)
 		{
 			engine::graphics::data::camera_3d data;
-			projections.call(x.projection_3d, extract_projection_matrices_3d{viewport, data});
+
+			const auto projection_it = find(projections, x.projection_3d);
+			if (debug_assert(projection_it != projections.end()))
+			{
+				projections.call(projection_it, extract_projection_matrices_3d{viewport, data});
+			}
+			else
+			{
+				data.projection = core::maths::Matrix4x4f::identity();
+				data.inv_projection = core::maths::Matrix4x4f::identity();
+			}
 			data.frame = core::maths::Matrix4x4f{
 				viewport.width / 2.f, 0.f, 0.f, /*viewport.x +*/ viewport.width / 2.f,
 				0.f, viewport.height / -2.f, 0.f, /*viewport.y +*/ viewport.height / 2.f,
@@ -419,42 +436,51 @@ namespace
 			}
 			void operator () (const Root & node)
 			{
-				if (node.node != engine::Asset::null())
+				const auto node_it = find(nodes, node.node);
+				if (node_it != nodes.end())
 				{
-					nodes.call(node.node, *this);
+					nodes.call(node_it, *this);
 				}
 			}
 			void operator () (const HorizontalSplit & node)
 			{
 				const int half_height = height / 2;
 
-				if (node.bottom != engine::Asset::null())
+				const auto bottom_it = find(nodes, node.bottom);
+				if (bottom_it != nodes.end())
 				{
-					nodes.call(node.bottom, BuildViewports{x, y + half_height, width, height - half_height});
+					nodes.call(bottom_it, BuildViewports{x, y + half_height, width, height - half_height});
 				}
 
-				if (node.top != engine::Asset::null())
+				const auto top_it = find(nodes, node.top);
+				if (top_it != nodes.end())
 				{
-					nodes.call(node.top, BuildViewports{x, y, width, half_height});
+					nodes.call(top_it, BuildViewports{x, y, width, half_height});
 				}
 			}
 			void operator () (const VerticalSplit & node)
 			{
 				const int half_width = width / 2;
 
-				if (node.left != engine::Asset::null())
+				const auto left_it = find(nodes, node.left);
+				if (left_it != nodes.end())
 				{
-					nodes.call(node.left, BuildViewports{x, y, half_width, height});
+					nodes.call(left_it, BuildViewports{x, y, half_width, height});
 				}
 
-				if (node.right != engine::Asset::null())
+				const auto right_it = find(nodes, node.right);
+				if (right_it != nodes.end())
 				{
-					nodes.call(node.right, BuildViewports{x + half_width, y, width - half_width, height});
+					nodes.call(right_it, BuildViewports{x + half_width, y, width - half_width, height});
 				}
 			}
 		};
 
-		nodes.call(engine::Asset("root"), BuildViewports{0, 0, dimension.width, dimension.height});
+		const auto root_it = find(nodes, engine::Asset("root"));
+		if (debug_assert(root_it != nodes.end()))
+		{
+			nodes.call(root_it, BuildViewports{0, 0, dimension.width, dimension.height});
+		}
 	}
 }
 
@@ -583,7 +609,11 @@ namespace engine
 	{
 		viewer::~viewer()
 		{
-			debug_verify(nodes.try_remove(engine::Asset("root")));
+			const auto root_it = find(nodes, engine::Asset("root"));
+			if (debug_assert(root_it != nodes.end()))
+			{
+				nodes.erase(root_it);
+			}
 
 			engine::Asset projections_not_unregistered[projections.max_size()];
 			const auto projection_count = projections.get_all_keys(projections_not_unregistered, projections.max_size());
@@ -610,7 +640,7 @@ namespace engine
 		{
 			::renderer = &renderer;
 
-			debug_verify(nodes.try_emplace<Root>(engine::Asset("root"), engine::Asset::null()));
+			debug_verify(nodes.emplace<Root>(engine::Asset("root"), engine::Asset::null()));
 		}
 
 		void update(viewer &)
@@ -633,96 +663,153 @@ namespace engine
 
 					void operator () (MessageAddCamera && data)
 					{
-						if (const engine::MutableEntity * const key = cameras.find_key(data.entity.entity()))
+						const auto camera_it = find(cameras, data.entity.entity());
+						if (camera_it != cameras.end())
 						{
-							if (!debug_assert(*key < data.entity, "trying to add an older version camera"))
+							if (!debug_assert(cameras.get_key(camera_it) < data.entity, "trying to add an older version camera"))
 								return; // error
 
-							cameras.remove(*key); // todo use iterators
+							cameras.erase(camera_it);
 						}
-						debug_verify(cameras.try_emplace<Camera>(data.entity, std::move(data.data)));
+						debug_verify(cameras.emplace<Camera>(data.entity, std::move(data.data)));
 					}
 					void operator () (MessageAddFrameDynamic && data)
 					{
-						debug_assert(nodes.contains(data.data.parent));
-						nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
-						debug_verify(nodes.try_emplace<DynamicFrame>(data.asset, std::move(data.data)));
+						const auto parent_it = find(nodes, data.data.parent);
+						if (!debug_assert(parent_it != nodes.end()))
+							return; // error
+
+						nodes.call(parent_it, add_child{data.asset, data.data.slot});
+						debug_verify(nodes.emplace<DynamicFrame>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddFrameFixed && data)
 					{
-						debug_assert(nodes.contains(data.data.parent));
-						nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
-						debug_verify(nodes.try_emplace<FixedFrame>(data.asset, std::move(data.data)));
+						const auto parent_it = find(nodes, data.data.parent);
+						if (!debug_assert(parent_it != nodes.end()))
+							return; // error
+
+						nodes.call(parent_it, add_child{data.asset, data.data.slot});
+						debug_verify(nodes.emplace<FixedFrame>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddProjectionOrthographic && data)
 					{
-						debug_verify(projections.try_emplace<Orthographic>(data.asset, std::move(data.data)));
+						debug_verify(projections.emplace<Orthographic>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddProjectionPerspective && data)
 					{
-						debug_verify(projections.try_replace<Perspective>(data.asset, std::move(data.data)));
+						debug_verify(projections.replace<Perspective>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddSplitHorizontal && data)
 					{
-						debug_assert(nodes.contains(data.data.parent));
-						nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
-						debug_verify(nodes.try_emplace<HorizontalSplit>(data.asset, std::move(data.data)));
+						const auto parent_it = find(nodes, data.data.parent);
+						if (!debug_assert(parent_it != nodes.end()))
+							return; // error
+
+						nodes.call(parent_it, add_child{data.asset, data.data.slot});
+						debug_verify(nodes.emplace<HorizontalSplit>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageAddSplitVertical && data)
 					{
-						debug_assert(nodes.contains(data.data.parent));
-						nodes.call(data.data.parent, add_child{data.asset, data.data.slot});
-						debug_verify(nodes.try_emplace<VerticalSplit>(data.asset, std::move(data.data)));
+						const auto parent_it = find(nodes, data.data.parent);
+						if (!debug_assert(parent_it != nodes.end()))
+							return; // error
+
+						nodes.call(parent_it, add_child{data.asset, data.data.slot});
+						debug_verify(nodes.emplace<VerticalSplit>(data.asset, std::move(data.data)));
 					}
 					void operator () (MessageBind && data)
 					{
-						nodes.call(data.frame, bind_camera_to_frame{data.camera});
+						const auto frame_it = find(nodes, data.frame);
+						if (!debug_assert(frame_it != nodes.end()))
+							return; // error
+
+						nodes.call(frame_it, bind_camera_to_frame{data.camera});
 						rebuild_viewports = true;
 					}
 					void operator () (MessageRemoveCamera && data)
 					{
-						cameras.remove(data.entity);
+						const auto camera_it = find(cameras, data.entity);
+						if (!debug_assert(camera_it != cameras.end()))
+							return; // error
+
+						cameras.erase(camera_it);
 					}
 					void operator () (MessageRemoveFrame && data)
 					{
-						debug_verify(nodes.try_remove(data.asset));
+						const auto node_it = find(nodes, data.asset);
+						if (!debug_assert(node_it != nodes.end()))
+							return; // error
+
+						nodes.erase(node_it);
 					}
 					void operator () (MessageRemoveProjection && data)
 					{
-						debug_verify(projections.try_remove(data.asset));
+						const auto projection_it = find(projections, data.asset);
+						if (!debug_assert(projection_it != projections.end()))
+							return; // error
+
+						projections.erase(projection_it);
 					}
 					void operator () (MessageRemoveSplit && data)
 					{
-						debug_verify(nodes.try_remove(data.asset));
+						const auto node_it = find(nodes, data.asset);
+						if (!debug_assert(node_it != nodes.end()))
+							return; // error
+
+						nodes.erase(node_it);
 					}
 					void operator () (MessageUnbind && data)
 					{
-						nodes.call(data.frame, unbind_camera_from_frame{});
+						const auto frame_it = find(nodes, data.frame);
+						if (!debug_assert(frame_it != nodes.end()))
+							return; // error
+
+						nodes.call(frame_it, unbind_camera_from_frame{});
 						rebuild_viewports = true;
 					}
 					void operator () (MessageUpdateCameraProjection && data)
 					{
-						cameras.call(data.entity, update_camera_projection{std::move(data.data)});
+						const auto camera_it = find(cameras, data.entity);
+						if (!debug_assert(camera_it != cameras.end()))
+							return; // error
+
+						cameras.call(camera_it, update_camera_projection{std::move(data.data)});
 						rebuild_matrices = true;
 					}
 					void operator () (MessageUpdateCameraRotate && data)
 					{
-						cameras.call(data.entity, update_camera_rotate{std::move(data.data)});
+						const auto camera_it = find(cameras, data.entity);
+						if (!debug_assert(camera_it != cameras.end()))
+							return; // error
+
+						cameras.call(camera_it, update_camera_rotate{std::move(data.data)});
 						rebuild_matrices = true;
 					}
 					void operator () (MessageUpdateCameraRotation && data)
 					{
-						cameras.call(data.entity, update_camera_rotation{std::move(data.data)});
+						const auto camera_it = find(cameras, data.entity);
+						if (!debug_assert(camera_it != cameras.end()))
+							return; // error
+
+						cameras.call(camera_it, update_camera_rotation{std::move(data.data)});
 						rebuild_matrices = true;
 					}
 					void operator () (MessageUpdateCameraTranslate && data)
 					{
-						cameras.call(data.entity, update_camera_translate{std::move(data.data)});
+						const auto camera_it = find(cameras, data.entity);
+						if (!debug_assert(camera_it != cameras.end()))
+							return; // error
+
+						cameras.call(camera_it, update_camera_translate{std::move(data.data)});
 						rebuild_matrices = true;
 					}
 					void operator () (MessageUpdateCameraTranslation && data)
 					{
-						cameras.try_call(data.entity, update_camera_translation{std::move(data.data)});
+						const auto camera_it = find(cameras, data.entity);
+						if (!/*debug_assert*/(camera_it != cameras.end()))
+							return; // error
+
+						cameras.call(camera_it, update_camera_translation{std::move(data.data)});
 						rebuild_matrices = true;
 					}
 				};
@@ -755,25 +842,33 @@ namespace engine
 
 				for (const Viewport & viewport : viewports)
 				{
-					post_add_display(
-						*::renderer,
-						viewport.asset,
-						engine::graphics::data::display{
-							engine::graphics::data::viewport{
-							viewport.x,
-							viewport.y,
-							viewport.width,
-							viewport.height},
-						cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}),
-						cameras.call(viewport.camera, extract_camera_matrices_2d{viewport})});
+					const auto camera_it = find(cameras, viewport.camera);
+					if (debug_assert(camera_it != cameras.end()))
+					{
+						post_add_display(
+							*::renderer,
+							viewport.asset,
+							engine::graphics::data::display{
+								engine::graphics::data::viewport{
+									viewport.x,
+									viewport.y,
+									viewport.width,
+									viewport.height},
+								cameras.call(camera_it, extract_camera_matrices_3d{viewport}),
+								cameras.call(camera_it, extract_camera_matrices_2d{viewport})});
+					}
 				}
 			}
 			else if (rebuild_matrices)
 			{
 				for (const Viewport & viewport : viewports)
 				{
-					post_update_display(*::renderer, viewport.asset, cameras.call(viewport.camera, extract_camera_matrices_3d{viewport}));
-					post_update_display(*::renderer, viewport.asset, cameras.call(viewport.camera, extract_camera_matrices_2d{viewport}));
+					const auto camera_it = find(cameras, viewport.camera);
+					if (debug_assert(camera_it != cameras.end()))
+					{
+						post_update_display(*::renderer, viewport.asset, cameras.call(camera_it, extract_camera_matrices_3d{viewport}));
+						post_update_display(*::renderer, viewport.asset, cameras.call(camera_it, extract_camera_matrices_2d{viewport}));
+					}
 				}
 			}
 		}

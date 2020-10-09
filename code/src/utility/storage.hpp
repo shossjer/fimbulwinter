@@ -2,8 +2,9 @@
 
 #include "config.h"
 
-#include "utility/algorithm.hpp"
 #include "utility/aggregation_allocator.hpp"
+#include "utility/algorithm.hpp"
+#include "utility/annotate.hpp"
 #include "utility/bitmanip.hpp"
 #include "utility/compound.hpp"
 #include "utility/ext/stddef.hpp"
@@ -73,11 +74,13 @@ namespace utility
 		utility::tuple<std::array<storing_type_for<Ts>, Capacity>...> arrays;
 
 	public:
+		annotate_nodiscard
 		bool allocate(std::size_t capacity)
 		{
 			return /*debug_assert*/(capacity == Capacity);
 		}
 
+		annotate_nodiscard
 		constexpr bool good() const
 		{
 			return true;
@@ -89,6 +92,7 @@ namespace utility
 			static_cast<void>(capacity);
 		}
 
+		annotate_nodiscard
 		constexpr std::size_t max_size() const { return Capacity; }
 
 		template <typename T, typename ...Ps>
@@ -106,6 +110,7 @@ namespace utility
 		}
 
 		template <typename T>
+		annotate_nodiscard
 		T * data(utility::storing<T> * data_)
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
@@ -113,6 +118,7 @@ namespace utility
 		}
 
 		template <typename T>
+		annotate_nodiscard
 		const T * data(const utility::storing<T> * data_) const
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
@@ -121,6 +127,7 @@ namespace utility
 
 		template <typename ...Us,
 		          typename Pointer = utility::zip_pointer<Us *...>>
+		annotate_nodiscard
 		Pointer data(utility::zip_iterator<utility::storing<Us> *...> it)
 		{
 			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
@@ -128,6 +135,7 @@ namespace utility
 
 		template <typename ...Us,
 		          typename Pointer = utility::zip_pointer<const Us *...>>
+		annotate_nodiscard
 		Pointer data(utility::zip_iterator<const utility::storing<Us> *...> it) const
 		{
 			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
@@ -136,6 +144,7 @@ namespace utility
 		template <std::size_t ...Is,
 		          typename Iterator = utility::combine<utility::zip_iterator,
 		                                               storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+		annotate_nodiscard
 		Iterator begin_for(mpl::index_sequence<Is...>)
 		{
 			return Iterator(get<Is>(arrays).data()...);
@@ -144,20 +153,26 @@ namespace utility
 		template <std::size_t ...Is,
 		          typename Iterator = utility::combine<utility::zip_iterator,
 		                                               const storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+		annotate_nodiscard
 		Iterator begin_for(mpl::index_sequence<Is...>) const
 		{
 			return Iterator(get<Is>(arrays).data()...);
 		}
 
+		annotate_nodiscard
 		auto begin() { return begin_for(mpl::make_index_sequence_for<Ts...>{}); }
+		annotate_nodiscard
 		auto begin() const { return begin_for(mpl::make_index_sequence_for<Ts...>{}); }
 
+		annotate_nodiscard
 		auto begin(std::size_t /*capacity*/) { return begin(); }
+		annotate_nodiscard
 		auto begin(std::size_t /*capacity*/) const { return begin(); }
 
 		template <std::size_t ...Is,
 		          typename Iterator = utility::combine<utility::zip_iterator,
 		                                               storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+		annotate_nodiscard
 		Iterator end_for(mpl::index_sequence<Is...>)
 		{
 			return Iterator(get<Is>(arrays).data() + Capacity...);
@@ -166,22 +181,29 @@ namespace utility
 		template <std::size_t ...Is,
 		          typename Iterator = utility::combine<utility::zip_iterator,
 		                                               const storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+		annotate_nodiscard
 		Iterator end_for(mpl::index_sequence<Is...>) const
 		{
 			return Iterator(get<Is>(arrays).data() + Capacity...);
 		}
 
+		annotate_nodiscard
 		auto end() { return end_for(mpl::make_index_sequence_for<Ts...>{}); }
+		annotate_nodiscard
 		auto end() const { return end_for(mpl::make_index_sequence_for<Ts...>{}); }
 
+		annotate_nodiscard
 		auto end(std::size_t /*capacity*/) { return end(); }
+		annotate_nodiscard
 		auto end(std::size_t /*capacity*/) const { return end(); }
 
+		annotate_nodiscard
 		position place(std::size_t index)
 		{
 			return begin_for(mpl::index_sequence<0>{}) + index;
 		}
 
+		annotate_nodiscard
 		const_position place(std::size_t index) const
 		{
 			return begin_for(mpl::index_sequence<0>{}) + index;
@@ -189,6 +211,7 @@ namespace utility
 
 		template <typename Position,
 		          REQUIRES((std::is_convertible<Position, const_position>::value))>
+		annotate_nodiscard
 		std::ptrdiff_t index_of(Position pos) const
 		{
 			return static_cast<const_position>(pos) - begin_for(mpl::index_sequence<0>{});
@@ -196,6 +219,7 @@ namespace utility
 
 		template <typename Iterator,
 		          REQUIRES((!std::is_convertible<Iterator, const_position>::value))>
+		annotate_nodiscard
 		std::ptrdiff_t index_of(Iterator it) const
 		{
 			return index_of(utility::select_first<sizeof...(Ts)>(it));
@@ -280,6 +304,7 @@ namespace utility
 		} impl_;
 
 	public:
+		annotate_nodiscard
 		bool allocate(std::size_t capacity)
 		{
 #if MODE_DEBUG
@@ -289,6 +314,7 @@ namespace utility
 			return good();
 		}
 
+		annotate_nodiscard
 		bool good() const
 		{
 			return storage() != nullptr;
@@ -327,6 +353,7 @@ namespace utility
 		}
 
 		template <typename T>
+		annotate_nodiscard
 		T * data(T * data_)
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
@@ -334,6 +361,7 @@ namespace utility
 		}
 
 		template <typename T>
+		annotate_nodiscard
 		const T * data(const T * data_) const
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
@@ -342,6 +370,7 @@ namespace utility
 
 		template <typename ...Us,
 		          typename Pointer = utility::zip_pointer<Us *...>>
+		annotate_nodiscard
 		Pointer data(utility::zip_iterator<Us *...> it)
 		{
 			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
@@ -349,11 +378,13 @@ namespace utility
 
 		template <typename ...Us,
 		          typename Pointer = utility::zip_pointer<const Us *...>>
+		annotate_nodiscard
 		Pointer data(utility::zip_iterator<const Us *...> it) const
 		{
 			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
 		}
 
+		annotate_nodiscard
 		mpl::car<Ts...> * begin_for(mpl::index_sequence<0>)
 		{
 			// note there are times when we will call allocator address
@@ -363,6 +394,7 @@ namespace utility
 			return allocator().template address<0>(storage(), 0);
 		}
 
+		annotate_nodiscard
 		const mpl::car<Ts...> * begin_for(mpl::index_sequence<0>) const
 		{
 			// note there are times when we will call allocator address
@@ -372,31 +404,37 @@ namespace utility
 			return allocator().template address<0>(storage(), 0);
 		}
 
+		annotate_nodiscard
 		iterator begin(std::size_t capacity)
 		{
 			return allocator().address(storage(), capacity);
 		}
 
+		annotate_nodiscard
 		const_iterator begin(std::size_t capacity) const
 		{
 			return allocator().address(storage(), capacity);
 		}
 
+		annotate_nodiscard
 		iterator end(std::size_t capacity)
 		{
 			return begin(capacity) + capacity;
 		}
 
+		annotate_nodiscard
 		const_iterator end(std::size_t capacity) const
 		{
 			return begin(capacity) + capacity;
 		}
 
+		annotate_nodiscard
 		position place(std::size_t index)
 		{
 			return begin_for(mpl::index_sequence<0>{}) + index;
 		}
 
+		annotate_nodiscard
 		const_position place(std::size_t index) const
 		{
 			return begin_for(mpl::index_sequence<0>{}) + index;
@@ -404,6 +442,7 @@ namespace utility
 
 		template <typename Position,
 		          REQUIRES((std::is_convertible<Position, const_position>::value))>
+		annotate_nodiscard
 		std::ptrdiff_t index_of(Position pos) const
 		{
 			return static_cast<Position>(pos) - begin_for(mpl::index_sequence<0>{});
@@ -411,6 +450,7 @@ namespace utility
 
 		template <typename Iterator,
 		          REQUIRES((!std::is_convertible<Iterator, const_position>::value))>
+		annotate_nodiscard
 		std::ptrdiff_t index_of(Iterator it) const
 		{
 			return index_of(utility::select_first<sizeof...(Ts)>(it));
@@ -509,6 +549,7 @@ namespace utility
 			unpacked_dynamic_storage_data<Allocator, Ts...> data_;
 
 		public:
+			annotate_nodiscard
 			bool allocate(std::size_t capacity)
 			{
 				const auto ret = data_.storage_.allocate(capacity);
@@ -516,6 +557,7 @@ namespace utility
 				return ret;
 			}
 
+			annotate_nodiscard
 			bool good() const
 			{
 				return data_.storage_.good();
@@ -539,12 +581,14 @@ namespace utility
 			}
 
 			template <typename T>
+			annotate_nodiscard
 			T * data(T * ptr_)
 			{
 				return data_.storage_.data(ptr_);
 			}
 
 			template <typename T>
+			annotate_nodiscard
 			const T * data(const T * ptr_) const
 			{
 				return data_.storage_.data(ptr_);
@@ -552,6 +596,7 @@ namespace utility
 
 			template <typename ...Us,
 			          typename Pointer = utility::zip_pointer<Us *...>>
+			annotate_nodiscard
 			Pointer data(utility::zip_iterator<Us *...> it)
 			{
 				return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
@@ -559,6 +604,7 @@ namespace utility
 
 			template <typename ...Us,
 			          typename Pointer = utility::zip_pointer<const Us *...>>
+			annotate_nodiscard
 			Pointer data(utility::zip_iterator<const Us *...> it) const
 			{
 				return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
@@ -567,6 +613,7 @@ namespace utility
 			template <std::size_t ...Is,
 			          typename Iterator = utility::combine<utility::zip_iterator,
 			                                               typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+			annotate_nodiscard
 			Iterator begin_for(mpl::index_sequence<Is...>)
 			{
 				return Iterator(data_.begin(mpl::index_constant<Is>{})...);
@@ -575,20 +622,26 @@ namespace utility
 			template <std::size_t ...Is,
 			          typename Iterator = utility::combine<utility::zip_iterator,
 			                                               const typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+			annotate_nodiscard
 			Iterator begin_for(mpl::index_sequence<Is...>) const
 			{
 				return Iterator(data_.begin(mpl::index_constant<Is>{})...);
 			}
 
+			annotate_nodiscard
 			auto begin() { return begin_for(mpl::make_index_sequence_for<Ts...>{}); }
+			annotate_nodiscard
 			auto begin() const { return begin_for(mpl::make_index_sequence_for<Ts...>{}); }
 
+			annotate_nodiscard
 			auto begin(std::size_t /*capacity*/) { return begin(); }
+			annotate_nodiscard
 			auto begin(std::size_t /*capacity*/) const { return begin(); }
 
 			template <std::size_t ...Is,
 			          typename Iterator = utility::combine<utility::zip_iterator,
 			                                               typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+			annotate_nodiscard
 			Iterator end_for(std::size_t capacity, mpl::index_sequence<Is...>)
 			{
 				return Iterator(data_.begin(mpl::index_constant<Is>{}) + capacity...);
@@ -597,25 +650,31 @@ namespace utility
 			template <std::size_t ...Is,
 			          typename Iterator = utility::combine<utility::zip_iterator,
 			                                               const typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
+			annotate_nodiscard
 			Iterator end_for(std::size_t capacity, mpl::index_sequence<Is...>) const
 			{
 				return Iterator(data_.begin(mpl::index_constant<Is>{}) + capacity...);
 			}
 
+			annotate_nodiscard
 			auto end(std::size_t capacity) { return end_for(capacity, mpl::make_index_sequence_for<Ts...>{}); }
+			annotate_nodiscard
 			auto end(std::size_t capacity) const { return end_for(capacity, mpl::make_index_sequence_for<Ts...>{}); }
 
+			annotate_nodiscard
 			position place(std::size_t index)
 			{
 				return begin_for(mpl::index_sequence<0>{}) + index;
 			}
 
+			annotate_nodiscard
 			const_position place(std::size_t index) const
 			{
 				return begin_for(mpl::index_sequence<0>{}) + index;
 			}
 
 			template <typename PositionOrIterator>
+			annotate_nodiscard
 			std::ptrdiff_t index_of(PositionOrIterator pos_or_it) const
 			{
 				return data_.storage_.index_of(pos_or_it);
@@ -956,16 +1015,19 @@ namespace utility
 		}
 	};
 
-	template <template <typename> class ReservationStrategy>
-	struct reserve_nonempty
+	template <std::size_t Size, template <typename> class ReservationStrategy>
+	struct reserve_at_least
 	{
 		template <typename Storage>
 		struct type
 		{
 			constexpr std::size_t operator () (std::size_t size)
 			{
-				return ReservationStrategy<Storage>{}(size == 0 ? 1 : size);
+				return ReservationStrategy<Storage>{}(size < Size ? Size : size);
 			}
 		};
 	};
+
+	template <template <typename> class ReservationStrategy>
+	using reserve_nonempty = reserve_at_least<1, ReservationStrategy>;
 }

@@ -43,6 +43,7 @@ set(HEADERS_CORE
 	src/core/serialization.hpp
 	src/core/ShaderStructurer.hpp
 	src/core/StringSerializer.hpp
+	src/core/StringStream.hpp
 	src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
@@ -125,10 +126,15 @@ set(SOURCES_UTILITY
 set(HEADERS_UTILITY
 	src/utility/aggregation_allocator.hpp
 	src/utility/algorithm.hpp
+	src/utility/algorithm/find.hpp
+	src/utility/algorithm/remove.hpp
+	src/utility/alias.hpp
+	src/utility/annotate.hpp
 	src/utility/any.hpp
 	src/utility/arithmetics.hpp
 	src/utility/array.hpp
 	src/utility/bitmanip.hpp
+	src/utility/charconv.hpp
 	src/utility/compound.hpp
 	src/utility/concepts.hpp
 	src/utility/container/array.hpp
@@ -141,6 +147,10 @@ set(HEADERS_UTILITY
 	src/utility/ext/unistd.hpp
 	src/utility/encoding_traits.hpp
 	src/utility/functional.hpp
+	src/utility/functional/common.hpp
+	src/utility/functional/comparison.hpp
+	src/utility/functional/find.hpp
+	src/utility/functional/utility.hpp
 	src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
@@ -149,11 +159,16 @@ set(HEADERS_UTILITY
 	src/utility/lookup_table.hpp
 	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
+	src/utility/overflow.hpp
 	src/utility/predicates.hpp
-	src/utility/preprocessor.hpp
+	src/utility/preprocessor/common.hpp
+	src/utility/preprocessor/count_arguments.hpp
+	src/utility/preprocessor/expand.hpp
+	src/utility/preprocessor/for_each.hpp
 	src/utility/profiling.hpp
 	src/utility/property.hpp
 	src/utility/ranges.hpp
+	src/utility/regex.hpp
 	src/utility/scalar_alloc.hpp
 	src/utility/span.hpp
 	src/utility/spinlock.hpp
@@ -161,13 +176,14 @@ set(HEADERS_UTILITY
 	src/utility/storing.hpp
 	src/utility/stream.hpp
 	src/utility/string.hpp
-	src/utility/string_conversions.hpp
 	src/utility/string_iterator.hpp
 	src/utility/string_view.hpp
 	src/utility/tuple.hpp
 	src/utility/type_info.hpp
 	src/utility/type_traits.hpp
-	src/utility/unicode.hpp
+	src/utility/unicode/encoding_traits.hpp
+	src/utility/unicode/string.hpp
+	src/utility/unicode/string_view.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
 	)

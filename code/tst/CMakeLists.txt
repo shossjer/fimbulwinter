@@ -6,11 +6,14 @@ set(FILES_CORE
 	tst/core/container/Queue.cpp
 	tst/core/debug.cpp
 	tst/core/file/paths.cpp
+	tst/core/IniStructurer.cpp
 	tst/core/maths/Matrix.cpp
 	tst/core/maths/Quaternion.cpp
 	tst/core/maths/Vector.cpp
 	tst/core/maths/util.cpp
 	tst/core/ReadStream.cpp
+	tst/core/serialization.cpp
+	tst/core/StringStream.cpp
 	tst/core/WriteStream.cpp
 	)
 
@@ -35,28 +38,35 @@ set(FILES_UTILITY
 	tst/main.cpp
 	tst/utility/aggregation_allocator.cpp
 	tst/utility/algorithm.cpp
+	tst/utility/algorithm/remove.cpp
 	tst/utility/any.cpp
 	tst/utility/array.cpp
 	tst/utility/bitmanip.cpp
+	tst/utility/charconv.cpp
 	tst/utility/compound.cpp
 	tst/utility/container/array.cpp
 	tst/utility/container/fragmentation.cpp
 	tst/utility/container/vector.cpp
 	tst/utility/crypto/crc.cpp
 	tst/utility/ext/string.cpp
+	tst/utility/functional/comparison.cpp
+	tst/utility/functional/utility.cpp
 	tst/utility/iterator.cpp
 	tst/utility/null_allocator.cpp
 	tst/utility/optional.cpp
+	tst/utility/overflow.cpp
+	tst/utility/preprocessor/count_arguments.cpp
+	tst/utility/preprocessor/for_each.cpp
 	tst/utility/property.cpp
 	tst/utility/ranges.cpp
+	tst/utility/regex.cpp
 	tst/utility/span.cpp
 	tst/utility/storage.cpp
 	tst/utility/storing.cpp
 	tst/utility/string.cpp
-	tst/utility/string_conversions.cpp
-	tst/utility/string_view.cpp
 	tst/utility/type_info.cpp
 	tst/utility/type_traits.cpp
-	tst/utility/unicode.cpp
+	tst/utility/unicode/string.cpp
+	tst/utility/unicode/string_view.cpp
 	tst/utility/variant.cpp
 	)

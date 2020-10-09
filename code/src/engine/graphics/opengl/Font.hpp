@@ -1,13 +1,11 @@
-
-#ifndef ENGINE_GRAPHICS_OPENGL_FONT_HPP
-#define ENGINE_GRAPHICS_OPENGL_FONT_HPP
+#pragma once
 
 #include "config.h"
 
 #include "engine/graphics/opengl.hpp"
 
 #include "utility/string.hpp"
-#include "utility/unicode.hpp"
+#include "utility/unicode/string_view.hpp"
 
 # include <string>
 
@@ -75,7 +73,7 @@ namespace engine
 				public:
 					void free();
 #if TEXT_USE_FREETYPE
-					bool load(utility::string_view_utf8 name, int height);
+					bool load(utility::string_units_utf8 name, int height);
 #elif TEXT_USE_USER32 || TEXT_USE_X11
 					bool load(engine::application::window & window, utility::string_view_utf8 name, int height);
 #endif
@@ -160,5 +158,3 @@ namespace engine
 		}
 	}
 }
-
-#endif /* ENGINE_GRAPHICS_OPENGL_FONT_HPP */

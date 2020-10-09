@@ -1,6 +1,4 @@
-
-#ifndef CORE_PNGSTRUCTURER_HPP
-#define CORE_PNGSTRUCTURER_HPP
+#pragma once
 
 #include "core/container/Buffer.hpp"
 #include "core/debug.hpp"
@@ -123,10 +121,11 @@ namespace core
 
 			png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
 
-			core::try_assign<member_table<T>::find("width")>(x, [image_width](){ return image_width; });
-			core::try_assign<member_table<T>::find("height")>(x, [image_height](){ return image_height; });
+			using core::serialize;
+			serialize<member_table<T>::find("width")>(x, image_width);
+			serialize<member_table<T>::find("height")>(x, image_height);
 
-			core::try_assign<member_table<T>::find("bit_depth")>(x, [bit_depth]()
+			serialize<member_table<T>::find("bit_depth")>(x, [bit_depth]()
 			{
 				switch (bit_depth)
 				{
@@ -141,7 +140,7 @@ namespace core
 				}
 			});
 
-			core::try_assign<member_table<T>::find("channel_count")>(x, [channels]()
+			serialize<member_table<T>::find("channel_count")>(x, [channels]()
 			{
 				switch (channels)
 				{
@@ -155,7 +154,7 @@ namespace core
 				}
 			});
 
-			core::try_assign<member_table<T>::find("color_type")>(x, [color_type]()
+			serialize<member_table<T>::find("color_type")>(x, [color_type]()
 			{
 				switch (color_type)
 				{
@@ -168,9 +167,7 @@ namespace core
 				}
 			});
 
-			core::try_assign<member_table<T>::find("pixel_data")>(x, [&pixels]() { return std::move(pixels); });
+			serialize<member_table<T>::find("pixel_data")>(x, std::move(pixels));
 		}
 	};
 }
-
-#endif /* CORE_PNGSTRUCTURER_HPP */
