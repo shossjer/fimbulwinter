@@ -212,6 +212,7 @@ namespace
 				int length;
 				glGetShaderInfoLog(shader.second.vertex, 1000, &length, buffer);
 
+				glDeleteShader(shader.second.vertex);
 				ext::pop_back(shaders);
 
 				return debug_fail("vertex shader entity failed to compile with: ", buffer);
@@ -229,6 +230,7 @@ namespace
 				int length;
 				glGetShaderInfoLog(shader.second.fragment, 1000, &length, buffer);
 
+				glDeleteShader(shader.second.fragment);
 				glDeleteShader(shader.second.vertex);
 				ext::pop_back(shaders);
 
@@ -255,6 +257,7 @@ namespace
 				int length;
 				glGetProgramInfoLog(shader.second.program, 1000, &length, buffer);
 
+				glDeleteProgram(shader.second.program);
 				glDeleteShader(shader.second.fragment);
 				glDeleteShader(shader.second.vertex);
 				ext::pop_back(shaders);
