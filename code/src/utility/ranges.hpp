@@ -82,6 +82,9 @@ namespace ranges
 		return iota_range<I>(0, static_cast<I>(count));
 	}
 
+	template <std::size_t N, typename T>
+	constexpr auto index_sequence_for(const T(&)[N]) { return index_sequence(N); }
+
 	template <typename T>
 	constexpr auto index_sequence_for(const T & container)
 		-> decltype(index_sequence(container.size()))
