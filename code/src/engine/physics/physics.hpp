@@ -3,6 +3,7 @@
 #include "core/maths/util.hpp"
 #include "core/maths/Vector.hpp"
 #include "core/maths/Matrix.hpp"
+#include "core/maths/Quaternion.hpp"
 
 #include "engine/physics/defines.hpp"
 #include "engine/Token.hpp"
@@ -75,86 +76,17 @@ namespace physics
 	 */
 	void update_finish(simulation & simulation);
 
-	// TODO: make possible to add "definitions" and just directly create objects
-	struct asset_definition_t
-	{
-	//	ActorData::Type type;
-		ActorData::Behaviour behaviour;
-		std::vector<ShapeData> shapes;
-	};
-
-	void add(simulation & simulation, const engine::Token id, const asset_definition_t & data);
-
-	struct asset_instance_t
-	{
-		engine::Token defId;
-		transform_t transform;
-		ActorData::Type type;
-	};
-
-	void add(simulation & simulation, const engine::Token id, const asset_instance_t & data);
-
 	void post_add_object(simulation & simulation, engine::Token entity, engine::transform_t && data);
-
-	void post_create(simulation & simulation, const engine::Token id, const ActorData & data);
-
-	void post_create(simulation & simulation, const engine::Token id, const PlaneData & data);
 
 	void post_remove(simulation & simulation, engine::Token entity);
 
-	struct joint_t
+	struct TransformComponents
 	{
-		enum class Type
-		{
-			DISCONNECT,
-			FIXED,
-			HINGE
-		};
-
-		engine::Token id;
-
-		Type type;
-
-		/**
-		 \note can be "INVALID"-id if the second actor should be jointed with global space.
-		 */
-		engine::Token actorId1;
-		engine::Token actorId2;
-
-		transform_t transform1;
-		transform_t transform2;
-
-		float driveSpeed;
-		float forceMax;
+		uint16_t mask;
+		uint16_t reserved;
+		float values[9]; // todo
 	};
 
-	void post_joint(simulation & simulation, const joint_t & joint);
-
-	struct movement_data
-	{
-		enum class Type
-		{
-			// value is multiplied with actors mass to get amount of force
-			ACCELERATION,
-			FORCE,
-			IMPULSE,
-			CHARACTER
-		};
-
-		Type type;
-		core::maths::Vector3f vec;
-	};
-	/**
-	 *	\note update Character or Dynamic object with delta movement or force.
-	 */
-	void post_update_movement(simulation & simulation, engine::Token entity, movement_data && data);
-
-	/**
-	 *	\note update Kinematic object with position and rotation
-	 */
-	void post_update_movement(simulation & simulation, const engine::Token id, const transform_t translation);
-
-	void post_update_orientation_movement(simulation & simulation, engine::Token entity, orientation_movement && data);
-	void post_update_transform(simulation & simulation, engine::Token entity, engine::transform_t && data);
+	void set_transform_components(simulation & simulation, engine::Token entity, TransformComponents && data);
 }
 }

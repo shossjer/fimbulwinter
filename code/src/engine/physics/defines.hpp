@@ -1,10 +1,9 @@
+#pragma once
 
-#ifndef ENGINE_PHYSICS_DEFINES_HPP
-#define ENGINE_PHYSICS_DEFINES_HPP
+#include "engine/common.hpp"
 
-#include <engine/common.hpp>
-
-#include <core/maths/util.hpp>
+#include "core/maths/Vector.hpp"
+#include "core/maths/util.hpp"
 
 #include <vector>
 
@@ -171,5 +170,3 @@ namespace physics
 	};
 }
 }
-
-#endif
