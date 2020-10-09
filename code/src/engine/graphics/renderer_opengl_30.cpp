@@ -906,9 +906,6 @@ namespace
 	{
 		engine::graphics::data::ModelviewMatrix && data;
 
-		void operator () ()
-		{
-		}
 		template <typename T>
 		void operator () (T & x)
 		{
@@ -953,22 +950,22 @@ namespace
 		object_modelview_vertices * object;
 
 		engine::graphics::opengl::Color4ub selectable_color;
+	};
 
-		selectable_character_t(
-			const mesh_t * mesh,
-			object_modelview_vertices * object,
-			engine::graphics::opengl::Color4ub selectable_color)
-			: mesh(mesh)
-			, object(object)
-			, selectable_color(std::move(selectable_color))
-		{}
+	struct selectable_mesh_object
+	{
+		const mesh_t * mesh;
+		const object_modelview * object;
+
+		engine::graphics::opengl::Color4ub selectable_color;
 	};
 
 	core::container::Collection
 	<
 		engine::Token,
 		utility::heap_storage_traits,
-		utility::heap_storage<selectable_character_t>
+		utility::heap_storage<selectable_character_t>,
+		utility::heap_storage<selectable_mesh_object>
 	>
 	selectable_components;
 
@@ -979,6 +976,11 @@ namespace
 		void operator () (engine::Token entity, Character & x)
 		{
 			debug_verify(selectable_components.emplace<selectable_character_t>(entity, x.mesh, x.object, color));
+		}
+
+		void operator () (engine::Token entity, MeshObject & x)
+		{
+			debug_verify(selectable_components.emplace<selectable_mesh_object>(entity, x.mesh, x.object, color));
 		}
 
 		template <typename T>
@@ -1681,6 +1683,40 @@ void main()
 						GL_TRIANGLES,
 						debug_cast<GLsizei>(component.mesh->triangles.size()),
 						GL_UNSIGNED_SHORT, // TODO
+						component.mesh->triangles.data());
+
+					glDisableVertexAttribArray(vertex_location);
+
+					debug_assert(glGetError() == GL_NO_ERROR);
+
+					modelview_matrix.pop();
+				}
+
+				// todo fuse with selectable_character_t, they are very similar
+				for (const auto & component : selectable_components.get<selectable_mesh_object>())
+				{
+					modelview_matrix.push();
+					modelview_matrix.mult(component.object->modelview);
+					modelview_matrix.mult(component.mesh->modelview);
+					glUniform(entity_shader->program, "modelview_matrix", modelview_matrix.top());
+
+					const auto vertex_location = 4;
+					glEnableVertexAttribArray(vertex_location);
+					glVertexAttribPointer(
+						vertex_location,
+						3, // todo support 2d coordinates?
+						glType(component.mesh->vertices.value_type()),
+						GL_FALSE,
+						0,
+						component.mesh->vertices.data());
+
+					const auto color_location = 5;
+					glVertexAttrib4f(color_location, component.selectable_color[0] / 255.f, component.selectable_color[1] / 255.f, component.selectable_color[2] / 255.f, component.selectable_color[3] / 255.f);
+
+					glDrawElements(
+						GL_TRIANGLES,
+						debug_cast<GLsizei>(component.mesh->triangles.size()),
+						glType(component.mesh->triangles.value_type()),
 						component.mesh->triangles.data());
 
 					glDisableVertexAttribArray(vertex_location);
