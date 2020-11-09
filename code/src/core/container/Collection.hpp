@@ -250,6 +250,8 @@ namespace core
 						std::memset(array.data().second, static_cast<int>(ext::byte{}), array.size() * sizeof(Key));
 						array.clear();
 					});
+
+				std::memset(keys(), static_cast<int>(ext::byte{}), lookup_.size() * sizeof(Key));
 			}
 
 			template <typename Component, typename ...Ps>
@@ -976,7 +978,7 @@ namespace core
 			{
 				utl::for_each(arrays_, [](auto & array){ array.clear(); });
 
-				keys().memset_fill(0, lookup_.size(), ext::byte{});
+				std::memset(keys(), static_cast<int>(ext::byte{}), lookup_.size() * sizeof(Key));
 			}
 
 			template <typename Component, typename ...Ps>
