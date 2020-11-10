@@ -479,7 +479,7 @@ namespace utility
 
 		basic_string & operator = (const_pointer s)
 		{
-			return *this = basic_string_view<Encoding>(s);
+			return *this = basic_string_view<boundary_unit<Encoding>>(s);
 		}
 
 		template <typename Boundary,
@@ -672,7 +672,7 @@ namespace utility
 		template <typename Code>
 		bool try_append_impl(copy_char, Code code)
 		{
-			typename encoding_traits::template buffer_for<Code> chars;
+			typename encoding_traits::buffer_type chars;
 
 			return try_append_impl(copy_str{}, chars.data(), encoding_traits::get(code, chars.data()));
 		}
@@ -707,7 +707,7 @@ namespace utility
 			data_.array_.chars_.destruct_range(data_.array_.end2_storage() - count, data_.array_.end2_storage());
 			const auto end = data_.array_.end_storage() - count;
 			data_.array_.set_end(end);
-			data()[end] = '\0';
+			*data_.array_.chars_.data(end) = '\0';
 		}
 
 	public:
