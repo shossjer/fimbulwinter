@@ -2,14 +2,16 @@
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
   <Type Name="utility::basic_string&lt;*,utility::encoding_utf8&gt;">
-    <DisplayString>{data_.array_.chars_.impl_.storage_,s8}</DisplayString>
-    <StringView>data_.array_.chars_.impl_.storage_,s8</StringView>
+    <Intrinsic Name="size" Expression="data_.array_.end_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="capacity" Expression="data_.array_.cap_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <DisplayString>{data_.array_.chars_.data_.storage_.impl_.storage_,s8}</DisplayString>
+    <StringView>data_.array_.chars_.data_.storage_.impl_.storage_,s8</StringView>
     <Expand>
-      <Item Name="[size]" ExcludeView="simple">data_.array_.size_</Item>
-      <Item Name="[capacity]" ExcludeView="simple">data_.array_.capacity_</Item>
+      <Item Name="[size]" ExcludeView="simple">size()</Item>
+      <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
       <ArrayItems>
-        <Size>data_.array_.size_</Size>
-        <ValuePointer>(char*)data_.array_.chars_.impl_.storage_</ValuePointer>
+        <Size>size()</Size>
+        <ValuePointer>(char*)data_.array_.chars_.data_.storage_.impl_.storage_</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
@@ -29,14 +31,16 @@
 
   <Type Name="utility::basic_string&lt;*,utility::encoding_utf16&gt;">
     <AlternativeType Name="utility::basic_string&lt;*,utility::encoding_utfw&gt;"/>
-    <DisplayString>{data_.array_.chars_.impl_.storage_,su}</DisplayString>
-    <StringView>data_.array_.chars_.impl_.storage_,su</StringView>
+    <Intrinsic Name="size" Expression="data_.array_.end_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="capacity" Expression="data_.array_.cap_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <DisplayString>{data_.array_.chars_.data_.storage_.impl_.storage_,su}</DisplayString>
+    <StringView>data_.array_.chars_.data_.storage_.impl_.storage_,su</StringView>
     <Expand>
-      <Item Name="[size]" ExcludeView="simple">data_.array_.size_</Item>
-      <Item Name="[capacity]" ExcludeView="simple">data_.array_.capacity_</Item>
+      <Item Name="[size]" ExcludeView="simple">size()</Item>
+      <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
       <ArrayItems>
-        <Size>data_.array_.size_</Size>
-        <ValuePointer>(char16_t*)data_.array_.chars_.impl_.storage_</ValuePointer>
+        <Size>size()</Size>
+        <ValuePointer>(char16_t*)data_.array_.chars_.data_.storage_.impl_.storage_</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
