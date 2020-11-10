@@ -327,6 +327,27 @@ namespace utility
 		annotate_nodiscard
 		bool push_back(rvalue_reference p) { return try_emplace_back(std::move(p)); }
 
+		template <typename P>
+		annotate_nodiscard
+		bool insert(iterator it, P && p)
+		{
+			if (it != end())
+			{
+				using utility::iter_move;
+				if (try_emplace_back(iter_move(it)))
+				{
+					*it = std::move(p);
+
+					return true;
+				}
+				return false;
+			}
+			else
+			{
+				return try_emplace_back(std::move(p));
+			}
+		}
+
 		iterator erase(iterator it) // todo const_iterator
 		{
 			if (!/*debug_assert*/(begin() <= it && it < end()))
