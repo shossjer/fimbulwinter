@@ -59,4 +59,55 @@
     </Expand>
   </Type>
 
+  <Type Name="utility::basic_vector&lt;*&gt;">
+    <Intrinsic Name="size" Optional="true" Expression="end_ - storage_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="end_.first - storage_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="end_._Myfirst._Val - storage_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="end_ - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="size" Optional="true" Expression="end_.first - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="size" Optional="true" Expression="end_._Myfirst._Val - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="capacity" Optional="true" Expression="sizeof storage_.arrays.head_._Elems / sizeof storage_.arrays.head_._Elems[0]" />
+    <Intrinsic Name="capacity" Optional="true" Expression="cap_ - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="&amp;storage_.arrays.head_._Elems[0].value" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer::first_type)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer::_This_type)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="&amp;storage_.arrays.tail_.head_._Elems[0].value" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="storage_.data_.extra_begins_._Myfirst._Val" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="storage_.data_.extra_begins_.first" />
+    <Intrinsic Name="third_ptr" Optional="true" Expression="&amp;storage_.arrays.tail_.tail_.head_._Elems[0].value" />
+    <Intrinsic Name="third_ptr" Optional="true" Expression="storage_.data_.extra_begins_.second" />
+    <DisplayString>{{ size={size()} }}</DisplayString>
+    <Expand>
+      <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
+      <Synthetic Name="channel 0" Optional="true">
+        <DisplayString>{first_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>first_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="channel 1" Optional="true">
+        <DisplayString>{second_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>second_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="channel 2" Optional="true">
+        <DisplayString>{third_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>third_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+
 </AutoVisualizer>
