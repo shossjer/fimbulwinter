@@ -805,8 +805,16 @@ namespace utility
 			return ext::apply([&s, this](auto && ...ps) -> decltype(auto) { return construct_at_(s, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
 		}
 
+		template <typename ...Ss,
+		          typename Reference = reference_for<Ss...>>
+		Reference construct_at_(utility::zip_iterator<Ss *...> it)
+		{
+			return ext::apply([this](auto * ...ss) -> Reference { return Reference(construct_at_(ss)...); }, it);
+		}
+
 		template <typename ...Ss, typename ...Ps,
 		          typename Reference = reference_for<Ss...>,
+		          REQUIRES((sizeof...(Ss) == sizeof...(Ps))),
 		          REQUIRES((!ext::is_tuple<Ps...>::value)),
 		          REQUIRES((!mpl::is_same<std::piecewise_construct_t, mpl::car<mpl::remove_cvref_t<Ps>..., void>>::value))>
 		Reference construct_at_(utility::zip_iterator<Ss *...> it, Ps && ...ps)
