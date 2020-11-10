@@ -52,7 +52,7 @@ set(HEADERS_CORE
 	)
 
 set(MSVC_CORE
-	src/core/container/Buffer.natvis
+	src/core.natvis
 	)
 
 set(SOURCES_ENGINE
@@ -200,5 +200,5 @@ set(HEADERS_UTILITY
 	)
 
 set(MSVC_UTILITY
-	src/utility/utility.natvis
+	src/utility.natvis
 	)
