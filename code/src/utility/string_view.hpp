@@ -164,6 +164,44 @@ namespace utility
 	}
 
 	template <typename Boundary>
+	constexpr bool
+	ends_with(
+		basic_string_view<Boundary> view,
+		typename Boundary::value_type c)
+	{
+		return utility::ends_with(view.begin(), view.end(), c);
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	ends_with(
+		const_string_iterator<Boundary> begin,
+		const_string_iterator<Boundary> end,
+		basic_string_view<Boundary> expr)
+	{
+		return utility::ends_with(begin, end, expr.begin(), expr.end());
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	ends_with(
+		basic_string_view<Boundary> view,
+		const_string_iterator<Boundary> exprbegin,
+		const_string_iterator<Boundary> exprend)
+	{
+		return utility::ends_with(view.begin(), view.end(), exprbegin, exprend);
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	ends_with(
+		basic_string_view<Boundary> view,
+		basic_string_view<Boundary> expr)
+	{
+		return utility::ends_with(view.begin(), view.end(), expr.begin(), expr.end());
+	}
+
+	template <typename Boundary>
 	constexpr const_string_iterator<Boundary>
 	find(
 		basic_string_view<Boundary> view,

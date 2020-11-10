@@ -810,6 +810,24 @@ namespace utility
 	bool empty(const basic_string<Storage, Encoding> & string) { return string.size() == 0; } // todo check iterators, or add empty check to storage data
 
 	template <typename StorageTraits, typename Encoding>
+	constexpr bool
+	ends_with(
+		const basic_string<StorageTraits, Encoding> & str,
+		typename utility::encoding_traits<Encoding>::value_type c)
+	{
+		return utility::ends_with(str.begin(), str.end(), c);
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr bool
+	ends_with(
+		const basic_string<StorageTraits, Encoding> & str,
+		basic_string_view<boundary_unit<Encoding>> expr)
+	{
+		return utility::ends_with(str.begin(), str.end(), expr.begin(), expr.end());
+	}
+
+	template <typename StorageTraits, typename Encoding>
 	constexpr const_string_iterator<boundary_unit<Encoding>>
 	find(
 		const basic_string<StorageTraits, Encoding> & str,
@@ -861,5 +879,32 @@ namespace utility
 		typename utility::encoding_traits<Encoding>::const_pointer expr)
 	{
 		return utility::rfind(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr bool
+	starts_with(
+		const basic_string<StorageTraits, Encoding> & str,
+		typename utility::encoding_traits<Encoding>::value_type c)
+	{
+		return utility::starts_with(str.begin(), str.end(), c);
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr bool
+	starts_with(
+		const basic_string<StorageTraits, Encoding> & str,
+		basic_string_view<boundary_unit<Encoding>> expr)
+	{
+		return utility::starts_with(str.begin(), str.end(), expr.begin(), expr.end());
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr bool
+	starts_with(
+		const basic_string<StorageTraits, Encoding> & str,
+		typename utility::encoding_traits<Encoding>::const_pointer expr)
+	{
+		return utility::starts_with(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));
 	}
 }
