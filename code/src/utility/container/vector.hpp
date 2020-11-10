@@ -19,6 +19,12 @@ namespace utility
 	};
 	constexpr no_failure_t no_failure = no_failure_t{};
 
+	struct stable_t
+	{
+		explicit stable_t() = default;
+	};
+	constexpr stable_t stable = stable_t{};
+
 	namespace detail
 	{
 		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
@@ -381,6 +387,40 @@ namespace utility
 				this->storage_.destruct_at(last);
 			}
 			this->set_end(last);
+
+			return from;
+		}
+
+		iterator erase(utility::stable_t, iterator it) // todo const_iterator
+		{
+			if (!/*debug_assert*/(begin() <= it && it < end()))
+				return it;
+
+			iterator write = it;
+			for (const_iterator read = it + 1; read != end(); ++write, ++read)
+			{
+				using utility::iter_move;
+				*write = iter_move(read);
+			}
+			this->storage_.destruct_at(this->storage_.iter(write));
+			this->set_end(this->storage_.iter(write));
+
+			return it;
+		}
+
+		iterator erase(utility::stable_t, iterator from, const_iterator to) // todo const_iterator
+		{
+			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
+				return from;
+
+			iterator write = from;
+			for (const_iterator read = to; read != end(); ++write, ++read)
+			{
+				using utility::iter_move;
+				*write = iter_move(read);
+			}
+			this->storage_.destruct_range(this->storage_.iter(write), this->end_storage());
+			this->set_end(this->storage_.iter(write));
 
 			return from;
 		}
