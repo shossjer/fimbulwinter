@@ -2,59 +2,55 @@
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
   <Type Name="utility::basic_string&lt;*,utility::encoding_utf8&gt;">
-    <Intrinsic Name="size" Expression="data_.array_.end_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
-    <Intrinsic Name="capacity" Expression="data_.array_.cap_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
-    <DisplayString>{data_.array_.chars_.data_.storage_.impl_.storage_,s8}</DisplayString>
-    <StringView>data_.array_.chars_.data_.storage_.impl_.storage_,s8</StringView>
+    <Intrinsic Name="size" Optional="true" Expression="data_.array_.end_ - data_.array_.chars_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="data_.array_.end_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="capacity" Optional="true" Expression="sizeof data_.array_.chars_.arrays.head_._Elems / sizeof(char)" />
+    <Intrinsic Name="capacity" Optional="true" Expression="data_.array_.cap_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="ptr" Optional="true" Expression="&amp;data_.array_.chars_.arrays.head_._Elems[0].value" />
+    <Intrinsic Name="ptr" Optional="true" Expression="data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <DisplayString>{ptr(),s8}</DisplayString>
+    <StringView>ptr(),s8</StringView>
     <Expand>
       <Item Name="[size]" ExcludeView="simple">size()</Item>
       <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
       <ArrayItems>
         <Size>size()</Size>
-        <ValuePointer>(char*)data_.array_.chars_.data_.storage_.impl_.storage_</ValuePointer>
+        <ValuePointer>(char*)ptr()</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
 
-  <Type Name="utility::basic_string&lt;*,utility::encoding_utf8&gt;" Priority="MediumHigh">
-    <DisplayString>{data_.array_.chars_.arrays.head_._Elems,s8}</DisplayString>
-    <StringView>data_.array_.chars_.arrays.head_._Elems,s8</StringView>
-    <Expand>
-      <Item Name="[size]" ExcludeView="simple">data_.array_.size_</Item>
-      <Item Name="[capacity]" ExcludeView="simple">sizeof data_.array_.chars_.arrays.head_._Elems / sizeof(char)</Item>
-      <ArrayItems>
-        <Size>data_.array_.size_</Size>
-        <ValuePointer>(char*)data_.array_.chars_.arrays.head_._Elems</ValuePointer>
-      </ArrayItems>
-    </Expand>
-  </Type>
-
-  <Type Name="utility::basic_string&lt;*,utility::encoding_utf16&gt;">
-    <AlternativeType Name="utility::basic_string&lt;*,utility::encoding_utfw&gt;"/>
-    <Intrinsic Name="size" Expression="data_.array_.end_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
-    <Intrinsic Name="capacity" Expression="data_.array_.cap_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
-    <DisplayString>{data_.array_.chars_.data_.storage_.impl_.storage_,su}</DisplayString>
-    <StringView>data_.array_.chars_.data_.storage_.impl_.storage_,su</StringView>
+  <Type Name="utility::basic_string&lt;*,utility::encoding_utfw&gt;">
+    <Intrinsic Name="size" Optional="true" Expression="data_.array_.end_ - data_.array_.chars_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="data_.array_.end_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="capacity" Optional="true" Expression="sizeof data_.array_.chars_.arrays.head_._Elems / sizeof(char16_t)" />
+    <Intrinsic Name="capacity" Optional="true" Expression="data_.array_.cap_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="ptr" Optional="true" Expression="&amp;data_.array_.chars_.arrays.head_._Elems[0].value" />
+    <Intrinsic Name="ptr" Optional="true" Expression="data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <DisplayString>{ptr(),su}</DisplayString>
+    <StringView>ptr(),su</StringView>
     <Expand>
       <Item Name="[size]" ExcludeView="simple">size()</Item>
       <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
       <ArrayItems>
         <Size>size()</Size>
-        <ValuePointer>(char16_t*)data_.array_.chars_.data_.storage_.impl_.storage_</ValuePointer>
+        <ValuePointer>(char16_t*)ptr()</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
 
-  <Type Name="utility::basic_string&lt;*,utility::encoding_utf16&gt;" Priority="MediumHigh">
-    <AlternativeType Name="utility::basic_string&lt;*,utility::encoding_utfw&gt;" Priority="MediumHigh"/>
-    <DisplayString>{data_.array_.chars_.arrays.head_._Elems,su}</DisplayString>
-    <StringView>data_.array_.chars_.arrays.head_._Elems,su</StringView>
+  <Type Name="utility::basic_string_view&lt;*&gt;">
+    <Intrinsic Name="is_utf8" Expression="std::is_same&lt;utility::encoding_utf8, encoding_type&gt;::value" />
+    <Intrinsic Name="is_utfw" Expression="std::is_same&lt;utility::encoding_utfw, encoding_type&gt;::value" />
+    <DisplayString Condition="is_utf8()">{ptr_,[size_]s8}</DisplayString>
+    <DisplayString Condition="is_utfw()">{ptr_,[size_]su}</DisplayString>
+    <StringView Condition="is_utf8()">ptr_,[size_]s8</StringView>
+    <StringView Condition="is_utfw()">ptr_,[size_]su</StringView>
     <Expand>
-      <Item Name="[size]" ExcludeView="simple">data_.array_.size_</Item>
-      <Item Name="[capacity]" ExcludeView="simple">sizeof data_.array_.chars_.arrays.head_._Elems / sizeof(char16_t)</Item>
+      <Item Name="[size]" ExcludeView="simple">size_</Item>
       <ArrayItems>
-        <Size>data_.array_.size_</Size>
-        <ValuePointer>(char16_t*)data_.array_.chars_.arrays.head_._Elems</ValuePointer>
+        <Size>size_</Size>
+        <ValuePointer>ptr_</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
