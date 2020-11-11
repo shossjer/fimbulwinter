@@ -110,4 +110,75 @@
     </Expand>
   </Type>
 
+  <Type Name="utility::variant&lt;*&gt;">
+    <Intrinsic Name="index" Expression="storage.index_"/>
+    <DisplayString Condition="index() ==  0">{{ index=0, value={storage.union_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  1" Optional="true">{{ index=1, value={storage.union_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  2" Optional="true">{{ index=2, value={storage.union_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  3" Optional="true">{{ index=3, value={storage.union_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  4" Optional="true">{{ index=4, value={storage.union_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  5" Optional="true">{{ index=5, value={storage.union_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  6" Optional="true">{{ index=6, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  7" Optional="true">{{ index=7, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  8" Optional="true">{{ index=8, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  9" Optional="true">{{ index=9, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 10" Optional="true">{{ index=10, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 11" Optional="true">{{ index=11, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 12" Optional="true">{{ index=12, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 13" Optional="true">{{ index=13, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 14" Optional="true">{{ index=14, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 15" Optional="true">{{ index=15, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 16" Optional="true">{{ index=16, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 17" Optional="true">{{ index=17, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 18" Optional="true">{{ index=18, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 19" Optional="true">{{ index=19, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 20" Optional="true">{{ index=20, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 21" Optional="true">{{ index=21, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 22" Optional="true">{{ index=22, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 23" Optional="true">{{ index=23, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 24" Optional="true">{{ index=24, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 25" Optional="true">{{ index=25, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 26" Optional="true">{{ index=26, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 27" Optional="true">{{ index=27, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 28" Optional="true">{{ index=28, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 29" Optional="true">{{ index=29, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 30" Optional="true">{{ index=30, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 31" Optional="true">{{ index=31, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <Expand>
+      <Item Name="index">index()</Item>
+      <Item Name="[value]" Condition="index() ==  0">storage.union_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  1" Optional="true">storage.union_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  2" Optional="true">storage.union_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  3" Optional="true">storage.union_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  4" Optional="true">storage.union_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  5" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  6" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  7" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  8" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  9" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 10" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 11" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 12" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 13" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 14" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 15" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 16" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 17" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 18" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 19" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 20" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 21" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 22" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 23" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 24" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 25" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 26" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 27" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 28" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 29" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 30" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 31" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+    </Expand>
+  </Type>
+
 </AutoVisualizer>
