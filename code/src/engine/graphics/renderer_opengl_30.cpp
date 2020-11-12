@@ -36,7 +36,6 @@
 #include "utility/variant.hpp"
 
 #include <atomic>
-#include <fstream>
 #include <utility>
 
 #if TEXT_USE_FREETYPE
@@ -69,7 +68,6 @@ namespace engine
 
 			extern std::atomic<int> entitytoggle;
 
-			extern engine::graphics::renderer * self;
 			extern engine::application::window * window;
 			extern void (* callback_select)(engine::Token entity, engine::Command command, utility::any && data);
 		}
@@ -834,8 +832,6 @@ namespace
 {
 	using namespace engine::graphics::detail;
 
-	core::container::PageQueue<utility::heap_storage<engine::Token, ShaderData>> queue_shaders;
-
 	FontManager font_manager;
 	ShaderManager shader_manager;
 
@@ -906,19 +902,27 @@ namespace
 
 				void operator () (MessageRegisterMaterial && x)
 				{
-					if (x.material.data_opengl_30.diffuse)
+					if (!debug_verify(x.material.shader))
+						return; // error
+
+					if (x.material.diffuse)
 					{
-						debug_verify(resources.replace<ColorClass>(x.asset, x.material.data_opengl_30.diffuse.value(), x.material.data_opengl_30.shader));
+						debug_verify(resources.replace<ColorClass>(x.asset, x.material.diffuse.value(), x.material.shader.value()));
 					}
 					else
 					{
-						debug_verify(resources.replace<ShaderClass>(x.asset, x.material.data_opengl_30.shader));
+						debug_verify(resources.replace<ShaderClass>(x.asset, x.material.shader.value()));
 					}
 				}
 
 				void operator () (MessageRegisterMesh && x)
 				{
 					debug_verify(resources.replace<mesh_t>(x.asset, std::move(x.mesh)));
+				}
+
+				void operator () (MessageRegisterShader && x)
+				{
+					shader_manager.create(x.asset, std::move(x.data));
 				}
 
 				void operator () (MessageRegisterTexture && /*x*/)
@@ -1125,12 +1129,6 @@ namespace
 		{
 			maybe_resize_framebuffer();
 		}
-
-		std::pair<engine::Token, ShaderData> shader_data_pair;
-		while (queue_shaders.try_pop(shader_data_pair))
-		{
-			shader_manager.create(shader_data_pair.first, std::move(shader_data_pair.second));
-		}
 	}
 }
 
@@ -1264,7 +1262,7 @@ namespace
 
 	void initialize_builtin_shaders()
 	{
-		ShaderData entity_shader_data;
+		engine::graphics::data::ShaderData entity_shader_data;
 		entity_shader_data.inputs.push_back({"in_vertex", 4});
 		entity_shader_data.inputs.push_back({"in_color", 5});
 		entity_shader_data.vertex_source = R"###(
@@ -1300,7 +1298,7 @@ void main()
 	out_entitytex = color;
 }
 )###";
-		queue_shaders.try_emplace(entity_shader, std::move(entity_shader_data));
+		debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterShader>, entity_shader_asset, std::move(entity_shader_data)));
 	}
 
 	void render_setup()
@@ -1362,7 +1360,7 @@ void main()
 		//  entity buffer
 		//
 		////////////////////////////////////////
-		const auto entity_program = shader_manager.get(entity_shader);
+		const auto entity_program = shader_manager.get(entity_shader_asset);
 		if (debug_assert(entity_program >= 0))
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
@@ -1754,21 +1752,6 @@ namespace engine
 					}
 
 					render_teardown();
-				}
-
-				void shader_callback(core::ReadStream && stream, utility::any & /*data*/, engine::Asset debug_expression(match))
-				{
-					if (!debug_assert(match == engine::Asset(".glsl")))
-						return;
-
-					const auto filename = core::file::filename(stream.filepath());
-					const auto asset = engine::Asset(filename);
-
-					ShaderData shader;
-					core::ShaderStructurer structurer(std::move(stream));
-					structurer.read(shader);
-
-					queue_shaders.try_emplace(asset, std::move(shader));
 				}
 			}
 		}

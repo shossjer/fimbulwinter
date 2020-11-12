@@ -104,6 +104,8 @@ set(HEADERS_ENGINE
 	src/engine/audio/system.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
+	src/engine/file/common.hpp
+	src/engine/file/scoped_directory.hpp
 	src/engine/file/system.hpp
 	src/engine/graphics/config.hpp
 	src/engine/graphics/message.hpp

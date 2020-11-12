@@ -1,33 +1,18 @@
 #include "config.h"
 
-#include "core/color.hpp"
 #include "core/async/Thread.hpp"
 #include "core/container/Queue.hpp"
-#include "core/container/Collection.hpp"
-#include "core/container/ExchangeQueue.hpp"
-#include "core/container/Stack.hpp"
-#include "core/file/paths.hpp"
-#include "core/JsonStructurer.hpp"
-#include "core/maths/Vector.hpp"
-#include "core/maths/algorithm.hpp"
 #include "core/sync/Event.hpp"
 
 #include "engine/Command.hpp"
 #include "engine/debug.hpp"
-#include "engine/file/system.hpp"
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/renderer.hpp"
-#include "engine/graphics/viewer.hpp"
-#include "engine/HashTable.hpp"
 
-#include "utility/any.hpp"
 #include "utility/variant.hpp"
 
 #include <atomic>
-#include <fstream>
 #include <utility>
-
-static_hashes("material directory", "shader directory");
 
 namespace engine
 {
@@ -43,8 +28,6 @@ namespace engine
 			namespace opengl_30
 			{
 				extern void run();
-
-				extern void shader_callback(core::ReadStream && stream, utility::any & data, engine::Asset match);
 			}
 		}
 	}
@@ -63,43 +46,12 @@ namespace engine
 			std::atomic<int> entitytoggle;
 
 			engine::application::window * window = nullptr;
-			engine::file::system * filesystem = nullptr;
-			void (* callback_select)(engine::Token entity, engine::Command command, utility::any && data) = nullptr;
+			void (* callback_select)(engine::Token entity, engine::Command command, utility::any && data) = nullptr; // todo replace with task
 
 			core::async::Thread renderThread;
 			std::atomic_int active(0);
 			core::sync::Event<true> event;
 		}
-	}
-}
-
-namespace
-{
-	engine::graphics::renderer::Type type;
-
-	void material_callback(core::ReadStream && stream, utility::any & data, engine::Asset match)
-	{
-		if (!debug_assert(data.type_id() == utility::type_id<engine::graphics::renderer *>()))
-			return;
-
-		engine::graphics::data::MaterialAsset material;
-
-		switch (match)
-		{
-		case engine::Hash(".json"):
-		{
-			core::JsonStructurer structurer(std::move(stream));
-			structurer.read(material);
-			break;
-		}
-		default:
-			debug_unreachable("unknown match ", match);
-		}
-
-		const auto filename = core::file::filename(stream.filepath());
-		const auto asset = engine::Asset(filename);
-
-		engine::graphics::post_register_material(*utility::any_cast<engine::graphics::renderer *>(data), asset, std::move(material));
 	}
 }
 
@@ -117,16 +69,12 @@ namespace engine
 			renderThread.join();
 
 			detail::callback_select = nullptr;
-			detail::filesystem = nullptr;
 			detail::window = nullptr;
 		}
 
-		renderer::renderer(engine::application::window & window_, engine::file::system & filesystem_, void (* callback_select_)(engine::Token entity, engine::Command command, utility::any && data), Type type_)
+		renderer::renderer(engine::application::window & window_, void (*callback_select_)(engine::Token entity, engine::Command command, utility::any && data), Type type)
 		{
-			type = type_;
-
 			detail::window = &window_;
-			detail::filesystem = &filesystem_;
 			detail::callback_select = callback_select_;
 
 			switch (type)
@@ -145,42 +93,6 @@ namespace engine
 		void update(renderer &)
 		{
 			event.set();
-		}
-
-		// todo remove dependency to file
-		void set_material_directory(renderer & renderer, utility::heap_string_utf8 && directory)
-		{
-			engine::file::register_directory(engine::Asset("material directory"), std::move(directory));
-			// todo unregister
-
-			engine::file::watch(engine::Asset("material directory"), u8"*.json", material_callback, utility::any(&renderer));
-		}
-
-		void unset_material_directory(renderer & /*renderer*/)
-		{
-			engine::file::unregister_directory(engine::Asset("material directory"));
-		}
-
-		// todo remove dependency to file
-		void set_shader_directory(renderer & /*renderer*/, utility::heap_string_utf8 && directory)
-		{
-			engine::file::register_directory(engine::Asset("shader directory"), std::move(directory));
-			// todo unregister
-
-			switch (type)
-			{
-			case renderer::Type::OPENGL_3_0:
-				engine::file::watch(engine::Asset("shader directory"), u8"*.glsl", opengl_30::shader_callback, utility::any());
-				break;
-			case renderer::Type::OPENGL_1_2:
-				// shaders not supported
-				break;
-			}
-		}
-
-		void unset_shader_directory(renderer & /*renderer*/)
-		{
-			engine::file::unregister_directory(engine::Asset("shader directory"));
 		}
 
 		void post_add_display(renderer &, engine::Token asset, data::display && data)
@@ -215,6 +127,10 @@ namespace engine
 		void post_register_mesh(renderer &, engine::Token asset, data::MeshAsset && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterMesh>, asset, std::move(data)));
+		}
+		void post_register_shader(renderer &, engine::Token asset, data::ShaderData && data)
+		{
+			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterShader>, asset, std::move(data)));
 		}
 		void post_register_texture(renderer &, engine::Token asset, core::graphics::Image && image)
 		{
