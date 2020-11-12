@@ -2,8 +2,10 @@
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
+#include "engine/file/scoped_directory.hpp"
 #include "engine/file/system.hpp"
 #include "engine/HashTable.hpp"
+#include "engine/task/scheduler.hpp"
 
 #include "utility/any.hpp"
 
@@ -15,25 +17,40 @@ static_hashes("tmpdir");
 
 namespace
 {
-	struct temporary_directory
+	struct scoped_watch
 	{
+		engine::file::system & filesystem;
 		engine::Asset directory;
+		utility::heap_string_utf8 filepath;
+		engine::file::flags mode;
 
-		~temporary_directory()
+		~scoped_watch()
 		{
-			engine::file::unregister_directory(directory);
+			if (empty(filepath))
+			{
+				engine::file::remove_watch(filesystem, directory, mode);
+			}
+			else
+			{
+				engine::file::remove_watch(filesystem, directory, std::move(filepath), mode);
+			}
 		}
 
-		temporary_directory(engine::Asset directory)
-			: directory(directory)
-		{
-			engine::file::register_temporary_directory(directory);
-		}
+		explicit scoped_watch(engine::file::system & filesystem, engine::Asset directory, engine::file::flags mode)
+			: filesystem(filesystem)
+			, directory(directory)
+			, mode(mode)
+		{}
 
-		operator engine::Asset () const { return directory; }
+		explicit scoped_watch(engine::file::system & filesystem, engine::Asset directory, utility::heap_string_utf8 && filepath, engine::file::flags mode)
+			: filesystem(filesystem)
+			, directory(directory)
+			, filepath(std::move(filepath))
+			, mode(mode)
+		{}
 	};
 
-	void write_char(core::WriteStream && stream, utility::any && data)
+	void write_char(engine::file::system & /*filesystem*/, core::WriteStream && stream, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
 			return;
@@ -54,9 +71,11 @@ namespace
 
 TEST_CASE("file system can be created and destroyed", "[engine][file]")
 {
+	engine::task::scheduler taskscheduler(1);
+
 	for (int i = 0; i < 2; i++)
 	{
-		engine::file::system filesystem;
+		engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
 	}
 }
 
@@ -64,170 +83,108 @@ TEST_CASE("file system can be created and destroyed", "[engine][file]")
 
 TEST_CASE("file system can read files", "[engine][file]")
 {
-	engine::file::system filesystem;
-	temporary_directory tmpdir = engine::Asset("tmpdir");
+	engine::task::scheduler taskscheduler(1);
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));
 
 	SECTION("that are created before the read starts")
 	{
 		struct SyncData
 		{
-			int counts[3] = {};
-			int neither = 0;
-			core::sync::Event<true> events[3];
-		} sync_data;
+			int value = 0;
+			core::sync::Event<true> event;
+		} sync_data[2];
 
-		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(1)));
-		engine::file::write(tmpdir, u8"maybe.whatever", write_char, utility::any(char(2)));
-		engine::file::write(tmpdir, u8"whatever.exists", write_char, utility::any(char(4)));
+		engine::file::write(filesystem, tmpdir, u8"maybe.exists", engine::Asset{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
 		engine::file::read(
+			filesystem,
 			tmpdir,
-			u8"maybe.exists|maybe*|*.exists",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			u8"maybe.exists",
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				switch (match)
-				{
-				case engine::Hash("maybe.exists"):
-					sync_data.counts[0] += int(read_char(stream));
-					sync_data.events[0].set();
-					break;
-				case engine::Hash("maybe"):
-					sync_data.counts[1] += int(read_char(stream));
-					sync_data.events[1].set();
-					break;
-				case engine::Hash(".exists"):
-					sync_data.counts[2] += int(read_char(stream));
-					sync_data.events[2].set();
-					break;
-				default:
-					sync_data.neither = -100;
-					sync_data.events[0].set();
-					sync_data.events[1].set();
-					sync_data.events[2].set();
-				}
+				sync_data.value = stream.filepath() == u8"maybe.exists" ? int(read_char(stream)) : -1;
+				sync_data.event.set();
 			},
-			utility::any(&sync_data));
+			utility::any(sync_data + 0));
+		engine::file::read(
+			filesystem,
+			tmpdir,
+			u8"folder/maybe.exists",
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
 
-		REQUIRE(sync_data.events[0].wait(timeout));
-		REQUIRE(sync_data.events[1].wait(timeout));
-		REQUIRE(sync_data.events[2].wait(timeout));
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-		REQUIRE(sync_data.neither == 0);
+				sync_data.value = stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
+				sync_data.event.set();
+			},
+			utility::any(sync_data + 1));
 
-		CHECK(sync_data.counts[0] == 1);
-		CHECK(sync_data.counts[1] == 2);
-		CHECK(sync_data.counts[2] == 4);
+		REQUIRE(sync_data[0].event.wait(timeout));
+		REQUIRE(sync_data[1].event.wait(timeout));
+		CHECK(sync_data[0].value == 2);
+		CHECK(sync_data[1].value == 3);
 	}
 
-	SECTION("and be told when no matchings are possible with the `REPORT_MISSING` flag")
+	SECTION("and watch later changes")
 	{
 		struct SyncData
 		{
-			int count = 0;
+			int value = 0;
 			core::sync::Event<true> event;
 		} sync_data;
 
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+
 		engine::file::read(
+			filesystem,
 			tmpdir,
-			u8"maybe.exists",
-			[](core::ReadStream && /*stream*/, utility::any & data, engine::Asset match)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				switch (match)
-				{
-				case engine::Hash(""):
-					sync_data.count += 1;
-					break;
-				default:
-					sync_data.count = -100;
-				}
-				sync_data.event.set();
-			},
-			utility::any(&sync_data),
-			engine::file::flags::REPORT_MISSING);
-
-		REQUIRE(sync_data.event.wait(timeout));
-		REQUIRE(sync_data.count == 1);
-	}
-
-	SECTION("and only read the first match with the `ONCE_ONLY` flag")
-	{
-		struct SyncData
+			u8"folder/maybe.exists",
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 		{
-			int count = 0;
-			core::sync::Event<true> event;
-		} sync_data;
+			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+				return;
 
-		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(1)));
-		engine::file::write(tmpdir, u8"maybe.whatever", write_char, utility::any(char(1)));
-		engine::file::write(tmpdir, u8"whatever.exists", write_char, utility::any(char(1)));
+			auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-		engine::file::read(
-			tmpdir,
-			u8"maybe.exists|maybe*|*.exists",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				switch (match)
-				{
-				case engine::Hash("maybe.exists"):
-				case engine::Hash("maybe"):
-				case engine::Hash(".exists"):
-					sync_data.count += int(read_char(stream));
-					break;
-				default:
-					sync_data.count = -100;
-				}
-			},
+			sync_data.value = stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
+			sync_data.event.set();
+		},
 			utility::any(&sync_data),
-			engine::file::flags::ONCE_ONLY);
+			engine::file::flags::ADD_WATCH | engine::file::flags::RECURSE_DIRECTORIES);
 
-		engine::file::read(
-			tmpdir,
-			u8"maybe.exists",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				switch (match)
-				{
-				case engine::Hash("maybe.exists"):
-					sync_data.count += int(read_char(stream));
-					break;
-				default:
-					sync_data.count = -100;
-				}
-				sync_data.event.set();
-			},
-			utility::any(&sync_data));
+		scoped_watch watch(filesystem, tmpdir, u8"folder/maybe.exists", engine::file::flags::ADD_WATCH | engine::file::flags::RECURSE_DIRECTORIES);
 
 		REQUIRE(sync_data.event.wait(timeout));
-		REQUIRE(sync_data.count == 2);
+		CHECK(sync_data.value == 3);
+		sync_data.event.reset();
+
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(7)), engine::file::flags::OVERWRITE_EXISTING);
+
+		REQUIRE(sync_data.event.wait(timeout));
+		CHECK(sync_data.value == 7);
 	}
 }
 
-TEST_CASE("file system can watch files", "[engine][file]")
+TEST_CASE("file system can scan directories", "[engine][file]")
 {
-	engine::file::system filesystem;
-	temporary_directory tmpdir = engine::Asset("tmpdir");
+	engine::task::scheduler taskscheduler(1);
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));
 
-	SECTION("that are created both before and after the watch starts")
+	SECTION("that are empty")
 	{
 		struct SyncData
 		{
@@ -235,49 +192,41 @@ TEST_CASE("file system can watch files", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(tmpdir, u8"file.tmp", write_char, utility::any(char(1)));
-
-		engine::file::watch(
+		engine::file::scan(
+			filesystem,
 			tmpdir,
-			u8"file.tmp|file*|*.tmp",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
+		{
+			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+				return;
+
+			auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+			if (directory == engine::Asset("tmpdir"))
 			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				switch (match)
+				if (existing_files == u8"")
 				{
-				case engine::Hash("file.tmp"):
-				case engine::Hash("file"):
-				case engine::Hash(".tmp"):
-					sync_data.count += int(read_char(stream));
-				break;
-				default:
-					sync_data.count = -100;
+					sync_data.count = 1;
 				}
-				sync_data.event.set();
-			},
+				else
+				{
+					sync_data.count = -1;
+				}
+			}
+			else
+			{
+				sync_data.count = -1;
+			}
+			sync_data.event.set();
+		},
 			utility::any(&sync_data));
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);
-		sync_data.event.reset();
-
-		engine::file::write(tmpdir, u8"file.whatever", write_char, utility::any(char(2)));
-
-		REQUIRE(sync_data.event.wait(timeout));
-		REQUIRE(sync_data.count == 3);
-		sync_data.event.reset();
-
-		engine::file::write(tmpdir, u8"whatever.tmp", write_char, utility::any(char(4)));
-
-		REQUIRE(sync_data.event.wait(timeout));
-		REQUIRE(sync_data.count == 7);
 	}
 
-	SECTION("and be told when no matchings are possible with the `REPORT_MISSING` flag")
+	SECTION("and subdirectories")
 	{
 		struct SyncData
 		{
@@ -285,319 +234,210 @@ TEST_CASE("file system can watch files", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::watch(
+		engine::file::write(filesystem, tmpdir, u8"file.whatever", engine::Asset{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+
+		engine::file::scan(
+			filesystem,
 			tmpdir,
-			u8"maybe.exists",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
+		{
+			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+				return;
+
+			auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+			if (directory == engine::Asset("tmpdir"))
+			{
+				if (existing_files == u8"file.whatever;folder/maybe.exists" || existing_files == u8"folder/maybe.exists;file.whatever")
+				{
+					sync_data.count = 1;
+				}
+				else
+				{
+					sync_data.count = -1;
+				}
+			}
+			else
+			{
+				sync_data.count = -1;
+			}
+			sync_data.event.set();
+		},
+			utility::any(&sync_data),
+			engine::file::flags::RECURSE_DIRECTORIES);
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 1);
+	}
+
+	SECTION("and watch file changes")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::scan(
+			filesystem,
+			tmpdir,
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				switch (match)
+				if (directory == engine::Asset("tmpdir"))
 				{
-				case engine::Hash(""):
-					sync_data.count += 1;
-					break;
-				case engine::Hash("maybe.exists"):
-					sync_data.count += int(read_char(stream));
-					break;
-				default:
-					sync_data.count = -100;
+					if (existing_files == u8"")
+					{
+						sync_data.count = 1;
+					}
+					else if (existing_files == u8"file.whatever")
+					{
+						sync_data.count = 2;
+					}
+					else if (existing_files == u8"file.whatever;folder/maybe.exists" || existing_files == u8"folder/maybe.exists;file.whatever")
+					{
+						sync_data.count = 3;
+					}
+					else
+					{
+						sync_data.count = -1;
+					}
+				}
+				else
+				{
+					sync_data.count = -1;
 				}
 				sync_data.event.set();
 			},
 			utility::any(&sync_data),
-			engine::file::flags::REPORT_MISSING);
+			engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH);
+
+		scoped_watch watch(filesystem, tmpdir, engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH);
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);
 		sync_data.event.reset();
 
-		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(10)));
-
-		REQUIRE(sync_data.event.wait(timeout));
-		REQUIRE(sync_data.count == 11);
-		sync_data.event.reset();
-
-		engine::file::remove(tmpdir, u8"maybe.exists");
-
-		REQUIRE(sync_data.event.wait(timeout));
-		REQUIRE(sync_data.count == 12);
-	}
-
-	SECTION("and ignore those that already exist with the `IGNORE_EXISTING` flag")
-	{
-		struct SyncData
-		{
-			int count = 0;
-			core::sync::Event<true> event;
-		} sync_data;
-
-		engine::file::write(tmpdir, u8"already.existing", write_char, utility::any(char(1)));
-
-		engine::file::watch(
-			tmpdir,
-			u8"already.existing",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				switch (match)
-				{
-				case engine::Hash("already.existing"):
-					sync_data.count += int(read_char(stream));
-					break;
-				default:
-					sync_data.count = -100;
-				}
-				sync_data.event.set();
-			},
-			utility::any(&sync_data),
-			engine::file::flags::IGNORE_EXISTING);
-
-		engine::file::write(
-			tmpdir,
-			u8"already.existing",
-			[](core::WriteStream && stream, utility::any && data)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				sync_data.event.reset();
-
-				const char number = 2;
-				stream.write_all(&number, sizeof number);
-			},
-			utility::any(&sync_data),
-			engine::file::flags::OVERWRITE_EXISTING);
+		engine::file::write(filesystem, tmpdir, u8"file.whatever", engine::Asset{}, write_char, utility::any(char(2)));
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 2);
-	}
+		sync_data.event.reset();
 
-	SECTION("and only watch the first match with the `ONCE_ONLY` flag")
-	{
-		struct SyncData
-		{
-			int count = 0;
-			core::sync::Event<true> events[2];
-		} sync_data;
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
-		engine::file::write(tmpdir, u8"already.existing", write_char, utility::any(char(1)));
-		engine::file::write(tmpdir, u8"already.whatever", write_char, utility::any(char(1)));
-		engine::file::write(tmpdir, u8"whatever.existing", write_char, utility::any(char(1)));
-
-		engine::file::watch(
-			tmpdir,
-			u8"already.existing",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				switch (match)
-				{
-				case engine::Hash("already.existing"):
-					sync_data.count += int(read_char(stream));
-					sync_data.events[0].set();
-					break;
-				default:
-					sync_data.events[1].set();
-				}
-			},
-			utility::any(&sync_data),
-			engine::file::flags::ONCE_ONLY);
-
-		REQUIRE(sync_data.events[0].wait(timeout));
-		REQUIRE(!sync_data.events[1].wait(100));
-		REQUIRE(sync_data.count == 1);
-		sync_data.events[0].reset();
-
-		engine::file::watch(
-			tmpdir,
-			u8"maybe.exists|maybe*|*.exists",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				switch (match)
-				{
-				case engine::Hash("maybe.exists"):
-					sync_data.count += int(read_char(stream));
-					sync_data.events[0].set();
-					break;
-				default:
-					sync_data.events[1].set();
-				}
-			},
-			utility::any(&sync_data),
-			engine::file::flags::ONCE_ONLY);
-
-		engine::file::write(tmpdir, u8"maybe.exists", write_char, utility::any(char(2)));
-		engine::file::write(tmpdir, u8"maybe.whatever", write_char, utility::any(char(4)));
-		engine::file::write(tmpdir, u8"whatever.exists", write_char, utility::any(char(8)));
-
-		REQUIRE(sync_data.events[0].wait(timeout));
-		REQUIRE(!sync_data.events[1].wait(100));
+		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 3);
 	}
 }
 
 TEST_CASE("file system can write files", "[engine][file]")
 {
-	engine::file::system filesystem;
-	temporary_directory tmpdir = engine::Asset("tmpdir");
+	engine::task::scheduler taskscheduler(1);
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));
 
-	SECTION("without overwriting and be picked up by a watch")
+	SECTION("and ignore superfluous writes")
 	{
 		struct SyncData
 		{
-			int count = 0;
-			core::sync::Event<true> events[2];
+			int value = 0;
+			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::watch(
-			tmpdir,
-			u8"new.file",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				auto & sync_data = *utility::any_cast<SyncData *>(data);
-
-				switch (match)
-				{
-				case engine::Hash("new.file"):
-					sync_data.count += int(read_char(stream));
-					break;
-				default:
-					sync_data.count = -100;
-				}
-				sync_data.events[0].set();
-			},
-			utility::any(&sync_data),
-			engine::file::flags::ONCE_ONLY);
-
-		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(1)));
-
-		REQUIRE(sync_data.events[0].wait(timeout));
-		REQUIRE(sync_data.count == 1);
-
-		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(2))); // should not overwrite
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(3)));
 
 		engine::file::read(
+			filesystem,
 			tmpdir,
 			u8"new.file",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				switch (match)
-				{
-				case engine::Hash("new.file"):
-					sync_data.count += int(read_char(stream));
-					if (int(read_char(stream)) == -1 && stream.done())
-						break; // expected path when not appending
-				default:
-					sync_data.count = -100;
-				}
-				sync_data.events[1].set();
+				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) : -1;
+				sync_data.event.set();
 			},
 			utility::any(&sync_data));
 
-		REQUIRE(sync_data.events[1].wait(timeout));
-		REQUIRE(sync_data.count == 2);
+		REQUIRE(sync_data.event.wait(timeout));
+		CHECK(sync_data.value == 2 - 1);
 	}
 
 	SECTION("and overwrite those that already exist with the `OVERWRITE_EXISTING` flag")
 	{
 		struct SyncData
 		{
-			int count = 0;
+			int value = 0;
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(1)));
-		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(2)), engine::file::flags::OVERWRITE_EXISTING);
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::OVERWRITE_EXISTING);
 
 		engine::file::read(
+			filesystem,
 			tmpdir,
 			u8"new.file",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				switch (match)
-				{
-				case engine::Hash("new.file"):
-					sync_data.count += int(read_char(stream));
-					break;
-				default:
-					sync_data.count = -100;
-				}
+				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(&sync_data));
 
 		REQUIRE(sync_data.event.wait(timeout));
-		REQUIRE(sync_data.count == 2);
+		CHECK(sync_data.value == 3 - 1);
 	}
 
 	SECTION("and append to files with the `APPEND_EXISTING` flag")
 	{
 		struct SyncData
 		{
-			int count = 0;
+			int value = 0;
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(1)), engine::file::flags::APPEND_EXISTING);
-		engine::file::write(tmpdir, u8"new.file", write_char, utility::any(char(2)), engine::file::flags::APPEND_EXISTING);
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::APPEND_EXISTING);
 
 		engine::file::read(
+			filesystem,
 			tmpdir,
 			u8"new.file",
-			[](core::ReadStream && stream, utility::any & data, engine::Asset match)
+			engine::Asset{},
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				switch (match)
-				{
-				case engine::Hash("new.file"):
-					sync_data.count += int(read_char(stream));
-					sync_data.count += int(read_char(stream));
-					break;
-				default:
-					sync_data.count = -100;
-				}
+				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) + int(read_char(stream)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(&sync_data));
 
 		REQUIRE(sync_data.event.wait(timeout));
-		REQUIRE(sync_data.count == 3);
+		CHECK(sync_data.value == 5 - 1);
 	}
 }
 

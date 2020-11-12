@@ -23,11 +23,6 @@ namespace engine
 	{
 		class window;
 	}
-
-	namespace file
-	{
-		class system;
-	}
 }
 
 namespace utility
@@ -50,7 +45,7 @@ namespace engine
 
 		public:
 			~renderer();
-			renderer(engine::application::window & window, engine::file::system & filesystem, void (* callback_select)(engine::Token entity, engine::Command command, utility::any && data), Type type);
+			explicit renderer(engine::application::window & window, void (*callback_select)(engine::Token entity, engine::Command command, utility::any && data), Type type);
 		};
 
 		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)
@@ -124,40 +119,60 @@ namespace engine
 
 			struct MaterialAsset
 			{
-				struct material_opengl_12
-				{
-					utility::optional<uint32_t> diffuse;
-
-					static constexpr auto serialization()
-					{
-						return utility::make_lookup_table(
-							std::make_pair(utility::string_units_utf8("diffuse"), &material_opengl_12::diffuse)
-						);
-					}
-				};
-
-				struct material_opengl_30
-				{
-					utility::optional<uint32_t> diffuse;
-					engine::Asset shader;
-
-					static constexpr auto serialization()
-					{
-						return utility::make_lookup_table(
-							std::make_pair(utility::string_units_utf8("diffuse"), &material_opengl_30::diffuse),
-							std::make_pair(utility::string_units_utf8("shader"), &material_opengl_30::shader)
-						);
-					}
-				};
-
-				material_opengl_12 data_opengl_12;
-				material_opengl_30 data_opengl_30;
+				utility::optional<uint32_t> diffuse;
+				utility::optional<engine::Asset> shader;
 
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table(
-						std::make_pair(core::value_table<engine::graphics::renderer::Type>::get_key(engine::graphics::renderer::Type::OPENGL_1_2), &MaterialAsset::data_opengl_12),
-						std::make_pair(core::value_table<engine::graphics::renderer::Type>::get_key(engine::graphics::renderer::Type::OPENGL_3_0), &MaterialAsset::data_opengl_30)
+						std::make_pair(utility::string_units_utf8("diffuse"), &MaterialAsset::diffuse),
+						std::make_pair(utility::string_units_utf8("shader"), &MaterialAsset::shader)
+					);
+				}
+			};
+
+			struct ShaderData
+			{
+				struct FragmentOutput
+				{
+					utility::heap_string_utf8 name;
+					int value;
+
+					static constexpr auto serialization()
+					{
+						return make_lookup_table(
+							std::make_pair(utility::string_units_utf8("name"), &FragmentOutput::name),
+							std::make_pair(utility::string_units_utf8("value"), &FragmentOutput::value)
+						);
+					}
+				};
+
+				struct VertexInput
+				{
+					utility::heap_string_utf8 name;
+					int value;
+
+					static constexpr auto serialization()
+					{
+						return make_lookup_table(
+							std::make_pair(utility::string_units_utf8("name"), &VertexInput::name),
+							std::make_pair(utility::string_units_utf8("value"), &VertexInput::value)
+						);
+					}
+				};
+
+				std::vector<VertexInput> inputs;
+				std::vector<FragmentOutput> outputs;
+				utility::heap_string_utf8 vertex_source;
+				utility::heap_string_utf8 fragment_source;
+
+				static constexpr auto serialization()
+				{
+					return make_lookup_table(
+						std::make_pair(utility::string_units_utf8("inputs"), &ShaderData::inputs),
+						std::make_pair(utility::string_units_utf8("outputs"), &ShaderData::outputs),
+						std::make_pair(utility::string_units_utf8("vertex_source"), &ShaderData::vertex_source),
+						std::make_pair(utility::string_units_utf8("fragment_source"), &ShaderData::fragment_source)
 					);
 				}
 			};
@@ -201,13 +216,6 @@ namespace engine
 			};
 		}
 
-		// todo this feels hacky
-		void set_material_directory(renderer & renderer, utility::heap_string_utf8 && directory);
-		void unset_material_directory(renderer & renderer);
-		// todo this feels hacky
-		void set_shader_directory(renderer & renderer, utility::heap_string_utf8 && directory);
-		void unset_shader_directory(renderer & renderer);
-
 		// void notify(renderer & renderer, renderer::Camera2D && data);
 		// void notify(renderer & renderer, renderer::Camera3D && data);
 		// void notify(renderer & renderer, renderer::Viewport && data);
@@ -220,6 +228,7 @@ namespace engine
 		void post_register_character(renderer & renderer, engine::Token asset, engine::model::mesh_t && data);
 		void post_register_material(renderer & renderer, engine::Token asset, data::MaterialAsset && data);
 		void post_register_mesh(renderer & renderer, engine::Token asset, data::MeshAsset && data);
+		void post_register_shader(renderer & renderer, engine::Token asset, data::ShaderData && data);
 		void post_register_texture(renderer & renderer, engine::Token asset, core::graphics::Image && image);
 		//void post_unregister(renderer & renderer, engine::Token asset);
 

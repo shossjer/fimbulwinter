@@ -69,11 +69,6 @@ namespace
 
 		singelton.reset();
 	}
-
-	engine::task::scheduler_impl & get_impl(engine::task::scheduler & scheduler)
-	{
-		return *static_cast<engine::task::scheduler_impl *>(scheduler.ptr);
-	}
 }
 
 namespace
@@ -91,7 +86,7 @@ namespace
 				{
 					engine::task::scheduler scheduler(impl);
 					x.workcall(scheduler, x.strand, std::move(x.data));
-					scheduler.ptr = nullptr;
+					scheduler.detach();
 
 					return true;
 				}
@@ -125,40 +120,29 @@ namespace engine
 {
 	namespace task
 	{
-		scheduler::~scheduler()
+		scheduler_impl * scheduler::construct(ext::ssize thread_count)
 		{
-			if (ptr)
-			{
-				scheduler_impl & impl = get_impl(*this);
-
-				if (debug_verify(impl.queue.try_emplace(utility::in_place_type<Terminate>)))
-				{
-					impl.event.set();
-					impl.thread.join();
-				}
-				impl.event.reset();
-
-				destroy_impl(impl);
-			}
-		}
-
-		scheduler::scheduler(scheduler_impl & data)
-			: ptr(&data)
-		{
-		}
-
-		scheduler::scheduler(ext::ssize thread_count)
-			: ptr(create_impl())
-		{
-			if (!debug_verify(ptr))
-				return;
-
 			if (!debug_verify(0 < thread_count))
-				return;
+				return nullptr;
 
-			scheduler_impl & impl = get_impl(*this);
+			scheduler_impl * const impl = create_impl();
+			if (debug_verify(impl))
+			{
+				impl->thread = core::async::Thread(scheduler_thread, impl);
+			}
+			return impl;
+		}
 
-			impl.thread = core::async::Thread(scheduler_thread, &impl);
+		void scheduler::destruct(scheduler_impl & impl)
+		{
+			if (debug_verify(impl.queue.try_emplace(utility::in_place_type<Terminate>)))
+			{
+				impl.event.set();
+				impl.thread.join();
+			}
+			impl.event.reset();
+
+			destroy_impl(impl);
 		}
 
 		void post_work(
@@ -167,11 +151,9 @@ namespace engine
 			work_callback * workcall,
 			utility::any && data)
 		{
-			scheduler_impl & impl = get_impl(scheduler);
-
-			if (debug_verify(impl.queue.try_emplace(utility::in_place_type<Work>, strand, workcall, std::move(data))))
+			if (debug_verify(scheduler->queue.try_emplace(utility::in_place_type<Work>, strand, workcall, std::move(data))))
 			{
-				impl.event.set();
+				scheduler->event.set();
 			}
 		}
 	}

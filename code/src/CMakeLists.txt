@@ -65,6 +65,7 @@ set(SOURCES_ENGINE
 	src/engine/console.cpp
 	src/engine/console_kernel32.cpp
 	src/engine/console_posix.cpp
+	src/engine/file/loader.cpp
 	src/engine/file/system_dummy.cpp
 	src/engine/file/system_inotify.cpp
 	src/engine/file/system_kernel32.cpp
@@ -104,6 +105,9 @@ set(HEADERS_ENGINE
 	src/engine/audio/system.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
+	src/engine/file/loader.hpp
+	src/engine/file/scoped_directory.hpp
+	src/engine/file/scoped_library.hpp
 	src/engine/file/system.hpp
 	src/engine/graphics/config.hpp
 	src/engine/graphics/message.hpp

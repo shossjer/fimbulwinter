@@ -2,7 +2,6 @@
 
 #include "engine/application/config.hpp"
 #include "engine/application/window.hpp"
-#include "engine/file/system.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
 
@@ -20,8 +19,7 @@ TEST_CASE("Graphics Viewer can be created and destroyed", "[.engine][.graphics]"
 #else
 	engine::application::window window(config);
 #endif
-	engine::file::system filesystem;
-	engine::graphics::renderer renderer(window, filesystem, nullptr, engine::graphics::renderer::Type::OPENGL_1_2);
+	engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type::OPENGL_1_2);
 
 	for (int i = 0; i < 2; i++)
 	{

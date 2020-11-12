@@ -61,6 +61,12 @@ namespace engine
 				engine::graphics::data::MeshAsset mesh;
 			};
 
+			struct MessageRegisterShader
+			{
+				engine::Asset asset;
+				engine::graphics::data::ShaderData data;
+			};
+
 			struct MessageRegisterTexture
 			{
 				engine::Token asset;
@@ -151,6 +157,7 @@ namespace engine
 				MessageRegisterCharacter,
 				MessageRegisterMaterial,
 				MessageRegisterMesh,
+				MessageRegisterShader,
 				MessageRegisterTexture,
 
 				MessageCreateMaterialInstance,
