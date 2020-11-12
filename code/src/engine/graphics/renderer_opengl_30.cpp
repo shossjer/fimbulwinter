@@ -28,7 +28,9 @@
 #include "engine/graphics/viewer.hpp"
 #include "engine/HashTable.hpp"
 
+#include "utility/algorithm/find.hpp"
 #include "utility/any.hpp"
+#include "utility/functional/utility.hpp"
 #include "utility/lookup_table.hpp"
 #include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
@@ -74,7 +76,7 @@ namespace engine
 	}
 }
 
-static_hashes("box", "cuboid", "dude", "my_png", "photo", "__entity__");
+static_hashes("box", "cuboid", "dude", "my_png", "photo", "_entity_");
 
 namespace
 {
@@ -158,145 +160,149 @@ namespace
 #endif
 	};
 
-	struct ShaderData
-	{
-		struct FragmentOutput
-		{
-			utility::heap_string_utf8 name;
-			int value;
-
-			static constexpr auto serialization()
-			{
-				return make_lookup_table(
-					std::make_pair(utility::string_units_utf8("name"), &FragmentOutput::name),
-					std::make_pair(utility::string_units_utf8("value"), &FragmentOutput::value)
-					);
-			}
-		};
-
-		struct VertexInput
-		{
-			utility::heap_string_utf8 name;
-			int value;
-
-			static constexpr auto serialization()
-			{
-				return make_lookup_table(
-					std::make_pair(utility::string_units_utf8("name"), &VertexInput::name),
-					std::make_pair(utility::string_units_utf8("value"), &VertexInput::value)
-					);
-			}
-		};
-
-		std::vector<VertexInput> inputs;
-		std::vector<FragmentOutput> outputs;
-		utility::heap_string_utf8 vertex_source;
-		utility::heap_string_utf8 fragment_source;
-
-		static constexpr auto serialization()
-		{
-			return make_lookup_table(
-				std::make_pair(utility::string_units_utf8("inputs"), &ShaderData::inputs),
-				std::make_pair(utility::string_units_utf8("outputs"), &ShaderData::outputs),
-				std::make_pair(utility::string_units_utf8("vertex_source"), &ShaderData::vertex_source),
-				std::make_pair(utility::string_units_utf8("fragment_source"), &ShaderData::fragment_source)
-				);
-		}
-	};
-
 	struct ShaderManager
 	{
-		engine::Token assets[10];
-		GLint programs[10];
-		GLint vertices[10];
-		GLint fragments[10];
-		int count = 0;
-
-		GLint get(engine::Token asset) const
+		struct Data
 		{
-			for (int i = 0; i < count; i++)
-			{
-				if (assets[i] == asset)
-					return programs[i];
-			}
-			return -1;
+			GLint program;
+			GLint vertex;
+			GLint fragment;
+
+			utility::heap_vector<GLint, utility::heap_string_utf8> uniforms;
+		};
+
+		utility::heap_vector<engine::Asset, Data> shaders;
+
+		const Data * end() const { return shaders.end().second; }
+
+		const Data * find(engine::Asset asset) const
+		{
+			return ext::find_if(shaders, fun::first == asset).second;
 		}
 
-		GLint create(engine::Token asset, ShaderData && shader_data)
+		bool create(engine::Token asset, engine::graphics::data::ShaderData && shader_data)
 		{
-			if (!debug_verify(count < 10, "too many shaders"))
-				return -1;
+			if (!debug_verify(!ext::contains_if(shaders, fun::first == asset), "shader ", asset, " has already been created"))
+				return false;
 
-			GLint vs = glCreateShader(GL_VERTEX_SHADER);
+			if (!debug_verify(shaders.try_emplace_back()))
+				return false;
+
+			auto && shader = ext::back(shaders);
+			shader.first = asset;
+
+			shader.second.vertex = glCreateShader(GL_VERTEX_SHADER);
 			const char * vs_source = shader_data.vertex_source.data();
-			glShaderSource(vs, 1, &vs_source, nullptr);
-			glCompileShader(vs);
+			glShaderSource(shader.second.vertex, 1, &vs_source, nullptr);
+			glCompileShader(shader.second.vertex);
 			GLint vs_compile_status;
-			glGetShaderiv(vs, GL_COMPILE_STATUS, &vs_compile_status);
+			glGetShaderiv(shader.second.vertex, GL_COMPILE_STATUS, &vs_compile_status);
 			if (!vs_compile_status)
 			{
 				char buffer[1000];
 				int length;
-				glGetShaderInfoLog(vs, 1000, &length, buffer);
-				debug_printline("vertex shader entity failed to compile with: ", buffer);
+				glGetShaderInfoLog(shader.second.vertex, 1000, &length, buffer);
+
+				ext::pop_back(shaders);
+
+				return debug_fail("vertex shader entity failed to compile with: ", buffer);
 			}
 
-			GLint fs = glCreateShader(GL_FRAGMENT_SHADER);
+			shader.second.fragment = glCreateShader(GL_FRAGMENT_SHADER);
 			const char * fs_source = shader_data.fragment_source.data();
-			glShaderSource(fs, 1, &fs_source, nullptr);
-			glCompileShader(fs);
+			glShaderSource(shader.second.fragment, 1, &fs_source, nullptr);
+			glCompileShader(shader.second.fragment);
 			GLint fs_compile_status;
-			glGetShaderiv(fs, GL_COMPILE_STATUS, &fs_compile_status);
+			glGetShaderiv(shader.second.fragment, GL_COMPILE_STATUS, &fs_compile_status);
 			if (!fs_compile_status)
 			{
 				char buffer[1000];
 				int length;
-				glGetShaderInfoLog(fs, 1000, &length, buffer);
-				debug_printline("fragment shader entity failed to compile with: ", buffer);
+				glGetShaderInfoLog(shader.second.fragment, 1000, &length, buffer);
+
+				glDeleteShader(shader.second.vertex);
+				ext::pop_back(shaders);
+
+				return debug_fail("fragment shader entity failed to compile with: ", buffer);
 			}
 
-			GLint p = glCreateProgram();
-			glAttachShader(p, vs);
-			glAttachShader(p, fs);
+			shader.second.program = glCreateProgram();
+			glAttachShader(shader.second.program, shader.second.vertex);
+			glAttachShader(shader.second.program, shader.second.fragment);
 			for (const auto & input : shader_data.inputs)
 			{
-				glBindAttribLocation(p, input.value, input.name.data());
+				glBindAttribLocation(shader.second.program, input.value, input.name.data());
 			}
 			for (const auto & output : shader_data.outputs)
 			{
-				glBindFragDataLocation(p, output.value, output.name.data());
+				glBindFragDataLocation(shader.second.program, output.value, output.name.data());
 			}
-			glLinkProgram(p);
+			glLinkProgram(shader.second.program);
 			GLint p_link_status;
-			glGetProgramiv(p, GL_LINK_STATUS, &p_link_status);
+			glGetProgramiv(shader.second.program, GL_LINK_STATUS, &p_link_status);
 			if (!p_link_status)
 			{
 				char buffer[1000];
 				int length;
-				glGetProgramInfoLog(p, 1000, &length, buffer);
-				debug_printline("program entity failed to link with: ", buffer);
+				glGetProgramInfoLog(shader.second.program, 1000, &length, buffer);
+
+				glDeleteShader(shader.second.fragment);
+				glDeleteShader(shader.second.vertex);
+				ext::pop_back(shaders);
+
+				return debug_fail("program entity failed to link with: ", buffer);
 			}
 
 			if (!debug_assert(glGetError() == GL_NO_ERROR))
-				return -1;
-
-			const auto index = std::find(assets, assets + count, asset) - assets;
-			if (index < count)
 			{
-				glDeleteProgram(programs[index]);
-				glDeleteShader(fragments[index]);
-				glDeleteShader(vertices[index]);
-			}
-			else
-			{
-				count++;
-			}
-			assets[index] = asset;
-			programs[index] = p;
-			vertices[index] = vs;
-			fragments[index] = fs;
+				glDeleteProgram(shader.second.program);
+				glDeleteShader(shader.second.fragment);
+				glDeleteShader(shader.second.vertex);
+				ext::pop_back(shaders);
 
-			return p;
+				return false;
+			}
+
+			auto fragment_parser = rex::parse(shader_data.fragment_source);
+			while (true)
+			{
+				const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch(u8'/') >> ((rex::ch(u8'/') >> *!rex::newline >> rex::newline) | (rex::ch(u8'*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
+				if (uniform_declaration.first == uniform_declaration.second)
+					break;
+
+				fragment_parser.seek(uniform_declaration.second);
+				if (*uniform_declaration.first == u8'/')
+					continue;
+
+				const auto uniform_type = fragment_parser.match(+rex::word);
+				if (!uniform_type.first)
+					continue;
+
+				fragment_parser.seek(uniform_type.second);
+				const auto uniform_type_space_name = fragment_parser.match(+rex::blank);
+				if (!uniform_type_space_name.first)
+					continue;
+
+				fragment_parser.seek(uniform_type_space_name.second);
+				const auto uniform_name = fragment_parser.match(+rex::word);
+				if (!uniform_name.first)
+					continue;
+
+				fragment_parser.seek(uniform_name.second);
+				const auto uniform_semicolon = fragment_parser.match(*rex::blank >> rex::ch(u8';'));
+				if (!uniform_semicolon.first)
+					continue;
+
+				const auto type = utility::string_units_utf8(uniform_declaration.second, uniform_type.second);
+				const auto name = utility::string_units_utf8(uniform_type_space_name.second, uniform_name.second);
+
+				if (type == u8"sampler2D")
+				{
+					debug_verify(shader.second.uniforms.try_emplace_back(GL_TEXTURE_2D, utility::heap_string_utf8(name)));
+				}
+			}
+
+			return true;
 		}
 	};
 
@@ -1258,7 +1264,7 @@ namespace
 		return buffer;
 	}
 
-	constexpr const auto entity_shader = engine::Asset("__entity__");
+	constexpr const auto entity_shader_asset = engine::Asset("_entity_");
 
 	void initialize_builtin_shaders()
 	{
@@ -1345,8 +1351,6 @@ void main()
 		if (framebuffer_width == 0 || framebuffer_height == 0)
 			return;
 
-		const GLint p_tex = shader_manager.get(engine::Asset("res/gfx/texture.130.glsl"));
-
 		glStencilMask(0x000000ff);
 		// setup frame
 		glClearColor(0.f, 0.f, .1f, 0.f);
@@ -1360,8 +1364,8 @@ void main()
 		//  entity buffer
 		//
 		////////////////////////////////////////
-		const auto entity_program = shader_manager.get(entity_shader_asset);
-		if (debug_assert(entity_program >= 0))
+		const auto * const entity_shader = shader_manager.find(entity_shader_asset);
+		if (debug_assert(entity_shader != shader_manager.end()))
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
 			glViewport(0, 0, framebuffer_width, framebuffer_height);
@@ -1372,7 +1376,7 @@ void main()
 			glDisable(GL_LIGHTING);
 			glEnable(GL_DEPTH_TEST);
 
-			glUseProgram(entity_program);
+			glUseProgram(entity_shader->program);
 
 			for (const auto & display : displays.get<display_t>())
 			{
@@ -1381,7 +1385,7 @@ void main()
 				// setup 3D
 				glMatrixMode(GL_PROJECTION);
 				glLoadMatrix(display.projection_3d);
-				glUniform(entity_program, "projection_matrix", display.projection_3d);
+				glUniform(entity_shader->program, "projection_matrix", display.projection_3d);
 				glMatrixMode(GL_MODELVIEW);
 				modelview_matrix.load(display.view_3d);
 
@@ -1391,7 +1395,7 @@ void main()
 				{
 					modelview_matrix.push();
 					modelview_matrix.mult(component.object->modelview);
-					glUniform(entity_program, "modelview_matrix", modelview_matrix.top());
+					glUniform(entity_shader->program, "modelview_matrix", modelview_matrix.top());
 
 					const auto vertex_location = 4;
 					glEnableVertexAttribArray(vertex_location);
@@ -1422,7 +1426,7 @@ void main()
 				// setup 2D
 				glMatrixMode(GL_PROJECTION);
 				glLoadMatrix(display.projection_2d);
-				glUniform(entity_program, "projection_matrix", display.projection_2d);
+				glUniform(entity_shader->program, "projection_matrix", display.projection_2d);
 				glMatrixMode(GL_MODELVIEW);
 				modelview_matrix.load(display.view_2d);
 			}
@@ -1485,88 +1489,10 @@ void main()
 		glStencilFunc(GL_EQUAL, 0x00000000, 0x00000001);
 		//glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-		if (p_tex >= 0)
-		{
-		glUseProgram(p_tex);
-		glUniform(p_tex, "projection_matrix", display.projection_3d);
-		{
-			static int frame_count = 0;
-			frame_count++;
-
-			glUniform(p_tex, "time", static_cast<float>(frame_count) / 50.f);
-		}
-		glUniform(p_tex, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
-		for (auto & component : components.get<Character>())
-		{
-			modelview_matrix.push();
-			modelview_matrix.mult(component.object->modelview);
-			modelview_matrix.mult(component.mesh->modelview);
-			glUniform(p_tex, "modelview_matrix", modelview_matrix.top());
-
-			const auto entity = components.get_key(component);
-			const auto selected_it = find(selected_components, entity);
-			const bool is_highlighted = selected_it != selected_components.end() && selected_components.contains<highlighted_t>(selected_it);
-			const bool is_selected = selected_it != selected_components.end() && selected_components.contains<selected_t>(selected_it);
-			const bool is_interactible = find(selectable_components, entity) != selectable_components.end();
-
-			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
-			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
-
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-
-			glUniform(p_tex, "tex", 0);
-			glUniform(p_tex, "entitytex", 1);
-
-			const auto vertex_location = 5;// glGetAttribLocation(p_tex, "in_vertex");
-			const auto normal_location = 6;// glGetAttribLocation(p_tex, "in_normal");
-			const auto texcoord_location = 7;// glGetAttribLocation(p_tex, "in_texcoord");
-			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(normal_location);
-			glEnableVertexAttribArray(texcoord_location);
-			glVertexAttribPointer(
-				vertex_location,
-				3,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				component.object->vertices.data());
-			glVertexAttribPointer(
-				normal_location,
-				3,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				component.mesh->normals.data());
-			glVertexAttribPointer(
-				texcoord_location,
-				2,
-				GL_FLOAT,
-				GL_FALSE,
-				0,
-				component.mesh->coords.data());
-			glDrawElements(
-				GL_TRIANGLES,
-				debug_cast<GLsizei>(component.mesh->triangles.count()),
-				GL_UNSIGNED_SHORT, // TODO
-				component.mesh->triangles.data());
-			glDisableVertexAttribArray(texcoord_location);
-			glDisableVertexAttribArray(normal_location);
-			glDisableVertexAttribArray(vertex_location);
-
-			debug_assert(glGetError() == GL_NO_ERROR);
-
-			modelview_matrix.pop();
-		}
-		glUseProgram(0);
-		}
-
 		for (auto & component : components.get<MeshObject>())
 		{
 			engine::graphics::opengl::Color4ub color(0, 0, 0, 0);
-			engine::Token shader{};
+			engine::Token shader_asset{};
 
 			const auto material_it = find(materials, component.material);
 			if (material_it != materials.end())
@@ -1581,34 +1507,34 @@ void main()
 						if (auto * const color_class = resources.get<ColorClass>(resource_it))
 						{
 							color = color_class->diffuse;
-							shader = color_class->shader;
+							shader_asset = color_class->shader;
 						}
 						else if (auto * const shader_class = resources.get<ShaderClass>(resource_it))
 						{
-							shader = shader_class->shader;
+							shader_asset = shader_class->shader;
 						}
 					}
 				}
 			}
 
-			const GLint program = shader_manager.get(shader);
-			if (program < 0)
-				continue; // todo not ready yet
+			const auto * const shader = shader_manager.find(shader_asset);
+			if (shader == shader_manager.end())
+				continue; // todo not ready (yet?)
 
-			glUseProgram(program);
-			glUniform(program, "projection_matrix", display.projection_3d);
+			glUseProgram(shader->program);
+			glUniform(shader->program, "projection_matrix", display.projection_3d);
 			{
 				static int frame_count = 0;
 				frame_count++;
 
-				glUniform(program, "time", static_cast<float>(frame_count) / 50.f);
+				glUniform(shader->program, "time", static_cast<float>(frame_count) / 50.f);
 			}
-			glUniform(program, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
+			glUniform(shader->program, "dimensions", static_cast<float>(framebuffer_width), static_cast<float>(framebuffer_height));
 
 			modelview_matrix.push();
 			modelview_matrix.mult(component.object->modelview);
 			modelview_matrix.mult(component.mesh->modelview);
-			glUniform(program, "modelview_matrix", modelview_matrix.top());
+			glUniform(shader->program, "modelview_matrix", modelview_matrix.top());
 
 			const auto entity = components.get_key(component);
 			const auto selected_it = find(selected_components, entity);
@@ -1626,34 +1552,71 @@ void main()
 
 			const auto vertex_location = 5;
 			const auto normal_location = 6;
-			glEnableVertexAttribArray(vertex_location);
-			glEnableVertexAttribArray(normal_location);
+			const auto texcoord_location = 7;
+			if (0 < component.mesh->vertices.count())
+			{
+				glEnableVertexAttribArray(vertex_location);
+			}
+			if (0 < component.mesh->normals.count())
+			{
+				glEnableVertexAttribArray(normal_location);
+			}
+			if (0 < component.mesh->coords.count())
+			{
+				glEnableVertexAttribArray(texcoord_location);
+			}
 
-			const auto color_location = 7;
+			const auto color_location = 8;
 			glVertexAttrib4f(color_location, color[0] / 255.f, color[1] / 255.f, color[2] / 255.f, color[3] / 255.f);
 
-			glVertexAttribPointer(
-				vertex_location,
-				3, // todo support 2d coordinates?
-				BufferFormats[static_cast<int>(component.mesh->vertices.format())],
-				GL_FALSE,
-				0,
-				component.mesh->vertices.data());
-			glVertexAttribPointer(
-				normal_location,
-				3, // todo support 2d coordinates?
-				BufferFormats[static_cast<int>(component.mesh->normals.format())],
-				GL_FALSE,
-				0,
-				component.mesh->normals.data());
+			if (0 < component.mesh->vertices.count())
+			{
+				glVertexAttribPointer(
+					vertex_location,
+					3, // todo support 2d coordinates?
+					BufferFormats[static_cast<int>(component.mesh->vertices.format())],
+					GL_FALSE,
+					0,
+					component.mesh->vertices.data());
+			}
+			if (0 < component.mesh->normals.count())
+			{
+				glVertexAttribPointer(
+					normal_location,
+					3, // todo support 2d coordinates?
+					BufferFormats[static_cast<int>(component.mesh->normals.format())],
+					GL_FALSE,
+					0,
+					component.mesh->normals.data());
+			}
+			if (0 < component.mesh->coords.count())
+			{
+				glVertexAttribPointer(
+					texcoord_location,
+					2,
+					BufferFormats[static_cast<int>(component.mesh->coords.format())],
+					GL_FALSE,
+					0,
+					component.mesh->coords.data());
+			}
 			glDrawElements(
 				GL_TRIANGLES,
 				debug_cast<GLsizei>(component.mesh->triangles.count()),
 				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
 				component.mesh->triangles.data());
 
-			glDisableVertexAttribArray(normal_location);
-			glDisableVertexAttribArray(vertex_location);
+			if (0 < component.mesh->coords.count())
+			{
+				glDisableVertexAttribArray(texcoord_location);
+			}
+			if (0 < component.mesh->normals.count())
+			{
+				glDisableVertexAttribArray(normal_location);
+			}
+			if (0 < component.mesh->vertices.count())
+			{
+				glDisableVertexAttribArray(vertex_location);
+			}
 
 			modelview_matrix.pop();
 
