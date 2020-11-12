@@ -25,6 +25,7 @@ set(FILES_ENGINE
 	tst/engine/audio/system.cpp
 	tst/engine/console.cpp
 	tst/engine/Entity.cpp
+	tst/engine/file/loader.cpp
 	tst/engine/file/system.cpp
 	tst/engine/graphics/renderer.cpp
 	tst/engine/graphics/viewer.cpp
