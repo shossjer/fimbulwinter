@@ -593,13 +593,75 @@ namespace
 		{}
 	};
 
+	struct Texture
+	{
+		GLuint id;
+
+		~Texture()
+		{
+			if (id != GLuint(-1))
+			{
+				glDeleteTextures(1, &id);
+			}
+		}
+
+		Texture(Texture && other)
+			: id(std::exchange(other.id, GLuint(-1)))
+		{}
+
+		explicit Texture(core::graphics::Image && image)
+		{
+			glEnable(GL_TEXTURE_2D);
+
+			glGenTextures(1, &id);
+			glBindTexture(GL_TEXTURE_2D, id);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT/*GL_CLAMP*/);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT/*GL_CLAMP*/);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+			switch (image.color())
+			{
+			case core::graphics::ColorType::R:
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, image.width(), image.height(), 0, GL_RED, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				break;
+			case core::graphics::ColorType::RGB:
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_RGB, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				break;
+			case core::graphics::ColorType::RGBA:
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_RGBA, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				break;
+			default:
+				debug_fail("color type not supported");
+			}
+
+			glDisable(GL_TEXTURE_2D);
+
+			debug_assert(glGetError() == GL_NO_ERROR);
+		}
+
+		Texture & operator = (Texture && other)
+		{
+			if (id != GLuint(-1))
+			{
+				glDeleteTextures(1, &id);
+			}
+
+			id = std::exchange(other.id, GLuint(-1));
+
+			return *this;
+		}
+	};
+
 	core::container::UnorderedCollection
 	<
 		engine::Token,
-		utility::static_storage_traits<401>,
+		utility::static_storage_traits<801>,
 		utility::static_storage<100, mesh_t>,
 		utility::static_storage<100, ColorClass>,
-		utility::static_storage<100, ShaderClass>
+		utility::static_storage<100, ShaderClass>,
+		utility::static_storage<100, Texture>
 	>
 	resources;
 
@@ -607,11 +669,11 @@ namespace
 	struct ShaderMaterial
 	{
 		engine::graphics::opengl::Color4ub diffuse;
-		std::vector<engine::Token> textures;
+		utility::heap_vector<engine::Token> textures;
 
 		engine::Token materialclass;
 
-		explicit ShaderMaterial(uint32_t diffuse, std::vector<engine::Token> && textures, engine::Token materialclass)
+		explicit ShaderMaterial(uint32_t diffuse, utility::heap_vector<engine::Token> && textures, engine::Token materialclass)
 			: diffuse(diffuse >> 0 & 0x000000ff,
 				diffuse >> 8 & 0x000000ff,
 				diffuse >> 16 & 0x000000ff,
@@ -931,18 +993,14 @@ namespace
 					shader_manager.create(x.asset, std::move(x.data));
 				}
 
-				void operator () (MessageRegisterTexture && /*x*/)
+				void operator () (MessageRegisterTexture && x)
 				{
-					debug_fail("missing implementation");
+					if (!debug_verify(resources.emplace<Texture>(x.asset, std::move(x.image))))
+						return; // error
 				}
 
 				void operator () (MessageCreateMaterialInstance && x)
 				{
-					if (!debug_verify(find(resources, x.data.materialclass) != resources.end(), x.data.materialclass))
-						return; // error
-
-					std::vector<engine::Token> textures; // todo
-
 					auto material_it = find(materials, x.entity);
 					if (material_it != materials.end())
 					{
@@ -951,6 +1009,16 @@ namespace
 
 						materials.erase(material_it);
 					}
+
+					utility::heap_vector<engine::Asset> textures;
+					if (!debug_verify(textures.try_reserve(x.data.textures.size())))
+						return; // error
+
+					for (const auto & texture : x.data.textures)
+					{
+						textures.try_emplace_back(utility::no_failure, texture.texture);
+					}
+
 					debug_verify(materials.emplace<ShaderMaterial>(x.entity, x.data.diffuse, std::move(textures), x.data.materialclass));
 				}
 
@@ -1492,6 +1560,7 @@ void main()
 		for (auto & component : components.get<MeshObject>())
 		{
 			engine::graphics::opengl::Color4ub color(0, 0, 0, 0);
+			utility::static_vector<80, GLint> textures;
 			engine::Token shader_asset{};
 
 			const auto material_it = find(materials, component.material);
@@ -1500,6 +1569,18 @@ void main()
 				if (auto * const material = materials.get<ShaderMaterial>(material_it))
 				{
 					color = material->diffuse;
+					debug_assert(textures.try_reserve(material->textures.size()));
+					for (const auto & texture : material->textures)
+					{
+						const auto texture_it = find(resources, texture);
+						if (texture_it != resources.end())
+						{
+							if (const Texture * texture_ptr = resources.get<Texture>(texture_it))
+							{
+								textures.try_emplace_back(utility::no_failure, texture_ptr->id);
+							}
+						}
+					}
 
 					const auto resource_it = find(resources, material->materialclass);
 					if (resource_it != resources.end())
@@ -1545,10 +1626,27 @@ void main()
 			const auto status_flags_location = 4;
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
 
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, entitytexture);
-
-			glUniform(program, "entitytex", 0);
+			GLint texture_slot = 0;
+			const auto texture_it = textures.begin();
+			for (const auto & uniform : shader->uniforms)
+			{
+				switch (uniform.first)
+				{
+				case GL_TEXTURE_2D:
+					glActiveTexture(GL_TEXTURE0 + texture_slot);
+					if (uniform.second == u8"_Entity")
+					{
+						glBindTexture(GL_TEXTURE_2D, entitytexture);
+					}
+					else if (debug_verify(texture_it != textures.end()))
+					{
+						glBindTexture(GL_TEXTURE_2D, *texture_it);
+					}
+					glUniform(shader->program, uniform.second.data(), texture_slot);
+					texture_slot++;
+					break;
+				}
+			}
 
 			const auto vertex_location = 5;
 			const auto normal_location = 6;
