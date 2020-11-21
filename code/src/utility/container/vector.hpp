@@ -333,6 +333,16 @@ namespace utility
 		annotate_nodiscard
 		bool push_back(rvalue_reference p) { return try_emplace_back(std::move(p)); }
 
+		template <typename BeginIt, typename EndIt>
+		bool push_back(utility::no_failure_t, BeginIt begin, EndIt end)
+		{
+			for (; begin != end; ++begin)
+			{
+				try_emplace_back(utility::no_failure, *begin);
+			}
+			return true;
+		}
+
 		template <typename P>
 		annotate_nodiscard
 		bool insert(iterator it, P && p)
@@ -477,6 +487,32 @@ namespace ext
 
 	template <typename Data>
 	decltype(auto) empty(const utility::basic_vector<Data> & vector) { return vector.begin() == vector.end(); }
+
+	template <typename Data>
+	decltype(auto) front(utility::basic_vector<Data> & vector)
+	{
+		return *vector.begin();
+	}
+
+	template <typename Data>
+	decltype(auto) front(const utility::basic_vector<Data> & vector)
+	{
+		return *vector.begin();
+	}
+
+	template <typename Data>
+	decltype(auto) front(utility::basic_vector<Data> && vector)
+	{
+		using utility::iter_move;
+		return iter_move(vector.begin());
+	}
+
+	template <typename Data>
+	decltype(auto) front(const utility::basic_vector<Data> && vector)
+	{
+		using utility::iter_move;
+		return iter_move(vector.begin());
+	}
 
 	template <typename Data>
 	void pop_back(utility::basic_vector<Data> & vector)
