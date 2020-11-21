@@ -16,6 +16,36 @@ static_hashes("tmpdir");
 
 namespace
 {
+	struct scoped_watch
+	{
+		engine::file::system & filesystem;
+		engine::Asset directory;
+		utility::heap_string_utf8 filepath;
+
+		~scoped_watch()
+		{
+			if (empty(filepath))
+			{
+				engine::file::remove_watch(filesystem, directory);
+			}
+			else
+			{
+				engine::file::remove_watch(filesystem, directory, std::move(filepath));
+			}
+		}
+
+		explicit scoped_watch(engine::file::system & filesystem, engine::Asset directory)
+			: filesystem(filesystem)
+			, directory(directory)
+		{}
+
+		explicit scoped_watch(engine::file::system & filesystem, engine::Asset directory, utility::heap_string_utf8 && filepath)
+			: filesystem(filesystem)
+			, directory(directory)
+			, filepath(std::move(filepath))
+		{}
+	};
+
 	void write_char(core::WriteStream && stream, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
@@ -97,12 +127,201 @@ TEST_CASE("file system can read files", "[engine][file]")
 		CHECK(sync_data[0].value == 2);
 		CHECK(sync_data[1].value == 3);
 	}
+
+	SECTION("and watch later changes")
+	{
+		struct SyncData
+		{
+			int value = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+
+		engine::file::read(
+			filesystem,
+			tmpdir,
+			u8"folder/maybe.exists",
+			[](core::ReadStream && stream, utility::any & data)
+		{
+			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+				return;
+
+			auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+			sync_data.value = stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
+			sync_data.event.set();
+		},
+			utility::any(&sync_data),
+			engine::file::flags::ADD_WATCH | engine::file::flags::RECURSE_DIRECTORIES);
+
+		scoped_watch watch(filesystem, tmpdir, u8"folder/maybe.exists");
+
+		REQUIRE(sync_data.event.wait(timeout));
+		CHECK(sync_data.value == 3);
+		sync_data.event.reset();
+
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", write_char, utility::any(char(7)), engine::file::flags::OVERWRITE_EXISTING);
+
+		REQUIRE(sync_data.event.wait(timeout));
+		CHECK(sync_data.value == 7);
+	}
 }
 
-TEST_CASE("file system can watch files", "[engine][file]")
+TEST_CASE("file system can scan directories", "[engine][file]")
 {
 	engine::file::system filesystem(engine::file::directory::working_directory());
 	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));
+
+	SECTION("that are empty")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::scan(
+			filesystem,
+			tmpdir,
+			[](engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+		{
+			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+				return;
+
+			auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+			if (directory == engine::Asset("tmpdir"))
+			{
+				if (files == u8"")
+				{
+					sync_data.count = 1;
+				}
+				else
+				{
+					sync_data.count = -1;
+				}
+			}
+			else
+			{
+				sync_data.count = -1;
+			}
+			sync_data.event.set();
+		},
+			utility::any(&sync_data));
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 1);
+	}
+
+	SECTION("and subdirectories")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::write(filesystem, tmpdir, u8"file.whatever", write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+
+		engine::file::scan(
+			filesystem,
+			tmpdir,
+			[](engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+		{
+			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+				return;
+
+			auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+			if (directory == engine::Asset("tmpdir"))
+			{
+				if (files == u8"+file.whatever;+folder/maybe.exists" || files == u8"+folder/maybe.exists;+file.whatever")
+				{
+					sync_data.count = 1;
+				}
+				else
+				{
+					sync_data.count = -1;
+				}
+			}
+			else
+			{
+				sync_data.count = -1;
+			}
+			sync_data.event.set();
+		},
+			utility::any(&sync_data),
+			engine::file::flags::RECURSE_DIRECTORIES);
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 1);
+	}
+
+	SECTION("and watch file changes")
+	{
+		struct SyncData
+		{
+			int count = 0;
+			core::sync::Event<true> event;
+		} sync_data;
+
+		engine::file::scan(
+			filesystem,
+			tmpdir,
+			[](engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+			{
+				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+					return;
+
+				auto & sync_data = *utility::any_cast<SyncData *>(data);
+
+				if (directory == engine::Asset("tmpdir"))
+				{
+					if (files == u8"")
+					{
+						sync_data.count = 1;
+					}
+					else if (files == u8"+file.whatever")
+					{
+						sync_data.count = 2;
+					}
+					else if (files == u8"+folder/maybe.exists")
+					{
+						sync_data.count = 3;
+					}
+					else
+					{
+						sync_data.count = -1;
+					}
+				}
+				else
+				{
+					sync_data.count = -1;
+				}
+				sync_data.event.set();
+			},
+			utility::any(&sync_data),
+			engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH);
+
+		scoped_watch watch(filesystem, tmpdir);
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 1);
+		sync_data.event.reset();
+
+		engine::file::write(filesystem, tmpdir, u8"file.whatever", write_char, utility::any(char(2)));
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 2);
+		sync_data.event.reset();
+
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+
+		REQUIRE(sync_data.event.wait(timeout));
+		REQUIRE(sync_data.count == 3);
+	}
 }
 
 TEST_CASE("file system can write files", "[engine][file]")

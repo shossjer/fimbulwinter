@@ -42,6 +42,170 @@ namespace
 		{}
 	};
 
+	void CALLBACK Completion(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
+
+	struct ReadWatch
+	{
+		utility::heap_string_utfw filepath;
+		engine::file::read_callback * callback;
+		utility::any data;
+	};
+
+	struct ScanWatch
+	{
+		engine::file::scan_callback * callback;
+		utility::any data;
+	};
+
+	struct WatchData
+	{
+		OVERLAPPED overlapped;
+
+		utility::heap_string_utf8 subdir;
+		engine::file::flags flags; // 0-bit recurse
+		utility::heap_vector<utility::heap_string_utf8, ReadWatch> reads;
+		utility::heap_vector<engine::Asset, ScanWatch> scans;
+
+		std::aligned_storage_t<1024, alignof(DWORD)> buffer; // arbitrary
+
+		explicit WatchData(HANDLE hDirectory, utility::heap_string_utf8 && subdir, engine::file::flags flags)
+			: flags(flags)
+			, subdir(std::move(subdir))
+		{
+			overlapped.hEvent = hDirectory;
+		}
+
+		bool read()
+		{
+			DWORD notify_filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE;
+//#if MODE_DEBUG
+//			notify_filter |= FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_ACCESS | FILE_NOTIFY_CHANGE_CREATION | FILE_NOTIFY_CHANGE_SECURITY;
+//#endif
+			return debug_verify(
+				::ReadDirectoryChangesW(
+					overlapped.hEvent,
+					&buffer,
+					sizeof buffer,
+					flags & engine::file::flags::RECURSE_DIRECTORIES ? TRUE : FALSE,
+					notify_filter,
+					nullptr,
+					&overlapped,
+					Completion) != FALSE,
+				"failed with last error ", ::GetLastError());
+		}
+	};
+	static_assert(std::is_standard_layout<WatchData>::value, "WatchData must be pointer-interconvertible with OVERLAPPED!");
+	static_assert(offsetof(WatchData, overlapped) == 0, "");
+
+	utility::heap_vector<engine::Asset, WatchData *> watches;
+
+	WatchData * start_watch(engine::Asset id, const Path & path, engine::file::flags flags)
+	{
+		auto watch_it = ext::find_if(watches, fun::first == id);
+		if (watch_it != watches.end())
+			return *watch_it.second;
+
+		debug_printline("starting watch \"", utility::heap_narrow<utility::encoding_utf8>(path.filepath), "\"");
+		HANDLE hDirectory = ::CreateFileW(
+			path.filepath.data(),
+			FILE_LIST_DIRECTORY,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			nullptr,
+			OPEN_EXISTING,
+			FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
+			nullptr);
+		if (!debug_verify(hDirectory != INVALID_HANDLE_VALUE, "CreateFileW failed with last error ", ::GetLastError()))
+			return nullptr;
+
+		utility::heap_string_utf8 subdir;
+		if (!debug_verify(utility::try_narrow(utility::string_points_utfw(path.filepath.data() + path.root, path.filepath.data() + path.filepath.size()), subdir)))
+		{
+			debug_verify(::CloseHandle(hDirectory) != FALSE, "failed with last error ", ::GetLastError());
+			return nullptr;
+		}
+
+		WatchData * const data = new WatchData(hDirectory, std::move(subdir), flags);
+		if (!debug_assert(data))
+		{
+			debug_verify(::CloseHandle(hDirectory) != FALSE, "failed with last error ", ::GetLastError());
+			return nullptr;
+		}
+
+		if (!debug_verify(watches.try_emplace_back(id, data)))
+		{
+			delete data;
+			debug_verify(::CloseHandle(hDirectory) != FALSE, "failed with last error ", ::GetLastError());
+			return nullptr;
+		}
+
+		if (!data->read())
+		{
+			ext::pop_back(watches);
+			delete data;
+			debug_verify(::CloseHandle(hDirectory) != FALSE, "failed with last error ", ::GetLastError());
+			return nullptr;
+		}
+		return data;
+	}
+
+	bool stop_watch(decltype(watches.begin()) watch_it)
+	{
+		if (!debug_assert(watch_it != watches.end()))
+			return false;
+
+		if (::CancelIoEx((*watch_it.second)->overlapped.hEvent, &(*watch_it.second)->overlapped) == FALSE)
+		{
+			const auto error = ::GetLastError();
+			debug_verify(error == ERROR_NOT_FOUND, "CancelIoEx failed with last error ", error);
+			return false;
+		}
+		watches.erase(watch_it);
+
+		return true;
+	}
+
+	utility::heap_vector<char> changes_buffer;
+	HANDLE hEvent = nullptr;
+
+	void CALLBACK Completion(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
+	{
+		WatchData * const watch = reinterpret_cast<WatchData *>(lpOverlapped); // note fine since pointer-interconvertible
+
+		if (dwErrorCode != 0)
+		{
+			debug_assert(dwErrorCode == ERROR_OPERATION_ABORTED);
+			debug_assert(0 == dwNumberOfBytesTransfered);
+		}
+		else if (dwNumberOfBytesTransfered == 0)
+		{
+			debug_fail("scan needed"); // todo
+
+			if (watch->read())
+				return;
+		}
+		else
+		{
+			const DWORD size = (dwNumberOfBytesTransfered + (alignof(DWORD) - 1)) & ~(alignof(DWORD) - 1);
+			debug_assert(size <= sizeof watch->buffer);
+			const DWORD chunk_size = sizeof(LPVOID) + sizeof(DWORD) + size;
+
+			debug_assert(changes_buffer.size() % alignof(DWORD) == 0);
+			if (debug_verify(changes_buffer.try_reserve(changes_buffer.size() + chunk_size)))
+			{
+				changes_buffer.push_back(utility::no_failure, reinterpret_cast<const char *>(&watch), reinterpret_cast<const char *>(&watch) + sizeof(LPVOID));
+				changes_buffer.push_back(utility::no_failure, reinterpret_cast<const char *>(&chunk_size), reinterpret_cast<const char *>(&chunk_size) + sizeof(DWORD));
+				changes_buffer.push_back(utility::no_failure, reinterpret_cast<const char *>(&watch->buffer), reinterpret_cast<const char *>(&watch->buffer) + size);
+
+				debug_verify(::SetEvent(hEvent) != FALSE, "failed with last error ", ::GetLastError());
+			}
+			if (watch->read())
+				return;
+		}
+
+		debug_printline("deleting watch \"", watch->subdir, "\"");
+		delete watch;
+	}
+
 	struct Directory
 	{
 		Path path;
@@ -186,6 +350,9 @@ namespace
 				}
 				else
 				{
+					if (!debug_verify(files.try_push_back(L'+')))
+						return; // error
+
 					if (!debug_verify(files.try_append(subdir)))
 						return; // error
 
@@ -213,8 +380,32 @@ namespace
 		}
 	}
 
-	std::vector<char> changes_buffer;
-	HANDLE hEvent = nullptr;
+	bool read_file(utility::string_units_utfw filepath, utility::heap_string_utf8 && filepath_utf8, engine::file::read_callback * callback, utility::any & data)
+	{
+		HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+		if (!debug_verify(hFile != INVALID_HANDLE_VALUE, "CreateFileW \"", filepath_utf8, "\" failed with last error ", ::GetLastError()))
+			return false;
+
+		core::ReadStream stream(
+			[](void * dest, ext::usize n, void * data)
+		{
+			HANDLE hFile = reinterpret_cast<HANDLE>(data);
+
+			DWORD read;
+			if (!debug_verify(::ReadFile(hFile, dest, debug_cast<DWORD>(n), &read, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
+				return ext::ssize(-1);
+
+			return ext::ssize(read);
+		},
+			reinterpret_cast<void *>(hFile),
+			std::move(filepath_utf8));
+
+		callback(std::move(stream), data);
+
+		debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+		return true;
+	}
 
 	HANDLE hThread = nullptr;
 	bool active = false;
@@ -237,9 +428,13 @@ namespace
 			const char * buffer_end = buffer + changes_buffer.size();
 			while (buffer != buffer_end)
 			{
-				const std::size_t chunk_size = *reinterpret_cast<const DWORD *>(buffer);
+				WatchData * watch_data;
+				std::copy(buffer, buffer + sizeof(LPVOID), reinterpret_cast<char *>(&watch_data));
+				const std::size_t chunk_size = *reinterpret_cast<const DWORD *>(buffer + sizeof(LPVOID));
 
-				std::size_t offset = sizeof(DWORD) + sizeof(DWORD);
+				utility::heap_string_utf8 files;
+
+				std::size_t offset = sizeof(LPVOID) + sizeof(DWORD);
 				bool chunk_done = false;
 				while (!chunk_done)
 				{
@@ -254,20 +449,58 @@ namespace
 					const utility::string_points_utfw filename(info->FileName, info->FileNameLength / sizeof(wchar_t));
 
 					utility::heap_string_utf8 match_name;
+					if (!debug_verify(match_name.try_append(watch_data->subdir)))
+						continue;
 					if (!debug_verify(utility::try_narrow(filename, match_name)))
 						continue;
 
-#if MODE_DEBUG
+					// todo replace function
+					auto begin_name = match_name.begin() + watch_data->subdir.size();
+					const auto end_name = match_name.end();
+					while (true)
+					{
+						const auto slash = find(begin_name, end_name, '\\');
+						if (slash == end_name)
+							break;
+
+						*slash = '/';
+
+						begin_name = slash + 1;
+					}
+
 					switch (info->Action)
 					{
 					case FILE_ACTION_ADDED:
 						debug_printline("change FILE_ACTION_ADDED: ", match_name);
+						if (!debug_verify(files.try_push_back('+')))
+							continue;
+						if (!debug_verify(files.try_append(match_name)))
+							continue;
+						if (!debug_verify(files.try_push_back(';')))
+							continue;
 						break;
 					case FILE_ACTION_REMOVED:
 						debug_printline("change FILE_ACTION_REMOVED: ", match_name);
+						if (!debug_verify(files.try_push_back('-')))
+							continue;
+						if (!debug_verify(files.try_append(match_name)))
+							continue;
+						if (!debug_verify(files.try_push_back(';')))
+							continue;
 						break;
 					case FILE_ACTION_MODIFIED:
 						debug_printline("change FILE_ACTION_MODIFIED: ", match_name);
+						{
+							auto read_begin = watch_data->reads.begin();
+							auto read_end = watch_data->reads.end();
+							for (; read_begin != read_end; ++read_begin)
+							{
+								if (*read_begin.first == utility::string_units_utf8(match_name.data() + watch_data->subdir.size(), match_name.data() + match_name.size()))
+								{
+									read_file(read_begin.second->filepath, std::move(match_name), read_begin.second->callback, read_begin.second->data);
+								}
+							}
+						}
 						break;
 					case FILE_ACTION_RENAMED_OLD_NAME:
 						debug_printline("change FILE_ACTION_RENAMED_OLD_NAME: ", match_name);
@@ -278,15 +511,27 @@ namespace
 					default:
 						debug_unreachable("unknown action ", info->Action);
 					}
-#endif
 				}
 
+				debug_printline(files);
+
+				if (!empty(files))
+				{
+					auto scan_begin = watch_data->scans.begin();
+					auto scan_end = watch_data->scans.end();
+					for (; scan_begin != scan_end; ++scan_begin)
+					{
+						scan_begin.second->callback(*scan_begin.first, utility::heap_string_utf8(files, 0, files.size() - 1), scan_begin.second->data);
+					}
+				}
 				buffer += chunk_size;
 			}
 
 			debug_verify(::ResetEvent(hEvent) != FALSE, "failed with last error ", ::GetLastError());
 			changes_buffer.clear();
 		}
+
+		debug_assert(ext::empty(watches));
 
 		return 0;
 	}
@@ -460,15 +705,32 @@ namespace
 			struct
 			{
 				bool operator () (Directory & x) { x.share_count--; return x.share_count < 0; }
-				bool operator () (TemporaryDirectory & x) { purge_temporary_directory(x.path.filepath); return true; }
+				bool operator () (engine::Asset debug_expression(directory), TemporaryDirectory & x)
+				{
+					debug_expression(const auto watch_it = ext::find_if(watches, fun::first == directory));
+					if (!debug_assert(watch_it == watches.end(), "Watches need to be removed before directories"))
+					{
+						debug_expression(stop_watch(watch_it));
+					}
+
+					purge_temporary_directory(x.path.filepath); return true;
+				}
 			}
 			detach_alias;
 
 			const auto directory_is_unused = directories.call(directory_it, detach_alias);
 			if (directory_is_unused)
 			{
+				debug_expression(const auto watch_it = ext::find_if(watches, fun::first == alias_ptr->directory));
+				if (!debug_assert(watch_it == watches.end(), "Watches need to be removed before directories"))
+				{
+					debug_expression(stop_watch(watch_it));
+				}
+
 				directories.erase(directory_it);
 			}
+
+			aliases.erase(alias_it);
 		}
 	};
 
@@ -506,31 +768,88 @@ namespace
 			if (!debug_verify(utility::try_widen_append(x.filepath, filepath)))
 				return; // error
 
-			HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
-			if (!debug_verify(hFile != INVALID_HANDLE_VALUE, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\" failed with last error ", ::GetLastError()))
-				return; // error
-
 			utility::heap_string_utf8 filepath_utf8;
 			if (!debug_verify(utility::try_narrow(utility::string_points_utfw(filepath.data() + path.root, filepath.data() + filepath.size()), filepath_utf8)))
 				return; // error
 
-			core::ReadStream stream(
-				[](void * dest, ext::usize n, void * data)
+			// todo if x.filepath contains slashes the RECURSE_DIRECTORIES flag must be set or else there are inconsistencies with watch
+			if (!read_file(filepath, std::move(filepath_utf8), x.callback, x.data))
+				return; // error
+
+			if (x.mode & engine::file::flags::ADD_WATCH)
 			{
-				HANDLE hFile = reinterpret_cast<HANDLE>(data);
+				WatchData * const watch_data = start_watch(alias_ptr->directory, path, x.mode);
+				debug_verify(watch_data->reads.try_emplace_back(/*x.directory, */std::move(x.filepath), ReadWatch{std::move(filepath), x.callback, std::move(x.data)}));
+			}
+		}
+	};
 
-				DWORD read;
-				if (!debug_verify(::ReadFile(hFile, dest, debug_cast<DWORD>(n), &read, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
-					return ext::ssize(-1);
+	struct RemoveDirectoryWatch
+	{
+		engine::Asset directory;
 
-				return ext::ssize(read);
-			},
-				reinterpret_cast<void *>(hFile),
-				std::move(filepath_utf8));
+		static void NTAPI Callback(ULONG_PTR Parameter)
+		{
+			std::unique_ptr<RemoveDirectoryWatch> data(reinterpret_cast<RemoveDirectoryWatch *>(Parameter));
+			RemoveDirectoryWatch & x = *data;
 
-			x.callback(std::move(stream), x.data);
+			const auto alias_it = find(aliases, x.directory);
+			if (!debug_verify(alias_it != aliases.end()))
+				return; // error
 
-			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+			const auto alias_ptr = aliases.get<Alias>(alias_it);
+			if (!debug_assert(alias_ptr))
+				return;
+
+			const auto watch_it = ext::find_if(watches, fun::first == alias_ptr->directory);
+			if (!debug_verify(watch_it != watches.end()))
+				return; // error
+
+			const auto scan_it = ext::find_if((*watch_it.second)->scans, fun::first == x.directory);
+			if (!debug_verify(scan_it != (*watch_it.second)->scans.end()))
+				return; // error
+
+			(*watch_it.second)->scans.erase(scan_it);
+
+			if (ext::empty((*watch_it.second)->reads) && ext::empty((*watch_it.second)->scans))
+			{
+				stop_watch(watch_it);
+			}
+		}
+	};
+
+	struct RemoveFileWatch
+	{
+		engine::Asset directory;
+		utility::heap_string_utf8 filepath;
+
+		static void NTAPI Callback(ULONG_PTR Parameter)
+		{
+			std::unique_ptr<RemoveFileWatch> data(reinterpret_cast<RemoveFileWatch *>(Parameter));
+			RemoveFileWatch & x = *data;
+
+			const auto alias_it = find(aliases, x.directory);
+			if (!debug_verify(alias_it != aliases.end()))
+				return; // error
+
+			const auto alias_ptr = aliases.get<Alias>(alias_it);
+			if (!debug_assert(alias_ptr))
+				return;
+
+			const auto watch_it = ext::find_if(watches, fun::first == alias_ptr->directory);
+			if (!debug_verify(watch_it != watches.end()))
+				return; // error
+
+			const auto read_it = ext::find_if((*watch_it.second)->reads, fun::first == x.filepath);
+			if (!debug_verify(read_it != (*watch_it.second)->reads.end()))
+				return; // error
+
+			(*watch_it.second)->reads.erase(read_it);
+
+			if (ext::empty((*watch_it.second)->reads) && ext::empty((*watch_it.second)->scans))
+			{
+				stop_watch(watch_it);
+			}
 		}
 	};
 
@@ -568,6 +887,13 @@ namespace
 				return; // error
 
 			x.callback(x.directory, std::move(files_utf8), x.data);
+
+			// todo filesystem changes between the scan and the start of watch will not be detected
+			if (x.mode & engine::file::flags::ADD_WATCH)
+			{
+				WatchData * const watch_data = start_watch(alias_ptr->directory, path, x.mode);
+				debug_verify(watch_data->scans.try_emplace_back(x.directory, ScanWatch{x.callback, std::move(x.data)}));
+			}
 		}
 	};
 
@@ -674,6 +1000,11 @@ namespace
 		static void NTAPI Callback(ULONG_PTR Parameter)
 		{
 			std::unique_ptr<Terminate> data(reinterpret_cast<Terminate *>(Parameter));
+
+			for (auto watch_it = watches.begin(); watch_it != watches.end(); ++watch_it)
+			{
+				stop_watch(watch_it);
+			}
 
 			active = false;
 		}
@@ -838,6 +1169,27 @@ namespace engine
 			if (debug_assert(hThread != nullptr))
 			{
 				try_queue_apc<Read>(directory, std::move(filepath), callback, std::move(data), mode);
+			}
+		}
+
+		void remove_watch(
+			system & /*system*/,
+			engine::Asset directory)
+		{
+			if (debug_assert(hThread != nullptr))
+			{
+				try_queue_apc<RemoveDirectoryWatch>(directory);
+			}
+		}
+
+		void remove_watch(
+			system & /*system*/,
+			engine::Asset directory,
+			utility::heap_string_utf8 && filepath)
+		{
+			if (debug_assert(hThread != nullptr))
+			{
+				try_queue_apc<RemoveFileWatch>(directory, std::move(filepath));
 			}
 		}
 

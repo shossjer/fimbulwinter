@@ -227,6 +227,7 @@ namespace
 
 	struct AmbiguousFile
 	{
+		utility::heap_vector<engine::Asset> files;
 	};
 
 	struct DirectoryFile
@@ -525,91 +526,171 @@ namespace
 						if (!debug_assert(split != begin, "unexpected file without name"))
 							return; // error
 
+						const auto type = *begin;
+						++begin;
+
 						const auto filepath = utility::string_units_utf8(begin, split);
 						const auto file_asset = engine::Asset(filepath);
 
-						const auto file_it = find(files, file_asset);
-						if (file_it != files.end())
+						switch (type)
 						{
-							files.call(file_it, ext::overload(
-								[&](AmbiguousFile & /*y*/)
+						case '+':
+						{
+							const auto file_it = find(files, file_asset);
+							if (file_it != files.end())
 							{
-								if (!debug_assert(find(begin, split, u8'.') == split))
-									return;
+								files.call(file_it, ext::overload(
+									[&](AmbiguousFile & /*y*/)
+								{
+									if (!debug_assert(find(begin, split, u8'.') == split))
+										return;
 
-								files.erase(file_it);
+									files.erase(file_it);
 
-								debug_printline(file_asset, " is known: ", filepath);
-								if (!debug_verify(files.emplace<KnownFile>(file_asset, x.dictionary, utility::heap_string_utf8(filepath))))
-									return; // error
-							},
-								[&](DirectoryFile & /*y*/)
-							{
-								debug_unreachable(file_asset, " has previously been registered as a directory");
-							},
-								[&](KnownFile & y)
-							{
-								debug_assert(y.dictionary == x.dictionary) && debug_assert(y.filepath == filepath);
-							},
-								[&](LoadingFile & y)
-							{
-								debug_assert(y.dictionary == x.dictionary) && debug_assert(y.filepath == filepath);
-							},
-								[&](LoadedFile & y)
-							{
-								debug_assert(y.dictionary == x.dictionary) && debug_assert(y.filepath == filepath);
-							},
-								[&](UniqueFile & /*y*/) // todo same as AmbiguousFile
-							{
-								if (!debug_assert(find(begin, split, u8'.') == split))
-									return;
+									debug_printline(file_asset, " is known: ", filepath);
+									if (!debug_verify(files.emplace<KnownFile>(file_asset, x.directory, utility::heap_string_utf8(filepath))))
+										return; // error
+								},
+									[&](DirectoryFile & /*y*/)
+								{
+									debug_unreachable(file_asset, " has previously been registered as a directory");
+								},
+									[&](KnownFile & y)
+								{
+									debug_assert(y.directory == x.directory) && debug_assert(y.filepath == filepath);
+								},
+									[&](LoadingFile & y)
+								{
+									debug_assert(y.directory == x.directory) && debug_assert(y.filepath == filepath);
+								},
+									[&](LoadedFile & y)
+								{
+									debug_assert(y.directory == x.directory) && debug_assert(y.filepath == filepath);
+								},
+									[&](UniqueFile & /*y*/) // todo same as AmbiguousFile
+								{
+									if (!debug_assert(find(begin, split, u8'.') == split))
+										return;
 
-								files.erase(file_it);
+									files.erase(file_it);
 
+									debug_printline(file_asset, " is known: ", filepath);
+									if (!debug_verify(files.emplace<KnownFile>(file_asset, x.directory, utility::heap_string_utf8(filepath))))
+										return; // error
+								}));
+							}
+							else
+							{
 								debug_printline(file_asset, " is known: ", filepath);
 								if (!debug_verify(files.emplace<KnownFile>(file_asset, x.directory, utility::heap_string_utf8(filepath))))
 									return; // error
-							}));
-						}
-						else
-						{
-							debug_printline(file_asset, " is known: ", filepath);
-							if (!debug_verify(files.emplace<KnownFile>(file_asset, x.dictionary, utility::heap_string_utf8(filepath))))
-								return; // error
 
-							const auto extension = rfind(begin, split, u8'.');
-							if (extension != split)
-							{
-								const auto radical = utility::string_units_utf8(begin, extension);
-								const auto radical_asset = engine::Asset(radical);
-
-								const auto radical_it = find(files, radical_asset);
-								if (radical_it != files.end())
+								const auto extension = rfind(begin, split, u8'.');
+								if (extension != split)
 								{
-									files.call(radical_it, ext::overload(
-										[&](AmbiguousFile & /*y*/)
-									{
-									},
-										[&](DirectoryFile & /*y*/) {},
-										[&](KnownFile & /*y*/) {},
-										[&](LoadingFile & /*y*/) {},
-										[&](LoadedFile & /*y*/) {},
-										[&](UniqueFile & /*y*/)
-									{
-										files.erase(radical_it);
+									const auto radical = utility::string_units_utf8(begin, extension);
+									const auto radical_asset = engine::Asset(radical);
 
-										debug_printline(file_asset, " is ambiguous: ", radical);
-										if (!debug_verify(files.emplace<AmbiguousFile>(radical_asset)))
+									const auto radical_it = find(files, radical_asset);
+									if (radical_it != files.end())
+									{
+										files.call(radical_it, ext::overload(
+											[&](AmbiguousFile & /*y*/)
+										{
+										},
+											[&](DirectoryFile & /*y*/) {},
+											[&](KnownFile & /*y*/) {},
+											[&](LoadingFile & /*y*/) {},
+											[&](LoadedFile & /*y*/) {},
+											[&](UniqueFile & /*y*/)
+										{
+											files.erase(radical_it);
+
+											debug_printline(file_asset, " is ambiguous: ", radical);
+											if (!debug_verify(files.emplace<AmbiguousFile>(radical_asset)))
+												return; // error
+										}));
+									}
+									else
+									{
+										debug_printline(file_asset, " is unique: ", radical);
+										if (!debug_verify(files.emplace<UniqueFile>(radical_asset, file_asset)))
 											return; // error
-									}));
-								}
-								else
-								{
-									debug_printline(file_asset, " is unique: ", radical);
-									if (!debug_verify(files.emplace<UniqueFile>(radical_asset, file_asset)))
-										return; // error
+									}
 								}
 							}
+							break;
+						}
+						case '-':
+							const auto file_it = find(files, file_asset);
+							if (debug_verify(file_it != files.end(), ""))
+							{
+								const auto extension = rfind(begin, split, u8'.');
+								if (extension != split)
+								{
+									const auto radical = utility::string_units_utf8(begin, extension);
+									const auto radical_asset = engine::Asset(radical);
+
+									const auto radical_it = find(files, radical_asset);
+									if (debug_verify(radical_it != files.end()))
+									{
+										files.call(radical_it, ext::overload(
+											[&](AmbiguousFile & y)
+										{
+											y.files.erase(ext::find(y.files, file_asset));
+
+											if (y.files.size() == 1)
+											{
+												const auto unique_file = ext::front(y.files);
+
+												files.erase(radical_it);
+
+												debug_printline(file_asset, " is unique: ", radical);
+												if (!debug_verify(files.emplace<UniqueFile>(radical_asset, unique_file)))
+													return; // error
+											}
+										},
+											[&](DirectoryFile & /*y*/) {},
+											[&](KnownFile & /*y*/) {},
+											[&](LoadingFile & /*y*/) {},
+											[&](LoadedFile & /*y*/) {},
+											[&](UniqueFile & /*y*/)
+										{
+											files.erase(radical_it);
+										}));
+									}
+								}
+
+								files.call(file_it, ext::overload(
+									[&](AmbiguousFile & /*y*/)
+								{
+									debug_fail(file_asset, " is ambigous?");
+								},
+									[&](DirectoryFile & /*y*/)
+								{
+									debug_unreachable(file_asset, " is a directory?");
+								},
+									[&](KnownFile & debug_expression(y))
+								{
+									if (debug_assert(y.directory == x.directory) && debug_assert(y.filepath == filepath))
+									{
+										files.erase(file_it);
+									}
+								},
+									[&](LoadingFile & y)
+								{
+									debug_assert(y.directory == x.directory) && debug_assert(y.filepath == filepath);
+								},
+									[&](LoadedFile & y)
+								{
+									debug_assert(y.directory == x.directory) && debug_assert(y.filepath == filepath);
+								},
+									[&](UniqueFile & /*y*/) // todo same as AmbiguousFile
+								{
+									debug_fail(file_asset, " is unique?");
+								}));
+							}
+							break;
 						}
 
 						if (split == end)
@@ -813,6 +894,10 @@ namespace
 
 					if (ext::empty(y.owners))
 					{
+#if MODE_DEBUG
+						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
+#endif
+
 						remove_loading_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(*y.data));
 					}
 				},
@@ -826,6 +911,10 @@ namespace
 
 					if (ext::empty(y.owners))
 					{
+#if MODE_DEBUG
+						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
+#endif
+
 						remove_loaded_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(y.data));
 					}
 				},
@@ -911,6 +1000,10 @@ namespace
 
 					if (ext::empty(y.owners))
 					{
+#if MODE_DEBUG
+						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
+#endif
+
 						remove_loading_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(*y.data));
 					}
 				},
@@ -924,6 +1017,10 @@ namespace
 
 					if (ext::empty(y.owners))
 					{
+#if MODE_DEBUG
+						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
+#endif
+
 						remove_loaded_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(y.data));
 					}
 				},
@@ -1015,6 +1112,10 @@ namespace
 
 					if (ext::empty(y.owners))
 					{
+#if MODE_DEBUG
+						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
+#endif
+
 						remove_loading_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(*y.data));
 					}
 				},
@@ -1028,6 +1129,10 @@ namespace
 
 					if (ext::empty(y.owners))
 					{
+#if MODE_DEBUG
+						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
+#endif
+
 						remove_loaded_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(y.data));
 					}
 				},
@@ -1206,12 +1311,12 @@ namespace engine
 
 		void unregister_library(loader & /*loader*/, engine::Asset directory)
 		{
+#if MODE_DEBUG
+			engine::file::remove_watch(*::module_filesystem, directory);
+#endif
+
 			debug_verify(queue.try_emplace(utility::in_place_type<MessageUnregisterLibrary>, directory));
 			event.set();
-
-#if MODE_DEBUG
-			//engine::file::stop_watch(directory);
-#endif
 		}
 
 		void load_global(

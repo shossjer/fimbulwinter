@@ -89,7 +89,7 @@ namespace engine
 		void register_temporary_directory(system & system, engine::Asset name);
 		void unregister_directory(system & system, engine::Asset name);
 
-		// mode ADD_WATCH
+		// mode ADD_WATCH | RECURSE_DIRECTORIES
 		void read(
 			system & system,
 			engine::Asset directory,
@@ -98,9 +98,17 @@ namespace engine
 			utility::any && data,
 			flags mode = flags{});
 
+		void remove_watch(
+			system & system,
+			engine::Asset directory);
+		void remove_watch(
+			system & system,
+			engine::Asset directory,
+			utility::heap_string_utf8 && filepath);
+
 		using scan_callback = void(
 			engine::Asset directory,
-			utility::heap_string_utf8 && filepath,
+			utility::heap_string_utf8 && files, // multiple files separated by ;
 			utility::any & data);
 
 		// mode IGNORE_EXISTING | ADD_WATCH | RECURSE_DIRECTORIES
