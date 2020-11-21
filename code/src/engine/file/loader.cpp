@@ -129,7 +129,7 @@ namespace
 {
 	struct MessageFileScan
 	{
-		engine::Asset dictionary;
+		engine::Asset directory;
 		utility::heap_string_utf8 files;
 	};
 
@@ -235,7 +235,7 @@ namespace
 
 	struct KnownFile
 	{
-		engine::Asset dictionary;
+		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 	};
 
@@ -245,7 +245,7 @@ namespace
 		engine::file::purge_callback * purgecall;
 		std::unique_ptr<utility::any> data; // todo
 
-		engine::Asset dictionary;
+		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 
 		utility::heap_vector<engine::Asset> owners;
@@ -261,7 +261,7 @@ namespace
 		engine::file::purge_callback * purgecall;
 		utility::any data;
 
-		engine::Asset dictionary;
+		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 
 		utility::heap_vector<engine::Asset> owners;
@@ -328,7 +328,7 @@ namespace
 
 			// todo replace
 			files.erase(file_it);
-			LoadingFile * const loading_file = files.emplace<LoadingFile>(file, readcall, purgecall, std::make_unique<utility::any>(std::move(data)), copy.dictionary, std::move(copy.filepath), std::move(owners), std::move(attachments), 0, INT_MIN);
+			LoadingFile * const loading_file = files.emplace<LoadingFile>(file, readcall, purgecall, std::make_unique<utility::any>(std::move(data)), copy.directory, std::move(copy.filepath), std::move(owners), std::move(attachments), 0, INT_MIN);
 			if (!debug_verify(loading_file))
 				return false; // error
 
@@ -337,7 +337,7 @@ namespace
 #else
 			const auto mode = engine::file::flags{};
 #endif
-			engine::file::read(*::module_filesystem, loading_file->dictionary, utility::heap_string_utf8(loading_file->filepath), ReadData::file_load, ReadData(owner, file, actual_file, loading_file->readcall, *loading_file->data), mode);
+			engine::file::read(*::module_filesystem, loading_file->directory, utility::heap_string_utf8(loading_file->filepath), ReadData::file_load, ReadData(owner, file, actual_file, loading_file->readcall, *loading_file->data), mode);
 
 			return true;
 		},
@@ -355,12 +355,12 @@ namespace
 		}));
 	}
 
-	bool promote_unknown_to_known(engine::Asset file, decltype(files.end()) file_it, engine::Asset dictionary, utility::heap_string_utf8 && filepath)
+	bool promote_unknown_to_known(engine::Asset file, decltype(files.end()) file_it, engine::Asset directory, utility::heap_string_utf8 && filepath)
 	{
 		// todo replace
 		files.erase(file_it);
 		// todo on failure the file is lost
-		return debug_verify(files.emplace<KnownFile>(file, dictionary, std::move(filepath)));
+		return debug_verify(files.emplace<KnownFile>(file, directory, std::move(filepath)));
 	}
 
 	bool promote_loading_to_loaded(engine::Asset file, decltype(files.end()) file_it, LoadingFile loading_file)
@@ -368,7 +368,7 @@ namespace
 		// todo replace
 		files.erase(file_it);
 		// todo on failure the file is lost
-		return debug_verify(files.emplace<LoadedFile>(file, loading_file.readcall, loading_file.purgecall, std::move(*loading_file.data), loading_file.dictionary, std::move(loading_file.filepath), std::move(loading_file.owners), std::move(loading_file.attachments)));
+		return debug_verify(files.emplace<LoadedFile>(file, loading_file.readcall, loading_file.purgecall, std::move(*loading_file.data), loading_file.directory, std::move(loading_file.filepath), std::move(loading_file.owners), std::move(loading_file.attachments)));
 	}
 
 	bool finish_loading(engine::Asset file, decltype(files.end()) file_it)
@@ -503,7 +503,7 @@ namespace
 		}
 	}
 
-	engine::Asset scanning_dictionary{};
+	engine::Asset scanning_directory{};
 	utility::heap_vector<Message> delayed_messages;
 
 	void process_message(Message && message)
@@ -512,7 +512,7 @@ namespace
 		{
 			void operator () (MessageFileScan && x)
 			{
-				scanning_dictionary = engine::Asset{};
+				scanning_directory = engine::Asset{};
 
 				auto begin = x.files.begin();
 				const auto end = x.files.end();
@@ -567,7 +567,7 @@ namespace
 								files.erase(file_it);
 
 								debug_printline(file_asset, " is known: ", filepath);
-								if (!debug_verify(files.emplace<KnownFile>(file_asset, x.dictionary, utility::heap_string_utf8(filepath))))
+								if (!debug_verify(files.emplace<KnownFile>(file_asset, x.directory, utility::heap_string_utf8(filepath))))
 									return; // error
 							}));
 						}
@@ -769,7 +769,7 @@ namespace
 
 			void operator () (MessageRegisterLibrary && x)
 			{
-				scanning_dictionary = x.directory;
+				scanning_directory = x.directory;
 
 				const auto file_it = find(files, x.directory);
 				if (file_it == files.end())
@@ -1050,9 +1050,9 @@ namespace
 		Message message;
 		while (queue.try_pop(message))
 		{
-			if (scanning_dictionary != engine::Asset{})
+			if (scanning_directory != engine::Asset{})
 			{
-				if (utility::holds_alternative<MessageFileScan>(message) && utility::get<MessageFileScan>(message).dictionary == scanning_dictionary)
+				if (utility::holds_alternative<MessageFileScan>(message) && utility::get<MessageFileScan>(message).directory == scanning_directory)
 				{
 					process_message(std::move(message));
 
@@ -1069,7 +1069,7 @@ namespace
 						{
 							for (auto it = begin; it != end; ++it)
 							{
-								if (utility::holds_alternative<MessageFileScan>(*it) && utility::get<MessageFileScan>(*it).dictionary == scanning_dictionary)
+								if (utility::holds_alternative<MessageFileScan>(*it) && utility::get<MessageFileScan>(*it).directory == scanning_directory)
 								{
 									process_message(std::move(*it));
 
