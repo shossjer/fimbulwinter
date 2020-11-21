@@ -754,7 +754,7 @@ namespace utility
 
 		friend bool operator == (const this_type & x, const this_type & other)
 		{
-			return compare(x.begin(), x.begin(), other.begin(), other.end()) == 0;
+			return compare(x.begin(), x.end(), other.begin(), other.end()) == 0;
 		}
 		friend bool operator == (const this_type & x, const value_type * s)
 		{
