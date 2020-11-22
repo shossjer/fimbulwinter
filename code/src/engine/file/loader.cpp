@@ -69,53 +69,15 @@ namespace ext
 
 namespace
 {
-	struct ReadDataGlobal
+	struct ReadData
 	{
 		engine::Asset file;
-		engine::Asset actual_file;
-		engine::file::load_callback * readcall;
-		utility::any & data;
+		engine::file::loading_callback * loadingcall;
+		utility::any & data; // todo this forces data to be stored in a unique_ptr
 
-		explicit ReadDataGlobal(engine::Asset /*owner*/, engine::Asset file, engine::Asset actual_file, engine::file::load_callback * readcall, utility::any & data)
+		explicit ReadData(engine::Asset file, engine::file::loading_callback * loadingcall, utility::any & data)
 			: file(file)
-			, actual_file(actual_file)
-			, readcall(readcall)
-			, data(data)
-		{}
-
-		static void file_load(core::ReadStream && stream, utility::any & data);
-	};
-
-	struct ReadDataLocal
-	{
-		engine::Asset file;
-		engine::Asset actual_file;
-		engine::file::load_callback * readcall;
-		utility::any & data;
-
-		explicit ReadDataLocal(engine::Asset /*owner*/, engine::Asset file, engine::Asset actual_file, engine::file::load_callback * readcall, utility::any & data)
-			: file(file)
-			, actual_file(actual_file)
-			, readcall(readcall)
-			, data(data)
-		{}
-
-		static void file_load(core::ReadStream && stream, utility::any & data);
-	};
-
-	struct ReadDataDependency
-	{
-		engine::Asset owner;
-		engine::Asset file;
-		engine::Asset actual_file;
-		engine::file::load_callback * readcall;
-		utility::any & data;
-
-		explicit ReadDataDependency(engine::Asset owner, engine::Asset file, engine::Asset actual_file, engine::file::load_callback * readcall, utility::any & data)
-			: owner(owner)
-			, file(file)
-			, actual_file(actual_file)
-			, readcall(readcall)
+			, loadingcall(loadingcall)
 			, data(data)
 		{}
 
@@ -136,8 +98,9 @@ namespace
 	struct MessageLoadGlobal
 	{
 		engine::Asset file;
-		engine::file::load_callback * readcall;
-		engine::file::purge_callback * purgecall;
+		engine::file::loading_callback * loadingcall;
+		engine::file::loaded_callback * loadedcall;
+		engine::file::unload_callback * unloadcall;
 		utility::any data;
 	};
 
@@ -145,8 +108,9 @@ namespace
 	{
 		engine::Asset owner;
 		engine::Asset file;
-		engine::file::load_callback * readcall;
-		engine::file::purge_callback * purgecall;
+		engine::file::loading_callback * loadingcall;
+		engine::file::loaded_callback * loadedcall;
+		engine::file::unload_callback * unloadcall;
 		utility::any data;
 	};
 
@@ -154,24 +118,14 @@ namespace
 	{
 		engine::Asset owner;
 		engine::Asset file;
-		engine::file::load_callback * readcall;
-		engine::file::purge_callback * purgecall;
+		engine::file::loading_callback * loadingcall;
+		engine::file::loaded_callback * loadedcall;
+		engine::file::unload_callback * unloadcall;
 		utility::any data;
 	};
 
-	struct MessageLoadGlobalDone
+	struct MessageLoadDone
 	{
-		engine::Asset file;
-	};
-
-	struct MessageLoadLocalDone
-	{
-		engine::Asset file;
-	};
-
-	struct MessageLoadDependencyDone
-	{
-		engine::Asset owner;
 		engine::Asset file;
 	};
 
@@ -208,9 +162,7 @@ namespace
 		MessageLoadGlobal,
 		MessageLoadLocal,
 		MessageLoadDependency,
-		MessageLoadGlobalDone,
-		MessageLoadLocalDone,
-		MessageLoadDependencyDone,
+		MessageLoadDone,
 		MessageRegisterLibrary,
 		MessageUnloadGlobal,
 		MessageUnloadLocal,
@@ -242,8 +194,8 @@ namespace
 
 	struct LoadingFile
 	{
-		engine::file::load_callback * readcall;
-		engine::file::purge_callback * purgecall;
+		engine::file::loading_callback * loadingcall;
+		utility::heap_vector<engine::Asset, engine::file::loaded_callback *, engine::file::unload_callback *> calls;
 		std::unique_ptr<utility::any> data; // todo
 
 		engine::Asset directory;
@@ -254,12 +206,21 @@ namespace
 
 		std::int32_t dependency_count; // the number of attachments that are required
 		std::int32_t done_count; // the number of loaded dependencies (the most significant bit is set if the file itself is not yet finished reading)
+
+		explicit LoadingFile(engine::file::loading_callback * loadingcall, utility::any && data, engine::Asset directory, utility::heap_string_utf8 && filepath)
+			: loadingcall(loadingcall)
+			, data(std::make_unique<utility::any>(std::move(data))) // todo
+			, directory(directory)
+			, filepath(std::move(filepath))
+			, dependency_count(0)
+			, done_count(INT_MIN)
+		{}
 	};
 
 	struct LoadedFile
 	{
-		engine::file::load_callback * readcall;
-		engine::file::purge_callback * purgecall;
+		engine::file::loading_callback * loadingcall;
+		utility::heap_vector<engine::Asset, engine::file::loaded_callback *, engine::file::unload_callback *> calls;
 		utility::any data;
 
 		engine::Asset directory;
@@ -304,8 +265,9 @@ namespace
 		engine::Asset file,
 		engine::Asset actual_file,
 		decltype(files.end()) file_it,
-		engine::file::load_callback * readcall,
-		engine::file::purge_callback * purgecall,
+		engine::file::loading_callback * loadingcall,
+		engine::file::loaded_callback * loadedcall,
+		engine::file::unload_callback * unloadcall,
 		utility::any && data)
 	{
 		return files.call(file_it, ext::overload(
@@ -319,36 +281,93 @@ namespace
 		},
 			[&](KnownFile & y)
 		{
-			utility::heap_vector<engine::Asset> owners;
-			if (!debug_verify(owners.try_emplace_back(owner)))
-				return false; // error
-
-			utility::heap_vector<engine::Asset> attachments;
-
 			KnownFile copy = std::move(y);
 
 			// todo replace
 			files.erase(file_it);
-			LoadingFile * const loading_file = files.emplace<LoadingFile>(file, readcall, purgecall, std::make_unique<utility::any>(std::move(data)), copy.directory, std::move(copy.filepath), std::move(owners), std::move(attachments), 0, INT_MIN);
+			LoadingFile * const loading_file = files.emplace<LoadingFile>(file, loadingcall, std::move(data), copy.directory, std::move(copy.filepath));
 			if (!debug_verify(loading_file))
 				return false; // error
+
+			if (!debug_verify(loading_file->calls.try_emplace_back(actual_file, loadedcall, unloadcall)))
+			{
+				files.erase(find(files, file));
+				return false; // error
+			}
+
+			if (!debug_verify(loading_file->owners.try_emplace_back(owner)))
+			{
+				files.erase(find(files, file));
+				return false; // error
+			}
 
 #if MODE_DEBUG
 			const auto mode = engine::file::flags::ADD_WATCH;
 #else
 			const auto mode = engine::file::flags{};
 #endif
-			engine::file::read(*::module_filesystem, loading_file->directory, utility::heap_string_utf8(loading_file->filepath), ReadData::file_load, ReadData(owner, file, actual_file, loading_file->readcall, *loading_file->data), mode);
+			engine::file::read(*::module_filesystem, loading_file->directory, utility::heap_string_utf8(loading_file->filepath), ReadData::file_load, ReadData(file, loading_file->loadingcall, *loading_file->data), mode);
 
 			return true;
 		},
 			[&](LoadingFile & y)
 		{
-			return debug_verify(y.owners.try_emplace_back(owner));
+			if (!debug_verify(y.calls.try_emplace_back(actual_file, loadedcall, unloadcall)))
+				return false;
+
+			if (!debug_verify(y.owners.try_emplace_back(owner)))
+			{
+				ext::pop_back(y.calls);
+				return false;
+			}
+
+			return true;
 		},
 			[&](LoadedFile & y)
 		{
-			return debug_verify(y.owners.try_emplace_back(owner));
+			if (!debug_verify(y.calls.try_emplace_back(actual_file, loadedcall, unloadcall)))
+				return false;
+
+			if (!debug_verify(y.owners.try_emplace_back(owner)))
+			{
+				ext::pop_back(y.calls);
+				return false; // error
+			}
+
+			loadedcall(y.data, actual_file);
+
+			utility::heap_vector<engine::Asset> relations;
+			if (!debug_verify(relations.try_reserve(1)))
+				return false; // error
+			relations.try_emplace_back(utility::no_failure, owner);
+
+			for (ext::index from = 0; static_cast<ext::usize>(from) != relations.size(); from++)
+			{
+				const auto owner_it = find(files, relations[from]);
+				if (owner_it == files.end())
+				{
+					if (debug_assert(relations[from] == global))
+						continue;
+
+					return debug_fail();
+				}
+
+				if (LoadingFile * const loading_owner = files.get<LoadingFile>(owner_it))
+				{
+					loading_owner->done_count++;
+					if (loading_owner->dependency_count == loading_owner->done_count)
+					{
+						if (!debug_verify(relations.try_reserve(relations.size() + loading_owner->owners.size())))
+							return false; // error
+						relations.push_back(utility::no_failure, loading_owner->owners.begin(), loading_owner->owners.end());
+
+						if (!promote_loading_to_loaded(relations[from], owner_it, std::move(*loading_owner)))
+							return false; // error
+					}
+				}
+			}
+
+			return true;
 		},
 			[&](UniqueFile & /*y*/) -> bool
 		{
@@ -369,138 +388,125 @@ namespace
 		// todo replace
 		files.erase(file_it);
 		// todo on failure the file is lost
-		return debug_verify(files.emplace<LoadedFile>(file, loading_file.readcall, loading_file.purgecall, std::move(*loading_file.data), loading_file.directory, std::move(loading_file.filepath), std::move(loading_file.owners), std::move(loading_file.attachments)));
-	}
-
-	bool finish_loading(engine::Asset file, decltype(files.end()) file_it)
-	{
-		LoadingFile * const loading_file = files.get<LoadingFile>(file_it);
-		if (!debug_assert(loading_file))
+		const auto loaded_file = files.emplace<LoadedFile>(file, loading_file.loadingcall, std::move(loading_file.calls), std::move(*loading_file.data), loading_file.directory, std::move(loading_file.filepath), std::move(loading_file.owners), std::move(loading_file.attachments));
+		if (!debug_verify(loaded_file))
 			return false;
 
-		loading_file->done_count &= INT32_MAX;
-		if (loading_file->dependency_count == loading_file->done_count)
+		for (auto && call : loaded_file->calls)
 		{
-			if (!promote_loading_to_loaded(file, file_it, std::move(*loading_file)))
-				return false; // error
+			std::get<1>(call)(loaded_file->data, std::get<0>(call));
 		}
+
 		return true;
 	}
 
-	void remove_loading_file(
+	void remove_file(
 		decltype(files.end()) file_it,
 		engine::Asset file,
 		utility::heap_vector<engine::Asset> && attachments,
-		engine::file::purge_callback * purgecall,
+		const utility::heap_vector<engine::Asset, engine::file::loaded_callback *, engine::file::unload_callback *> & calls,
 		utility::any && data)
 	{
-		struct Blob
-		{
-			engine::Asset file;
-			utility::heap_vector<engine::Asset> attachments;
-		};
-		utility::heap_vector<Blob> blobs;
-		if (!debug_verify(blobs.try_emplace_back(file, std::move(attachments))))
+		utility::heap_vector<engine::Asset, engine::Asset> dependencies;
+		if (!debug_verify(dependencies.try_reserve(attachments.size())))
 			return; // error
-
-		purgecall(std::move(data), file);
-
-		files.erase(file_it);
-
-		while (!ext::empty(blobs))
+		for (auto attachment : attachments)
 		{
-			const auto blob = ext::back(std::move(blobs));
-			ext::pop_back(blobs);
-
-			for (engine::Asset dependency : blob.attachments)
-			{
-				const auto dependency_it = find(files, dependency);
-				if (!debug_assert(dependency_it != files.end()))
-					break;
-
-				if (LoadedFile * const loaded_dependency_ptr = files.get<LoadedFile>(dependency_it))
-				{
-					const auto owner_it = ext::find(loaded_dependency_ptr->owners, blob.file);
-					if (!debug_assert(owner_it != loaded_dependency_ptr->owners.end()))
-						break;
-
-					loaded_dependency_ptr->owners.erase(owner_it);
-
-					if (ext::empty(loaded_dependency_ptr->owners))
-					{
-						if (!debug_verify(blobs.try_emplace_back(dependency, std::move(loaded_dependency_ptr->attachments))))
-							return; // error
-					}
-				}
-				else if (LoadingFile * const loading_dependency_ptr = files.get<LoadingFile>(dependency_it))
-				{
-					const auto owner_it = ext::find(loading_dependency_ptr->owners, blob.file);
-					if (!debug_assert(owner_it != loading_dependency_ptr->owners.end()))
-						break;
-
-					loading_dependency_ptr->owners.erase(owner_it);
-
-					if (ext::empty(loading_dependency_ptr->owners))
-					{
-						if (!debug_verify(blobs.try_emplace_back(dependency, std::move(loading_dependency_ptr->attachments))))
-							return; // error
-					}
-				}
-				else
-				{
-					debug_fail();
-				}
-			}
+			dependencies.try_emplace_back(utility::no_failure, file, attachment);
 		}
-	}
 
-	void remove_loaded_file(
-		decltype(files.end()) file_it,
-		engine::Asset file,
-		utility::heap_vector<engine::Asset> && attachments,
-		engine::file::purge_callback * purgecall,
-		utility::any && data)
-	{
-		struct Blob
+		for (auto && call : calls)
 		{
-			engine::Asset file;
-			utility::heap_vector<engine::Asset> attachments;
-		};
-		utility::heap_vector<Blob> blobs;
-		if (!debug_verify(blobs.try_emplace_back(file, std::move(attachments))))
-			return; // error
-
-		purgecall(std::move(data), file);
+			std::get<2>(call)(data, std::get<0>(call));
+		}
 
 		files.erase(file_it);
 
-		while (!ext::empty(blobs))
+		while (!ext::empty(dependencies))
 		{
-			const auto blob = ext::back(std::move(blobs));
-			ext::pop_back(blobs);
+			const utility::heap_vector<engine::Asset, engine::Asset>::value_type dependency = ext::back(std::move(dependencies));
+			ext::pop_back(dependencies);
 
-			for (engine::Asset dependency : blob.attachments)
+			const auto attachment_it = find(files, dependency.second);
+			if (!debug_assert(attachment_it != files.end()))
+				break;
+
+			files.call(attachment_it, ext::overload(
+				[&](AmbiguousFile & /*x*/)
 			{
-				const auto dependency_it = find(files, dependency);
-				if (!debug_assert(dependency_it != files.end()))
-					break;
+				debug_unreachable();
+			},
+				[&](DirectoryFile & /*x*/)
+			{
+				debug_unreachable();
+			},
+				[&](KnownFile & /*x*/)
+			{
+				debug_unreachable();
+			},
+				[&](LoadingFile & x)
+			{
+				const auto owner_it = ext::find(x.owners, dependency.first);
+				if (!debug_assert(owner_it != x.owners.end()))
+					return;
 
-				LoadedFile * const dependency_ptr = files.get<LoadedFile>(dependency_it);
-				if (!debug_assert(dependency_ptr))
-					break;
+				x.owners.erase(owner_it);
 
-				const auto owner_it = ext::find(dependency_ptr->owners, blob.file);
-				if (!debug_assert(owner_it != dependency_ptr->owners.end()))
-					break;
-
-				dependency_ptr->owners.erase(owner_it);
-
-				if (ext::empty(dependency_ptr->owners))
+				if (ext::empty(x.owners))
 				{
-					if (!debug_verify(blobs.try_emplace_back(dependency, std::move(dependency_ptr->attachments))))
+#if MODE_DEBUG
+					engine::file::remove_watch(*::module_filesystem, x.directory, std::move(x.filepath));
+#endif
+
+					if (!debug_verify(dependencies.try_reserve(dependencies.size() + x.attachments.size())))
 						return; // error
+					for (auto attachment : x.attachments)
+					{
+						dependencies.try_emplace_back(utility::no_failure, dependency.second, attachment);
+					}
+
+					for (auto && call : x.calls)
+					{
+						// todo the loading callback can be called as the same time as the unload callback, is this a problem?
+						std::get<2>(call)(*x.data, std::get<0>(call));
+					}
+
+					files.erase(attachment_it);
 				}
-			}
+			},
+				[&](LoadedFile & x)
+			{
+				const auto owner_it = ext::find(x.owners, dependency.first);
+				if (!debug_assert(owner_it != x.owners.end()))
+					return;
+
+				x.owners.erase(owner_it);
+
+				if (ext::empty(x.owners))
+				{
+#if MODE_DEBUG
+					engine::file::remove_watch(*::module_filesystem, x.directory, std::move(x.filepath));
+#endif
+
+					if (!debug_verify(dependencies.try_reserve(dependencies.size() + x.attachments.size())))
+						return; // error
+					for (auto attachment : x.attachments)
+					{
+						dependencies.try_emplace_back(utility::no_failure, dependency.second, attachment);
+					}
+
+					for (auto && call : x.calls)
+					{
+						std::get<2>(call)(x.data, std::get<0>(call));
+					}
+
+					files.erase(attachment_it);
+				}
+			},
+				[&](UniqueFile & /*x*/)
+			{
+				debug_unreachable();
+			}));
 		}
 	}
 
@@ -707,7 +713,7 @@ namespace
 				if (!debug_verify(underlying_file.second != files.end()))
 					return; // error
 
-				if (!load_file<ReadDataGlobal>(global, underlying_file.first, x.file, underlying_file.second, x.readcall, x.purgecall, std::move(x.data)))
+				if (!load_file<ReadData>(global, underlying_file.first, x.file, underlying_file.second, x.loadingcall, x.loadedcall, x.unloadcall, std::move(x.data)))
 					return; // error
 			}
 
@@ -749,7 +755,7 @@ namespace
 				if (!success)
 					return; // error
 
-				if (!load_file<ReadDataLocal>(underlying_owner.first, underlying_file.first, x.file, underlying_file.second, x.readcall, x.purgecall, std::move(x.data)))
+				if (!load_file<ReadData>(underlying_owner.first, underlying_file.first, x.file, underlying_file.second, x.loadingcall, x.loadedcall, x.unloadcall, std::move(x.data)))
 					return; // error
 				// todo undo on failure
 			}
@@ -798,53 +804,54 @@ namespace
 				if (!success)
 					return; // error
 
-				if (!load_file<ReadDataDependency>(underlying_owner.first, underlying_file.first, x.file, underlying_file.second, x.readcall, x.purgecall, std::move(x.data)))
+				if (!load_file<ReadData>(underlying_owner.first, underlying_file.first, x.file, underlying_file.second, x.loadingcall, x.loadedcall, x.unloadcall, std::move(x.data)))
 					return; // error
 				// todo undo on failure
 			}
 
-			void operator () (MessageLoadGlobalDone && x)
+			void operator () (MessageLoadDone && x)
 			{
-				const auto underlying_file = find_underlying_file(x.file);
-				if (!debug_verify(underlying_file.second != files.end()))
+				const auto file_it = find(files, x.file);
+				LoadingFile * const loading_file = files.get<LoadingFile>(file_it);
+				if (!debug_assert(loading_file))
 					return; // error
 
-				if (!finish_loading(underlying_file.first, underlying_file.second))
-					return; // error
-			}
-
-			void operator () (MessageLoadLocalDone && x)
-			{
-				const auto underlying_file = find_underlying_file(x.file);
-				if (!debug_verify(underlying_file.second != files.end()))
-					return; // error
-
-				if (!finish_loading(underlying_file.first, underlying_file.second))
-					return; // error
-			}
-
-			void operator () (MessageLoadDependencyDone && x)
-			{
-				const auto underlying_file = find_underlying_file(x.file);
-				if (!debug_verify(underlying_file.second != files.end()))
-					return; // error
-
-				if (!finish_loading(underlying_file.first, underlying_file.second))
-					return; // error
-
-				const auto owner_it = find(files, x.owner);
-				if (!debug_assert(owner_it != files.end()))
-					return;
-
-				LoadingFile * const loading_owner = files.get<LoadingFile>(owner_it);
-				if (!debug_assert(loading_owner))
-					return;
-
-				loading_owner->done_count++;
-				if (loading_owner->dependency_count == loading_owner->done_count)
+				loading_file->done_count &= INT32_MAX;
+				if (loading_file->dependency_count == loading_file->done_count)
 				{
-					if (!promote_loading_to_loaded(x.owner, owner_it, std::move(*loading_owner)))
+					utility::heap_vector<engine::Asset> relations;
+					if (!debug_verify(relations.try_reserve(loading_file->owners.size())))
 						return; // error
+					relations.push_back(utility::no_failure, loading_file->owners.begin(), loading_file->owners.end());
+
+					if (!promote_loading_to_loaded(x.file, file_it, std::move(*loading_file)))
+						return; // error
+
+					for (ext::index from = 0; static_cast<ext::usize>(from) != relations.size(); from++)
+					{
+						const auto owner_it = find(files, relations[from]);
+						if (owner_it == files.end())
+						{
+							if (debug_assert(relations[from] == global))
+								continue;
+
+							return;
+						}
+
+						if (LoadingFile * const loading_owner = files.get<LoadingFile>(owner_it))
+						{
+							loading_owner->done_count++;
+							if (loading_owner->dependency_count == loading_owner->done_count)
+							{
+								if (!debug_verify(relations.try_reserve(relations.size() + loading_owner->owners.size())))
+									return; // error
+								relations.push_back(utility::no_failure, loading_owner->owners.begin(), loading_owner->owners.end());
+
+								if (!promote_loading_to_loaded(relations[from], owner_it, std::move(*loading_owner)))
+									return; // error
+							}
+						}
+					}
 				}
 			}
 
@@ -898,7 +905,7 @@ namespace
 						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
 #endif
 
-						remove_loading_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(*y.data));
+						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(*y.data));
 					}
 				},
 					[&](LoadedFile & y)
@@ -915,7 +922,7 @@ namespace
 						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
 #endif
 
-						remove_loaded_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(y.data));
+						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(y.data));
 					}
 				},
 					[&](UniqueFile & /*y*/)
@@ -1004,7 +1011,7 @@ namespace
 						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
 #endif
 
-						remove_loading_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(*y.data));
+						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(*y.data));
 					}
 				},
 					[&](LoadedFile & y)
@@ -1021,7 +1028,7 @@ namespace
 						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
 #endif
 
-						remove_loaded_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(y.data));
+						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(y.data));
 					}
 				},
 					[&](UniqueFile & /*y*/)
@@ -1116,7 +1123,7 @@ namespace
 						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
 #endif
 
-						remove_loading_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(*y.data));
+						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(*y.data));
 					}
 				},
 					[&](LoadedFile & y)
@@ -1133,7 +1140,7 @@ namespace
 						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
 #endif
 
-						remove_loaded_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.purgecall, std::move(y.data));
+						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(y.data));
 					}
 				},
 					[&](UniqueFile & /*y*/)
@@ -1228,45 +1235,17 @@ namespace
 		event.set();
 	}
 
-	void ReadDataGlobal::file_load(core::ReadStream && stream, utility::any & data)
+	void ReadData::file_load(core::ReadStream && stream, utility::any & data)
 	{
-		ReadDataGlobal * const read_data = utility::any_cast<ReadDataGlobal>(&data);
+		ReadData * const read_data = utility::any_cast<ReadData>(&data);
 		if (!debug_assert(read_data))
 			return;
 
 		// todo abort if not needed anymore, query lock?
 
-		read_data->readcall(std::move(stream), read_data->data, read_data->actual_file);
+		read_data->loadingcall(std::move(stream), read_data->data, read_data->file);
 
-		debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadGlobalDone>, read_data->file));
-		event.set();
-	}
-
-	void ReadDataLocal::file_load(core::ReadStream && stream, utility::any & data)
-	{
-		ReadDataLocal * const read_data = utility::any_cast<ReadDataLocal>(&data);
-		if (!debug_assert(read_data))
-			return;
-
-		// todo abort if not needed anymore, query lock?
-
-		read_data->readcall(std::move(stream), read_data->data, read_data->actual_file);
-
-		debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadLocalDone>, read_data->file));
-		event.set();
-	}
-
-	void ReadDataDependency::file_load(core::ReadStream && stream, utility::any & data)
-	{
-		ReadDataDependency * const read_data = utility::any_cast<ReadDataDependency>(&data);
-		if (!debug_assert(read_data))
-			return;
-
-		// todo abort if not needed anymore, query lock?
-
-		read_data->readcall(std::move(stream), read_data->data, read_data->actual_file);
-
-		debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadDependencyDone>, read_data->owner, read_data->file));
+		debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadDone>, read_data->file));
 		event.set();
 	}
 }
@@ -1322,11 +1301,12 @@ namespace engine
 		void load_global(
 			loader & /*loader*/,
 			engine::Asset file,
-			load_callback * readcall,
-			purge_callback * purgecall,
+			loading_callback * loadingcall,
+			loaded_callback * loadedcall,
+			unload_callback * unloadcall,
 			utility::any && data)
 		{
-			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadGlobal>, file, readcall, purgecall, std::move(data)));
+			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadGlobal>, file, loadingcall, loadedcall, unloadcall, std::move(data)));
 			event.set();
 		}
 
@@ -1334,11 +1314,12 @@ namespace engine
 			loader & /*loader*/,
 			engine::Asset owner,
 			engine::Asset file,
-			load_callback * readcall,
-			purge_callback * purgecall,
+			loading_callback * loadingcall,
+			loaded_callback * loadedcall,
+			unload_callback * unloadcall,
 			utility::any && data)
 		{
-			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadLocal>, owner, file, readcall, purgecall, std::move(data)));
+			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadLocal>, owner, file, loadingcall, loadedcall, unloadcall, std::move(data)));
 			event.set();
 		}
 
@@ -1346,11 +1327,12 @@ namespace engine
 			loader & /*loader*/,
 			engine::Asset owner,
 			engine::Asset file,
-			load_callback * readcall,
-			purge_callback * purgecall,
+			loading_callback * loadingcall,
+			loaded_callback * loadedcall,
+			unload_callback * unloadcall,
 			utility::any && data)
 		{
-			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadDependency>, owner, file, readcall, purgecall, std::move(data)));
+			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadDependency>, owner, file, loadingcall, loadedcall, unloadcall, std::move(data)));
 			event.set();
 		}
 
