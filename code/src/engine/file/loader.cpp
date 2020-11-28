@@ -13,6 +13,7 @@
 #include "utility/variant.hpp"
 
 #include <atomic>
+#include <memory>
 
 namespace ext
 {
@@ -69,17 +70,13 @@ namespace ext
 
 namespace
 {
+	struct FiletypeCallback;
+	struct FileCallback;
+
 	struct ReadData
 	{
 		engine::Asset file;
-		engine::file::loading_callback * loadingcall;
-		utility::any & data; // todo this forces data to be stored in a unique_ptr
-
-		explicit ReadData(engine::Asset file, engine::file::loading_callback * loadingcall, utility::any & data)
-			: file(file)
-			, loadingcall(loadingcall)
-			, data(data)
-		{}
+		std::weak_ptr<FiletypeCallback> filetype_callback;
 
 		static void file_load(core::ReadStream && stream, utility::any & data);
 	};
@@ -97,36 +94,49 @@ namespace
 
 	struct MessageLoadGlobal
 	{
+		engine::Asset filetype;
 		engine::Asset file;
-		engine::file::loading_callback * loadingcall;
-		engine::file::loaded_callback * loadedcall;
-		engine::file::unload_callback * unloadcall;
+		engine::file::ready_callback * readycall;
+		engine::file::unready_callback * unreadycall;
 		utility::any data;
 	};
 
 	struct MessageLoadLocal
 	{
+		engine::Asset filetype;
 		engine::Asset owner;
 		engine::Asset file;
-		engine::file::loading_callback * loadingcall;
-		engine::file::loaded_callback * loadedcall;
-		engine::file::unload_callback * unloadcall;
+		engine::file::ready_callback * readycall;
+		engine::file::unready_callback * unreadycall;
 		utility::any data;
 	};
 
 	struct MessageLoadDependency
 	{
+		engine::Asset filetype;
 		engine::Asset owner;
 		engine::Asset file;
-		engine::file::loading_callback * loadingcall;
-		engine::file::loaded_callback * loadedcall;
-		engine::file::unload_callback * unloadcall;
+		engine::file::ready_callback * readycall;
+		engine::file::unready_callback * unreadycall;
 		utility::any data;
 	};
 
 	struct MessageLoadDone
 	{
 		engine::Asset file;
+	};
+
+	struct MessageLoadInit
+	{
+		engine::Asset file;
+	};
+
+	struct MessageRegisterFiletype
+	{
+		engine::Asset filetype;
+		engine::file::load_callback * loadcall;
+		engine::file::unload_callback * unloadcall;
+		utility::any data;
 	};
 
 	struct MessageRegisterLibrary
@@ -151,6 +161,11 @@ namespace
 		engine::Asset file;
 	};
 
+	struct MessageUnregisterFiletype
+	{
+		engine::Asset filetype;
+	};
+
 	struct MessageUnregisterLibrary
 	{
 		engine::Asset directory;
@@ -163,10 +178,13 @@ namespace
 		MessageLoadLocal,
 		MessageLoadDependency,
 		MessageLoadDone,
+		MessageLoadInit,
+		MessageRegisterFiletype,
 		MessageRegisterLibrary,
 		MessageUnloadGlobal,
 		MessageUnloadLocal,
 		MessageUnloadDependency,
+		MessageUnregisterFiletype,
 		MessageUnregisterLibrary
 	>;
 
@@ -176,6 +194,32 @@ namespace
 namespace
 {
 	engine::file::system * module_filesystem = nullptr;
+
+	struct FiletypeCallback
+	{
+		engine::file::load_callback * loadcall;
+		engine::file::unload_callback * unloadcall;
+		utility::any data;
+
+		explicit FiletypeCallback(engine::file::load_callback * loadcall, engine::file::unload_callback * unloadcall, utility::any data)
+			: loadcall(loadcall)
+			, unloadcall(unloadcall)
+			, data(std::move(data))
+		{}
+	};
+
+	struct Filetype
+	{
+		std::shared_ptr<FiletypeCallback> callback;
+	};
+
+	core::container::Collection
+	<
+		engine::Asset,
+		utility::heap_storage_traits,
+		utility::heap_storage<Filetype>
+	>
+	filetypes;
 
 	struct AmbiguousFile
 	{
@@ -194,40 +238,64 @@ namespace
 
 	struct LoadingFile
 	{
-		engine::file::loading_callback * loadingcall;
-		utility::heap_vector<engine::Asset, engine::file::loaded_callback *, engine::file::unload_callback *> calls;
-		std::unique_ptr<utility::any> data; // todo
+		engine::Asset filetype;
 
 		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 
+		utility::heap_vector<engine::Asset, engine::file::ready_callback *, engine::file::unready_callback *> calls;
+		utility::any data;
+
 		utility::heap_vector<engine::Asset> owners;
 		utility::heap_vector<engine::Asset> attachments;
 
-		std::int32_t dependency_count; // the number of attachments that are required
-		std::int32_t done_count; // the number of loaded dependencies (the most significant bit is set if the file itself is not yet finished reading)
+		std::int32_t previous_count; // the number of attachments after loading completed
+		std::int32_t remaining_count; // the remaining number of attachments that are required (the most significant bit is set if the file itself is not yet finished reading)
 
-		explicit LoadingFile(engine::file::loading_callback * loadingcall, utility::any && data, engine::Asset directory, utility::heap_string_utf8 && filepath)
-			: loadingcall(loadingcall)
-			, data(std::make_unique<utility::any>(std::move(data))) // todo
+		explicit LoadingFile(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, utility::any && data)
+			: filetype(filetype)
 			, directory(directory)
 			, filepath(std::move(filepath))
-			, dependency_count(0)
-			, done_count(INT_MIN)
+			, data(std::move(data))
+			, previous_count(-1)
+			, remaining_count(INT_MIN)
+		{}
+
+		explicit LoadingFile(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, utility::heap_vector<engine::Asset, engine::file::ready_callback *, engine::file::unready_callback *> && calls, utility::any && data, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+			: filetype(filetype)
+			, directory(directory)
+			, filepath(std::move(filepath))
+			, calls(std::move(calls))
+			, data(std::move(data))
+			, owners(std::move(owners))
+			, attachments(std::move(attachments))
+			, previous_count(static_cast<int32_t>(this->attachments.size()))
+			, remaining_count(INT_MIN)
 		{}
 	};
 
 	struct LoadedFile
 	{
-		engine::file::loading_callback * loadingcall;
-		utility::heap_vector<engine::Asset, engine::file::loaded_callback *, engine::file::unload_callback *> calls;
-		utility::any data;
+		engine::Asset filetype;
 
 		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 
+		utility::heap_vector<engine::Asset, engine::file::ready_callback *, engine::file::unready_callback *> calls;
+		utility::any data;
+
 		utility::heap_vector<engine::Asset> owners;
 		utility::heap_vector<engine::Asset> attachments;
+
+		explicit LoadedFile(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, utility::heap_vector<engine::Asset, engine::file::ready_callback *, engine::file::unready_callback *> && calls, utility::any && data, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+			: filetype(filetype)
+			, directory(directory)
+			, filepath(std::move(filepath))
+			, calls(std::move(calls))
+			, data(std::move(data))
+			, owners(std::move(owners))
+			, attachments(std::move(attachments))
+		{}
 	};
 
 	struct UniqueFile
@@ -259,37 +327,194 @@ namespace
 		return std::make_pair(file, file_it);
 	}
 
-	template <typename ReadData>
+	bool make_known(engine::Asset file, decltype(files.end()) file_it, engine::Asset directory, utility::heap_string_utf8 && filepath)
+	{
+		// todo replace
+		files.erase(file_it);
+		// todo on failure the file is lost
+		return debug_verify(files.emplace<KnownFile>(file, directory, std::move(filepath)));
+	}
+
+	bool make_loaded(engine::Asset file, decltype(files.end()) file_it, LoadingFile tmp)
+	{
+		// todo replace
+		files.erase(file_it);
+		// todo on failure the file is lost
+		const auto loaded_file = files.emplace<LoadedFile>(file, tmp.filetype, tmp.directory, std::move(tmp.filepath), std::move(tmp.calls), std::move(tmp.data), std::move(tmp.owners), std::move(tmp.attachments));
+		if (!debug_verify(loaded_file))
+			return false;
+
+		for (auto && call : loaded_file->calls)
+		{
+			std::get<1>(call)(loaded_file->data, std::get<0>(call));
+		}
+		return true;
+	}
+
+	bool make_loading(engine::Asset file, decltype(files.end()) file_it, LoadedFile tmp)
+	{
+		// todo replace
+		files.erase(file_it);
+		// todo on failure the file is lost
+		const auto loading_file = files.emplace<LoadingFile>(file, tmp.filetype, tmp.directory, std::move(tmp.filepath), std::move(tmp.calls), std::move(tmp.data), std::move(tmp.owners), std::move(tmp.attachments));
+		if (!debug_verify(loading_file))
+			return false;
+
+		for (auto && call : loading_file->calls)
+		{
+			std::get<2>(call)(loading_file->data, std::get<0>(call));
+		}
+		return true;
+	}
+
+	void remove_attachments(utility::heap_vector<engine::Asset, engine::Asset> && relations)
+	{
+		while (!ext::empty(relations))
+		{
+			const utility::heap_vector<engine::Asset, engine::Asset>::value_type relation = ext::back(std::move(relations));
+			ext::pop_back(relations);
+
+			const auto file_it = find(files, relation.second);
+			if (!debug_assert(file_it != files.end()))
+				break;
+
+			files.call(file_it, ext::overload(
+				[&](AmbiguousFile &)
+			{
+				debug_unreachable();
+			},
+				[&](DirectoryFile &)
+			{
+				debug_unreachable();
+			},
+				[&](KnownFile &)
+			{
+				debug_unreachable();
+			},
+				[&](LoadingFile & x)
+			{
+				const auto owner_it = ext::find(x.owners, relation.first);
+				if (!debug_assert(owner_it != x.owners.end()))
+					return;
+
+				x.owners.erase(owner_it);
+
+				if (ext::empty(x.owners))
+				{
+#if MODE_DEBUG
+					engine::file::remove_watch(*::module_filesystem, x.directory, std::move(x.filepath));
+#endif
+
+					for (auto && call : x.calls)
+					{
+						std::get<2>(call)(x.data, std::get<0>(call));
+					}
+					// note purposfully not call unload (since it has not been loaded)
+
+					if (debug_verify(relations.try_reserve(relations.size() + x.attachments.size())))
+					{
+						for (auto attachment : x.attachments)
+						{
+							relations.try_emplace_back(utility::no_failure, relation.second, attachment);
+						}
+					}
+
+					const auto directory = x.directory;
+					const auto filepath = std::move(x.filepath);
+
+					files.erase(file_it);
+					debug_verify(files.emplace<KnownFile>(relation.second, directory, std::move(filepath)));
+				}
+			},
+				[&](LoadedFile & x)
+			{
+				const auto owner_it = ext::find(x.owners, relation.first);
+				if (!debug_assert(owner_it != x.owners.end()))
+					return;
+
+				x.owners.erase(owner_it);
+
+				if (ext::empty(x.owners))
+				{
+#if MODE_DEBUG
+					engine::file::remove_watch(*::module_filesystem, x.directory, std::move(x.filepath));
+#endif
+
+					for (auto && call : x.calls)
+					{
+						std::get<2>(call)(x.data, std::get<0>(call));
+					}
+					const auto filetype_it = find(filetypes, x.filetype);
+					if (debug_assert(filetype_it != filetypes.end()))
+					{
+						Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
+						if (debug_assert(filetype_ptr))
+						{
+							FiletypeCallback * const filetype_callback = filetype_ptr->callback.get();
+							if (debug_assert(filetype_callback))
+							{
+								filetype_callback->unloadcall(filetype_callback->data, relation.second);
+							}
+						}
+					}
+
+					if (debug_verify(relations.try_reserve(relations.size() + x.attachments.size())))
+					{
+						for (auto attachment : x.attachments)
+						{
+							relations.try_emplace_back(utility::no_failure, relation.second, attachment);
+						}
+					}
+
+					const auto directory = x.directory;
+					const auto filepath = std::move(x.filepath);
+
+					files.erase(file_it);
+					debug_verify(files.emplace<KnownFile>(relation.second, directory, std::move(filepath)));
+				}
+			},
+				[&](UniqueFile &)
+			{
+				debug_unreachable();
+			}));
+		}
+	}
+
 	bool load_file(
 		engine::Asset owner,
+		engine::Asset filetype,
 		engine::Asset file,
 		engine::Asset actual_file,
 		decltype(files.end()) file_it,
-		engine::file::loading_callback * loadingcall,
-		engine::file::loaded_callback * loadedcall,
-		engine::file::unload_callback * unloadcall,
+		engine::file::ready_callback * readycall,
+		engine::file::unready_callback * unreadycall,
 		utility::any && data)
 	{
 		return files.call(file_it, ext::overload(
-			[](AmbiguousFile & /*y*/)
+			[](AmbiguousFile &)
 		{
 			return debug_fail("cannot load ambiguous files");
 		},
-			[](DirectoryFile & /*y*/)
+			[](DirectoryFile &)
 		{
 			return debug_fail("cannot load directory files");
 		},
 			[&](KnownFile & y)
 		{
+			const auto filetype_it = find(filetypes, filetype);
+			if (!debug_verify(filetype_it != filetypes.end()))
+				return false; // error
+
 			KnownFile copy = std::move(y);
 
 			// todo replace
 			files.erase(file_it);
-			LoadingFile * const loading_file = files.emplace<LoadingFile>(file, loadingcall, std::move(data), copy.directory, std::move(copy.filepath));
+			// todo on failure the file is lost
+			LoadingFile * const loading_file = files.emplace<LoadingFile>(file, filetype, copy.directory, std::move(copy.filepath), std::move(data));
 			if (!debug_verify(loading_file))
 				return false; // error
 
-			if (!debug_verify(loading_file->calls.try_emplace_back(actual_file, loadedcall, unloadcall)))
+			if (!debug_verify(loading_file->calls.try_emplace_back(actual_file, readycall, unreadycall)))
 			{
 				files.erase(find(files, file));
 				return false; // error
@@ -301,18 +526,28 @@ namespace
 				return false; // error
 			}
 
+			Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
+			if (!debug_assert(filetype_ptr))
+			{
+				files.erase(find(files, file));
+				return false;
+			}
+
 #if MODE_DEBUG
 			const auto mode = engine::file::flags::ADD_WATCH;
 #else
 			const auto mode = engine::file::flags{};
 #endif
-			engine::file::read(*::module_filesystem, loading_file->directory, utility::heap_string_utf8(loading_file->filepath), ReadData::file_load, ReadData(file, loading_file->loadingcall, *loading_file->data), mode);
+			engine::file::read(*::module_filesystem, loading_file->directory, utility::heap_string_utf8(loading_file->filepath), ReadData::file_load, ReadData{file, std::weak_ptr<FiletypeCallback>(filetype_ptr->callback)/*, std::weak_ptr<FileCallback>(loading_file->callback)*/}, mode);
 
 			return true;
 		},
 			[&](LoadingFile & y)
 		{
-			if (!debug_verify(y.calls.try_emplace_back(actual_file, loadedcall, unloadcall)))
+			if (!debug_assert(y.filetype == filetype))
+				return false;
+
+			if (!debug_verify(y.calls.try_emplace_back(actual_file, readycall, unreadycall)))
 				return false;
 
 			if (!debug_verify(y.owners.try_emplace_back(owner)))
@@ -325,8 +560,11 @@ namespace
 		},
 			[&](LoadedFile & y)
 		{
-			if (!debug_verify(y.calls.try_emplace_back(actual_file, loadedcall, unloadcall)))
+			if (!debug_assert(y.filetype == filetype))
 				return false;
+
+			if (!debug_verify(y.calls.try_emplace_back(actual_file, readycall, unreadycall)))
+				return false; // error
 
 			if (!debug_verify(y.owners.try_emplace_back(owner)))
 			{
@@ -334,179 +572,217 @@ namespace
 				return false; // error
 			}
 
-			loadedcall(y.data, actual_file);
-
-			utility::heap_vector<engine::Asset> relations;
-			if (!debug_verify(relations.try_reserve(1)))
-				return false; // error
-			relations.try_emplace_back(utility::no_failure, owner);
-
-			for (ext::index from = 0; static_cast<ext::usize>(from) != relations.size(); from++)
-			{
-				const auto owner_it = find(files, relations[from]);
-				if (owner_it == files.end())
-				{
-					if (debug_assert(relations[from] == global))
-						continue;
-
-					return debug_fail();
-				}
-
-				if (LoadingFile * const loading_owner = files.get<LoadingFile>(owner_it))
-				{
-					loading_owner->done_count++;
-					if (loading_owner->dependency_count == loading_owner->done_count)
-					{
-						if (!debug_verify(relations.try_reserve(relations.size() + loading_owner->owners.size())))
-							return false; // error
-						relations.push_back(utility::no_failure, loading_owner->owners.begin(), loading_owner->owners.end());
-
-						if (!promote_loading_to_loaded(relations[from], owner_it, std::move(*loading_owner)))
-							return false; // error
-					}
-				}
-			}
+			readycall(y.data, actual_file);
 
 			return true;
 		},
-			[&](UniqueFile & /*y*/) -> bool
+			[&](UniqueFile &) -> bool
 		{
 			debug_unreachable("radicals should not point to other radicals");
 		}));
 	}
 
-	bool promote_unknown_to_known(engine::Asset file, decltype(files.end()) file_it, engine::Asset directory, utility::heap_string_utf8 && filepath)
-	{
-		// todo replace
-		files.erase(file_it);
-		// todo on failure the file is lost
-		return debug_verify(files.emplace<KnownFile>(file, directory, std::move(filepath)));
-	}
-
-	bool promote_loading_to_loaded(engine::Asset file, decltype(files.end()) file_it, LoadingFile loading_file)
-	{
-		// todo replace
-		files.erase(file_it);
-		// todo on failure the file is lost
-		const auto loaded_file = files.emplace<LoadedFile>(file, loading_file.loadingcall, std::move(loading_file.calls), std::move(*loading_file.data), loading_file.directory, std::move(loading_file.filepath), std::move(loading_file.owners), std::move(loading_file.attachments));
-		if (!debug_verify(loaded_file))
-			return false;
-
-		for (auto && call : loaded_file->calls)
-		{
-			std::get<1>(call)(loaded_file->data, std::get<0>(call));
-		}
-
-		return true;
-	}
-
-	void remove_file(
-		decltype(files.end()) file_it,
+	bool remove_file(
 		engine::Asset file,
-		utility::heap_vector<engine::Asset> && attachments,
-		const utility::heap_vector<engine::Asset, engine::file::loaded_callback *, engine::file::unload_callback *> & calls,
-		utility::any && data)
+		decltype(files.end()) file_it)
 	{
-		utility::heap_vector<engine::Asset, engine::Asset> dependencies;
-		if (!debug_verify(dependencies.try_reserve(attachments.size())))
+		return files.call(file_it, ext::overload(
+			[&](AmbiguousFile &) -> bool
+		{
+			debug_unreachable("file ", file, " is ambiguous");
+		},
+			[&](DirectoryFile &)
+		{
+			return debug_fail("file ", file, " is a directory and cannot be unloaded");
+		},
+			[&](KnownFile &)
+		{
+			return debug_fail("cannot unload already unloaded file ", file);
+		},
+			[&](LoadingFile & y)
+		{
+			const auto owner_it = ext::find(y.owners, global);
+			if (!debug_verify(owner_it != y.owners.end(), "file ", file, " is not global"))
+				return false; // error
+
+			y.owners.erase(owner_it);
+
+			if (ext::empty(y.owners))
+			{
+#if MODE_DEBUG
+				engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
+#endif
+
+				if (0 <= y.previous_count)
+				{
+					const auto filetype_it = find(filetypes, y.filetype);
+					if (debug_assert(filetype_it != filetypes.end()))
+					{
+						Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
+						if (debug_assert(filetype_ptr))
+						{
+							FiletypeCallback * const filetype_callback = filetype_ptr->callback.get();
+							if (debug_assert(filetype_callback))
+							{
+								filetype_callback->unloadcall(filetype_callback->data, file);
+							}
+						}
+					}
+				}
+
+				utility::heap_vector<engine::Asset, engine::Asset> relations;
+				if (debug_verify(relations.try_reserve(y.attachments.size())))
+				{
+					for (auto attachment : y.attachments)
+					{
+						relations.try_emplace_back(utility::no_failure, file, attachment);
+					}
+				}
+				remove_attachments(std::move(relations));
+			}
+			return true;
+		},
+			[&](LoadedFile & y)
+		{
+			const auto owner_it = ext::find(y.owners, global);
+			if (!debug_verify(owner_it != y.owners.end(), "file ", file, " is not global"))
+				return false; // error
+
+			y.owners.erase(owner_it);
+
+			if (ext::empty(y.owners))
+			{
+#if MODE_DEBUG
+				engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
+#endif
+
+				for (auto && call : y.calls)
+				{
+					std::get<2>(call)(y.data, std::get<0>(call));
+				}
+				const auto filetype_it = find(filetypes, y.filetype);
+				if (debug_assert(filetype_it != filetypes.end()))
+				{
+					Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
+					if (debug_assert(filetype_ptr))
+					{
+						FiletypeCallback * const filetype_callback = filetype_ptr->callback.get();
+						if (debug_assert(filetype_callback))
+						{
+							filetype_callback->unloadcall(filetype_callback->data, file);
+						}
+					}
+				}
+
+				utility::heap_vector<engine::Asset, engine::Asset> relations;
+				if (debug_verify(relations.try_reserve(y.attachments.size())))
+				{
+					for (auto attachment : y.attachments)
+					{
+						relations.try_emplace_back(utility::no_failure, file, attachment);
+					}
+				}
+				remove_attachments(std::move(relations));
+			}
+			return true;
+		},
+			[&](UniqueFile &) -> bool
+		{
+			debug_unreachable("radicals should not point to other radicals");
+		}));
+	}
+
+	void finish_loading(engine::Asset file, decltype(files.end()) file_it, LoadingFile && loading_file)
+	{
+		utility::heap_vector<engine::Asset, engine::Asset> relations;
+		if (debug_verify(relations.try_reserve(loading_file.owners.size())))
+		{
+			for (auto owner : loading_file.owners)
+			{
+				relations.try_emplace_back(utility::no_failure, owner, file);
+			}
+		}
+
+		if (0 < loading_file.previous_count)
+		{
+			utility::heap_vector<engine::Asset, engine::Asset> relations_;
+			if (debug_verify(relations_.try_reserve(loading_file.previous_count)))
+			{
+				const auto split_it = loading_file.attachments.begin() + loading_file.previous_count;
+				for (auto attachment_it = loading_file.attachments.begin(); attachment_it != split_it; ++attachment_it)
+				{
+					relations_.try_emplace_back(utility::no_failure, file, *attachment_it);
+				}
+				loading_file.attachments.erase(loading_file.attachments.begin(), split_it);
+			}
+			remove_attachments(std::move(relations_));
+		}
+
+		if (!make_loaded(file, file_it, std::move(loading_file)))
 			return; // error
-		for (auto attachment : attachments)
+
+		while (!ext::empty(relations))
 		{
-			dependencies.try_emplace_back(utility::no_failure, file, attachment);
-		}
+			const utility::heap_vector<engine::Asset, engine::Asset>::value_type relation = ext::back(std::move(relations));
+			ext::pop_back(relations);
 
-		for (auto && call : calls)
-		{
-			std::get<2>(call)(data, std::get<0>(call));
-		}
-
-		files.erase(file_it);
-
-		while (!ext::empty(dependencies))
-		{
-			const utility::heap_vector<engine::Asset, engine::Asset>::value_type dependency = ext::back(std::move(dependencies));
-			ext::pop_back(dependencies);
-
-			const auto attachment_it = find(files, dependency.second);
-			if (!debug_assert(attachment_it != files.end()))
+			const auto owner_it = find(files, relation.first);
+			if (!debug_assert(file_it != files.end()))
 				break;
 
-			files.call(attachment_it, ext::overload(
-				[&](AmbiguousFile & /*x*/)
+			if (owner_it == files.end())
 			{
-				debug_unreachable();
-			},
-				[&](DirectoryFile & /*x*/)
-			{
-				debug_unreachable();
-			},
-				[&](KnownFile & /*x*/)
-			{
-				debug_unreachable();
-			},
-				[&](LoadingFile & x)
-			{
-				const auto owner_it = ext::find(x.owners, dependency.first);
-				if (!debug_assert(owner_it != x.owners.end()))
-					return;
+				if (debug_assert(relation.first == global))
+					continue;
 
-				x.owners.erase(owner_it);
+				return;
+			}
 
-				if (ext::empty(x.owners))
+			if (LoadingFile * const loading_owner = files.get<LoadingFile>(owner_it))
+			{
+				const auto attachment_it = ext::find(loading_owner->attachments, relation.second);
+				if (debug_assert(attachment_it != loading_owner->attachments.end()))
 				{
-#if MODE_DEBUG
-					engine::file::remove_watch(*::module_filesystem, x.directory, std::move(x.filepath));
-#endif
-
-					if (!debug_verify(dependencies.try_reserve(dependencies.size() + x.attachments.size())))
-						return; // error
-					for (auto attachment : x.attachments)
+					const auto count = loading_owner->remaining_count & INT_MAX;
+					if (loading_owner->attachments.end() - attachment_it <= count)
 					{
-						dependencies.try_emplace_back(utility::no_failure, dependency.second, attachment);
-					}
+						debug_assert(0 < count);
 
-					for (auto && call : x.calls)
-					{
-						// todo the loading callback can be called as the same time as the unload callback, is this a problem?
-						std::get<2>(call)(*x.data, std::get<0>(call));
-					}
+						const auto split_it = loading_owner->attachments.end() - count;
+						std::swap(*attachment_it, *split_it);
 
-					files.erase(attachment_it);
+						loading_owner->remaining_count--;
+						if (loading_owner->remaining_count == 0)
+						{
+							if (debug_verify(relations.try_reserve(relations.size() + loading_owner->owners.size())))
+							{
+								for (auto owner : loading_owner->owners)
+								{
+									relations.try_emplace_back(utility::no_failure, owner, relation.first);
+								}
+							}
+
+							if (0 < loading_owner->previous_count)
+							{
+								utility::heap_vector<engine::Asset, engine::Asset> relations_;
+								if (debug_verify(relations_.try_reserve(loading_owner->previous_count)))
+								{
+									const auto split_it_ = loading_owner->attachments.begin() + loading_owner->previous_count;
+									for (auto attachment_it_ = loading_owner->attachments.begin(); attachment_it_ != split_it_; ++attachment_it_)
+									{
+										relations_.try_emplace_back(utility::no_failure, relation.second, *attachment_it_);
+									}
+									loading_owner->attachments.erase(loading_owner->attachments.begin(), split_it_);
+								}
+								remove_attachments(std::move(relations_));
+							}
+
+							if (!make_loaded(relation.first, owner_it, std::move(*loading_owner)))
+								return; // error
+						}
+					}
 				}
-			},
-				[&](LoadedFile & x)
-			{
-				const auto owner_it = ext::find(x.owners, dependency.first);
-				if (!debug_assert(owner_it != x.owners.end()))
-					return;
-
-				x.owners.erase(owner_it);
-
-				if (ext::empty(x.owners))
-				{
-#if MODE_DEBUG
-					engine::file::remove_watch(*::module_filesystem, x.directory, std::move(x.filepath));
-#endif
-
-					if (!debug_verify(dependencies.try_reserve(dependencies.size() + x.attachments.size())))
-						return; // error
-					for (auto attachment : x.attachments)
-					{
-						dependencies.try_emplace_back(utility::no_failure, dependency.second, attachment);
-					}
-
-					for (auto && call : x.calls)
-					{
-						std::get<2>(call)(x.data, std::get<0>(call));
-					}
-
-					files.erase(attachment_it);
-				}
-			},
-				[&](UniqueFile & /*x*/)
-			{
-				debug_unreachable();
-			}));
+			}
 		}
 	}
 
@@ -546,7 +822,7 @@ namespace
 							if (file_it != files.end())
 							{
 								files.call(file_it, ext::overload(
-									[&](AmbiguousFile & /*y*/)
+									[&](AmbiguousFile &)
 								{
 									if (!debug_assert(find(begin, split, u8'.') == split))
 										return;
@@ -557,7 +833,7 @@ namespace
 									if (!debug_verify(files.emplace<KnownFile>(file_asset, x.directory, utility::heap_string_utf8(filepath))))
 										return; // error
 								},
-									[&](DirectoryFile & /*y*/)
+									[&](DirectoryFile &)
 								{
 									debug_unreachable(file_asset, " has previously been registered as a directory");
 								},
@@ -573,7 +849,7 @@ namespace
 								{
 									debug_assert(y.directory == x.directory) && debug_assert(y.filepath == filepath);
 								},
-									[&](UniqueFile & /*y*/) // todo same as AmbiguousFile
+									[&](UniqueFile &) // todo same as AmbiguousFile
 								{
 									if (!debug_assert(find(begin, split, u8'.') == split))
 										return;
@@ -601,14 +877,14 @@ namespace
 									if (radical_it != files.end())
 									{
 										files.call(radical_it, ext::overload(
-											[&](AmbiguousFile & /*y*/)
+											[&](AmbiguousFile &)
 										{
 										},
-											[&](DirectoryFile & /*y*/) {},
-											[&](KnownFile & /*y*/) {},
-											[&](LoadingFile & /*y*/) {},
-											[&](LoadedFile & /*y*/) {},
-											[&](UniqueFile & /*y*/)
+											[&](DirectoryFile &) {},
+											[&](KnownFile &) {},
+											[&](LoadingFile &) {},
+											[&](LoadedFile &) {},
+											[&](UniqueFile &)
 										{
 											files.erase(radical_it);
 
@@ -656,11 +932,11 @@ namespace
 													return; // error
 											}
 										},
-											[&](DirectoryFile & /*y*/) {},
-											[&](KnownFile & /*y*/) {},
-											[&](LoadingFile & /*y*/) {},
-											[&](LoadedFile & /*y*/) {},
-											[&](UniqueFile & /*y*/)
+											[&](DirectoryFile &) {},
+											[&](KnownFile &) {},
+											[&](LoadingFile &) {},
+											[&](LoadedFile &) {},
+											[&](UniqueFile &)
 										{
 											files.erase(radical_it);
 										}));
@@ -668,11 +944,11 @@ namespace
 								}
 
 								files.call(file_it, ext::overload(
-									[&](AmbiguousFile & /*y*/)
+									[&](AmbiguousFile &)
 								{
 									debug_fail(file_asset, " is ambigous?");
 								},
-									[&](DirectoryFile & /*y*/)
+									[&](DirectoryFile &)
 								{
 									debug_unreachable(file_asset, " is a directory?");
 								},
@@ -691,7 +967,7 @@ namespace
 								{
 									debug_assert(y.directory == x.directory) && debug_assert(y.filepath == filepath);
 								},
-									[&](UniqueFile & /*y*/) // todo same as AmbiguousFile
+									[&](UniqueFile &) // todo same as AmbiguousFile
 								{
 									debug_fail(file_asset, " is unique?");
 								}));
@@ -713,7 +989,7 @@ namespace
 				if (!debug_verify(underlying_file.second != files.end()))
 					return; // error
 
-				if (!load_file<ReadData>(global, underlying_file.first, x.file, underlying_file.second, x.loadingcall, x.loadedcall, x.unloadcall, std::move(x.data)))
+				if (!load_file(global, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
 					return; // error
 			}
 
@@ -728,34 +1004,35 @@ namespace
 					return; // error
 
 				const auto success = files.call(underlying_owner.second, ext::overload(
-					[&](AmbiguousFile & /*y*/) -> bool
+					[&](AmbiguousFile &) -> bool
 				{
 					debug_unreachable("file ", underlying_owner.first, " is a radical and cannot be an owner");
 				},
-					[&](DirectoryFile & /*y*/)
+					[&](DirectoryFile &)
 				{
 					return debug_fail("file ", underlying_owner.first, " is a directory and cannot be an owner");
 				},
-					[&](KnownFile & /*y*/)
+					[&](KnownFile &)
 				{
 					return debug_fail("file ", underlying_owner.first, " is unloaded and cannot be an owner");
 				},
 					[&](LoadingFile & y)
 				{
-					return debug_verify(y.attachments.try_emplace_back(underlying_file.first));
+					const auto count = y.remaining_count & INT_MAX;
+					return debug_verify(y.attachments.insert(y.attachments.end() - count, underlying_file.first));
 				},
 					[&](LoadedFile & y)
 				{
 					return debug_verify(y.attachments.try_emplace_back(underlying_file.first));
 				},
-					[&](UniqueFile & /*y*/) -> bool
+					[&](UniqueFile &) -> bool
 				{
 					debug_unreachable("file ", underlying_owner.first, " is a radical and cannot be an owner");
 				}));
 				if (!success)
 					return; // error
 
-				if (!load_file<ReadData>(underlying_owner.first, underlying_file.first, x.file, underlying_file.second, x.loadingcall, x.loadedcall, x.unloadcall, std::move(x.data)))
+				if (!load_file(underlying_owner.first, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
 					return; // error
 				// todo undo on failure
 			}
@@ -771,7 +1048,7 @@ namespace
 					return; // error
 
 				const auto success = files.call(underlying_owner.second, ext::overload(
-					[&](AmbiguousFile & /*y*/) -> bool
+					[&](AmbiguousFile &) -> bool
 				{
 					debug_unreachable("file ", underlying_owner.first, " is a radical and cannot be an owner");
 				},
@@ -785,74 +1062,113 @@ namespace
 				},
 					[&](LoadingFile & y)
 				{
-					if (debug_verify(y.attachments.insert(y.attachments.begin() + y.dependency_count, underlying_file.first)))
+					if (files.contains<LoadedFile>(underlying_file.second))
 					{
-						y.dependency_count++;
-
-						return true;
+						const auto count = y.remaining_count & INT_MAX;
+						return debug_verify(y.attachments.insert(y.attachments.end() - count, underlying_file.first));
 					}
-					return false;
+					else
+					{
+						if (debug_verify(y.attachments.push_back(underlying_file.first)))
+						{
+							y.remaining_count++;
+							return true;
+						}
+						return false;
+					}
 				},
 					[&](LoadedFile &)
 				{
-					return debug_fail("file ", underlying_owner.first, " is already loaded and cannot depend on further files");
+					return debug_fail("file ", underlying_owner.first, " is already loaded and cannot be an owner");
 				},
-					[&](UniqueFile & /*y*/) -> bool
+					[&](UniqueFile &) -> bool
 				{
 					debug_unreachable("file ", underlying_owner.first, " is a radical and cannot be an owner");
 				}));
 				if (!success)
 					return; // error
 
-				if (!load_file<ReadData>(underlying_owner.first, underlying_file.first, x.file, underlying_file.second, x.loadingcall, x.loadedcall, x.unloadcall, std::move(x.data)))
+				if (!load_file(underlying_owner.first, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
 					return; // error
 				// todo undo on failure
+			}
+
+			void operator () (MessageLoadInit && x)
+			{
+				const auto file_it = find(files, x.file);
+				if (!debug_assert(file_it != files.end()))
+					return;
+
+				files.call(file_it, ext::overload(
+					[&](AmbiguousFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				},
+					[&](DirectoryFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				},
+					[&](KnownFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				},
+					[&](LoadingFile &)
+				{
+				},
+					[&](LoadedFile & y)
+				{
+					make_loading(x.file, file_it, std::move(y));
+				},
+					[&](UniqueFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				}));
 			}
 
 			void operator () (MessageLoadDone && x)
 			{
 				const auto file_it = find(files, x.file);
-				LoadingFile * const loading_file = files.get<LoadingFile>(file_it);
-				if (!debug_assert(loading_file))
+				if (!debug_assert(file_it != files.end()))
+					return;
+
+				files.call(file_it, ext::overload(
+					[&](AmbiguousFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				},
+					[&](DirectoryFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				},
+					[&](KnownFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				},
+					[&](LoadingFile & y)
+				{
+					y.remaining_count &= INT32_MAX;
+					if (y.remaining_count == 0)
+					{
+						finish_loading(x.file, file_it, std::move(y));
+					}
+				},
+					[&](LoadedFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				},
+					[&](UniqueFile &)
+				{
+					debug_fail("invalid file ", x.file);
+				}));
+			}
+
+			void operator () (MessageRegisterFiletype && x)
+			{
+				const auto filetype_ptr = filetypes.emplace<Filetype>(x.filetype);
+				if (!debug_verify(filetype_ptr))
 					return; // error
 
-				loading_file->done_count &= INT32_MAX;
-				if (loading_file->dependency_count == loading_file->done_count)
-				{
-					utility::heap_vector<engine::Asset> relations;
-					if (!debug_verify(relations.try_reserve(loading_file->owners.size())))
-						return; // error
-					relations.push_back(utility::no_failure, loading_file->owners.begin(), loading_file->owners.end());
-
-					if (!promote_loading_to_loaded(x.file, file_it, std::move(*loading_file)))
-						return; // error
-
-					for (ext::index from = 0; static_cast<ext::usize>(from) != relations.size(); from++)
-					{
-						const auto owner_it = find(files, relations[from]);
-						if (owner_it == files.end())
-						{
-							if (debug_assert(relations[from] == global))
-								continue;
-
-							return;
-						}
-
-						if (LoadingFile * const loading_owner = files.get<LoadingFile>(owner_it))
-						{
-							loading_owner->done_count++;
-							if (loading_owner->dependency_count == loading_owner->done_count)
-							{
-								if (!debug_verify(relations.try_reserve(relations.size() + loading_owner->owners.size())))
-									return; // error
-								relations.push_back(utility::no_failure, loading_owner->owners.begin(), loading_owner->owners.end());
-
-								if (!promote_loading_to_loaded(relations[from], owner_it, std::move(*loading_owner)))
-									return; // error
-							}
-						}
-					}
-				}
+				filetype_ptr->callback = std::make_shared<FiletypeCallback>(x.loadcall, x.unloadcall, std::move(x.data));
 			}
 
 			void operator () (MessageRegisterLibrary && x)
@@ -878,57 +1194,7 @@ namespace
 				if (!debug_verify(underlying_file.second != files.end()))
 					return; // error
 
-				files.call(underlying_file.second, ext::overload(
-					[&](AmbiguousFile & /*y*/)
-				{
-					debug_unreachable("file ", underlying_file.first, " is ambiguous");
-				},
-					[&](DirectoryFile &)
-				{
-					if (!debug_fail("file ", underlying_file.first, " is a directory and cannot be unloaded"))
-						return; // error
-				},
-					[&](KnownFile &)
-				{
-					if (!debug_fail("cannot unload already unloaded file ", underlying_file.first))
-						return; // error
-				},
-					[&](LoadingFile & y)
-				{
-					const auto owner_it = ext::find(y.owners, global);
-					if (!debug_verify(owner_it != y.owners.end(), "file ", underlying_file.first, " is not global"))
-						return; // error
-
-					if (ext::empty(y.owners))
-					{
-#if MODE_DEBUG
-						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
-#endif
-
-						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(*y.data));
-					}
-				},
-					[&](LoadedFile & y)
-				{
-					const auto owner_it = ext::find(y.owners, global);
-					if (!debug_verify(owner_it != y.owners.end(), "file ", underlying_file.first, " is not global"))
-						return; // error
-
-					y.owners.erase(owner_it);
-
-					if (ext::empty(y.owners))
-					{
-#if MODE_DEBUG
-						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
-#endif
-
-						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(y.data));
-					}
-				},
-					[&](UniqueFile & /*y*/)
-				{
-					debug_unreachable("radicals should not point to other radicals");
-				}));
+				remove_file(underlying_file.first, underlying_file.second);
 			}
 
 			void operator () (MessageUnloadLocal && x)
@@ -942,15 +1208,15 @@ namespace
 					return; // error
 
 				const auto success = files.call(underlying_owner.second, ext::overload(
-					[&](AmbiguousFile & /*y*/) -> bool
+					[&](AmbiguousFile &) -> bool
 				{
 					debug_unreachable("file ", underlying_owner.first, " is a radical and cannot be an owner");
 				},
-					[&](DirectoryFile & /*y*/)
+					[&](DirectoryFile &)
 				{
 					return debug_fail("file ", underlying_owner.first, " is a directory and cannot be an owner");
 				},
-					[&](KnownFile & /*y*/)
+					[&](KnownFile &)
 				{
 					return debug_fail("file ", underlying_owner.first, " is unloaded and cannot be an owner");
 				},
@@ -960,9 +1226,7 @@ namespace
 					if (!debug_verify(file_it != y.attachments.end()))
 						return false; // error
 
-					if (!debug_assert(y.dependency_count <= file_it - y.attachments.begin()))
-						return false;
-
+					debug_assert(y.remaining_count < y.attachments.end() - file_it);
 					y.attachments.erase(file_it);
 
 					return true;
@@ -977,64 +1241,14 @@ namespace
 
 					return true;
 				},
-					[&](UniqueFile & /*y*/) -> bool
+					[&](UniqueFile &) -> bool
 				{
 					debug_unreachable("file ", underlying_owner.first, " is a radical and cannot be an owner");
 				}));
 				if (!success)
 					return;
 
-				files.call(underlying_file.second, ext::overload(
-					[&](AmbiguousFile & /*y*/)
-				{
-					debug_unreachable("file ", underlying_file.first, " is ambiguous");
-				},
-					[&](DirectoryFile &)
-				{
-					if (!debug_fail("file ", underlying_file.first, " is a directory and cannot be unloaded"))
-						return; // error
-				},
-					[&](KnownFile &)
-				{
-					if (!debug_fail("cannot unload already unloaded file ", underlying_file.first))
-						return; // error
-				},
-					[&](LoadingFile & y)
-				{
-					const auto owner_it = ext::find(y.owners, underlying_owner.first);
-					if (!debug_assert(owner_it != y.owners.end(), "file ", underlying_file.first, " is not global"))
-						return;
-
-					if (ext::empty(y.owners))
-					{
-#if MODE_DEBUG
-						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
-#endif
-
-						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(*y.data));
-					}
-				},
-					[&](LoadedFile & y)
-				{
-					const auto owner_it = ext::find(y.owners, underlying_owner.first);
-					if (!debug_assert(owner_it != y.owners.end(), "file ", underlying_file.first, " is not global"))
-						return;
-
-					y.owners.erase(owner_it);
-
-					if (ext::empty(y.owners))
-					{
-#if MODE_DEBUG
-						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
-#endif
-
-						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(y.data));
-					}
-				},
-					[&](UniqueFile & /*y*/)
-				{
-					debug_unreachable("radicals should not point to other radicals");
-				}));
+				remove_file(underlying_file.first, underlying_file.second);
 			}
 
 			void operator () (MessageUnloadDependency && x)
@@ -1048,7 +1262,7 @@ namespace
 					return; // error
 
 				const auto success = files.call(underlying_owner.second, ext::overload(
-					[&](AmbiguousFile & /*y*/) -> bool
+					[&](AmbiguousFile &) -> bool
 				{
 					debug_unreachable("file ", underlying_owner.first, " is a radical and cannot be an owner");
 				},
@@ -1066,15 +1280,13 @@ namespace
 					if (!debug_verify(file_it != y.attachments.end()))
 						return false; // error
 
-					if (!debug_assert(file_it - y.attachments.begin() < y.dependency_count))
-						return false;
-
+					debug_assert(y.attachments.end() - file_it <= y.remaining_count);
 					y.attachments.erase(file_it);
-					y.dependency_count--;
-					if (y.dependency_count == y.done_count)
+
+					y.remaining_count--;
+					if (y.remaining_count == 0)
 					{
-						if (!promote_loading_to_loaded(underlying_owner.first, underlying_owner.second, std::move(y)))
-							return false; // error
+						finish_loading(underlying_owner.first, underlying_owner.second, std::move(y));
 					}
 
 					return true;
@@ -1089,67 +1301,26 @@ namespace
 
 					return true;
 				},
-					[&](UniqueFile & /*y*/) -> bool
+					[&](UniqueFile &) -> bool
 				{
 					debug_unreachable("file ", underlying_owner.first, " is a radical and cannot be an owner");
 				}));
 				if (!success)
 					return;
 
-				files.call(underlying_file.second, ext::overload(
-					[&](AmbiguousFile & /*y*/)
-				{
-					debug_unreachable("file ", underlying_file.first, " is ambiguous");
-				},
-					[&](DirectoryFile &)
-				{
-					if (!debug_fail("file ", underlying_file.first, " is a directory and cannot be unloaded"))
-						return; // error
-				},
-					[&](KnownFile &)
-				{
-					if (!debug_fail("cannot unload already unloaded file ", underlying_file.first))
-						return; // error
-				},
-					[&](LoadingFile & y)
-				{
-					const auto owner_it = ext::find(y.owners, global);
-					if (!debug_verify(owner_it != y.owners.end(), "file ", underlying_file.first, " is not global"))
-						return; // error
-
-					if (ext::empty(y.owners))
-					{
-#if MODE_DEBUG
-						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
-#endif
-
-						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(*y.data));
-					}
-				},
-					[&](LoadedFile & y)
-				{
-					const auto owner_it = ext::find(y.owners, global);
-					if (!debug_verify(owner_it != y.owners.end(), "file ", underlying_file.first, " is not global"))
-						return; // error
-
-					y.owners.erase(owner_it);
-
-					if (ext::empty(y.owners))
-					{
-#if MODE_DEBUG
-						engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath));
-#endif
-
-						remove_file(underlying_file.second, underlying_file.first, std::move(y.attachments), y.calls, std::move(y.data));
-					}
-				},
-					[&](UniqueFile & /*y*/)
-				{
-					debug_unreachable("radicals should not point to other radicals");
-				}));
+				remove_file(underlying_file.first, underlying_file.second);
 			}
 
-			void operator () (MessageUnregisterLibrary && /*x*/)
+			void operator () (MessageUnregisterFiletype && x)
+			{
+				const auto filetype_it = find(filetypes, x.filetype);
+				if (!debug_verify(filetype_it != filetypes.end()))
+					return; // error
+
+				filetypes.erase(filetype_it);
+			}
+
+			void operator () (MessageUnregisterLibrary &&)
 			{
 
 			}
@@ -1243,7 +1414,14 @@ namespace
 
 		// todo abort if not needed anymore, query lock?
 
-		read_data->loadingcall(std::move(stream), read_data->data, read_data->file);
+		std::shared_ptr<FiletypeCallback> filetype_callback = read_data->filetype_callback.lock();
+		if (!debug_assert(filetype_callback))
+			return;
+
+		debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadInit>, read_data->file));
+		event.set();
+
+		filetype_callback->loadcall(std::move(stream), filetype_callback->data, read_data->file);
 
 		debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadDone>, read_data->file));
 		event.set();
@@ -1298,41 +1476,53 @@ namespace engine
 			event.set();
 		}
 
+		void register_filetype(loader & /*loader*/, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall, utility::any && data)
+		{
+			debug_verify(queue.try_emplace(utility::in_place_type<MessageRegisterFiletype>, filetype, loadcall, unloadcall, std::move(data)));
+			event.set();
+		}
+
+		void unregister_filetype(loader & /*loader*/, engine::Asset filetype)
+		{
+			debug_verify(queue.try_emplace(utility::in_place_type<MessageUnregisterFiletype>, filetype));
+			event.set();
+		}
+
 		void load_global(
 			loader & /*loader*/,
+			engine::Asset filetype,
 			engine::Asset file,
-			loading_callback * loadingcall,
-			loaded_callback * loadedcall,
-			unload_callback * unloadcall,
+			ready_callback * readycall,
+			unready_callback * unreadycall,
 			utility::any && data)
 		{
-			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadGlobal>, file, loadingcall, loadedcall, unloadcall, std::move(data)));
+			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadGlobal>, filetype, file, readycall, unreadycall, std::move(data)));
 			event.set();
 		}
 
 		void load_local(
 			loader & /*loader*/,
+			engine::Asset filetype,
 			engine::Asset owner,
 			engine::Asset file,
-			loading_callback * loadingcall,
-			loaded_callback * loadedcall,
-			unload_callback * unloadcall,
+			ready_callback * readycall,
+			unready_callback * unreadycall,
 			utility::any && data)
 		{
-			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadLocal>, owner, file, loadingcall, loadedcall, unloadcall, std::move(data)));
+			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadLocal>, filetype, owner, file, readycall, unreadycall, std::move(data)));
 			event.set();
 		}
 
 		void load_dependency(
 			loader & /*loader*/,
+			engine::Asset filetype,
 			engine::Asset owner,
 			engine::Asset file,
-			loading_callback * loadingcall,
-			loaded_callback * loadedcall,
-			unload_callback * unloadcall,
+			ready_callback * readycall,
+			unready_callback * unreadycall,
 			utility::any && data)
 		{
-			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadDependency>, owner, file, loadingcall, loadedcall, unloadcall, std::move(data)));
+			debug_verify(queue.try_emplace(utility::in_place_type<MessageLoadDependency>, filetype, owner, file, readycall, unreadycall, std::move(data)));
 			event.set();
 		}
 
