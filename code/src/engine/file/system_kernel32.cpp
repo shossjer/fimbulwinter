@@ -49,6 +49,8 @@ namespace
 		utility::heap_string_utfw filepath;
 		engine::file::read_callback * callback;
 		utility::any data;
+
+		FILETIME last_write_time;
 	};
 
 	struct ScanWatch
@@ -380,11 +382,27 @@ namespace
 		}
 	}
 
-	bool read_file(utility::string_units_utfw filepath, utility::heap_string_utf8 && filepath_utf8, engine::file::read_callback * callback, utility::any & data)
+	bool read_file(utility::string_units_utfw filepath, utility::heap_string_utf8 && filepath_utf8, engine::file::read_callback * callback, utility::any & data, FILETIME * last_write_time = nullptr)
 	{
 		HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 		if (!debug_verify(hFile != INVALID_HANDLE_VALUE, "CreateFileW \"", filepath_utf8, "\" failed with last error ", ::GetLastError()))
 			return false;
+
+		if (last_write_time)
+		{
+			BY_HANDLE_FILE_INFORMATION by_handle_file_information;
+			if (debug_verify(::GetFileInformationByHandle(hFile, &by_handle_file_information) != 0, "GetFileInformationByHandle failed with last error ", ::GetLastError()))
+			{
+				if (by_handle_file_information.ftLastWriteTime.dwHighDateTime == last_write_time->dwHighDateTime &&
+				    by_handle_file_information.ftLastWriteTime.dwLowDateTime == last_write_time->dwLowDateTime)
+				{
+					debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+					return true;
+				}
+				*last_write_time = by_handle_file_information.ftLastWriteTime;
+			}
+		}
 
 		core::ReadStream stream(
 			[](void * dest, ext::usize n, void * data)
@@ -497,7 +515,7 @@ namespace
 							{
 								if (*read_begin.first == utility::string_units_utf8(match_name.data() + watch_data->subdir.size(), match_name.data() + match_name.size()))
 								{
-									read_file(read_begin.second->filepath, std::move(match_name), read_begin.second->callback, read_begin.second->data);
+									read_file(read_begin.second->filepath, std::move(match_name), read_begin.second->callback, read_begin.second->data, &read_begin.second->last_write_time);
 								}
 							}
 						}
@@ -779,7 +797,7 @@ namespace
 			if (x.mode & engine::file::flags::ADD_WATCH)
 			{
 				WatchData * const watch_data = start_watch(alias_ptr->directory, path, x.mode);
-				debug_verify(watch_data->reads.try_emplace_back(/*x.directory, */std::move(x.filepath), ReadWatch{std::move(filepath), x.callback, std::move(x.data)}));
+				debug_verify(watch_data->reads.try_emplace_back(/*x.directory, */std::move(x.filepath), ReadWatch{std::move(filepath), x.callback, std::move(x.data), FILETIME{}}));
 			}
 		}
 	};
