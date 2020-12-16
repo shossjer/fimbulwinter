@@ -1,8 +1,6 @@
+#pragma once
 
-#ifndef UTILITY_STORING_HPP
-#define UTILITY_STORING_HPP
-
-#include "utility.hpp"
+#include "utility/utility.hpp"
 
 namespace utility
 {
@@ -18,19 +16,30 @@ namespace utility
 			};
 
 			constexpr storing_trivially_destructible() = default;
+
 			template <typename U,
 			          REQUIRES((std::is_constructible<T, U &&>::value)),
 			          REQUIRES((!mpl::is_same<mpl::decay_t<U>, in_place_t>::value)),
 			          REQUIRES((!mpl::is_same<mpl::decay_t<U>, null_place_t>::value))>
-			constexpr storing_trivially_destructible(U && u)
+			explicit constexpr storing_trivially_destructible(U && u)
 				: value(std::forward<U>(u))
 			{}
-			constexpr storing_trivially_destructible(null_place_t) noexcept
+
+			explicit constexpr storing_trivially_destructible(null_place_t) noexcept
 				: dummy()
 			{}
-			template <typename ...Ps>
-			constexpr storing_trivially_destructible(in_place_t, Ps && ...ps)
+
+			template <typename ...Ps,
+			          REQUIRES((mpl::is_paren_constructible<T, Ps...>::value))>
+			explicit constexpr storing_trivially_destructible(in_place_t, Ps && ...ps)
 				: value(std::forward<Ps>(ps)...)
+			{}
+
+			template <typename ...Ps,
+			          REQUIRES((!mpl::is_paren_constructible<T, Ps...>::value)),
+			          REQUIRES((mpl::is_brace_constructible<T, Ps...>::value))>
+			explicit constexpr storing_trivially_destructible(in_place_t, Ps && ...ps)
+				: value{std::forward<Ps>(ps)...}
 			{}
 
 			template <typename ...Ps>
@@ -38,10 +47,12 @@ namespace utility
 			{
 				return construct_at<T>(&value, std::forward<Ps>(ps)...);
 			}
+
 			void destruct()
 			{
 			}
 		};
+
 		template <typename T>
 		struct storing_trivially_destructible<T, false>
 		{
@@ -53,20 +64,32 @@ namespace utility
 
 			~storing_trivially_destructible()
 			{}
+
 			constexpr storing_trivially_destructible() = default;
-			constexpr storing_trivially_destructible(null_place_t) noexcept
+
+			explicit constexpr storing_trivially_destructible(null_place_t) noexcept
 				: dummy()
 			{}
+
 			template <typename U,
 			          REQUIRES((std::is_constructible<T, U &&>::value)),
 			          REQUIRES((!mpl::is_same<mpl::decay_t<U>, in_place_t>::value)),
 			          REQUIRES((!mpl::is_same<mpl::decay_t<U>, null_place_t>::value))>
-			constexpr storing_trivially_destructible(U && u)
+			explicit constexpr storing_trivially_destructible(U && u)
 				: value(std::forward<U>(u))
 			{}
-			template <typename ...Ps>
-			constexpr storing_trivially_destructible(in_place_t, Ps && ...ps)
+
+			template <typename ...Ps,
+			          REQUIRES((mpl::is_paren_constructible<T, Ps...>::value))>
+			explicit constexpr storing_trivially_destructible(in_place_t, Ps && ...ps)
 				: value(std::forward<Ps>(ps)...)
+			{}
+
+			template <typename ...Ps,
+			          REQUIRES((!mpl::is_paren_constructible<T, Ps...>::value)),
+			          REQUIRES((mpl::is_brace_constructible<T, Ps...>::value))>
+			explicit constexpr storing_trivially_destructible(in_place_t, Ps && ...ps)
+				: value{std::forward<Ps>(ps)...}
 			{}
 
 			template <typename ...Ps>
@@ -74,6 +97,7 @@ namespace utility
 			{
 				return construct_at<T>(&value, std::forward<Ps>(ps)...);
 			}
+
 			void destruct()
 			{
 				value.T::~T();
@@ -87,24 +111,27 @@ namespace utility
 
 			using storing_trivially_destructible<T>::storing_trivially_destructible;
 		};
+
 		template <typename T>
 		struct storing_trivially_default_constructible<T, false /*is trivially default constructible*/>
 			: storing_trivially_destructible<T>
 		{
 			using value_type = T;
 
-			constexpr storing_trivially_default_constructible() noexcept
+			explicit constexpr storing_trivially_default_constructible() noexcept
 				: storing_trivially_destructible<T>(null_place)
 			{}
+
 			template <typename U,
 			          REQUIRES((std::is_constructible<T, U &&>::value)),
 			          REQUIRES((!mpl::is_same<mpl::decay_t<U>, in_place_t>::value)),
 			          REQUIRES((!mpl::is_same<mpl::decay_t<U>, null_place_t>::value))>
-			constexpr storing_trivially_default_constructible(U && u)
+			explicit constexpr storing_trivially_default_constructible(U && u)
 				: storing_trivially_destructible<T>(std::forward<U>(u))
 			{}
+
 			template <typename ...Ps>
-			storing_trivially_default_constructible(in_place_t, Ps && ...ps)
+			explicit storing_trivially_default_constructible(in_place_t, Ps && ...ps)
 				: storing_trivially_destructible<T>(in_place, std::forward<Ps>(ps)...)
 			{}
 		};
@@ -113,5 +140,3 @@ namespace utility
 	template <typename T>
 	using storing = detail::storing_trivially_default_constructible<T>;
 }
-
-#endif /* UTILITY_STORING_HPP */
