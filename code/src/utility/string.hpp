@@ -589,6 +589,15 @@ namespace utility
 			data_.array_.chars_.construct_at_(data_.array_.begin_storage(), '\0');
 		}
 
+		void erase(iterator begin, iterator end)
+		{
+			const auto new_end = std::move(end, this->end(), begin);
+
+			data_.array_.chars_.destruct_range(data_.array_.chars_.iter(new_end.get()) + 1, data_.array_.end2_storage());
+			data_.array_.set_end(data_.array_.chars_.iter(new_end.get()));
+			*data_.array_.chars_.data(data_.array_.chars_.iter(new_end.get())) = '\0';
+		}
+
 		bool try_resize(size_type size)
 		{
 			if (!data_.array_.try_reserve(size))
