@@ -2,8 +2,6 @@
 
 #include "engine/Asset.hpp"
 
-#include "engine/file/common.hpp"
-
 // todo forward declare
 #include "utility/unicode/string.hpp"
 
@@ -99,6 +97,10 @@ namespace engine
 		void register_directory(system & system, engine::Asset name, utility::heap_string_utf8 && filepath, engine::Asset parent);
 		void register_temporary_directory(system & system, engine::Asset name);
 		void unregister_directory(system & system, engine::Asset name);
+
+		using read_callback = void(
+			core::ReadStream && stream,
+			utility::any & data);
 
 		// mode ADD_WATCH | RECURSE_DIRECTORIES
 		void read(

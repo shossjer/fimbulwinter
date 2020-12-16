@@ -1,6 +1,11 @@
 #pragma once
 
-#include "engine/file/common.hpp"
+#include "engine/Asset.hpp"
+
+namespace core
+{
+	class ReadStream;
+}
 
 namespace engine
 {
@@ -8,6 +13,11 @@ namespace engine
 	{
 		struct scheduler;
 	}
+}
+
+namespace utility
+{
+	class any;
 }
 
 namespace engine
