@@ -4,6 +4,14 @@
 
 namespace engine
 {
+	namespace task
+	{
+		struct scheduler;
+	}
+}
+
+namespace engine
+{
 	namespace file
 	{
 		class system;
@@ -12,7 +20,7 @@ namespace engine
 		{
 		public:
 			~loader();
-			loader(system & system);
+			explicit loader(engine::task::scheduler & taskscheduler, system & filesystem);
 		};
 
 		using load_callback = void(

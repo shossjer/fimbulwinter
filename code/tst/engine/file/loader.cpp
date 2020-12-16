@@ -1,12 +1,12 @@
-#include "engine/file/loader.hpp"
-
 #include "core/ReadStream.hpp"
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
+#include "engine/file/loader.hpp"
 #include "engine/file/scoped_directory.hpp"
 #include "engine/file/scoped_library.hpp"
 #include "engine/file/system.hpp"
+#include "engine/task/scheduler.hpp"
 
 #include "utility/any.hpp"
 
@@ -37,25 +37,27 @@ namespace
 
 TEST_CASE("file loader can be created and destroyed", "[engine][file]")
 {
-	engine::file::system filesystem(engine::file::directory::working_directory());
+	engine::task::scheduler taskscheduler(1);
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
 
 	for (int i = 0; i < 2; i++)
 	{
-		engine::file::loader fileloader(filesystem);
+		engine::file::loader fileloader(taskscheduler, filesystem);
 	}
 }
 
 TEST_CASE("file loader can read files", "[engine][file]")
 {
-	engine::file::system filesystem(engine::file::directory::working_directory());
-	engine::file::loader fileloader(filesystem);
+	engine::task::scheduler taskscheduler(1);
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::loader fileloader(taskscheduler, filesystem);
 
 	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));
 
 	SECTION("")
 	{
-		engine::file::write(filesystem, tmpdir, u8"maybe.exists", write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		engine::file::write(filesystem, tmpdir, u8"maybe.exists", engine::Asset{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
 		engine::file::scoped_library tmplib(fileloader, tmpdir);
 
@@ -193,19 +195,20 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 TEST_CASE("file loader can load tree", "[engine][file]")
 {
-	engine::file::system filesystem(engine::file::directory::working_directory());
-	engine::file::loader fileloader(filesystem);
+	engine::task::scheduler taskscheduler(1);
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::loader fileloader(taskscheduler, filesystem);
 
 	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));
 
 	SECTION("")
 	{
-		engine::file::write(filesystem, tmpdir, u8"tree.root", write_char, utility::any(char(1)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.1", write_char, utility::any(char(11)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.2", write_char, utility::any(char(12)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.3", write_char, utility::any(char(13)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.4", write_char, utility::any(char(14)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.5", write_char, utility::any(char(15)));
+		engine::file::write(filesystem, tmpdir, u8"tree.root", engine::Asset{}, write_char, utility::any(char(1)));
+		engine::file::write(filesystem, tmpdir, u8"dependency.1", engine::Asset{}, write_char, utility::any(char(11)));
+		engine::file::write(filesystem, tmpdir, u8"dependency.2", engine::Asset{}, write_char, utility::any(char(12)));
+		engine::file::write(filesystem, tmpdir, u8"dependency.3", engine::Asset{}, write_char, utility::any(char(13)));
+		engine::file::write(filesystem, tmpdir, u8"dependency.4", engine::Asset{}, write_char, utility::any(char(14)));
+		engine::file::write(filesystem, tmpdir, u8"dependency.5", engine::Asset{}, write_char, utility::any(char(15)));
 
 		engine::file::scoped_library tmplib(fileloader, tmpdir);
 
@@ -392,9 +395,10 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 		sync_data.event.reset();
 		sync_data.event_dep2.reset();
 
-		engine::file::write(filesystem, tmpdir, u8"dependency.2", write_char, utility::any(char(21)), engine::file::flags::OVERWRITE_EXISTING);
+		engine::file::write(filesystem, tmpdir, u8"dependency.2", engine::Asset{}, write_char, utility::any(char(21)), engine::file::flags::OVERWRITE_EXISTING);
 
 		REQUIRE(sync_data.event_dep2.wait(timeout));
+		CHECK(sync_data.values[2] == 1);
 		CHECK(file_data.values[2] == 33);
 
 		file_data.event.reset();

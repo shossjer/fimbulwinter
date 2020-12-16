@@ -20,6 +20,14 @@ namespace utility
 
 namespace engine
 {
+	namespace task
+	{
+		struct scheduler;
+	}
+}
+
+namespace engine
+{
 	namespace file
 	{
 		class system;
@@ -51,7 +59,7 @@ namespace engine
 		{
 		public:
 			~system();
-			system(directory && root);
+			explicit system(engine::task::scheduler & taskscheduler, directory && root);
 		};
 
 		struct flags
@@ -81,6 +89,9 @@ namespace engine
 			friend constexpr flags operator | (flags a, flags b) { return flags(a.value_ | b.value_); }
 			friend constexpr flags operator & (bits a, bits b) { return flags(static_cast<uint32_t>(a) & static_cast<uint32_t>(b)); }
 			friend constexpr flags operator | (bits a, bits b) { return flags(static_cast<uint32_t>(a) | static_cast<uint32_t>(b)); }
+
+			friend constexpr bool operator == (flags a, flags b) { return a.value_ == b.value_; }
+			friend constexpr bool operator != (flags a, flags b) { return !(a == b); }
 		};
 
 		constexpr const engine::Asset working_directory = engine::Asset{static_cast<uint32_t>(-1)};
@@ -94,17 +105,20 @@ namespace engine
 			system & system,
 			engine::Asset directory,
 			utility::heap_string_utf8 && filepath,
+			engine::Asset strand,
 			read_callback * callback,
 			utility::any && data,
 			flags mode = flags{});
 
 		void remove_watch(
 			system & system,
-			engine::Asset directory);
+			engine::Asset directory,
+			flags mode = flags{});
 		void remove_watch(
 			system & system,
 			engine::Asset directory,
-			utility::heap_string_utf8 && filepath);
+			utility::heap_string_utf8 && filepath,
+			flags mode = flags{});
 
 		using scan_callback = void(
 			engine::Asset directory,
@@ -115,6 +129,7 @@ namespace engine
 		void scan(
 			system & system,
 			engine::Asset directory,
+			engine::Asset strand,
 			scan_callback * callback,
 			utility::any && data,
 			flags mode = flags{});
@@ -128,6 +143,7 @@ namespace engine
 			system & system,
 			engine::Asset directory,
 			utility::heap_string_utf8 && filepath,
+			engine::Asset strand,
 			write_callback * callback,
 			utility::any && data,
 			flags mode = flags{});
