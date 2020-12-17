@@ -123,6 +123,7 @@ set(HEADERS_ENGINE
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
+	src/engine/module.hpp
 	src/engine/MutableEntity.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
