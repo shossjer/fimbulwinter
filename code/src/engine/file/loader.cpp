@@ -109,11 +109,12 @@ namespace
 
 	struct ReadData
 	{
+		engine::file::loader_impl * impl; // todo can this be removed?
 		engine::Asset file;
 		ext::heap_weak_ptr<Filetype::Callback> filetype_callback;
 		ext::heap_weak_ptr<FileCallData> file_callback;
 
-		static void file_load(core::ReadStream && stream, utility::any & data);
+		static void file_load(engine::file::system & filesystem, core::ReadStream && stream, utility::any & data);
 	};
 
 	constexpr auto global = engine::Asset{};
@@ -223,13 +224,62 @@ namespace
 		MessageUnregisterFiletype,
 		MessageUnregisterLibrary
 	>;
+
+	struct Task
+	{
+		engine::file::loader_impl * impl;
+		Message message;
+
+		template <typename ...Ps>
+		explicit Task(engine::file::loader_impl & impl, Ps && ...ps)
+			: impl(&impl)
+			, message(std::forward<Ps>(ps)...)
+		{}
+	};
+}
+
+namespace engine
+{
+	namespace file
+	{
+		struct loader_impl
+		{
+			engine::task::scheduler * taskscheduler;
+			engine::file::system * filesystem;
+
+			engine::Asset scanning_directory{};
+			utility::heap_vector<Message> delayed_messages;
+		};
+	}
 }
 
 namespace
 {
-	engine::task::scheduler * module_taskscheduler = nullptr;
-	engine::file::system * module_filesystem = nullptr;
+	utility::spinlock singelton_lock;
+	utility::optional<engine::file::loader_impl> singelton;
 
+	engine::file::loader_impl * create_impl()
+	{
+		std::lock_guard<utility::spinlock> guard(singelton_lock);
+
+		if (singelton)
+			return nullptr;
+
+		singelton.emplace();
+
+		return &singelton.value();
+	}
+
+	void destroy_impl(engine::file::loader_impl & /*impl*/)
+	{
+		std::lock_guard<utility::spinlock> guard(singelton_lock);
+
+		singelton.reset();
+	}
+}
+
+namespace
+{
 	using FileCallPtr = ext::heap_shared_ptr<FileCallData>;
 
 	core::container::Collection
@@ -350,7 +400,7 @@ namespace
 		return debug_verify(files.emplace<KnownFile>(file, directory, std::move(filepath)));
 	}
 
-	bool make_loaded(engine::Asset file, decltype(files.end()) file_it, LoadingFile tmp)
+	bool make_loaded(engine::file::loader_impl & impl, engine::Asset file, decltype(files.end()) file_it, LoadingFile tmp)
 	{
 		// todo replace
 		files.erase(file_it);
@@ -360,7 +410,7 @@ namespace
 			return false;
 
 		engine::task::post_work(
-			*module_taskscheduler,
+			*impl.taskscheduler,
 			file,
 			[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 		{
@@ -396,7 +446,7 @@ namespace
 		return true;
 	}
 
-	void remove_attachments(utility::heap_vector<engine::Asset, engine::Asset> && relations)
+	void remove_attachments(engine::file::loader_impl & impl, utility::heap_vector<engine::Asset, engine::Asset> && relations)
 	{
 		while (!ext::empty(relations))
 		{
@@ -432,11 +482,11 @@ namespace
 				{
 #if MODE_DEBUG
 					const auto mode = engine::file::flags::ADD_WATCH;
-					engine::file::remove_watch(*::module_filesystem, x.directory, std::move(x.filepath), mode);
+					engine::file::remove_watch(*impl.filesystem, x.directory, std::move(x.filepath), mode);
 #endif
 
 					engine::task::post_work(
-						*module_taskscheduler,
+						*impl.taskscheduler,
 						relation.second,
 						[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 					{
@@ -485,11 +535,11 @@ namespace
 				{
 #if MODE_DEBUG
 					const auto mode = engine::file::flags::ADD_WATCH;
-					engine::file::remove_watch(*::module_filesystem, x.directory, std::move(x.filepath), mode);
+					engine::file::remove_watch(*impl.filesystem, x.directory, std::move(x.filepath), mode);
 #endif
 
 					engine::task::post_work(
-						*module_taskscheduler,
+						*impl.taskscheduler,
 						relation.second,
 						[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 					{
@@ -516,7 +566,7 @@ namespace
 						if (debug_assert(filetype_ptr))
 						{
 							engine::task::post_work(
-								*module_taskscheduler,
+								*impl.taskscheduler,
 								relation.second,
 								[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 							{
@@ -555,6 +605,7 @@ namespace
 	}
 
 	bool load_file(
+		engine::file::loader_impl & impl,
 		engine::Asset owner,
 		engine::Asset filetype,
 		engine::Asset file,
@@ -610,7 +661,7 @@ namespace
 #else
 			const auto mode = engine::file::flags{};
 #endif
-			engine::file::read(*::module_filesystem, loading_file->directory, utility::heap_string_utf8(loading_file->filepath), file, ReadData::file_load, ReadData{file, ext::heap_weak_ptr<Filetype::Callback>(filetype_ptr->callback), ext::heap_weak_ptr<FileCallData>(loading_file->call_ptr)/*, std::weak_ptr<FileCallback>(loading_file->callback)*/}, mode);
+			engine::file::read(*impl.filesystem, loading_file->directory, utility::heap_string_utf8(loading_file->filepath), file, ReadData::file_load, ReadData{&impl, file, ext::heap_weak_ptr<Filetype::Callback>(filetype_ptr->callback), ext::heap_weak_ptr<FileCallData>(loading_file->call_ptr)}, mode);
 
 			return true;
 		},
@@ -639,7 +690,7 @@ namespace
 				return false; // error
 
 			engine::task::post_work(
-				*module_taskscheduler,
+				*impl.taskscheduler,
 				file,
 				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 			{
@@ -670,6 +721,7 @@ namespace
 	}
 
 	bool remove_file(
+		engine::file::loader_impl & impl,
 		engine::Asset file,
 		decltype(files.end()) file_it)
 	{
@@ -698,7 +750,7 @@ namespace
 			{
 #if MODE_DEBUG
 				const auto mode = engine::file::flags::ADD_WATCH;
-				engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath), mode);
+				engine::file::remove_watch(*impl.filesystem, y.directory, std::move(y.filepath), mode);
 #endif
 
 				if (0 <= y.previous_count)
@@ -710,7 +762,7 @@ namespace
 						if (debug_assert(filetype_ptr))
 						{
 							engine::task::post_work(
-								*module_taskscheduler,
+								*impl.taskscheduler,
 								file,
 								[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 							{
@@ -735,7 +787,7 @@ namespace
 						relations.try_emplace_back(utility::no_failure, file, attachment);
 					}
 				}
-				remove_attachments(std::move(relations));
+				remove_attachments(impl, std::move(relations));
 			}
 			return true;
 		},
@@ -751,11 +803,11 @@ namespace
 			{
 #if MODE_DEBUG
 				const auto mode = engine::file::flags::ADD_WATCH;
-				engine::file::remove_watch(*::module_filesystem, y.directory, std::move(y.filepath), mode);
+				engine::file::remove_watch(*impl.filesystem, y.directory, std::move(y.filepath), mode);
 #endif
 
 				engine::task::post_work(
-					*module_taskscheduler,
+					*impl.taskscheduler,
 					file,
 					[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 				{
@@ -782,7 +834,7 @@ namespace
 					if (debug_assert(filetype_ptr))
 					{
 						engine::task::post_work(
-							*module_taskscheduler,
+							*impl.taskscheduler,
 							file,
 							[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 						{
@@ -806,7 +858,7 @@ namespace
 						relations.try_emplace_back(utility::no_failure, file, attachment);
 					}
 				}
-				remove_attachments(std::move(relations));
+				remove_attachments(impl, std::move(relations));
 			}
 			return true;
 		},
@@ -816,7 +868,7 @@ namespace
 		}));
 	}
 
-	void finish_loading(engine::Asset file, decltype(files.end()) file_it, LoadingFile && loading_file)
+	void finish_loading(engine::file::loader_impl & impl, engine::Asset file, decltype(files.end()) file_it, LoadingFile && loading_file)
 	{
 		utility::heap_vector<engine::Asset, engine::Asset> relations;
 		if (debug_verify(relations.try_reserve(loading_file.owners.size())))
@@ -839,10 +891,10 @@ namespace
 				}
 				loading_file.attachments.erase(loading_file.attachments.begin(), split_it);
 			}
-			remove_attachments(std::move(relations_));
+			remove_attachments(impl, std::move(relations_));
 		}
 
-		if (!make_loaded(file, file_it, std::move(loading_file)))
+		if (!make_loaded(impl, file, file_it, std::move(loading_file)))
 			return; // error
 
 		while (!ext::empty(relations))
@@ -898,10 +950,10 @@ namespace
 									}
 									loading_owner->attachments.erase(loading_owner->attachments.begin(), split_it_);
 								}
-								remove_attachments(std::move(relations_));
+								remove_attachments(impl, std::move(relations_));
 							}
 
-							if (!make_loaded(relation.first, owner_it, std::move(*loading_owner)))
+							if (!make_loaded(impl, relation.first, owner_it, std::move(*loading_owner)))
 								return; // error
 						}
 					}
@@ -910,16 +962,15 @@ namespace
 		}
 	}
 
-	engine::Asset scanning_directory{};
-	utility::heap_vector<Message> delayed_messages;
-
-	void process_message(Message && message)
+	void process_message(engine::file::loader_impl & impl, Message && message)
 	{
 		struct ProcessMessage
 		{
+			engine::file::loader_impl & impl;
+
 			void operator () (MessageFileScan && x)
 			{
-				scanning_directory = engine::Asset{};
+				impl.scanning_directory = engine::Asset{};
 
 				utility::heap_vector<engine::Asset> keys;
 				if (!debug_verify(keys.try_reserve(files.table_size())))
@@ -1124,7 +1175,7 @@ namespace
 				if (!debug_verify(underlying_file.second != files.end()))
 					return; // error
 
-				if (!load_file(global, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
+				if (!load_file(impl, global, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
 					return; // error
 			}
 
@@ -1167,7 +1218,7 @@ namespace
 				if (!success)
 					return; // error
 
-				if (!load_file(underlying_owner.first, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
+				if (!load_file(impl, underlying_owner.first, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
 					return; // error
 				// todo undo on failure
 			}
@@ -1223,7 +1274,7 @@ namespace
 				if (!success)
 					return; // error
 
-				if (!load_file(underlying_owner.first, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
+				if (!load_file(impl, underlying_owner.first, x.filetype, underlying_file.first, x.file, underlying_file.second, x.readycall, x.unreadycall, std::move(x.data)))
 					return; // error
 				// todo undo on failure
 			}
@@ -1285,7 +1336,7 @@ namespace
 					y.remaining_count &= INT32_MAX;
 					if (y.remaining_count == 0)
 					{
-						finish_loading(x.file, file_it, std::move(y));
+						finish_loading(impl, x.file, file_it, std::move(y));
 					}
 				},
 					[&](LoadedFile &)
@@ -1309,7 +1360,7 @@ namespace
 
 			void operator () (MessageRegisterLibrary && x)
 			{
-				scanning_directory = x.directory;
+				impl.scanning_directory = x.directory;
 
 				const auto file_it = find(files, x.directory);
 				if (file_it == files.end())
@@ -1330,7 +1381,7 @@ namespace
 				if (!debug_verify(underlying_file.second != files.end()))
 					return; // error
 
-				remove_file(underlying_file.first, underlying_file.second);
+				remove_file(impl, underlying_file.first, underlying_file.second);
 			}
 
 			void operator () (MessageUnloadLocal && x)
@@ -1384,7 +1435,7 @@ namespace
 				if (!success)
 					return;
 
-				remove_file(underlying_file.first, underlying_file.second);
+				remove_file(impl, underlying_file.first, underlying_file.second);
 			}
 
 			void operator () (MessageUnloadDependency && x)
@@ -1422,7 +1473,7 @@ namespace
 					y.remaining_count--;
 					if (y.remaining_count == 0)
 					{
-						finish_loading(underlying_owner.first, underlying_owner.second, std::move(y));
+						finish_loading(impl, underlying_owner.first, underlying_owner.second, std::move(y));
 					}
 
 					return true;
@@ -1444,7 +1495,7 @@ namespace
 				if (!success)
 					return;
 
-				remove_file(underlying_file.first, underlying_file.second);
+				remove_file(impl, underlying_file.first, underlying_file.second);
 			}
 
 			void operator () (MessageUnregisterFiletype && x)
@@ -1460,40 +1511,40 @@ namespace
 			{
 			}
 		};
-		visit(ProcessMessage{}, std::move(message));
+		visit(ProcessMessage{impl}, std::move(message));
 	}
 
 	void loader_update(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
 	{
-		if (!debug_assert(data.type_id() == utility::type_id<Message>()))
+		if (!debug_assert(data.type_id() == utility::type_id<Task>()))
 			return;
 
-		Message && message = utility::any_cast<Message &&>(std::move(data));
+		Task && task = utility::any_cast<Task &&>(std::move(data));
 
-		if (scanning_directory != engine::Asset{})
+		if (task.impl->scanning_directory != engine::Asset{})
 		{
-			if (utility::holds_alternative<MessageFileScan>(message) && utility::get<MessageFileScan>(message).directory == scanning_directory)
+			if (utility::holds_alternative<MessageFileScan>(task.message) && utility::get<MessageFileScan>(task.message).directory == task.impl->scanning_directory)
 			{
-				process_message(std::move(message));
+				process_message(*task.impl, std::move(task.message));
 
-				auto begin = delayed_messages.begin();
-				const auto end = delayed_messages.end();
+				auto begin = task.impl->delayed_messages.begin();
+				const auto end = task.impl->delayed_messages.end();
 				for (; begin != end;)
 				{
 					const bool starting_new_scan = utility::holds_alternative<MessageRegisterLibrary>(*begin);
 
-					process_message(std::move(*begin));
+					process_message(*task.impl, std::move(*begin));
 					++begin;
 
 					if (starting_new_scan)
 					{
 						for (auto it = begin; it != end; ++it)
 						{
-							if (utility::holds_alternative<MessageFileScan>(*it) && utility::get<MessageFileScan>(*it).directory == scanning_directory)
+							if (utility::holds_alternative<MessageFileScan>(*it) && utility::get<MessageFileScan>(*it).directory == task.impl->scanning_directory)
 							{
-								process_message(std::move(*it));
+								process_message(*task.impl, std::move(*it));
 
-								delayed_messages.erase(utility::stable, it);
+								task.impl->delayed_messages.erase(utility::stable, it);
 								goto next; // todo
 							}
 						}
@@ -1502,28 +1553,33 @@ namespace
 				next:
 					;
 				}
-				delayed_messages.erase(utility::stable, delayed_messages.begin(), begin);
+				task.impl->delayed_messages.erase(utility::stable, task.impl->delayed_messages.begin(), begin);
 			}
 			else
 			{
-				debug_verify(delayed_messages.push_back(std::move(message)));
+				debug_verify(task.impl->delayed_messages.push_back(std::move(task.message)));
 			}
 		}
 		else
 		{
-			process_message(std::move(message));
+			process_message(*task.impl, std::move(task.message));
 		}
 	}
 }
 
 namespace
 {
-	void file_scan(engine::Asset directory, utility::heap_string_utf8 && files_, utility::any & /*data*/)
+	void file_scan(engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && files_, utility::any & data)
 	{
-		loader_update(*::module_taskscheduler, strand, Message(utility::in_place_type<MessageFileScan>, directory, std::move(files_)));
+		if (!debug_assert(data.type_id() == utility::type_id<engine::file::loader *>()))
+			return;
+
+		engine::file::loader & loader = *utility::any_cast<engine::file::loader *>(std::move(data));
+
+		loader_update(*loader->taskscheduler, strand, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageFileScan>, directory, std::move(files_)));
 	}
 
-	void ReadData::file_load(core::ReadStream && stream, utility::any & data)
+	void ReadData::file_load(engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 	{
 		ReadData * const read_data = utility::any_cast<ReadData>(&data);
 		if (!debug_assert(read_data))
@@ -1539,7 +1595,7 @@ namespace
 
 		if (filecall_ptr->ready)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageLoadInit>, read_data->file));
+			engine::task::post_work(*read_data->impl->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *read_data->impl, utility::in_place_type<MessageLoadInit>, read_data->file));
 
 			for (auto && call : filecall_ptr->calls)
 			{
@@ -1550,7 +1606,7 @@ namespace
 
 		filetypecall_ptr->loadcall(std::move(stream), filetypecall_ptr->data, read_data->file);
 
-		engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageLoadDone>, read_data->file));
+		engine::task::post_work(*read_data->impl->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *read_data->impl, utility::in_place_type<MessageLoadDone>, read_data->file));
 	}
 }
 
@@ -1558,12 +1614,12 @@ namespace engine
 {
 	namespace file
 	{
-		loader::~loader()
+		void loader::destruct(loader_impl & impl)
 		{
 			core::sync::Event<true> barrier;
 
 			engine::task::post_work(
-				*::module_taskscheduler,
+				*impl.taskscheduler,
 				strand,
 				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 			{
@@ -1580,67 +1636,65 @@ namespace engine
 
 			barrier.wait();
 
-			::module_filesystem = nullptr;
-			::module_taskscheduler = nullptr;
+			destroy_impl(impl);
 		}
 
-		loader::loader(engine::task::scheduler & taskscheduler, system & filesystem)
+		loader_impl * loader::construct(engine::task::scheduler & taskscheduler, engine::file::system & filesystem)
 		{
-			if (!debug_assert(::module_taskscheduler == nullptr))
-				return;
-
-			if (!debug_assert(::module_filesystem == nullptr))
-				return;
-
-			::module_taskscheduler = &taskscheduler;
-			::module_filesystem = &filesystem;
+			loader_impl * const impl = create_impl();
+			if (debug_verify(impl))
+			{
+				impl->taskscheduler = &taskscheduler;
+				impl->filesystem = &filesystem;
+			}
+			return impl;
 		}
 
-		void register_library(loader & /*loader*/, engine::Asset directory)
+		void register_library(loader & loader, engine::Asset directory)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageRegisterLibrary>, directory));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterLibrary>, directory));
 
 #if MODE_DEBUG
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH;
 #else
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES;
 #endif
-			engine::file::scan(*::module_filesystem, directory, strand, file_scan, utility::any(), mode);
+			engine::file::scan(*loader->filesystem, directory, strand, file_scan, &loader, mode);
 		}
 
-		void unregister_library(loader & /*loader*/, engine::Asset directory)
+		void unregister_library(loader & loader, engine::Asset directory)
 		{
 #if MODE_DEBUG
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH;
-			engine::file::remove_watch(*::module_filesystem, directory, mode);
+			engine::file::remove_watch(*loader->filesystem, directory, mode);
 #endif
 
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageUnregisterLibrary>, directory));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterLibrary>, directory));
 		}
 
-		void register_filetype(loader & /*loader*/, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall, utility::any && data)
+		void register_filetype(loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall, utility::any && data)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageRegisterFiletype>, filetype, loadcall, unloadcall, std::move(data)));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterFiletype>, filetype, loadcall, unloadcall, std::move(data)));
 		}
 
-		void unregister_filetype(loader & /*loader*/, engine::Asset filetype)
+		void unregister_filetype(loader & loader, engine::Asset filetype)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageUnregisterFiletype>, filetype));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterFiletype>, filetype));
 		}
 
 		void load_global(
-			loader & /*loader*/,
+			loader & loader,
 			engine::Asset filetype,
 			engine::Asset file,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageLoadGlobal>, filetype, file, readycall, unreadycall, std::move(data)));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageLoadGlobal>, filetype, file, readycall, unreadycall, std::move(data)));
 		}
 
 		void load_local(
-			loader & /*loader*/,
+			loader & loader,
 			engine::Asset filetype,
 			engine::Asset owner,
 			engine::Asset file,
@@ -1648,11 +1702,11 @@ namespace engine
 			unready_callback * unreadycall,
 			utility::any && data)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageLoadLocal>, filetype, owner, file, readycall, unreadycall, std::move(data)));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageLoadLocal>, filetype, owner, file, readycall, unreadycall, std::move(data)));
 		}
 
 		void load_dependency(
-			loader & /*loader*/,
+			loader & loader,
 			engine::Asset filetype,
 			engine::Asset owner,
 			engine::Asset file,
@@ -1660,30 +1714,30 @@ namespace engine
 			unready_callback * unreadycall,
 			utility::any && data)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageLoadDependency>, filetype, owner, file, readycall, unreadycall, std::move(data)));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageLoadDependency>, filetype, owner, file, readycall, unreadycall, std::move(data)));
 		}
 
 		void unload_global(
-			loader & /*loader*/,
+			loader & loader,
 			engine::Asset file)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageUnloadGlobal>, file));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnloadGlobal>, file));
 		}
 
 		void unload_local(
-			loader & /*loader*/,
+			loader & loader,
 			engine::Asset owner,
 			engine::Asset file)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageUnloadLocal>, owner, file));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnloadLocal>, owner, file));
 		}
 
 		void unload_dependency(
-			loader & /*loader*/,
+			loader & loader,
 			engine::Asset owner,
 			engine::Asset file)
 		{
-			engine::task::post_work(*::module_taskscheduler, strand, loader_update, Message(utility::in_place_type<MessageUnloadDependency>, owner, file));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnloadDependency>, owner, file));
 		}
 	}
 }

@@ -50,7 +50,7 @@ namespace
 		{}
 	};
 
-	void write_char(core::WriteStream && stream, utility::any && data)
+	void write_char(engine::file::system & /*filesystem*/, core::WriteStream && stream, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
 			return;
@@ -103,7 +103,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			u8"maybe.exists",
 			engine::Asset{},
-			[](core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
@@ -119,7 +119,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			u8"folder/maybe.exists",
 			engine::Asset{},
-			[](core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
@@ -152,7 +152,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			u8"folder/maybe.exists",
 			engine::Asset{},
-			[](core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -196,7 +196,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			filesystem,
 			tmpdir,
 			engine::Asset{},
-			[](engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -241,7 +241,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			filesystem,
 			tmpdir,
 			engine::Asset{},
-			[](engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -284,7 +284,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			filesystem,
 			tmpdir,
 			engine::Asset{},
-			[](engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
@@ -360,7 +360,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			u8"new.file",
 			engine::Asset{},
-			[](core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
@@ -392,7 +392,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			u8"new.file",
 			engine::Asset{},
-			[](core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
@@ -424,7 +424,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			u8"new.file",
 			engine::Asset{},
-			[](core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;

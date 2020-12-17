@@ -16,7 +16,7 @@ debug_assets("tmpdir", "tree.root", "dependency.1", "dependency.2", "dependency.
 
 namespace
 {
-	void write_char(core::WriteStream && stream, utility::any && data)
+	void write_char(engine::file::system & /*filesystem*/, core::WriteStream && stream, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
 			return;

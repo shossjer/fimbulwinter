@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/Asset.hpp"
+#include "engine/module.hpp"
 
 namespace core
 {
@@ -24,13 +25,15 @@ namespace engine
 {
 	namespace file
 	{
-		class system;
+		struct loader_impl;
+		struct system;
 
-		class loader
+		struct loader : module<loader, loader_impl>
 		{
-		public:
-			~loader();
-			explicit loader(engine::task::scheduler & taskscheduler, system & filesystem);
+			using module<loader, loader_impl>::module;
+
+			static loader_impl * construct(engine::task::scheduler & taskscheduler, engine::file::system & filesystem);
+			static void destruct(loader_impl & impl);
 		};
 
 		using load_callback = void(

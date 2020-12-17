@@ -27,10 +27,44 @@ namespace
 	}
 }
 
+namespace engine
+{
+	namespace file
+	{
+		struct system_impl
+		{
+			engine::task::scheduler * taskscheduler;
+		};
+	}
+}
+
 namespace
 {
-	engine::task::scheduler * module_taskscheduler = nullptr;
+	utility::spinlock singelton_lock;
+	utility::optional<engine::file::system_impl> singelton;
 
+	engine::file::system_impl * create_impl()
+	{
+		std::lock_guard<utility::spinlock> guard(singelton_lock);
+
+		if (singelton)
+			return nullptr;
+
+		singelton.emplace();
+
+		return &singelton.value();
+	}
+
+	void destroy_impl(engine::file::system_impl & /*impl*/)
+	{
+		std::lock_guard<utility::spinlock> guard(singelton_lock);
+
+		singelton.reset();
+	}
+}
+
+namespace
+{
 	struct Path
 	{
 		utility::heap_string_utfw filepath;
@@ -49,6 +83,7 @@ namespace
 
 	struct FileReadData
 	{
+		engine::file::system_impl & impl;
 		Path path;
 
 		engine::Asset strand; // todo not needed within the workcall
@@ -60,6 +95,8 @@ namespace
 
 	struct FileScanCallData
 	{
+		engine::file::system_impl & impl;
+
 		engine::Asset directory;
 		engine::Asset strand; // todo not needed within the workcall
 		engine::file::scan_callback * callback;
@@ -340,7 +377,7 @@ namespace
 		}
 	}
 
-	bool read_file(const Path & path, engine::file::read_callback * callback, utility::any & data, FILETIME & last_write_time)
+	bool read_file(engine::file::system_impl & impl, const Path & path, engine::file::read_callback * callback, utility::any & data, FILETIME & last_write_time)
 	{
 		HANDLE hFile = ::CreateFileW(path.filepath.data(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 		if (!debug_verify(hFile != INVALID_HANDLE_VALUE, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(path.filepath), "\" failed with last error ", ::GetLastError()))
@@ -377,7 +414,9 @@ namespace
 			reinterpret_cast<void *>(hFile),
 			std::move(relpath));
 
-		callback(std::move(stream), data);
+		engine::file::system filesystem(impl);
+		callback(filesystem, std::move(stream), data);
+		filesystem.detach();
 
 		debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
@@ -400,7 +439,7 @@ namespace
 			for (auto && scan : watch->scans)
 			{
 				engine::task::post_work(
-					*module_taskscheduler,
+					*scan.second->impl.taskscheduler,
 					scan.second->strand,
 					[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 				{
@@ -415,7 +454,9 @@ namespace
 
 						core::file::backslash_to_slash(files_utf8);
 
-						call_data.callback(call_data.directory, std::move(files_utf8), call_data.data);
+						engine::file::system filesystem(call_data.impl);
+						call_data.callback(filesystem, call_data.directory, std::move(files_utf8), call_data.data);
+						filesystem.detach();
 					}
 				},
 					FileScanData{scan.second, watch->files});
@@ -460,7 +501,7 @@ namespace
 						if (read.first == filename)
 						{
 							engine::task::post_work(
-								*module_taskscheduler,
+								*read.second->impl.taskscheduler,
 								read.second->strand,
 								[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 							{
@@ -469,7 +510,7 @@ namespace
 									FileReadPointer data_ptr = utility::any_cast<FileReadPointer &&>(std::move(data));
 									FileReadData & d = *data_ptr;
 
-									read_file(d.path, d.callback, d.data, d.last_write_time);
+									read_file(d.impl, d.path, d.callback, d.data, d.last_write_time);
 								}
 							},
 								read.second);
@@ -497,7 +538,7 @@ namespace
 				for (auto && scan : watch->scans)
 				{
 					engine::task::post_work(
-						*module_taskscheduler,
+						*scan.second->impl.taskscheduler,
 						scan.second->strand,
 						[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 					{
@@ -512,7 +553,9 @@ namespace
 
 							core::file::backslash_to_slash(files_utf8);
 
-							call_data.callback(call_data.directory, std::move(files_utf8), call_data.data);
+							engine::file::system filesystem(call_data.impl);
+							call_data.callback(filesystem, call_data.directory, std::move(files_utf8), call_data.data);
+							filesystem.detach();
 						}
 					},
 						FileScanData{scan.second, watch->files});
@@ -675,6 +718,7 @@ namespace
 
 	struct RegisterDirectory
 	{
+		engine::file::system_impl & impl;
 		engine::Asset alias;
 		engine::Asset parent;
 		utility::heap_string_utf8 filepath;
@@ -737,6 +781,7 @@ namespace
 
 	struct RegisterTemporaryDirectory
 	{
+		engine::file::system_impl & impl;
 		engine::Asset alias;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
@@ -782,6 +827,7 @@ namespace
 
 	struct UnregisterDirectory
 	{
+		engine::file::system_impl & impl;
 		engine::Asset alias;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
@@ -835,6 +881,7 @@ namespace
 
 	struct Read
 	{
+		engine::file::system_impl & impl;
 		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 		engine::Asset strand;
@@ -868,7 +915,7 @@ namespace
 			if (!debug_verify(utility::try_widen_append(x.filepath, filepath)))
 				return; // error
 
-			FileReadPointer data_ptr(utility::in_place, Path(std::move(filepath), path.root), x.strand, x.callback, std::move(x.data), FILETIME{});
+			FileReadPointer data_ptr(utility::in_place, x.impl, Path(std::move(filepath), path.root), x.strand, x.callback, std::move(x.data), FILETIME{});
 			if (!debug_verify(data_ptr))
 				return; // error
 
@@ -898,7 +945,7 @@ namespace
 			}
 
 			engine::task::post_work(
-				*module_taskscheduler,
+				*x.impl.taskscheduler,
 				x.strand,
 				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 			{
@@ -911,7 +958,7 @@ namespace
 					debug_assert(d.last_write_time.dwLowDateTime == 0);
 
 					FILETIME filetime{};
-					if (read_file(d.path, d.callback, d.data, filetime))
+					if (read_file(d.impl, d.path, d.callback, d.data, filetime))
 					{
 						d.last_write_time = filetime;
 					}
@@ -923,6 +970,7 @@ namespace
 
 	struct RemoveDirectoryWatch
 	{
+		engine::file::system_impl & impl;
 		engine::Asset directory;
 		engine::file::flags mode; // todo a bit weird
 
@@ -959,6 +1007,7 @@ namespace
 
 	struct RemoveFileWatch
 	{
+		engine::file::system_impl & impl;
 		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 		engine::file::flags mode; // todo a bit weird
@@ -1000,6 +1049,7 @@ namespace
 
 	struct Scan
 	{
+		engine::file::system_impl & impl;
 		engine::Asset directory;
 		engine::Asset strand;
 		engine::file::scan_callback * callback;
@@ -1036,7 +1086,7 @@ namespace
 				scan_directory(path, static_cast<bool>(x.mode & engine::file::flags::RECURSE_DIRECTORIES), files);
 			}
 
-			FileScanCallPtr call_ptr(utility::in_place, x.directory, x.strand, x.callback, std::move(x.data));
+			FileScanCallPtr call_ptr(utility::in_place, x.impl, x.directory, x.strand, x.callback, std::move(x.data));
 			if (!debug_verify(call_ptr))
 				return; // error
 
@@ -1057,7 +1107,7 @@ namespace
 			}
 
 			engine::task::post_work(
-				*module_taskscheduler,
+				*x.impl.taskscheduler,
 				x.strand,
 				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
 			{
@@ -1072,7 +1122,9 @@ namespace
 
 					core::file::backslash_to_slash(files_utf8);
 
-					call_data.callback(call_data.directory, std::move(files_utf8), call_data.data);
+					engine::file::system filesystem(call_data.impl);
+					call_data.callback(filesystem, call_data.directory, std::move(files_utf8), call_data.data);
+					filesystem.detach();
 				}
 			},
 				FileScanData{std::move(call_ptr), std::move(files)});
@@ -1081,6 +1133,7 @@ namespace
 
 	struct Write
 	{
+		engine::file::system_impl & impl;
 		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 		engine::Asset strand;
@@ -1172,7 +1225,9 @@ namespace
 				reinterpret_cast<void *>(hFile),
 				std::move(filepath_utf8));
 
-			x.callback(std::move(stream), std::move(x.data));
+			engine::file::system filesystem(x.impl);
+			x.callback(filesystem, std::move(stream), std::move(x.data));
+			filesystem.detach();
 
 			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 		}
@@ -1180,6 +1235,8 @@ namespace
 
 	struct Terminate
 	{
+		engine::file::system_impl & impl;
+
 		static void NTAPI Callback(ULONG_PTR Parameter)
 		{
 			std::unique_ptr<Terminate> data(reinterpret_cast<Terminate *>(Parameter));
@@ -1236,7 +1293,7 @@ namespace engine
 			return dir;
 		}
 
-		system::~system()
+		void system::destruct(system_impl & impl)
 		{
 			if (!debug_verify(hThread != nullptr))
 				return;
@@ -1244,7 +1301,7 @@ namespace engine
 			if (!debug_assert(hEvent != nullptr))
 				return;
 
-			if (!try_queue_apc<Terminate>())
+			if (!try_queue_apc<Terminate>(impl))
 			{
 				// todo this could cause memory leaks due to the raw allocations for the apc queue
 				debug_verify(::TerminateThread(hThread, DWORD(-1)) != FALSE, "failed with last error ", ::GetLastError());
@@ -1259,83 +1316,94 @@ namespace engine
 			aliases.clear();
 			directories.clear();
 
-			module_taskscheduler = nullptr;
+			destroy_impl(impl);
 		}
 
-		system::system(engine::task::scheduler & taskscheduler, directory && root)
+		system_impl * system::construct(engine::task::scheduler & taskscheduler, directory && root)
 		{
 			if (!debug_assert(hThread == nullptr))
-				return;
+				return nullptr;
 
 			if (!debug_assert(hEvent == nullptr))
-				return;
+				return nullptr;
 
-			module_taskscheduler = &taskscheduler;
-
-			const auto root_asset = make_asset(root.filepath_);
-
-			if (!debug_verify(directories.emplace<Directory>(root_asset, std::move(root.filepath_))))
-				return;
-
-			if (!debug_verify(aliases.emplace<Alias>(engine::file::working_directory, root_asset)))
+			system_impl * const impl = create_impl();
+			if (debug_verify(impl))
 			{
-				directories.clear();
-				return;
-			}
+				impl->taskscheduler = &taskscheduler;
 
-			hEvent = ::CreateEventW(nullptr, FALSE, FALSE, nullptr);
-			if (!debug_verify(hEvent != nullptr, "CreateEventW failed with last error ", ::GetLastError()))
-			{
-				aliases.clear();
-				directories.clear();
-				return;
-			}
+				const auto root_asset = make_asset(root.filepath_);
 
-			hThread = ::CreateThread(nullptr, 0, file_watch, nullptr, 0, nullptr);
-			if (!debug_verify(hThread != nullptr, "CreateThread failed with last error ", ::GetLastError()))
-			{
-				debug_verify(::CloseHandle(hEvent) != FALSE, "failed with last error ", ::GetLastError());
-				hEvent = nullptr;
-				aliases.clear();
-				directories.clear();
-				return;
+				if (!debug_verify(directories.emplace<Directory>(root_asset, std::move(root.filepath_))))
+				{
+					destroy_impl(*impl);
+					return nullptr;
+				}
+
+				if (!debug_verify(aliases.emplace<Alias>(engine::file::working_directory, root_asset)))
+				{
+					directories.clear();
+					destroy_impl(*impl);
+					return nullptr;
+				}
+
+				hEvent = ::CreateEventW(nullptr, FALSE, FALSE, nullptr);
+				if (!debug_verify(hEvent != nullptr, "CreateEventW failed with last error ", ::GetLastError()))
+				{
+					aliases.clear();
+					directories.clear();
+					destroy_impl(*impl);
+					return nullptr;
+				}
+
+				hThread = ::CreateThread(nullptr, 0, file_watch, nullptr, 0, nullptr);
+				if (!debug_verify(hThread != nullptr, "CreateThread failed with last error ", ::GetLastError()))
+				{
+					debug_verify(::CloseHandle(hEvent) != FALSE, "failed with last error ", ::GetLastError());
+					hEvent = nullptr;
+					aliases.clear();
+					directories.clear();
+					destroy_impl(*impl);
+					return nullptr;
+				}
 			}
+			return impl;
 		}
 
 		void register_directory(
-			system & /*system*/,
+			system & system,
 			engine::Asset name,
 			utility::heap_string_utf8 && path,
 			engine::Asset parent)
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<RegisterDirectory>(name, parent, std::move(path));
+				try_queue_apc<RegisterDirectory>(*system, name, parent, std::move(path));
 			}
 		}
 
 		void register_temporary_directory(
-			system & /*system*/,
+			system & system,
 			engine::Asset name)
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<RegisterTemporaryDirectory>(name);
+				try_queue_apc<RegisterTemporaryDirectory>(*system, name);
 			}
 		}
 
 		void unregister_directory(
-			system & /*system*/,
+			system & system,
 			engine::Asset name)
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<UnregisterDirectory>(name);
+				try_queue_apc<UnregisterDirectory>(*system, name);
 			}
 		}
 
 		void read(
-			system & /*system*/,
+			system & system,
 			engine::Asset directory,
 			utility::heap_string_utf8 && filepath,
 			engine::Asset strand,
@@ -1345,35 +1413,35 @@ namespace engine
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<Read>(directory, std::move(filepath), strand, callback, std::move(data), mode);
+				try_queue_apc<Read>(*system, directory, std::move(filepath), strand, callback, std::move(data), mode);
 			}
 		}
 
 		void remove_watch(
-			system & /*system*/,
+			system & system,
 			engine::Asset directory,
 			flags mode)
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<RemoveDirectoryWatch>(directory, mode);
+				try_queue_apc<RemoveDirectoryWatch>(*system, directory, mode);
 			}
 		}
 
 		void remove_watch(
-			system & /*system*/,
+			system & system,
 			engine::Asset directory,
 			utility::heap_string_utf8 && filepath,
 			flags mode)
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<RemoveFileWatch>(directory, std::move(filepath), mode);
+				try_queue_apc<RemoveFileWatch>(*system, directory, std::move(filepath), mode);
 			}
 		}
 
 		void scan(
-			system & /*system*/,
+			system & system,
 			engine::Asset directory,
 			engine::Asset strand,
 			scan_callback * callback,
@@ -1382,12 +1450,12 @@ namespace engine
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<Scan>(directory, strand, callback, std::move(data), mode);
+				try_queue_apc<Scan>(*system, directory, strand, callback, std::move(data), mode);
 			}
 		}
 
 		void write(
-			system & /*system*/,
+			system & system,
 			engine::Asset directory,
 			utility::heap_string_utf8 && filepath,
 			engine::Asset strand,
@@ -1397,7 +1465,7 @@ namespace engine
 		{
 			if (debug_assert(hThread != nullptr))
 			{
-				try_queue_apc<Write>(directory, std::move(filepath), strand, callback, std::move(data), mode);
+				try_queue_apc<Write>(*system, directory, std::move(filepath), strand, callback, std::move(data), mode);
 			}
 		}
 	}

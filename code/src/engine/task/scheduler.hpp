@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/Hash.hpp"
+#include "engine/module.hpp"
 
 namespace utility
 {
@@ -13,13 +14,12 @@ namespace engine
 	{
 		struct scheduler_impl;
 
-		struct scheduler
+		struct scheduler : module<scheduler, scheduler_impl>
 		{
-			scheduler_impl * ptr;
+			using module<scheduler, scheduler_impl>::module;
 
-			~scheduler();
-			explicit scheduler(scheduler_impl & impl);
-			explicit scheduler(ext::ssize thread_count);
+			static scheduler_impl * construct(ext::ssize thread_count);
+			static void destruct(scheduler_impl & impl);
 		};
 
 		using work_callback = void(

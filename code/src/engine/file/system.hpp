@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/Asset.hpp"
+#include "engine/module.hpp"
 
 // todo forward declare
 #include "utility/unicode/string.hpp"
@@ -28,11 +29,12 @@ namespace engine
 {
 	namespace file
 	{
-		class system;
+		struct system;
+		struct system_impl;
 
 		class directory
 		{
-			friend class system;
+			friend struct system;
 
 		private:
 #if defined(_MSC_VER)
@@ -53,11 +55,12 @@ namespace engine
 			static directory working_directory();
 		};
 
-		class system
+		struct system : module<system, system_impl>
 		{
-		public:
-			~system();
-			explicit system(engine::task::scheduler & taskscheduler, directory && root);
+			using module<system, system_impl>::module;
+
+			static system_impl * construct(engine::task::scheduler & taskscheduler, directory && root);
+			static void destruct(system_impl & impl);
 		};
 
 		struct flags
@@ -99,6 +102,7 @@ namespace engine
 		void unregister_directory(system & system, engine::Asset name);
 
 		using read_callback = void(
+			engine::file::system & filesystem,
 			core::ReadStream && stream,
 			utility::any & data);
 
@@ -123,6 +127,7 @@ namespace engine
 			flags mode = flags{});
 
 		using scan_callback = void(
+			engine::file::system & filesystem,
 			engine::Asset directory,
 			utility::heap_string_utf8 && files, // multiple files separated by ;
 			utility::any & data);
@@ -137,6 +142,7 @@ namespace engine
 			flags mode = flags{});
 
 		using write_callback = void(
+			engine::file::system & filesystem,
 			core::WriteStream && stream,
 			utility::any && data);
 
