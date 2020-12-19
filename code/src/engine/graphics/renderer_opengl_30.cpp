@@ -584,6 +584,15 @@ namespace
 		{}
 	};
 
+	struct Shader
+	{
+		GLint program;
+		GLint vertex;
+		GLint fragment;
+
+		utility::heap_vector<GLint, utility::heap_string_utf8> uniforms;
+	};
+
 	struct ShaderClass
 	{
 		engine::Token shader;
@@ -660,11 +669,138 @@ namespace
 		utility::static_storage_traits<801>,
 		utility::static_storage<100, mesh_t>,
 		utility::static_storage<100, ColorClass>,
+		utility::static_storage<100, Shader>,
 		utility::static_storage<100, ShaderClass>,
 		utility::static_storage<100, Texture>
 	>
 	resources;
 
+	bool create_shader(engine::Token asset, engine::graphics::data::ShaderData && shader_data)
+	{
+		Shader * const shader = resources.emplace<Shader>(asset);
+		if (!debug_verify(shader))
+			return false;
+
+		shader->vertex = glCreateShader(GL_VERTEX_SHADER);
+		const char * vs_source = shader_data.vertex_source.data();
+		glShaderSource(shader->vertex, 1, &vs_source, nullptr);
+		glCompileShader(shader->vertex);
+		GLint vs_compile_status;
+		glGetShaderiv(shader->vertex, GL_COMPILE_STATUS, &vs_compile_status);
+		if (!vs_compile_status)
+		{
+			char buffer[1000];
+			int length;
+			glGetShaderInfoLog(shader->vertex, 1000, &length, buffer);
+
+			resources.erase(find(resources, asset));
+
+			return debug_fail("vertex shader entity failed to compile with: ", buffer);
+		}
+
+		shader->fragment = glCreateShader(GL_FRAGMENT_SHADER);
+		const char * fs_source = shader_data.fragment_source.data();
+		glShaderSource(shader->fragment, 1, &fs_source, nullptr);
+		glCompileShader(shader->fragment);
+		GLint fs_compile_status;
+		glGetShaderiv(shader->fragment, GL_COMPILE_STATUS, &fs_compile_status);
+		if (!fs_compile_status)
+		{
+			char buffer[1000];
+			int length;
+			glGetShaderInfoLog(shader->fragment, 1000, &length, buffer);
+
+			glDeleteShader(shader->vertex);
+			resources.erase(find(resources, asset));
+
+			return debug_fail("fragment shader entity failed to compile with: ", buffer);
+		}
+
+		shader->program = glCreateProgram();
+		glAttachShader(shader->program, shader->vertex);
+		glAttachShader(shader->program, shader->fragment);
+		for (const auto & input : shader_data.inputs)
+		{
+			glBindAttribLocation(shader->program, input.value, input.name.data());
+		}
+		for (const auto & output : shader_data.outputs)
+		{
+			glBindFragDataLocation(shader->program, output.value, output.name.data());
+		}
+		glLinkProgram(shader->program);
+		GLint p_link_status;
+		glGetProgramiv(shader->program, GL_LINK_STATUS, &p_link_status);
+		if (!p_link_status)
+		{
+			char buffer[1000];
+			int length;
+			glGetProgramInfoLog(shader->program, 1000, &length, buffer);
+
+			glDeleteShader(shader->fragment);
+			glDeleteShader(shader->vertex);
+			resources.erase(find(resources, asset));
+
+			return debug_fail("program entity failed to link with: ", buffer);
+		}
+
+		if (!debug_assert(glGetError() == GL_NO_ERROR))
+		{
+			glDeleteProgram(shader->program);
+			glDeleteShader(shader->fragment);
+			glDeleteShader(shader->vertex);
+			resources.erase(find(resources, asset));
+
+			return false;
+		}
+
+		auto fragment_parser = rex::parse(shader_data.fragment_source);
+		while (true)
+		{
+			const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch(u8'/') >> ((rex::ch(u8'/') >> *!rex::newline >> rex::newline) | (rex::ch(u8'*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
+			if (uniform_declaration.first == uniform_declaration.second)
+				break;
+
+			fragment_parser.seek(uniform_declaration.second);
+			if (*uniform_declaration.first == u8'/')
+				continue;
+
+			const auto uniform_type = fragment_parser.match(+rex::word);
+			if (!uniform_type.first)
+				continue;
+
+			fragment_parser.seek(uniform_type.second);
+			const auto uniform_type_space_name = fragment_parser.match(+rex::blank);
+			if (!uniform_type_space_name.first)
+				continue;
+
+			fragment_parser.seek(uniform_type_space_name.second);
+			const auto uniform_name = fragment_parser.match(+rex::word);
+			if (!uniform_name.first)
+				continue;
+
+			fragment_parser.seek(uniform_name.second);
+			const auto uniform_semicolon = fragment_parser.match(*rex::blank >> rex::ch(u8';'));
+			if (!uniform_semicolon.first)
+				continue;
+
+			const auto type = utility::string_units_utf8(uniform_declaration.second, uniform_type.second);
+			const auto name = utility::string_units_utf8(uniform_type_space_name.second, uniform_name.second);
+
+			if (type == u8"sampler2D")
+			{
+				debug_verify(shader->uniforms.try_emplace_back(GL_TEXTURE_2D, utility::heap_string_utf8(name)));
+			}
+		}
+
+		return true;
+	}
+
+	void destroy_shader(Shader & shader)
+	{
+		glDeleteProgram(shader.program);
+		glDeleteShader(shader.fragment);
+		glDeleteShader(shader.vertex);
+	}
 
 	struct ShaderMaterial
 	{
@@ -901,7 +1037,6 @@ namespace
 	using namespace engine::graphics::detail;
 
 	FontManager font_manager;
-	ShaderManager shader_manager;
 
 	void maybe_resize_framebuffer();
 	void poll_queues()
@@ -975,28 +1110,45 @@ namespace
 
 					if (x.material.diffuse)
 					{
-						debug_verify(resources.replace<ColorClass>(x.asset, x.material.diffuse.value(), x.material.shader.value()));
+						debug_verify(resources.emplace<ColorClass>(x.asset, x.material.diffuse.value(), x.material.shader.value()));
 					}
 					else
 					{
-						debug_verify(resources.replace<ShaderClass>(x.asset, x.material.shader.value()));
+						debug_verify(resources.emplace<ShaderClass>(x.asset, x.material.shader.value()));
 					}
 				}
 
 				void operator () (MessageRegisterMesh && x)
 				{
-					debug_verify(resources.replace<mesh_t>(x.asset, std::move(x.mesh)));
+					debug_verify(resources.emplace<mesh_t>(x.asset, std::move(x.mesh)));
 				}
 
 				void operator () (MessageRegisterShader && x)
 				{
-					shader_manager.create(x.asset, std::move(x.data));
+					if (!create_shader(x.asset, std::move(x.data)))
+						return; // error
 				}
 
 				void operator () (MessageRegisterTexture && x)
 				{
 					if (!debug_verify(resources.emplace<Texture>(x.asset, std::move(x.image))))
 						return; // error
+				}
+
+				void operator () (MessageUnregister && x)
+				{
+					const auto it = find(resources, x.asset);
+					if (!debug_verify(it != resources.end()))
+						return; // error
+
+					resources.call(it,
+						[](mesh_t &){},
+						[](ColorClass &){},
+						[](Shader & y){ destroy_shader(y); },
+						[](ShaderClass &){},
+						[](Texture &){});
+
+					resources.erase(it);
 				}
 
 				void operator () (MessageCreateMaterialInstance && x)
@@ -1432,9 +1584,11 @@ void main()
 		//  entity buffer
 		//
 		////////////////////////////////////////
-		const auto * const entity_shader = shader_manager.find(entity_shader_asset);
-		if (debug_assert(entity_shader != shader_manager.end()))
+		const auto entity_shader_it = find(resources, entity_shader_asset);
+		if (debug_assert(entity_shader_it != resources.end()) && debug_assert(resources.contains<Shader>(entity_shader_it)))
 		{
+			const Shader * const entity_shader = resources.get<Shader>(entity_shader_it);
+
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
 			glViewport(0, 0, framebuffer_width, framebuffer_height);
 			glClearColor(0.f, 0.f, 0.f, 0.f); // null entity
@@ -1598,9 +1752,11 @@ void main()
 				}
 			}
 
-			const auto * const shader = shader_manager.find(shader_asset);
-			if (shader == shader_manager.end())
+			const auto shader_it = find(resources, shader_asset);
+			if (!(shader_it != resources.end() && resources.contains<Shader>(shader_it)))
 				continue; // todo not ready (yet?)
+
+			const Shader * const shader = resources.get<Shader>(shader_it);
 
 			glUseProgram(shader->program);
 			glUniform(shader->program, "projection_matrix", display.projection_3d);

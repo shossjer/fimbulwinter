@@ -651,6 +651,15 @@ namespace
 					debug_fail("missing implementation");
 				}
 
+				void operator () (MessageUnregister && x)
+				{
+					const auto it = find(resources, x.asset);
+					if (!debug_verify(it != resources.end()))
+						return; // error
+
+					resources.erase(it);
+				}
+
 				void operator () (MessageCreateMaterialInstance && x)
 				{
 					if (!debug_verify(find(resources, x.data.materialclass) != resources.end(), x.data.materialclass))

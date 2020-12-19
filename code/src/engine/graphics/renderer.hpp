@@ -230,7 +230,7 @@ namespace engine
 		void post_register_mesh(renderer & renderer, engine::Token asset, data::MeshAsset && data);
 		void post_register_shader(renderer & renderer, engine::Token asset, data::ShaderData && data);
 		void post_register_texture(renderer & renderer, engine::Token asset, core::graphics::Image && image);
-		//void post_unregister(renderer & renderer, engine::Token asset);
+		void post_unregister(renderer & renderer, engine::Token asset);
 
 		void post_create_material(renderer & renderer, engine::Token entity, data::MaterialInstance && data);
 		void post_destroy(renderer & renderer, engine::Token entity);
