@@ -9,6 +9,7 @@
 #include "utility/container/array.hpp"
 #include "utility/container/fragmentation.hpp"
 #include "utility/container/vector.hpp"
+#include "utility/overload.hpp"
 #include "utility/preprocessor/expand.hpp"
 #include "utility/ranges.hpp"
 #include "utility/type_traits.hpp"
@@ -342,6 +343,9 @@ namespace core
 					                 keys()[it.bucket_], index, std::forward<F>(func));
 				}
 			}
+
+			template <typename ...Fs>
+			decltype(auto) call(const_iterator it, Fs && ...funcs) { return call(it, ext::overload(std::forward<Fs>(funcs)...)); }
 
 		private:
 			template <typename K>
@@ -705,6 +709,9 @@ namespace core
 					call_all_impl(it.bucket_, std::forward<F>(func), mpl::make_index_sequence<component_types::size>{});
 				}
 			}
+
+			template <typename ...Fs>
+			decltype(auto) call(const_iterator it, Fs && ...funcs) { return call(it, ext::overload(std::forward<Fs>(funcs)...)); }
 		private:
 			template <typename K>
 			static bucket_t find_bucket(K key, const Key * keys, ext::usize nkeys, std::size_t first_bucket)
@@ -1065,6 +1072,9 @@ namespace core
 					                 keys()[it.bucket_], index, std::forward<F>(func));
 				}
 			}
+
+			template <typename ...Fs>
+			decltype(auto) call(const_iterator it, Fs && ...funcs) { return call(it, ext::overload(std::forward<Fs>(funcs)...)); }
 
 		private:
 			template <typename K>
