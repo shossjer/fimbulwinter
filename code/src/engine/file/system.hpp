@@ -130,7 +130,8 @@ namespace engine
 		using scan_callback = void(
 			engine::file::system & filesystem,
 			engine::Asset directory,
-			utility::heap_string_utf8 && files, // multiple files separated by ;
+			utility::heap_string_utf8 && existing_files, // multiple files separated by ;
+			utility::heap_string_utf8 && removed_files, // multiple files separated by ;
 			utility::any & data);
 
 		// mode IGNORE_EXISTING | ADD_WATCH | RECURSE_DIRECTORIES

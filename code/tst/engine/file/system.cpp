@@ -196,7 +196,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			filesystem,
 			tmpdir,
 			engine::Asset{},
-			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -205,7 +205,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 
 			if (directory == engine::Asset("tmpdir"))
 			{
-				if (files == u8"")
+				if (existing_files == u8"")
 				{
 					sync_data.count = 1;
 				}
@@ -241,7 +241,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			filesystem,
 			tmpdir,
 			engine::Asset{},
-			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -250,7 +250,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 
 			if (directory == engine::Asset("tmpdir"))
 			{
-				if (files == u8"file.whatever;folder/maybe.exists" || files == u8"folder/maybe.exists;file.whatever")
+				if (existing_files == u8"file.whatever;folder/maybe.exists" || existing_files == u8"folder/maybe.exists;file.whatever")
 				{
 					sync_data.count = 1;
 				}
@@ -284,7 +284,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			filesystem,
 			tmpdir,
 			engine::Asset{},
-			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && files, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
@@ -293,15 +293,15 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 
 				if (directory == engine::Asset("tmpdir"))
 				{
-					if (files == u8"")
+					if (existing_files == u8"")
 					{
 						sync_data.count = 1;
 					}
-					else if (files == u8"file.whatever")
+					else if (existing_files == u8"file.whatever")
 					{
 						sync_data.count = 2;
 					}
-					else if (files == u8"file.whatever;folder/maybe.exists" || files == u8"folder/maybe.exists;file.whatever")
+					else if (existing_files == u8"file.whatever;folder/maybe.exists" || existing_files == u8"folder/maybe.exists;file.whatever")
 					{
 						sync_data.count = 3;
 					}

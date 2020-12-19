@@ -120,7 +120,8 @@ namespace
 	struct FileScanData
 	{
 		FileScanCallPtr call_ptr;
-		utility::heap_string_utfw files;
+		utility::heap_string_utfw existing_files;
+		utility::heap_string_utfw removed_files;
 	};
 
 	void CALLBACK Completion(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
@@ -438,7 +439,57 @@ namespace
 		}
 		else if (dwNumberOfBytesTransfered == 0)
 		{
+			utility::heap_string_utfw old_files = std::move(watch->files);
 			scan_directory(watch->path, static_cast<bool>(watch->flags & engine::file::flags::RECURSE_DIRECTORIES), watch->files);
+			// todo this algorithm is embarrassing
+			{
+				auto existing_begin = watch->files.begin();
+				const auto existing_end = watch->files.end();
+
+				if (existing_begin != existing_end)
+				{
+					while (true)
+					{
+						const auto existing_split = find(existing_begin, existing_end, u8';');
+						if (!debug_assert(existing_split != existing_begin, "unexpected file without name"))
+							return; // error
+
+						const auto existing_filepath = utility::string_units_utfw(existing_begin, existing_split);
+						{
+							auto removed_begin = old_files.begin();
+							const auto removed_end = old_files.end();
+
+							if (removed_begin != removed_end)
+							{
+								while (true)
+								{
+									const auto removed_split = find(removed_begin, removed_end, u8';');
+									if (!debug_assert(removed_split != removed_begin, "unexpected file without name"))
+										return; // error
+
+									const auto removed_filepath = utility::string_units_utfw(removed_begin, removed_split);
+
+									if (existing_filepath == removed_filepath)
+									{
+										old_files.erase(removed_begin, removed_split != removed_end ? removed_split + 1 : removed_split);
+										break;
+									}
+
+									if (removed_split == removed_end)
+										break;
+
+									removed_begin = removed_split + 1;
+								}
+							}
+						}
+
+						if (existing_split == existing_end)
+							break;
+
+						existing_begin = existing_split + 1;
+					}
+				}
+			}
 
 			for (auto && scan : watch->scans)
 			{
@@ -452,18 +503,23 @@ namespace
 						FileScanData scan_data = utility::any_cast<FileScanData &&>(std::move(data));
 						FileScanCallData & call_data = *scan_data.call_ptr;
 
-						utility::heap_string_utf8 files_utf8;
-						if (!debug_verify(utility::try_narrow(scan_data.files, files_utf8)))
+						utility::heap_string_utf8 existing_files_utf8;
+						if (!debug_verify(utility::try_narrow(scan_data.existing_files, existing_files_utf8)))
 							return; // error
 
-						core::file::backslash_to_slash(files_utf8);
+						utility::heap_string_utf8 removed_files_utf8;
+						if (!debug_verify(utility::try_narrow(scan_data.removed_files, removed_files_utf8)))
+							return; // error
+
+						core::file::backslash_to_slash(existing_files_utf8);
+						core::file::backslash_to_slash(removed_files_utf8);
 
 						engine::file::system filesystem(call_data.impl);
-						call_data.callback(filesystem, call_data.directory, std::move(files_utf8), call_data.data);
+						call_data.callback(filesystem, call_data.directory, std::move(existing_files_utf8), std::move(removed_files_utf8), call_data.data);
 						filesystem.detach();
 					}
 				},
-					FileScanData{scan.second, watch->files});
+					FileScanData{scan.second, watch->files, std::move(old_files)});
 			}
 
 			if (watch->read())
@@ -471,6 +527,7 @@ namespace
 		}
 		else
 		{
+			utility::heap_string_utfw removed_files;
 			bool file_change = false;
 
 			for (std::size_t offset = 0;;)
@@ -495,6 +552,7 @@ namespace
 					debug_printline("FILE_ACTION_REMOVED: ", utility::heap_narrow<utility::encoding_utf8>(utility::string_points_utfw(filename.data(), filename.data() + filename.size())));
 					if (remove_file(watch->files, watch->path, filename))
 					{
+						add_file(removed_files, watch->path, filename);
 						file_change = true;
 					}
 					for (auto && read : watch->reads)
@@ -579,18 +637,23 @@ namespace
 							FileScanData scan_data = utility::any_cast<FileScanData &&>(std::move(data));
 							FileScanCallData & call_data = *scan_data.call_ptr;
 
-							utility::heap_string_utf8 files_utf8;
-							if (!debug_verify(utility::try_narrow(scan_data.files, files_utf8)))
+							utility::heap_string_utf8 existing_files_utf8;
+							if (!debug_verify(utility::try_narrow(scan_data.existing_files, existing_files_utf8)))
 								return; // error
 
-							core::file::backslash_to_slash(files_utf8);
+							utility::heap_string_utf8 removed_files_utf8;
+							if (!debug_verify(utility::try_narrow(scan_data.removed_files, removed_files_utf8)))
+								return; // error
+
+							core::file::backslash_to_slash(existing_files_utf8);
+							core::file::backslash_to_slash(removed_files_utf8);
 
 							engine::file::system filesystem(call_data.impl);
-							call_data.callback(filesystem, call_data.directory, std::move(files_utf8), call_data.data);
+							call_data.callback(filesystem, call_data.directory, std::move(existing_files_utf8), std::move(removed_files_utf8), call_data.data);
 							filesystem.detach();
 						}
 					},
-						FileScanData{scan.second, watch->files});
+						FileScanData{scan.second, watch->files, std::move(removed_files)});
 				}
 			}
 
@@ -1168,14 +1231,14 @@ namespace
 					FileScanData scan_data = utility::any_cast<FileScanData &&>(std::move(data));
 					FileScanCallData & call_data = *scan_data.call_ptr;
 
-					utility::heap_string_utf8 files_utf8;
-					if (!debug_verify(utility::try_narrow(scan_data.files, files_utf8)))
+					utility::heap_string_utf8 existing_files_utf8;
+					if (!debug_verify(utility::try_narrow(scan_data.existing_files, existing_files_utf8)))
 						return; // error
 
-					core::file::backslash_to_slash(files_utf8);
+					core::file::backslash_to_slash(existing_files_utf8);
 
 					engine::file::system filesystem(call_data.impl);
-					call_data.callback(filesystem, call_data.directory, std::move(files_utf8), call_data.data);
+					call_data.callback(filesystem, call_data.directory, std::move(existing_files_utf8), utility::heap_string_utf8(), call_data.data);
 					filesystem.detach();
 				}
 			},
