@@ -441,8 +441,9 @@ namespace
 		engine::task::post_work(
 			*impl.taskscheduler,
 			file,
-			[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+			[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
 		{
+			// note strand is the underlying file
 			if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
 			{
 				FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
@@ -452,7 +453,7 @@ namespace
 				{
 					for (auto && call : call_data.calls)
 					{
-						call.second.readycall(call.second.data, call.first);
+						call.second.readycall(call.second.data, call.first, strand_);
 					}
 					call_data.ready = true;
 				}
@@ -506,8 +507,9 @@ namespace
 					engine::task::post_work(
 						*impl.taskscheduler,
 						relation.second,
-						[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+						[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
 					{
+						// note strand is the underlying file
 						if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
 						{
 							FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
@@ -517,7 +519,7 @@ namespace
 							{
 								for (auto && call : call_data.calls)
 								{
-									call.second.unreadycall(call.second.data, call.first);
+									call.second.unreadycall(call.second.data, call.first, strand_);
 								}
 								call_data.ready = false;
 							}
@@ -555,8 +557,9 @@ namespace
 					engine::task::post_work(
 						*impl.taskscheduler,
 						relation.second,
-						[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+						[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
 					{
+						// note strand is the underlying file
 						if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
 						{
 							FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
@@ -566,7 +569,7 @@ namespace
 							{
 								for (auto && call : call_data.calls)
 								{
-									call.second.unreadycall(call.second.data, call.first);
+									call.second.unreadycall(call.second.data, call.first, strand_);
 								}
 								call_data.ready = false;
 							}
@@ -700,8 +703,9 @@ namespace
 			engine::task::post_work(
 				*impl.taskscheduler,
 				file,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
 			{
+				// note strand is the underlying file
 				if (debug_assert(data.type_id() == utility::type_id<FileCallDataPlusOne>()))
 				{
 					FileCallDataPlusOne call_ptr = utility::any_cast<FileCallDataPlusOne &&>(std::move(data));
@@ -714,7 +718,7 @@ namespace
 					{
 						auto && call = ext::back(call_data.calls);
 
-						call.second.readycall(call.second.data, call.first);
+						call.second.readycall(call.second.data, call.first, strand_);
 					}
 				}
 			},
@@ -802,8 +806,9 @@ namespace
 				engine::task::post_work(
 					*impl.taskscheduler,
 					file,
-					[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+					[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
 				{
+					// note strand is the underlying file
 					if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
 					{
 						FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
@@ -813,7 +818,7 @@ namespace
 						{
 							for (auto && call : call_data.calls)
 							{
-								call.second.unreadycall(call.second.data, call.first);
+								call.second.unreadycall(call.second.data, call.first, strand_);
 							}
 							call_data.ready = false;
 						}
@@ -1657,7 +1662,7 @@ namespace
 
 			for (auto && call : filecall_ptr->calls)
 			{
-				call.second.unreadycall(call.second.data, call.first);
+				call.second.unreadycall(call.second.data, call.first, read_data->file);
 			}
 			filecall_ptr->ready = false;
 		}

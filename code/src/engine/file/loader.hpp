@@ -52,10 +52,12 @@ namespace engine
 
 		using ready_callback = void(
 			utility::any & data,
-			engine::Asset file);
+			engine::Asset file,
+			engine::Asset underlying_file);
 		using unready_callback = void(
 			utility::any & data,
-			engine::Asset file);
+			engine::Asset file,
+			engine::Asset underlying_file);
 
 		void load_global(
 			loader & loader,

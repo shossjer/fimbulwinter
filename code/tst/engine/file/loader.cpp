@@ -125,7 +125,7 @@ TEST_CASE("file loader can read files", "[engine][file]")
 			fileloader,
 			filetype,
 			engine::Asset(u8"maybe.exists"),
-			[](utility::any & data, engine::Asset /*file*/)
+			[](utility::any & data, engine::Asset /*file*/, engine::Asset /*underlying_file*/)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -134,7 +134,7 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 			sync_data->ready_event.set();
 		},
-			[](utility::any & data, engine::Asset /*file*/)
+			[](utility::any & data, engine::Asset /*file*/, engine::Asset /*underlying_file*/)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -149,7 +149,7 @@ TEST_CASE("file loader can read files", "[engine][file]")
 			fileloader,
 			filetype,
 			engine::Asset(u8"folder/maybe.exists"),
-			[](utility::any & data, engine::Asset /*file*/)
+			[](utility::any & data, engine::Asset /*file*/, engine::Asset /*underlying_file*/)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -158,7 +158,7 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 			sync_data->ready_event.set();
 		},
-			[](utility::any & data, engine::Asset /*file*/)
+			[](utility::any & data, engine::Asset /*file*/, engine::Asset /*underlying_file*/)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -306,7 +306,7 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 				}
 			}
 
-			static void ready(utility::any & data, engine::Asset file)
+			static void ready(utility::any & data, engine::Asset file, engine::Asset /*underlying_file*/)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
@@ -340,7 +340,7 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 				}
 			}
 
-			static void unready(utility::any & data, engine::Asset file)
+			static void unready(utility::any & data, engine::Asset file, engine::Asset /*underlying_file*/)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
