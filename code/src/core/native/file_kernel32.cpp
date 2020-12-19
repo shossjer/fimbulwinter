@@ -19,7 +19,7 @@ namespace core
 			HANDLE hFile = ::CreateFileW(utility::heap_widen(filepath).data(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 			if (hFile == INVALID_HANDLE_VALUE)
 			{
-				debug_verify(::GetLastError() == ERROR_FILE_NOT_FOUND, "CreateFileW \"", filepath, "\"failed with last error ", ::GetLastError());
+				debug_assert(::GetLastError() == ERROR_FILE_NOT_FOUND, "CreateFileW \"", filepath, "\" failed with last error ", ::GetLastError());
 				return false;
 			}
 
@@ -30,7 +30,7 @@ namespace core
 				HANDLE hFile = reinterpret_cast<HANDLE>(data);
 
 				DWORD read;
-				if (!debug_verify(::ReadFile(hFile, dest, debug_cast<DWORD>(n), &read, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
+				if (!debug_verify(::ReadFile(hFile, dest, debug_cast<DWORD>(n), &read, nullptr) != FALSE, " failed with last error ", ::GetLastError()))
 					return ext::ssize(-1);
 
 				return ext::ssize(read);
@@ -39,7 +39,7 @@ namespace core
 					std::move(filepath)),
 				data);
 
-			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+			debug_verify(::CloseHandle(hFile) != FALSE, " failed with last error ", ::GetLastError());
 			return true;
 		}
 	}
