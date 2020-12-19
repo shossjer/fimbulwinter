@@ -85,6 +85,7 @@ namespace
 	{
 		engine::file::system_impl & impl;
 		Path path;
+		engine::file::flags mode;
 
 		engine::Asset strand; // todo not needed within the workcall
 		engine::file::read_callback * callback;
@@ -380,8 +381,11 @@ namespace
 	bool read_file(engine::file::system_impl & impl, const Path & path, engine::file::read_callback * callback, utility::any & data, FILETIME & last_write_time)
 	{
 		HANDLE hFile = ::CreateFileW(path.filepath.data(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
-		if (!debug_verify(hFile != INVALID_HANDLE_VALUE, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(path.filepath), "\" failed with last error ", ::GetLastError()))
+		if (hFile == INVALID_HANDLE_VALUE)
+		{
+			debug_assert(::GetLastError() == ERROR_FILE_NOT_FOUND, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(path.filepath), "\" failed with last error ", ::GetLastError());
 			return false;
+		}
 
 		BY_HANDLE_FILE_INFORMATION by_handle_file_information;
 		if (debug_verify(::GetFileInformationByHandle(hFile, &by_handle_file_information) != 0, "GetFileInformationByHandle failed with last error ", ::GetLastError()))
@@ -492,6 +496,34 @@ namespace
 					if (remove_file(watch->files, watch->path, filename))
 					{
 						file_change = true;
+					}
+					for (auto && read : watch->reads)
+					{
+						if (read.first == filename && (read.second->mode & engine::file::flags::REPORT_MISSING)) // todo put in its own array
+						{
+							engine::task::post_work(
+								*read.second->impl.taskscheduler,
+								read.second->strand,
+								[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+							{
+								if (debug_assert(data.type_id() == utility::type_id<FileReadPointer>()))
+								{
+									FileReadPointer data_ptr = utility::any_cast<FileReadPointer &&>(std::move(data));
+									FileReadData & d = *data_ptr;
+
+									utility::heap_string_utf8 relpath;
+									if (!debug_verify(utility::try_narrow(utility::string_points_utfw(d.path.filepath.data() + d.path.root, d.path.filepath.data() + d.path.filepath.size()), relpath)))
+										return; // error
+
+									core::ReadStream stream(std::move(relpath));
+
+									engine::file::system filesystem(d.impl);
+									d.callback(filesystem, std::move(stream), d.data);
+									filesystem.detach();
+								}
+							},
+								read.second);
+						}
 					}
 					break;
 				case FILE_ACTION_MODIFIED:
@@ -915,14 +947,16 @@ namespace
 			if (!debug_verify(utility::try_widen_append(x.filepath, filepath)))
 				return; // error
 
-			FileReadPointer data_ptr(utility::in_place, x.impl, Path(std::move(filepath), path.root), x.strand, x.callback, std::move(x.data), FILETIME{});
+			FileReadPointer data_ptr(utility::in_place, x.impl, Path(std::move(filepath), path.root), x.mode, x.strand, x.callback, std::move(x.data), FILETIME{});
 			if (!debug_verify(data_ptr))
 				return; // error
 
 			// todo if x.filepath contains slashes the RECURSE_DIRECTORIES flag must be set or else there are inconsistencies with watch
 			if (x.mode & engine::file::flags::ADD_WATCH)
 			{
-				const auto watch_it = ext::find_if(watches, fun::first == std::make_pair(alias_ptr->directory, x.mode));
+				const auto watch_mode = x.mode & engine::file::flags::RECURSE_DIRECTORIES;
+
+				const auto watch_it = ext::find_if(watches, fun::first == std::make_pair(alias_ptr->directory, watch_mode));
 				if (watch_it != watches.end())
 				{
 					utility::heap_string_utfw dirpath;
@@ -934,7 +968,7 @@ namespace
 				}
 				else
 				{
-					WatchData * const watch_data = start_watch(alias_ptr->directory, Path(path), x.mode);
+					WatchData * const watch_data = start_watch(alias_ptr->directory, Path(path), watch_mode);
 					utility::heap_string_utfw dirpath;
 					if (debug_verify(utility::try_widen_append(x.filepath, dirpath)))
 					{
@@ -962,6 +996,18 @@ namespace
 					{
 						d.last_write_time = filetime;
 					}
+					else
+					{
+						utility::heap_string_utf8 relpath;
+						if (!debug_verify(utility::try_narrow(utility::string_points_utfw(d.path.filepath.data() + d.path.root, d.path.filepath.data() + d.path.filepath.size()), relpath)))
+							return; // error
+
+						core::ReadStream stream(std::move(relpath));
+
+						engine::file::system filesystem(d.impl);
+						d.callback(filesystem, std::move(stream), d.data);
+						filesystem.detach();
+					}
 				}
 			},
 				std::move(data_ptr));
@@ -987,7 +1033,9 @@ namespace
 			if (!debug_assert(alias_ptr))
 				return;
 
-			const auto watch_it = ext::find_if(watches, fun::first == std::make_pair(alias_ptr->directory, x.mode));
+			const auto watch_mode = x.mode & engine::file::flags::RECURSE_DIRECTORIES;
+
+			const auto watch_it = ext::find_if(watches, fun::first == std::make_pair(alias_ptr->directory, watch_mode));
 			if (!debug_verify(watch_it != watches.end()))
 				return; // error
 
@@ -1025,7 +1073,9 @@ namespace
 			if (!debug_assert(alias_ptr))
 				return;
 
-			const auto watch_it = ext::find_if(watches, fun::first == std::make_pair(alias_ptr->directory, x.mode));
+			const auto watch_mode = x.mode & engine::file::flags::RECURSE_DIRECTORIES;
+
+			const auto watch_it = ext::find_if(watches, fun::first == std::make_pair(alias_ptr->directory, watch_mode));
 			if (!debug_verify(watch_it != watches.end()))
 				return; // error
 
@@ -1075,8 +1125,10 @@ namespace
 
 			const auto & path = get_path(directory_it);
 
+			const auto watch_mode = x.mode & engine::file::flags::RECURSE_DIRECTORIES;
+
 			utility::heap_string_utfw files;
-			const auto watch_it = ext::find_if(watches, fun::first == std::make_pair(alias_ptr->directory, x.mode));
+			const auto watch_it = ext::find_if(watches, fun::first == std::make_pair(alias_ptr->directory, watch_mode));
 			if (watch_it != watches.end())
 			{
 				files = (*watch_it.second)->files;
@@ -1098,7 +1150,7 @@ namespace
 				}
 				else
 				{
-					if (WatchData * const watch_data = start_watch(alias_ptr->directory, Path(path), x.mode))
+					if (WatchData * const watch_data = start_watch(alias_ptr->directory, Path(path), watch_mode))
 					{
 						debug_verify(watch_data->scans.try_emplace_back(x.directory, call_ptr));
 						watch_data->files = files;

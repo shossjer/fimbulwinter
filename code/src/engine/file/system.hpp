@@ -72,6 +72,7 @@ namespace engine
 				ADD_WATCH = uint32_t(1) << 2,
 				CREATE_DIRECTORIES = uint32_t(1) << 3,
 				RECURSE_DIRECTORIES = uint32_t(1) << 4,
+				REPORT_MISSING = uint32_t(1) << 5,
 			};
 
 		private:
@@ -106,7 +107,7 @@ namespace engine
 			core::ReadStream && stream,
 			utility::any & data);
 
-		// mode ADD_WATCH | RECURSE_DIRECTORIES
+		// mode ADD_WATCH | RECURSE_DIRECTORIES | REPORT_MISSING
 		void read(
 			system & system,
 			engine::Asset directory,
