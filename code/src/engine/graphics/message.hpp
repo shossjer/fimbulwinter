@@ -73,6 +73,11 @@ namespace engine
 				core::graphics::Image image;
 			};
 
+			struct MessageUnregister
+			{
+				engine::Asset asset;
+			};
+
 			struct MessageCreateMaterialInstance
 			{
 				engine::Token entity;
@@ -159,6 +164,7 @@ namespace engine
 				MessageRegisterMesh,
 				MessageRegisterShader,
 				MessageRegisterTexture,
+				MessageUnregister,
 
 				MessageCreateMaterialInstance,
 				MessageDestroy,
