@@ -63,85 +63,99 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 		struct FileData
 		{
-			int values[2] = {};
-			core::sync::Event<true> load_events[2];
-			core::sync::Event<true> unload_events[2];
-		} file_data;
+			int value = {};
+
+			int * unload_value = nullptr;
+			core::sync::Event<true> * unload_event = nullptr;
+		};
 
 		engine::file::scoped_filetype filetype(
 			fileloader,
 			engine::Asset("tmpfiletype"),
-			[](core::ReadStream && stream, utility::any & data, engine::Asset file)
+			[](engine::file::loader & /*fileloader*/, core::ReadStream && stream, utility::any & stash, engine::Asset file)
 		{
-			if (!debug_assert(data.type_id() == utility::type_id<FileData *>()))
-				return;
-
-			FileData * const file_data = utility::any_cast<FileData *>(data);
+			FileData & file_data = stash.emplace<FileData>();
 
 			switch (file)
 			{
 			case engine::Asset(u8"maybe.exists"):
-				file_data->values[0] += int(read_char(stream));
-				file_data->load_events[0].set();
+				file_data.value += int(read_char(stream));
 				break;
 			case engine::Asset(u8"folder/maybe.exists"):
-				file_data->values[1] += int(read_char(stream));
-				file_data->load_events[1].set();
+				file_data.value += int(read_char(stream));
 				break;
 			default:
 				debug_fail();
 			}
 		},
-			[](utility::any & data, engine::Asset file)
+			[](engine::file::loader & /*fileloader*/, utility::any & stash, engine::Asset file)
 		{
-			if (!debug_assert(data.type_id() == utility::type_id<FileData *>()))
+			if (!debug_assert(stash.type_id() == utility::type_id<FileData>()))
 				return;
 
-			FileData * const file_data = utility::any_cast<FileData *>(data);
+			FileData & file_data = utility::any_cast<FileData &>(stash);
 
 			switch (file)
 			{
 			case engine::Asset(u8"maybe.exists"):
-				file_data->values[0] -= 2;
-				file_data->unload_events[0].set();
+				file_data.value -= 3;
 				break;
 			case engine::Asset(u8"folder/maybe.exists"):
-				file_data->values[1] -= 3;
-				file_data->unload_events[1].set();
+				file_data.value -= 4;
 				break;
 			default:
 				debug_fail();
 			}
-		},
-			&file_data);
+
+			if (file_data.unload_value)
+			{
+				*file_data.unload_value = file_data.value;
+			}
+			if (file_data.unload_event)
+			{
+				file_data.unload_event->set();
+			}
+		});
 
 		struct SyncData
 		{
+			int ready_value = {};
+			int unload_value = {};
 			core::sync::Event<true> ready_event;
-			core::sync::Event<true> unready_event;
+			core::sync::Event<true> unload_event;
 		} sync_data[2];
 
 		engine::file::load_global(
 			fileloader,
 			filetype,
 			engine::Asset(u8"maybe.exists"),
-			[](utility::any & data, engine::Asset /*file*/, engine::Asset /*underlying_file*/)
+			[](engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset /*name*/, const utility::any & stash, engine::Asset /*file*/)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
+			if (!debug_assert(stash.type_id() == utility::type_id<FileData>()))
+				return;
 
 			SyncData * const sync_data = utility::any_cast<SyncData *>(data);
+			const FileData & file_data = utility::any_cast<const FileData &>(stash);
 
+			const_cast<FileData &>(file_data).unload_value = &sync_data->unload_value; // suspicious
+			const_cast<FileData &>(file_data).unload_event = &sync_data->unload_event; // suspicious
+
+			sync_data->ready_value = file_data.value;
 			sync_data->ready_event.set();
 		},
-			[](utility::any & data, engine::Asset /*file*/, engine::Asset /*underlying_file*/)
+			[](engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset /*name*/, const utility::any & stash, engine::Asset /*file*/)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
+			if (!debug_assert(stash.type_id() == utility::type_id<FileData>()))
+				return;
 
 			SyncData * const sync_data = utility::any_cast<SyncData *>(data);
+			const FileData & file_data = utility::any_cast<const FileData &>(stash);
 
-			sync_data->unready_event.set();
+			sync_data->ready_value -= file_data.value;
 		},
 			utility::any(sync_data + 0));
 
@@ -149,47 +163,226 @@ TEST_CASE("file loader can read files", "[engine][file]")
 			fileloader,
 			filetype,
 			engine::Asset(u8"folder/maybe.exists"),
-			[](utility::any & data, engine::Asset /*file*/, engine::Asset /*underlying_file*/)
+			[](engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset /*name*/, const utility::any & stash, engine::Asset /*file*/)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
+			if (!debug_assert(stash.type_id() == utility::type_id<FileData>()))
+				return;
 
 			SyncData * const sync_data = utility::any_cast<SyncData *>(data);
+			const FileData & file_data = utility::any_cast<const FileData &>(stash);
 
+			const_cast<FileData &>(file_data).unload_value = &sync_data->unload_value; // suspicious
+			const_cast<FileData &>(file_data).unload_event = &sync_data->unload_event; // suspicious
+
+			sync_data->ready_value = file_data.value;
 			sync_data->ready_event.set();
 		},
-			[](utility::any & data, engine::Asset /*file*/, engine::Asset /*underlying_file*/)
+			[](engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset /*name*/, const utility::any & stash, engine::Asset /*file*/)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
+			if (!debug_assert(stash.type_id() == utility::type_id<FileData>()))
+				return;
 
 			SyncData * const sync_data = utility::any_cast<SyncData *>(data);
+			const FileData & file_data = utility::any_cast<const FileData &>(stash);
 
-			sync_data->unready_event.set();
+			sync_data->ready_value -= file_data.value;
 		},
 			utility::any(sync_data + 1));
 
-		REQUIRE(file_data.load_events[0].wait(timeout));
-		REQUIRE(file_data.load_events[1].wait(timeout));
 		REQUIRE(sync_data[0].ready_event.wait(timeout));
 		REQUIRE(sync_data[1].ready_event.wait(timeout));
-		CHECK(file_data.values[0] == 2);
-		CHECK(file_data.values[1] == 3);
-
-		file_data.load_events[0].reset();
-		file_data.load_events[1].reset();
-		sync_data[0].ready_event.reset();
-		sync_data[1].ready_event.reset();
+		CHECK(sync_data[0].ready_value == 2);
+		CHECK(sync_data[1].ready_value == 3);
+		CHECK(sync_data[0].unload_value == 0);
+		CHECK(sync_data[1].unload_value == 0);
 
 		engine::file::unload_global(fileloader, engine::Asset(u8"maybe.exists"));
 		engine::file::unload_global(fileloader, engine::Asset(u8"folder/maybe.exists"));
 
-		REQUIRE(sync_data[0].unready_event.wait(timeout));
-		REQUIRE(sync_data[1].unready_event.wait(timeout));
-		REQUIRE(file_data.unload_events[0].wait(timeout));
-		REQUIRE(file_data.unload_events[1].wait(timeout));
-		CHECK(file_data.values[0] == 0);
-		CHECK(file_data.values[1] == 0);
+		REQUIRE(sync_data[0].unload_event.wait(timeout));
+		REQUIRE(sync_data[1].unload_event.wait(timeout));
+		CHECK(sync_data[0].ready_value == 0);
+		CHECK(sync_data[1].ready_value == 0);
+		CHECK(sync_data[0].unload_value == -1);
+		CHECK(sync_data[1].unload_value == -1);
+	}
+}
+
+namespace
+{
+	struct TreeFileData
+	{
+		int value = {};
+
+		int * count = nullptr;
+		int * unload_value = nullptr;
+		core::sync::Event<true> * unload_event = nullptr;
+	};
+
+	struct SyncData
+	{
+		int ready_values[6] = {};
+		int unload_values[6] = {};
+		int count = {};
+		core::sync::Event<true> ready_event;
+		core::sync::Event<true> watch_event;
+		core::sync::Event<true> unload_event;
+	} sync_data;
+
+	void tree_ready(engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset name, const utility::any & stash, engine::Asset /*file*/)
+	{
+		if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+			return;
+		if (!debug_assert(stash.type_id() == utility::type_id<TreeFileData>()))
+			return;
+
+		SyncData * const sync_data_ = utility::any_cast<SyncData *>(data);
+		const TreeFileData & file_data = utility::any_cast<const TreeFileData &>(stash);
+
+		const_cast<TreeFileData &>(file_data).count = &sync_data_->count; // suspicious
+		const_cast<TreeFileData &>(file_data).unload_event = &sync_data_->unload_event; // suspicious
+
+		switch (name)
+		{
+		case engine::Asset(u8"tree.root"):
+			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 0; // suspicious
+			sync_data_->ready_values[0]++;
+			sync_data_->ready_event.set();
+			break;
+		case engine::Asset(u8"dependency.1"):
+			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 1; // suspicious
+			sync_data_->ready_values[1]++;
+			break;
+		case engine::Asset(u8"dependency.2"):
+			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 2; // suspicious
+			sync_data_->ready_values[2]++;
+			sync_data_->watch_event.set();
+			break;
+		case engine::Asset(u8"dependency.3"):
+			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 3; // suspicious
+			sync_data_->ready_values[3]++;
+			break;
+		case engine::Asset(u8"dependency.4"):
+			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 4; // suspicious
+			sync_data_->ready_values[4]++;
+			break;
+		case engine::Asset(u8"dependency.5"):
+			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 5; // suspicious
+			sync_data_->ready_values[5]++;
+			break;
+		default:
+			debug_unreachable();
+		}
+	}
+
+	void tree_unready(engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset name, const utility::any & /*stash*/, engine::Asset /*file*/)
+	{
+		if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
+			return;
+
+		SyncData * const sync_data_ = utility::any_cast<SyncData *>(data);
+
+		switch (name)
+		{
+		case engine::Asset(u8"tree.root"):
+			sync_data_->ready_values[0]--;
+			break;
+		case engine::Asset(u8"dependency.1"):
+			sync_data_->ready_values[1]--;
+			break;
+		case engine::Asset(u8"dependency.2"):
+			sync_data_->ready_values[2]--;
+			break;
+		case engine::Asset(u8"dependency.3"):
+			sync_data_->ready_values[3]--;
+			break;
+		case engine::Asset(u8"dependency.4"):
+			sync_data_->ready_values[4]--;
+			break;
+		case engine::Asset(u8"dependency.5"):
+			sync_data_->ready_values[5]--;
+			break;
+		default:
+			debug_unreachable();
+		}
+	}
+
+	void tree_load(engine::file::loader & fileloader, core::ReadStream && stream, utility::any & stash, engine::Asset file)
+	{
+		TreeFileData & file_data = stash.emplace<TreeFileData>();
+
+		switch (file)
+		{
+		case engine::Asset(u8"tree.root"):
+			engine::file::load_dependency(fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.1"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.2"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.3"), tree_ready, tree_unready, &sync_data);
+			file_data.value += int(read_char(stream));
+			break;
+		case engine::Asset(u8"dependency.1"):
+			file_data.value += int(read_char(stream));
+			break;
+		case engine::Asset(u8"dependency.2"):
+			engine::file::load_dependency(fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.3"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.4"), tree_ready, tree_unready, &sync_data);
+			file_data.value += int(read_char(stream));
+			break;
+		case engine::Asset(u8"dependency.3"):
+			engine::file::load_dependency(fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.1"), tree_ready, tree_unready, &sync_data);
+			file_data.value += int(read_char(stream));
+			break;
+		case engine::Asset(u8"dependency.4"):
+			engine::file::load_dependency(fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.5"), tree_ready, tree_unready, &sync_data);
+			file_data.value += int(read_char(stream));
+			break;
+		case engine::Asset(u8"dependency.5"):
+			file_data.value += int(read_char(stream));
+			break;
+		default:
+			debug_fail();
+		}
+	}
+
+	void tree_unload(engine::file::loader & /*fileloader*/, utility::any & stash, engine::Asset file)
+	{
+		if (!debug_assert(stash.type_id() == utility::type_id<TreeFileData>()))
+			return;
+
+		TreeFileData & file_data = utility::any_cast<TreeFileData &>(stash);
+
+		switch (file)
+		{
+		case engine::Asset(u8"tree.root"):
+			*file_data.unload_value -= 1;
+			break;
+		case engine::Asset(u8"dependency.1"):
+			*file_data.unload_value -= 11;
+			break;
+		case engine::Asset(u8"dependency.2"):
+			*file_data.unload_value -= 12;
+			break;
+		case engine::Asset(u8"dependency.3"):
+			*file_data.unload_value -= 13;
+			break;
+		case engine::Asset(u8"dependency.4"):
+			*file_data.unload_value -= 14;
+			break;
+		case engine::Asset(u8"dependency.5"):
+			*file_data.unload_value -= 15;
+			break;
+		default:
+			debug_fail();
+		}
+
+		(*file_data.count)++;
+		if (*file_data.count == 6)
+		{
+			file_data.unload_event->set();
+		}
 	}
 }
 
@@ -212,214 +405,44 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 
 		engine::file::scoped_library tmplib(fileloader, tmpdir);
 
-		struct SyncData
-		{
-			int values[6] = {};
-			core::sync::Event<true> event;
-			core::sync::Event<true> event_dep2;
-		} sync_data;
+		engine::file::scoped_filetype filetype(fileloader, engine::Asset("tmpfiletype"), tree_load, tree_unload);
 
-		struct FileData
-		{
-			engine::file::loader & fileloader;
-			SyncData & sync_data;
+		engine::file::load_global(fileloader, filetype, engine::Asset(u8"tree.root"), tree_ready, tree_unready, &sync_data);
 
-			int values[6] = {};
-			core::sync::Event<true> event;
-		} file_data{fileloader, sync_data};
+		REQUIRE(sync_data.ready_event.wait(timeout));
+		CHECK(sync_data.ready_values[0] == 1);
+		CHECK(sync_data.ready_values[1] == 2);
+		CHECK(sync_data.ready_values[2] == 1);
+		CHECK(sync_data.ready_values[3] == 2);
+		CHECK(sync_data.ready_values[4] == 1);
+		CHECK(sync_data.ready_values[5] == 1);
 
-		struct Callbacks
-		{
-			static void load(core::ReadStream && stream, utility::any & data, engine::Asset file)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<FileData *>()))
-					return;
-
-				FileData * const file_data = utility::any_cast<FileData *>(data);
-
-				switch (file)
-				{
-				case engine::Asset(u8"tree.root"):
-					engine::file::load_dependency(file_data->fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.1"), ready, unready, &file_data->sync_data);
-					engine::file::load_dependency(file_data->fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.2"), ready, unready, &file_data->sync_data);
-					engine::file::load_dependency(file_data->fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.3"), ready, unready, &file_data->sync_data);
-					file_data->values[0] += int(read_char(stream));
-					break;
-				case engine::Asset(u8"dependency.1"):
-					file_data->values[1] += int(read_char(stream));
-					break;
-				case engine::Asset(u8"dependency.2"):
-					engine::file::load_dependency(file_data->fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.3"), ready, unready, &file_data->sync_data);
-					engine::file::load_dependency(file_data->fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.4"), ready, unready, &file_data->sync_data);
-					file_data->values[2] += int(read_char(stream));
-					break;
-				case engine::Asset(u8"dependency.3"):
-					engine::file::load_dependency(file_data->fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.1"), ready, unready, &file_data->sync_data);
-					file_data->values[3] += int(read_char(stream));
-					break;
-				case engine::Asset(u8"dependency.4"):
-					engine::file::load_dependency(file_data->fileloader, engine::Asset("tmpfiletype"), file, engine::Asset(u8"dependency.5"), ready, unready, &file_data->sync_data);
-					file_data->values[4] += int(read_char(stream));
-					break;
-				case engine::Asset(u8"dependency.5"):
-					file_data->values[5] += int(read_char(stream));
-					break;
-				default:
-					debug_fail();
-				}
-			}
-
-			static void unload(utility::any & data, engine::Asset file)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<FileData *>()))
-					return;
-
-				FileData * const file_data = utility::any_cast<FileData *>(data);
-
-				switch (file)
-				{
-				case engine::Asset(u8"tree.root"):
-					file_data->values[0] -= 1;
-					break;
-				case engine::Asset(u8"dependency.1"):
-					file_data->values[1] -= 11;
-					break;
-				case engine::Asset(u8"dependency.2"):
-					file_data->values[2] -= 12;
-					break;
-				case engine::Asset(u8"dependency.3"):
-					file_data->values[3] -= 13;
-					break;
-				case engine::Asset(u8"dependency.4"):
-					file_data->values[4] -= 14;
-					break;
-				case engine::Asset(u8"dependency.5"):
-					file_data->values[5] -= 15;
-					break;
-				default:
-					debug_fail();
-				}
-
-				if (file_data->values[0] == 0 && file_data->values[1] == 0 && file_data->values[2] == 0 && file_data->values[3] == 0 && file_data->values[4] == 0 && file_data->values[5] == 0)
-				{
-					file_data->event.set();
-				}
-			}
-
-			static void ready(utility::any & data, engine::Asset file, engine::Asset /*underlying_file*/)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				SyncData * const sync_data = utility::any_cast<SyncData *>(data);
-
-				switch (file)
-				{
-				case engine::Asset(u8"tree.root"):
-					sync_data->values[0]++;
-					sync_data->event.set();
-					break;
-				case engine::Asset(u8"dependency.1"):
-					sync_data->values[1]++;
-					break;
-				case engine::Asset(u8"dependency.2"):
-					sync_data->values[2]++;
-					sync_data->event_dep2.set();
-					break;
-				case engine::Asset(u8"dependency.3"):
-					sync_data->values[3]++;
-					break;
-				case engine::Asset(u8"dependency.4"):
-					sync_data->values[4]++;
-					break;
-				case engine::Asset(u8"dependency.5"):
-					sync_data->values[5]++;
-					break;
-				default:
-					debug_unreachable();
-				}
-			}
-
-			static void unready(utility::any & data, engine::Asset file, engine::Asset /*underlying_file*/)
-			{
-				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
-					return;
-
-				SyncData * const sync_data = utility::any_cast<SyncData *>(data);
-
-				switch (file)
-				{
-				case engine::Asset(u8"tree.root"):
-					sync_data->values[0]--;
-					break;
-				case engine::Asset(u8"dependency.1"):
-					sync_data->values[1]--;
-					break;
-				case engine::Asset(u8"dependency.2"):
-					sync_data->values[2]--;
-					break;
-				case engine::Asset(u8"dependency.3"):
-					sync_data->values[3]--;
-					break;
-				case engine::Asset(u8"dependency.4"):
-					sync_data->values[4]--;
-					break;
-				case engine::Asset(u8"dependency.5"):
-					sync_data->values[5]--;
-					break;
-				default:
-					debug_unreachable();
-				}
-			}
-		};
-
-		engine::file::scoped_filetype filetype(fileloader, engine::Asset("tmpfiletype"), Callbacks::load, Callbacks::unload, &file_data);
-
-		engine::file::load_global(fileloader, filetype, engine::Asset(u8"tree.root"), Callbacks::ready, Callbacks::unready, utility::any(&sync_data));
-
-		REQUIRE(sync_data.event.wait(timeout));
-		CHECK(sync_data.values[0] == 1);
-		CHECK(sync_data.values[1] == 2);
-		CHECK(sync_data.values[2] == 1);
-		CHECK(sync_data.values[3] == 2);
-		CHECK(sync_data.values[4] == 1);
-		CHECK(sync_data.values[5] == 1);
-		CHECK(file_data.values[0] == 1);
-		CHECK(file_data.values[1] == 11);
-		CHECK(file_data.values[2] == 12);
-		CHECK(file_data.values[3] == 13);
-		CHECK(file_data.values[4] == 14);
-		CHECK(file_data.values[5] == 15);
-
-		file_data.event.reset();
-		sync_data.event.reset();
-		sync_data.event_dep2.reset();
+		sync_data.watch_event.reset();
 
 		engine::file::write(filesystem, tmpdir, u8"dependency.2", engine::Asset{}, write_char, utility::any(char(21)), engine::file::flags::OVERWRITE_EXISTING);
 
-		REQUIRE(sync_data.event_dep2.wait(timeout));
-		CHECK(sync_data.values[2] == 1);
-		CHECK(file_data.values[2] == 33);
-
-		file_data.event.reset();
-		sync_data.event.reset();
-		sync_data.event_dep2.reset();
-		file_data.values[2] = 12;
+		REQUIRE(sync_data.watch_event.wait(timeout));
+		CHECK(sync_data.ready_values[0] == 1);
+		CHECK(sync_data.ready_values[1] == 2);
+		CHECK(sync_data.ready_values[2] == 1);
+		CHECK(sync_data.ready_values[3] == 2);
+		CHECK(sync_data.ready_values[4] == 1);
+		CHECK(sync_data.ready_values[5] == 1);
 
 		engine::file::unload_global(fileloader, engine::Asset(u8"tree.root"));
 
-		REQUIRE(file_data.event.wait(timeout));
-		CHECK(sync_data.values[0] == 0);
-		CHECK(sync_data.values[1] == 0);
-		CHECK(sync_data.values[2] == 0);
-		CHECK(sync_data.values[3] == 0);
-		CHECK(sync_data.values[4] == 0);
-		CHECK(sync_data.values[5] == 0);
-		CHECK(file_data.values[0] == 0);
-		CHECK(file_data.values[1] == 0);
-		CHECK(file_data.values[2] == 0);
-		CHECK(file_data.values[3] == 0);
-		CHECK(file_data.values[4] == 0);
-		CHECK(file_data.values[5] == 0);
+		REQUIRE(sync_data.unload_event.wait(timeout));
+		CHECK(sync_data.ready_values[0] == 0);
+		CHECK(sync_data.ready_values[1] == 0);
+		CHECK(sync_data.ready_values[2] == 0);
+		CHECK(sync_data.ready_values[3] == 0);
+		CHECK(sync_data.ready_values[4] == 0);
+		CHECK(sync_data.ready_values[5] == 0);
+		CHECK(sync_data.unload_values[0] == -1);
+		CHECK(sync_data.unload_values[1] == -11);
+		CHECK(sync_data.unload_values[2] == -12);
+		CHECK(sync_data.unload_values[3] == -13);
+		CHECK(sync_data.unload_values[4] == -14);
+		CHECK(sync_data.unload_values[5] == -15);
 	}
 }

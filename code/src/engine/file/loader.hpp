@@ -37,32 +37,38 @@ namespace engine
 		};
 
 		using load_callback = void(
+			loader & loader,
 			core::ReadStream && stream,
-			utility::any & data,
+			utility::any & stash,
 			engine::Asset file);
 		using unload_callback = void(
-			utility::any & data,
+			loader & loader,
+			utility::any & stash,
 			engine::Asset file);
 
 		void register_library(loader & loader, engine::Asset directory);
 		void unregister_library(loader & loader, engine::Asset directory);
 
-		void register_filetype(loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall, utility::any && data);
+		void register_filetype(loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall);
 		void unregister_filetype(loader & loader, engine::Asset filetype);
 
 		using ready_callback = void(
+			loader & loader,
 			utility::any & data,
-			engine::Asset file,
-			engine::Asset underlying_file);
+			engine::Asset name,
+			const utility::any & stash,
+			engine::Asset file);
 		using unready_callback = void(
+			loader & loader,
 			utility::any & data,
-			engine::Asset file,
-			engine::Asset underlying_file);
+			engine::Asset name,
+			const utility::any & stash,
+			engine::Asset file);
 
 		void load_global(
 			loader & loader,
 			engine::Asset filetype,
-			engine::Asset file,
+			engine::Asset name,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data);
@@ -71,7 +77,7 @@ namespace engine
 			loader & loader,
 			engine::Asset filetype,
 			engine::Asset owner,
-			engine::Asset file,
+			engine::Asset name,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data);
@@ -80,22 +86,24 @@ namespace engine
 			loader & loader,
 			engine::Asset filetype,
 			engine::Asset owner,
-			engine::Asset file,
+			engine::Asset name,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data);
 
 		void unload_global(
 			loader & loader,
-			engine::Asset file);
+			engine::Asset name);
+
 		void unload_local(
 			loader & loader,
 			engine::Asset owner,
-			engine::Asset file);
+			engine::Asset name);
+
 		void unload_dependency(
 			loader & loader,
 			engine::Asset owner,
-			engine::Asset file);
+			engine::Asset name);
 
 		class scoped_filetype
 		{
@@ -111,11 +119,11 @@ namespace engine
 				engine::file::unregister_filetype(loader_, filetype_);
 			}
 
-			explicit scoped_filetype(engine::file::loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall, utility::any && data)
+			explicit scoped_filetype(engine::file::loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall)
 				: loader_(loader)
 				, filetype_(filetype)
 			{
-				engine::file::register_filetype(loader_, filetype_, loadcall, unloadcall, std::move(data));
+				engine::file::register_filetype(loader_, filetype_, loadcall, unloadcall);
 			}
 
 		public:
