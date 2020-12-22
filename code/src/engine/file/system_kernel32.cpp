@@ -69,15 +69,18 @@ namespace
 	{
 		utility::heap_string_utfw filepath;
 		ext::ssize root;
+		ext::ssize rel;
 
 		explicit Path(utility::heap_string_utfw && filepath)
 			: filepath(std::move(filepath))
 			, root(this->filepath.size())
+			, rel(this->filepath.size())
 		{}
 
-		explicit Path(utility::heap_string_utfw && filepath, ext::ssize root)
+		explicit Path(utility::heap_string_utfw && filepath, ext::ssize root, ext::ssize rel)
 			: filepath(std::move(filepath))
 			, root(root)
+			, rel(rel)
 		{}
 	};
 
@@ -402,7 +405,7 @@ namespace
 		}
 
 		utility::heap_string_utf8 relpath;
-		if (!debug_verify(utility::try_narrow(utility::string_points_utfw(path.filepath.data() + path.root, path.filepath.data() + path.filepath.size()), relpath)))
+		if (!debug_verify(utility::try_narrow(utility::string_points_utfw(path.filepath.data() + path.rel, path.filepath.data() + path.filepath.size()), relpath)))
 			return false; // error
 
 		core::ReadStream stream(
@@ -677,7 +680,7 @@ namespace
 		{}
 
 		explicit Directory(utility::heap_string_utfw && filepath, ext::ssize root)
-			: path(std::move(filepath), root)
+			: path(std::move(filepath), root, root) // note rel is not used for directories
 			, share_count(0)
 		{}
 	};
@@ -864,8 +867,8 @@ namespace
 			}
 			else
 			{
-				const auto cpy = path.root;
-				if (!debug_verify(directories.emplace<Directory>(directory_asset, std::move(filepath), cpy)))
+				auto root = path.root;
+				if (!debug_verify(directories.emplace<Directory>(directory_asset, std::move(filepath), root)))
 					return; // error
 			}
 
@@ -1010,7 +1013,7 @@ namespace
 			if (!debug_verify(utility::try_widen_append(x.filepath, filepath)))
 				return; // error
 
-			FileReadPointer data_ptr(utility::in_place, x.impl, Path(std::move(filepath), path.root), x.mode, x.strand, x.callback, std::move(x.data), FILETIME{});
+			FileReadPointer data_ptr(utility::in_place, x.impl, Path(std::move(filepath), path.root, path.filepath.size()), x.mode, x.strand, x.callback, std::move(x.data), FILETIME{});
 			if (!debug_verify(data_ptr))
 				return; // error
 
