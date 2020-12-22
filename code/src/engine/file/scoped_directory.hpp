@@ -11,7 +11,7 @@ namespace engine
 		private:
 
 			system & system_;
-			engine::Asset name_;
+			engine::Hash name_;
 
 		public:
 
@@ -20,21 +20,21 @@ namespace engine
 				unregister_directory(system_, name_);
 			}
 
-			explicit scoped_directory(system & system, engine::Asset name)
+			explicit scoped_directory(system & system, engine::Hash name)
 				: system_(system)
 				, name_(name)
 			{
 				register_temporary_directory(system_, name_);
 			}
 
-			explicit scoped_directory(system & system, engine::Asset name, utility::heap_string_utf8 && filepath, engine::Asset parent)
+			explicit scoped_directory(system & system, engine::Hash name, utility::heap_string_utf8 && filepath, engine::Hash parent)
 				: system_(system)
 				, name_(name)
 			{
 				register_directory(system_, name_, std::move(filepath), parent);
 			}
 
-			operator engine::Asset() const { return name_; }
+			operator engine::Hash() const { return name_; }
 		};
 	}
 }

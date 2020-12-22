@@ -34,8 +34,6 @@ namespace core
 		template <typename BeginIt, typename EndIt>
 		void backslash_to_slash(BeginIt begin, EndIt end)
 		{
-			using ext::find;
-
 			using T = typename std::iterator_traits<BeginIt>::value_type;
 
 			while (true)
@@ -59,8 +57,6 @@ namespace core
 		template <typename BeginIt, typename EndIt>
 		void slash_to_backslash(BeginIt begin, EndIt end)
 		{
-			using ext::find;
-
 			using T = typename std::iterator_traits<BeginIt>::value_type;
 
 			while (true)

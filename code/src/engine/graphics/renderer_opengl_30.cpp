@@ -171,7 +171,7 @@ namespace
 			utility::heap_vector<GLint, utility::heap_string_utf8> uniforms;
 		};
 
-		utility::heap_vector<engine::Asset, Data> shaders;
+		utility::heap_vector<engine::Token, Data> shaders;
 
 		const Data * end() const { return shaders.end().second; }
 
@@ -266,12 +266,12 @@ namespace
 			auto fragment_parser = rex::parse(shader_data.fragment_source);
 			while (true)
 			{
-				const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch(u8'/') >> ((rex::ch(u8'/') >> *!rex::newline >> rex::newline) | (rex::ch(u8'*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
+				const auto uniform_declaration = fragment_parser.find((rex::str("uniform") >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str("*/") >> rex::str("*/")))));
 				if (uniform_declaration.first == uniform_declaration.second)
 					break;
 
 				fragment_parser.seek(uniform_declaration.second);
-				if (*uniform_declaration.first == u8'/')
+				if (*uniform_declaration.first == '/')
 					continue;
 
 				const auto uniform_type = fragment_parser.match(+rex::word);
@@ -289,7 +289,7 @@ namespace
 					continue;
 
 				fragment_parser.seek(uniform_name.second);
-				const auto uniform_semicolon = fragment_parser.match(*rex::blank >> rex::ch(u8';'));
+				const auto uniform_semicolon = fragment_parser.match(*rex::blank >> rex::ch(';'));
 				if (!uniform_semicolon.first)
 					continue;
 
@@ -756,12 +756,12 @@ namespace
 		auto fragment_parser = rex::parse(shader_data.fragment_source);
 		while (true)
 		{
-			const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch(u8'/') >> ((rex::ch(u8'/') >> *!rex::newline >> rex::newline) | (rex::ch(u8'*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
+			const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
 			if (uniform_declaration.first == uniform_declaration.second)
 				break;
 
 			fragment_parser.seek(uniform_declaration.second);
-			if (*uniform_declaration.first == u8'/')
+			if (*uniform_declaration.first == '/')
 				continue;
 
 			const auto uniform_type = fragment_parser.match(+rex::word);
@@ -779,7 +779,7 @@ namespace
 				continue;
 
 			fragment_parser.seek(uniform_name.second);
-			const auto uniform_semicolon = fragment_parser.match(*rex::blank >> rex::ch(u8';'));
+			const auto uniform_semicolon = fragment_parser.match(*rex::blank >> rex::ch(';'));
 			if (!uniform_semicolon.first)
 				continue;
 
@@ -1162,7 +1162,7 @@ namespace
 						materials.erase(material_it);
 					}
 
-					utility::heap_vector<engine::Asset> textures;
+					utility::heap_vector<engine::Token> textures;
 					if (!debug_verify(textures.try_reserve(x.data.textures.size())))
 						return; // error
 
@@ -1484,7 +1484,7 @@ namespace
 		return buffer;
 	}
 
-	constexpr const auto entity_shader_asset = engine::Asset("_entity_");
+	constexpr const auto entity_shader_asset = engine::Hash("_entity_");
 
 	void initialize_builtin_shaders()
 	{

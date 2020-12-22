@@ -6,6 +6,7 @@
 #include "core/sync/Event.hpp"
 
 #include "engine/file/system.hpp"
+#include "engine/HashTable.hpp"
 #include "engine/task/scheduler.hpp"
 
 #include "utility/any.hpp"
@@ -19,79 +20,75 @@
 #include <atomic>
 #include <memory>
 
+static_hashes("_file_loader_");
+
 namespace
 {
 	struct Filetype
 	{
-		struct Callback
-		{
-			engine::file::load_callback * loadcall;
-			engine::file::unload_callback * unloadcall;
-			utility::any data;
-		};
+		engine::file::load_callback * loadcall;
+		engine::file::unload_callback * unloadcall;
+	};
 
-		ext::heap_shared_ptr<Callback> callback;
+	struct RelationCallback
+	{
+		engine::Asset name;
+		engine::file::ready_callback * readycall;
+		engine::file::unready_callback * unreadycall;
+		utility::any data;
 	};
 
 	struct FileCallData
 	{
-		struct Callback
-		{
-			engine::file::ready_callback * readycall;
-			engine::file::unready_callback * unreadycall;
-			utility::any data;
-		};
+		engine::file::loader_impl & impl;
+		utility::heap_vector<engine::Token, RelationCallback> calls;
+		Filetype filetype;
+		utility::any stash;
 
-		utility::heap_vector<engine::Asset, Callback> calls;
+		bool ready;
 
-		bool ready = false;
+		explicit FileCallData(engine::file::loader_impl & impl, const Filetype & filetype)
+			: impl(impl)
+			, filetype(filetype)
+			, ready(false)
+		{}
 	};
 
 	struct FileCallDataPlusOne
 	{
 		ext::heap_shared_ptr<FileCallData> call_ptr;
 
-		engine::Asset file_alias;
-		FileCallData::Callback new_call;
+		engine::Token tag;
+		RelationCallback callback;
 	};
 
 	struct ReadData
 	{
 		engine::file::loader_impl * impl; // todo can this be removed?
 		engine::Asset file;
-		ext::heap_weak_ptr<Filetype::Callback> filetype_callback;
 		ext::heap_weak_ptr<FileCallData> file_callback;
 
 		static void file_load(engine::file::system & filesystem, core::ReadStream && stream, utility::any & data);
 	};
 
-	constexpr auto global = engine::Asset{};
-	constexpr auto strand = engine::Asset("_file_loader_");
+	constexpr auto global = engine::Hash{};
+	constexpr auto strand = engine::Hash("_file_loader_");
 }
 
 namespace
 {
 	struct MessageFileScan
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 		utility::heap_string_utf8 existing_files;
 		utility::heap_string_utf8 removed_files;
 	};
 
-	struct MessageLoadGlobal
+	struct MessageLoadIndependent
 	{
-		engine::Asset filetype;
-		engine::Asset file;
-		engine::file::ready_callback * readycall;
-		engine::file::unready_callback * unreadycall;
-		utility::any data;
-	};
-
-	struct MessageLoadLocal
-	{
-		engine::Asset filetype;
-		engine::Asset owner;
-		engine::Asset file;
+		engine::Token tag;
+		engine::Asset name;
+		engine::Hash filetype;
 		engine::file::ready_callback * readycall;
 		engine::file::unready_callback * unreadycall;
 		utility::any data;
@@ -99,9 +96,9 @@ namespace
 
 	struct MessageLoadDependency
 	{
-		engine::Asset filetype;
 		engine::Asset owner;
-		engine::Asset file;
+		engine::Asset name;
+		engine::Hash filetype;
 		engine::file::ready_callback * readycall;
 		engine::file::unready_callback * unreadycall;
 		utility::any data;
@@ -119,57 +116,41 @@ namespace
 
 	struct MessageRegisterFiletype
 	{
-		engine::Asset filetype;
+		engine::Hash filetype;
 		engine::file::load_callback * loadcall;
 		engine::file::unload_callback * unloadcall;
-		utility::any data;
 	};
 
 	struct MessageRegisterLibrary
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 	};
 
-	struct MessageUnloadGlobal
+	struct MessageUnloadIndependent
 	{
-		engine::Asset file;
-	};
-
-	struct MessageUnloadLocal
-	{
-		engine::Asset owner;
-		engine::Asset file;
-	};
-
-	struct MessageUnloadDependency
-	{
-		engine::Asset owner;
-		engine::Asset file;
+		engine::Token tag;
 	};
 
 	struct MessageUnregisterFiletype
 	{
-		engine::Asset filetype;
+		engine::Hash filetype;
 	};
 
 	struct MessageUnregisterLibrary
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 	};
 
 	using Message = utility::variant
 	<
 		MessageFileScan,
-		MessageLoadGlobal,
-		MessageLoadLocal,
+		MessageLoadIndependent,
 		MessageLoadDependency,
 		MessageLoadDone,
 		MessageLoadInit,
 		MessageRegisterFiletype,
 		MessageRegisterLibrary,
-		MessageUnloadGlobal,
-		MessageUnloadLocal,
-		MessageUnloadDependency,
+		MessageUnloadIndependent,
 		MessageUnregisterFiletype,
 		MessageUnregisterLibrary
 	>;
@@ -196,7 +177,7 @@ namespace engine
 			engine::task::scheduler * taskscheduler;
 			engine::file::system * filesystem;
 
-			engine::Asset scanning_directory{};
+			engine::Hash scanning_directory{};
 			utility::heap_vector<Message> delayed_messages;
 		};
 	}
@@ -233,7 +214,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Asset,
+		engine::Hash,
 		utility::heap_storage_traits,
 		utility::heap_storage<Filetype>
 	>
@@ -241,15 +222,15 @@ namespace
 
 	struct AmbiguousFile
 	{
-		utility::heap_vector<engine::Asset, utility::heap_string_utf8> metas;
+		utility::heap_vector<engine::Hash, utility::heap_string_utf8> metas;
 
-		utility::heap_vector<engine::Asset, engine::Asset> radicals;
+		utility::heap_vector<engine::Hash, engine::Asset> radicals;
 
-		explicit AmbiguousFile(utility::heap_vector<engine::Asset, engine::Asset> && radicals)
+		explicit AmbiguousFile(utility::heap_vector<engine::Hash, engine::Asset> && radicals)
 			: radicals(std::move(radicals))
 		{}
 
-		explicit AmbiguousFile(utility::heap_vector<engine::Asset, utility::heap_string_utf8> && metas, utility::heap_vector<engine::Asset, engine::Asset> && radicals)
+		explicit AmbiguousFile(utility::heap_vector<engine::Hash, utility::heap_string_utf8> && metas, utility::heap_vector<engine::Hash, engine::Asset> && radicals)
 			: metas(std::move(metas))
 			, radicals(std::move(radicals))
 		{}
@@ -261,16 +242,27 @@ namespace
 
 	struct RadicalFile
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 		engine::Asset file;
 	};
 
 	struct UniqueFile
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 		utility::heap_string_utf8 filepath;
 
-		utility::heap_vector<engine::Asset, engine::Asset> radicals;
+		utility::heap_vector<engine::Hash, engine::Asset> radicals;
+
+		explicit UniqueFile(engine::Hash directory, utility::heap_string_utf8 && filepath)
+			: directory(directory)
+			, filepath(std::move(filepath))
+		{}
+
+		explicit UniqueFile(engine::Hash directory, utility::heap_string_utf8 && filepath, utility::heap_vector<engine::Hash, engine::Asset> && radicals)
+			: directory(directory)
+			, filepath(std::move(filepath))
+			, radicals(std::move(radicals))
+		{}
 	};
 
 	core::container::Collection
@@ -302,8 +294,9 @@ namespace
 
 	struct LoadingLoad
 	{
-		engine::Asset filetype;
-		engine::Asset directory;
+		engine::Hash filetype;
+		engine::Hash directory;
+		engine::Asset radical;
 		utility::heap_string_utf8 filepath;
 
 		FileCallPtr call_ptr;
@@ -314,18 +307,20 @@ namespace
 		std::int32_t previous_count; // the number of attachments after loading completed
 		std::int32_t remaining_count; // the remaining number of attachments that are required (the most significant bit is set if the file itself is not yet finished reading)
 
-		explicit LoadingLoad(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr)
+		explicit LoadingLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr)
 			: filetype(filetype)
 			, directory(directory)
+			, radical(radical)
 			, filepath(std::move(filepath))
 			, call_ptr(std::move(call_ptr))
 			, previous_count(-1)
 			, remaining_count(INT_MIN)
 		{}
 
-		explicit LoadingLoad(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+		explicit LoadingLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
 			: filetype(filetype)
 			, directory(directory)
+			, radical(radical)
 			, filepath(std::move(filepath))
 			, call_ptr(std::move(call_ptr))
 			, owners(std::move(owners))
@@ -337,8 +332,9 @@ namespace
 
 	struct LoadedLoad
 	{
-		engine::Asset filetype;
-		engine::Asset directory;
+		engine::Hash filetype;
+		engine::Hash directory;
+		engine::Asset radical;
 		utility::heap_string_utf8 filepath;
 
 		FileCallPtr call_ptr;
@@ -346,9 +342,10 @@ namespace
 		utility::heap_vector<engine::Asset> owners;
 		utility::heap_vector<engine::Asset> attachments;
 
-		explicit LoadedLoad(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+		explicit LoadedLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
 			: filetype(filetype)
 			, directory(directory)
+			, radical(radical)
 			, filepath(std::move(filepath))
 			, call_ptr(std::move(call_ptr))
 			, owners(std::move(owners))
@@ -377,19 +374,32 @@ namespace
 		return std::make_pair(file, load_it);
 	}
 
+	struct FileTag
+	{
+		engine::Asset file;
+	};
+
+	core::container::Collection
+	<
+		engine::Token,
+		utility::heap_storage_traits,
+		utility::heap_storage<FileTag>
+	>
+	tags;
+
 	bool make_loaded(engine::file::loader_impl & impl, engine::Asset file, decltype(loads.end()) load_it, LoadingLoad tmp)
 	{
 		// todo replace
 		loads.erase(load_it);
 		// todo on failure the file is lost
-		const auto loaded_file = loads.emplace<LoadedLoad>(file, tmp.filetype, tmp.directory, std::move(tmp.filepath), std::move(tmp.call_ptr), std::move(tmp.owners), std::move(tmp.attachments));
+		const auto loaded_file = loads.emplace<LoadedLoad>(file, tmp.filetype, tmp.directory, tmp.radical, std::move(tmp.filepath), std::move(tmp.call_ptr), std::move(tmp.owners), std::move(tmp.attachments));
 		if (!debug_verify(loaded_file))
 			return false;
 
 		engine::task::post_work(
 			*impl.taskscheduler,
 			file,
-			[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+			[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 		{
 			// note strand is the underlying file
 			if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -397,14 +407,16 @@ namespace
 				FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
 				FileCallData & call_data = *call_ptr;
 
+				engine::file::loader loader(call_data.impl);
 				if (debug_assert(!call_data.ready))
 				{
 					for (auto && call : call_data.calls)
 					{
-						call.second.readycall(call.second.data, call.first, strand_);
+						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 					}
 					call_data.ready = true;
 				}
+				loader.detach();
 			}
 		},
 			loaded_file->call_ptr);
@@ -417,7 +429,7 @@ namespace
 		// todo replace
 		loads.erase(load_it);
 		// todo on failure the file is lost
-		const auto loading_file = loads.emplace<LoadingLoad>(file, tmp.filetype, tmp.directory, std::move(tmp.filepath), std::move(tmp.call_ptr), std::move(tmp.owners), std::move(tmp.attachments));
+		const auto loading_file = loads.emplace<LoadingLoad>(file, tmp.filetype, tmp.directory, tmp.radical, std::move(tmp.filepath), std::move(tmp.call_ptr), std::move(tmp.owners), std::move(tmp.attachments));
 		if (!debug_verify(loading_file))
 			return false;
 
@@ -443,19 +455,46 @@ namespace
 				if (!debug_assert(owner_it != x.owners.end()))
 					return;
 
+				engine::task::post_work(
+					*impl.taskscheduler,
+					relation.second,
+					[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
+				{
+					// note strand is the underlying file
+					if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Asset>>())))
+					{
+						std::pair<FileCallPtr, engine::Asset> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Asset> &&>(std::move(data));
+						FileCallData & call_data = *call_ptr.first;
+
+						const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
+						if (!debug_assert(call_it != call_data.calls.end()))
+							return;
+
+						if (!debug_assert(!call_data.ready))
+						{
+							engine::file::loader loader(call_data.impl);
+							call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, engine::Asset(strand_));
+							loader.detach();
+						}
+
+						call_data.calls.erase(call_it);
+					}
+				},
+					std::make_pair(x.call_ptr, relation.first));
+
 				x.owners.erase(owner_it);
 
 				if (ext::empty(x.owners))
 				{
 #if MODE_DEBUG
-					const auto mode = engine::file::flags::ADD_WATCH;
-					engine::file::remove_watch(*impl.filesystem, x.directory, std::move(x.filepath), mode);
+					const auto id = x.directory ^ engine::Asset(x.filepath);
+					engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 					engine::task::post_work(
 						*impl.taskscheduler,
 						relation.second,
-						[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+						[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 					{
 						// note strand is the underlying file
 						if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -463,18 +502,21 @@ namespace
 							FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
 							FileCallData & call_data = *call_ptr;
 
-							if (debug_assert(call_data.ready))
+							debug_assert(!call_data.ready);
+
+							engine::file::loader loader(call_data.impl);
+							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
 							{
 								for (auto && call : call_data.calls)
 								{
-									call.second.unreadycall(call.second.data, call.first, strand_);
+									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 								}
-								call_data.ready = false;
 							}
+							call_data.filetype.unloadcall(loader, call_data.stash, engine::Asset(strand_));
+							loader.detach();
 						}
 					},
 						x.call_ptr);
-					// note purposfully not call unload (since it has not been loaded)
 
 					if (debug_verify(relations.try_reserve(relations.size() + x.attachments.size())))
 					{
@@ -484,6 +526,10 @@ namespace
 						}
 					}
 
+					if (x.radical != relation.second)
+					{
+						loads.erase(find(loads, x.radical));
+					}
 					loads.erase(load_it);
 				}
 			},
@@ -493,19 +539,46 @@ namespace
 				if (!debug_assert(owner_it != x.owners.end()))
 					return;
 
+				engine::task::post_work(
+					*impl.taskscheduler,
+					relation.second,
+					[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
+				{
+					// note strand is the underlying file
+					if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Asset>>())))
+					{
+						std::pair<FileCallPtr, engine::Asset> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Asset> &&>(std::move(data));
+						FileCallData & call_data = *call_ptr.first;
+
+						const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
+						if (!debug_assert(call_it != call_data.calls.end()))
+							return;
+
+						if (debug_assert(call_data.ready))
+						{
+							engine::file::loader loader(call_data.impl);
+							call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, engine::Asset(strand_));
+							loader.detach();
+						}
+
+						call_data.calls.erase(call_it);
+					}
+				},
+					std::make_pair(x.call_ptr, relation.first));
+
 				x.owners.erase(owner_it);
 
 				if (ext::empty(x.owners))
 				{
 #if MODE_DEBUG
-					const auto mode = engine::file::flags::ADD_WATCH;
-					engine::file::remove_watch(*impl.filesystem, x.directory, std::move(x.filepath), mode);
+					const auto id = x.directory ^ engine::Asset(x.filepath);
+					engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 					engine::task::post_work(
 						*impl.taskscheduler,
 						relation.second,
-						[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+						[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 					{
 						// note strand is the underlying file
 						if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -513,39 +586,21 @@ namespace
 							FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
 							FileCallData & call_data = *call_ptr;
 
-							if (debug_assert(call_data.ready))
+							debug_assert(call_data.ready);
+
+							engine::file::loader loader(call_data.impl);
+							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
 							{
 								for (auto && call : call_data.calls)
 								{
-									call.second.unreadycall(call.second.data, call.first, strand_);
+									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 								}
-								call_data.ready = false;
 							}
+							call_data.filetype.unloadcall(loader, call_data.stash, engine::Asset(strand_));
+							loader.detach();
 						}
 					},
 						x.call_ptr);
-					const auto filetype_it = find(filetypes, x.filetype);
-					if (debug_assert(filetype_it != filetypes.end()))
-					{
-						Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
-						if (debug_assert(filetype_ptr))
-						{
-							engine::task::post_work(
-								*impl.taskscheduler,
-								relation.second,
-								[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
-							{
-								if (debug_assert(data.type_id() == (utility::type_id<std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset>>())))
-								{
-									std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset> call_ptr = utility::any_cast<std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset> &&>(std::move(data));
-									Filetype::Callback & call_data = *call_ptr.first;
-
-									call_data.unloadcall(call_data.data, call_ptr.second);
-								}
-							},
-								std::make_pair(filetype_ptr->callback, relation.second));
-						}
-					}
 
 					if (debug_verify(relations.try_reserve(relations.size() + x.attachments.size())))
 					{
@@ -555,6 +610,10 @@ namespace
 						}
 					}
 
+					if (x.radical != relation.second)
+					{
+						loads.erase(find(loads, x.radical));
+					}
 					loads.erase(load_it);
 				}
 			}));
@@ -563,15 +622,22 @@ namespace
 
 	bool load_new(
 		engine::file::loader_impl & impl,
+		engine::Token tag,
 		engine::Asset owner,
 		engine::Asset file,
 		decltype(files.end()) file_it,
-		engine::Asset actual_file,
-		engine::Asset filetype,
+		engine::Asset name,
+		engine::Hash filetype,
 		engine::file::ready_callback * readycall,
 		engine::file::unready_callback * unreadycall,
 		utility::any && data)
 	{
+		if (name != file)
+		{
+			if (!debug_verify(loads.emplace<RadicalLoad>(name, file)))
+				return false; // error
+		}
+
 		UniqueFile * const unique_file = files.get<UniqueFile>(file_it);
 		if (!debug_assert(unique_file))
 			return false;
@@ -580,11 +646,15 @@ namespace
 		if (!debug_verify(filetype_it != filetypes.end()))
 			return false; // error
 
-		FileCallPtr call_ptr(utility::in_place);
-		if (!debug_verify(call_ptr->calls.try_emplace_back(actual_file, FileCallData::Callback{readycall, unreadycall, std::move(data)})))
+		const Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
+		if (!debug_assert(filetype_ptr))
+			return false;
+
+		FileCallPtr call_ptr(utility::in_place, impl, *filetype_ptr);
+		if (!debug_verify(call_ptr->calls.try_emplace_back(tag, RelationCallback{name, readycall, unreadycall, std::move(data)})))
 			return false; // error
 
-		LoadingLoad * const loading_load = loads.emplace<LoadingLoad>(file, filetype, unique_file->directory, utility::heap_string_utf8(unique_file->filepath), std::move(call_ptr));
+		LoadingLoad * const loading_load = loads.emplace<LoadingLoad>(file, filetype, unique_file->directory, name, utility::heap_string_utf8(unique_file->filepath), std::move(call_ptr));
 		if (!debug_verify(loading_load))
 			return false; // error
 
@@ -594,30 +664,25 @@ namespace
 			return false; // error
 		}
 
-		Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
-		if (!debug_assert(filetype_ptr))
-		{
-			loads.erase(find(loads, file));
-			return false;
-		}
-
 #if MODE_DEBUG
 		const auto mode = engine::file::flags::ADD_WATCH; // todo ought to add engine::file::flags::RECURSE_DIRECTORIES if filepath contains subdir, but since a recursive scan watch has already been made it might be fine anyway?
 #else
 		const auto mode = engine::file::flags{};
 #endif
-		engine::file::read(*impl.filesystem, loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, ReadData{&impl, file, ext::heap_weak_ptr<Filetype::Callback>(filetype_ptr->callback), ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)}, mode);
+		const auto id = loading_load->directory ^ engine::Asset(loading_load->filepath);
+		engine::file::read(*impl.filesystem, id, loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, ReadData{&impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)}, mode);
 
 		return true;
 	}
 
 	bool load_old(
 		engine::file::loader_impl & impl,
+		engine::Token tag,
 		engine::Asset owner,
 		engine::Asset file,
 		decltype(loads.end()) file_it,
-		engine::Asset actual_file,
-		engine::Asset filetype,
+		engine::Asset name,
+		engine::Hash filetype,
 		engine::file::ready_callback * readycall,
 		engine::file::unready_callback * unreadycall,
 		utility::any && data)
@@ -629,14 +694,34 @@ namespace
 			if (!debug_assert(y.filetype == filetype))
 				return false;
 
-			if (!debug_verify(y.call_ptr->calls.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(actual_file), std::forward_as_tuple(readycall, unreadycall, std::move(data)))))
-				return false;
-
 			if (!debug_verify(y.owners.try_emplace_back(owner)))
+				return false; // error
+
+			engine::task::post_work(
+				*impl.taskscheduler,
+				file,
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 			{
-				ext::pop_back(y.call_ptr->calls);
-				return false;
-			}
+				// note strand is the underlying file
+				if (debug_assert(data.type_id() == utility::type_id<FileCallDataPlusOne>()))
+				{
+					FileCallDataPlusOne call_ptr = utility::any_cast<FileCallDataPlusOne &&>(std::move(data));
+					FileCallData & call_data = *call_ptr.call_ptr;
+
+					if (!debug_verify(call_data.calls.try_emplace_back(call_ptr.tag, std::move(call_ptr.callback))))
+						return;
+
+					if (!debug_assert(!call_data.ready))
+					{
+						auto && call = ext::back(call_data.calls);
+
+						engine::file::loader loader(call_data.impl);
+						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
+						loader.detach();
+					}
+				}
+			},
+				FileCallDataPlusOne{y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}});
 
 			return true;
 		},
@@ -651,7 +736,7 @@ namespace
 			engine::task::post_work(
 				*impl.taskscheduler,
 				file,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 			{
 				// note strand is the underlying file
 				if (debug_assert(data.type_id() == utility::type_id<FileCallDataPlusOne>()))
@@ -659,18 +744,20 @@ namespace
 					FileCallDataPlusOne call_ptr = utility::any_cast<FileCallDataPlusOne &&>(std::move(data));
 					FileCallData & call_data = *call_ptr.call_ptr;
 
-					if (!debug_verify(call_data.calls.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(call_ptr.file_alias), std::forward_as_tuple(call_ptr.new_call.readycall, call_ptr.new_call.unreadycall, std::move(call_ptr.new_call.data)))))
+					if (!debug_verify(call_data.calls.try_emplace_back(call_ptr.tag, std::move(call_ptr.callback))))
 						return;
 
 					if (debug_assert(call_data.ready))
 					{
 						auto && call = ext::back(call_data.calls);
 
-						call.second.readycall(call.second.data, call.first, strand_);
+						engine::file::loader loader(call_data.impl);
+						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
+						loader.detach();
 					}
 				}
 			},
-				FileCallDataPlusOne{y.call_ptr, actual_file, FileCallData::Callback{readycall, unreadycall, std::move(data)}});
+				FileCallDataPlusOne{y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}});
 
 			return true;
 		}));
@@ -678,6 +765,7 @@ namespace
 
 	bool remove_file(
 		engine::file::loader_impl & impl,
+		engine::Token tag,
 		engine::Asset file,
 		decltype(loads.end()) load_it)
 	{
@@ -686,42 +774,74 @@ namespace
 			[&](LoadingLoad & y)
 		{
 			const auto owner_it = ext::find(y.owners, global);
-			if (!debug_verify(owner_it != y.owners.end(), "file ", file, " is not global"))
+			if (!debug_verify(owner_it != y.owners.end(), "file ", file, " is not independent"))
 				return false; // error
+
+			engine::task::post_work(
+				*impl.taskscheduler,
+				file,
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
+			{
+				// note strand is the underlying file
+				if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Token>>())))
+				{
+					std::pair<FileCallPtr, engine::Token> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Token> &&>(std::move(data));
+					FileCallData & call_data = *call_ptr.first;
+
+					const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
+					if (!debug_assert(call_it != call_data.calls.end()))
+						return;
+
+					if (!debug_assert(!call_data.ready))
+					{
+						engine::file::loader loader(call_data.impl);
+						call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, engine::Asset(strand_));
+						loader.detach();
+					}
+
+					call_data.calls.erase(call_it);
+				}
+			},
+				std::make_pair(y.call_ptr, tag));
 
 			y.owners.erase(owner_it);
 
 			if (ext::empty(y.owners))
 			{
 #if MODE_DEBUG
-				const auto mode = engine::file::flags::ADD_WATCH;
-				engine::file::remove_watch(*impl.filesystem, y.directory, std::move(y.filepath), mode);
+				const auto id = y.directory ^ engine::Asset(y.filepath);
+				engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
+				// todo figure out what this does
 				if (0 <= y.previous_count)
 				{
-					const auto filetype_it = find(filetypes, y.filetype);
-					if (debug_assert(filetype_it != filetypes.end()))
+					engine::task::post_work(
+						*impl.taskscheduler,
+						file,
+						[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 					{
-						Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
-						if (debug_assert(filetype_ptr))
+						// note strand is the underlying file
+						if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
 						{
-							engine::task::post_work(
-								*impl.taskscheduler,
-								file,
-								[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
-							{
-								if (debug_assert(data.type_id() == (utility::type_id<std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset>>())))
-								{
-									std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset> call_ptr = utility::any_cast<std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset> &&>(std::move(data));
-									Filetype::Callback & call_data = *call_ptr.first;
+							FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
+							FileCallData & call_data = *call_ptr;
 
-									call_data.unloadcall(call_data.data, call_ptr.second);
+							debug_assert(!call_data.ready);
+
+							engine::file::loader loader(call_data.impl);
+							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+							{
+								for (auto && call : call_data.calls)
+								{
+									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 								}
-							},
-								std::make_pair(filetype_ptr->callback, file));
+							}
+							call_data.filetype.unloadcall(loader, call_data.stash, engine::Asset(strand_));
+							loader.detach();
 						}
-					}
+					},
+						y.call_ptr);
 				}
 
 				utility::heap_vector<engine::Asset, engine::Asset> relations;
@@ -732,6 +852,13 @@ namespace
 						relations.try_emplace_back(utility::no_failure, file, attachment);
 					}
 				}
+
+				if (y.radical != file)
+				{
+					loads.erase(find(loads, y.radical));
+				}
+				loads.erase(load_it);
+
 				remove_attachments(impl, std::move(relations));
 			}
 			return true;
@@ -739,22 +866,49 @@ namespace
 			[&](LoadedLoad & y)
 		{
 			const auto owner_it = ext::find(y.owners, global);
-			if (!debug_verify(owner_it != y.owners.end(), "file ", file, " is not global"))
+			if (!debug_verify(owner_it != y.owners.end(), "file ", file, " is not independent"))
 				return false; // error
+
+			engine::task::post_work(
+				*impl.taskscheduler,
+				file,
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
+			{
+				// note strand is the underlying file
+				if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Token>>())))
+				{
+					std::pair<FileCallPtr, engine::Token> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Token> &&>(std::move(data));
+					FileCallData & call_data = *call_ptr.first;
+
+					const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
+					if (!debug_assert(call_it != call_data.calls.end()))
+						return;
+
+					if (debug_assert(call_data.ready))
+					{
+						engine::file::loader loader(call_data.impl);
+						call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, engine::Asset(strand_));
+						loader.detach();
+					}
+
+					call_data.calls.erase(call_it);
+				}
+			},
+				std::make_pair(y.call_ptr, tag));
 
 			y.owners.erase(owner_it);
 
 			if (ext::empty(y.owners))
 			{
 #if MODE_DEBUG
-				const auto mode = engine::file::flags::ADD_WATCH;
-				engine::file::remove_watch(*impl.filesystem, y.directory, std::move(y.filepath), mode);
+				const auto id = y.directory ^ engine::Asset(y.filepath);
+				engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 				engine::task::post_work(
 					*impl.taskscheduler,
 					file,
-					[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+					[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 				{
 					// note strand is the underlying file
 					if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -762,39 +916,19 @@ namespace
 						FileCallPtr call_ptr = utility::any_cast<FileCallPtr &&>(std::move(data));
 						FileCallData & call_data = *call_ptr;
 
-						if (debug_assert(call_data.ready))
+						engine::file::loader loader(call_data.impl);
+						if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
 						{
 							for (auto && call : call_data.calls)
 							{
-								call.second.unreadycall(call.second.data, call.first, strand_);
+								call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 							}
-							call_data.ready = false;
 						}
+						call_data.filetype.unloadcall(loader, call_data.stash, engine::Asset(strand_));
+						loader.detach();
 					}
 				},
 					y.call_ptr);
-				const auto filetype_it = find(filetypes, y.filetype);
-				if (debug_assert(filetype_it != filetypes.end()))
-				{
-					Filetype * const filetype_ptr = filetypes.get<Filetype>(filetype_it);
-					if (debug_assert(filetype_ptr))
-					{
-						engine::task::post_work(
-							*impl.taskscheduler,
-							file,
-							[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
-						{
-							if (debug_assert(data.type_id() == (utility::type_id<std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset>>())))
-							{
-								std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset> call_ptr = utility::any_cast<std::pair<ext::heap_shared_ptr<Filetype::Callback>, engine::Asset> &&>(std::move(data));
-								Filetype::Callback & call_data = *call_ptr.first;
-
-								call_data.unloadcall(call_data.data, call_ptr.second);
-							}
-						},
-							std::make_pair(filetype_ptr->callback, file));
-					}
-				}
 
 				utility::heap_vector<engine::Asset, engine::Asset> relations;
 				if (debug_verify(relations.try_reserve(y.attachments.size())))
@@ -804,6 +938,13 @@ namespace
 						relations.try_emplace_back(utility::no_failure, file, attachment);
 					}
 				}
+
+				if (y.radical != file)
+				{
+					loads.erase(find(loads, y.radical));
+				}
+				loads.erase(load_it);
+
 				remove_attachments(impl, std::move(relations));
 			}
 			return true;
@@ -892,24 +1033,6 @@ namespace
 		}
 	}
 
-	bool add_attachment(decltype(loads.end()) owner_it, engine::Asset attachment)
-	{
-		return loads.call(owner_it, ext::overload(
-			[&](RadicalLoad &) -> bool
-		{
-			debug_unreachable("radicals cannot be owners");
-		},
-			[&](LoadingLoad & y)
-		{
-			const auto count = y.remaining_count & INT_MAX;
-			return debug_verify(y.attachments.insert(y.attachments.end() - count, attachment));
-		},
-			[&](LoadedLoad & y)
-		{
-			return debug_verify(y.attachments.try_emplace_back(attachment));
-		}));
-	}
-
 	bool add_dependency_loaded(decltype(loads.end()) owner_it, engine::Asset attachment)
 	{
 		return loads.call(owner_it, ext::overload(
@@ -968,7 +1091,7 @@ namespace
 					{
 						while (true)
 						{
-							const auto split = find(begin, end, u8';');
+							const auto split = find(begin, end, ';');
 							if (!debug_assert(split != begin, "unexpected file without name"))
 								return; // error
 
@@ -976,7 +1099,7 @@ namespace
 							const auto file_asset = engine::Asset(filepath);
 
 							const auto file_it = find(files, file_asset);
-							if (debug_assert(file_it != files.end()))
+							if (debug_inform(file_it != files.end()))
 							{
 								files.call(file_it, ext::overload(
 									[&](AmbiguousFile & y)
@@ -1028,14 +1151,14 @@ namespace
 								}));
 							}
 
-							const auto extension = rfind(begin, split, u8'.');
+							const auto extension = rfind(begin, split, '.');
 							if (extension != split)
 							{
 								const auto radical = utility::string_units_utf8(begin, extension);
 								const auto radical_asset = engine::Asset(radical);
 
 								const auto radical_it = find(files, radical_asset);
-								if (debug_assert(radical_it != files.end()))
+								if (debug_inform(radical_it != files.end()))
 								{
 									files.call(radical_it, ext::overload(
 										[&](AmbiguousFile & y)
@@ -1064,6 +1187,11 @@ namespace
 									}));
 								}
 							}
+
+							if (split == end)
+								break;
+
+							begin = split + 1; // skip ';'
 						}
 					}
 				}
@@ -1076,7 +1204,7 @@ namespace
 					{
 						while (true)
 						{
-							const auto split = find(begin, end, u8';');
+							const auto split = find(begin, end, ';');
 							if (!debug_assert(split != begin, "unexpected file without name"))
 								return; // error
 
@@ -1112,7 +1240,7 @@ namespace
 								},
 									[&](RadicalFile & y)
 								{
-									utility::heap_vector<engine::Asset, engine::Asset> radicals;
+									utility::heap_vector<engine::Hash, engine::Asset> radicals;
 									if (!debug_verify(radicals.try_emplace_back(y.directory, y.file)))
 										return; // error
 
@@ -1124,7 +1252,7 @@ namespace
 								{
 									if (!(y.directory == x.directory && y.filepath == filepath))
 									{
-										utility::heap_vector<engine::Asset, utility::heap_string_utf8> metas;
+										utility::heap_vector<engine::Hash, utility::heap_string_utf8> metas;
 										if (!debug_verify(metas.try_emplace_back(y.directory, std::move(y.filepath))))
 											return; // error
 										if (!debug_verify(metas.try_emplace_back(x.directory, utility::heap_string_utf8(filepath))))
@@ -1142,7 +1270,7 @@ namespace
 								if (!debug_verify(files.emplace<UniqueFile>(file_asset, x.directory, utility::heap_string_utf8(filepath))))
 									return; // error
 
-								const auto extension = rfind(begin, split, u8'.');
+								const auto extension = rfind(begin, split, '.');
 								if (extension != split)
 								{
 									const auto radical = utility::string_units_utf8(begin, extension);
@@ -1163,7 +1291,7 @@ namespace
 										},
 											[&](RadicalFile & y)
 										{
-											utility::heap_vector<engine::Asset, engine::Asset> radicals;
+											utility::heap_vector<engine::Hash, engine::Asset> radicals;
 											if (!debug_verify(radicals.try_emplace_back(y.directory, y.file)))
 												return; // error
 											if (!debug_verify(radicals.try_emplace_back(x.directory, file_asset)))
@@ -1196,18 +1324,21 @@ namespace
 				}
 			}
 
-			void operator () (MessageLoadGlobal && x)
+			void operator () (MessageLoadIndependent && x)
 			{
-				const auto underlying_load = find_underlying_load(x.file);
+				const auto underlying_load = find_underlying_load(x.name);
 				if (underlying_load.second != loads.end())
 				{
-					if (!load_old(impl, global, underlying_load.first, underlying_load.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+					if (!debug_verify(tags.emplace<FileTag>(x.tag, underlying_load.first)))
+						return; // error
+
+					if (!load_old(impl, x.tag, engine::Asset(global), underlying_load.first, underlying_load.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 						return; // error
 				}
 				else
 				{
-					const auto underlying_file = find_underlying_file(x.file);
-					if (!debug_verify(underlying_file.second != files.end(), x.file, " cannot be found"))
+					const auto underlying_file = find_underlying_file(x.name);
+					if (!debug_verify(underlying_file.second != files.end(), x.name, " cannot be found"))
 						return; // error
 
 					if (!files.call(underlying_file.second, ext::overload(
@@ -1220,57 +1351,18 @@ namespace
 					const auto underlying_load_ = find_underlying_load(underlying_file.first);
 					if (underlying_load_.second != loads.end())
 					{
-						if (!load_old(impl, global, underlying_load_.first, underlying_load_.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!debug_verify(tags.emplace<FileTag>(x.tag, underlying_load_.first)))
+							return; // error
+
+						if (!load_old(impl, x.tag, engine::Asset(global), underlying_load_.first, underlying_load_.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 					else
 					{
-						if (!load_new(impl, global, underlying_file.first, underlying_file.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!debug_verify(tags.emplace<FileTag>(x.tag, underlying_file.first)))
 							return; // error
-					}
-				}
-			}
 
-			void operator () (MessageLoadLocal && x)
-			{
-				const auto underlying_owner = find_underlying_load(x.owner);
-				if (!debug_verify(underlying_owner.second != loads.end(), x.owner, " cannot be found"))
-					return; // error
-
-				const auto underlying_load = find_underlying_load(x.file);
-				if (underlying_load.second != loads.end())
-				{
-					if (!add_attachment(underlying_owner.second, underlying_load.first))
-						return; // error
-
-					if (!load_old(impl, underlying_owner.first, underlying_load.first, underlying_load.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
-						return; // error
-				}
-				else
-				{
-					const auto underlying_file = find_underlying_file(x.file);
-					if (!debug_verify(underlying_file.second != files.end(), x.file, " cannot be found"))
-						return; // error
-
-					if (!files.call(underlying_file.second, ext::overload(
-						[&](AmbiguousFile &) { return debug_fail(underlying_file.first, " is ambigous and cannot be loaded"); },
-						[&](DirectoryFile &) { return debug_fail(underlying_file.first, " collides with a directory"); },
-						[&](RadicalFile &) -> bool { debug_unreachable(underlying_file.first); },
-						[&](UniqueFile &) { return true; })))
-						return; // error
-
-					if (!add_attachment(underlying_owner.second, underlying_file.first))
-						return; // error
-
-					const auto underlying_load_ = find_underlying_load(underlying_file.first);
-					if (underlying_load_.second != loads.end())
-					{
-						if (!load_old(impl, underlying_owner.first, underlying_load_.first, underlying_load_.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
-							return; // error
-					}
-					else
-					{
-						if (!load_new(impl, underlying_owner.first, underlying_file.first, underlying_file.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_new(impl, x.tag, engine::Asset(global), underlying_file.first, underlying_file.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 				}
@@ -1282,7 +1374,7 @@ namespace
 				if (!debug_verify(underlying_owner.second != loads.end(), x.owner, " cannot be found"))
 					return; // error
 
-				const auto underlying_load = find_underlying_load(x.file);
+				const auto underlying_load = find_underlying_load(x.name);
 				if (underlying_load.second != loads.end())
 				{
 					if (loads.contains<LoadedLoad>(underlying_load.second))
@@ -1296,13 +1388,13 @@ namespace
 							return; // error
 					}
 
-					if (!load_old(impl, underlying_owner.first, underlying_load.first, underlying_load.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+					if (!load_old(impl, underlying_owner.first, underlying_owner.first, underlying_load.first, underlying_load.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 						return; // error
 				}
 				else
 				{
-					const auto underlying_file = find_underlying_file(x.file);
-					if (!debug_verify(underlying_file.second != files.end(), x.file, " cannot be found"))
+					const auto underlying_file = find_underlying_file(x.name);
+					if (!debug_verify(underlying_file.second != files.end(), x.name, " cannot be found"))
 						return; // error
 
 					if (!files.call(underlying_file.second, ext::overload(
@@ -1318,12 +1410,12 @@ namespace
 					const auto underlying_load_ = find_underlying_load(underlying_file.first);
 					if (underlying_load_.second != loads.end())
 					{
-						if (!load_old(impl, underlying_owner.first, underlying_load_.first, underlying_load_.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_old(impl, underlying_owner.first, underlying_owner.first, underlying_load_.first, underlying_load_.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 					else
 					{
-						if (!load_new(impl, underlying_owner.first, underlying_file.first, underlying_file.second, x.file, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_new(impl, underlying_owner.first, underlying_owner.first, underlying_file.first, underlying_file.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 				}
@@ -1361,11 +1453,9 @@ namespace
 
 			void operator () (MessageRegisterFiletype && x)
 			{
-				const auto filetype_ptr = filetypes.emplace<Filetype>(x.filetype);
+				const auto filetype_ptr = filetypes.emplace<Filetype>(x.filetype, x.loadcall, x.unloadcall);
 				if (!debug_verify(filetype_ptr))
 					return; // error
-
-				filetype_ptr->callback = ext::heap_shared_ptr<Filetype::Callback>(utility::in_place, x.loadcall, x.unloadcall, std::move(x.data));
 			}
 
 			void operator () (MessageRegisterLibrary && x)
@@ -1397,108 +1487,26 @@ namespace
 				}
 				else
 				{
-					if (!debug_verify(files.emplace<DirectoryFile>(x.directory)))
+					if (!debug_verify(files.emplace<DirectoryFile>(engine::Asset(x.directory))))
 						return; // error
 				}
 			}
 
-			void operator () (MessageUnloadGlobal && x)
+			void operator () (MessageUnloadIndependent && x)
 			{
-				const auto underlying_file = find_underlying_load(x.file);
-				if (!debug_verify(underlying_file.second != loads.end(), x.file, " cannot be found"))
+				const auto tag_it = find(tags, x.tag);
+				if (!debug_verify(tag_it != tags.end(), x.tag, " cannot be found"))
 					return; // error
 
-				remove_file(impl, underlying_file.first, underlying_file.second);
-			}
-
-			void operator () (MessageUnloadLocal && x)
-			{
-				const auto underlying_owner = find_underlying_load(x.owner);
-				if (!debug_verify(underlying_owner.second != loads.end(), x.owner, " cannot be found"))
-					return; // error
-
-				const auto underlying_file = find_underlying_load(x.file);
-				if (!debug_verify(underlying_file.second != loads.end(), x.file, " cannot be found"))
-					return; // error
-
-				const auto success = loads.call(underlying_owner.second, ext::overload(
-					[&](RadicalLoad &) -> bool
-				{
-					debug_unreachable("find_underlying_load returned a radical ", x.owner, " -> ", underlying_owner.first);
-				},
-					[&](LoadingLoad & y)
-				{
-					const auto file_it = ext::find(y.attachments, underlying_file.first);
-					if (!debug_verify(file_it != y.attachments.end()))
-						return false; // error
-
-					debug_assert(y.remaining_count < y.attachments.end() - file_it);
-					y.attachments.erase(file_it);
-
-					return true;
-				},
-					[&](LoadedLoad & y)
-				{
-					const auto file_it = ext::find(y.attachments, underlying_file.first);
-					if (!debug_verify(file_it != y.attachments.end()))
-						return false; // error
-
-					y.attachments.erase(file_it);
-
-					return true;
-				}));
-				if (!success)
+				const FileTag * const file_tag = tags.get<FileTag>(tag_it);
+				if (!debug_assert(file_tag))
 					return;
 
-				remove_file(impl, underlying_file.first, underlying_file.second);
-			}
-
-			void operator () (MessageUnloadDependency && x)
-			{
-				const auto underlying_owner = find_underlying_load(x.owner);
-				if (!debug_verify(underlying_owner.second != loads.end(), x.owner, " cannot be found"))
+				const auto file_it = find(loads, file_tag->file);
+				if (!debug_verify(file_it != loads.end(), file_tag->file, " cannot be found"))
 					return; // error
 
-				const auto underlying_file = find_underlying_load(x.file);
-				if (!debug_verify(underlying_file.second != loads.end(), x.file, " cannot be found"))
-					return; // error
-
-				const auto success = loads.call(underlying_owner.second, ext::overload(
-					[&](RadicalLoad &) -> bool
-				{
-					debug_unreachable("find_underlying_load returned a radical ", x.owner, " -> ", underlying_owner.first);
-				},
-					[&](LoadingLoad & y)
-				{
-					const auto file_it = ext::find(y.attachments, underlying_file.first);
-					if (!debug_verify(file_it != y.attachments.end()))
-						return false; // error
-
-					debug_assert(y.attachments.end() - file_it <= y.remaining_count);
-					y.attachments.erase(file_it);
-
-					y.remaining_count--;
-					if (y.remaining_count == 0)
-					{
-						finish_loading(impl, underlying_owner.first, underlying_owner.second, std::move(y));
-					}
-
-					return true;
-				},
-					[&](LoadedLoad & y)
-				{
-					const auto file_it = ext::find(y.attachments, underlying_file.first);
-					if (!debug_verify(file_it != y.attachments.end()))
-						return false; // error
-
-					y.attachments.erase(file_it);
-
-					return true;
-				}));
-				if (!success)
-					return;
-
-				remove_file(impl, underlying_file.first, underlying_file.second);
+				remove_file(impl, x.tag, file_tag->file, file_it);
 			}
 
 			void operator () (MessageUnregisterFiletype && x)
@@ -1525,7 +1533,7 @@ namespace
 		visit(ProcessMessage{impl}, std::move(message));
 	}
 
-	void loader_update(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	void loader_update(engine::task::scheduler & /*taskscheduler*/, engine::Hash /*strand*/, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<Task>()))
 			return;
@@ -1580,7 +1588,7 @@ namespace
 
 namespace
 {
-	void file_scan(engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && removed_files, utility::any & data)
+	void file_scan(engine::file::system & /*filesystem*/, engine::Hash directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && removed_files, utility::any & data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<engine::file::loader *>()))
 			return;
@@ -1596,26 +1604,23 @@ namespace
 		if (!debug_assert(read_data))
 			return;
 
-		ext::heap_shared_ptr<Filetype::Callback> filetypecall_ptr = read_data->filetype_callback.lock();
-		if (!debug_verify(filetypecall_ptr))
-			return;
-
 		ext::heap_shared_ptr<FileCallData> filecall_ptr = read_data->file_callback.lock();
 		if (!debug_verify(filecall_ptr))
 			return;
 
+		engine::file::loader loader(filecall_ptr->impl);
 		if (filecall_ptr->ready)
 		{
 			engine::task::post_work(*read_data->impl->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *read_data->impl, utility::in_place_type<MessageLoadInit>, read_data->file));
 
 			for (auto && call : filecall_ptr->calls)
 			{
-				call.second.unreadycall(call.second.data, call.first, read_data->file);
+				call.second.unreadycall(loader, call.second.data, call.second.name, filecall_ptr->stash, read_data->file);
 			}
 			filecall_ptr->ready = false;
 		}
-
-		filetypecall_ptr->loadcall(std::move(stream), filetypecall_ptr->data, read_data->file);
+		filecall_ptr->filetype.loadcall(loader, std::move(stream), filecall_ptr->stash, read_data->file);
+		loader.detach();
 
 		engine::task::post_work(*read_data->impl->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *read_data->impl, utility::in_place_type<MessageLoadDone>, read_data->file));
 	}
@@ -1632,7 +1637,7 @@ namespace engine
 			engine::task::post_work(
 				*impl.taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<core::sync::Event<true> *>()))
 					return;
@@ -1661,7 +1666,7 @@ namespace engine
 			return impl;
 		}
 
-		void register_library(loader & loader, engine::Asset directory)
+		void register_library(loader & loader, engine::Hash directory)
 		{
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterLibrary>, directory));
 
@@ -1670,85 +1675,59 @@ namespace engine
 #else
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES;
 #endif
-			engine::file::scan(*loader->filesystem, directory, strand, file_scan, &loader, mode);
+			const auto id = directory;
+			engine::file::scan(*loader->filesystem, id, directory, strand, file_scan, &loader, mode);
 		}
 
-		void unregister_library(loader & loader, engine::Asset directory)
+		void unregister_library(loader & loader, engine::Hash directory)
 		{
 #if MODE_DEBUG
-			const auto mode = engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH;
-			engine::file::remove_watch(*loader->filesystem, directory, mode);
+			const auto id = directory;
+			engine::file::remove_watch(*loader->filesystem, id);
 #endif
 
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterLibrary>, directory));
 		}
 
-		void register_filetype(loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall, utility::any && data)
+		void register_filetype(loader & loader, engine::Hash filetype, load_callback * loadcall, unload_callback * unloadcall)
 		{
-			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterFiletype>, filetype, loadcall, unloadcall, std::move(data)));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterFiletype>, filetype, loadcall, unloadcall));
 		}
 
-		void unregister_filetype(loader & loader, engine::Asset filetype)
+		void unregister_filetype(loader & loader, engine::Hash filetype)
 		{
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterFiletype>, filetype));
 		}
 
-		void load_global(
+		void load_independent(
 			loader & loader,
-			engine::Asset filetype,
-			engine::Asset file,
+			engine::Token tag,
+			engine::Asset name,
+			engine::Hash filetype,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data)
 		{
-			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageLoadGlobal>, filetype, file, readycall, unreadycall, std::move(data)));
-		}
-
-		void load_local(
-			loader & loader,
-			engine::Asset filetype,
-			engine::Asset owner,
-			engine::Asset file,
-			ready_callback * readycall,
-			unready_callback * unreadycall,
-			utility::any && data)
-		{
-			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageLoadLocal>, filetype, owner, file, readycall, unreadycall, std::move(data)));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageLoadIndependent>, tag, name, filetype, readycall, unreadycall, std::move(data)));
 		}
 
 		void load_dependency(
 			loader & loader,
-			engine::Asset filetype,
 			engine::Asset owner,
-			engine::Asset file,
+			engine::Asset name,
+			engine::Hash filetype,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data)
 		{
-			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageLoadDependency>, filetype, owner, file, readycall, unreadycall, std::move(data)));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageLoadDependency>, owner, name, filetype, readycall, unreadycall, std::move(data)));
 		}
 
-		void unload_global(
+		void unload_independent(
 			loader & loader,
-			engine::Asset file)
+			engine::Token tag)
 		{
-			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnloadGlobal>, file));
-		}
-
-		void unload_local(
-			loader & loader,
-			engine::Asset owner,
-			engine::Asset file)
-		{
-			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnloadLocal>, owner, file));
-		}
-
-		void unload_dependency(
-			loader & loader,
-			engine::Asset owner,
-			engine::Asset file)
-		{
-			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnloadDependency>, owner, file));
+			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnloadIndependent>, tag));
 		}
 	}
 }

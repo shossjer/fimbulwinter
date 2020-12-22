@@ -11,7 +11,7 @@ namespace engine
 		private:
 
 			loader & loader_;
-			engine::Asset directory_;
+			engine::Hash directory_;
 
 		public:
 
@@ -20,7 +20,7 @@ namespace engine
 				unregister_library(loader_, directory_);
 			}
 
-			explicit scoped_library(loader & loader, engine::Asset directory)
+			explicit scoped_library(loader & loader, engine::Hash directory)
 				: loader_(loader)
 				, directory_(directory)
 			{

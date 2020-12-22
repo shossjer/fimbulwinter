@@ -1,7 +1,6 @@
 #include "config.h"
 
-// todo this file should not depend on inotify
-#if FILE_USE_INOTIFY
+#if FILE_SYSTEM_USE_POSIX
 
 #include "file.hpp"
 

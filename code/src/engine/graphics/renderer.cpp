@@ -136,7 +136,7 @@ namespace engine
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterTexture>, asset, std::move(image)));
 		}
-		void post_unregister(renderer &, engine::Asset asset)
+		void post_unregister(renderer &, engine::Token asset)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUnregister>, asset));
 		}

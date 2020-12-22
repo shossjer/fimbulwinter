@@ -68,13 +68,23 @@
 
 /**
  */
-#cmakedefine FILE_USE_DUMMY 1
+#cmakedefine FILE_SYSTEM_USE_DUMMY 1
 /**
  */
-#cmakedefine FILE_USE_INOTIFY 1
+#cmakedefine FILE_SYSTEM_USE_POSIX 1
 /**
  */
-#cmakedefine FILE_USE_KERNEL32 1
+#cmakedefine FILE_SYSTEM_USE_KERNEL32 1
+
+/**
+ */
+#cmakedefine FILE_WATCH_USE_DUMMY 1
+/**
+ */
+#cmakedefine FILE_WATCH_USE_INOTIFY 1
+/**
+ */
+#cmakedefine FILE_WATCH_USE_KERNEL32 1
 
 /**
  */

@@ -1,6 +1,6 @@
 #include "config.h"
 
-#if FILE_USE_KERNEL32
+#if FILE_SYSTEM_USE_KERNEL32
 
 #include "file.hpp"
 
