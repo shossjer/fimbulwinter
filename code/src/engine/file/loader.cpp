@@ -305,6 +305,7 @@ namespace
 	{
 		engine::Asset filetype;
 		engine::Asset directory;
+		engine::Asset radical;
 		utility::heap_string_utf8 filepath;
 
 		FileCallPtr call_ptr;
@@ -315,18 +316,20 @@ namespace
 		std::int32_t previous_count; // the number of attachments after loading completed
 		std::int32_t remaining_count; // the remaining number of attachments that are required (the most significant bit is set if the file itself is not yet finished reading)
 
-		explicit LoadingLoad(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr)
+		explicit LoadingLoad(engine::Asset filetype, engine::Asset directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr)
 			: filetype(filetype)
 			, directory(directory)
+			, radical(radical)
 			, filepath(std::move(filepath))
 			, call_ptr(std::move(call_ptr))
 			, previous_count(-1)
 			, remaining_count(INT_MIN)
 		{}
 
-		explicit LoadingLoad(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+		explicit LoadingLoad(engine::Asset filetype, engine::Asset directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
 			: filetype(filetype)
 			, directory(directory)
+			, radical(radical)
 			, filepath(std::move(filepath))
 			, call_ptr(std::move(call_ptr))
 			, owners(std::move(owners))
@@ -340,6 +343,7 @@ namespace
 	{
 		engine::Asset filetype;
 		engine::Asset directory;
+		engine::Asset radical;
 		utility::heap_string_utf8 filepath;
 
 		FileCallPtr call_ptr;
@@ -347,9 +351,10 @@ namespace
 		utility::heap_vector<engine::Asset> owners;
 		utility::heap_vector<engine::Asset> attachments;
 
-		explicit LoadedLoad(engine::Asset filetype, engine::Asset directory, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+		explicit LoadedLoad(engine::Asset filetype, engine::Asset directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
 			: filetype(filetype)
 			, directory(directory)
+			, radical(radical)
 			, filepath(std::move(filepath))
 			, call_ptr(std::move(call_ptr))
 			, owners(std::move(owners))
@@ -383,7 +388,7 @@ namespace
 		// todo replace
 		loads.erase(load_it);
 		// todo on failure the file is lost
-		const auto loaded_file = loads.emplace<LoadedLoad>(file, tmp.filetype, tmp.directory, std::move(tmp.filepath), std::move(tmp.call_ptr), std::move(tmp.owners), std::move(tmp.attachments));
+		const auto loaded_file = loads.emplace<LoadedLoad>(file, tmp.filetype, tmp.directory, tmp.radical, std::move(tmp.filepath), std::move(tmp.call_ptr), std::move(tmp.owners), std::move(tmp.attachments));
 		if (!debug_verify(loaded_file))
 			return false;
 
@@ -420,7 +425,7 @@ namespace
 		// todo replace
 		loads.erase(load_it);
 		// todo on failure the file is lost
-		const auto loading_file = loads.emplace<LoadingLoad>(file, tmp.filetype, tmp.directory, std::move(tmp.filepath), std::move(tmp.call_ptr), std::move(tmp.owners), std::move(tmp.attachments));
+		const auto loading_file = loads.emplace<LoadingLoad>(file, tmp.filetype, tmp.directory, tmp.radical, std::move(tmp.filepath), std::move(tmp.call_ptr), std::move(tmp.owners), std::move(tmp.attachments));
 		if (!debug_verify(loading_file))
 			return false;
 
@@ -489,6 +494,10 @@ namespace
 						}
 					}
 
+					if (x.radical != relation.second)
+					{
+						loads.erase(find(loads, x.radical));
+					}
 					loads.erase(load_it);
 				}
 			},
@@ -541,6 +550,10 @@ namespace
 						}
 					}
 
+					if (x.radical != relation.second)
+					{
+						loads.erase(find(loads, x.radical));
+					}
 					loads.erase(load_it);
 				}
 			}));
@@ -574,7 +587,7 @@ namespace
 		if (!debug_verify(call_ptr->calls.try_emplace_back(name, FileCallData::Callback{readycall, unreadycall, std::move(data)})))
 			return false; // error
 
-		LoadingLoad * const loading_load = loads.emplace<LoadingLoad>(file, filetype, unique_file->directory, utility::heap_string_utf8(unique_file->filepath), std::move(call_ptr));
+		LoadingLoad * const loading_load = loads.emplace<LoadingLoad>(file, filetype, unique_file->directory, name, utility::heap_string_utf8(unique_file->filepath), std::move(call_ptr));
 		if (!debug_verify(loading_load))
 			return false; // error
 
@@ -582,6 +595,15 @@ namespace
 		{
 			loads.erase(find(loads, file));
 			return false; // error
+		}
+
+		if (name != file)
+		{
+			if (!debug_verify(loads.emplace<RadicalLoad>(name, file)))
+			{
+				loads.erase(find(loads, file));
+				return false; // error
+			}
 		}
 
 #if MODE_DEBUG
@@ -724,6 +746,13 @@ namespace
 						relations.try_emplace_back(utility::no_failure, file, attachment);
 					}
 				}
+
+				if (y.radical != file)
+				{
+					loads.erase(find(loads, y.radical));
+				}
+				loads.erase(load_it);
+
 				remove_attachments(impl, std::move(relations));
 			}
 			return true;
@@ -777,6 +806,13 @@ namespace
 						relations.try_emplace_back(utility::no_failure, file, attachment);
 					}
 				}
+
+				if (y.radical != file)
+				{
+					loads.erase(find(loads, y.radical));
+				}
+				loads.erase(load_it);
+
 				remove_attachments(impl, std::move(relations));
 			}
 			return true;
