@@ -65,45 +65,27 @@ namespace engine
 			const utility::any & stash,
 			engine::Asset file);
 
-		void load_global(
+		void load_independent(
 			loader & loader,
-			engine::Asset filetype,
+			engine::Asset tag,
 			engine::Asset name,
-			ready_callback * readycall,
-			unready_callback * unreadycall,
-			utility::any && data);
-
-		void load_local(
-			loader & loader,
 			engine::Asset filetype,
-			engine::Asset owner,
-			engine::Asset name,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data);
 
 		void load_dependency(
 			loader & loader,
-			engine::Asset filetype,
 			engine::Asset owner,
 			engine::Asset name,
+			engine::Asset filetype,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data);
 
-		void unload_global(
+		void unload_independent(
 			loader & loader,
-			engine::Asset name);
-
-		void unload_local(
-			loader & loader,
-			engine::Asset owner,
-			engine::Asset name);
-
-		void unload_dependency(
-			loader & loader,
-			engine::Asset owner,
-			engine::Asset name);
+			engine::Asset tag);
 
 		class scoped_filetype
 		{
