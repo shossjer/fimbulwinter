@@ -221,6 +221,7 @@ namespace
 		if (!debug_assert(watch_it != watches.end()))
 			return false;
 
+		debug_printline("stopping watch \"", utility::heap_narrow<utility::encoding_utf8>((*watch_it.second)->path.filepath), "\"");
 		if (::CancelIoEx((*watch_it.second)->overlapped.hEvent, &(*watch_it.second)->overlapped) == FALSE)
 		{
 			const auto error = ::GetLastError();
@@ -384,10 +385,11 @@ namespace
 
 	bool read_file(engine::file::system_impl & impl, const Path & path, engine::file::read_callback * callback, utility::any & data, FILETIME & last_write_time)
 	{
-		HANDLE hFile = ::CreateFileW(path.filepath.data(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+		HANDLE hFile = ::CreateFileW(path.filepath.data(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
-			debug_assert(::GetLastError() == ERROR_FILE_NOT_FOUND, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(path.filepath), "\" failed with last error ", ::GetLastError());
+			const auto error = ::GetLastError();
+			debug_assert((error == ERROR_FILE_NOT_FOUND || error == ERROR_SHARING_VIOLATION), "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(path.filepath), "\" failed with last error ", error);
 			return false;
 		}
 
@@ -1321,7 +1323,8 @@ namespace
 			HANDLE hFile = ::CreateFileW(filepath.data(), dwDesiredAccess, 0, nullptr, dwCreationDisposition, FILE_ATTRIBUTE_NORMAL, nullptr);
 			if (hFile == INVALID_HANDLE_VALUE)
 			{
-				debug_verify(::GetLastError() == ERROR_FILE_EXISTS, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\"failed with last error ", ::GetLastError());
+				const auto error = ::GetLastError();
+				debug_verify(error == ERROR_FILE_EXISTS, "CreateFileW \"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\"failed with last error ", error);
 				return;
 			}
 
