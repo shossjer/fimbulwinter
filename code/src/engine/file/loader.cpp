@@ -249,6 +249,17 @@ namespace
 		utility::heap_string_utf8 filepath;
 
 		utility::heap_vector<engine::Asset, engine::Asset> radicals;
+
+		explicit UniqueFile(engine::Asset directory, utility::heap_string_utf8 && filepath)
+			: directory(directory)
+			, filepath(std::move(filepath))
+		{}
+
+		explicit UniqueFile(engine::Asset directory, utility::heap_string_utf8 && filepath, utility::heap_vector<engine::Asset, engine::Asset> && radicals)
+			: directory(directory)
+			, filepath(std::move(filepath))
+			, radicals(std::move(radicals))
+		{}
 	};
 
 	core::container::Collection
@@ -473,8 +484,8 @@ namespace
 				if (ext::empty(x.owners))
 				{
 #if MODE_DEBUG
-					const auto mode = engine::file::flags::ADD_WATCH;
-					engine::file::remove_watch(*impl.filesystem, x.directory, std::move(x.filepath), mode);
+					const auto id = x.directory ^ engine::Asset(x.filepath);
+					engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 					engine::task::post_work(
@@ -557,8 +568,8 @@ namespace
 				if (ext::empty(x.owners))
 				{
 #if MODE_DEBUG
-					const auto mode = engine::file::flags::ADD_WATCH;
-					engine::file::remove_watch(*impl.filesystem, x.directory, std::move(x.filepath), mode);
+					const auto id = x.directory ^ engine::Asset(x.filepath);
+					engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 					engine::task::post_work(
@@ -655,7 +666,8 @@ namespace
 #else
 		const auto mode = engine::file::flags{};
 #endif
-		engine::file::read(*impl.filesystem, loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, ReadData{&impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)}, mode);
+		const auto id = loading_load->directory ^ engine::Asset(loading_load->filepath);
+		engine::file::read(*impl.filesystem, id, loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, ReadData{&impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)}, mode);
 
 		return true;
 	}
@@ -794,8 +806,8 @@ namespace
 			if (ext::empty(y.owners))
 			{
 #if MODE_DEBUG
-				const auto mode = engine::file::flags::ADD_WATCH;
-				engine::file::remove_watch(*impl.filesystem, y.directory, std::move(y.filepath), mode);
+				const auto id = y.directory ^ engine::Asset(y.filepath);
+				engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 				// todo figure out what this does
@@ -886,8 +898,8 @@ namespace
 			if (ext::empty(y.owners))
 			{
 #if MODE_DEBUG
-				const auto mode = engine::file::flags::ADD_WATCH;
-				engine::file::remove_watch(*impl.filesystem, y.directory, std::move(y.filepath), mode);
+				const auto id = y.directory ^ engine::Asset(y.filepath);
+				engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 				engine::task::post_work(
@@ -1018,24 +1030,6 @@ namespace
 		}
 	}
 
-	bool add_attachment(decltype(loads.end()) owner_it, engine::Asset attachment)
-	{
-		return loads.call(owner_it, ext::overload(
-			[&](RadicalLoad &) -> bool
-		{
-			debug_unreachable("radicals cannot be owners");
-		},
-			[&](LoadingLoad & y)
-		{
-			const auto count = y.remaining_count & INT_MAX;
-			return debug_verify(y.attachments.insert(y.attachments.end() - count, attachment));
-		},
-			[&](LoadedLoad & y)
-		{
-			return debug_verify(y.attachments.try_emplace_back(attachment));
-		}));
-	}
-
 	bool add_dependency_loaded(decltype(loads.end()) owner_it, engine::Asset attachment)
 	{
 		return loads.call(owner_it, ext::overload(
@@ -1094,7 +1088,7 @@ namespace
 					{
 						while (true)
 						{
-							const auto split = find(begin, end, u8';');
+							const auto split = find(begin, end, ';');
 							if (!debug_assert(split != begin, "unexpected file without name"))
 								return; // error
 
@@ -1154,7 +1148,7 @@ namespace
 								}));
 							}
 
-							const auto extension = rfind(begin, split, u8'.');
+							const auto extension = rfind(begin, split, '.');
 							if (extension != split)
 							{
 								const auto radical = utility::string_units_utf8(begin, extension);
@@ -1202,7 +1196,7 @@ namespace
 					{
 						while (true)
 						{
-							const auto split = find(begin, end, u8';');
+							const auto split = find(begin, end, ';');
 							if (!debug_assert(split != begin, "unexpected file without name"))
 								return; // error
 
@@ -1268,7 +1262,7 @@ namespace
 								if (!debug_verify(files.emplace<UniqueFile>(file_asset, x.directory, utility::heap_string_utf8(filepath))))
 									return; // error
 
-								const auto extension = rfind(begin, split, u8'.');
+								const auto extension = rfind(begin, split, '.');
 								if (extension != split)
 								{
 									const auto radical = utility::string_units_utf8(begin, extension);
@@ -1673,14 +1667,15 @@ namespace engine
 #else
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES;
 #endif
-			engine::file::scan(*loader->filesystem, directory, strand, file_scan, &loader, mode);
+			const auto id = directory;
+			engine::file::scan(*loader->filesystem, id, directory, strand, file_scan, &loader, mode);
 		}
 
 		void unregister_library(loader & loader, engine::Asset directory)
 		{
 #if MODE_DEBUG
-			const auto mode = engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH;
-			engine::file::remove_watch(*loader->filesystem, directory, mode);
+			const auto id = directory;
+			engine::file::remove_watch(*loader->filesystem, id);
 #endif
 
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterLibrary>, directory));

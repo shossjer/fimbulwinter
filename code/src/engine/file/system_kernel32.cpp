@@ -1,11 +1,14 @@
 #include "config.h"
 
-#if FILE_USE_KERNEL32
+#if FILE_SYSTEM_USE_KERNEL32
 
 #include "core/container/Collection.hpp"
 #include "core/file/paths.hpp"
 #include "core/ReadStream.hpp"
 #include "core/WriteStream.hpp"
+
+#include "engine/file/system.hpp"
+#include "engine/task/scheduler.hpp"
 
 #include "utility/algorithm/find.hpp"
 #include "utility/any.hpp"
@@ -13,9 +16,6 @@
 #include "utility/functional/utility.hpp"
 #include "utility/shared_ptr.hpp"
 #include "utility/string.hpp"
-
-#include "engine/file/system.hpp"
-#include "engine/task/scheduler.hpp"
 
 #include <Windows.h>
 
@@ -369,8 +369,7 @@ namespace
 			while (::FindNextFileW(hFile, &data) != FALSE);
 
 			const auto error = ::GetLastError();
-			if (!debug_verify(error == ERROR_NO_MORE_FILES, "FindNextFileW failed with last error ", error))
-				return; // error
+			debug_verify(error == ERROR_NO_MORE_FILES, "FindNextFileW failed with last error ", error);
 
 			debug_verify(::FindClose(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
@@ -1399,14 +1398,14 @@ namespace engine
 		{
 			directory dir;
 
-			const auto len = GetCurrentDirectoryW(0, nullptr); // including null
+			const auto len = ::GetCurrentDirectoryW(0, nullptr); // including null
 			if (!debug_verify(len != 0, ::GetLastError()))
 				return dir;
 
 			if (!debug_verify(dir.filepath_.try_resize(len)))
 				return dir;
 
-			if (!debug_verify(GetCurrentDirectoryW(len, dir.filepath_.data()) != 0, ::GetLastError()))
+			if (!debug_verify(::GetCurrentDirectoryW(len, dir.filepath_.data()) != 0, ::GetLastError()))
 				return dir;
 
 			dir.filepath_.data()[len - 1] = L'\\';

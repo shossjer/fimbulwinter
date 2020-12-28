@@ -1,3 +1,4 @@
+#include "core/debug.hpp"
 #include "core/ReadStream.hpp"
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
@@ -11,42 +12,23 @@
 
 #include <catch2/catch.hpp>
 
-#include <array>
-
-static_hashes("tmpdir");
+static_hashes("tmpdir", "my read", "my scan");
 
 namespace
 {
 	struct scoped_watch
 	{
 		engine::file::system & filesystem;
-		engine::Asset directory;
-		utility::heap_string_utf8 filepath;
-		engine::file::flags mode;
+		engine::Identity id;
 
 		~scoped_watch()
 		{
-			if (empty(filepath))
-			{
-				engine::file::remove_watch(filesystem, directory, mode);
-			}
-			else
-			{
-				engine::file::remove_watch(filesystem, directory, std::move(filepath), mode);
-			}
+			engine::file::remove_watch(filesystem, id);
 		}
 
-		explicit scoped_watch(engine::file::system & filesystem, engine::Asset directory, engine::file::flags mode)
+		explicit scoped_watch(engine::file::system & filesystem, engine::Identity id)
 			: filesystem(filesystem)
-			, directory(directory)
-			, mode(mode)
-		{}
-
-		explicit scoped_watch(engine::file::system & filesystem, engine::Asset directory, utility::heap_string_utf8 && filepath, engine::file::flags mode)
-			: filesystem(filesystem)
-			, directory(directory)
-			, filepath(std::move(filepath))
-			, mode(mode)
+			, id(id)
 		{}
 	};
 
@@ -100,6 +82,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 		engine::file::read(
 			filesystem,
+			engine::Identity{},
 			tmpdir,
 			u8"maybe.exists",
 			engine::Asset{},
@@ -110,12 +93,14 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
+				debug_printline(stream.filepath());
 				sync_data.value = stream.filepath() == u8"maybe.exists" ? int(read_char(stream)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(sync_data + 0));
 		engine::file::read(
 			filesystem,
+			engine::Identity{},
 			tmpdir,
 			u8"folder/maybe.exists",
 			engine::Asset{},
@@ -126,6 +111,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
+				debug_printline(stream.filepath());
 				sync_data.value = stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
 				sync_data.event.set();
 			},
@@ -149,6 +135,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 		engine::file::read(
 			filesystem,
+			engine::Asset("my read"),
 			tmpdir,
 			u8"folder/maybe.exists",
 			engine::Asset{},
@@ -165,7 +152,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 			utility::any(&sync_data),
 			engine::file::flags::ADD_WATCH | engine::file::flags::RECURSE_DIRECTORIES);
 
-		scoped_watch watch(filesystem, tmpdir, u8"folder/maybe.exists", engine::file::flags::ADD_WATCH | engine::file::flags::RECURSE_DIRECTORIES);
+		scoped_watch watch(filesystem, engine::Asset("my read"));
 
 		REQUIRE(sync_data.event.wait(timeout));
 		CHECK(sync_data.value == 3);
@@ -194,6 +181,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 
 		engine::file::scan(
 			filesystem,
+			engine::Identity{},
 			tmpdir,
 			engine::Asset{},
 			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
@@ -239,6 +227,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 
 		engine::file::scan(
 			filesystem,
+			engine::Identity{},
 			tmpdir,
 			engine::Asset{},
 			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
@@ -282,6 +271,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 
 		engine::file::scan(
 			filesystem,
+			engine::Asset("my scan"),
 			tmpdir,
 			engine::Asset{},
 			[](engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
@@ -291,6 +281,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
+				debug_printline(existing_files);
 				if (directory == engine::Asset("tmpdir"))
 				{
 					if (existing_files == u8"")
@@ -319,7 +310,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			utility::any(&sync_data),
 			engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH);
 
-		scoped_watch watch(filesystem, tmpdir, engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH);
+		scoped_watch watch(filesystem, engine::Asset("my scan"));
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);
@@ -357,6 +348,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 
 		engine::file::read(
 			filesystem,
+			engine::Identity{},
 			tmpdir,
 			u8"new.file",
 			engine::Asset{},
@@ -389,6 +381,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 
 		engine::file::read(
 			filesystem,
+			engine::Identity{},
 			tmpdir,
 			u8"new.file",
 			engine::Asset{},
@@ -421,6 +414,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 
 		engine::file::read(
 			filesystem,
+			engine::Identity{},
 			tmpdir,
 			u8"new.file",
 			engine::Asset{},

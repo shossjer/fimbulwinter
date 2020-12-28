@@ -69,6 +69,8 @@ set(SOURCES_ENGINE
 	src/engine/file/system_dummy.cpp
 	src/engine/file/system_inotify.cpp
 	src/engine/file/system_kernel32.cpp
+      src/engine/file/system/watch_dummy.cpp
+      src/engine/file/system/watch_inotify.cpp
 	src/engine/graphics/opengl.cpp
 	src/engine/graphics/opengl/Font_freetype.cpp
 	src/engine/graphics/opengl/Font_user32.cpp
@@ -109,6 +111,8 @@ set(HEADERS_ENGINE
 	src/engine/file/scoped_directory.hpp
 	src/engine/file/scoped_library.hpp
 	src/engine/file/system.hpp
+      src/engine/file/system/impl_posix.hpp
+      src/engine/file/system/watch_posix.hpp
 	src/engine/graphics/config.hpp
 	src/engine/graphics/message.hpp
 	src/engine/graphics/opengl.hpp

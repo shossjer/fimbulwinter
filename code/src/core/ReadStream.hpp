@@ -25,7 +25,7 @@ namespace core
 			: callback_(nullptr)
 			, data_(nullptr)
 			, done_(true)
-			, fail_(false)
+			, fail_(true)
 			, filepath_(static_cast<utility::heap_string_utf8 &&>(filepath))
 		{}
 

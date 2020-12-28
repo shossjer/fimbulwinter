@@ -756,12 +756,12 @@ namespace
 		auto fragment_parser = rex::parse(shader_data.fragment_source);
 		while (true)
 		{
-			const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch(u8'/') >> ((rex::ch(u8'/') >> *!rex::newline >> rex::newline) | (rex::ch(u8'*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
+			const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
 			if (uniform_declaration.first == uniform_declaration.second)
 				break;
 
 			fragment_parser.seek(uniform_declaration.second);
-			if (*uniform_declaration.first == u8'/')
+			if (*uniform_declaration.first == '/')
 				continue;
 
 			const auto uniform_type = fragment_parser.match(+rex::word);
@@ -779,7 +779,7 @@ namespace
 				continue;
 
 			fragment_parser.seek(uniform_name.second);
-			const auto uniform_semicolon = fragment_parser.match(*rex::blank >> rex::ch(u8';'));
+			const auto uniform_semicolon = fragment_parser.match(*rex::blank >> rex::ch(';'));
 			if (!uniform_semicolon.first)
 				continue;
 

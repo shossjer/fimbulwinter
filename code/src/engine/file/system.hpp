@@ -1,14 +1,15 @@
 #pragma once
 
 #include "engine/Asset.hpp"
+#include "engine/Identity.hpp"
 #include "engine/module.hpp"
+#include "engine/file/system/common.hpp"
 
 // todo forward declare
 #include "utility/unicode/string.hpp"
 
 namespace core
 {
-	class ReadStream;
 	class WriteStream;
 }
 
@@ -98,18 +99,15 @@ namespace engine
 
 		constexpr const engine::Asset working_directory = engine::Asset{static_cast<uint32_t>(-1)};
 
+		// todo change into identity
 		void register_directory(system & system, engine::Asset name, utility::heap_string_utf8 && filepath, engine::Asset parent);
 		void register_temporary_directory(system & system, engine::Asset name);
 		void unregister_directory(system & system, engine::Asset name);
 
-		using read_callback = void(
-			engine::file::system & filesystem,
-			core::ReadStream && stream,
-			utility::any & data);
-
 		// mode ADD_WATCH | RECURSE_DIRECTORIES | REPORT_MISSING
 		void read(
 			system & system,
+			engine::Identity id,
 			engine::Asset directory,
 			utility::heap_string_utf8 && filepath,
 			engine::Asset strand,
@@ -119,24 +117,12 @@ namespace engine
 
 		void remove_watch(
 			system & system,
-			engine::Asset directory,
-			flags mode = flags{});
-		void remove_watch(
-			system & system,
-			engine::Asset directory,
-			utility::heap_string_utf8 && filepath,
-			flags mode = flags{});
-
-		using scan_callback = void(
-			engine::file::system & filesystem,
-			engine::Asset directory,
-			utility::heap_string_utf8 && existing_files, // multiple files separated by ;
-			utility::heap_string_utf8 && removed_files, // multiple files separated by ;
-			utility::any & data);
+			engine::Identity id);
 
 		// mode IGNORE_EXISTING | ADD_WATCH | RECURSE_DIRECTORIES
 		void scan(
 			system & system,
+			engine::Identity id,
 			engine::Asset directory,
 			engine::Asset strand,
 			scan_callback * callback,

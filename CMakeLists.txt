@@ -104,6 +104,11 @@ endif ()
 
 # lookup dependencies
 
+# BSD
+message(STATUS "Looking for BSD")
+find_file(FILE_SYS_FILE_H sys/file.h)
+message(STATUS "Looking for BSD file - ${FILE_SYS_FILE_H}")
+
 # FMOD
 message(STATUS "Looking for FMOD")
 find_file(FILE_FMOD_HPP fmod.hpp)
@@ -129,12 +134,20 @@ message(STATUS "Looking for OpenGL - ${LIBRARY_OPENGL32}")
 
 # POSIX
 message(STATUS "Looking for POSIX")
+find_file(FILE_DIRENT_H dirent.h)
+message(STATUS "Looking for POSIX dirent - ${FILE_DIRENT_H}")
+find_file(FILE_FCNTL_H fcntl.h)
+message(STATUS "Looking for POSIX fcntl - ${FILE_FCNTL_H}")
+find_file(FILE_FTW_H ftw.h)
+message(STATUS "Looking for POSIX ftw - ${FILE_FTW_H}")
 find_file(FILE_POLL_H poll.h)
 message(STATUS "Looking for POSIX poll - ${FILE_POLL_H}")
 find_file(FILE_PTHREAD_H pthread.h)
 message(STATUS "Looking for POSIX pthread - ${FILE_PTHREAD_H}")
 find_library(LIBRARY_PTHREAD pthread)
 message(STATUS "Looking for POSIX pthread - ${LIBRARY_PTHREAD}")
+find_file(FILE_SYS_STAT_H sys/stat.h)
+message(STATUS "Looking for POSIX stat - ${FILE_SYS_STAT_H}")
 find_file(FILE_UNISTD_H unistd.h)
 message(STATUS "Looking for POSIX unistd - ${FILE_UNISTD_H}")
 
@@ -198,16 +211,28 @@ else ()
 endif ()
 
 # file
-cmake_dependent_option(FILE_USE_INOTIFY "Use the Linux inotify API for the file module" ON "FILE_SYS_INOTIFY_H" OFF)
-cmake_dependent_option(FILE_USE_KERNEL32 "Use the Windows file API for the file module" ON "FILE_FILEAPI_H AND LIBRARY_KERNEL32" OFF)
-_resolve_options(FILE_USE_INOTIFY FILE_USE_KERNEL32)
-if(FILE_USE_INOTIFY)
-	message(STATUS "File - inotify")
-elseif(FILE_USE_KERNEL32)
-	message(STATUS "File - Kernel32")
+cmake_dependent_option(FILE_SYSTEM_USE_POSIX "Use the POSIX API for the file system module" ON "FILE_DIRENT_H AND FILE_FCNTL_H AND FILE_FTW_H AND FILE_POLL_H AND FILE_SYS_FILE_H AND FILE_SYS_STAT_H AND FILE_UNISTD_H" OFF)
+cmake_dependent_option(FILE_SYSTEM_USE_KERNEL32 "Use the Windows file API for the file system module" ON "FILE_FILEAPI_H AND LIBRARY_KERNEL32" OFF)
+_resolve_options(FILE_SYSTEM_USE_POSIX FILE_SYSTEM_USE_KERNEL32)
+if(FILE_SYSTEM_USE_POSIX)
+	message(STATUS "File System - POSIX")
+elseif(FILE_SYSTEM_USE_KERNEL32)
+	message(STATUS "File System - Kernel32")
 else()
-	message(WARNING "File - Disabled")
-	set(FILE_USE_DUMMY 1)
+	message(WARNING "File System - Disabled")
+	set(FILE_SYSTEM_USE_DUMMY 1)
+endif()
+
+cmake_dependent_option(FILE_WATCH_USE_INOTIFY "Use the Linux inotify API for the file watch sub module" ON "FILE_SYSTEM_USE_POSIX AND FILE_SYS_INOTIFY_H" OFF)
+cmake_dependent_option(FILE_WATCH_USE_KERNEL32 "Use the Windows file API for the file watch sub module" ON "FILE_SYSTEM_USE_KERNEL32" OFF)
+_resolve_options(FILE_WATCH_USE_INOTIFY FILE_WATCH_USE_KERNEL32)
+if(FILE_WATCH_USE_INOTIFY)
+	message(STATUS "File Watch - Inotify")
+elseif(FILE_WATCH_USE_KERNEL32)
+	message(STATUS "File Watch - Kernel32")
+else()
+	message(WARNING "File Watch - Disabled")
+	set(FILE_WATCH_USE_DUMMY 1)
 endif()
 
 # graphics
