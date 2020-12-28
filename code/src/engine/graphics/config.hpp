@@ -10,7 +10,11 @@ namespace engine
 	{
 		struct config_t
 		{
+#if GRAPHICS_USE_OPENGL
 			renderer::Type renderer_type = renderer::Type::OPENGL_3_0;
+#else
+			renderer::Type renderer_type = renderer::Type::DUMMY_HACK;
+#endif
 
 			static constexpr auto serialization()
 			{

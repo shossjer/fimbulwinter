@@ -20,6 +20,7 @@ namespace engine
 	{
 		namespace detail
 		{
+#if GRAPHICS_USE_OPENGL
 			namespace opengl_12
 			{
 				extern void run();
@@ -29,6 +30,7 @@ namespace engine
 			{
 				extern void run();
 			}
+#endif
 		}
 	}
 }
@@ -79,6 +81,7 @@ namespace engine
 
 			switch (type)
 			{
+#if GRAPHICS_USE_OPENGL
 			case Type::OPENGL_1_2:
 				active.store(1, std::memory_order_relaxed);
 				renderThread = core::async::Thread{ opengl_12::run };
@@ -86,6 +89,9 @@ namespace engine
 			case Type::OPENGL_3_0:
 				active.store(1, std::memory_order_relaxed);
 				renderThread = core::async::Thread{ opengl_30::run };
+				break;
+#endif
+			case Type::DUMMY_HACK:
 				break;
 			}
 		}

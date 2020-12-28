@@ -57,6 +57,7 @@ set(MSVC_CORE
 
 set(SOURCES_ENGINE
 	src/engine/animation/mixer.cpp
+      src/engine/application/window_dummy.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
 	src/engine/Asset.cpp
@@ -82,6 +83,7 @@ set(SOURCES_ENGINE
 	src/engine/graphics/viewer.cpp
 	src/engine/HashTable.cpp
 	src/engine/hid/devices.cpp
+      src/engine/hid/devices_dummy.cpp
 	src/engine/hid/devices_user32.cpp
 	src/engine/hid/devices_x11.cpp
 	src/engine/hid/ui.cpp

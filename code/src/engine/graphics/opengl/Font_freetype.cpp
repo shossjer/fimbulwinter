@@ -1,6 +1,6 @@
 #include "config.h"
 
-#if TEXT_USE_FREETYPE
+#if GRAPHICS_USE_OPENGL && TEXT_USE_FREETYPE
 
 #include "Font.hpp"
 

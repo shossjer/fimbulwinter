@@ -1,11 +1,13 @@
+#include "config.h"
+
+#if GRAPHICS_USE_OPENGL
+
 #include "opengl.hpp"
 #include "opengl/Color.hpp"
 #if !TEXT_USE_FREETYPE
 # include "opengl/Font.hpp"
 #endif
 #include "opengl/Matrix.hpp"
-
-#include "config.h"
 
 #include "core/color.hpp"
 #include "core/async/Thread.hpp"
@@ -1974,3 +1976,5 @@ namespace engine
 		}
 	}
 }
+
+#endif

@@ -41,7 +41,7 @@ namespace engine
 			~window();
 #if WINDOW_USE_USER32
 			window(HINSTANCE hInstance, int nCmdShow, const config_t & config);
-#elif WINDOW_USE_X11
+#else
 			window(const config_t & config);
 #endif
 

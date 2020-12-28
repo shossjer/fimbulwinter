@@ -88,6 +88,13 @@
 
 /**
  */
+#cmakedefine GRAPHICS_USE_DUMMY 1
+/**
+ */
+#cmakedefine GRAPHICS_USE_OPENGL 1
+
+/**
+ */
 #cmakedefine INPUT_HAS_USER32_HID 1
 /**
  * Enable raw input by default
@@ -119,6 +126,9 @@
  */
 #cmakedefine THREAD_USE_PTHREAD 1
 
+/**
+ */
+#cmakedefine WINDOW_USE_DUMMY 1
 /**
  */
 #cmakedefine WINDOW_USE_USER32 1
