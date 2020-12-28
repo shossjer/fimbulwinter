@@ -1,9 +1,11 @@
+#include "config.h"
+
+#if GRAPHICS_USE_OPENGL
+
 #include "opengl.hpp"
 #include "opengl/Color.hpp"
 #include "opengl/Font.hpp"
 #include "opengl/Matrix.hpp"
-
-#include "config.h"
 
 #include "core/color.hpp"
 #include "core/async/Thread.hpp"
@@ -1300,3 +1302,5 @@ namespace engine
 		}
 	}
 }
+
+#endif

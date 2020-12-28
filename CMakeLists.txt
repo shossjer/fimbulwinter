@@ -252,12 +252,13 @@ if(GRAPHICS_USE_OPENGL)
 		target_link_libraries(graphics_dep INTERFACE "${LIBRARY_OPENGL32}")
 	endif()
 else()
-	message(FATAL_ERROR "Graphics - Disabled")
+	message(WARNING "Graphics - Disabled")
+	set(GRAPHICS_USE_DUMMY 1)
 endif()
 
 # window
-cmake_dependent_option(WINDOW_USE_USER32 "Use the Windows API for the window module" ON "LIBRARY_GDI32 AND LIBRARY_USER32" OFF)
-cmake_dependent_option(WINDOW_USE_X11 "Use X11/Xlib for the window module" ON "FILE_X11_XLIB_H AND LIBRARY_X11" OFF)
+cmake_dependent_option(WINDOW_USE_USER32 "Use the Windows API for the window module" ON "LIBRARY_GDI32 AND LIBRARY_USER32 AND GRAPHICS_USE_OPENGL" OFF)
+cmake_dependent_option(WINDOW_USE_X11 "Use X11/Xlib for the window module" ON "FILE_X11_XLIB_H AND LIBRARY_X11 AND GRAPHICS_USE_OPENGL" OFF)
 _resolve_options(WINDOW_USE_USER32 WINDOW_USE_X11)
 add_library(window_dep INTERFACE)
 if(WINDOW_USE_USER32)
@@ -269,7 +270,8 @@ elseif(WINDOW_USE_X11)
 
 	target_link_libraries(window_dep INTERFACE "${LIBRARY_X11}")
 else()
-	message(FATAL_ERROR "Window - Disabled")
+	message(WARNING "Window - Disabled")
+      set(WINDOW_USE_DUMMY 1)
 endif()
 
 # additional libraries

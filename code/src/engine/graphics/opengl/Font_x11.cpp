@@ -1,6 +1,6 @@
 #include "config.h"
 
-#if TEXT_USE_X11
+#if GRAPHICS_USE_OPENGL && TEXT_USE_X11
 
 #include "Font.hpp"
 
