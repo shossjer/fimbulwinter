@@ -86,6 +86,8 @@ set(HEADERS_ENGINE
 	src/engine/Command.hpp
 	src/engine/commands.hpp
 	src/engine/console.hpp
+	src/engine/Cookie.hpp
+	src/engine/CookieFactory.hpp
 	src/engine/Entity.hpp
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
