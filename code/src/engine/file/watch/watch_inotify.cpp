@@ -7,8 +7,8 @@
 
 #include "core/debug.hpp"
 #include "engine/Asset.hpp"
-#include "engine/file/system.hpp"
-#include "engine/file/system/watch_posix.hpp"
+#include "engine/file/system/works.hpp"
+#include "engine/file/watch/watch.hpp"
 #include "engine/task/scheduler.hpp"
 
 #include "utility/algorithm/find.hpp"

@@ -8,6 +8,7 @@
 namespace core
 {
 	class ReadStream;
+	class WriteStream;
 }
 
 namespace utility
@@ -32,5 +33,10 @@ namespace engine
 			utility::heap_string_utf8 && existing_files, // multiple files separated by ;
 			utility::heap_string_utf8 && removed_files, // multiple files separated by ;
 			utility::any & data);
+
+		using write_callback = void(
+			engine::file::system & filesystem,
+			core::WriteStream && stream,
+			utility::any && data);
 	}
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/Asset.hpp"
-#include "engine/file/system/common.hpp"
+#include "engine/file/system/callbacks.hpp"
 #include "engine/Identity.hpp"
 
 #include "utility/any.hpp"
@@ -14,9 +14,6 @@ namespace engine
 	namespace file
 	{
 		struct system_impl;
-
-		void initialize_watch();
-		void deinitialize_watch();
 
 		struct ReadData
 		{
@@ -43,12 +40,6 @@ namespace engine
 
 			utility::heap_string_utf8 files;
 		};
-
-		void add_file_watch(engine::Identity id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing);
-		void add_scan_watch(engine::Identity id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories);
-		void remove_watch(engine::Identity id);
-
-		// todo ^^^ are in the watch while vvv are in the system :dizzy_face:
 
 		struct FileMissingWork
 		{

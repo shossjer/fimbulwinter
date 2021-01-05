@@ -2,8 +2,6 @@
 
 #if FILE_SYSTEM_USE_POSIX
 
-#include "system.hpp"
-
 #include "core/async/Thread.hpp"
 #include "core/container/Collection.hpp"
 #include "core/ReadStream.hpp"
@@ -11,7 +9,7 @@
 #include "core/WriteStream.hpp"
 
 #include "engine/file/system.hpp"
-#include "engine/file/system/watch_posix.hpp"
+#include "engine/file/watch/watch.hpp"
 #include "engine/task/scheduler.hpp"
 
 #include "utility/any.hpp"

@@ -2,16 +2,11 @@
 
 #include "engine/Asset.hpp"
 #include "engine/Identity.hpp"
+#include "engine/file/system/callbacks.hpp"
 #include "engine/module.hpp"
-#include "engine/file/system/common.hpp"
 
 // todo forward declare
 #include "utility/unicode/string.hpp"
-
-namespace core
-{
-	class WriteStream;
-}
 
 namespace utility
 {
@@ -128,11 +123,6 @@ namespace engine
 			scan_callback * callback,
 			utility::any && data,
 			flags mode = flags{});
-
-		using write_callback = void(
-			engine::file::system & filesystem,
-			core::WriteStream && stream,
-			utility::any && data);
 
 		// mode OVERWRITE_EXISTING | APPEND_EXISTING | CREATE_DIRECTORIES
 		void write(
