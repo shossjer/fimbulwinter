@@ -813,7 +813,9 @@ namespace utility
 	using static_string = basic_string<utility::static_storage_traits<Capacity>, Encoding>;
 
 	template <typename Storage, typename Encoding>
-	decltype(auto) back(const basic_string<Storage, Encoding> & string) { return *(string.data() + string.size() - 1); }
+	decltype(auto) front(const basic_string<Storage, Encoding> & string) { return string[0]; }
+	template <typename Storage, typename Encoding>
+	decltype(auto) back(const basic_string<Storage, Encoding> & string) { return string[string.size() - 1]; }
 
 	template <typename Storage, typename Encoding>
 	bool empty(const basic_string<Storage, Encoding> & string) { return string.size() == 0; } // todo check iterators, or add empty check to storage data
