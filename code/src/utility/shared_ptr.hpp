@@ -188,6 +188,11 @@ namespace ext
 
 		detail::shared_data<T> *& data() { return impl_.data_; }
 		detail::shared_data<T> * data() const { return impl_.data_; }
+
+	private:
+
+		friend bool operator == (const this_type & a, const this_type & b) { return a.data() == b.data(); }
+		friend bool operator != (const this_type & a, const this_type & b) { return !(a == b); }
 	};
 
 	template <typename T>
