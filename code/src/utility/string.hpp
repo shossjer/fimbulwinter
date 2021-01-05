@@ -846,9 +846,27 @@ namespace utility
 	}
 
 	template <typename StorageTraits, typename Encoding>
+	constexpr string_iterator<boundary_unit<Encoding>>
+	find(
+		basic_string<StorageTraits, Encoding> & str,
+		typename utility::encoding_traits<Encoding>::value_type c)
+	{
+		return utility::find(str.begin(), str.end(), c);
+	}
+
+	template <typename StorageTraits, typename Encoding>
 	constexpr const_string_iterator<boundary_unit<Encoding>>
 	find(
 		const basic_string<StorageTraits, Encoding> & str,
+		basic_string_view<boundary_unit<Encoding>> expr)
+	{
+		return utility::find(str.begin(), str.end(), expr.begin(), expr.end());
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr string_iterator<boundary_unit<Encoding>>
+	find(
+		basic_string<StorageTraits, Encoding> & str,
 		basic_string_view<boundary_unit<Encoding>> expr)
 	{
 		return utility::find(str.begin(), str.end(), expr.begin(), expr.end());
@@ -864,9 +882,27 @@ namespace utility
 	}
 
 	template <typename StorageTraits, typename Encoding>
+	constexpr string_iterator<boundary_unit<Encoding>>
+	find(
+		basic_string<StorageTraits, Encoding> & str,
+		typename utility::encoding_traits<Encoding>::const_pointer expr)
+	{
+		return utility::find(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));
+	}
+
+	template <typename StorageTraits, typename Encoding>
 	constexpr const_string_iterator<boundary_unit<Encoding>>
 	rfind(
 		const basic_string<StorageTraits, Encoding> & str,
+		typename utility::encoding_traits<Encoding>::value_type c)
+	{
+		return utility::rfind(str.begin(), str.end(), c);
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr string_iterator<boundary_unit<Encoding>>
+	rfind(
+		basic_string<StorageTraits, Encoding> & str,
 		typename utility::encoding_traits<Encoding>::value_type c)
 	{
 		return utility::rfind(str.begin(), str.end(), c);
@@ -882,9 +918,27 @@ namespace utility
 	}
 
 	template <typename StorageTraits, typename Encoding>
+	constexpr string_iterator<boundary_unit<Encoding>>
+	rfind(
+		basic_string<StorageTraits, Encoding> & str,
+		basic_string_view<boundary_unit<Encoding>> expr)
+	{
+		return utility::rfind(str.begin(), str.end(), expr.begin(), expr.end());
+	}
+
+	template <typename StorageTraits, typename Encoding>
 	constexpr const_string_iterator<boundary_unit<Encoding>>
 	rfind(
 		const basic_string<StorageTraits, Encoding> & str,
+		typename utility::encoding_traits<Encoding>::const_pointer expr)
+	{
+		return utility::rfind(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));
+	}
+
+	template <typename StorageTraits, typename Encoding>
+	constexpr string_iterator<boundary_unit<Encoding>>
+	rfind(
+		basic_string<StorageTraits, Encoding> & str,
 		typename utility::encoding_traits<Encoding>::const_pointer expr)
 	{
 		return utility::rfind(str.begin(), str.end(), basic_string_view<boundary_unit<Encoding>>(expr));

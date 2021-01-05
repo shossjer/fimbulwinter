@@ -293,22 +293,22 @@ namespace utility
 		return utility::starts_with(view.begin(), view.end(), str);
 	}
 
-	template <typename Boundary>
+	template <typename Boundary, bool Const>
 	constexpr bool
 	starts_with(
-		const_string_iterator<Boundary> begin,
-		const_string_iterator<Boundary> end,
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
 		basic_string_view<Boundary> expr)
 	{
 		return utility::starts_with(begin, end, expr.begin(), expr.end());
 	}
 
-	template <typename Boundary>
+	template <typename Boundary, bool Const>
 	constexpr bool
 	starts_with(
 		basic_string_view<Boundary> view,
-		const_string_iterator<Boundary> exprbegin,
-		const_string_iterator<Boundary> exprend)
+		string_iterator_impl<Boundary, Const> exprbegin,
+		string_iterator_impl<Boundary, Const> exprend)
 	{
 		return utility::starts_with(view.begin(), view.end(), exprbegin, exprend);
 	}

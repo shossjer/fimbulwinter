@@ -207,33 +207,33 @@ namespace utility
 		return ext::strrfind(begin, end, exprbegin.get(), exprend.get());
 	}
 
-	template <typename Boundary>
+	template <typename Boundary, bool Const>
 	constexpr bool
 	starts_with(
-		const_string_iterator<Boundary> begin,
-		const_string_iterator<Boundary> end,
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
 		typename Boundary::value_type c)
 	{
 		return ext::strbegins(begin.get(), end.get(), c);
 	}
 
-	template <typename Boundary>
+	template <typename Boundary, bool Const>
 	constexpr bool
 	starts_with(
-		const_string_iterator<Boundary> begin,
-		const_string_iterator<Boundary> end,
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
 		typename Boundary::const_pointer str)
 	{
 		return ext::strbegins(begin.get(), end.get(), str);
 	}
 
-	template <typename Boundary>
+	template <typename Boundary, bool Const1, bool Const2>
 	constexpr bool
 	starts_with(
-		const_string_iterator<Boundary> begin,
-		const_string_iterator<Boundary> end,
-		const_string_iterator<Boundary> exprbegin,
-		const_string_iterator<Boundary> exprend)
+		string_iterator_impl<Boundary, Const1> begin,
+		string_iterator_impl<Boundary, Const1> end,
+		string_iterator_impl<Boundary, Const2> exprbegin,
+		string_iterator_impl<Boundary, Const2> exprend)
 	{
 		return ext::strbegins(begin.get(), end.get(), exprbegin.get(), exprend.get());
 	}
