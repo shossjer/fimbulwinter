@@ -90,6 +90,10 @@ namespace ext
 
 		shared_ptr() = default;
 
+		explicit shared_ptr(detail::shared_data<T> & data)
+			: impl_(&data)
+		{}
+
 		template <typename ...Ps>
 		explicit shared_ptr(utility::in_place_t, Ps && ...ps)
 			: impl_(allocator_traits::allocate(allocator(), 1))
@@ -142,6 +146,12 @@ namespace ext
 			other.data() = nullptr;
 
 			return *this;
+		}
+
+		// note you know what you are doing right?
+		detail::shared_data<T> * detach()
+		{
+			return std::exchange(data(), nullptr);
 		}
 
 		void reset()
