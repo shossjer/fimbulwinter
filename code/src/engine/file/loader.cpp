@@ -1096,7 +1096,7 @@ namespace
 							const auto file_asset = engine::Asset(filepath);
 
 							const auto file_it = find(files, file_asset);
-							if (debug_assert(file_it != files.end()))
+							if (debug_inform(file_it != files.end()))
 							{
 								files.call(file_it, ext::overload(
 									[&](AmbiguousFile & y)
@@ -1155,7 +1155,7 @@ namespace
 								const auto radical_asset = engine::Asset(radical);
 
 								const auto radical_it = find(files, radical_asset);
-								if (debug_assert(radical_it != files.end()))
+								if (debug_inform(radical_it != files.end()))
 								{
 									files.call(radical_it, ext::overload(
 										[&](AmbiguousFile & y)
@@ -1184,6 +1184,11 @@ namespace
 									}));
 								}
 							}
+
+							if (split == end)
+								break;
+
+							begin = split + 1; // skip ';'
 						}
 					}
 				}
