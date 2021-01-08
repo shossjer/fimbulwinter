@@ -70,8 +70,9 @@ set(SOURCES_ENGINE
 	src/engine/file/system_dummy.cpp
 	src/engine/file/system_inotify.cpp
 	src/engine/file/system_kernel32.cpp
-      src/engine/file/watch/watch_dummy.cpp
-      src/engine/file/watch/watch_inotify.cpp
+	src/engine/file/watch/watch_dummy.cpp
+	src/engine/file/watch/watch_inotify.cpp
+	src/engine/file/watch/watch_kernel32.cpp
 	src/engine/graphics/opengl.cpp
 	src/engine/graphics/opengl/Font_freetype.cpp
 	src/engine/graphics/opengl/Font_user32.cpp

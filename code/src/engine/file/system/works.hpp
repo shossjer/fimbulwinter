@@ -9,6 +9,10 @@
 #include "utility/shared_ptr.hpp"
 #include "utility/unicode/string.hpp"
 
+#if FILE_SYSTEM_USE_KERNEL32
+# include <Windows.h>
+#endif
+
 namespace engine
 {
 	namespace file
@@ -19,26 +23,61 @@ namespace engine
 		{
 			engine::file::system_impl & impl;
 
+#if FILE_SYSTEM_USE_KERNEL32
+			utility::heap_string_utfw filepath;
+#elif FILE_SYSTEM_USE_POSIX
 			utility::heap_string_utf8 filepath;
+#endif
 			std::uint32_t root;
 
 			engine::Asset strand;
 			engine::file::read_callback * callback;
 			utility::any data;
+
+#if FILE_SYSTEM_USE_KERNEL32
+			FILETIME last_write_time;
+#endif
 		};
 
 		struct ScanData
 		{
 			engine::file::system_impl & impl;
 
+#if FILE_SYSTEM_USE_KERNEL32
+			utility::heap_string_utfw dirpath;
+#elif FILE_SYSTEM_USE_POSIX
 			utility::heap_string_utf8 dirpath;
+#endif
 			engine::Asset directory;
 
 			engine::Asset strand;
 			engine::file::scan_callback * callback;
 			utility::any data;
 
+#if FILE_SYSTEM_USE_KERNEL32
+			utility::heap_string_utfw files;
+#elif FILE_SYSTEM_USE_POSIX
 			utility::heap_string_utf8 files;
+#endif
+		};
+
+		struct WriteData
+		{
+			engine::file::system_impl & impl;
+
+#if FILE_SYSTEM_USE_KERNEL32
+			utility::heap_string_utfw filepath;
+#elif FILE_SYSTEM_USE_POSIX
+			utility::heap_string_utf8 filepath;
+#endif
+			std::uint32_t root;
+
+			engine::Asset strand;
+			engine::file::write_callback * callback;
+			utility::any data;
+
+			bool append : 1;
+			bool overwrite : 1;
 		};
 
 		struct FileMissingWork
@@ -54,8 +93,13 @@ namespace engine
 		struct ScanChangeWork
 		{
 			ext::heap_shared_ptr<ScanData> ptr;
+#if FILE_SYSTEM_USE_KERNEL32
+			utility::heap_string_utfw filepath; // (sub)directory
+			utility::heap_vector<utility::heap_string_utfw> files;
+#elif FILE_SYSTEM_USE_POSIX
 			utility::heap_string_utf8 filepath; // (sub)directory
 			utility::heap_vector<utility::heap_string_utf8> files;
+#endif
 		};
 
 		struct ScanOnceWork
@@ -68,10 +112,16 @@ namespace engine
 			ext::heap_shared_ptr<ScanData> ptr;
 		};
 
+		struct FileWriteWork
+		{
+			ext::heap_shared_ptr<WriteData> ptr;
+		};
+
 		void post_work(FileMissingWork && data);
 		void post_work(FileReadWork && data);
 		void post_work(ScanChangeWork && data);
 		void post_work(ScanOnceWork && data);
 		void post_work(ScanRecursiveWork && data);
+		void post_work(FileWriteWork && data);
 	}
 }

@@ -12,7 +12,7 @@
 
 #include <catch2/catch.hpp>
 
-static_hashes("tmpdir", "my read", "my scan");
+static_hashes("tmpdir", "my read", "my scan", "strand");
 
 namespace
 {
@@ -131,14 +131,17 @@ TEST_CASE("file system can read files", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		// note strand must be set in order for the reads and writes not to
+		// collide, since they all operate on the same file
+
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset("strand"), write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
 		engine::file::read(
 			filesystem,
 			engine::Asset("my read"),
 			tmpdir,
 			u8"folder/maybe.exists",
-			engine::Asset{},
+			engine::Asset("strand"),
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
@@ -146,11 +149,12 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 			auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-			sync_data.value = stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
+			debug_printline(stream.filepath());
+			sync_data.value += stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
 			sync_data.event.set();
 		},
 			utility::any(&sync_data),
-			engine::file::flags::ADD_WATCH | engine::file::flags::RECURSE_DIRECTORIES);
+			engine::file::flags::ADD_WATCH);
 
 		scoped_watch watch(filesystem, engine::Asset("my read"));
 
@@ -158,10 +162,16 @@ TEST_CASE("file system can read files", "[engine][file]")
 		CHECK(sync_data.value == 3);
 		sync_data.event.reset();
 
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(7)), engine::file::flags::OVERWRITE_EXISTING);
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset("strand"), write_char, utility::any(char(7)), engine::file::flags::OVERWRITE_EXISTING);
 
 		REQUIRE(sync_data.event.wait(timeout));
-		CHECK(sync_data.value == 7);
+		CHECK(sync_data.value == 3 + 7);
+		sync_data.event.reset();
+
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset("strand"), write_char, utility::any(char(5)), engine::file::flags::OVERWRITE_EXISTING);
+
+		REQUIRE(sync_data.event.wait(timeout));
+		CHECK(sync_data.value == 3 + 7 + 5);
 	}
 }
 
@@ -343,15 +353,18 @@ TEST_CASE("file system can write files", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(3)));
+		// note strand must be set in order for the reads and writes not to
+		// collide, since they all operate on the same file
+
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset("strand"), write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset("strand"), write_char, utility::any(char(3)));
 
 		engine::file::read(
 			filesystem,
 			engine::Identity{},
 			tmpdir,
 			u8"new.file",
-			engine::Asset{},
+			engine::Asset("strand"),
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
@@ -376,15 +389,18 @@ TEST_CASE("file system can write files", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::OVERWRITE_EXISTING);
+		// note strand must be set in order for the reads and writes not to
+		// collide, since they all operate on the same file
+
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset("strand"), write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset("strand"), write_char, utility::any(char(3)), engine::file::flags::OVERWRITE_EXISTING);
 
 		engine::file::read(
 			filesystem,
 			engine::Identity{},
 			tmpdir,
 			u8"new.file",
-			engine::Asset{},
+			engine::Asset("strand"),
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
@@ -409,15 +425,18 @@ TEST_CASE("file system can write files", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::APPEND_EXISTING);
+		// note strand must be set in order for the reads and writes not to
+		// collide, since they all operate on the same file
+
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset("strand"), write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Asset("strand"), write_char, utility::any(char(3)), engine::file::flags::APPEND_EXISTING);
 
 		engine::file::read(
 			filesystem,
 			engine::Identity{},
 			tmpdir,
 			u8"new.file",
-			engine::Asset{},
+			engine::Asset("strand"),
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
