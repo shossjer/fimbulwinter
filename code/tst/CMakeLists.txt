@@ -32,6 +32,7 @@ set(FILES_ENGINE
 	tst/engine/hid/ui.cpp
 	tst/engine/MutableEntity.cpp
 	tst/engine/physics/simulation.cpp
+	tst/engine/Token.cpp
 	)
 
 set(FILES_UTILITY
