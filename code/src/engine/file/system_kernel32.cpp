@@ -63,6 +63,8 @@ namespace engine
 		{
 			engine::task::scheduler * taskscheduler;
 
+			engine::file::watch_impl watch_impl;
+
 			engine::Asset strand;
 
 			core::container::Collection
@@ -925,7 +927,7 @@ namespace
 
 			if (x.mode & engine::file::flags::ADD_WATCH)
 			{
-				engine::file::add_file_watch(x.id, ptr, static_cast<bool>(x.mode & engine::file::flags::REPORT_MISSING));
+				engine::file::add_file_watch(x.impl.watch_impl, x.id, ptr, static_cast<bool>(x.mode & engine::file::flags::REPORT_MISSING));
 			}
 
 			engine::file::post_work(engine::file::FileReadWork{std::move(ptr)});
@@ -942,7 +944,7 @@ namespace
 			std::unique_ptr<ProcessRemoveWatch> data(reinterpret_cast<ProcessRemoveWatch *>(Parameter));
 			ProcessRemoveWatch & x = *data;
 
-			engine::file::remove_watch(x.id);
+			engine::file::remove_watch(x.impl.watch_impl, x.id);
 		}
 	};
 
@@ -981,7 +983,7 @@ namespace
 
 			if (x.mode & engine::file::flags::ADD_WATCH)
 			{
-				engine::file::add_scan_watch(x.id, ptr, static_cast<bool>(x.mode & engine::file::flags::RECURSE_DIRECTORIES));
+				engine::file::add_scan_watch(x.impl.watch_impl, x.id, ptr, static_cast<bool>(x.mode & engine::file::flags::RECURSE_DIRECTORIES));
 			}
 
 			if (x.mode & engine::file::flags::RECURSE_DIRECTORIES)

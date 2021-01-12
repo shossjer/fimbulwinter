@@ -342,7 +342,14 @@ namespace engine
 {
 	namespace file
 	{
-		void add_file_watch(engine::Identity id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing)
+		watch_impl::~watch_impl()
+		{}
+
+		// todo support multiple watches (for multiple file systems)
+		watch_impl::watch_impl()
+		{}
+
+		void add_file_watch(engine::file::watch_impl & /*impl*/, engine::Identity id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing)
 		{
 			if (!debug_verify(watches.emplace<ReadWatch>(id, ptr)))
 				return;
@@ -373,7 +380,7 @@ namespace engine
 			}
 		}
 
-		void add_scan_watch(engine::Identity id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories)
+		void add_scan_watch(engine::file::watch_impl & /*impl*/, engine::Identity id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories)
 		{
 			if (!debug_verify(watches.emplace<ScanWatch>(id, ptr, recurse_directories)))
 				return;
@@ -389,7 +396,7 @@ namespace engine
 			}
 		}
 
-		void remove_watch(engine::Identity id)
+		void remove_watch(engine::file::watch_impl & /*impl*/, engine::Identity id)
 		{
 			const auto watch_it = find(watches, id);
 			if (!debug_verify(watch_it != watches.end()))
