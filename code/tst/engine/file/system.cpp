@@ -37,8 +37,11 @@ namespace
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
 			return;
 
-		const char number = utility::any_cast<char>(data);
-		stream.write_all(&number, sizeof number);
+		if (!stream.done())
+		{
+			const char number = utility::any_cast<char>(data);
+			stream.write_all(&number, sizeof number);
+		}
 	};
 
 	char read_char(core::ReadStream & stream)
@@ -127,8 +130,12 @@ TEST_CASE("file system can read files", "[engine][file]")
 	{
 		struct SyncData
 		{
-			int value = 0;
-			core::sync::Event<true> event;
+			int value_3 = 0;
+			int value_3_maybe = 0;
+			int value_7 = 0;
+			core::sync::Event<true> event_3;
+			core::sync::Event<true> event_3_maybe;
+			core::sync::Event<true> event_7;
 		} sync_data;
 
 		// note strand must be set in order for the reads and writes not to
@@ -149,29 +156,39 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 			auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-			debug_printline(stream.filepath());
-			sync_data.value += stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
-			sync_data.event.set();
+			const auto value = int(read_char(stream));
+			if (value == 3)
+			{
+				if (sync_data.value_3 == 0)
+				{
+					sync_data.value_3 = value;
+					sync_data.event_3.set();
+				}
+				else
+				{
+					sync_data.value_3_maybe = value;
+					sync_data.event_3_maybe.set();
+				}
+			}
+			else if (value == 7)
+			{
+				sync_data.value_7 = value;
+				sync_data.event_7.set();
+			}
 		},
 			utility::any(&sync_data),
 			engine::file::flags::ADD_WATCH);
 
 		scoped_watch watch(filesystem, engine::Asset("my read"));
 
-		REQUIRE(sync_data.event.wait(timeout));
-		CHECK(sync_data.value == 3);
-		sync_data.event.reset();
+		REQUIRE(sync_data.event_3.wait(timeout));
+		CHECK(sync_data.value_3 == 3);
 
 		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset("strand"), write_char, utility::any(char(7)), engine::file::flags::OVERWRITE_EXISTING);
 
-		REQUIRE(sync_data.event.wait(timeout));
-		CHECK(sync_data.value == 3 + 7);
-		sync_data.event.reset();
-
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset("strand"), write_char, utility::any(char(5)), engine::file::flags::OVERWRITE_EXISTING);
-
-		REQUIRE(sync_data.event.wait(timeout));
-		CHECK(sync_data.value == 3 + 7 + 5);
+		REQUIRE(sync_data.event_7.wait(timeout));
+		CHECK(sync_data.value_7 == 7);
+		CHECK((sync_data.value_3_maybe == 0 || sync_data.value_3_maybe == 3));
 	}
 }
 

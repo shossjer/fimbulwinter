@@ -2,80 +2,23 @@
 
 #if FILE_WATCH_USE_INOTIFY
 
-#include "core/async/Thread.hpp"
 #include "core/container/Collection.hpp"
 
-#include "core/debug.hpp"
 #include "engine/Asset.hpp"
 #include "engine/file/system/works.hpp"
 #include "engine/file/watch/watch.hpp"
-#include "engine/task/scheduler.hpp"
 
 #include "utility/algorithm/find.hpp"
 #include "utility/container/vector.hpp"
-#include "utility/ext/unistd.hpp"
 #include "utility/functional/utility.hpp"
-#include "utility/shared_ptr.hpp"
 
 #include <dirent.h>
-#include <fcntl.h>
-#include <poll.h>
 #include <sys/inotify.h>
+#include <unistd.h>
 
 namespace
 {
 	using fd_t = int;
-
-	core::async::Thread watch_thread;
-	int message_pipe[2];
-
-	struct Message
-	{
-		enum Type : std::int16_t
-		{
-			ADD_READ,
-			ADD_SCAN,
-			REMOVE,
-		};
-		enum Flags : std::int16_t
-		{
-			NONE,
-			RECURSE_DIRECTORIES,
-			REPORT_MISSING,
-		};
-
-		Type type;
-		Flags flags;
-		engine::Identity id;
-		union
-		{
-			ext::detail::shared_data<engine::file::ReadData> * read_ptr;
-			ext::detail::shared_data<engine::file::ScanData> * scan_ptr;
-		};
-
-		Message() = default;
-
-		explicit Message(Type type, Flags flags, engine::Identity id)
-			: type(type)
-			, flags(flags)
-			, id(id)
-		{}
-
-		explicit Message(Type type, Flags flags, engine::Identity id, ext::detail::shared_data<engine::file::ReadData> * read_ptr)
-			: type(type)
-			, flags(flags)
-			, id(id)
-			, read_ptr(read_ptr)
-		{}
-
-		explicit Message(Type type, Flags flags, engine::Identity id, ext::detail::shared_data<engine::file::ScanData> * scan_ptr)
-			: type(type)
-			, flags(flags)
-			, id(id)
-			, scan_ptr(scan_ptr)
-		{}
-	};
-	static_assert(std::is_trivially_copyable<Message>::value, "");
 
 	struct ReadWatch
 	{
@@ -141,9 +84,12 @@ namespace
 
 	fd_t start_watch(fd_t notify_fd, const utility::heap_string_utf8 & filepath)
 	{
-		uint32_t mask = IN_CLOSE_WRITE | IN_CREATE | IN_DELETE | IN_ONLYDIR;
+		uint32_t mask = IN_CLOSE_WRITE | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_ONLYDIR;
+#if defined(IN_MASK_CREATE)
+		mask |= IN_MASK_CREATE;
+#endif
 #if MODE_DEBUG
-		mask |= IN_ATTRIB | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_MOVE;
+		mask |= IN_ATTRIB | IN_MODIFY | IN_MOVE_SELF | IN_MOVE;
 #endif
 		const fd_t fd = ::inotify_add_watch(notify_fd, filepath.data(), mask);
 		debug_printline("starting watch ", fd, " of \"", filepath, "\"");
@@ -200,7 +146,6 @@ namespace
 		watches.clear();
 	}
 
-	// todo remove
 	void scan_directory_subdirs(utility::string_units_utf8 filepath, utility::heap_vector<utility::heap_string_utf8> & subdirs)
 	{
 		debug_verify(subdirs.try_emplace_back());
@@ -581,252 +526,172 @@ namespace
 		watches.erase(watch_it);
 	}
 
-	core::async::thread_return thread_decl file_watch(core::async::thread_param /*arg*/)
+	void process_notifications(fd_t notify_fd)
 	{
-		const fd_t notify_fd = ::inotify_init1(IN_NONBLOCK);
-		if (!debug_verify(notify_fd >= 0, "inotify failed with ", errno))
-			return core::async::thread_return{};
-
-		auto panic =
-			[notify_fd]()
-			{
-				// todo fix leak of unread messages
-				clear_aliases();
-				clear_directories(notify_fd);
-				clear_watches();
-				::close(notify_fd);
-				return core::async::thread_return{};
-			};
-
-		struct pollfd fds[2] = {
-			{message_pipe[0], POLLIN, 0},
-			{notify_fd, POLLIN, 0},
-		};
+		std::aligned_storage_t<4096, alignof(struct inotify_event)> buffer; // arbitrary
 
 		while (true)
 		{
-			const int n = poll(fds, sizeof fds / sizeof fds[0], -1);
+			const ext::ssize n = ::read(notify_fd, &buffer, sizeof buffer);
+			if (!debug_assert(n != 0, "unexpected eof"))
+				return;
+
 			if (n < 0)
 			{
-				if (debug_verify(errno == EINTR))
-					continue;
+				if (debug_verify(errno == EAGAIN))
+					break;
 
-				return panic();
+				return;
 			}
 
-			debug_assert(0 < n, "unexpected timeout");
-
-			if (!debug_verify((fds[0].revents & ~(POLLIN | POLLHUP)) == 0))
-				return panic();
-
-			bool terminate = false;
-
-			if (fds[0].revents & (POLLIN | POLLHUP))
+			utility::heap_vector<const Directory *, utility::heap_vector<utility::heap_string_utf8>> changed_directories;
+			auto get_or_create_change = [&](const Directory * directory)
 			{
-				Message message;
-				while (true)
-				{
-					const auto message_result = ::read(message_pipe[0], &message, sizeof message);
-					if (message_result <= 0)
-					{
-						if (message_result == 0) // pipe closed
-						{
-							terminate = true;
-							break;
-						}
+				const auto it = ext::find_if(changed_directories, fun::get<0> == directory);
+				if (it != changed_directories.end())
+					return it;
 
-						if (!debug_verify(errno == EAGAIN))
-							return panic();
+				if (!debug_verify(changed_directories.try_emplace_back(directory, utility::heap_vector<utility::heap_string_utf8>())))
+					return it;
 
-						break;
-					}
+				return changed_directories.end() - 1;
+			};
 
-					switch (message.type)
-					{
-					case Message::ADD_READ:
-						process_add_read(notify_fd, message.id, ext::heap_shared_ptr<engine::file::ReadData>(*message.read_ptr), message.flags == Message::REPORT_MISSING);
-						break;
-					case Message::ADD_SCAN:
-						process_add_scan(notify_fd, message.id, ext::heap_shared_ptr<engine::file::ScanData>(*message.scan_ptr), message.flags == Message::RECURSE_DIRECTORIES);
-						break;
-					case Message::REMOVE:
-						process_remove(notify_fd, message.id);
-						break;
-					}
-				}
-			}
-
-			if (fds[1].revents & POLLIN)
+			const char * const begin = reinterpret_cast<const char *>(&buffer);
+			const char * const end = begin + n;
+			for (const char * ptr = begin; ptr != end;)
 			{
-				std::aligned_storage_t<4096, alignof(struct inotify_event)> buffer; // arbitrary
+				const struct inotify_event * const event = reinterpret_cast<const struct inotify_event *>(ptr);
+				if (!debug_assert((sizeof(struct inotify_event) + event->len) % alignof(struct inotify_event) == 0))
+					return;
 
-				while (true)
-				{
-					const ext::ssize n = ::read(fds[1].fd, &buffer, sizeof buffer);
-					if (!debug_assert(n != 0, "unexpected eof"))
-						return panic();
-
-					if (n < 0)
-					{
-						if (debug_verify(errno == EAGAIN))
-							break;
-
-						return panic();
-					}
-
-					utility::heap_vector<const Directory *, utility::heap_vector<utility::heap_string_utf8>> changed_directories;
-					auto get_or_create_change = [&](const Directory * directory)
-					{
-						const auto it = ext::find_if(changed_directories, fun::get<0> == directory);
-						if (it != changed_directories.end())
-							return it;
-
-						if (!debug_verify(changed_directories.try_emplace_back(directory, utility::heap_vector<utility::heap_string_utf8>())))
-							return it;
-
-						return changed_directories.end() - 1;
-					};
-
-					const char * const begin = reinterpret_cast<const char *>(&buffer);
-					const char * const end = begin + n;
-					for (const char * ptr = begin; ptr != end;)
-					{
-						const struct inotify_event * const event = reinterpret_cast<const struct inotify_event *>(ptr);
-						if (!debug_assert((sizeof(struct inotify_event) + event->len) % alignof(struct inotify_event) == 0))
-							return panic();
-
-						ptr += sizeof(struct inotify_event) + event->len;
+				ptr += sizeof(struct inotify_event) + event->len;
 
 #if MODE_DEBUG
-						debug_printline("event ", event->wd, " ", event->name);
-						if (event->mask & IN_ACCESS) { debug_printline("event IN_ACCESS"); }
-						if (event->mask & IN_ATTRIB) { debug_printline("event IN_ATTRIB"); }
-						if (event->mask & IN_CLOSE_WRITE) { debug_printline("event IN_CLOSE_WRITE"); }
-						if (event->mask & IN_CLOSE_NOWRITE) { debug_printline("event IN_CLOSE_NOWRITE"); }
-						if (event->mask & IN_CREATE) { debug_printline("event IN_CREATE"); }
-						if (event->mask & IN_DELETE) { debug_printline("event IN_DELETE"); }
-						if (event->mask & IN_DELETE_SELF) { debug_printline("event IN_DELETE_SELF"); }
-						if (event->mask & IN_MODIFY) { debug_printline("event IN_MODIFY"); }
-						if (event->mask & IN_MOVE_SELF) { debug_printline("event IN_MOVE_SELF"); }
-						if (event->mask & IN_MOVED_FROM) { debug_printline("event IN_MOVED_FROM"); }
-						if (event->mask & IN_MOVED_TO) { debug_printline("event IN_MOVED_TO"); }
-						if (event->mask & IN_OPEN) { debug_printline("event IN_OPEN"); }
-						if (event->mask & IN_IGNORED) { debug_printline("event IN_IGNORED"); }
-						if (event->mask & IN_ISDIR) { debug_printline("event IN_ISDIR"); }
-						if (event->mask & IN_Q_OVERFLOW) { debug_printline("event IN_Q_OVERFLOW"); }
-						if (event->mask & IN_UNMOUNT) { debug_printline("event IN_UNMOUNT"); }
+				debug_printline("event ", event->wd, " ", event->name);
+				if (event->mask & IN_ACCESS) { debug_printline("event IN_ACCESS"); }
+				if (event->mask & IN_ATTRIB) { debug_printline("event IN_ATTRIB"); }
+				if (event->mask & IN_CLOSE_WRITE) { debug_printline("event IN_CLOSE_WRITE"); }
+				if (event->mask & IN_CLOSE_NOWRITE) { debug_printline("event IN_CLOSE_NOWRITE"); }
+				if (event->mask & IN_CREATE) { debug_printline("event IN_CREATE"); }
+				if (event->mask & IN_DELETE) { debug_printline("event IN_DELETE"); }
+				if (event->mask & IN_DELETE_SELF) { debug_printline("event IN_DELETE_SELF"); }
+				if (event->mask & IN_MODIFY) { debug_printline("event IN_MODIFY"); }
+				if (event->mask & IN_MOVE_SELF) { debug_printline("event IN_MOVE_SELF"); }
+				if (event->mask & IN_MOVED_FROM) { debug_printline("event IN_MOVED_FROM"); }
+				if (event->mask & IN_MOVED_TO) { debug_printline("event IN_MOVED_TO"); }
+				if (event->mask & IN_OPEN) { debug_printline("event IN_OPEN"); }
+				if (event->mask & IN_IGNORED) { debug_printline("event IN_IGNORED"); }
+				if (event->mask & IN_ISDIR) { debug_printline("event IN_ISDIR"); }
+				if (event->mask & IN_Q_OVERFLOW) { debug_printline("event IN_Q_OVERFLOW"); }
+				if (event->mask & IN_UNMOUNT) { debug_printline("event IN_UNMOUNT"); }
 #endif
 
-						const auto directory_it = find(directories, event->wd);
-						if (!debug_inform(directory_it != directories.end(), "cannot find directory ", event->wd))
-							continue; // must have been removed :shrug:
+				const auto directory_it = find(directories, event->wd);
+				if (!debug_inform(directory_it != directories.end(), "cannot find directory ", event->wd))
+					continue; // must have been removed :shrug:
 
-						Directory * const directory = directories.get<Directory>(directory_it);
-						if (!debug_assert(directory))
-							continue;
+				Directory * const directory = directories.get<Directory>(directory_it);
+				if (!debug_assert(directory))
+					continue;
 
-						if (event->mask & IN_CREATE)
+				if (event->mask & IN_CREATE)
+				{
+					if (event->mask & IN_ISDIR)
+					{
+						if (!ext::empty(directory->recursive_scans))
 						{
-							if (event->mask & IN_ISDIR)
+							utility::heap_string_utf8 filepath;
+							if (debug_verify(filepath.try_append(directory->filepath)) &&
+							    debug_verify(filepath.try_append(event->name)) &&
+							    debug_verify(filepath.try_push_back('/')))
 							{
-								if (!ext::empty(directory->recursive_scans))
+								for (auto && scan : directory->recursive_scans)
 								{
-									utility::heap_string_utf8 filepath;
-									if (debug_verify(filepath.try_append(directory->filepath)) &&
-									    debug_verify(filepath.try_append(event->name)) &&
-									    debug_verify(filepath.try_push_back('/')))
-									{
-										for (auto && scan : directory->recursive_scans)
-										{
-											add_recursive_scan(utility::heap_string_utf8(filepath), notify_fd, scan);
+									add_recursive_scan(utility::heap_string_utf8(filepath), notify_fd, scan);
 
-											engine::file::post_work(engine::file::ScanRecursiveWork{scan});
-										}
-									}
+									engine::file::post_work(engine::file::ScanRecursiveWork{scan});
 								}
 							}
-							else
-							{
-								const auto change_it = get_or_create_change(directory);
-								if (change_it != changed_directories.end())
-								{
-									if (debug_verify(std::get<1>(*change_it).try_emplace_back()))
-									{
-										auto & file = ext::back(std::get<1>(*change_it));
-										if (!(debug_verify(file.try_push_back('+')) &&
-										      debug_verify(file.try_append(event->name))))
-										{
-											ext::pop_back(std::get<1>(*change_it));
-										}
-									}
-								}
-							}
-						}
-
-						if (event->mask & IN_DELETE)
-						{
-							const auto change_it = get_or_create_change(directory);
-							if (change_it != changed_directories.end())
-							{
-								if (debug_verify(std::get<1>(*change_it).try_emplace_back()))
-								{
-									auto & file = ext::back(std::get<1>(*change_it));
-									if (!(debug_verify(file.try_push_back('-')) &&
-									      debug_verify(file.try_append(event->name))))
-									{
-										ext::pop_back(std::get<1>(*change_it));
-									}
-								}
-							}
-							for (auto && read : directory->missing_reads)
-							{
-								if (read.first == event->name)
-								{
-									engine::file::post_work(engine::file::FileMissingWork{read.second});
-								}
-							}
-						}
-
-						if (event->mask & IN_CLOSE_WRITE)
-						{
-							for (auto && read : directory->reads)
-							{
-								if (read.first == event->name)
-								{
-									engine::file::post_work(engine::file::FileReadWork{read.second});
-								}
-							}
-						}
-
-						if (event->mask & IN_DELETE_SELF)
-						{
-							const auto changed_directory_it = ext::find_if(changed_directories, fun::first == directory);
-							if (changed_directory_it != changed_directories.end())
-							{
-								auto && changed = *changed_directory_it;
-								for (auto && scan : changed.first->scans)
-								{
-									engine::file::post_work(engine::file::ScanChangeWork{scan, changed.first->filepath, changed.second});
-								}
-								changed_directories.erase(changed_directory_it);
-							}
-							const auto alias = engine::Asset(directory->filepath);
-							decrement_alias(notify_fd, alias);
 						}
 					}
-
-					for (auto && changed : changed_directories)
+					else
 					{
+						const auto change_it = get_or_create_change(directory);
+						if (change_it != changed_directories.end())
+						{
+							if (debug_verify(std::get<1>(*change_it).try_emplace_back()))
+							{
+								auto & file = ext::back(std::get<1>(*change_it));
+								if (!(debug_verify(file.try_push_back('+')) &&
+								      debug_verify(file.try_append(event->name))))
+								{
+									ext::pop_back(std::get<1>(*change_it));
+								}
+							}
+						}
+					}
+				}
+
+				if (event->mask & IN_DELETE)
+				{
+					const auto change_it = get_or_create_change(directory);
+					if (change_it != changed_directories.end())
+					{
+						if (debug_verify(std::get<1>(*change_it).try_emplace_back()))
+						{
+							auto & file = ext::back(std::get<1>(*change_it));
+							if (!(debug_verify(file.try_push_back('-')) &&
+							      debug_verify(file.try_append(event->name))))
+							{
+								ext::pop_back(std::get<1>(*change_it));
+							}
+						}
+					}
+					for (auto && read : directory->missing_reads)
+					{
+						if (read.first == event->name)
+						{
+							engine::file::post_work(engine::file::FileMissingWork{read.second});
+						}
+					}
+				}
+
+				if (event->mask & IN_CLOSE_WRITE)
+				{
+					for (auto && read : directory->reads)
+					{
+						if (read.first == event->name)
+						{
+							engine::file::post_work(engine::file::FileReadWork{read.second});
+						}
+					}
+				}
+
+				if (event->mask & IN_DELETE_SELF)
+				{
+					const auto changed_directory_it = ext::find_if(changed_directories, fun::first == directory);
+					if (changed_directory_it != changed_directories.end())
+					{
+						auto && changed = *changed_directory_it;
 						for (auto && scan : changed.first->scans)
 						{
 							engine::file::post_work(engine::file::ScanChangeWork{scan, changed.first->filepath, changed.second});
 						}
+						changed_directories.erase(changed_directory_it);
 					}
+					const auto alias = engine::Asset(directory->filepath);
+					decrement_alias(notify_fd, alias);
 				}
 			}
 
-			if (terminate)
-				return panic();
+			for (auto && changed : changed_directories)
+			{
+				for (auto && scan : changed.first->scans)
+				{
+					engine::file::post_work(engine::file::ScanChangeWork{scan, changed.first->filepath, changed.second});
+				}
+			}
 		}
 	}
 }
@@ -835,60 +700,40 @@ namespace engine
 {
 	namespace file
 	{
-		void initialize_watch()
+		watch_impl::~watch_impl()
 		{
-			if (!debug_verify(::pipe2(message_pipe, O_NONBLOCK) != -1, "failed with errno ", errno))
-				return;
+			clear_aliases();
+			clear_directories(fd);
+			clear_watches();
 
-			watch_thread = core::async::Thread(file_watch, nullptr);
+			debug_verify(::close(fd) == 0, "close failed with ", errno);
 		}
 
-		void deinitialize_watch()
+		// todo support multiple watches (for multiple file systems)
+		watch_impl::watch_impl()
+			: fd(::inotify_init1(IN_NONBLOCK))
 		{
-			if (!debug_verify(watch_thread.valid()))
-				return;
-
-			::close(message_pipe[1]);
-
-			watch_thread.join();
-
-			::close(message_pipe[0]);
+			debug_verify(fd >= 0, "inotify failed with ", errno);
 		}
 
-		void add_file_watch(engine::Identity id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing)
+		void process_watch(watch_impl & impl)
 		{
-			if (!debug_assert(watch_thread.valid()))
-				return;
-
-			const Message message(Message::ADD_READ, report_missing ? Message::REPORT_MISSING : Message::NONE, id, ptr.detach());
-			static_assert(sizeof message <= PIPE_BUF, "writes up to PIPE_BUF are atomic (see pipe(7))");
-			if (!debug_verify(ext::write_some_nonzero(message_pipe[1], &message, sizeof message) == sizeof message))
-			{
-				static_cast<void>(ext::heap_shared_ptr<ReadData>(*message.read_ptr));
-			}
+			process_notifications(impl.fd);
 		}
 
-		void add_scan_watch(engine::Identity id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories)
+		void add_file_watch(watch_impl & impl, engine::Identity id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing)
 		{
-			if (!debug_assert(watch_thread.valid()))
-				return;
-
-			const Message message(Message::ADD_SCAN, recurse_directories ? Message::RECURSE_DIRECTORIES : Message::NONE, id, ptr.detach());
-			static_assert(sizeof message <= PIPE_BUF, "writes up to PIPE_BUF are atomic (see pipe(7))");
-			if (!debug_verify(ext::write_some_nonzero(message_pipe[1], &message, sizeof message) == sizeof message))
-			{
-				static_cast<void>(ext::heap_shared_ptr<ScanData>(*message.scan_ptr));
-			}
+			process_add_read(impl.fd, id, std::move(ptr), report_missing);
 		}
 
-		void remove_watch(engine::Identity id)
+		void add_scan_watch(watch_impl & impl, engine::Identity id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories)
 		{
-			if (!debug_assert(watch_thread.valid()))
-				return;
+			process_add_scan(impl.fd, id, std::move(ptr), recurse_directories);
+		}
 
-			const Message message(Message::REMOVE, Message::NONE, id);
-			static_assert(sizeof message <= PIPE_BUF, "writes up to PIPE_BUF are atomic (see pipe(7))");
-			debug_verify(ext::write_some_nonzero(message_pipe[1], &message, sizeof message) == sizeof message);
+		void remove_watch(watch_impl & impl, engine::Identity id)
+		{
+			process_remove(impl.fd, id);
 		}
 	}
 }

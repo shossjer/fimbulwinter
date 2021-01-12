@@ -80,6 +80,9 @@ namespace engine
 			>
 			aliases;
 
+			int pipe[2];
+			core::async::Thread thread;
+
 			const utility::heap_string_utf8 & get_dirpath(decltype(directories)::const_iterator it)
 			{
 				return directories.call(it, [](const auto & x) -> const utility::heap_string_utf8 & { return x.dirpath; });
@@ -100,8 +103,6 @@ namespace
 		if (singelton)
 			return nullptr;
 
-		engine::file::initialize_watch();
-
 		singelton.emplace();
 
 		return &singelton.value();
@@ -112,8 +113,6 @@ namespace
 		std::lock_guard<utility::spinlock> guard(singelton_lock);
 
 		singelton.reset();
-
-		engine::file::deinitialize_watch();
 	}
 }
 
@@ -199,7 +198,8 @@ namespace
 
 	bool read_file(engine::file::system_impl & impl, utility::heap_string_utf8 & filepath, std::uint32_t root, engine::file::read_callback * callback, utility::any & data)
 	{
-		const int fd = ::open(filepath.data(), O_RDONLY);
+		// note updating access time takes time, so let's not (O_NOATIME)
+		const int fd = ::open(filepath.data(), O_RDONLY | O_NOATIME);
 		if (fd == -1)
 		{
 			debug_verify(errno == ENOENT, "open(\"", filepath, "\", O_RDONLY) failed with errno ", errno);
@@ -232,6 +232,60 @@ namespace
 			callback(filesystem, std::move(stream), data);
 			filesystem.detach();
 		}
+
+		debug_verify(::close(fd) != -1, "failed with errno ", errno);
+		return true;
+	}
+
+	bool write_file(engine::file::system_impl & impl, utility::heap_string_utf8 & filepath, std::uint32_t root, engine::file::write_callback * callback, utility::any & data, bool append, bool overwrite)
+	{
+		// todo define _FILE_OFFSET_BITS 64 (see open(2))
+
+		int flags = O_WRONLY | O_CREAT | O_EXCL;
+		int mode = 0664;
+		if (append)
+		{
+			flags = O_WRONLY | O_APPEND;
+		}
+		else if (overwrite)
+		{
+			flags = O_WRONLY | O_CREAT | O_TRUNC;
+		}
+
+		const int fd = ::open(filepath.data(), flags, mode);
+		if (fd == -1)
+		{
+			debug_verify(errno == EEXIST, "open \"", filepath, "\" failed with errno ", errno);
+			return false;
+		}
+
+		// todo can this lock be acquired on open?
+		while (::flock(fd, LOCK_EX) != 0)
+		{
+			if (!debug_verify(errno == EINTR))
+			{
+				break;
+			}
+		}
+
+		utility::heap_string_utf8 relpath;
+		if (debug_verify(relpath.try_append(filepath.data() + root, filepath.size() - root)))
+		{
+			core::WriteStream stream(
+				[](const void * src, ext::usize n, void * data)
+				{
+					const int fd = static_cast<int>(reinterpret_cast<std::intptr_t>(data));
+
+					return ext::write_some_nonzero(fd, src, n);
+				},
+				reinterpret_cast<void *>(fd),
+				std::move(relpath));
+
+			engine::file::system filesystem(impl);
+			callback(filesystem, std::move(stream), std::move(data));
+			filesystem.detach();
+		}
+
 		debug_verify(::close(fd) != -1, "failed with errno ", errno);
 		return true;
 	}
@@ -386,7 +440,7 @@ namespace
 				if (!debug_assert(duplicates_split != duplicates_begin, "unexpected file without name"))
 					return; // error
 
-				remove_file(files, L"", utility::string_units_utf8(duplicates_begin, duplicates_split));
+				remove_file(files, "", utility::string_units_utf8(duplicates_begin, duplicates_split));
 
 				if (duplicates_split == duplicates_end)
 					break;
@@ -563,6 +617,41 @@ namespace engine
 				},
 				std::move(data));
 		}
+
+		void post_work(FileWriteWork && data)
+		{
+			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
+			engine::Asset strand = data.ptr->strand;
+
+			engine::task::post_work(
+				taskscheduler,
+				strand,
+				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				{
+					if (debug_assert(data.type_id() == utility::type_id<FileWriteWork>()))
+					{
+						FileWriteWork && work = utility::any_cast<FileWriteWork &&>(std::move(data));
+						engine::file::WriteData & write_data = *work.ptr;
+
+						if (write_file(write_data.impl, write_data.filepath, write_data.root, write_data.callback, write_data.data, write_data.append, write_data.overwrite))
+						{
+						}
+						else
+						{
+							utility::heap_string_utf8 relpath;
+							if (!debug_verify(relpath.try_append(write_data.filepath.data() + write_data.root, write_data.filepath.size() - write_data.root)))
+								return; // error
+
+							core::WriteStream stream(std::move(relpath));
+
+							engine::file::system filesystem(write_data.impl);
+							write_data.callback(filesystem, std::move(stream), std::move(write_data.data));
+							filesystem.detach();
+						}
+					}
+				},
+				std::move(data));
+		}
 	}
 }
 
@@ -570,7 +659,6 @@ namespace
 {
 	struct RegisterDirectory
 	{
-		engine::file::system_impl & impl;
 		engine::Asset alias;
 		utility::heap_string_utf8 filepath;
 		engine::Asset parent;
@@ -578,19 +666,16 @@ namespace
 
 	struct RegisterTemporaryDirectory
 	{
-		engine::file::system_impl & impl;
 		engine::Asset alias;
 	};
 
 	struct UnregisterDirectory
 	{
-		engine::file::system_impl & impl;
 		engine::Asset alias;
 	};
 
 	struct Read
 	{
-		engine::file::system_impl & impl;
 		engine::Identity id;
 		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
@@ -602,13 +687,11 @@ namespace
 
 	struct RemoveWatch
 	{
-		engine::file::system_impl & impl;
 		engine::Identity id;
 	};
 
 	struct Scan
 	{
-		engine::file::system_impl & impl;
 		engine::Identity id;
 		engine::Asset directory;
 		engine::Asset strand;
@@ -619,7 +702,6 @@ namespace
 
 	struct Write
 	{
-		engine::file::system_impl & impl;
 		engine::Asset directory;
 		utility::heap_string_utf8 filepath;
 		engine::Asset strand;
@@ -628,34 +710,25 @@ namespace
 		engine::file::flags mode;
 	};
 
-	struct Terminate
+	void process_register_directory(engine::file::system_impl & system_impl, engine::file::watch_impl & /*watch_impl*/, void * data)
 	{
-		engine::file::system_impl & impl;
-		core::sync::Event<true> & event;
-	};
+		auto & x = *static_cast<RegisterDirectory *>(data);
 
-	void process_register_directory(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
-	{
-		if (!debug_assert(data.type_id() == utility::type_id<RegisterDirectory>()))
-			return;
-
-		auto && x = utility::any_cast<RegisterDirectory &&>(std::move(data));
-
-		if (!debug_verify(find(x.impl.aliases, x.alias) == x.impl.aliases.end()))
+		if (!debug_verify(find(system_impl.aliases, x.alias) == system_impl.aliases.end()))
 			return; // error
 
-		const auto parent_alias_it = find(x.impl.aliases, x.parent);
-		if (!debug_verify(parent_alias_it != x.impl.aliases.end()))
+		const auto parent_alias_it = find(system_impl.aliases, x.parent);
+		if (!debug_verify(parent_alias_it != system_impl.aliases.end()))
 			return; // error
 
 		if (!debug_verify(validate_filepath(x.filepath)))
 			return; // error
 
-		const auto parent_directory_it = find(x.impl.directories, x.impl.aliases.get<Alias>(parent_alias_it)->directory);
-		if (!debug_assert(parent_directory_it != x.impl.directories.end()))
+		const auto parent_directory_it = find(system_impl.directories, system_impl.aliases.get<Alias>(parent_alias_it)->directory);
+		if (!debug_assert(parent_directory_it != system_impl.directories.end()))
 			return;
 
-		const auto & dirpath = x.impl.get_dirpath(parent_directory_it);
+		const auto & dirpath = system_impl.get_dirpath(parent_directory_it);
 
 		utility::heap_string_utf8 filepath;
 		if (!debug_verify(filepath.try_append(dirpath)))
@@ -671,10 +744,10 @@ namespace
 		}
 
 		const auto directory_asset = engine::Asset(filepath);
-		const auto directory_it = find(x.impl.directories, directory_asset);
-		if (directory_it != x.impl.directories.end())
+		const auto directory_it = find(system_impl.directories, directory_asset);
+		if (directory_it != system_impl.directories.end())
 		{
-			const auto directory_ptr = x.impl.directories.get<Directory>(directory_it);
+			const auto directory_ptr = system_impl.directories.get<Directory>(directory_it);
 			if (!debug_verify(directory_ptr))
 				return;
 
@@ -682,22 +755,19 @@ namespace
 		}
 		else
 		{
-			if (!debug_verify(x.impl.directories.emplace<Directory>(directory_asset, std::move(filepath))))
+			if (!debug_verify(system_impl.directories.emplace<Directory>(directory_asset, std::move(filepath))))
 				return; // error
 		}
 
-		if (!debug_verify(x.impl.aliases.emplace<Alias>(x.alias, directory_asset)))
+		if (!debug_verify(system_impl.aliases.emplace<Alias>(x.alias, directory_asset)))
 			return; // error
 	}
 
-	void process_register_temporary_directory(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	void process_register_temporary_directory(engine::file::system_impl & system_impl, engine::file::watch_impl & /*watch_impl*/, void * data)
 	{
-		if (!debug_assert(data.type_id() == utility::type_id<RegisterTemporaryDirectory>()))
-			return;
+		auto & x = *static_cast<RegisterTemporaryDirectory *>(data);
 
-		auto && x = utility::any_cast<RegisterTemporaryDirectory &&>(std::move(data));
-
-		if (!debug_verify(find(x.impl.aliases, x.alias) == x.impl.aliases.end()))
+		if (!debug_verify(find(system_impl.aliases, x.alias) == system_impl.aliases.end()))
 			return; // error
 
 		utility::heap_string_utf8 filepath(u8"" P_tmpdir "/unnamed-XXXXXX"); // todo project name
@@ -713,33 +783,30 @@ namespace
 		}
 
 		const auto directory_asset = engine::Asset(filepath);
-		if (!debug_verify(x.impl.directories.emplace<TemporaryDirectory>(directory_asset, std::move(filepath))))
+		if (!debug_verify(system_impl.directories.emplace<TemporaryDirectory>(directory_asset, std::move(filepath))))
 		{
 			purge_temporary_directory(filepath);
 			return; // error
 		}
 
-		if (!debug_verify(x.impl.aliases.emplace<Alias>(x.alias, directory_asset)))
+		if (!debug_verify(system_impl.aliases.emplace<Alias>(x.alias, directory_asset)))
 			return; // error
 	}
 
-	void process_unregister_directory(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	void process_unregister_directory(engine::file::system_impl & system_impl, engine::file::watch_impl & /*watch_impl*/, void * data)
 	{
-		if (!debug_assert(data.type_id() == utility::type_id<UnregisterDirectory>()))
-			return;
+		auto & x = *static_cast<UnregisterDirectory *>(data);
 
-		auto && x = utility::any_cast<UnregisterDirectory &&>(std::move(data));
-
-		const auto alias_it = find(x.impl.aliases, x.alias);
-		if (!debug_verify(alias_it != x.impl.aliases.end(), "alias does not exist"))
+		const auto alias_it = find(system_impl.aliases, x.alias);
+		if (!debug_verify(alias_it != system_impl.aliases.end(), "alias does not exist"))
 			return; // error
 
-		const auto alias_ptr = x.impl.aliases.get<Alias>(alias_it);
+		const auto alias_ptr = system_impl.aliases.get<Alias>(alias_it);
 		if (!debug_assert(alias_ptr))
 			return;
 
-		const auto directory_it = find(x.impl.directories, alias_ptr->directory);
-		if (!debug_assert(directory_it != x.impl.directories.end()))
+		const auto directory_it = find(system_impl.directories, alias_ptr->directory);
+		if (!debug_assert(directory_it != system_impl.directories.end()))
 			return;
 
 		struct
@@ -752,35 +819,32 @@ namespace
 			}
 		} detach_alias;
 
-		const auto directory_is_unused = x.impl.directories.call(directory_it, detach_alias);
+		const auto directory_is_unused = system_impl.directories.call(directory_it, detach_alias);
 		if (directory_is_unused)
 		{
-			x.impl.directories.erase(directory_it);
+			system_impl.directories.erase(directory_it);
 		}
 
-		x.impl.aliases.erase(alias_it);
+		system_impl.aliases.erase(alias_it);
 	}
 
-	void process_read(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	void process_read(engine::file::system_impl & system_impl, engine::file::watch_impl & watch_impl, void * data)
 	{
-		if (!debug_assert(data.type_id() == utility::type_id<Read>()))
-			return;
+		auto & x = *static_cast<Read *>(data);
 
-		auto && x = utility::any_cast<Read &&>(std::move(data));
-
-		const auto alias_it = find(x.impl.aliases, x.directory);
-		if (!debug_verify(alias_it != x.impl.aliases.end()))
+		const auto alias_it = find(system_impl.aliases, x.directory);
+		if (!debug_verify(alias_it != system_impl.aliases.end()))
 			return; // error
 
-		const auto alias_ptr = x.impl.aliases.get<Alias>(alias_it);
+		const auto alias_ptr = system_impl.aliases.get<Alias>(alias_it);
 		if (!debug_assert(alias_ptr))
 			return;
 
-		const auto directory_it = find(x.impl.directories, alias_ptr->directory);
-		if (!debug_assert(directory_it != x.impl.directories.end()))
+		const auto directory_it = find(system_impl.directories, alias_ptr->directory);
+		if (!debug_assert(directory_it != system_impl.directories.end()))
 			return;
 
-		const auto & dirpath = x.impl.get_dirpath(directory_it);
+		const auto & dirpath = system_impl.get_dirpath(directory_it);
 
 		utility::heap_string_utf8 filepath;
 		if (!debug_verify(filepath.try_append(dirpath)))
@@ -789,56 +853,50 @@ namespace
 		if (!debug_verify(filepath.try_append(x.filepath)))
 			return; // error
 
-		ext::heap_shared_ptr<engine::file::ReadData> data_ptr(utility::in_place, x.impl, std::move(filepath), static_cast<std::uint32_t>(dirpath.size()), x.strand, x.callback, std::move(x.data));
+		ext::heap_shared_ptr<engine::file::ReadData> data_ptr(utility::in_place, system_impl, std::move(filepath), static_cast<std::uint32_t>(dirpath.size()), x.strand, x.callback, std::move(x.data));
 		if (!debug_verify(data_ptr))
 			return; // error
 
 		if (x.mode & engine::file::flags::ADD_WATCH)
 		{
-			engine::file::add_file_watch(x.id, data_ptr, static_cast<bool>(x.mode & engine::file::flags::REPORT_MISSING));
+			engine::file::add_file_watch(watch_impl, x.id, data_ptr, static_cast<bool>(x.mode & engine::file::flags::REPORT_MISSING));
 		}
 
 		engine::file::post_work(engine::file::FileReadWork{std::move(data_ptr)});
 	}
 
-	void process_remove_watch(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	void process_remove_watch(engine::file::system_impl & /*system_impl*/, engine::file::watch_impl & watch_impl, void * data)
 	{
-		if (!debug_assert(data.type_id() == utility::type_id<RemoveWatch>()))
-			return;
+		auto & x = *static_cast<RemoveWatch *>(data);
 
-		auto && x = utility::any_cast<RemoveWatch &&>(std::move(data));
-
-		engine::file::remove_watch(x.id);
+		engine::file::remove_watch(watch_impl, x.id);
 	}
 
-	void process_scan(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	void process_scan(engine::file::system_impl & system_impl, engine::file::watch_impl & watch_impl, void * data)
 	{
-		if (!debug_assert(data.type_id() == utility::type_id<Scan>()))
-			return;
+		auto & x = *static_cast<Scan *>(data);
 
-		auto && x = utility::any_cast<Scan &&>(std::move(data));
-
-		const auto alias_it = find(x.impl.aliases, x.directory);
-		if (!debug_verify(alias_it != x.impl.aliases.end()))
+		const auto alias_it = find(system_impl.aliases, x.directory);
+		if (!debug_verify(alias_it != system_impl.aliases.end()))
 			return; // error
 
-		const auto alias_ptr = x.impl.aliases.get<Alias>(alias_it);
+		const auto alias_ptr = system_impl.aliases.get<Alias>(alias_it);
 		if (!debug_assert(alias_ptr))
 			return;
 
-		const auto directory_it = find(x.impl.directories, alias_ptr->directory);
-		if (!debug_assert(directory_it != x.impl.directories.end()))
+		const auto directory_it = find(system_impl.directories, alias_ptr->directory);
+		if (!debug_assert(directory_it != system_impl.directories.end()))
 			return;
 
-		const auto & dirpath = x.impl.get_dirpath(directory_it);
+		const auto & dirpath = system_impl.get_dirpath(directory_it);
 
-		ext::heap_shared_ptr<engine::file::ScanData> call_ptr(utility::in_place, x.impl, dirpath, x.directory, x.strand, x.callback, std::move(x.data), utility::heap_string_utf8());
+		ext::heap_shared_ptr<engine::file::ScanData> call_ptr(utility::in_place, system_impl, dirpath, x.directory, x.strand, x.callback, std::move(x.data), utility::heap_string_utf8());
 		if (!debug_verify(call_ptr))
 			return; // error
 
 		if (x.mode & engine::file::flags::ADD_WATCH)
 		{
-			engine::file::add_scan_watch(x.id, call_ptr, static_cast<bool>(x.mode & engine::file::flags::RECURSE_DIRECTORIES));
+			engine::file::add_scan_watch(watch_impl, x.id, call_ptr, static_cast<bool>(x.mode & engine::file::flags::RECURSE_DIRECTORIES));
 		}
 
 		if (x.mode & engine::file::flags::RECURSE_DIRECTORIES)
@@ -851,32 +909,33 @@ namespace
 		}
 	}
 
-	void process_write(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	void process_write(engine::file::system_impl & system_impl, engine::file::watch_impl & /*watch_impl*/, void * data)
 	{
-		if (!debug_assert(data.type_id() == utility::type_id<Write>()))
-			return;
+		auto & x = *static_cast<Write *>(data);
 
-		auto && x = utility::any_cast<Write &&>(std::move(data));
-
-		const auto alias_it = find(x.impl.aliases, x.directory);
-		if (!debug_verify(alias_it != x.impl.aliases.end()))
+		const auto alias_it = find(system_impl.aliases, x.directory);
+		if (!debug_verify(alias_it != system_impl.aliases.end()))
 			return; // error
 
-		const auto alias_ptr = x.impl.aliases.get<Alias>(alias_it);
+		const auto alias_ptr = system_impl.aliases.get<Alias>(alias_it);
 		if (!debug_assert(alias_ptr))
 			return;
 
-		const auto directory_it = find(x.impl.directories, alias_ptr->directory);
-		if (!debug_assert(directory_it != x.impl.directories.end()))
+		const auto directory_it = find(system_impl.directories, alias_ptr->directory);
+		if (!debug_assert(directory_it != system_impl.directories.end()))
 			return;
 
-		const auto & dirpath = x.impl.get_dirpath(directory_it);
+		const auto & dirpath = system_impl.get_dirpath(directory_it);
 
 		utility::heap_string_utf8 filepath;
 		if (!debug_verify(filepath.try_append(dirpath)))
 			return; // error
 
 		if (!debug_verify(filepath.try_append(x.filepath)))
+			return; // error
+
+		ext::heap_shared_ptr<engine::file::WriteData> ptr(utility::in_place, system_impl, filepath, static_cast<std::uint32_t>(dirpath.size()), x.strand, x.callback, std::move(x.data), static_cast<bool>(x.mode & engine::file::flags::APPEND_EXISTING), static_cast<bool>(x.mode & engine::file::flags::OVERWRITE_EXISTING));
+		if (!debug_verify(ptr))
 			return; // error
 
 		if (x.mode & engine::file::flags::CREATE_DIRECTORIES)
@@ -911,61 +970,77 @@ namespace
 			}
 		}
 
-		// todo define _FILE_OFFSET_BITS 64 (see open(2))
-
-		int flags = O_WRONLY | O_CREAT | O_EXCL;
-		int mode = 0664;
-		if (x.mode & engine::file::flags::APPEND_EXISTING)
-		{
-			flags = O_WRONLY | O_APPEND;
-		}
-		else if (x.mode & engine::file::flags::OVERWRITE_EXISTING)
-		{
-			flags = O_WRONLY | O_CREAT | O_TRUNC;
-		}
-
-		const int fd = ::open(filepath.data(), flags, mode);
-		if (fd == -1)
-		{
-			debug_verify(errno == EEXIST, "open \"", filepath, "\" failed with errno ", errno);
-
-			return;
-		}
-
-		// todo can this lock be acquired on open?
-		while (::flock(fd, LOCK_EX) != 0)
-		{
-			if (!debug_verify(errno == EINTR))
-			{
-				break;
-			}
-		}
-
-		core::WriteStream stream(
-			[](const void * src, ext::usize n, void * data)
-			{
-				const int fd = static_cast<int>(reinterpret_cast<std::intptr_t>(data));
-
-				return ext::write_some_nonzero(fd, src, n);
-			},
-			reinterpret_cast<void *>(fd),
-			std::move(x.filepath));
-
-		engine::file::system filesystem(x.impl);
-		x.callback(filesystem, std::move(stream), std::move(x.data));
-		filesystem.detach();
-
-		debug_verify(::close(fd) != -1, "failed with errno ", errno);
+		engine::file::post_work(engine::file::FileWriteWork{std::move(ptr)});
 	}
 
-	void process_terminate(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	struct Message
 	{
-		if (!debug_assert(data.type_id() == utility::type_id<Terminate>()))
-			return;
+		void (* callback)(engine::file::system_impl & system_impl, engine::file::watch_impl & watch_impl, void * ptr);
+		void * ptr; // todo solve without raw pointers
+	};
+	static_assert(sizeof(Message) <= PIPE_BUF, "writes up to PIPE_BUF are atomic (see pipe(7))");
 
-		auto && x = utility::any_cast<Terminate &&>(std::move(data));
+	core::async::thread_return thread_decl file_watch(core::async::thread_param arg)
+	{
+		engine::file::system_impl & impl = *static_cast<engine::file::system_impl *>(arg);
 
-		x.event.set();
+		engine::file::watch_impl watch_impl;
+
+		struct pollfd fds[2] = {
+			{impl.pipe[0], POLLIN, 0},
+			{watch_impl.fd, POLLIN, 0},
+		};
+
+		while (true)
+		{
+			const int n = ::poll(fds, sizeof fds / sizeof fds[0], -1);
+			if (n < 0)
+			{
+				if (debug_verify(errno == EINTR))
+					continue;
+
+				return core::async::thread_return{};
+			}
+
+			debug_assert(0 < n, "unexpected timeout");
+
+			if (!debug_verify((fds[0].revents & ~(POLLIN | POLLHUP)) == 0))
+				return core::async::thread_return{};
+
+			bool terminate = false;
+
+			if (fds[0].revents & (POLLIN | POLLHUP))
+			{
+				Message message;
+				while (true)
+				{
+					const auto message_result = ::read(impl.pipe[0], &message, sizeof message);
+					if (message_result <= 0)
+					{
+						if (message_result == 0) // pipe closed
+						{
+							terminate = true;
+							break;
+						}
+
+						if (!debug_verify(errno == EAGAIN))
+							return core::async::thread_return{};
+
+						break;
+					}
+
+					message.callback(impl, watch_impl, message.ptr);
+				}
+			}
+
+			if (fds[1].revents & POLLIN)
+			{
+				engine::file::process_watch(watch_impl);
+			}
+
+			if (terminate)
+				return core::async::thread_return{};
+		}
 	}
 }
 
@@ -994,11 +1069,14 @@ namespace engine
 
 		void system::destruct(system_impl & impl)
 		{
-			core::sync::Event<true> event;
+			if (!debug_verify(impl.thread.valid()))
+				return;
 
-			engine::task::post_work(*impl.taskscheduler, impl.strand, process_terminate, utility::any(utility::in_place_type<Terminate>, impl, event));
+			::close(impl.pipe[1]);
 
-			event.wait();
+			impl.thread.join();
+
+			::close(impl.pipe[0]);
 
 			destroy_impl(impl);
 		}
@@ -1022,7 +1100,22 @@ namespace engine
 
 				if (!debug_verify(impl->aliases.emplace<Alias>(engine::file::working_directory, root_asset)))
 				{
-					impl->directories.clear();
+					destroy_impl(*impl);
+					return nullptr;
+				}
+
+				if (!debug_verify(::pipe2(impl->pipe, O_NONBLOCK) != -1, "failed with errno ", errno))
+				{
+					destroy_impl(*impl);
+					return nullptr;
+				}
+
+				impl->thread = core::async::Thread(file_watch, impl);
+				if (!impl->thread.valid())
+				{
+					::close(impl->pipe[0]);
+					::close(impl->pipe[1]);
+
 					destroy_impl(*impl);
 					return nullptr;
 				}
@@ -1032,17 +1125,44 @@ namespace engine
 
 		void register_directory(system & system, engine::Asset name, utility::heap_string_utf8 && filepath, engine::Asset parent)
 		{
-			engine::task::post_work(*system->taskscheduler, system->strand, process_register_directory, utility::any(utility::in_place_type<RegisterDirectory>, *system, name, std::move(filepath), parent));
+			if (!debug_assert(system->thread.valid()))
+				return;
+
+			auto * const ptr = new RegisterDirectory{name, std::move(filepath), parent}; // todo
+
+			const Message message{process_register_directory, ptr};
+			if (!debug_verify(ext::write_some_nonzero(system->pipe[1], &message, sizeof message) == sizeof message))
+			{
+				delete ptr;
+			}
 		}
 
 		void register_temporary_directory(system & system, engine::Asset name)
 		{
-			engine::task::post_work(*system->taskscheduler, system->strand, process_register_temporary_directory, utility::any(utility::in_place_type<RegisterTemporaryDirectory>, *system, name));
+			if (!debug_assert(system->thread.valid()))
+				return;
+
+			auto * const ptr = new RegisterTemporaryDirectory{name}; // todo
+
+			const Message message{process_register_temporary_directory, ptr};
+			if (!debug_verify(ext::write_some_nonzero(system->pipe[1], &message, sizeof message) == sizeof message))
+			{
+				delete ptr;
+			}
 		}
 
 		void unregister_directory(system & system, engine::Asset name)
 		{
-			engine::task::post_work(*system->taskscheduler, system->strand, process_unregister_directory, utility::any(utility::in_place_type<UnregisterDirectory>, *system, name));
+			if (!debug_assert(system->thread.valid()))
+				return;
+
+			auto * const ptr = new UnregisterDirectory{name}; // todo
+
+			const Message message{process_unregister_directory, ptr};
+			if (!debug_verify(ext::write_some_nonzero(system->pipe[1], &message, sizeof message) == sizeof message))
+			{
+				delete ptr;
+			}
 		}
 
 		void read(
@@ -1055,14 +1175,32 @@ namespace engine
 			utility::any && data,
 			flags mode)
 		{
-			engine::task::post_work(*system->taskscheduler, system->strand, process_read, utility::any(utility::in_place_type<Read>, *system, id, directory, std::move(filepath), strand, callback, std::move(data), mode));
+			if (!debug_assert(system->thread.valid()))
+				return;
+
+			auto * const ptr = new Read{id, directory, std::move(filepath), strand, callback, std::move(data), mode}; // todo
+
+			const Message message{process_read, ptr};
+			if (!debug_verify(ext::write_some_nonzero(system->pipe[1], &message, sizeof message) == sizeof message))
+			{
+				delete ptr;
+			}
 		}
 
 		void remove_watch(
 			system & system,
 			engine::Identity id)
 		{
-			engine::task::post_work(*system->taskscheduler, system->strand, process_remove_watch, utility::any(utility::in_place_type<RemoveWatch>, *system, id));
+			if (!debug_assert(system->thread.valid()))
+				return;
+
+			auto * const ptr = new RemoveWatch{id}; // todo
+
+			const Message message{process_remove_watch, ptr};
+			if (!debug_verify(ext::write_some_nonzero(system->pipe[1], &message, sizeof message) == sizeof message))
+			{
+				delete ptr;
+			}
 		}
 
 		void scan(
@@ -1074,7 +1212,16 @@ namespace engine
 			utility::any && data,
 			flags mode)
 		{
-			engine::task::post_work(*system->taskscheduler, system->strand, process_scan, utility::any(utility::in_place_type<Scan>, *system, id, directory, strand, callback, std::move(data), mode));
+			if (!debug_assert(system->thread.valid()))
+				return;
+
+			auto * const ptr = new Scan{id, directory, strand, callback, std::move(data), mode}; // todo
+
+			const Message message{process_scan, ptr};
+			if (!debug_verify(ext::write_some_nonzero(system->pipe[1], &message, sizeof message) == sizeof message))
+			{
+				delete ptr;
+			}
 		}
 
 		void write(
@@ -1086,7 +1233,16 @@ namespace engine
 			utility::any && data,
 			flags mode)
 		{
-			engine::task::post_work(*system->taskscheduler, system->strand, process_write, utility::any(utility::in_place_type<Write>, *system, directory, std::move(filepath), strand, callback, std::move(data), mode));
+			if (!debug_assert(system->thread.valid()))
+				return;
+
+			auto * const ptr = new Write{directory, std::move(filepath), strand, callback, std::move(data), mode}; // todo
+
+			const Message message{process_write, ptr};
+			if (!debug_verify(ext::write_some_nonzero(system->pipe[1], &message, sizeof message) == sizeof message))
+			{
+				delete ptr;
+			}
 		}
 	}
 }
