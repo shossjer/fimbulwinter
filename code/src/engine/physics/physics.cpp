@@ -1,13 +1,12 @@
-
-#include "physics.hpp"
-
 #include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/debug.hpp"
-#include "core/maths/algorithm.hpp"
+#include "core/maths/Matrix.hpp"
+#include "core/maths/algorithm.hpp" // todo must be after "core/maths/Matrix.hpp"
 
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
+#include "engine/physics/physics.hpp"
 
 #include "utility/variant.hpp"
 
@@ -62,7 +61,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::Token,
 		utility::static_storage_traits<23>,
 		utility::static_storage<10, Camera>
 	>
@@ -97,7 +96,7 @@ namespace camera
 	}
 
 	// TODO: make thread safe when needed
-	void add(simulation & simulation, engine::Entity id, core::maths::Vector3f position, bool bounded)
+	void add(simulation & simulation, engine::Token id, core::maths::Vector3f position, bool bounded)
 	{
 		debug_verify(components.emplace<Camera>(id, Camera{ bounded, position }));
 
@@ -106,7 +105,7 @@ namespace camera
 	}
 
 	// TODO: make thread safe when needed
-	void update(simulation &, engine::Entity id, core::maths::Vector3f movement)
+	void update(simulation &, engine::Token id, core::maths::Vector3f movement)
 	{
 		const auto component_it = find(components, id);
 		if (!debug_verify(component_it != components.end()))
@@ -143,7 +142,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<object_t>
 	>
@@ -183,26 +182,26 @@ namespace
 {
 	struct MessageAddObject
 	{
-		engine::Entity entity;
+		engine::Token entity;
 		engine::transform_t transform;
 	};
 	struct MessageRemove
 	{
-		engine::Entity entity;
+		engine::Token entity;
 	};
 	struct MessageUpdateMovement
 	{
-		engine::Entity entity;
+		engine::Token entity;
 		engine::physics::movement_data movement;
 	};
 	struct MessageUpdateOrientationMovement
 	{
-		engine::Entity entity;
+		engine::Token entity;
 		engine::physics::orientation_movement movement;
 	};
 	struct MessageUpdateTransform
 	{
-		engine::Entity entity;
+		engine::Token entity;
 		engine::transform_t transform;
 	};
 	using EntityMessage = utility::variant
@@ -297,30 +296,30 @@ namespace physics
 		}
 	}
 
-	void post_add_object(simulation &, engine::Entity entity, engine::transform_t && data)
+	void post_add_object(simulation &, engine::Token entity, engine::transform_t && data)
 	{
 		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddObject>, entity, std::move(data)));
 	}
 
-	void post_remove(simulation &, engine::Entity entity)
+	void post_remove(simulation &, engine::Token entity)
 	{
 		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity));
 	}
 
-	void post_update_movement(simulation &, engine::Entity entity, movement_data && data)
+	void post_update_movement(simulation &, engine::Token entity, movement_data && data)
 	{
 		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateMovement>, entity, std::move(data)));
 	}
 
-	void post_update_movement(simulation &, const engine::Entity /*id*/, const transform_t /*translation*/)
+	void post_update_movement(simulation &, const engine::Token /*id*/, const transform_t /*translation*/)
 	{}
 
-	void post_update_orientation_movement(simulation &, engine::Entity entity, orientation_movement && data)
+	void post_update_orientation_movement(simulation &, engine::Token entity, orientation_movement && data)
 	{
 		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateOrientationMovement>, entity, std::move(data)));
 	}
 
-	void post_update_transform(simulation &, engine::Entity entity, engine::transform_t && data)
+	void post_update_transform(simulation &, engine::Token entity, engine::transform_t && data)
 	{
 		debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateTransform>, entity, std::move(data)));
 	}

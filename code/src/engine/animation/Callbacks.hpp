@@ -1,22 +1,19 @@
- 
-#ifndef ENGINE_ANIMATION_CALLBACKS_HPP
-#define ENGINE_ANIMATION_CALLBACKS_HPP
+#pragma once
 
-#include <engine/Entity.hpp>
+#include "engine/Token.hpp"
 
 namespace engine
 {
 namespace animation
 {
+	// todo remove
 	class Callbacks
 	{
 	public:
 		/**
 		 *
 		 */
-		virtual void onFinish(const engine::Entity id) const = 0;
+		virtual void onFinish(const engine::Token id) const = 0;
 	};
 }
 }
-
-#endif /* ENGINE_ANIMATION_CALLBACKS_HPP */

@@ -1,11 +1,3 @@
-
-#include "renderer.hpp"
-
-#include "opengl.hpp"
-#include "opengl/Color.hpp"
-#include "opengl/Font.hpp"
-#include "opengl/Matrix.hpp"
-
 #include "config.h"
 
 #include "core/color.hpp"
@@ -20,11 +12,11 @@
 #include "core/maths/algorithm.hpp"
 #include "core/sync/Event.hpp"
 
-#include "engine/Asset.hpp"
 #include "engine/Command.hpp"
 #include "engine/debug.hpp"
 #include "engine/file/system.hpp"
 #include "engine/graphics/message.hpp"
+#include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
 
 #include "utility/any.hpp"
@@ -67,13 +59,13 @@ namespace engine
 		{
 			core::container::PageQueue<utility::heap_storage<Message>> message_queue;
 
-			core::container::PageQueue<utility::heap_storage<int, int, engine::Entity, engine::Command>> queue_select;
+			core::container::PageQueue<utility::heap_storage<int, int, engine::Token, engine::Command>> queue_select;
 
 			std::atomic<int> entitytoggle;
 
 			engine::application::window * window = nullptr;
 			engine::file::system * filesystem = nullptr;
-			void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data) = nullptr;
+			void (* callback_select)(engine::Token entity, engine::Command command, utility::any && data) = nullptr;
 
 			core::async::Thread renderThread;
 			std::atomic_int active(0);
@@ -130,7 +122,7 @@ namespace engine
 			detail::window = nullptr;
 		}
 
-		renderer::renderer(engine::application::window & window_, engine::file::system & filesystem_, void (* callback_select_)(engine::Entity entity, engine::Command command, utility::any && data), Type type_)
+		renderer::renderer(engine::application::window & window_, engine::file::system & filesystem_, void (* callback_select_)(engine::Token entity, engine::Command command, utility::any && data), Type type_)
 		{
 			type = type_;
 
@@ -192,71 +184,71 @@ namespace engine
 			engine::file::unregister_directory(engine::Asset("shader directory"));
 		}
 
-		void post_add_display(renderer &, engine::Asset asset, data::display && data)
+		void post_add_display(renderer &, engine::Token asset, data::display && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageAddDisplay>, asset, std::move(data)));
 		}
-		void post_remove_display(renderer &, engine::Asset asset)
+		void post_remove_display(renderer &, engine::Token asset)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRemoveDisplay>, asset));
 		}
-		void post_update_display(renderer &, engine::Asset asset, data::camera_2d && data)
+		void post_update_display(renderer &, engine::Token asset, data::camera_2d && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera2D>, asset, std::move(data)));
 		}
-		void post_update_display(renderer &, engine::Asset asset, data::camera_3d && data)
+		void post_update_display(renderer &, engine::Token asset, data::camera_3d && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateDisplayCamera3D>, asset, std::move(data)));
 		}
-		void post_update_display(renderer &, engine::Asset asset, data::viewport && data)
+		void post_update_display(renderer &, engine::Token asset, data::viewport && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateDisplayViewport>, asset, std::move(data)));
 		}
 
-		void post_register_character(renderer &, engine::Asset asset, engine::model::mesh_t && data)
+		void post_register_character(renderer &, engine::Token asset, engine::model::mesh_t && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterCharacter>, asset, std::move(data)));
 		}
-		void post_register_material(renderer &, engine::Asset asset, data::MaterialAsset && data)
+		void post_register_material(renderer &, engine::Token asset, data::MaterialAsset && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterMaterial>, asset, std::move(data)));
 		}
-		void post_register_mesh(renderer &, engine::Asset asset, data::MeshAsset && data)
+		void post_register_mesh(renderer &, engine::Token asset, data::MeshAsset && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterMesh>, asset, std::move(data)));
 		}
-		void post_register_texture(renderer &, engine::Asset asset, core::graphics::Image && image)
+		void post_register_texture(renderer &, engine::Token asset, core::graphics::Image && image)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterTexture>, asset, std::move(image)));
 		}
 
-		void post_create_material(renderer &, engine::MutableEntity entity, data::MaterialInstance && data)
+		void post_create_material(renderer &, engine::Token entity, data::MaterialInstance && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageCreateMaterialInstance>, entity, std::move(data)));
 		}
-		void post_destroy(renderer &, engine::MutableEntity entity)
+		void post_destroy(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageDestroy>, entity));
 		}
 
-		void post_add_object(renderer &, engine::MutableEntity entity, data::MeshObject && data)
+		void post_add_object(renderer &, engine::Token entity, data::MeshObject && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageAddMeshObject>, entity, std::move(data)));
 		}
-		void post_remove_object(renderer & r, engine::Entity entity)
+		void post_remove_object(renderer & r, engine::Token entity)
 		{
 			post_remove(r, entity); // todo
 		}
 
-		void post_make_obstruction(renderer &, engine::Entity entity)
+		void post_make_obstruction(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeObstruction>, entity));
 		}
-		void post_make_selectable(renderer &, engine::Entity entity)
+		void post_make_selectable(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeSelectable>, entity));
 		}
-		void post_make_transparent(renderer &, engine::Entity entity)
+		void post_make_transparent(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeTransparent>, entity));
 		}
@@ -265,38 +257,38 @@ namespace engine
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeClearSelection>));
 		}
-		void post_make_dehighlight(renderer &, engine::Entity entity)
+		void post_make_dehighlight(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeDehighlighted>, entity));
 		}
-		void post_make_deselect(renderer &, engine::Entity entity)
+		void post_make_deselect(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeDeselect>, entity));
 		}
-		void post_make_highlight(renderer &, engine::Entity entity)
+		void post_make_highlight(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeHighlighted>, entity));
 		}
-		void post_make_select(renderer &, engine::Entity entity)
+		void post_make_select(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageMakeSelect>, entity));
 		}
 
-		void post_remove(renderer &, engine::Entity entity)
+		void post_remove(renderer &, engine::Token entity)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRemove>, entity));
 		}
 
-		void post_update_characterskinning(renderer &, engine::Entity entity, data::CharacterSkinning && data)
+		void post_update_characterskinning(renderer &, engine::Token entity, data::CharacterSkinning && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateCharacterSkinning>, entity, std::move(data)));
 		}
-		void post_update_modelviewmatrix(renderer &, engine::Entity entity, data::ModelviewMatrix && data)
+		void post_update_modelviewmatrix(renderer &, engine::Token entity, data::ModelviewMatrix && data)
 		{
 			debug_verify(message_queue.try_emplace(utility::in_place_type<MessageUpdateModelviewMatrix>, entity, std::move(data)));
 		}
 
-		void post_select(renderer &, int x, int y, engine::Entity entity, engine::Command command)
+		void post_select(renderer &, int x, int y, engine::Token entity, engine::Command command)
 		{
 			debug_verify(queue_select.try_emplace(x, y, entity, command));
 		}

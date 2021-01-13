@@ -5,11 +5,11 @@
 #include "core/maths/Matrix.hpp"
 #include "core/serialization.hpp"
 
+#include "engine/Asset.hpp"
 #include "engine/Command.hpp"
-#include "engine/Entity.hpp"
 #include "engine/common.hpp"
 #include "engine/model/data.hpp"
-#include "engine/MutableEntity.hpp"
+#include "engine/Token.hpp"
 
 #include "utility/optional.hpp"
 // todo forward declare
@@ -50,7 +50,7 @@ namespace engine
 
 		public:
 			~renderer();
-			renderer(engine::application::window & window, engine::file::system & filesystem, void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data), Type type);
+			renderer(engine::application::window & window, engine::file::system & filesystem, void (* callback_select)(engine::Token entity, engine::Command command, utility::any && data), Type type);
 		};
 
 		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)
@@ -79,7 +79,7 @@ namespace engine
 
 			struct SelectData
 			{
-				engine::Entity entity;
+				engine::Token entity;
 				Cursor cursor;
 
 				static constexpr auto serialization()
@@ -174,10 +174,10 @@ namespace engine
 			{
 				struct Texture
 				{
-					engine::Asset texture;
+					engine::Token texture;
 				};
 
-				engine::Asset materialclass;
+				engine::Token materialclass;
 				uint32_t diffuse;
 				std::vector<Texture> textures;
 			};
@@ -186,8 +186,8 @@ namespace engine
 			{
 				core::maths::Matrix4x4f matrix;
 
-				engine::Asset mesh;
-				engine::Entity material;
+				engine::Token mesh;
+				engine::Token material;
 			};
 
 			struct CharacterSkinning
@@ -211,40 +211,40 @@ namespace engine
 		// void notify(renderer & renderer, renderer::Camera2D && data);
 		// void notify(renderer & renderer, renderer::Camera3D && data);
 		// void notify(renderer & renderer, renderer::Viewport && data);
-		void post_add_display(renderer & renderer, engine::Asset asset, data::display && data);
-		void post_remove_display(renderer & renderer, engine::Asset asset);
-		void post_update_display(renderer & renderer, engine::Asset asset, data::camera_2d && data);
-		void post_update_display(renderer & renderer, engine::Asset asset, data::camera_3d && data);
-		void post_update_display(renderer & renderer, engine::Asset asset, data::viewport && data);
+		void post_add_display(renderer & renderer, engine::Token asset, data::display && data);
+		void post_remove_display(renderer & renderer, engine::Token asset);
+		void post_update_display(renderer & renderer, engine::Token asset, data::camera_2d && data);
+		void post_update_display(renderer & renderer, engine::Token asset, data::camera_3d && data);
+		void post_update_display(renderer & renderer, engine::Token asset, data::viewport && data);
 
-		void post_register_character(renderer & renderer, engine::Asset asset, engine::model::mesh_t && data);
-		void post_register_material(renderer & renderer, engine::Asset asset, data::MaterialAsset && data);
-		void post_register_mesh(renderer & renderer, engine::Asset asset, data::MeshAsset && data);
-		void post_register_texture(renderer & renderer, engine::Asset asset, core::graphics::Image && image);
-		//void post_unregister(renderer & renderer, engine::Asset asset);
+		void post_register_character(renderer & renderer, engine::Token asset, engine::model::mesh_t && data);
+		void post_register_material(renderer & renderer, engine::Token asset, data::MaterialAsset && data);
+		void post_register_mesh(renderer & renderer, engine::Token asset, data::MeshAsset && data);
+		void post_register_texture(renderer & renderer, engine::Token asset, core::graphics::Image && image);
+		//void post_unregister(renderer & renderer, engine::Token asset);
 
-		void post_create_material(renderer & renderer, engine::MutableEntity entity, data::MaterialInstance && data);
-		void post_destroy(renderer & renderer, engine::MutableEntity entity);
+		void post_create_material(renderer & renderer, engine::Token entity, data::MaterialInstance && data);
+		void post_destroy(renderer & renderer, engine::Token entity);
 
-		void post_add_object(renderer & renderer, engine::MutableEntity entity, data::MeshObject && data);
-		void post_remove_object(renderer & renderer, engine::Entity entity);
+		void post_add_object(renderer & renderer, engine::Token entity, data::MeshObject && data);
+		void post_remove_object(renderer & renderer, engine::Token entity);
 
-		void post_make_selectable(renderer & renderer, engine::Entity entity);
-		void post_make_obstruction(renderer & renderer, engine::Entity entity);
-		void post_make_transparent(renderer & renderer, engine::Entity entity);
+		void post_make_selectable(renderer & renderer, engine::Token entity);
+		void post_make_obstruction(renderer & renderer, engine::Token entity);
+		void post_make_transparent(renderer & renderer, engine::Token entity);
 
 		void post_make_clear_selection(renderer & renderer);
-		void post_make_dehighlight(renderer & renderer, engine::Entity entity);
-		void post_make_deselect(renderer & renderer, engine::Entity entity);
-		void post_make_highlight(renderer & renderer, engine::Entity entity);
-		void post_make_select(renderer & renderer, engine::Entity entity);
+		void post_make_dehighlight(renderer & renderer, engine::Token entity);
+		void post_make_deselect(renderer & renderer, engine::Token entity);
+		void post_make_highlight(renderer & renderer, engine::Token entity);
+		void post_make_select(renderer & renderer, engine::Token entity);
 
-		void post_remove(renderer & renderer, engine::Entity entity);
+		void post_remove(renderer & renderer, engine::Token entity);
 
-		void post_update_characterskinning(renderer & renderer, engine::Entity entity, data::CharacterSkinning && data);
-		void post_update_modelviewmatrix(renderer & renderer, engine::Entity entity, data::ModelviewMatrix && data);
+		void post_update_characterskinning(renderer & renderer, engine::Token entity, data::CharacterSkinning && data);
+		void post_update_modelviewmatrix(renderer & renderer, engine::Token entity, data::ModelviewMatrix && data);
 
-		void post_select(renderer & renderer, int x, int y, engine::Entity entity, engine::Command command);
+		void post_select(renderer & renderer, int x, int y, engine::Token entity, engine::Command command);
 
 		void toggle_down(renderer & renderer);
 		void toggle_up(renderer & renderer);

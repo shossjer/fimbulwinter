@@ -1,9 +1,3 @@
-
-#include "mixer.hpp"
-
-#include "Armature.hpp"
-#include "Callbacks.hpp"
-
 #include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/maths/Matrix.hpp"
@@ -11,11 +5,13 @@
 #include "core/maths/Vector.hpp"
 #include "core/maths/algorithm.hpp"
 
-#include "engine/Asset.hpp"
+#include "engine/animation/Armature.hpp"
+#include "engine/animation/Callbacks.hpp"
+#include "engine/animation/mixer.hpp"
 #include "engine/debug.hpp"
-#include "engine/Entity.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/physics/physics.hpp"
+#include "engine/Token.hpp"
 
 #include "utility/predicates.hpp"
 #include "utility/profiling.hpp"
@@ -41,7 +37,7 @@ namespace
 
 	core::container::UnorderedCollection
 	<
-		engine::Asset,
+		engine::Token,
 		utility::static_storage_traits<201>,
 		utility::static_storage<101, Armature>,
 		utility::static_storage<101, engine::animation::object>
@@ -322,7 +318,7 @@ namespace
 
 	struct Character
 	{
-		engine::Entity me;
+		engine::Token me;
 
 		const Armature * armature;
 
@@ -332,7 +328,7 @@ namespace
 		core::maths::Vector3f position_movement;
 		core::maths::Quaternionf orientation_movement;
 
-		Character(engine::Entity me, const Armature & armature)
+		Character(engine::Token me, const Armature & armature)
 			: me(me)
 			, armature(&armature)
 			, mixer(invalid_mixer)
@@ -370,13 +366,13 @@ namespace
 	};
 	struct Model
 	{
-		engine::Entity me;
+		engine::Token me;
 
 		const engine::animation::object * object;
 
 		Mixer mixer;
 
-		Model(engine::Entity me, const engine::animation::object & object)
+		Model(engine::Token me, const engine::animation::object & object)
 			: me(me)
 			, object(&object)
 			, mixer(invalid_mixer)
@@ -403,7 +399,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<Character>,
 		utility::heap_storage<Model>
@@ -466,12 +462,12 @@ namespace
 
 	struct MessageRegisterArmature
 	{
-		engine::Asset asset;
+		engine::Token asset;
 		engine::animation::Armature data;
 	};
 	struct MessageRegisterObject
 	{
-		engine::Asset asset;
+		engine::Token asset;
 		engine::animation::object data;
 	};
 	using AssetMessage = utility::variant
@@ -482,22 +478,22 @@ namespace
 
 	struct MessageAddCharacter
 	{
-		engine::Entity entity;
+		engine::Token entity;
 		engine::animation::character data;
 	};
 	struct MessageAddModel
 	{
-		engine::Entity entity;
+		engine::Token entity;
 		engine::animation::model data;
 	};
 	struct MessageUpdateAction
 	{
-		engine::Entity entity;
+		engine::Token entity;
 		engine::animation::action data;
 	};
 	struct MessageRemove
 	{
-		engine::Entity entity;
+		engine::Token entity;
 	};
 	using EntityMessage = utility::variant
 	<
@@ -517,7 +513,7 @@ namespace engine
 	{
 		mixer::~mixer()
 		{
-			engine::Asset sources_not_unregistered[sources.max_size()];
+			engine::Token sources_not_unregistered[sources.max_size()];
 			const auto source_count = sources.get_all_keys(sources_not_unregistered, sources.max_size());
 			debug_printline(source_count, " sources not unregistered:");
 			for (auto i : ranges::index_sequence(source_count))
@@ -635,32 +631,32 @@ namespace engine
 			}
 		}
 
-		void post_register_armature(mixer &, engine::Asset asset, engine::animation::Armature && data)
+		void post_register_armature(mixer &, engine::Token asset, engine::animation::Armature && data)
 		{
 			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterArmature>, asset, std::move(data)));
 		}
 
-		void post_register_object(mixer &, engine::Asset asset, engine::animation::object && data)
+		void post_register_object(mixer &, engine::Token asset, engine::animation::object && data)
 		{
 			debug_verify(queue_assets.try_emplace(utility::in_place_type<MessageRegisterObject>, asset, std::move(data)));
 		}
 
-		void post_add_character(mixer &, engine::Entity entity, engine::animation::character && data)
+		void post_add_character(mixer &, engine::Token entity, engine::animation::character && data)
 		{
 			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddCharacter>, entity, std::move(data)));
 		}
 
-		void post_add_model(mixer &, engine::Entity entity, engine::animation::model && data)
+		void post_add_model(mixer &, engine::Token entity, engine::animation::model && data)
 		{
 			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageAddModel>, entity, std::move(data)));
 		}
 
-		void post_update_action(mixer &, engine::Entity entity, engine::animation::action && data)
+		void post_update_action(mixer &, engine::Token entity, engine::animation::action && data)
 		{
 			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageUpdateAction>, entity, std::move(data)));
 		}
 
-		void post_remove(mixer &, engine::Entity entity)
+		void post_remove(mixer &, engine::Token entity)
 		{
 			debug_verify(queue_entities.try_emplace(utility::in_place_type<MessageRemove>, entity));
 		}

@@ -1,14 +1,11 @@
-
-#ifndef ENGINE_ANIMATION_MIXER_HPP
-#define ENGINE_ANIMATION_MIXER_HPP
+#pragma once
 
 #include "core/maths/Quaternion.hpp"
 #include "core/maths/Vector.hpp"
 
-#include "engine/Asset.hpp"
-#include "engine/Entity.hpp"
-#include "engine/common.hpp"
 #include "engine/animation/Armature.hpp"
+#include "engine/common.hpp"
+#include "engine/Token.hpp"
 
 #include <string>
 #include <vector>
@@ -59,12 +56,12 @@ namespace engine
 
 		struct character
 		{
-			engine::Asset armature;
+			engine::Token armature;
 		};
 
 		struct model
 		{
-			engine::Asset object;
+			engine::Token object;
 		};
 
 		struct action
@@ -73,16 +70,14 @@ namespace engine
 			bool repetative;
 		};
 
-		void post_register_armature(mixer & mixer, engine::Asset asset, engine::animation::Armature && data);
-		void post_register_object(mixer & mixer, engine::Asset asset, object && data);
+		void post_register_armature(mixer & mixer, engine::Token asset, engine::animation::Armature && data);
+		void post_register_object(mixer & mixer, engine::Token asset, object && data);
 
-		void post_add_character(mixer & mixer, engine::Entity entity, character && data);
-		void post_add_model(mixer & mixer, engine::Entity entity, model && data);
+		void post_add_character(mixer & mixer, engine::Token entity, character && data);
+		void post_add_model(mixer & mixer, engine::Token entity, model && data);
 
-		void post_update_action(mixer & mixer, engine::Entity entity, action && data);
+		void post_update_action(mixer & mixer, engine::Token entity, action && data);
 
-		void post_remove(mixer & mixer, engine::Entity entity);
+		void post_remove(mixer & mixer, engine::Token entity);
 	}
 }
-
-#endif /* ENGINE_ANIMATION_MIXER_HPP */

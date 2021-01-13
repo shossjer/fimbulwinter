@@ -1,6 +1,3 @@
-
-#include "ui.hpp"
-
 #include "core/async/delay.hpp"
 #include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
@@ -12,6 +9,7 @@
 #include "engine/debug.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/hid/input.hpp"
+#include "engine/hid/ui.hpp"
 
 #include "utility/any.hpp"
 #include "utility/profiling.hpp"
@@ -124,10 +122,10 @@ namespace
 		Filter axes[engine::hid::Input::axis_count] = {};
 	};
 
-	std::vector<engine::Entity> mapping_entities;
+	std::vector<engine::Token> mapping_entities;
 	std::vector<Mapping> mappings;
 
-	std::ptrdiff_t find_mapping(engine::Entity mapping)
+	std::ptrdiff_t find_mapping(engine::Token mapping)
 	{
 		auto it = std::find(mapping_entities.begin(), mapping_entities.end(), mapping);
 		debug_assert(it != mapping_entities.end());
@@ -135,7 +133,7 @@ namespace
 		return std::distance(mapping_entities.begin(), it);
 	}
 
-	std::ptrdiff_t add_or_find_mapping(engine::Entity mapping)
+	std::ptrdiff_t add_or_find_mapping(engine::Token mapping)
 	{
 		auto it = std::find(mapping_entities.begin(), mapping_entities.end(), mapping);
 		const auto i = std::distance(mapping_entities.begin(), it);
@@ -151,7 +149,7 @@ namespace
 	{
 		struct StateMapping
 		{
-			std::vector<engine::Entity> mappings;
+			std::vector<engine::Token> mappings;
 			std::vector<void (*)(engine::Command command, float value, void * data)> callbacks;
 			std::vector<void *> datas;
 		};
@@ -159,19 +157,19 @@ namespace
 		std::ptrdiff_t active = 0;
 		bool has_device_mappings = false;
 
-		std::vector<engine::Asset> states;
+		std::vector<engine::Token> states;
 		std::vector<StateMapping> state_mappings;
 
 		std::vector<Device> devices;
 
-		Context(std::vector<engine::Asset> && states)
+		Context(std::vector<engine::Token> && states)
 			: states(std::move(states))
 			, state_mappings(this->states.size())
 		{
 			debug_assert(!this->states.empty(), "a context without states is useless, and a special case we do not want to handle");
 		}
 
-		std::ptrdiff_t find(engine::Asset state) const
+		std::ptrdiff_t find(engine::Token state) const
 		{
 			auto it = std::find(states.begin(), states.end(), state);
 			debug_assert(it != states.end());
@@ -180,7 +178,7 @@ namespace
 		}
 
 		// \note if `state` is the active state, the device mappings must be cleared prior to this call
-		void add_mapping(engine::Asset state, engine::Entity mapping, void (* callback)(engine::Command command, float value, void * data), void * data)
+		void add_mapping(engine::Token state, engine::Token mapping, void (* callback)(engine::Command command, float value, void * data), void * data)
 		{
 			debug_assert((!has_device_mappings || state != states[active]));
 
@@ -193,7 +191,7 @@ namespace
 		}
 
 		// \note if `state` is the active state, the device mappings must be cleared prior to this call
-		void remove_mapping(engine::Asset state, engine::Entity mapping)
+		void remove_mapping(engine::Token state, engine::Token mapping)
 		{
 			debug_assert((!has_device_mappings || state != states[active]));
 
@@ -236,7 +234,7 @@ namespace
 		}
 
 		// \note the device mappings must be cleared prior to this call
-		void set_active(engine::Asset state)
+		void set_active(engine::Token state)
 		{
 			debug_assert(!has_device_mappings);
 
@@ -324,12 +322,12 @@ namespace
 		}
 	};
 
-	std::vector<engine::Asset> context_assets;
+	std::vector<engine::Token> context_assets;
 	std::vector<Context> contexts;
 
-	engine::Asset default_context = engine::Asset::null();
+	engine::Token default_context = engine::Token{};
 
-	std::ptrdiff_t find_context(engine::Asset context)
+	std::ptrdiff_t find_context(engine::Token context)
 	{
 		auto it = std::find(context_assets.begin(), context_assets.end(), context);
 		debug_assert(it != context_assets.end());
@@ -337,7 +335,7 @@ namespace
 		return std::distance(context_assets.begin(), it);
 	}
 
-	void add_context(engine::Asset context, std::vector<engine::Asset> && states)
+	void add_context(engine::Token context, std::vector<engine::Token> && states)
 	{
 		debug_assert(std::find(context_assets.begin(), context_assets.end(), context) == context_assets.end());
 
@@ -345,7 +343,7 @@ namespace
 		contexts.emplace_back(std::move(states));
 	}
 
-	void remove_context(engine::Asset context)
+	void remove_context(engine::Token context)
 	{
 		debug_assert(context != default_context);
 
@@ -356,7 +354,7 @@ namespace
 
 	struct AddAxisMove
 	{
-		engine::Entity mapping;
+		engine::Token mapping;
 		engine::hid::Input::Axis code;
 		engine::Command command_x;
 		engine::Command command_y;
@@ -364,7 +362,7 @@ namespace
 
 	struct AddAxisTilt
 	{
-		engine::Entity mapping;
+		engine::Token mapping;
 		engine::hid::Input::Axis code;
 		engine::Command command_min;
 		engine::Command command_max;
@@ -372,43 +370,43 @@ namespace
 
 	struct AddButtonPress
 	{
-		engine::Entity mapping;
+		engine::Token mapping;
 		engine::hid::Input::Button code;
 		engine::Command command;
 	};
 
 	struct AddButtonRelease
 	{
-		engine::Entity mapping;
+		engine::Token mapping;
 		engine::hid::Input::Button code;
 		engine::Command command;
 	};
 
 	struct AddContext
 	{
-		engine::Asset context;
-		std::vector<engine::Asset> states;
+		engine::Token context;
+		std::vector<engine::Token> states;
 	};
 
 	struct AddDevice
 	{
-		engine::Asset context;
+		engine::Token context;
 		int id;
 	};
 
 	struct Bind
 	{
-		engine::Asset context;
-		engine::Asset state;
-		engine::Entity mapping;
+		engine::Token context;
+		engine::Token state;
+		engine::Token mapping;
 		void (* callback)(engine::Command command, float value, void * data);
 		void * data;
 	};
 
 	struct ContextInfo
 	{
-		engine::Asset asset;
-		std::vector<engine::Asset> states;
+		engine::Token asset;
+		std::vector<engine::Token> states;
 		std::vector<int> devices;
 	};
 	struct QueryContexts
@@ -430,26 +428,26 @@ namespace
 
 	struct RemoveContext
 	{
-		engine::Asset context;
+		engine::Token context;
 	};
 
 	struct RemoveDevice
 	{
-		engine::Asset context;
+		engine::Token context;
 		int id;
 	};
 
 	struct SetState
 	{
-		engine::Asset context;
-		engine::Asset state;
+		engine::Token context;
+		engine::Token state;
 	};
 
 	struct Unbind
 	{
-		engine::Asset context;
-		engine::Asset state;
-		engine::Entity mapping;
+		engine::Token context;
+		engine::Token state;
+		engine::Token mapping;
 	};
 
 	using Message = utility::variant
@@ -800,7 +798,7 @@ namespace hid
 					const bool removing_default_context = x.context == default_context;
 					if (removing_default_context)
 					{
-						default_context = engine::Asset::null();
+						default_context = engine::Token{};
 					}
 
 					remove_context(x.context);
@@ -871,7 +869,7 @@ namespace hid
 
 					add_device(x.id);
 
-					if (default_context != engine::Asset::null())
+					if (default_context != engine::Token{})
 					{
 						const auto i = find_context(default_context);
 						contexts[i].clear_device_mappings();
@@ -1002,36 +1000,36 @@ namespace hid
 
 	void post_add_context(
 		ui &,
-		engine::Asset context,
-		std::vector<engine::Asset> states)
+		engine::Token context,
+		std::vector<engine::Token> states)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<AddContext>, context, std::move(states)));
 	}
 	void post_remove_context(
 		ui &,
-		engine::Asset context)
+		engine::Token context)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<RemoveContext>, context));
 	}
 
 	void post_set_state(
 		ui &,
-		engine::Asset context,
-		engine::Asset state)
+		engine::Token context,
+		engine::Token state)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<SetState>, context, state));
 	}
 
 	void post_add_device(
 		ui &,
-		engine::Asset context,
+		engine::Token context,
 		int id)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<AddDevice>, context, id));
 	}
 	void post_remove_device(
 		ui &,
-		engine::Asset context,
+		engine::Token context,
 		int id)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<RemoveDevice>, context, id));
@@ -1039,7 +1037,7 @@ namespace hid
 
 	void post_add_axis_move(
 		ui &,
-		engine::Entity mapping,
+		engine::Token mapping,
 		engine::hid::Input::Axis code,
 		engine::Command command_x,
 		engine::Command command_y)
@@ -1048,7 +1046,7 @@ namespace hid
 	}
 	void post_add_axis_tilt(
 		ui &,
-		engine::Entity mapping,
+		engine::Token mapping,
 		engine::hid::Input::Axis code,
 		engine::Command command_min,
 		engine::Command command_max)
@@ -1057,7 +1055,7 @@ namespace hid
 	}
 	void post_add_button_press(
 		ui &,
-		engine::Entity mapping,
+		engine::Token mapping,
 		engine::hid::Input::Button code,
 		engine::Command command)
 	{
@@ -1065,7 +1063,7 @@ namespace hid
 	}
 	void post_add_button_release(
 		ui &,
-		engine::Entity mapping,
+		engine::Token mapping,
 		engine::hid::Input::Button code,
 		engine::Command command)
 	{
@@ -1074,9 +1072,9 @@ namespace hid
 
 	void post_bind(
 		ui &,
-		engine::Asset context,
-		engine::Asset state,
-		engine::Entity mapping,
+		engine::Token context,
+		engine::Token state,
+		engine::Token mapping,
 		void (* callback)(engine::Command command, float value, void * data),
 		void * data)
 	{
@@ -1084,9 +1082,9 @@ namespace hid
 	}
 	void post_unbind(
 		ui &,
-		engine::Asset context,
-		engine::Asset state,
-		engine::Entity mapping)
+		engine::Token context,
+		engine::Token state,
+		engine::Token mapping)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<Unbind>, context, state, mapping));
 	}
