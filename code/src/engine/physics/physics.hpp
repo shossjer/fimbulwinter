@@ -1,14 +1,11 @@
-
-#ifndef ENGINE_PHYSICS_PHYSICS_HPP
-#define ENGINE_PHYSICS_PHYSICS_HPP
-
-#include "defines.hpp"
+#pragma once
 
 #include "core/maths/util.hpp"
 #include "core/maths/Vector.hpp"
 #include "core/maths/Matrix.hpp"
 
-#include "engine/Entity.hpp"
+#include "engine/physics/defines.hpp"
+#include "engine/Token.hpp"
 
 namespace engine
 {
@@ -55,11 +52,11 @@ namespace physics
 		 *	The bounding volume is set using the coordinate of the "min" corner
 		 *	of the volume and the coordinate of the "max" corner of the volume.
 		 */
-		void add(simulation & simulation, engine::Entity camera, core::maths::Vector3f position, bool bounded = true);
+		void add(simulation & simulation, engine::Token camera, core::maths::Vector3f position, bool bounded = true);
 		/**
 		 *	Update movement of the camera within its bounds.
 		 */
-		void update(simulation & simulation, engine::Entity camera, core::maths::Vector3f movement);
+		void update(simulation & simulation, engine::Token camera, core::maths::Vector3f movement);
 	}
 
 	struct orientation_movement
@@ -86,24 +83,24 @@ namespace physics
 		std::vector<ShapeData> shapes;
 	};
 
-	void add(simulation & simulation, const engine::Entity id, const asset_definition_t & data);
+	void add(simulation & simulation, const engine::Token id, const asset_definition_t & data);
 
 	struct asset_instance_t
 	{
-		Entity defId;
+		engine::Token defId;
 		transform_t transform;
 		ActorData::Type type;
 	};
 
-	void add(simulation & simulation, const engine::Entity id, const asset_instance_t & data);
+	void add(simulation & simulation, const engine::Token id, const asset_instance_t & data);
 
-	void post_add_object(simulation & simulation, engine::Entity entity, engine::transform_t && data);
+	void post_add_object(simulation & simulation, engine::Token entity, engine::transform_t && data);
 
-	void post_create(simulation & simulation, const engine::Entity id, const ActorData & data);
+	void post_create(simulation & simulation, const engine::Token id, const ActorData & data);
 
-	void post_create(simulation & simulation, const engine::Entity id, const PlaneData & data);
+	void post_create(simulation & simulation, const engine::Token id, const PlaneData & data);
 
-	void post_remove(simulation & simulation, engine::Entity entity);
+	void post_remove(simulation & simulation, engine::Token entity);
 
 	struct joint_t
 	{
@@ -114,15 +111,15 @@ namespace physics
 			HINGE
 		};
 
-		engine::Entity id;
+		engine::Token id;
 
 		Type type;
 
 		/**
 		 \note can be "INVALID"-id if the second actor should be jointed with global space.
 		 */
-		engine::Entity actorId1;
-		engine::Entity actorId2;
+		engine::Token actorId1;
+		engine::Token actorId2;
 
 		transform_t transform1;
 		transform_t transform2;
@@ -150,16 +147,14 @@ namespace physics
 	/**
 	 *	\note update Character or Dynamic object with delta movement or force.
 	 */
-	void post_update_movement(simulation & simulation, engine::Entity entity, movement_data && data);
+	void post_update_movement(simulation & simulation, engine::Token entity, movement_data && data);
 
 	/**
 	 *	\note update Kinematic object with position and rotation
 	 */
-	void post_update_movement(simulation & simulation, const engine::Entity id, const transform_t translation);
+	void post_update_movement(simulation & simulation, const engine::Token id, const transform_t translation);
 
-	void post_update_orientation_movement(simulation & simulation, engine::Entity entity, orientation_movement && data);
-	void post_update_transform(simulation & simulation, engine::Entity entity, engine::transform_t && data);
+	void post_update_orientation_movement(simulation & simulation, engine::Token entity, orientation_movement && data);
+	void post_update_transform(simulation & simulation, engine::Token entity, engine::transform_t && data);
 }
 }
-
-#endif /* ENGINE_PHYSICS_PHYSICS_HPP */

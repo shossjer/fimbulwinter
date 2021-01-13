@@ -1,14 +1,10 @@
-
-#ifndef ENGINE_GRAPHICS_MESSAGE_HPP
-#define ENGINE_GRAPHICS_MESSAGE_HPP
+#pragma once
 
 #include "core/graphics/Image.hpp"
 
-#include "engine/Asset.hpp"
-#include "engine/Entity.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/model/data.hpp"
-#include "engine/MutableEntity.hpp"
+#include "engine/Token.hpp"
 
 #include "utility/variant.hpp"
 
@@ -20,87 +16,87 @@ namespace engine
 		{
 			struct MessageAddDisplay
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				engine::graphics::data::display display;
 			};
 
 			struct MessageRemoveDisplay
 			{
-				engine::Asset asset;
+				engine::Token asset;
 			};
 
 			struct MessageUpdateDisplayCamera2D
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				engine::graphics::data::camera_2d camera_2d;
 			};
 
 			struct MessageUpdateDisplayCamera3D
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				engine::graphics::data::camera_3d camera_3d;
 			};
 
 			struct MessageUpdateDisplayViewport
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				engine::graphics::data::viewport viewport;
 			};
 
 			struct MessageRegisterCharacter
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				engine::model::mesh_t mesh;
 			};
 
 			struct MessageRegisterMaterial
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				engine::graphics::data::MaterialAsset material;
 			};
 
 			struct MessageRegisterMesh
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				engine::graphics::data::MeshAsset mesh;
 			};
 
 			struct MessageRegisterTexture
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				core::graphics::Image image;
 			};
 
 			struct MessageCreateMaterialInstance
 			{
-				engine::MutableEntity entity;
+				engine::Token entity;
 				engine::graphics::data::MaterialInstance data;
 			};
 
 			struct MessageDestroy
 			{
-				engine::MutableEntity entity;
+				engine::Token entity;
 			};
 
 			struct MessageAddMeshObject
 			{
-				engine::MutableEntity entity;
+				engine::Token entity;
 				engine::graphics::data::MeshObject object;
 			};
 
 			struct MessageMakeObstruction
 			{
-				engine::Entity entity;
+				engine::Token entity;
 			};
 
 			struct MessageMakeSelectable
 			{
-				engine::Entity entity;
+				engine::Token entity;
 			};
 
 			struct MessageMakeTransparent
 			{
-				engine::Entity entity;
+				engine::Token entity;
 			};
 
 			struct MessageMakeClearSelection
@@ -109,38 +105,38 @@ namespace engine
 
 			struct MessageMakeDehighlighted
 			{
-				engine::Entity entity;
+				engine::Token entity;
 			};
 
 			struct MessageMakeDeselect
 			{
-				engine::Entity entity;
+				engine::Token entity;
 			};
 
 			struct MessageMakeHighlighted
 			{
-				engine::Entity entity;
+				engine::Token entity;
 			};
 
 			struct MessageMakeSelect
 			{
-				engine::Entity entity;
+				engine::Token entity;
 			};
 
 			struct MessageRemove
 			{
-				engine::Entity entity;
+				engine::Token entity;
 			};
 
 			struct MessageUpdateCharacterSkinning
 			{
-				engine::Entity entity;
+				engine::Token entity;
 				engine::graphics::data::CharacterSkinning character_skinning;
 			};
 
 			struct MessageUpdateModelviewMatrix
 			{
-				engine::Entity entity;
+				engine::Token entity;
 				engine::graphics::data::ModelviewMatrix modelview_matrix;
 			};
 
@@ -176,5 +172,3 @@ namespace engine
 		}
 	}
 }
-
-#endif /* ENGINE_GRAPHICS_MESSAGE_HPP */

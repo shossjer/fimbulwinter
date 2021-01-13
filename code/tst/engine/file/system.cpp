@@ -1,8 +1,9 @@
-#include "engine/file/system.hpp"
-
 #include "core/ReadStream.hpp"
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
+
+#include "engine/file/system.hpp"
+#include "engine/HashTable.hpp"
 
 #include "utility/any.hpp"
 
@@ -10,7 +11,7 @@
 
 #include <array>
 
-debug_assets("tmpdir");
+static_hashes("tmpdir");
 
 namespace
 {
@@ -91,15 +92,15 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("maybe.exists"):
+				case engine::Hash("maybe.exists"):
 					sync_data.counts[0] += int(read_char(stream));
 					sync_data.events[0].set();
 					break;
-				case engine::Asset("maybe"):
+				case engine::Hash("maybe"):
 					sync_data.counts[1] += int(read_char(stream));
 					sync_data.events[1].set();
 					break;
-				case engine::Asset(".exists"):
+				case engine::Hash(".exists"):
 					sync_data.counts[2] += int(read_char(stream));
 					sync_data.events[2].set();
 					break;
@@ -143,7 +144,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset(""):
+				case engine::Hash(""):
 					sync_data.count += 1;
 					break;
 				default:
@@ -182,9 +183,9 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("maybe.exists"):
-				case engine::Asset("maybe"):
-				case engine::Asset(".exists"):
+				case engine::Hash("maybe.exists"):
+				case engine::Hash("maybe"):
+				case engine::Hash(".exists"):
 					sync_data.count += int(read_char(stream));
 					break;
 				default:
@@ -206,7 +207,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("maybe.exists"):
+				case engine::Hash("maybe.exists"):
 					sync_data.count += int(read_char(stream));
 					break;
 				default:
@@ -248,9 +249,9 @@ TEST_CASE("file system can watch files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("file.tmp"):
-				case engine::Asset("file"):
-				case engine::Asset(".tmp"):
+				case engine::Hash("file.tmp"):
+				case engine::Hash("file"):
+				case engine::Hash(".tmp"):
 					sync_data.count += int(read_char(stream));
 				break;
 				default:
@@ -296,10 +297,10 @@ TEST_CASE("file system can watch files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset(""):
+				case engine::Hash(""):
 					sync_data.count += 1;
 					break;
-				case engine::Asset("maybe.exists"):
+				case engine::Hash("maybe.exists"):
 					sync_data.count += int(read_char(stream));
 					break;
 				default:
@@ -348,7 +349,7 @@ TEST_CASE("file system can watch files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("already.existing"):
+				case engine::Hash("already.existing"):
 					sync_data.count += int(read_char(stream));
 					break;
 				default:
@@ -405,7 +406,7 @@ TEST_CASE("file system can watch files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("already.existing"):
+				case engine::Hash("already.existing"):
 					sync_data.count += int(read_char(stream));
 					sync_data.events[0].set();
 					break;
@@ -433,7 +434,7 @@ TEST_CASE("file system can watch files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("maybe.exists"):
+				case engine::Hash("maybe.exists"):
 					sync_data.count += int(read_char(stream));
 					sync_data.events[0].set();
 					break;
@@ -479,7 +480,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("new.file"):
+				case engine::Hash("new.file"):
 					sync_data.count += int(read_char(stream));
 					break;
 				default:
@@ -509,7 +510,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("new.file"):
+				case engine::Hash("new.file"):
 					sync_data.count += int(read_char(stream));
 					if (int(read_char(stream)) == -1 && stream.done())
 						break; // expected path when not appending
@@ -547,7 +548,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("new.file"):
+				case engine::Hash("new.file"):
 					sync_data.count += int(read_char(stream));
 					break;
 				default:
@@ -584,7 +585,7 @@ TEST_CASE("file system can write files", "[engine][file]")
 
 				switch (match)
 				{
-				case engine::Asset("new.file"):
+				case engine::Hash("new.file"):
 					sync_data.count += int(read_char(stream));
 					sync_data.count += int(read_char(stream));
 					break;

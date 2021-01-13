@@ -1,6 +1,3 @@
-
-#include "renderer.hpp"
-
 #include "opengl.hpp"
 #include "opengl/Color.hpp"
 #if !TEXT_USE_FREETYPE
@@ -24,11 +21,12 @@
 #include "core/ShaderStructurer.hpp"
 #include "core/sync/Event.hpp"
 
-#include "engine/Asset.hpp"
 #include "engine/Command.hpp"
 #include "engine/debug.hpp"
 #include "engine/graphics/message.hpp"
+#include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
+#include "engine/HashTable.hpp"
 
 #include "utility/any.hpp"
 #include "utility/lookup_table.hpp"
@@ -67,18 +65,18 @@ namespace engine
 
 			extern core::container::PageQueue<utility::heap_storage<Message>> message_queue;
 
-			extern core::container::PageQueue<utility::heap_storage<int, int, engine::Entity, engine::Command>> queue_select;
+			extern core::container::PageQueue<utility::heap_storage<int, int, engine::Token, engine::Command>> queue_select;
 
 			extern std::atomic<int> entitytoggle;
 
 			extern engine::graphics::renderer * self;
 			extern engine::application::window * window;
-			extern void (* callback_select)(engine::Entity entity, engine::Command command, utility::any && data);
+			extern void (* callback_select)(engine::Token entity, engine::Command command, utility::any && data);
 		}
 	}
 }
 
-debug_assets("box", "cuboid", "dude", "my_png", "photo");
+static_hashes("box", "cuboid", "dude", "my_png", "photo");
 
 namespace
 {
@@ -210,13 +208,13 @@ namespace
 
 	struct ShaderManager
 	{
-		engine::Asset assets[10];
+		engine::Token assets[10];
 		GLint programs[10];
 		GLint vertices[10];
 		GLint fragments[10];
 		int count = 0;
 
-		GLint get(engine::Asset asset) const
+		GLint get(engine::Token asset) const
 		{
 			for (int i = 0; i < count; i++)
 			{
@@ -226,7 +224,7 @@ namespace
 			return -1;
 		}
 
-		GLint create(engine::Asset asset, ShaderData && shader_data)
+		GLint create(engine::Token asset, ShaderData && shader_data)
 		{
 			if (!debug_verify(count < 10, "too many shaders"))
 				return -1;
@@ -358,7 +356,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Asset,
+		engine::Token,
 		utility::static_storage_traits<23>,
 		utility::static_storage<10, display_t>
 	>
@@ -428,22 +426,22 @@ namespace
 			int size;
 		};
 
-		engine::Asset assets[10];
+		engine::Token assets[10];
 		FontInfo infos[10];
 		int count = 0;
 
-		std::ptrdiff_t find(engine::Asset asset) const
+		std::ptrdiff_t find(engine::Token asset) const
 		{
 			return std::find(assets, assets + count, asset) - assets;
 		}
 
-		bool has(engine::Asset asset) const
+		bool has(engine::Token asset) const
 		{
 			return find(asset) < count;
 		}
 
 		// todo boundary_symbol
-		void compile(engine::Asset asset, utility::string_points_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
+		void compile(engine::Token asset, utility::string_points_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
 			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
@@ -570,9 +568,9 @@ namespace
 	struct ColorClass
 	{
 		engine::graphics::opengl::Color4ub diffuse;
-		engine::Asset shader;
+		engine::Token shader;
 
-		explicit ColorClass(uint32_t diffuse, engine::Asset shader)
+		explicit ColorClass(uint32_t diffuse, engine::Token shader)
 			: diffuse(diffuse >> 0 & 0x000000ff,
 				diffuse >> 8 & 0x000000ff,
 				diffuse >> 16 & 0x000000ff,
@@ -583,16 +581,16 @@ namespace
 
 	struct ShaderClass
 	{
-		engine::Asset shader;
+		engine::Token shader;
 
-		explicit ShaderClass(engine::Asset shader)
+		explicit ShaderClass(engine::Token shader)
 			: shader(shader)
 		{}
 	};
 
 	core::container::UnorderedCollection
 	<
-		engine::Asset,
+		engine::Token,
 		utility::static_storage_traits<401>,
 		utility::static_storage<100, mesh_t>,
 		utility::static_storage<100, ColorClass>,
@@ -604,11 +602,11 @@ namespace
 	struct ShaderMaterial
 	{
 		engine::graphics::opengl::Color4ub diffuse;
-		std::vector<engine::Asset> textures;
+		std::vector<engine::Token> textures;
 
-		engine::Asset materialclass;
+		engine::Token materialclass;
 
-		explicit ShaderMaterial(uint32_t diffuse, std::vector<engine::Asset> && textures, engine::Asset materialclass)
+		explicit ShaderMaterial(uint32_t diffuse, std::vector<engine::Token> && textures, engine::Token materialclass)
 			: diffuse(diffuse >> 0 & 0x000000ff,
 				diffuse >> 8 & 0x000000ff,
 				diffuse >> 16 & 0x000000ff,
@@ -620,7 +618,7 @@ namespace
 
 	core::container::UnorderedCollection
 	<
-		engine::MutableEntity,
+		engine::Token,
 		utility::static_storage_traits<201>,
 		utility::static_storage<100, ShaderMaterial>
 	>
@@ -652,7 +650,7 @@ namespace
 
 	core::container::UnorderedCollection
 	<
-		engine::MutableEntity,
+		engine::Token,
 		utility::static_storage_traits<1601>,
 		utility::static_storage<600, object_modelview>,
 		utility::static_storage<200, object_modelview_vertices>
@@ -691,12 +689,12 @@ namespace
 	{
 		const object_modelview * object;
 		const mesh_t * mesh;
-		engine::Entity material;
+		engine::Token material;
 	};
 
 	core::container::Collection
 	<
-		engine::MutableEntity,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<Character>,
 		utility::heap_storage<MeshObject>
@@ -723,7 +721,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<selectable_character_t>
 	>
@@ -733,13 +731,13 @@ namespace
 	{
 		engine::graphics::opengl::Color4ub color;
 
-		void operator () (engine::MutableEntity entity, Character & x)
+		void operator () (engine::Token entity, Character & x)
 		{
-			debug_verify(selectable_components.emplace<selectable_character_t>(entity.entity(), x.mesh, x.object, color));
+			debug_verify(selectable_components.emplace<selectable_character_t>(entity, x.mesh, x.object, color));
 		}
 
 		template <typename T>
-		void operator () (engine::MutableEntity /*entity*/, T &)
+		void operator () (engine::Token /*entity*/, T &)
 		{
 			debug_unreachable();
 		}
@@ -793,7 +791,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Entity,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<updateable_character_t>
 	>
@@ -823,7 +821,7 @@ namespace
 
 	core::container::MultiCollection
 	<
-		engine::Entity,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<highlighted_t>,
 		utility::heap_storage<selected_t>
@@ -835,7 +833,7 @@ namespace
 {
 	using namespace engine::graphics::detail;
 
-	core::container::PageQueue<utility::heap_storage<engine::Asset, ShaderData>> queue_shaders;
+	core::container::PageQueue<utility::heap_storage<engine::Token, ShaderData>> queue_shaders;
 
 	FontManager font_manager;
 	ShaderManager shader_manager;
@@ -932,9 +930,9 @@ namespace
 					if (!debug_verify(find(resources, x.data.materialclass) != resources.end(), x.data.materialclass))
 						return; // error
 
-					std::vector<engine::Asset> textures; // todo
+					std::vector<engine::Token> textures; // todo
 
-					auto material_it = find(materials, x.entity.entity());
+					auto material_it = find(materials, x.entity);
 					if (material_it != materials.end())
 					{
 						if (!debug_assert(materials.get_key(material_it) < x.entity, "trying to add an older version object"))
@@ -947,7 +945,7 @@ namespace
 
 				void operator () (MessageDestroy && x)
 				{
-					auto material_it = find(materials, x.entity.entity());
+					auto material_it = find(materials, x.entity);
 					if (material_it != materials.end())
 					{
 						materials.erase(material_it);
@@ -956,7 +954,7 @@ namespace
 
 				void operator () (MessageAddMeshObject && x)
 				{
-					const auto object_it = find(objects, x.entity.entity());
+					const auto object_it = find(objects, x.entity);
 					if (object_it != objects.end())
 					{
 						if (!debug_assert(objects.get_key(object_it) < x.entity, "trying to add an older version object"))
@@ -975,7 +973,7 @@ namespace
 
 					mesh_t * const mesh = resources.get<mesh_t>(mesh_it);
 
-					const auto component_it = find(components, x.entity.entity());
+					const auto component_it = find(components, x.entity);
 					if (component_it != components.end())
 					{
 						if (!debug_assert(components.get_key(component_it) < x.entity, "trying to add an older version mesh"))
@@ -1127,7 +1125,7 @@ namespace
 			maybe_resize_framebuffer();
 		}
 
-		std::pair<engine::Asset, ShaderData> shader_data_pair;
+		std::pair<engine::Token, ShaderData> shader_data_pair;
 		while (queue_shaders.try_pop(shader_data_pair))
 		{
 			shader_manager.create(shader_data_pair.first, std::move(shader_data_pair.second));
@@ -1211,7 +1209,7 @@ namespace
 		}
 	}
 
-	engine::Entity get_entity_at_screen(int sx, int sy)
+	engine::Token get_entity_at_screen(int sx, int sy)
 	{
 		const int x = sx;
 		const int y = framebuffer_height - 1 - sy;
@@ -1222,13 +1220,13 @@ namespace
 		    y < 0 + framebuffer_height)
 		{
 			const unsigned int color = entitypixels[x + y * framebuffer_width];
-			return engine::Entity{
+			return engine::Token(
 				(color & 0xff000000) >> 24 |
 				(color & 0x00ff0000) >> 8 |
 				(color & 0x0000ff00) << 8 |
-				(color & 0x000000ff) << 24};
+				(color & 0x000000ff) << 24);
 		}
-		return engine::Entity::null();
+		return engine::Token{};
 	}
 
 	void initLights()
@@ -1391,7 +1389,7 @@ namespace
 
 		// select
 		{
-			std::tuple<int, int, engine::Entity, engine::Command> select_args;
+			std::tuple<int, int, engine::Token, engine::Command> select_args;
 			while (queue_select.try_pop(select_args))
 			{
 				engine::graphics::data::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
@@ -1455,10 +1453,10 @@ namespace
 			glUniform(p_tex, "modelview_matrix", modelview_matrix.top());
 
 			const auto entity = components.get_key(component);
-			const auto selected_it = find(selected_components, entity.entity());
+			const auto selected_it = find(selected_components, entity);
 			const bool is_highlighted = selected_it != selected_components.end() && selected_components.contains<highlighted_t>(selected_it);
 			const bool is_selected = selected_it != selected_components.end() && selected_components.contains<selected_t>(selected_it);
-			const bool is_interactible = find(selectable_components, entity.entity()) != selectable_components.end();
+			const bool is_interactible = find(selectable_components, entity) != selectable_components.end();
 
 			const auto status_flags_location = 4;// glGetAttribLocation(p_tex, "status_flags");
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
@@ -1517,7 +1515,7 @@ namespace
 		for (auto & component : components.get<MeshObject>())
 		{
 			engine::graphics::opengl::Color4ub color(0, 0, 0, 0);
-			engine::Asset shader{};
+			engine::Token shader{};
 
 			const auto material_it = find(materials, component.material);
 			if (material_it != materials.end())
@@ -1562,10 +1560,10 @@ namespace
 			glUniform(program, "modelview_matrix", modelview_matrix.top());
 
 			const auto entity = components.get_key(component);
-			const auto selected_it = find(selected_components, entity.entity());
+			const auto selected_it = find(selected_components, entity);
 			const bool is_highlighted = selected_it != selected_components.end() && selected_components.contains<highlighted_t>(selected_it);
 			const bool is_selected = selected_it != selected_components.end() && selected_components.contains<selected_t>(selected_it);
-			const bool is_interactible = find(selectable_components, entity.entity()) != selectable_components.end();
+			const bool is_interactible = find(selectable_components, entity) != selectable_components.end();
 
 			const auto status_flags_location = 4;
 			glVertexAttrib4f(status_flags_location, static_cast<float>(is_highlighted), static_cast<float>(is_selected), 0.f, static_cast<float>(is_interactible));
@@ -1659,7 +1657,7 @@ namespace
 		glDeleteRenderbuffers(2, entitybuffers);
 		glDeleteFramebuffers(1, &framebuffer);
 
-		engine::Asset resources_not_unregistered[resources.max_size()];
+		engine::Token resources_not_unregistered[resources.max_size()];
 		const auto resource_count = resources.get_all_keys(resources_not_unregistered, resources.max_size());
 		debug_printline(engine::asset_channel, resource_count, " resources not unregistered:");
 		for (auto i : ranges::index_sequence(resource_count))
@@ -1668,7 +1666,7 @@ namespace
 			static_cast<void>(i);
 		}
 
-		engine::MutableEntity materials_not_destroyed[materials.max_size()];
+		engine::Token materials_not_destroyed[materials.max_size()];
 		const auto material_count = materials.get_all_keys(materials_not_destroyed, materials.max_size());
 		debug_printline(engine::asset_channel, material_count, " materials not destroyed:");
 		for (auto i : ranges::index_sequence(material_count))

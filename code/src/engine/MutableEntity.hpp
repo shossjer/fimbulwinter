@@ -23,7 +23,7 @@ namespace engine
 		// todo remove
 		explicit operator std::size_t () const
 		{
-			return entity_;
+			return entity_.value();
 		}
 
 	public:
@@ -37,24 +37,12 @@ namespace engine
 	private:
 		friend bool operator == (this_type a, this_type b) { return a.entity_ == b.entity_ && a.version_ == b.version_; }
 		friend bool operator != (this_type a, this_type b) { return !(a == b); }
-		friend bool operator < (this_type a, this_type b) { return a.entity_ < b.entity_ || (a.entity_ == b.entity_ && 0 < int32_t(b.version_ - a.version_)); }
-		friend bool operator <= (this_type a, this_type b) { return !(b < a); }
-		friend bool operator > (this_type a, this_type b) { return b < a; }
-		friend bool operator >= (this_type a, this_type b) { return !(a < b); }
 
 		friend bool operator == (this_type a, Entity b) { return a.entity_ == b; }
 		friend bool operator != (this_type a, Entity b) { return a.entity_ != b; }
-		friend bool operator < (this_type a, Entity b) { return a.entity_ < b; }
-		friend bool operator <= (this_type a, Entity b) { return a.entity_ <= b; }
-		friend bool operator > (this_type a, Entity b) { return a.entity_ > b; }
-		friend bool operator >= (this_type a, Entity b) { return a.entity_ >= b; }
 
 		friend bool operator == (Entity a, this_type b) { return a == b.entity_; }
 		friend bool operator != (Entity a, this_type b) { return a != b.entity_; }
-		friend bool operator < (Entity a, this_type b) { return a < b.entity_; }
-		friend bool operator <= (Entity a, this_type b) { return a <= b.entity_; }
-		friend bool operator > (Entity a, this_type b) { return a > b.entity_; }
-		friend bool operator >= (Entity a, this_type b) { return a >= b.entity_; }
 
 		friend std::ostream & operator << (std::ostream & stream, this_type x)
 		{

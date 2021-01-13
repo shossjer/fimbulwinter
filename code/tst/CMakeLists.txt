@@ -24,14 +24,16 @@ set(FILES_ENGINE
 	tst/engine/Asset.cpp
 	tst/engine/audio/system.cpp
 	tst/engine/console.cpp
+	tst/engine/Entity.cpp
 	tst/engine/file/system.cpp
 	tst/engine/graphics/renderer.cpp
 	tst/engine/graphics/viewer.cpp
-	tst/engine/gui/gui_access.hpp
+	tst/engine/Hash.cpp
 	tst/engine/hid/devices.cpp
 	tst/engine/hid/ui.cpp
 	tst/engine/MutableEntity.cpp
 	tst/engine/physics/simulation.cpp
+	tst/engine/Token.cpp
 	)
 
 set(FILES_UTILITY
