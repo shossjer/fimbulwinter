@@ -1,83 +1,51 @@
 #pragma once
 
-#include "core/debug.hpp"
-#include "core/serialization.hpp"
+#include "config.h"
 
-#include "utility/concepts.hpp"
-
-#include <atomic>
 #include <cstdint>
-#include <functional>
-#include <ostream>
+
+#if MODE_DEBUG
+# include <ostream>
+#endif
 
 namespace engine
 {
 	class Entity
 	{
-	public:
-		using value_type = uint32_t;
-
-	private:
 		using this_type = Entity;
 
+	public:
+
+		using value_type = std::uint32_t;
+
 	private:
-		value_type id;
+
+		value_type value_;
 
 	public:
+
 		Entity() = default;
-	// private:
-		// This constructor  should be private to  prevent anyone from
-		// creating any  numbered entity, but  there is a lot  of code
-		// now that depends on the fact  that entities are the same as
-		// regular integers so that needs to be fixed first.
-		constexpr Entity(const value_type id)
-			: id{id}
-		{}
+
+		explicit Entity(value_type value) : value_{value} {}
 
 	public:
-		constexpr operator value_type () const
-		{
-			return id;
-		}
 
-	public:
-		static constexpr auto serialization()
-		{
-			return utility::make_lookup_table(
-				std::make_pair(utility::string_units_utf8("id"), &Entity::id)
-				);
-		}
+		value_type value() const { return value_; }
 
+		operator value_type () const { return value_; }
+
+	private:
+
+		friend constexpr bool operator == (this_type a, this_type b) { return a.value_ == b.value_; }
+		friend constexpr bool operator != (this_type a, this_type b) { return !(a == b); }
+
+#if MODE_DEBUG
+		// note debug only
 		friend std::ostream & operator << (std::ostream & stream, this_type x)
 		{
-			stream << x.id;
-			return stream;
+			return stream << x.value_;
 		}
+#endif
 
-	public:
-		static Entity create()
-		{
-			static std::atomic<value_type> next_id{1}; // reserve 0 as a special id
-
-			const auto id = next_id.fetch_add(1, std::memory_order_relaxed);
-			debug_assert(id < 0xffffffff);
-
-			return Entity{id};
-		}
-		static constexpr Entity null()
-		{
-			return Entity{0};
-		}
-	};
-}
-
-namespace std
-{
-	template<> struct hash<engine::Entity>
-	{
-		std::size_t operator () (const engine::Entity entity) const
-		{
-			return std::hash<std::size_t>{}(entity);
-		}
 	};
 }
