@@ -1,12 +1,13 @@
 #include "engine/Asset.hpp"
 #include "engine/Entity.hpp"
+#include "engine/HashTable.hpp"
 #include "engine/Token.hpp"
 
 #include <catch2/catch.hpp>
 
 #include <sstream>
 
-debug_assets("name");
+static_hashes("eman");
 
 TEST_CASE("A zero initialized Token", "[engine][token]")
 {
@@ -98,6 +99,16 @@ TEST_CASE("Token can be constructed", "[engine][assert][entity][token]")
 #endif
 	}
 
+	SECTION("from Hash")
+	{
+		engine::Token token = engine::Hash("eman");
+
+		CHECK(token.value() == 3143603943);
+#if MODE_DEBUG
+		CHECK(token.type() == 137105154);
+#endif
+	}
+
 	SECTION("from int")
 	{
 		engine::Token token = 7;
@@ -127,6 +138,13 @@ TEST_CASE("Token can be ostreamed", "[engine][assert][entity][token]")
 		ostream << engine::Token(engine::Entity(11));
 
 		CHECK(ostream.str() == "11");
+	}
+
+	SECTION("as an Hash")
+	{
+		ostream << engine::Token(engine::Hash("eman"));
+
+		CHECK(ostream.str() == "3143603943(\"eman\")");
 	}
 
 	SECTION("as a value_type")

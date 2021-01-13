@@ -5,14 +5,15 @@
 #include "core/maths/Matrix.hpp"
 #include "core/maths/algorithm.hpp"
 
-#include "engine/Asset.hpp"
+#include "engine/debug.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
+#include "engine/HashTable.hpp"
 
 #include "utility/profiling.hpp"
 #include "utility/variant.hpp"
 
-debug_assets("root");
+static_hashes("root");
 
 namespace
 {
@@ -117,7 +118,7 @@ namespace
 		}
 		void operator () (Root & x)
 		{
-			debug_assert(x.node == engine::Asset::null());
+			debug_assert(x.node == engine::Hash{});
 			x.node = child;
 		}
 		void operator () (HorizontalSplit & x)
@@ -125,11 +126,11 @@ namespace
 			switch (slot)
 			{
 			case 0:
-				debug_assert(x.bottom == engine::Asset::null());
+				debug_assert(x.bottom == engine::Hash{});
 				x.bottom = child;
 				break;
 			case 1:
-				debug_assert(x.top == engine::Asset::null());
+				debug_assert(x.top == engine::Hash{});
 				x.top = child;
 				break;
 			default:
@@ -141,11 +142,11 @@ namespace
 			switch (slot)
 			{
 			case 0:
-				debug_assert(x.left == engine::Asset::null());
+				debug_assert(x.left == engine::Hash{});
 				x.left = child;
 				break;
 			case 1:
-				debug_assert(x.right == engine::Asset::null());
+				debug_assert(x.right == engine::Hash{});
 				x.right = child;
 				break;
 			default:
@@ -184,11 +185,11 @@ namespace
 	{
 		void operator () (DynamicFrame & x)
 		{
-			x.camera = engine::Entity::null();
+			x.camera = engine::Token{};
 		}
 		void operator () (FixedFrame & x)
 		{
-			x.camera = engine::Entity::null();
+			x.camera = engine::Token{};
 		}
 		void operator () (Root &)
 		{
@@ -635,7 +636,7 @@ namespace engine
 		{
 			::renderer = &renderer;
 
-			debug_verify(nodes.emplace<Root>(engine::graphics::root_frame, engine::Asset::null()));
+			debug_verify(nodes.emplace<Root>(engine::graphics::root_frame, engine::Hash{}));
 		}
 
 		void update(viewer &)

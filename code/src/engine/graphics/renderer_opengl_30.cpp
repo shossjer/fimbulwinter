@@ -21,12 +21,12 @@
 #include "core/ShaderStructurer.hpp"
 #include "core/sync/Event.hpp"
 
-#include "engine/Asset.hpp"
 #include "engine/Command.hpp"
 #include "engine/debug.hpp"
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
+#include "engine/HashTable.hpp"
 
 #include "utility/any.hpp"
 #include "utility/lookup_table.hpp"
@@ -76,7 +76,7 @@ namespace engine
 	}
 }
 
-debug_assets("box", "cuboid", "dude", "my_png", "photo");
+static_hashes("box", "cuboid", "dude", "my_png", "photo");
 
 namespace
 {

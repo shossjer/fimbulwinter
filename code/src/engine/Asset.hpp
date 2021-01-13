@@ -1,129 +1,67 @@
 #pragma once
 
-#include "config.h"
-
+#include "core/debug.hpp"
 #include "core/serialization.hpp"
 
-#include "utility/concepts.hpp"
-#include "utility/crypto/crc.hpp"
-#include "utility/unicode/string.hpp"
-
-#include <ostream>
-
-#if MODE_DEBUG
-# include "engine/debug.hpp"
-
-# include "utility/spinlock.hpp"
-
-# include <mutex>
-# include <unordered_map>
-#endif
+#include "engine/Hash.hpp"
 
 namespace engine
 {
-	class Asset
+	class Asset : public Hash
 	{
-	public:
-		using value_type = uint32_t;
-	private:
 		using this_type = Asset;
 
-	private:
-		value_type id;
+	public:
+
+		using value_type = Hash::value_type;
 
 	public:
+
 		Asset() = default;
-		explicit Asset(value_type id) : id(id) {}
-		template <std::size_t N>
-		explicit constexpr Asset(const char (& str)[N])
-			: id{utility::crypto::crc32(str)}
-		{}
-		explicit constexpr Asset(const char * const str, const std::size_t n)
-			: id{utility::crypto::crc32(str, n)}
-		{}
-		explicit constexpr Asset(utility::string_units_utf8 str)
-			: id{utility::crypto::crc32(str.data(), str.size())}
-		{}
-		template <typename StorageTraits>
-		explicit Asset(const utility::basic_string<StorageTraits, utility::encoding_utf8> & str)
-			: id{utility::crypto::crc32(str.data(), str.size())}
+
+		explicit Asset(value_type value) : Hash(value) {}
+
+		explicit Asset(const char * str)
+			: Hash(str)
 		{
-			// todo separate asset into a compile time and runtime
-			// version
 #if MODE_DEBUG
-			std::lock_guard<utility::spinlock> lock{get_readwritelock()};
-			get_lookup_table().emplace(id, str);
+			add_string_to_hash_table(str);
 #endif
 		}
 
-	public:
-		constexpr operator value_type () const
+		explicit Asset(const char * str, std::size_t n)
+			: Hash(str, n)
 		{
-			return id;
+#if MODE_DEBUG
+			add_string_to_hash_table(str, n);
+#endif
 		}
 
-	public:
-		static constexpr Asset null() // todo remove
+		explicit Asset(utility::string_units_utf8 str)
+			: Hash(str.data(), str.size())
 		{
-			return Asset{};
-		}
 #if MODE_DEBUG
-		// not thread safe
-		template <std::size_t N>
-		static void enumerate(const char (& str)[N])
-		{
-			get_lookup_table().emplace(utility::crypto::crc32(str), str);
+			add_string_to_hash_table(str.data(), str.size());
+#endif
 		}
+
 	private:
-		static std::unordered_map<value_type, utility::heap_string_utf8> & get_lookup_table()
-		{
-			struct Singleton
-			{
-				std::unordered_map<value_type, utility::heap_string_utf8> lookup_table;
 
-				Singleton()
-				{
-					lookup_table.emplace(0, "reserved null value");
-					lookup_table.emplace(utility::crypto::crc32(""), "");
-				}
-			};
+#if MODE_DEBUG
+		void add_string_to_hash_table(const char * str);
 
-			static Singleton singleton;
-			return singleton.lookup_table;
-		}
-
-		static utility::spinlock & get_readwritelock()
-		{
-			static utility::spinlock readwritelock;
-			return readwritelock;
-		}
+		void add_string_to_hash_table(const char * str, std::size_t n);
 #endif
 
 	public:
+
 		static constexpr auto serialization()
 		{
 			return utility::make_lookup_table(
-				std::make_pair(utility::string_units_utf8("id"), &Asset::id)
+				std::make_pair(utility::string_units_utf8("id"), &Asset::value_)
 				);
 		}
 
-		friend std::ostream & operator << (std::ostream & stream, const this_type & asset)
-		{
-			stream << asset.id;
-#if MODE_DEBUG
-			{
-				std::lock_guard<utility::spinlock> lock{get_readwritelock()};
-				const auto it = get_lookup_table().find(asset.id);
-				if (it != get_lookup_table().end())
-				{
-					stream << "(\"" << it->second << "\")";
-					return stream;
-				}
-			}
-#endif
-			stream << "(?)";
-			return stream;
-		}
 	};
 
 	inline bool serialize(Asset & x, utility::string_units_utf8 object)
@@ -132,45 +70,3 @@ namespace engine
 		return true;
 	}
 }
-
-namespace std
-{
-	template<> struct hash<engine::Asset> // todo remove
-	{
-		std::size_t operator () (const engine::Asset asset) const
-		{
-			return static_cast<std::size_t>(asset);
-		}
-	};
-}
-
-#if MODE_DEBUG
-# define debug_assets(...) \
-	namespace \
-	{ \
-		struct enumerate_assets_t \
-		{ \
-			enumerate_assets_t() \
-			{ \
-				printline(__VA_ARGS__); \
-				enumerate(__VA_ARGS__); \
-			} \
-\
-			template <typename ...Ps> \
-			void printline(Ps && ...ps) \
-			{ \
-				debug_printline(engine::asset_channel, "adding asset enumeration:", utility::to_string(" \"", ps, "\"")...); \
-			} \
-\
-			template <typename ...Ps> \
-			void enumerate(Ps && ...ps) \
-			{ \
-				int expansion_hack[] = {(engine::Asset::enumerate(std::forward<Ps>(ps)), 0)...}; \
-				static_cast<void>(expansion_hack); \
-			} \
-		}; \
-	} \
-	static enumerate_assets_t asset_enumeration
-#else
-# define debug_assets(...) static_assert(true, "")
-#endif

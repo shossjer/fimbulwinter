@@ -4,7 +4,7 @@
 #include "core/maths/Quaternion.hpp"
 #include "core/maths/Vector.hpp"
 
-#include "engine/Asset.hpp"
+#include "engine/Hash.hpp"
 #include "engine/Token.hpp"
 
 #include <cstdint>
@@ -96,7 +96,7 @@ namespace engine
 			viewer(engine::graphics::renderer & renderer);
 		};
 
-		constexpr const auto root_frame = engine::Asset("root");
+		constexpr const auto root_frame = engine::Hash("root");
 
 		void post_add_frame(viewer & viewer, engine::Token frame, viewer::dynamic && data);
 		void post_add_frame(viewer & viewer, engine::Token frame, viewer::fixed && data);

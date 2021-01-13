@@ -18,6 +18,7 @@
 #include "engine/graphics/message.hpp"
 #include "engine/graphics/renderer.hpp"
 #include "engine/graphics/viewer.hpp"
+#include "engine/HashTable.hpp"
 
 #include "utility/any.hpp"
 #include "utility/variant.hpp"
@@ -26,9 +27,7 @@
 #include <fstream>
 #include <utility>
 
-debug_assets("material directory", "shader directory");
-
-using namespace engine::graphics::opengl;
+static_hashes("material directory", "shader directory");
 
 namespace engine
 {
@@ -87,7 +86,7 @@ namespace
 
 		switch (match)
 		{
-		case engine::Asset(".json"):
+		case engine::Hash(".json"):
 		{
 			core::JsonStructurer structurer(std::move(stream));
 			structurer.read(material);

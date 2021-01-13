@@ -27,7 +27,7 @@ set(FILES_ENGINE
 	tst/engine/file/system.cpp
 	tst/engine/graphics/renderer.cpp
 	tst/engine/graphics/viewer.cpp
-	tst/engine/gui/gui_access.hpp
+	tst/engine/Hash.cpp
 	tst/engine/hid/devices.cpp
 	tst/engine/hid/ui.cpp
 	tst/engine/MutableEntity.cpp

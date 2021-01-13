@@ -55,6 +55,7 @@ set(SOURCES_ENGINE
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
+	src/engine/Asset.cpp
 	src/engine/audio/system_dummy.cpp
 	src/engine/audio/system_fmod.cpp
 	src/engine/console.cpp
@@ -71,6 +72,7 @@ set(SOURCES_ENGINE
 	src/engine/graphics/renderer_opengl_12.cpp
 	src/engine/graphics/renderer_opengl_30.cpp
 	src/engine/graphics/viewer.cpp
+	src/engine/HashTable.cpp
 	src/engine/hid/devices.cpp
 	src/engine/hid/devices_user32.cpp
 	src/engine/hid/devices_x11.cpp
@@ -104,6 +106,8 @@ set(HEADERS_ENGINE
 	src/engine/graphics/opengl/Matrix.hpp
 	src/engine/graphics/renderer.hpp
 	src/engine/graphics/viewer.hpp
+	src/engine/Hash.hpp
+	src/engine/HashTable.hpp
 	src/engine/hid/config.hpp
 	src/engine/hid/devices.hpp
 	src/engine/hid/input.hpp
