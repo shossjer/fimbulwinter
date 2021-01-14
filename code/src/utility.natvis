@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="utility::basic_string&lt;*,utility::encoding_utf8&gt;">
+    <Intrinsic Name="size" Optional="true" Expression="data_.array_.end_ - data_.array_.chars_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="data_.array_.end_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="capacity" Optional="true" Expression="sizeof data_.array_.chars_.arrays.head_._Elems / sizeof(char)" />
+    <Intrinsic Name="capacity" Optional="true" Expression="data_.array_.cap_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="ptr" Optional="true" Expression="&amp;data_.array_.chars_.arrays.head_._Elems[0].value" />
+    <Intrinsic Name="ptr" Optional="true" Expression="data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <DisplayString>{ptr(),s8}</DisplayString>
+    <StringView>ptr(),s8</StringView>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">size()</Item>
+      <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
+      <ArrayItems>
+        <Size>size()</Size>
+        <ValuePointer>(char*)ptr()</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="utility::basic_string&lt;*,utility::encoding_utfw&gt;">
+    <Intrinsic Name="size" Optional="true" Expression="data_.array_.end_ - data_.array_.chars_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="data_.array_.end_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="capacity" Optional="true" Expression="sizeof data_.array_.chars_.arrays.head_._Elems / sizeof(char16_t)" />
+    <Intrinsic Name="capacity" Optional="true" Expression="data_.array_.cap_ - data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="ptr" Optional="true" Expression="&amp;data_.array_.chars_.arrays.head_._Elems[0].value" />
+    <Intrinsic Name="ptr" Optional="true" Expression="data_.array_.chars_.data_.storage_.impl_.storage_" />
+    <DisplayString>{ptr(),su}</DisplayString>
+    <StringView>ptr(),su</StringView>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">size()</Item>
+      <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
+      <ArrayItems>
+        <Size>size()</Size>
+        <ValuePointer>(char16_t*)ptr()</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="utility::basic_string_view&lt;*&gt;">
+    <Intrinsic Name="is_utf8" Expression="std::is_same&lt;utility::encoding_utf8, encoding_type&gt;::value" />
+    <Intrinsic Name="is_utfw" Expression="std::is_same&lt;utility::encoding_utfw, encoding_type&gt;::value" />
+    <DisplayString Condition="is_utf8()">{ptr_,[size_]s8}</DisplayString>
+    <DisplayString Condition="is_utfw()">{ptr_,[size_]su}</DisplayString>
+    <StringView Condition="is_utf8()">ptr_,[size_]s8</StringView>
+    <StringView Condition="is_utfw()">ptr_,[size_]su</StringView>
+    <Expand>
+      <Item Name="[size]" ExcludeView="simple">size_</Item>
+      <ArrayItems>
+        <Size>size_</Size>
+        <ValuePointer>ptr_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  <Type Name="utility::basic_array&lt;*&gt;">
+    <Intrinsic Name="size" Optional="true" Expression="sizeof storage_.arrays.head_._Elems / sizeof storage_.arrays.head_._Elems[0]" />
+    <Intrinsic Name="size" Optional="true" Expression="cap_ - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="&amp;storage_.arrays.head_._Elems[0].value" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer::first_type)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer::_This_type)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="&amp;storage_.arrays.tail_.head_._Elems[0].value" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="storage_.data_.extra_begins_._Myfirst._Val" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="storage_.data_.extra_begins_.first" />
+    <Intrinsic Name="third_ptr" Optional="true" Expression="&amp;storage_.arrays.tail_.tail_.head_._Elems[0].value" />
+    <Intrinsic Name="third_ptr" Optional="true" Expression="storage_.data_.extra_begins_.second" />
+    <DisplayString>{{ size={size()} }}</DisplayString>
+    <Expand>
+      <Item Name="[capacity]" ExcludeView="simple">size()</Item>
+      <Synthetic Name="channel 0" Optional="true">
+        <DisplayString>{first_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>first_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="channel 1" Optional="true">
+        <DisplayString>{second_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>second_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="channel 2" Optional="true">
+        <DisplayString>{third_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>third_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+
+  <Type Name="utility::basic_vector&lt;*&gt;">
+    <Intrinsic Name="size" Optional="true" Expression="end_ - storage_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="end_.first - storage_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="end_._Myfirst._Val - storage_.arrays.head_._Elems" />
+    <Intrinsic Name="size" Optional="true" Expression="end_ - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="size" Optional="true" Expression="end_.first - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="size" Optional="true" Expression="end_._Myfirst._Val - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="capacity" Optional="true" Expression="sizeof storage_.arrays.head_._Elems / sizeof storage_.arrays.head_._Elems[0]" />
+    <Intrinsic Name="capacity" Optional="true" Expression="cap_ - storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="&amp;storage_.arrays.head_._Elems[0].value" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer::first_type)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="first_ptr" Optional="true" Expression="(pointer::_This_type)storage_.data_.storage_.impl_.storage_" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="&amp;storage_.arrays.tail_.head_._Elems[0].value" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="storage_.data_.extra_begins_._Myfirst._Val" />
+    <Intrinsic Name="second_ptr" Optional="true" Expression="storage_.data_.extra_begins_.first" />
+    <Intrinsic Name="third_ptr" Optional="true" Expression="&amp;storage_.arrays.tail_.tail_.head_._Elems[0].value" />
+    <Intrinsic Name="third_ptr" Optional="true" Expression="storage_.data_.extra_begins_.second" />
+    <DisplayString>{{ size={size()} }}</DisplayString>
+    <Expand>
+      <Item Name="[capacity]" ExcludeView="simple">capacity()</Item>
+      <Synthetic Name="channel 0" Optional="true">
+        <DisplayString>{first_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>first_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="channel 1" Optional="true">
+        <DisplayString>{second_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>second_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="channel 2" Optional="true">
+        <DisplayString>{third_ptr()}</DisplayString>
+        <Expand>
+          <ArrayItems Optional="true">
+            <Size>size()</Size>
+            <ValuePointer>third_ptr()</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+
+  <Type Name="utility::variant&lt;*&gt;">
+    <Intrinsic Name="index" Expression="storage.index_"/>
+    <DisplayString Condition="index() ==  0">{{ index=0, value={storage.union_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  1" Optional="true">{{ index=1, value={storage.union_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  2" Optional="true">{{ index=2, value={storage.union_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  3" Optional="true">{{ index=3, value={storage.union_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  4" Optional="true">{{ index=4, value={storage.union_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  5" Optional="true">{{ index=5, value={storage.union_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  6" Optional="true">{{ index=6, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  7" Optional="true">{{ index=7, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  8" Optional="true">{{ index=8, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() ==  9" Optional="true">{{ index=9, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 10" Optional="true">{{ index=10, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 11" Optional="true">{{ index=11, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 12" Optional="true">{{ index=12, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 13" Optional="true">{{ index=13, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 14" Optional="true">{{ index=14, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 15" Optional="true">{{ index=15, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 16" Optional="true">{{ index=16, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 17" Optional="true">{{ index=17, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 18" Optional="true">{{ index=18, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 19" Optional="true">{{ index=19, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 20" Optional="true">{{ index=20, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 21" Optional="true">{{ index=21, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 22" Optional="true">{{ index=22, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 23" Optional="true">{{ index=23, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 24" Optional="true">{{ index=24, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 25" Optional="true">{{ index=25, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 26" Optional="true">{{ index=26, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 27" Optional="true">{{ index=27, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 28" Optional="true">{{ index=28, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 29" Optional="true">{{ index=29, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 30" Optional="true">{{ index=30, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <DisplayString Condition="index() == 31" Optional="true">{{ index=31, value={storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance} }}</DisplayString>
+    <Expand>
+      <Item Name="index">index()</Item>
+      <Item Name="[value]" Condition="index() ==  0">storage.union_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  1" Optional="true">storage.union_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  2" Optional="true">storage.union_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  3" Optional="true">storage.union_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  4" Optional="true">storage.union_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  5" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  6" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  7" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  8" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() ==  9" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 10" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 11" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 12" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 13" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 14" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 15" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 16" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 17" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 18" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 19" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 20" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 21" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 22" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 23" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 24" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 25" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 26" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 27" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 28" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 29" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 30" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+      <Item Name="[value]" Condition="index() == 31" Optional="true">storage.union_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.tail_.head_.instance</Item>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>

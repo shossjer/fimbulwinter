@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="core::container::Buffer">
+    <DisplayString Condition="format_ == 0">{{format = uint8, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 1">{{format = uint16, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 2">{{format = uint32, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 3">{{format = uint64, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 4">{{format = int8, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 5">{{format = int16, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 6">{{format = int32, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 7">{{format = int64, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 8">{{format = float32, count = {count_}}}</DisplayString>
+    <DisplayString Condition="format_ == 9">{{format = float64, count = {count_}}}</DisplayString>
+    <Expand>
+      <Item Name="[format]" ExcludeView="simple">format_</Item>
+      <Item Name="[count]" ExcludeView="simple">count_</Item>
+      <ArrayItems>
+        <Size>count_</Size>
+        <ValuePointer Condition="format_ == 0">(uint8_t*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 1">(uint16_t*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 2">(uint32_t*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 3">(uint64_t*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 4">(int8_t*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 5">(int16_t*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 6">(int32_t*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 7">(int64_t*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 8">(float*)data_.storage</ValuePointer>
+        <ValuePointer Condition="format_ == 9">(double*)data_.storage</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>

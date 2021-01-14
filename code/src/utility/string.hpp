@@ -406,6 +406,8 @@ namespace utility
 
 	public:
 
+		using encoding_type = Encoding;
+
 		using value_type = typename encoding_traits::value_type;
 		using pointer = typename encoding_traits::pointer;
 		using const_pointer = typename encoding_traits::const_pointer;

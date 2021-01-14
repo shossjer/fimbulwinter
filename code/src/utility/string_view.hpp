@@ -14,6 +14,8 @@ namespace utility
 
 	public:
 
+		using encoding_type = typename Boundary::encoding_type;
+
 		using value_type = typename Boundary::value_type;
 		using const_pointer = typename Boundary::const_pointer;
 		using const_reference = typename Boundary::const_reference;

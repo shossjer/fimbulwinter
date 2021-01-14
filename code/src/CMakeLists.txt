@@ -51,6 +51,10 @@ set(HEADERS_CORE
 	src/core/WriteStream.hpp
 	)
 
+set(MSVC_CORE
+	src/core.natvis
+	)
+
 set(SOURCES_ENGINE
 	src/engine/animation/mixer.cpp
 	src/engine/application/window_user32.cpp
@@ -196,5 +200,5 @@ set(HEADERS_UTILITY
 	)
 
 set(MSVC_UTILITY
-	src/utility/utility.natvis
+	src/utility.natvis
 	)
