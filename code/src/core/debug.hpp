@@ -1,6 +1,4 @@
-
-#ifndef CORE_DEBUG_HPP
-#define CORE_DEBUG_HPP
+#pragma once
 
 #include <config.h>
 
@@ -141,6 +139,17 @@ namespace core
 #  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n") || (debug_break(), false))
 # else
 #  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n") || (debug_break(), false))
+# endif
+
+/**
+ * Prints the arguments if the expression is false.
+ *
+ * \note Always evaluates the expression.
+ */
+# if defined (_MSC_VER)
+#  define debug_inform(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printline(__FILE__, __LINE__, #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? "" : "\nexplanation: ", __VA_ARGS__), false); }(core::debug::empty_t{} < expr)
+# else
+#  define debug_inform(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printline(__FILE__, __LINE__, #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? "" : "\nexplanation: ", ##__VA_ARGS__), false); }(core::debug::empty_t{} < expr)
 # endif
 
 /**
@@ -502,5 +511,3 @@ namespace core
 		return debug::compare_ge_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
 	}
 }
-
-#endif /* CORE_DEBUG_HPP */

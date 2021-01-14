@@ -78,6 +78,7 @@ namespace core
 			debug_assert(data_ != invalid_data, "thread is not joinable");
 
 			WaitForSingleObject(get_handle(data_), INFINITE); // todo check error
+			CloseHandle(get_handle(data_));
 			data_ = invalid_data;
 		}
 	}

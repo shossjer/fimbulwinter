@@ -141,6 +141,38 @@ namespace utility
 			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
 		}
 
+		template <typename T>
+		annotate_nodiscard
+		utility::storing<T> * iter(T * ptr)
+		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
+			return reinterpret_cast<utility::storing<T> *>(ptr); // todo probably okay
+		}
+
+		template <typename T>
+		annotate_nodiscard
+		const utility::storing<T> * iter(const T * ptr) const
+		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
+			return reinterpret_cast<const utility::storing<T> *>(ptr); // todo probably okay
+		}
+
+		template <typename ...Us,
+		          typename Iterator = utility::zip_iterator<utility::storing<Us> *...>>
+		annotate_nodiscard
+		Iterator iter(utility::zip_pointer<Us *...> ptr)
+		{
+			return ext::apply([this](auto * ...ss){ return Iterator(this->iter(ss)...); }, ptr);
+		}
+
+		template <typename ...Us,
+		          typename Iterator = utility::zip_iterator<const utility::storing<Us> *...>>
+		annotate_nodiscard
+		Iterator iter(utility::zip_pointer<const Us *...> ptr) const
+		{
+			return ext::apply([this](auto * ...ss){ return Iterator(this->iter(ss)...); }, ptr);
+		}
+
 		template <std::size_t ...Is,
 		          typename Iterator = utility::combine<utility::zip_iterator,
 		                                               storing_type_for<mpl::type_at<Is, Ts...>> *...>>
@@ -384,6 +416,38 @@ namespace utility
 			return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
 		}
 
+		template <typename T>
+		annotate_nodiscard
+		T * iter(T * ptr)
+		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
+			return ptr;
+		}
+
+		template <typename T>
+		annotate_nodiscard
+		const T * iter(const T * ptr) const
+		{
+			static_assert(mpl::member_of<T, Ts...>::value, "");
+			return ptr;
+		}
+
+		template <typename ...Us,
+		          typename Iterator = utility::zip_iterator<Us *...>>
+		annotate_nodiscard
+		Iterator iter(utility::zip_pointer<Us *...> ptr)
+		{
+			return ext::apply([this](auto * ...ss){ return Iterator(this->iter(ss)...); }, ptr);
+		}
+
+		template <typename ...Us,
+		          typename Iterator = utility::zip_iterator<const Us *...>>
+		annotate_nodiscard
+		Iterator iter(utility::zip_pointer<const Us *...> ptr) const
+		{
+			return ext::apply([this](auto * ...ss){ return Iterator(this->iter(ss)...); }, ptr);
+		}
+
 		annotate_nodiscard
 		mpl::car<Ts...> * begin_for(mpl::index_sequence<0>)
 		{
@@ -610,6 +674,36 @@ namespace utility
 				return ext::apply([this](auto * ...ss){ return Pointer(this->data(ss)...); }, it);
 			}
 
+			template <typename T>
+			annotate_nodiscard
+			T * iter(T * ptr)
+			{
+				return data_.storage_.data(ptr);
+			}
+
+			template <typename T>
+			annotate_nodiscard
+			const T * iter(const T * ptr) const
+			{
+				return data_.storage_.data(ptr);
+			}
+
+			template <typename ...Us,
+			          typename Iterator = utility::zip_iterator<Us *...>>
+			annotate_nodiscard
+			Iterator iter(utility::zip_pointer<Us *...> ptr)
+			{
+				return ext::apply([this](auto * ...ss){ return Iterator(this->iter(ss)...); }, ptr);
+			}
+
+			template <typename ...Us,
+			          typename Iterator = utility::zip_iterator<const Us *...>>
+			annotate_nodiscard
+			Iterator iter(utility::zip_pointer<const Us *...> ptr) const
+			{
+				return ext::apply([this](auto * ...ss){ return Iterator(this->iter(ss)...); }, ptr);
+			}
+
 			template <std::size_t ...Is,
 			          typename Iterator = utility::combine<utility::zip_iterator,
 			                                               typename storage_type::template storing_type_for<mpl::type_at<Is, Ts...>> *...>>
@@ -711,8 +805,16 @@ namespace utility
 			return ext::apply([&s, this](auto && ...ps) -> decltype(auto) { return construct_at_(s, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
 		}
 
+		template <typename ...Ss,
+		          typename Reference = reference_for<Ss...>>
+		Reference construct_at_(utility::zip_iterator<Ss *...> it)
+		{
+			return ext::apply([this](auto * ...ss) -> Reference { return Reference(construct_at_(ss)...); }, it);
+		}
+
 		template <typename ...Ss, typename ...Ps,
 		          typename Reference = reference_for<Ss...>,
+		          REQUIRES((sizeof...(Ss) == sizeof...(Ps))),
 		          REQUIRES((!ext::is_tuple<Ps...>::value)),
 		          REQUIRES((!mpl::is_same<std::piecewise_construct_t, mpl::car<mpl::remove_cvref_t<Ps>..., void>>::value))>
 		Reference construct_at_(utility::zip_iterator<Ss *...> it, Ps && ...ps)

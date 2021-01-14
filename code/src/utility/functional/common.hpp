@@ -48,6 +48,16 @@ namespace fun
 				};
 				return function_object<decltype(comparison)>(comparison);
 			}
+
+			template <typename D2>
+			friend auto operator && (function_object first, function_object<D2> second)
+			{
+				auto conjunction = [first, second](auto && ...ps)
+				{
+					return first(ps...) && second(ps...);
+				};
+				return function_object<decltype(conjunction)>(conjunction);
+			}
 		};
 
 		template <typename Lambda>

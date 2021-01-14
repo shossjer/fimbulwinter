@@ -390,23 +390,9 @@ namespace core
 		return detail::serialize(mpl::index_constant<I>{}, x, std::forward<Object>(object));
 	}
 
-	template <typename T, typename Object,
-	          REQUIRES((std::is_scalar<mpl::remove_cvref_t<T>>::value)),
-	          REQUIRES((std::is_scalar<mpl::remove_cvref_t<decltype(std::declval<Object>()())>>::value))>
-	auto serialize(utility::optional<T> & x, Object && object)
-		-> decltype(x = object(), bool())
+	template <typename T, typename Object>
+	bool serialize(utility::optional<T> & x, Object && object)
 	{
-		x = debug_cast<T>(object());
-		return true;
-	}
-
-	template <typename T, typename Object,
-	          REQUIRES((std::is_scalar<mpl::remove_cvref_t<T>>::value)),
-	          REQUIRES((std::is_scalar<mpl::remove_cvref_t<Object>>::value))>
-	auto serialize(utility::optional<T> & x, Object && object)
-		-> decltype(x = std::forward<Object>(object), bool())
-	{
-		x = debug_cast<T>(std::forward<Object>(object));
-		return true;
+		return serialize(x ? x.value() : x.emplace(), std::forward<Object>(object));
 	}
 }

@@ -124,6 +124,27 @@ namespace utility
 		return ext::strcmp(begin.get(), end.get(), strbegin.get(), strend.get());
 	}
 
+	template <typename Boundary>
+	constexpr bool
+	ends_with(
+			const_string_iterator<Boundary> begin,
+			const_string_iterator<Boundary> end,
+			typename Boundary::value_type c)
+	{
+		return ext::strends(begin.get(), end.get(), c);
+	}
+
+	template <typename Boundary>
+	constexpr bool
+	ends_with(
+			const_string_iterator<Boundary> begin,
+			const_string_iterator<Boundary> end,
+			const_string_iterator<Boundary> exprbegin,
+			const_string_iterator<Boundary> exprend)
+	{
+		return ext::strends(begin.get(), end.get(), exprbegin.get(), exprend.get());
+	}
+
 	template <typename Boundary, bool Const>
 	constexpr string_iterator_impl<Boundary, Const>
 	find(
@@ -186,33 +207,33 @@ namespace utility
 		return ext::strrfind(begin, end, exprbegin.get(), exprend.get());
 	}
 
-	template <typename Boundary>
+	template <typename Boundary, bool Const>
 	constexpr bool
 	starts_with(
-		const_string_iterator<Boundary> begin,
-		const_string_iterator<Boundary> end,
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
 		typename Boundary::value_type c)
 	{
 		return ext::strbegins(begin.get(), end.get(), c);
 	}
 
-	template <typename Boundary>
+	template <typename Boundary, bool Const>
 	constexpr bool
 	starts_with(
-		const_string_iterator<Boundary> begin,
-		const_string_iterator<Boundary> end,
+		string_iterator_impl<Boundary, Const> begin,
+		string_iterator_impl<Boundary, Const> end,
 		typename Boundary::const_pointer str)
 	{
 		return ext::strbegins(begin.get(), end.get(), str);
 	}
 
-	template <typename Boundary>
-	constexpr const_string_iterator<Boundary>
+	template <typename Boundary, bool Const1, bool Const2>
+	constexpr bool
 	starts_with(
-		const_string_iterator<Boundary> begin,
-		const_string_iterator<Boundary> end,
-		const_string_iterator<Boundary> exprbegin,
-		const_string_iterator<Boundary> exprend)
+		string_iterator_impl<Boundary, Const1> begin,
+		string_iterator_impl<Boundary, Const1> end,
+		string_iterator_impl<Boundary, Const2> exprbegin,
+		string_iterator_impl<Boundary, Const2> exprend)
 	{
 		return ext::strbegins(begin.get(), end.get(), exprbegin.get(), exprend.get());
 	}

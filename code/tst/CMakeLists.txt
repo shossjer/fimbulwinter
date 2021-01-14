@@ -62,6 +62,7 @@ set(FILES_UTILITY
 	tst/utility/property.cpp
 	tst/utility/ranges.cpp
 	tst/utility/regex.cpp
+	tst/utility/shared_ptr.cpp
 	tst/utility/span.cpp
 	tst/utility/storage.cpp
 	tst/utility/storing.cpp
@@ -71,4 +72,5 @@ set(FILES_UTILITY
 	tst/utility/unicode/string.cpp
 	tst/utility/unicode/string_view.cpp
 	tst/utility/variant.cpp
+	tst/utility/weak_ptr.cpp
 	)

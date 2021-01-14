@@ -58,6 +58,23 @@ namespace ext
 		return strmatch(begin2, end2, begin1);
 	}
 
+	template <typename BeginIt, typename EndIt>
+	constexpr bool strends(BeginIt begin, EndIt end, typename std::iterator_traits<BeginIt>::value_type c)
+	{
+		return begin == end ? false : *(end - 1) == c;
+	}
+
+	template <typename BeginIt1, typename EndIt1, typename BeginIt2, typename EndIt2>
+	constexpr bool strends(BeginIt1 begin1, EndIt1 end1, BeginIt2 begin2, EndIt2 end2)
+	{
+		const auto size1 = end1 - begin1;
+		const auto size2 = end2 - begin2;
+		if (size1 < size2)
+			return false;
+
+		return strmatch(begin2, end2, begin1 + (size1 - size2));
+	}
+
 	template <typename BeginIt1, typename BeginIt2>
 	constexpr int strncmp(BeginIt1 begin1, BeginIt2 begin2, usize size)
 	{

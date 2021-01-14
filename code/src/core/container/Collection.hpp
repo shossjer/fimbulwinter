@@ -240,6 +240,28 @@ namespace core
 				return keys()[it.bucket_];
 			}
 
+			annotate_nodiscard
+			Key * get_all_keys(Key * buffer, ext::usize size) const
+			{
+				debug_expression(Key * const buffer_end = buffer + size);
+
+				for (auto it = lookup_.data().second; it != lookup_.data().second + lookup_.size(); ++it)
+				{
+					const auto key = *it;
+					if (key == Key{})
+						continue;
+
+					if (debug_assert(buffer != buffer_end))
+					{
+						*buffer++ = key;
+					}
+				}
+				return buffer;
+			}
+
+			annotate_nodiscard
+			constexpr std::size_t table_size() const { return lookup_.size(); }
+
 			void clear()
 			{
 				utl::for_each(
@@ -250,6 +272,8 @@ namespace core
 						std::memset(array.data().second, static_cast<int>(ext::byte{}), array.size() * sizeof(Key));
 						array.clear();
 					});
+
+				std::memset(keys(), static_cast<int>(ext::byte{}), lookup_.size() * sizeof(Key));
 			}
 
 			template <typename Component, typename ...Ps>
@@ -976,7 +1000,7 @@ namespace core
 			{
 				utl::for_each(arrays_, [](auto & array){ array.clear(); });
 
-				keys().memset_fill(0, lookup_.size(), ext::byte{});
+				std::memset(keys(), static_cast<int>(ext::byte{}), lookup_.size() * sizeof(Key));
 			}
 
 			template <typename Component, typename ...Ps>

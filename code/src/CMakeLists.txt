@@ -181,6 +181,7 @@ set(HEADERS_UTILITY
 	src/utility/ranges.hpp
 	src/utility/regex.hpp
 	src/utility/scalar_alloc.hpp
+	src/utility/shared_ptr.hpp
 	src/utility/span.hpp
 	src/utility/spinlock.hpp
 	src/utility/storage.hpp
@@ -197,6 +198,7 @@ set(HEADERS_UTILITY
 	src/utility/unicode/string_view.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
+	src/utility/weak_ptr.hpp
 	)
 
 set(MSVC_UTILITY

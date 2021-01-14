@@ -55,6 +55,37 @@ namespace utility
 		return true;
 	}
 
+	template <typename StorageTraits>
+	bool try_narrow_append(utility::string_points_utfw in, utility::basic_string<StorageTraits, utility::encoding_utf8> & out)
+	{
+		const auto offset = out.size();
+
+		if (!out.try_resize(offset + in.size() * 2)) // note greedily allocate upper bound
+		{
+			ext::usize size = 0;
+
+			typename utility::encoding_traits_utf8::buffer_type buffer;
+			for (auto cp : in)
+			{
+				size += cp.get(buffer.data());
+			}
+
+			if (!out.try_resize(offset + size))
+				return false;
+		}
+
+		utility::encoding_traits_utf8::pointer p = out.data() + offset;
+		for (auto cp : in)
+		{
+			p += cp.get(p);
+		}
+
+		if (!out.try_resize(p - out.data())) // todo no_failure
+			return false;
+
+		return true;
+	}
+
 	template <typename StorageTraits, typename Encoding>
 	auto narrow(utility::string_points_utfw in)
 	{
@@ -122,7 +153,7 @@ namespace utility
 				size += cp.get(buffer.data());
 			}
 
-			if (!out.try_resize(size))
+			if (!out.try_resize(offset + size))
 				return false;
 		}
 
