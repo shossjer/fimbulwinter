@@ -56,6 +56,10 @@ namespace core
 			: data_(start_thread(call_void, (LPVOID)callback))
 		{}
 
+		Thread::Thread(DWORD (* callback)(LPVOID), LPVOID arg)
+			: data_(start_thread(callback, arg))
+		{}
+
 		Thread::Thread(Thread && other)
 			: data_(std::exchange(other.data_, invalid_data))
 		{}

@@ -258,6 +258,10 @@ if(INPUT_HAS_USER32_HID)
 	target_link_libraries(window_dep INTERFACE "${LIBRARY_HID}")
 endif()
 
+# task
+message(STATUS "Task - Dummy (single thread)")
+set(TASK_USE_DUMMY 1)
+
 # text
 cmake_dependent_option(TEXT_USE_FREETYPE "Use Freetype as text/font source" ON "TARGET dep_freetype" OFF)
 cmake_dependent_option(TEXT_USE_USER32 "Use the Windows API as text/font source" ON "WINDOW_USE_USER32" OFF)

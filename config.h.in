@@ -90,6 +90,10 @@
 
 /**
  */
+#cmakedefine TASK_USE_DUMMY 1
+
+/**
+ */
 #cmakedefine TEXT_USE_FREETYPE 1
 /**
  */

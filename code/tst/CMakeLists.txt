@@ -33,6 +33,7 @@ set(FILES_ENGINE
 	tst/engine/hid/ui.cpp
 	tst/engine/MutableEntity.cpp
 	tst/engine/physics/simulation.cpp
+	tst/engine/task/scheduler.cpp
 	tst/engine/Token.cpp
 	)
 

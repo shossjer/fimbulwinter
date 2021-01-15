@@ -60,6 +60,10 @@ namespace core
 			: data_(start_thread(call_void, (void *)callback))
 		{}
 
+		Thread::Thread(void * (* callback)(void *), void * arg)
+			: data_(start_thread(callback, arg))
+		{}
+
 		Thread::Thread(Thread && other)
 			: data_(std::exchange(other.data_, invalid_data))
 		{}
