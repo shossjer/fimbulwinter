@@ -10,22 +10,35 @@ namespace core
 	class ReadStream
 	{
 	private:
+
 		ext::ssize (* callback_)(void * dest, ext::usize n, void * data);
 		void * data_;
 
-		bool done_ = false;
-		bool fail_ = false;
+		bool done_;
+		bool fail_;
 
 		utility::heap_string_utf8 filepath_;
 
 	public:
+
+		explicit ReadStream(utility::heap_string_utf8 && filepath)
+			: callback_(nullptr)
+			, data_(nullptr)
+			, done_(true)
+			, fail_(true)
+			, filepath_(static_cast<utility::heap_string_utf8 &&>(filepath))
+		{}
+
 		explicit ReadStream(ext::ssize (* callback)(void * dest, ext::usize n, void * data), void * data, utility::heap_string_utf8 && filepath)
 			: callback_(callback)
 			, data_(data)
+			, done_(false)
+			, fail_(false)
 			, filepath_(static_cast<utility::heap_string_utf8 &&>(filepath))
 		{}
 
 	public:
+
 		bool done() const { return done_; }
 		bool fail() const { return fail_; }
 

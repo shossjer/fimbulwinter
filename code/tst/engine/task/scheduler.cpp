@@ -60,7 +60,7 @@ TEST_CASE("task scheduler", "[engine][task]")
 
 					Data * const d = utility::any_cast<Data *>(data);
 
-					if (d->scheduler.ptr == scheduler.ptr &&
+					if (d->scheduler == scheduler &&
 					    d->strand == strand)
 					{
 						d->count++;
@@ -94,7 +94,7 @@ TEST_CASE("task scheduler", "[engine][task]")
 
 					Data * const d = utility::any_cast<Data *>(data);
 
-					if (d->scheduler.ptr == scheduler.ptr &&
+					if (d->scheduler == scheduler &&
 					    d->strand == strand &&
 					    d->count % 2 == 0)
 					{
@@ -113,7 +113,7 @@ TEST_CASE("task scheduler", "[engine][task]")
 
 					Data * const d = utility::any_cast<Data *>(data);
 
-					if (d->scheduler.ptr == scheduler.ptr &&
+					if (d->scheduler == scheduler &&
 					    d->strand == strand &&
 					    d->count % 2 == 1)
 					{

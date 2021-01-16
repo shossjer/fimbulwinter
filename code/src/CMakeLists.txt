@@ -57,6 +57,7 @@ set(MSVC_CORE
 
 set(SOURCES_ENGINE
 	src/engine/animation/mixer.cpp
+      src/engine/application/window_dummy.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
 	src/engine/Asset.cpp
@@ -65,9 +66,13 @@ set(SOURCES_ENGINE
 	src/engine/console.cpp
 	src/engine/console_kernel32.cpp
 	src/engine/console_posix.cpp
+	src/engine/file/loader.cpp
 	src/engine/file/system_dummy.cpp
 	src/engine/file/system_inotify.cpp
 	src/engine/file/system_kernel32.cpp
+	src/engine/file/watch/watch_dummy.cpp
+	src/engine/file/watch/watch_inotify.cpp
+	src/engine/file/watch/watch_kernel32.cpp
 	src/engine/graphics/opengl.cpp
 	src/engine/graphics/opengl/Font_freetype.cpp
 	src/engine/graphics/opengl/Font_user32.cpp
@@ -78,6 +83,7 @@ set(SOURCES_ENGINE
 	src/engine/graphics/viewer.cpp
 	src/engine/HashTable.cpp
 	src/engine/hid/devices.cpp
+      src/engine/hid/devices_dummy.cpp
 	src/engine/hid/devices_user32.cpp
 	src/engine/hid/devices_x11.cpp
 	src/engine/hid/ui.cpp
@@ -104,7 +110,13 @@ set(HEADERS_ENGINE
 	src/engine/audio/system.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
+	src/engine/file/loader.hpp
+	src/engine/file/scoped_directory.hpp
+	src/engine/file/scoped_library.hpp
 	src/engine/file/system.hpp
+	src/engine/file/system/callbacks.hpp
+	src/engine/file/system/works.hpp
+	src/engine/file/watch/watch.hpp
 	src/engine/graphics/config.hpp
 	src/engine/graphics/message.hpp
 	src/engine/graphics/opengl.hpp
@@ -119,6 +131,7 @@ set(HEADERS_ENGINE
 	src/engine/hid/input.hpp
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
+	src/engine/module.hpp
 	src/engine/MutableEntity.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
@@ -173,6 +186,7 @@ set(HEADERS_UTILITY
 	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
 	src/utility/overflow.hpp
+	src/utility/overload.hpp
 	src/utility/predicates.hpp
 	src/utility/preprocessor/common.hpp
 	src/utility/preprocessor/count_arguments.hpp

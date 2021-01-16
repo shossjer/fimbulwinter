@@ -1,9 +1,11 @@
+#include "config.h"
+
+#if GRAPHICS_USE_OPENGL
+
 #include "opengl.hpp"
 #include "opengl/Color.hpp"
 #include "opengl/Font.hpp"
 #include "opengl/Matrix.hpp"
-
-#include "config.h"
 
 #include "core/color.hpp"
 #include "core/async/Thread.hpp"
@@ -29,7 +31,6 @@
 #include "utility/variant.hpp"
 
 #include <atomic>
-#include <fstream>
 #include <utility>
 
 using namespace engine::graphics::opengl;
@@ -56,7 +57,6 @@ namespace engine
 
 			extern std::atomic<int> entitytoggle;
 
-			extern engine::graphics::renderer * self;
 			extern engine::application::window * window;
 			extern void (* callback_select)(engine::Token entity, engine::Command command, utility::any && data);
 		}
@@ -624,9 +624,12 @@ namespace
 
 				void operator () (MessageRegisterMaterial && x)
 				{
-					if (x.material.data_opengl_12.diffuse)
+					if (!debug_verify(!x.material.shader))
+						return; // error
+
+					if (x.material.diffuse)
 					{
-						debug_verify(resources.replace<ColorClass>(x.asset, x.material.data_opengl_12.diffuse.value()));
+						debug_verify(resources.replace<ColorClass>(x.asset, x.material.diffuse.value()));
 					}
 					else
 					{
@@ -639,9 +642,24 @@ namespace
 					debug_verify(resources.replace<mesh_t>(x.asset, std::move(x.mesh)));
 				}
 
+				void operator () (MessageRegisterShader && /*x*/)
+				{
+					if (!debug_fail("shaders not supported"))
+						return; // error
+				}
+
 				void operator () (MessageRegisterTexture && /*x*/)
 				{
 					debug_fail("missing implementation");
+				}
+
+				void operator () (MessageUnregister && x)
+				{
+					const auto it = find(resources, x.asset);
+					if (!debug_verify(it != resources.end()))
+						return; // error
+
+					resources.erase(it);
 				}
 
 				void operator () (MessageCreateMaterialInstance && x)
@@ -1284,3 +1302,5 @@ namespace engine
 		}
 	}
 }
+
+#endif
