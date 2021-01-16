@@ -25,11 +25,11 @@ namespace
 			table.emplace(engine::Hash{}.value(), "(\"\")");
 		}
 
-		bool add_string(engine::Hash hash, utility::heap_string_utf8 && string)
+		utility::string_units_utf8 add_string(engine::Hash hash, utility::heap_string_utf8 && string)
 		{
 			std::lock_guard<utility::spinlock> guard(lock);
 			const auto p = table.emplace(hash.value(), std::move(string));
-			return p.second || p.first->second == string;
+			return p.first->second;
 		}
 
 	public:
@@ -48,7 +48,8 @@ namespace
 			      debug_verify(string.try_append("\")"))))
 				return false;
 
-			return debug_verify(add_string(hash, std::move(string)));
+			const auto found_string = add_string(hash, std::move(string));
+			return debug_verify(utility::string_units_utf8(found_string.begin() + 2, found_string.end() - 2) == str);
 		}
 
 		bool add_string(engine::Hash hash, const char * str, std::size_t n)
@@ -59,7 +60,8 @@ namespace
 			      debug_verify(string.try_append("\")"))))
 				return false;
 
-			return debug_verify(add_string(hash, std::move(string)));
+			const auto found_string = add_string(hash, std::move(string));
+			return debug_verify(utility::string_units_utf8(found_string.begin() + 2, found_string.end() - 2) == utility::string_units_utf8(str, n));
 		}
 
 		utility::string_units_utf8 lookup_string(engine::Hash hash)
