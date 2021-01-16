@@ -1,8 +1,9 @@
 #pragma once
 
-#include "engine/Asset.hpp"
+#include "config.h"
+
 #include "engine/file/system/callbacks.hpp"
-#include "engine/Identity.hpp"
+#include "engine/Hash.hpp"
 
 #include "utility/any.hpp"
 #include "utility/container/vector.hpp"
@@ -30,7 +31,7 @@ namespace engine
 #endif
 			std::uint32_t root;
 
-			engine::Asset strand;
+			engine::Hash strand;
 			engine::file::read_callback * callback;
 			utility::any data;
 
@@ -48,9 +49,9 @@ namespace engine
 #elif FILE_SYSTEM_USE_POSIX
 			utility::heap_string_utf8 dirpath;
 #endif
-			engine::Asset directory;
+			engine::Hash directory;
 
-			engine::Asset strand;
+			engine::Hash strand;
 			engine::file::scan_callback * callback;
 			utility::any data;
 
@@ -72,7 +73,7 @@ namespace engine
 #endif
 			std::uint32_t root;
 
-			engine::Asset strand;
+			engine::Hash strand;
 			engine::file::write_callback * callback;
 			utility::any data;
 

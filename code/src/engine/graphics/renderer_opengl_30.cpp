@@ -173,7 +173,7 @@ namespace
 			utility::heap_vector<GLint, utility::heap_string_utf8> uniforms;
 		};
 
-		utility::heap_vector<engine::Asset, Data> shaders;
+		utility::heap_vector<engine::Token, Data> shaders;
 
 		const Data * end() const { return shaders.end().second; }
 
@@ -1164,7 +1164,7 @@ namespace
 						materials.erase(material_it);
 					}
 
-					utility::heap_vector<engine::Asset> textures;
+					utility::heap_vector<engine::Token> textures;
 					if (!debug_verify(textures.try_reserve(x.data.textures.size())))
 						return; // error
 
@@ -1486,7 +1486,7 @@ namespace
 		return buffer;
 	}
 
-	constexpr const auto entity_shader_asset = engine::Asset("_entity_");
+	constexpr const auto entity_shader_asset = engine::Hash("_entity_");
 
 	void initialize_builtin_shaders()
 	{

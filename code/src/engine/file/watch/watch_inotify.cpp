@@ -37,7 +37,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Identity,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<ReadWatch>,
 		utility::heap_storage<ScanWatch>,
@@ -76,7 +76,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Asset,
+		engine::Hash,
 		utility::heap_storage_traits,
 		utility::heap_storage<Alias>
 	>
@@ -194,7 +194,7 @@ namespace
 		}
 	}
 
-	Directory * get_directory(engine::Asset asset)
+	Directory * get_directory(engine::Hash asset)
 	{
 		const auto alias_it = find(aliases, asset);
 		if (alias_it == aliases.end())
@@ -215,7 +215,7 @@ namespace
 		return directory;
 	}
 
-	Directory * get_or_create_directory(engine::Asset asset, fd_t notify_fd, utility::string_units_utf8 filepath)
+	Directory * get_or_create_directory(engine::Hash asset, fd_t notify_fd, utility::string_units_utf8 filepath)
 	{
 		const auto alias_it = find(aliases, asset);
 		if (alias_it != aliases.end())
@@ -262,7 +262,7 @@ namespace
 		}
 	}
 
-	void decrement_alias(fd_t notify_fd, engine::Asset asset)
+	void decrement_alias(fd_t notify_fd, engine::Hash asset)
 	{
 		const auto alias_it = find(aliases, asset);
 		if (!debug_assert(alias_it != aliases.end()))
@@ -370,7 +370,7 @@ namespace
 		}
 	}
 
-	void process_add_read(fd_t notify_fd, engine::Identity watch_id, ext::heap_shared_ptr<engine::file::ReadData> && ptr, bool report_missing)
+	void process_add_read(fd_t notify_fd, engine::Token watch_id, ext::heap_shared_ptr<engine::file::ReadData> && ptr, bool report_missing)
 	{
 		if (!debug_verify(watches.emplace<ReadWatch>(watch_id, ptr)))
 			return;
@@ -401,7 +401,7 @@ namespace
 		}
 	}
 
-	void process_add_scan(fd_t notify_fd, engine::Identity watch_id, ext::heap_shared_ptr<engine::file::ScanData> && ptr, bool recurse_directories)
+	void process_add_scan(fd_t notify_fd, engine::Token watch_id, ext::heap_shared_ptr<engine::file::ScanData> && ptr, bool recurse_directories)
 	{
 		if (recurse_directories)
 		{
@@ -427,7 +427,7 @@ namespace
 		}
 	}
 
-	void process_remove(fd_t notify_fd, engine::Identity watch_id)
+	void process_remove(fd_t notify_fd, engine::Token watch_id)
 	{
 		const auto watch_it = find(watches, watch_id);
 		if (!debug_verify(watch_it != watches.end()))
@@ -721,17 +721,17 @@ namespace engine
 			process_notifications(impl.fd);
 		}
 
-		void add_file_watch(watch_impl & impl, engine::Identity id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing)
+		void add_file_watch(watch_impl & impl, engine::Token id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing)
 		{
 			process_add_read(impl.fd, id, std::move(ptr), report_missing);
 		}
 
-		void add_scan_watch(watch_impl & impl, engine::Identity id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories)
+		void add_scan_watch(watch_impl & impl, engine::Token id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories)
 		{
 			process_add_scan(impl.fd, id, std::move(ptr), recurse_directories);
 		}
 
-		void remove_watch(watch_impl & impl, engine::Identity id)
+		void remove_watch(watch_impl & impl, engine::Token id)
 		{
 			process_remove(impl.fd, id);
 		}

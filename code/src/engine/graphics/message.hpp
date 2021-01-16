@@ -63,7 +63,7 @@ namespace engine
 
 			struct MessageRegisterShader
 			{
-				engine::Asset asset;
+				engine::Token asset;
 				engine::graphics::data::ShaderData data;
 			};
 
@@ -75,7 +75,7 @@ namespace engine
 
 			struct MessageUnregister
 			{
-				engine::Asset asset;
+				engine::Token asset;
 			};
 
 			struct MessageCreateMaterialInstance

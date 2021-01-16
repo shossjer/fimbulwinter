@@ -2,8 +2,8 @@
 
 #include "config.h"
 
-#include "engine/Identity.hpp"
 #include "engine/file/system/works.hpp"
+#include "engine/Token.hpp"
 
 #include "utility/shared_ptr.hpp"
 
@@ -26,8 +26,8 @@ namespace engine
 		void process_watch(watch_impl & impl);
 #endif
 
-		void add_file_watch(watch_impl & impl, engine::Identity id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing);
-		void add_scan_watch(watch_impl & impl, engine::Identity id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories);
-		void remove_watch(watch_impl & impl, engine::Identity id);
+		void add_file_watch(watch_impl & impl, engine::Token id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing);
+		void add_scan_watch(watch_impl & impl, engine::Token id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories);
+		void remove_watch(watch_impl & impl, engine::Token id);
 	}
 }

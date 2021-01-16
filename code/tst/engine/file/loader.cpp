@@ -6,13 +6,14 @@
 #include "engine/file/scoped_directory.hpp"
 #include "engine/file/scoped_library.hpp"
 #include "engine/file/system.hpp"
+#include "engine/HashTable.hpp"
 #include "engine/task/scheduler.hpp"
 
 #include "utility/any.hpp"
 
 #include <catch2/catch.hpp>
 
-debug_assets("tmpdir", "tree.root", "dependency.1", "dependency.2", "dependency.3", "dependency.4", "dependency.5");
+static_hashes("tmpdir", "tree.root", "dependency.1", "dependency.2", "dependency.3", "dependency.4", "dependency.5");
 
 namespace
 {
@@ -52,12 +53,12 @@ TEST_CASE("file loader can read files", "[engine][file]")
 	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
 	engine::file::loader fileloader(taskscheduler, filesystem);
 
-	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));
+	engine::file::scoped_directory tmpdir(filesystem, engine::Hash("tmpdir"));
 
 	SECTION("")
 	{
-		engine::file::write(filesystem, tmpdir, u8"maybe.exists", engine::Asset{}, write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Asset{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		engine::file::write(filesystem, tmpdir, u8"maybe.exists", engine::Hash{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
 		engine::file::scoped_library tmplib(fileloader, tmpdir);
 
@@ -78,10 +79,10 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 			switch (file)
 			{
-			case engine::Asset(u8"maybe.exists"):
+			case engine::Hash(u8"maybe.exists"):
 				file_data.value += int(read_char(stream));
 				break;
-			case engine::Asset(u8"folder/maybe.exists"):
+			case engine::Hash(u8"folder/maybe.exists"):
 				file_data.value += int(read_char(stream));
 				break;
 			default:
@@ -97,10 +98,10 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 			switch (file)
 			{
-			case engine::Asset(u8"maybe.exists"):
+			case engine::Hash(u8"maybe.exists"):
 				file_data.value -= 3;
 				break;
-			case engine::Asset(u8"folder/maybe.exists"):
+			case engine::Hash(u8"folder/maybe.exists"):
 				file_data.value -= 4;
 				break;
 			default:
@@ -250,29 +251,29 @@ namespace
 
 		switch (name)
 		{
-		case engine::Asset(u8"tree.root"):
+		case engine::Hash(u8"tree.root"):
 			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 0; // suspicious
 			sync_data_->ready_values[0]++;
 			sync_data_->ready_event.set();
 			break;
-		case engine::Asset(u8"dependency.1"):
+		case engine::Hash(u8"dependency.1"):
 			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 1; // suspicious
 			sync_data_->ready_values[1]++;
 			break;
-		case engine::Asset(u8"dependency.2"):
+		case engine::Hash(u8"dependency.2"):
 			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 2; // suspicious
 			sync_data_->ready_values[2]++;
 			sync_data_->watch_event.set();
 			break;
-		case engine::Asset(u8"dependency.3"):
+		case engine::Hash(u8"dependency.3"):
 			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 3; // suspicious
 			sync_data_->ready_values[3]++;
 			break;
-		case engine::Asset(u8"dependency.4"):
+		case engine::Hash(u8"dependency.4"):
 			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 4; // suspicious
 			sync_data_->ready_values[4]++;
 			break;
-		case engine::Asset(u8"dependency.5"):
+		case engine::Hash(u8"dependency.5"):
 			const_cast<TreeFileData &>(file_data).unload_value = sync_data_->unload_values + 5; // suspicious
 			sync_data_->ready_values[5]++;
 			break;
@@ -290,22 +291,22 @@ namespace
 
 		switch (name)
 		{
-		case engine::Asset(u8"tree.root"):
+		case engine::Hash(u8"tree.root"):
 			sync_data_->ready_values[0]--;
 			break;
-		case engine::Asset(u8"dependency.1"):
+		case engine::Hash(u8"dependency.1"):
 			sync_data_->ready_values[1]--;
 			break;
-		case engine::Asset(u8"dependency.2"):
+		case engine::Hash(u8"dependency.2"):
 			sync_data_->ready_values[2]--;
 			break;
-		case engine::Asset(u8"dependency.3"):
+		case engine::Hash(u8"dependency.3"):
 			sync_data_->ready_values[3]--;
 			break;
-		case engine::Asset(u8"dependency.4"):
+		case engine::Hash(u8"dependency.4"):
 			sync_data_->ready_values[4]--;
 			break;
-		case engine::Asset(u8"dependency.5"):
+		case engine::Hash(u8"dependency.5"):
 			sync_data_->ready_values[5]--;
 			break;
 		default:
@@ -319,29 +320,29 @@ namespace
 
 		switch (file)
 		{
-		case engine::Asset(u8"tree.root"):
+		case engine::Hash(u8"tree.root"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.2"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
 			file_data.value += int(read_char(stream));
 			break;
-		case engine::Asset(u8"dependency.1"):
+		case engine::Hash(u8"dependency.1"):
 			file_data.value += int(read_char(stream));
 			break;
-		case engine::Asset(u8"dependency.2"):
+		case engine::Hash(u8"dependency.2"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.4"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
 			file_data.value += int(read_char(stream));
 			break;
-		case engine::Asset(u8"dependency.3"):
+		case engine::Hash(u8"dependency.3"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
 			file_data.value += int(read_char(stream));
 			break;
-		case engine::Asset(u8"dependency.4"):
+		case engine::Hash(u8"dependency.4"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.5"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
 			file_data.value += int(read_char(stream));
 			break;
-		case engine::Asset(u8"dependency.5"):
+		case engine::Hash(u8"dependency.5"):
 			file_data.value += int(read_char(stream));
 			break;
 		default:
@@ -358,22 +359,22 @@ namespace
 
 		switch (file)
 		{
-		case engine::Asset(u8"tree.root"):
+		case engine::Hash(u8"tree.root"):
 			*file_data.unload_value -= 1;
 			break;
-		case engine::Asset(u8"dependency.1"):
+		case engine::Hash(u8"dependency.1"):
 			*file_data.unload_value -= 11;
 			break;
-		case engine::Asset(u8"dependency.2"):
+		case engine::Hash(u8"dependency.2"):
 			*file_data.unload_value -= 12;
 			break;
-		case engine::Asset(u8"dependency.3"):
+		case engine::Hash(u8"dependency.3"):
 			*file_data.unload_value -= 13;
 			break;
-		case engine::Asset(u8"dependency.4"):
+		case engine::Hash(u8"dependency.4"):
 			*file_data.unload_value -= 14;
 			break;
-		case engine::Asset(u8"dependency.5"):
+		case engine::Hash(u8"dependency.5"):
 			*file_data.unload_value -= 15;
 			break;
 		default:

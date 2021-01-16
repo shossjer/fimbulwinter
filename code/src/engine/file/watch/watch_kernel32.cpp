@@ -15,9 +15,10 @@
 
 namespace
 {
-	engine::Asset make_asset(utility::string_units_utfw filepath, bool recurse)
+	engine::Hash make_asset(utility::string_units_utfw filepath, bool recurse)
 	{
-		return engine::Asset(engine::Asset(reinterpret_cast<const char *>(filepath.data()), filepath.size() * sizeof(wchar_t)) ^ (recurse ? engine::Asset::value_type(-1) : engine::Asset::value_type{}));
+		// todo
+		return engine::Hash(engine::Hash(reinterpret_cast<const char *>(filepath.data()), filepath.size() * sizeof(wchar_t)) ^ (recurse ? engine::Hash::value_type(-1) : engine::Hash::value_type{}));
 	}
 }
 
@@ -36,7 +37,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Identity,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<ReadWatch>,
 		utility::heap_storage<ScanWatch>
@@ -100,7 +101,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Asset,
+		engine::Hash,
 		utility::heap_storage_traits,
 		utility::heap_storage<Alias>
 	>
@@ -255,7 +256,7 @@ namespace
 		Completion(dwErrorCode, dwNumberOfBytesTransfered, lpOverlapped, false, NonrecursiveCompletion);
 	}
 
-	WatchData * get_directory(engine::Asset asset)
+	WatchData * get_directory(engine::Hash asset)
 	{
 		const auto alias_it = find(aliases, asset);
 		if (alias_it == aliases.end())
@@ -268,7 +269,7 @@ namespace
 		return alias->watch_data;
 	}
 
-	WatchData * get_or_create_directory(engine::Asset asset, utility::string_units_utfw filepath, bool recurse)
+	WatchData * get_or_create_directory(engine::Hash asset, utility::string_units_utfw filepath, bool recurse)
 	{
 		const auto alias_it = find(aliases, asset);
 		if (alias_it != aliases.end())
@@ -309,7 +310,7 @@ namespace
 		}
 	}
 
-	void decrement_alias(engine::Asset asset)
+	void decrement_alias(engine::Hash asset)
 	{
 		const auto alias_it = find(aliases, asset);
 		if (!debug_assert(alias_it != aliases.end()))
@@ -349,7 +350,7 @@ namespace engine
 		watch_impl::watch_impl()
 		{}
 
-		void add_file_watch(engine::file::watch_impl & /*impl*/, engine::Identity id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing)
+		void add_file_watch(engine::file::watch_impl & /*impl*/, engine::Token id, ext::heap_shared_ptr<ReadData> ptr, bool report_missing)
 		{
 			if (!debug_verify(watches.emplace<ReadWatch>(id, ptr)))
 				return;
@@ -380,7 +381,7 @@ namespace engine
 			}
 		}
 
-		void add_scan_watch(engine::file::watch_impl & /*impl*/, engine::Identity id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories)
+		void add_scan_watch(engine::file::watch_impl & /*impl*/, engine::Token id, ext::heap_shared_ptr<ScanData> ptr, bool recurse_directories)
 		{
 			if (!debug_verify(watches.emplace<ScanWatch>(id, ptr, recurse_directories)))
 				return;
@@ -396,7 +397,7 @@ namespace engine
 			}
 		}
 
-		void remove_watch(engine::file::watch_impl & /*impl*/, engine::Identity id)
+		void remove_watch(engine::file::watch_impl & /*impl*/, engine::Token id)
 		{
 			const auto watch_it = find(watches, id);
 			if (!debug_verify(watch_it != watches.end()))

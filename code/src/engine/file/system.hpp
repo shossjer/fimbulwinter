@@ -1,7 +1,7 @@
 #pragma once
 
-#include "engine/Asset.hpp"
-#include "engine/Identity.hpp"
+#include "engine/Hash.hpp"
+#include "engine/Token.hpp"
 #include "engine/file/system/callbacks.hpp"
 #include "engine/module.hpp"
 
@@ -92,34 +92,33 @@ namespace engine
 			friend constexpr bool operator != (flags a, flags b) { return !(a == b); }
 		};
 
-		constexpr const engine::Asset working_directory = engine::Asset{static_cast<uint32_t>(-1)};
+		constexpr const engine::Hash working_directory = engine::Hash("_working directory_");
 
-		// todo change into identity
-		void register_directory(system & system, engine::Asset name, utility::heap_string_utf8 && filepath, engine::Asset parent);
-		void register_temporary_directory(system & system, engine::Asset name);
-		void unregister_directory(system & system, engine::Asset name);
+		void register_directory(system & system, engine::Hash name, utility::heap_string_utf8 && filepath, engine::Hash parent);
+		void register_temporary_directory(system & system, engine::Hash name);
+		void unregister_directory(system & system, engine::Hash name);
 
 		// mode ADD_WATCH | RECURSE_DIRECTORIES | REPORT_MISSING
 		void read(
 			system & system,
-			engine::Identity id,
-			engine::Asset directory,
+			engine::Token id,
+			engine::Hash directory,
 			utility::heap_string_utf8 && filepath,
-			engine::Asset strand,
+			engine::Hash strand,
 			read_callback * callback,
 			utility::any && data,
 			flags mode = flags{});
 
 		void remove_watch(
 			system & system,
-			engine::Identity id);
+			engine::Token id);
 
 		// mode IGNORE_EXISTING | ADD_WATCH | RECURSE_DIRECTORIES
 		void scan(
 			system & system,
-			engine::Identity id,
-			engine::Asset directory,
-			engine::Asset strand,
+			engine::Token id,
+			engine::Hash directory,
+			engine::Hash strand,
 			scan_callback * callback,
 			utility::any && data,
 			flags mode = flags{});
@@ -127,9 +126,9 @@ namespace engine
 		// mode OVERWRITE_EXISTING | APPEND_EXISTING | CREATE_DIRECTORIES
 		void write(
 			system & system,
-			engine::Asset directory,
+			engine::Hash directory,
 			utility::heap_string_utf8 && filepath,
-			engine::Asset strand,
+			engine::Hash strand,
 			write_callback * callback,
 			utility::any && data,
 			flags mode = flags{});

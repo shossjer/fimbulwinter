@@ -2,6 +2,7 @@
 
 #include "engine/Asset.hpp"
 #include "engine/module.hpp"
+#include "engine/Token.hpp"
 
 namespace core
 {
@@ -46,11 +47,11 @@ namespace engine
 			utility::any & stash,
 			engine::Asset file);
 
-		void register_library(loader & loader, engine::Asset directory);
-		void unregister_library(loader & loader, engine::Asset directory);
+		void register_library(loader & loader, engine::Hash directory);
+		void unregister_library(loader & loader, engine::Hash directory);
 
-		void register_filetype(loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall);
-		void unregister_filetype(loader & loader, engine::Asset filetype);
+		void register_filetype(loader & loader, engine::Hash filetype, load_callback * loadcall, unload_callback * unloadcall);
+		void unregister_filetype(loader & loader, engine::Hash filetype);
 
 		using ready_callback = void(
 			loader & loader,
@@ -67,9 +68,9 @@ namespace engine
 
 		void load_independent(
 			loader & loader,
-			engine::Asset tag,
+			engine::Token tag,
 			engine::Asset name,
-			engine::Asset filetype,
+			engine::Hash filetype,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data);
@@ -78,21 +79,21 @@ namespace engine
 			loader & loader,
 			engine::Asset owner,
 			engine::Asset name,
-			engine::Asset filetype,
+			engine::Hash filetype,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data);
 
 		void unload_independent(
 			loader & loader,
-			engine::Asset tag);
+			engine::Token tag);
 
 		class scoped_filetype
 		{
 		private:
 
 			engine::file::loader & loader_;
-			engine::Asset filetype_;
+			engine::Hash filetype_;
 
 		public:
 
@@ -101,7 +102,7 @@ namespace engine
 				engine::file::unregister_filetype(loader_, filetype_);
 			}
 
-			explicit scoped_filetype(engine::file::loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall)
+			explicit scoped_filetype(engine::file::loader & loader, engine::Hash filetype, load_callback * loadcall, unload_callback * unloadcall)
 				: loader_(loader)
 				, filetype_(filetype)
 			{
@@ -110,7 +111,7 @@ namespace engine
 
 		public:
 
-			operator engine::Asset () const { return filetype_; }
+			operator engine::Hash() const { return filetype_; }
 		};
 	}
 }

@@ -11,18 +11,23 @@
 
 #include "engine/file/system.hpp"
 #include "engine/file/watch/watch.hpp"
+#include "engine/HashTable.hpp"
 #include "engine/task/scheduler.hpp"
 
 #include "utility/any.hpp"
+#include "utility/optional.hpp"
 #include "utility/shared_ptr.hpp"
 
 #include <Windows.h>
 
+static_hashes("_working directory_");
+
 namespace
 {
-	engine::Asset make_asset(utility::string_units_utfw filepath)
+	engine::Hash make_asset(utility::string_units_utfw filepath)
 	{
-		return engine::Asset(reinterpret_cast<const char *>(filepath.data()), filepath.size() * sizeof(wchar_t));
+		// todo maybe add wchar_t support for Asset?
+		return engine::Hash(reinterpret_cast<const char *>(filepath.data()), filepath.size() * sizeof(wchar_t));
 	}
 }
 
@@ -51,7 +56,7 @@ namespace
 
 	struct Alias
 	{
-		engine::Asset directory;
+		engine::Token directory;
 	};
 }
 
@@ -65,11 +70,11 @@ namespace engine
 
 			engine::file::watch_impl watch_impl;
 
-			engine::Asset strand;
+			engine::Hash strand;
 
 			core::container::Collection
 			<
-				engine::Asset,
+				engine::Token,
 				utility::heap_storage_traits,
 				utility::heap_storage<Directory>,
 				utility::heap_storage<TemporaryDirectory>
@@ -78,7 +83,7 @@ namespace engine
 
 			core::container::Collection
 			<
-				engine::Asset,
+				engine::Token,
 				utility::heap_storage_traits,
 				utility::heap_storage<Alias>
 			>
@@ -474,12 +479,12 @@ namespace engine
 		void post_work(FileMissingWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 			{
 				if (debug_assert(data.type_id() == utility::type_id<FileMissingWork>()))
 				{
@@ -511,12 +516,12 @@ namespace engine
 		void post_work(FileReadWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 			{
 				if (debug_assert(data.type_id() == utility::type_id<FileReadWork>()))
 				{
@@ -554,12 +559,12 @@ namespace engine
 		void post_work(ScanChangeWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 			{
 				if (debug_assert(data.type_id() == utility::type_id<ScanChangeWork>()))
 				{
@@ -610,12 +615,12 @@ namespace engine
 		void post_work(ScanOnceWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 			{
 				if (debug_assert(data.type_id() == utility::type_id<ScanOnceWork>()))
 				{
@@ -649,12 +654,12 @@ namespace engine
 		void post_work(ScanRecursiveWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 			{
 				if (debug_assert(data.type_id() == utility::type_id<ScanRecursiveWork>()))
 				{
@@ -688,12 +693,12 @@ namespace engine
 		void post_work(FileWriteWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 			{
 				if (debug_assert(data.type_id() == utility::type_id<FileWriteWork>()))
 				{
@@ -729,9 +734,9 @@ namespace
 	struct ProcessRegisterDirectory
 	{
 		engine::file::system_impl & impl;
-		engine::Asset alias;
+		engine::Hash alias;
 		utility::heap_string_utf8 filepath;
-		engine::Asset parent;
+		engine::Hash parent;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
 		{
@@ -793,7 +798,7 @@ namespace
 	struct ProcessRegisterTemporaryDirectory
 	{
 		engine::file::system_impl & impl;
-		engine::Asset alias;
+		engine::Hash alias;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
 		{
@@ -842,7 +847,7 @@ namespace
 	struct ProcessUnregisterDirectory
 	{
 		engine::file::system_impl & impl;
-		engine::Asset alias;
+		engine::Hash alias;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
 		{
@@ -885,10 +890,10 @@ namespace
 	struct ProcessRead
 	{
 		engine::file::system_impl & impl;
-		engine::Identity id;
-		engine::Asset directory;
+		engine::Token id;
+		engine::Hash directory;
 		utility::heap_string_utf8 filepath;
-		engine::Asset strand;
+		engine::Hash strand;
 		engine::file::read_callback * callback;
 		utility::any data;
 		engine::file::flags mode;
@@ -937,7 +942,7 @@ namespace
 	struct ProcessRemoveWatch
 	{
 		engine::file::system_impl & impl;
-		engine::Identity id;
+		engine::Token id;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
 		{
@@ -951,9 +956,9 @@ namespace
 	struct ProcessScan
 	{
 		engine::file::system_impl & impl;
-		engine::Identity id;
-		engine::Asset directory;
-		engine::Asset strand;
+		engine::Token id;
+		engine::Hash directory;
+		engine::Hash strand;
 		engine::file::scan_callback * callback;
 		utility::any data;
 		engine::file::flags mode;
@@ -1000,9 +1005,9 @@ namespace
 	struct ProcessWrite
 	{
 		engine::file::system_impl & impl;
-		engine::Asset directory;
+		engine::Hash directory;
 		utility::heap_string_utf8 filepath;
-		engine::Asset strand;
+		engine::Hash strand;
 		engine::file::write_callback * callback;
 		utility::any data;
 		engine::file::flags mode;
@@ -1188,33 +1193,33 @@ namespace engine
 
 		void register_directory(
 			system & system,
-			engine::Asset name,
+			engine::Hash name,
 			utility::heap_string_utf8 && filepath,
-			engine::Asset parent)
+			engine::Hash parent)
 		{
 			try_queue_apc<ProcessRegisterDirectory>(system->hThread, *system, name, std::move(filepath), parent);
 		}
 
 		void register_temporary_directory(
 			system & system,
-			engine::Asset name)
+			engine::Hash name)
 		{
 			try_queue_apc<ProcessRegisterTemporaryDirectory>(system->hThread, *system, name);
 		}
 
 		void unregister_directory(
 			system & system,
-			engine::Asset name)
+			engine::Hash name)
 		{
 			try_queue_apc<ProcessUnregisterDirectory>(system->hThread, *system, name);
 		}
 
 		void read(
 			system & system,
-			engine::Identity id,
-			engine::Asset directory,
+			engine::Token id,
+			engine::Hash directory,
 			utility::heap_string_utf8 && filepath,
-			engine::Asset strand,
+			engine::Hash strand,
 			read_callback * callback,
 			utility::any && data,
 			flags mode)
@@ -1224,16 +1229,16 @@ namespace engine
 
 		void remove_watch(
 			system & system,
-			engine::Identity id)
+			engine::Token id)
 		{
 			try_queue_apc<ProcessRemoveWatch>(system->hThread, *system, id);
 		}
 
 		void scan(
 			system & system,
-			engine::Identity id,
-			engine::Asset directory,
-			engine::Asset strand,
+			engine::Token id,
+			engine::Hash directory,
+			engine::Hash strand,
 			scan_callback * callback,
 			utility::any && data,
 			flags mode)
@@ -1243,9 +1248,9 @@ namespace engine
 
 		void write(
 			system & system,
-			engine::Asset directory,
+			engine::Hash directory,
 			utility::heap_string_utf8 && filepath,
-			engine::Asset strand,
+			engine::Hash strand,
 			write_callback * callback,
 			utility::any && data,
 			flags mode)

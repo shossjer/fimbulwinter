@@ -6,6 +6,7 @@
 #include "core/sync/Event.hpp"
 
 #include "engine/file/system.hpp"
+#include "engine/HashTable.hpp"
 #include "engine/task/scheduler.hpp"
 
 #include "utility/any.hpp"
@@ -18,6 +19,8 @@
 
 #include <atomic>
 #include <memory>
+
+static_hashes("_file_loader_");
 
 namespace
 {
@@ -38,7 +41,7 @@ namespace
 	struct FileCallData
 	{
 		engine::file::loader_impl & impl;
-		utility::heap_vector<engine::Asset, RelationCallback> calls;
+		utility::heap_vector<engine::Token, RelationCallback> calls;
 		Filetype filetype;
 		utility::any stash;
 
@@ -55,7 +58,7 @@ namespace
 	{
 		ext::heap_shared_ptr<FileCallData> call_ptr;
 
-		engine::Asset tag;
+		engine::Token tag;
 		RelationCallback callback;
 	};
 
@@ -68,24 +71,24 @@ namespace
 		static void file_load(engine::file::system & filesystem, core::ReadStream && stream, utility::any & data);
 	};
 
-	constexpr auto global = engine::Asset{};
-	constexpr auto strand = engine::Asset("_file_loader_");
+	constexpr auto global = engine::Hash{};
+	constexpr auto strand = engine::Hash("_file_loader_");
 }
 
 namespace
 {
 	struct MessageFileScan
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 		utility::heap_string_utf8 existing_files;
 		utility::heap_string_utf8 removed_files;
 	};
 
 	struct MessageLoadIndependent
 	{
-		engine::Asset tag;
+		engine::Token tag;
 		engine::Asset name;
-		engine::Asset filetype;
+		engine::Hash filetype;
 		engine::file::ready_callback * readycall;
 		engine::file::unready_callback * unreadycall;
 		utility::any data;
@@ -95,7 +98,7 @@ namespace
 	{
 		engine::Asset owner;
 		engine::Asset name;
-		engine::Asset filetype;
+		engine::Hash filetype;
 		engine::file::ready_callback * readycall;
 		engine::file::unready_callback * unreadycall;
 		utility::any data;
@@ -113,29 +116,29 @@ namespace
 
 	struct MessageRegisterFiletype
 	{
-		engine::Asset filetype;
+		engine::Hash filetype;
 		engine::file::load_callback * loadcall;
 		engine::file::unload_callback * unloadcall;
 	};
 
 	struct MessageRegisterLibrary
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 	};
 
 	struct MessageUnloadIndependent
 	{
-		engine::Asset tag;
+		engine::Token tag;
 	};
 
 	struct MessageUnregisterFiletype
 	{
-		engine::Asset filetype;
+		engine::Hash filetype;
 	};
 
 	struct MessageUnregisterLibrary
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 	};
 
 	using Message = utility::variant
@@ -174,7 +177,7 @@ namespace engine
 			engine::task::scheduler * taskscheduler;
 			engine::file::system * filesystem;
 
-			engine::Asset scanning_directory{};
+			engine::Hash scanning_directory{};
 			utility::heap_vector<Message> delayed_messages;
 		};
 	}
@@ -211,7 +214,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Asset,
+		engine::Hash,
 		utility::heap_storage_traits,
 		utility::heap_storage<Filetype>
 	>
@@ -219,15 +222,15 @@ namespace
 
 	struct AmbiguousFile
 	{
-		utility::heap_vector<engine::Asset, utility::heap_string_utf8> metas;
+		utility::heap_vector<engine::Hash, utility::heap_string_utf8> metas;
 
-		utility::heap_vector<engine::Asset, engine::Asset> radicals;
+		utility::heap_vector<engine::Hash, engine::Asset> radicals;
 
-		explicit AmbiguousFile(utility::heap_vector<engine::Asset, engine::Asset> && radicals)
+		explicit AmbiguousFile(utility::heap_vector<engine::Hash, engine::Asset> && radicals)
 			: radicals(std::move(radicals))
 		{}
 
-		explicit AmbiguousFile(utility::heap_vector<engine::Asset, utility::heap_string_utf8> && metas, utility::heap_vector<engine::Asset, engine::Asset> && radicals)
+		explicit AmbiguousFile(utility::heap_vector<engine::Hash, utility::heap_string_utf8> && metas, utility::heap_vector<engine::Hash, engine::Asset> && radicals)
 			: metas(std::move(metas))
 			, radicals(std::move(radicals))
 		{}
@@ -239,23 +242,23 @@ namespace
 
 	struct RadicalFile
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 		engine::Asset file;
 	};
 
 	struct UniqueFile
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 		utility::heap_string_utf8 filepath;
 
-		utility::heap_vector<engine::Asset, engine::Asset> radicals;
+		utility::heap_vector<engine::Hash, engine::Asset> radicals;
 
-		explicit UniqueFile(engine::Asset directory, utility::heap_string_utf8 && filepath)
+		explicit UniqueFile(engine::Hash directory, utility::heap_string_utf8 && filepath)
 			: directory(directory)
 			, filepath(std::move(filepath))
 		{}
 
-		explicit UniqueFile(engine::Asset directory, utility::heap_string_utf8 && filepath, utility::heap_vector<engine::Asset, engine::Asset> && radicals)
+		explicit UniqueFile(engine::Hash directory, utility::heap_string_utf8 && filepath, utility::heap_vector<engine::Hash, engine::Asset> && radicals)
 			: directory(directory)
 			, filepath(std::move(filepath))
 			, radicals(std::move(radicals))
@@ -291,8 +294,8 @@ namespace
 
 	struct LoadingLoad
 	{
-		engine::Asset filetype;
-		engine::Asset directory;
+		engine::Hash filetype;
+		engine::Hash directory;
 		engine::Asset radical;
 		utility::heap_string_utf8 filepath;
 
@@ -304,7 +307,7 @@ namespace
 		std::int32_t previous_count; // the number of attachments after loading completed
 		std::int32_t remaining_count; // the remaining number of attachments that are required (the most significant bit is set if the file itself is not yet finished reading)
 
-		explicit LoadingLoad(engine::Asset filetype, engine::Asset directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr)
+		explicit LoadingLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr)
 			: filetype(filetype)
 			, directory(directory)
 			, radical(radical)
@@ -314,7 +317,7 @@ namespace
 			, remaining_count(INT_MIN)
 		{}
 
-		explicit LoadingLoad(engine::Asset filetype, engine::Asset directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+		explicit LoadingLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
 			: filetype(filetype)
 			, directory(directory)
 			, radical(radical)
@@ -329,8 +332,8 @@ namespace
 
 	struct LoadedLoad
 	{
-		engine::Asset filetype;
-		engine::Asset directory;
+		engine::Hash filetype;
+		engine::Hash directory;
 		engine::Asset radical;
 		utility::heap_string_utf8 filepath;
 
@@ -339,7 +342,7 @@ namespace
 		utility::heap_vector<engine::Asset> owners;
 		utility::heap_vector<engine::Asset> attachments;
 
-		explicit LoadedLoad(engine::Asset filetype, engine::Asset directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+		explicit LoadedLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
 			: filetype(filetype)
 			, directory(directory)
 			, radical(radical)
@@ -378,7 +381,7 @@ namespace
 
 	core::container::Collection
 	<
-		engine::Asset,
+		engine::Token,
 		utility::heap_storage_traits,
 		utility::heap_storage<FileTag>
 	>
@@ -396,7 +399,7 @@ namespace
 		engine::task::post_work(
 			*impl.taskscheduler,
 			file,
-			[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+			[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 		{
 			// note strand is the underlying file
 			if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -409,7 +412,7 @@ namespace
 				{
 					for (auto && call : call_data.calls)
 					{
-						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, strand_);
+						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 					}
 					call_data.ready = true;
 				}
@@ -455,7 +458,7 @@ namespace
 				engine::task::post_work(
 					*impl.taskscheduler,
 					relation.second,
-					[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+					[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 				{
 					// note strand is the underlying file
 					if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Asset>>())))
@@ -470,7 +473,7 @@ namespace
 						if (!debug_assert(!call_data.ready))
 						{
 							engine::file::loader loader(call_data.impl);
-							call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, strand_);
+							call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, engine::Asset(strand_));
 							loader.detach();
 						}
 
@@ -491,7 +494,7 @@ namespace
 					engine::task::post_work(
 						*impl.taskscheduler,
 						relation.second,
-						[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+						[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 					{
 						// note strand is the underlying file
 						if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -506,10 +509,10 @@ namespace
 							{
 								for (auto && call : call_data.calls)
 								{
-									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, strand_);
+									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 								}
 							}
-							call_data.filetype.unloadcall(loader, call_data.stash, strand_);
+							call_data.filetype.unloadcall(loader, call_data.stash, engine::Asset(strand_));
 							loader.detach();
 						}
 					},
@@ -539,7 +542,7 @@ namespace
 				engine::task::post_work(
 					*impl.taskscheduler,
 					relation.second,
-					[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+					[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 				{
 					// note strand is the underlying file
 					if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Asset>>())))
@@ -554,7 +557,7 @@ namespace
 						if (debug_assert(call_data.ready))
 						{
 							engine::file::loader loader(call_data.impl);
-							call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, strand_);
+							call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, engine::Asset(strand_));
 							loader.detach();
 						}
 
@@ -575,7 +578,7 @@ namespace
 					engine::task::post_work(
 						*impl.taskscheduler,
 						relation.second,
-						[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+						[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 					{
 						// note strand is the underlying file
 						if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -590,10 +593,10 @@ namespace
 							{
 								for (auto && call : call_data.calls)
 								{
-									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, strand_);
+									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 								}
 							}
-							call_data.filetype.unloadcall(loader, call_data.stash, strand_);
+							call_data.filetype.unloadcall(loader, call_data.stash, engine::Asset(strand_));
 							loader.detach();
 						}
 					},
@@ -619,12 +622,12 @@ namespace
 
 	bool load_new(
 		engine::file::loader_impl & impl,
-		engine::Asset tag,
+		engine::Token tag,
 		engine::Asset owner,
 		engine::Asset file,
 		decltype(files.end()) file_it,
 		engine::Asset name,
-		engine::Asset filetype,
+		engine::Hash filetype,
 		engine::file::ready_callback * readycall,
 		engine::file::unready_callback * unreadycall,
 		utility::any && data)
@@ -674,12 +677,12 @@ namespace
 
 	bool load_old(
 		engine::file::loader_impl & impl,
-		engine::Asset tag,
+		engine::Token tag,
 		engine::Asset owner,
 		engine::Asset file,
 		decltype(loads.end()) file_it,
 		engine::Asset name,
-		engine::Asset filetype,
+		engine::Hash filetype,
 		engine::file::ready_callback * readycall,
 		engine::file::unready_callback * unreadycall,
 		utility::any && data)
@@ -697,7 +700,7 @@ namespace
 			engine::task::post_work(
 				*impl.taskscheduler,
 				file,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 			{
 				// note strand is the underlying file
 				if (debug_assert(data.type_id() == utility::type_id<FileCallDataPlusOne>()))
@@ -713,7 +716,7 @@ namespace
 						auto && call = ext::back(call_data.calls);
 
 						engine::file::loader loader(call_data.impl);
-						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, strand_);
+						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 						loader.detach();
 					}
 				}
@@ -733,7 +736,7 @@ namespace
 			engine::task::post_work(
 				*impl.taskscheduler,
 				file,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 			{
 				// note strand is the underlying file
 				if (debug_assert(data.type_id() == utility::type_id<FileCallDataPlusOne>()))
@@ -749,7 +752,7 @@ namespace
 						auto && call = ext::back(call_data.calls);
 
 						engine::file::loader loader(call_data.impl);
-						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, strand_);
+						call.second.readycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 						loader.detach();
 					}
 				}
@@ -762,7 +765,7 @@ namespace
 
 	bool remove_file(
 		engine::file::loader_impl & impl,
-		engine::Asset tag,
+		engine::Token tag,
 		engine::Asset file,
 		decltype(loads.end()) load_it)
 	{
@@ -777,12 +780,12 @@ namespace
 			engine::task::post_work(
 				*impl.taskscheduler,
 				file,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 			{
 				// note strand is the underlying file
-				if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Asset>>())))
+				if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Token>>())))
 				{
-					std::pair<FileCallPtr, engine::Asset> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Asset> &&>(std::move(data));
+					std::pair<FileCallPtr, engine::Token> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Token> &&>(std::move(data));
 					FileCallData & call_data = *call_ptr.first;
 
 					const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
@@ -792,7 +795,7 @@ namespace
 					if (!debug_assert(!call_data.ready))
 					{
 						engine::file::loader loader(call_data.impl);
-						call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, strand_);
+						call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, engine::Asset(strand_));
 						loader.detach();
 					}
 
@@ -816,7 +819,7 @@ namespace
 					engine::task::post_work(
 						*impl.taskscheduler,
 						file,
-						[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+						[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 					{
 						// note strand is the underlying file
 						if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -831,10 +834,10 @@ namespace
 							{
 								for (auto && call : call_data.calls)
 								{
-									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, strand_);
+									call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 								}
 							}
-							call_data.filetype.unloadcall(loader, call_data.stash, strand_);
+							call_data.filetype.unloadcall(loader, call_data.stash, engine::Asset(strand_));
 							loader.detach();
 						}
 					},
@@ -869,12 +872,12 @@ namespace
 			engine::task::post_work(
 				*impl.taskscheduler,
 				file,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 			{
 				// note strand is the underlying file
-				if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Asset>>())))
+				if (debug_assert(data.type_id() == (utility::type_id<std::pair<FileCallPtr, engine::Token>>())))
 				{
-					std::pair<FileCallPtr, engine::Asset> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Asset> &&>(std::move(data));
+					std::pair<FileCallPtr, engine::Token> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Token> &&>(std::move(data));
 					FileCallData & call_data = *call_ptr.first;
 
 					const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
@@ -884,7 +887,7 @@ namespace
 					if (debug_assert(call_data.ready))
 					{
 						engine::file::loader loader(call_data.impl);
-						call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, strand_);
+						call_it.second->unreadycall(loader, call_it.second->data, call_it.second->name, call_data.stash, engine::Asset(strand_));
 						loader.detach();
 					}
 
@@ -905,7 +908,7 @@ namespace
 				engine::task::post_work(
 					*impl.taskscheduler,
 					file,
-					[](engine::task::scheduler & /*scheduler*/, engine::Asset strand_, utility::any && data)
+					[](engine::task::scheduler & /*scheduler*/, engine::Hash strand_, utility::any && data)
 				{
 					// note strand is the underlying file
 					if (debug_assert(data.type_id() == utility::type_id<FileCallPtr>()))
@@ -918,10 +921,10 @@ namespace
 						{
 							for (auto && call : call_data.calls)
 							{
-								call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, strand_);
+								call.second.unreadycall(loader, call.second.data, call.second.name, call_data.stash, engine::Asset(strand_));
 							}
 						}
-						call_data.filetype.unloadcall(loader, call_data.stash, strand_);
+						call_data.filetype.unloadcall(loader, call_data.stash, engine::Asset(strand_));
 						loader.detach();
 					}
 				},
@@ -1237,7 +1240,7 @@ namespace
 								},
 									[&](RadicalFile & y)
 								{
-									utility::heap_vector<engine::Asset, engine::Asset> radicals;
+									utility::heap_vector<engine::Hash, engine::Asset> radicals;
 									if (!debug_verify(radicals.try_emplace_back(y.directory, y.file)))
 										return; // error
 
@@ -1249,7 +1252,7 @@ namespace
 								{
 									if (!(y.directory == x.directory && y.filepath == filepath))
 									{
-										utility::heap_vector<engine::Asset, utility::heap_string_utf8> metas;
+										utility::heap_vector<engine::Hash, utility::heap_string_utf8> metas;
 										if (!debug_verify(metas.try_emplace_back(y.directory, std::move(y.filepath))))
 											return; // error
 										if (!debug_verify(metas.try_emplace_back(x.directory, utility::heap_string_utf8(filepath))))
@@ -1288,7 +1291,7 @@ namespace
 										},
 											[&](RadicalFile & y)
 										{
-											utility::heap_vector<engine::Asset, engine::Asset> radicals;
+											utility::heap_vector<engine::Hash, engine::Asset> radicals;
 											if (!debug_verify(radicals.try_emplace_back(y.directory, y.file)))
 												return; // error
 											if (!debug_verify(radicals.try_emplace_back(x.directory, file_asset)))
@@ -1329,7 +1332,7 @@ namespace
 					if (!debug_verify(tags.emplace<FileTag>(x.tag, underlying_load.first)))
 						return; // error
 
-					if (!load_old(impl, x.tag, global, underlying_load.first, underlying_load.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+					if (!load_old(impl, x.tag, engine::Asset(global), underlying_load.first, underlying_load.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 						return; // error
 				}
 				else
@@ -1351,7 +1354,7 @@ namespace
 						if (!debug_verify(tags.emplace<FileTag>(x.tag, underlying_load_.first)))
 							return; // error
 
-						if (!load_old(impl, x.tag, global, underlying_load_.first, underlying_load_.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_old(impl, x.tag, engine::Asset(global), underlying_load_.first, underlying_load_.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 					else
@@ -1359,7 +1362,7 @@ namespace
 						if (!debug_verify(tags.emplace<FileTag>(x.tag, underlying_file.first)))
 							return; // error
 
-						if (!load_new(impl, x.tag, global, underlying_file.first, underlying_file.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_new(impl, x.tag, engine::Asset(global), underlying_file.first, underlying_file.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 				}
@@ -1484,7 +1487,7 @@ namespace
 				}
 				else
 				{
-					if (!debug_verify(files.emplace<DirectoryFile>(x.directory)))
+					if (!debug_verify(files.emplace<DirectoryFile>(engine::Asset(x.directory))))
 						return; // error
 				}
 			}
@@ -1530,7 +1533,7 @@ namespace
 		visit(ProcessMessage{impl}, std::move(message));
 	}
 
-	void loader_update(engine::task::scheduler & /*taskscheduler*/, engine::Asset /*strand*/, utility::any && data)
+	void loader_update(engine::task::scheduler & /*taskscheduler*/, engine::Hash /*strand*/, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<Task>()))
 			return;
@@ -1585,7 +1588,7 @@ namespace
 
 namespace
 {
-	void file_scan(engine::file::system & /*filesystem*/, engine::Asset directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && removed_files, utility::any & data)
+	void file_scan(engine::file::system & /*filesystem*/, engine::Hash directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && removed_files, utility::any & data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<engine::file::loader *>()))
 			return;
@@ -1634,7 +1637,7 @@ namespace engine
 			engine::task::post_work(
 				*impl.taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<core::sync::Event<true> *>()))
 					return;
@@ -1663,7 +1666,7 @@ namespace engine
 			return impl;
 		}
 
-		void register_library(loader & loader, engine::Asset directory)
+		void register_library(loader & loader, engine::Hash directory)
 		{
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterLibrary>, directory));
 
@@ -1676,7 +1679,7 @@ namespace engine
 			engine::file::scan(*loader->filesystem, id, directory, strand, file_scan, &loader, mode);
 		}
 
-		void unregister_library(loader & loader, engine::Asset directory)
+		void unregister_library(loader & loader, engine::Hash directory)
 		{
 #if MODE_DEBUG
 			const auto id = directory;
@@ -1686,21 +1689,21 @@ namespace engine
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterLibrary>, directory));
 		}
 
-		void register_filetype(loader & loader, engine::Asset filetype, load_callback * loadcall, unload_callback * unloadcall)
+		void register_filetype(loader & loader, engine::Hash filetype, load_callback * loadcall, unload_callback * unloadcall)
 		{
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterFiletype>, filetype, loadcall, unloadcall));
 		}
 
-		void unregister_filetype(loader & loader, engine::Asset filetype)
+		void unregister_filetype(loader & loader, engine::Hash filetype)
 		{
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterFiletype>, filetype));
 		}
 
 		void load_independent(
 			loader & loader,
-			engine::Asset tag,
+			engine::Token tag,
 			engine::Asset name,
-			engine::Asset filetype,
+			engine::Hash filetype,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data)
@@ -1712,7 +1715,7 @@ namespace engine
 			loader & loader,
 			engine::Asset owner,
 			engine::Asset name,
-			engine::Asset filetype,
+			engine::Hash filetype,
 			ready_callback * readycall,
 			unready_callback * unreadycall,
 			utility::any && data)
@@ -1722,7 +1725,7 @@ namespace engine
 
 		void unload_independent(
 			loader & loader,
-			engine::Asset tag)
+			engine::Token tag)
 		{
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnloadIndependent>, tag));
 		}

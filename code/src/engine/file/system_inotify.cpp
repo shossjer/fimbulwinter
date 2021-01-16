@@ -8,12 +8,15 @@
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
+#include "engine/Asset.hpp"
 #include "engine/file/system.hpp"
 #include "engine/file/watch/watch.hpp"
+#include "engine/HashTable.hpp"
 #include "engine/task/scheduler.hpp"
 
 #include "utility/any.hpp"
 #include "utility/ext/unistd.hpp"
+#include "utility/optional.hpp"
 #include "utility/shared_ptr.hpp"
 
 #include <dirent.h>
@@ -23,6 +26,8 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+static_hashes("_working directory_");
 
 namespace
 {
@@ -49,7 +54,7 @@ namespace
 
 	struct Alias
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 	};
 }
 
@@ -61,11 +66,11 @@ namespace engine
 		{
 			engine::task::scheduler * taskscheduler;
 
-			engine::Asset strand;
+			engine::Hash strand;
 
 			core::container::Collection
 			<
-				engine::Asset,
+				engine::Hash,
 				utility::heap_storage_traits,
 				utility::heap_storage<Directory>,
 				utility::heap_storage<TemporaryDirectory>
@@ -74,7 +79,7 @@ namespace engine
 
 			core::container::Collection
 			<
-				engine::Asset,
+				engine::Hash,
 				utility::heap_storage_traits,
 				utility::heap_storage<Alias>
 			>
@@ -458,12 +463,12 @@ namespace engine
 		void post_work(FileMissingWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 				{
 					if (debug_assert(data.type_id() == utility::type_id<FileMissingWork>()))
 					{
@@ -487,12 +492,12 @@ namespace engine
 		void post_work(FileReadWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 				{
 					if (debug_assert(data.type_id() == utility::type_id<FileReadWork>()))
 					{
@@ -522,12 +527,12 @@ namespace engine
 		void post_work(ScanChangeWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 				{
 					if (debug_assert(data.type_id() == utility::type_id<ScanChangeWork>()))
 					{
@@ -567,12 +572,12 @@ namespace engine
 		void post_work(ScanOnceWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 				{
 					if (debug_assert(data.type_id() == utility::type_id<ScanOnceWork>()))
 					{
@@ -594,12 +599,12 @@ namespace engine
 		void post_work(ScanRecursiveWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 				{
 					if (debug_assert(data.type_id() == utility::type_id<ScanRecursiveWork>()))
 					{
@@ -621,12 +626,12 @@ namespace engine
 		void post_work(FileWriteWork && data)
 		{
 			engine::task::scheduler & taskscheduler = *data.ptr->impl.taskscheduler;
-			engine::Asset strand = data.ptr->strand;
+			engine::Hash strand = data.ptr->strand;
 
 			engine::task::post_work(
 				taskscheduler,
 				strand,
-				[](engine::task::scheduler & /*scheduler*/, engine::Asset /*strand*/, utility::any && data)
+				[](engine::task::scheduler & /*scheduler*/, engine::Hash /*strand*/, utility::any && data)
 				{
 					if (debug_assert(data.type_id() == utility::type_id<FileWriteWork>()))
 					{
@@ -659,27 +664,27 @@ namespace
 {
 	struct RegisterDirectory
 	{
-		engine::Asset alias;
+		engine::Hash alias;
 		utility::heap_string_utf8 filepath;
-		engine::Asset parent;
+		engine::Hash parent;
 	};
 
 	struct RegisterTemporaryDirectory
 	{
-		engine::Asset alias;
+		engine::Hash alias;
 	};
 
 	struct UnregisterDirectory
 	{
-		engine::Asset alias;
+		engine::Hash alias;
 	};
 
 	struct Read
 	{
-		engine::Identity id;
-		engine::Asset directory;
+		engine::Token id;
+		engine::Hash directory;
 		utility::heap_string_utf8 filepath;
-		engine::Asset strand;
+		engine::Hash strand;
 		engine::file::read_callback * callback;
 		utility::any data;
 		engine::file::flags mode;
@@ -687,14 +692,14 @@ namespace
 
 	struct RemoveWatch
 	{
-		engine::Identity id;
+		engine::Token id;
 	};
 
 	struct Scan
 	{
-		engine::Identity id;
-		engine::Asset directory;
-		engine::Asset strand;
+		engine::Token id;
+		engine::Hash directory;
+		engine::Hash strand;
 		engine::file::scan_callback * callback;
 		utility::any data;
 		engine::file::flags mode;
@@ -702,9 +707,9 @@ namespace
 
 	struct Write
 	{
-		engine::Asset directory;
+		engine::Hash directory;
 		utility::heap_string_utf8 filepath;
-		engine::Asset strand;
+		engine::Hash strand;
 		engine::file::write_callback * callback;
 		utility::any data;
 		engine::file::flags mode;
@@ -1123,7 +1128,7 @@ namespace engine
 			return impl;
 		}
 
-		void register_directory(system & system, engine::Asset name, utility::heap_string_utf8 && filepath, engine::Asset parent)
+		void register_directory(system & system, engine::Hash name, utility::heap_string_utf8 && filepath, engine::Hash parent)
 		{
 			if (!debug_assert(system->thread.valid()))
 				return;
@@ -1137,7 +1142,7 @@ namespace engine
 			}
 		}
 
-		void register_temporary_directory(system & system, engine::Asset name)
+		void register_temporary_directory(system & system, engine::Hash name)
 		{
 			if (!debug_assert(system->thread.valid()))
 				return;
@@ -1151,7 +1156,7 @@ namespace engine
 			}
 		}
 
-		void unregister_directory(system & system, engine::Asset name)
+		void unregister_directory(system & system, engine::Hash name)
 		{
 			if (!debug_assert(system->thread.valid()))
 				return;
@@ -1167,10 +1172,10 @@ namespace engine
 
 		void read(
 			system & system,
-			engine::Identity id,
-			engine::Asset directory,
+			engine::Token id,
+			engine::Hash directory,
 			utility::heap_string_utf8 && filepath,
-			engine::Asset strand,
+			engine::Hash strand,
 			read_callback * callback,
 			utility::any && data,
 			flags mode)
@@ -1189,7 +1194,7 @@ namespace engine
 
 		void remove_watch(
 			system & system,
-			engine::Identity id)
+			engine::Token id)
 		{
 			if (!debug_assert(system->thread.valid()))
 				return;
@@ -1205,9 +1210,9 @@ namespace engine
 
 		void scan(
 			system & system,
-			engine::Identity id,
-			engine::Asset directory,
-			engine::Asset strand,
+			engine::Token id,
+			engine::Hash directory,
+			engine::Hash strand,
 			scan_callback * callback,
 			utility::any && data,
 			flags mode)
@@ -1226,9 +1231,9 @@ namespace engine
 
 		void write(
 			system & system,
-			engine::Asset directory,
+			engine::Hash directory,
 			utility::heap_string_utf8 && filepath,
-			engine::Asset strand,
+			engine::Hash strand,
 			write_callback * callback,
 			utility::any && data,
 			flags mode)
