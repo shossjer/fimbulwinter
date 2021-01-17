@@ -221,6 +221,8 @@ namespace utility
 		using rvalue_reference = typename storage_type::rvalue_reference;
 		using pointer = typename storage_type::pointer;
 		using const_pointer = typename storage_type::const_pointer;
+		using iterator = pointer;
+		using const_iterator = const_pointer;
 
 	public:
 		basic_array() = default;
@@ -233,6 +235,16 @@ namespace utility
 		constexpr std::size_t capacity() const { return base_type::capacity(); }
 		annotate_nodiscard
 		constexpr std::size_t size() const { return capacity(); }
+
+		annotate_nodiscard
+		iterator begin() { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
+		const_iterator begin() const { return this->storage_.data(this->begin_storage()); }
+
+		annotate_nodiscard
+		iterator end() { return this->storage_.data(this->end_storage()); }
+		annotate_nodiscard
+		const_iterator end() const { return this->storage_.data(this->end_storage()); }
 
 		annotate_nodiscard
 		auto data() { return this->storage_.data(this->begin_storage()); }
