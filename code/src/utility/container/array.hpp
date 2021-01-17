@@ -123,7 +123,6 @@ namespace utility
 			if (!StorageTraits::moves_allocation::value)
 			{
 				this->set_cap(this->storage_.place(other.capacity()));
-				this->set_end(begin_storage() + other.size());
 			}
 		}
 

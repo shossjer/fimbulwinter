@@ -123,6 +123,40 @@ TEST_CASE("trivial static array", "[utility][container][array]")
 	CHECK(a.capacity() == 10);
 	CHECK(a.size() == a.capacity());
 
+	SECTION("can be copied")
+	{
+		REQUIRE(a.try_reserve(1));
+
+		utility::static_array<10, int, double, char> b = a;
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+
+		a = b;
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+	}
+
+	SECTION("can be moved")
+	{
+		REQUIRE(a.try_reserve(1));
+
+		utility::static_array<10, int, double, char> b = std::move(a);
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+
+		a = std::move(b);
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+	}
+
 	SECTION("can reserve space")
 	{
 		CHECK(a.try_reserve(10));
@@ -150,6 +184,40 @@ TEST_CASE("trivial heap array", "[utility][container][array]")
 	utility::heap_array<int, double, char> a;
 	CHECK(a.capacity() == 0);
 	CHECK(a.size() == a.capacity());
+
+	SECTION("can be copied")
+	{
+		REQUIRE(a.try_reserve(1));
+
+		utility::heap_array<int, double, char> b = a;
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+
+		a = b;
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+	}
+
+	SECTION("can be moved")
+	{
+		REQUIRE(a.try_reserve(1));
+
+		utility::heap_array<int, double, char> b = std::move(a);
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+		CHECK(a.capacity() == 0);
+		CHECK(a.size() == a.capacity());
+
+		a = std::move(b);
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+		CHECK(b.capacity() == 0);
+		CHECK(b.size() == b.capacity());
+	}
 
 	SECTION("can reserve space")
 	{
@@ -183,6 +251,40 @@ TEST_CASE("static array", "[utility][container][array]")
 	CHECK(construction_counter::destruction_count == 0);
 	CHECK(std::get<1>(a.data())[0].i == 1);
 	CHECK(std::get<1>(a.data())[9].i == 10);
+
+	SECTION("can be copied")
+	{
+		REQUIRE(a.try_reserve(1));
+
+		utility::static_array<10, int, construction_counter, char> b = a;
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+
+		a = b;
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+	}
+
+	SECTION("can be moved")
+	{
+		REQUIRE(a.try_reserve(1));
+
+		utility::static_array<10, int, construction_counter, char> b = std::move(a);
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+
+		a = std::move(b);
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+	}
 
 	SECTION("can reserve space")
 	{
@@ -222,6 +324,40 @@ TEST_CASE("heap array", "[utility][container][array]")
 	utility::heap_array<int, construction_counter, char> a;
 	CHECK(a.capacity() == 0);
 	CHECK(a.size() == a.capacity());
+
+	SECTION("can be copied")
+	{
+		REQUIRE(a.try_reserve(1));
+
+		utility::heap_array<int, construction_counter, char> b = a;
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+
+		a = b;
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+	}
+
+	SECTION("can be moved")
+	{
+		REQUIRE(a.try_reserve(1));
+
+		utility::heap_array<int, construction_counter, char> b = std::move(a);
+		CHECK(b.capacity() >= 1);
+		CHECK(b.size() == b.capacity());
+		CHECK(a.capacity() == 0);
+		CHECK(a.size() == a.capacity());
+
+		a = std::move(b);
+		CHECK(a.capacity() >= 1);
+		CHECK(a.size() == a.capacity());
+		CHECK(b.capacity() == 0);
+		CHECK(b.size() == b.capacity());
+	}
 
 	SECTION("can reserve space")
 	{
