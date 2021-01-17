@@ -125,7 +125,7 @@ TEST_CASE("trivial static array", "[utility][container][array]")
 
 	SECTION("can be copied")
 	{
-		REQUIRE(a.try_reserve(1));
+		REQUIRE(a.reserve(1));
 
 		utility::static_array<10, int, double, char> b = a;
 		CHECK(b.capacity() >= 1);
@@ -142,7 +142,7 @@ TEST_CASE("trivial static array", "[utility][container][array]")
 
 	SECTION("can be moved")
 	{
-		REQUIRE(a.try_reserve(1));
+		REQUIRE(a.reserve(1));
 
 		utility::static_array<10, int, double, char> b = std::move(a);
 		CHECK(b.capacity() >= 1);
@@ -159,20 +159,20 @@ TEST_CASE("trivial static array", "[utility][container][array]")
 
 	SECTION("can reserve space")
 	{
-		CHECK(a.try_reserve(10));
+		CHECK(a.reserve(10));
 		CHECK(a.capacity() >= 10);
 		CHECK(a.size() == a.capacity());
 
 		SECTION("but not too much")
 		{
-			CHECK_FALSE(a.try_reserve(20));
+			CHECK_FALSE(a.reserve(20));
 			CHECK(a.capacity() >= 10);
 			CHECK(a.size() == a.capacity());
 		}
 
 		SECTION("and reserving less than what we already have does nothing")
 		{
-			CHECK(a.try_reserve(5));
+			CHECK(a.reserve(5));
 			CHECK(a.capacity() >= 10);
 			CHECK(a.size() == a.capacity());
 		}
@@ -187,7 +187,7 @@ TEST_CASE("trivial heap array", "[utility][container][array]")
 
 	SECTION("can be copied")
 	{
-		REQUIRE(a.try_reserve(1));
+		REQUIRE(a.reserve(1));
 
 		utility::heap_array<int, double, char> b = a;
 		CHECK(b.capacity() >= 1);
@@ -204,7 +204,7 @@ TEST_CASE("trivial heap array", "[utility][container][array]")
 
 	SECTION("can be moved")
 	{
-		REQUIRE(a.try_reserve(1));
+		REQUIRE(a.reserve(1));
 
 		utility::heap_array<int, double, char> b = std::move(a);
 		CHECK(b.capacity() >= 1);
@@ -221,20 +221,20 @@ TEST_CASE("trivial heap array", "[utility][container][array]")
 
 	SECTION("can reserve space")
 	{
-		CHECK(a.try_reserve(10));
+		CHECK(a.reserve(10));
 		CHECK(a.capacity() >= 10);
 		CHECK(a.size() == a.capacity());
 
 		SECTION("and increase it a second time")
 		{
-			CHECK(a.try_reserve(20));
+			CHECK(a.reserve(20));
 			CHECK(a.capacity() >= 20);
 			CHECK(a.size() == a.capacity());
 		}
 
 		SECTION("and reserving less than what we already have does nothing")
 		{
-			CHECK(a.try_reserve(5));
+			CHECK(a.reserve(5));
 			CHECK(a.capacity() >= 10);
 			CHECK(a.size() == a.capacity());
 		}
@@ -255,7 +255,7 @@ TEST_CASE("static array", "[utility][container][array]")
 
 	SECTION("can be copied")
 	{
-		REQUIRE(a.try_reserve(1));
+		REQUIRE(a.reserve(1));
 
 		utility::static_array<10, int, construction_counter, char> b = a;
 		CHECK(b.capacity() >= 1);
@@ -272,7 +272,7 @@ TEST_CASE("static array", "[utility][container][array]")
 
 	SECTION("can be moved")
 	{
-		REQUIRE(a.try_reserve(1));
+		REQUIRE(a.reserve(1));
 
 		utility::static_array<10, int, construction_counter, char> b = std::move(a);
 		CHECK(b.capacity() >= 1);
@@ -289,18 +289,20 @@ TEST_CASE("static array", "[utility][container][array]")
 
 	SECTION("can reserve space")
 	{
-		CHECK(a.try_reserve(10));
+		CHECK(a.reserve(10));
 		CHECK(a.capacity() >= 10);
 		REQUIRE(a.size() == a.capacity());
+		CHECK(construction_counter::construction_count == 10);
 		CHECK(construction_counter::destruction_count == 0);
 		CHECK(std::get<1>(a.data())[0].i == 1);
 		CHECK(std::get<1>(a.data())[9].i == 10);
 
 		SECTION("but not too much")
 		{
-			CHECK_FALSE(a.try_reserve(20));
+			CHECK_FALSE(a.reserve(20));
 			CHECK(a.capacity() >= 10);
 			REQUIRE(a.size() == a.capacity());
+			CHECK(construction_counter::construction_count == 10);
 			CHECK(construction_counter::destruction_count == 0);
 			CHECK(std::get<1>(a.data())[0].i == 1);
 			CHECK(std::get<1>(a.data())[9].i == 10);
@@ -308,13 +310,39 @@ TEST_CASE("static array", "[utility][container][array]")
 
 		SECTION("and reserving less than what we already have does nothing")
 		{
-			CHECK(a.try_reserve(5));
+			CHECK(a.reserve(5));
 			CHECK(a.capacity() >= 10);
 			REQUIRE(a.size() == a.capacity());
+			CHECK(construction_counter::construction_count == 10);
 			CHECK(construction_counter::destruction_count == 0);
 			CHECK(std::get<1>(a.data())[0].i == 1);
 			CHECK(std::get<1>(a.data())[9].i == 10);
 		}
+
+		SECTION("but not reset")
+		{
+			REQUIRE_FALSE(a.reset());
+			CHECK(a.capacity() == 10);
+			REQUIRE(a.size() == a.capacity());
+			CHECK(construction_counter::construction_count == 10);
+			CHECK(construction_counter::destruction_count == 0);
+			CHECK(std::get<1>(a.data())[0].i == 1);
+			CHECK(std::get<1>(a.data())[9].i == 10);
+		}
+	}
+
+	SECTION("can resize space, but only to its static size")
+	{
+		CHECK_FALSE(a.resize(9));
+		CHECK_FALSE(a.resize(11));
+
+		CHECK(a.resize(10));
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == a.capacity());
+		CHECK(construction_counter::construction_count == 10);
+		CHECK(construction_counter::destruction_count == 0);
+		CHECK(std::get<1>(a.data())[0].i == 1);
+		CHECK(std::get<1>(a.data())[9].i == 10);
 	}
 
 	SECTION("can be iterated")
@@ -339,7 +367,7 @@ TEST_CASE("heap array", "[utility][container][array]")
 
 	SECTION("can be copied")
 	{
-		REQUIRE(a.try_reserve(1));
+		REQUIRE(a.reserve(1));
 
 		utility::heap_array<int, construction_counter, char> b = a;
 		CHECK(b.capacity() >= 1);
@@ -356,7 +384,7 @@ TEST_CASE("heap array", "[utility][container][array]")
 
 	SECTION("can be moved")
 	{
-		REQUIRE(a.try_reserve(1));
+		REQUIRE(a.reserve(1));
 
 		utility::heap_array<int, construction_counter, char> b = std::move(a);
 		CHECK(b.capacity() >= 1);
@@ -373,9 +401,10 @@ TEST_CASE("heap array", "[utility][container][array]")
 
 	SECTION("can reserve space")
 	{
-		CHECK(a.try_reserve(10));
+		CHECK(a.reserve(10));
 		CHECK(a.capacity() >= 10);
 		REQUIRE(a.size() == a.capacity());
+		CHECK(construction_counter::construction_count == a.size());
 		CHECK(construction_counter::destruction_count == 0);
 		CHECK(std::get<1>(a.data())[0].i == 1);
 		CHECK(std::get<1>(a.data())[a.size() - 1].i == a.size());
@@ -384,9 +413,10 @@ TEST_CASE("heap array", "[utility][container][array]")
 		{
 			const auto old_size = a.size();
 
-			CHECK(a.try_reserve(old_size + 1));
+			CHECK(a.reserve(old_size + 1));
 			CHECK(a.capacity() >= old_size + 1);
 			REQUIRE(a.size() == a.capacity());
+			CHECK(construction_counter::construction_count == old_size + a.size());
 			CHECK(construction_counter::destruction_count == old_size);
 			CHECK(std::get<1>(a.data())[0].i == old_size + 1);
 			CHECK(std::get<1>(a.data())[a.size() - 1].i == old_size + a.size());
@@ -394,13 +424,52 @@ TEST_CASE("heap array", "[utility][container][array]")
 
 		SECTION("and reserving less than what we already have does nothing")
 		{
-			CHECK(a.try_reserve(5));
+			CHECK(a.reserve(5));
 			CHECK(a.capacity() >= 10);
 			REQUIRE(a.size() == a.capacity());
+			CHECK(construction_counter::construction_count == a.size());
 			CHECK(construction_counter::destruction_count == 0);
 			CHECK(std::get<1>(a.data())[0].i == 1);
 			CHECK(std::get<1>(a.data())[a.size() - 1].i == a.size());
 		}
+
+		SECTION("and reset")
+		{
+			const auto old_size = a.size();
+
+			REQUIRE(a.reset());
+			CHECK(a.capacity() == 0);
+			REQUIRE(a.size() == a.capacity());
+			CHECK(construction_counter::construction_count == old_size);
+			CHECK(construction_counter::destruction_count == old_size);
+		}
+	}
+
+	SECTION("can resize space")
+	{
+		CHECK(a.resize(5));
+		CHECK(a.capacity() == 5);
+		REQUIRE(a.size() == a.capacity());
+		CHECK(construction_counter::construction_count == 5);
+		CHECK(construction_counter::destruction_count == 0);
+		CHECK(std::get<1>(a.data())[0].i == 1);
+		CHECK(std::get<1>(a.data())[4].i == 5);
+
+		CHECK(a.resize(10));
+		CHECK(a.capacity() == 10);
+		REQUIRE(a.size() == a.capacity());
+		CHECK(construction_counter::construction_count == 15);
+		CHECK(construction_counter::destruction_count == 5);
+		CHECK(std::get<1>(a.data())[0].i == 6);
+		CHECK(std::get<1>(a.data())[9].i == 15);
+
+		CHECK(a.resize(5));
+		CHECK(a.capacity() == 5);
+		REQUIRE(a.size() == a.capacity());
+		CHECK(construction_counter::construction_count == 20);
+		CHECK(construction_counter::destruction_count == 15);
+		CHECK(std::get<1>(a.data())[0].i == 16);
+		CHECK(std::get<1>(a.data())[4].i == 20);
 	}
 
 	SECTION("can be iterated")
@@ -413,7 +482,7 @@ TEST_CASE("heap array", "[utility][container][array]")
 		}
 		CHECK(i == 0);
 
-		REQUIRE(a.try_reserve(7));
+		REQUIRE(a.reserve(7));
 
 		for (auto && elem : a)
 		{
@@ -444,7 +513,7 @@ TEST_CASE("trivial heap array understands zero initialization", "[utility][conta
 
 	SECTION("")
 	{
-		CHECK(a.try_reserve(10));
+		CHECK(a.reserve(10));
 		CHECK(a.capacity() >= 10);
 		REQUIRE(a.size() == a.capacity());
 		for (ext::index i = 0; static_cast<std::size_t>(i) < a.size(); i++)
@@ -480,7 +549,7 @@ TEST_CASE("heap array understands zero initialization", "[utility][container][ar
 
 	SECTION("")
 	{
-		CHECK(a.try_reserve(10));
+		CHECK(a.reserve(10));
 		CHECK(a.capacity() >= 10);
 		REQUIRE(a.size() == a.capacity());
 		CHECK(construction_counter::destruction_count == 0);

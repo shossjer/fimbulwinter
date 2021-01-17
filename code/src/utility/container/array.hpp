@@ -7,6 +7,46 @@
 
 namespace utility
 {
+	template <typename InitializationStrategy>
+	struct relocate_initialize
+	{
+		template <typename Data>
+		bool operator () (Data & new_data, Data & /*old_data*/)
+		{
+			InitializationStrategy{}([&](auto && ...ps){ new_data.storage().construct_fill(new_data.begin_storage(), new_data.capacity(), std::forward<decltype(ps)>(ps)...); });
+
+			return true;
+		}
+	};
+
+	template <typename InitializationStrategy>
+	struct relocate_move_initialize
+	{
+		template <typename Data>
+		bool operator () (Data & new_data, Data & old_data)
+		{
+			assert(new_data.capacity() >= old_data.capacity());
+
+			const auto end = new_data.storage().construct_range(new_data.begin_storage(), std::make_move_iterator(old_data.storage().data(old_data.begin_storage())), std::make_move_iterator(old_data.storage().data(old_data.end_storage())));
+			InitializationStrategy{}([&](auto && ...ps){ new_data.storage().construct_fill(end, new_data.capacity() - old_data.capacity(), std::forward<decltype(ps)>(ps)...); });
+
+			return true;
+		}
+	};
+
+	struct relocate_move_truncate
+	{
+		template <typename Data>
+		bool operator () (Data & new_data, Data & old_data)
+		{
+			assert(new_data.capacity() < old_data.capacity());
+
+			const auto end = new_data.storage().construct_range(new_data.begin_storage(), std::make_move_iterator(old_data.storage().data(old_data.begin_storage())), std::make_move_iterator(old_data.storage().data(old_data.begin_storage())) + new_data.capacity());
+
+			return true;
+		}
+	};
+
 	namespace detail
 	{
 		template <typename Storage, bool = utility::storage_traits<Storage>::static_capacity::value>
@@ -62,17 +102,18 @@ namespace utility
 		};
 	}
 
-	template <typename Storage, typename InitializationStrategy, typename ReservationStrategy, typename RelocationStrategy>
+	template <typename Storage, typename InitializationStrategy, typename ReservationStrategy>
 	class array_data
 		: public detail::array_data_impl<Storage>
 	{
-		using this_type = array_data<Storage, InitializationStrategy, ReservationStrategy, RelocationStrategy>;
+		using this_type = array_data<Storage, InitializationStrategy, ReservationStrategy>;
 		using base_type = detail::array_data_impl<Storage>;
 
 		using StorageTraits = utility::storage_traits<Storage>;
 
 	public:
 		using storage_type = Storage;
+		using initialization_strategy = InitializationStrategy;
 
 		using is_trivially_destructible =
 			mpl::conjunction<typename Storage::storing_trivially_destructible,
@@ -172,18 +213,21 @@ namespace utility
 			}
 		}
 
-		constexpr bool try_reallocate(std::size_t min_capacity)
+		template <typename Relocation>
+		constexpr bool try_reallocate(std::size_t min_capacity, Relocation && relocation)
 		{
-			return try_reallocate_impl(typename StorageTraits::static_capacity{}, min_capacity);
+			return try_reallocate_impl(typename StorageTraits::static_capacity{}, min_capacity, std::forward<Relocation>(relocation));
 		}
 
 	private:
-		constexpr bool try_reallocate_impl(mpl::true_type /*static capacity*/, std::size_t /*min_capacity*/)
+		template <typename Relocation>
+		constexpr bool try_reallocate_impl(mpl::true_type /*static capacity*/, std::size_t /*min_capacity*/, Relocation && /*relocation*/)
 		{
 			return false;
 		}
 
-		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t min_capacity)
+		template <typename Relocation>
+		bool try_reallocate_impl(mpl::false_type /*static capacity*/, std::size_t min_capacity, Relocation && relocation)
 		{
 			const auto new_capacity = ReservationStrategy{}(min_capacity);
 			if (new_capacity < min_capacity)
@@ -193,7 +237,7 @@ namespace utility
 			if (!new_data.allocate(new_capacity))
 				return false;
 
-			if (!RelocationStrategy{}(new_data, *this))
+			if (!relocation(new_data, *this))
 				return false;
 
 			this->purge();
@@ -213,6 +257,7 @@ namespace utility
 		using typename base_type::storage_type;
 
 	public:
+
 		using value_type = typename storage_type::value_type;
 		using size_type = typename storage_type::size_type;
 		using difference_type = typename storage_type::difference_type;
@@ -225,6 +270,7 @@ namespace utility
 		using const_iterator = const_pointer;
 
 	public:
+
 		basic_array() = default;
 
 		explicit basic_array(std::size_t size)
@@ -251,27 +297,48 @@ namespace utility
 		annotate_nodiscard
 		auto data() const { return this->storage_.data(this->begin_storage()); }
 
-		decltype(auto) operator [] (ext::index i) { return data()[i]; }
-		decltype(auto) operator [] (ext::index i) const { return data()[i]; }
-
 		annotate_nodiscard
-		bool try_reserve(std::size_t min_capacity)
+		reference operator [] (ext::index i) { return data()[i]; }
+		annotate_nodiscard
+		const_reference operator [] (ext::index i) const { return data()[i]; }
+
+		template <typename RelocationStrategy = utility::relocate_initialize<typename base_type::initialization_strategy>>
+		annotate_nodiscard
+		bool reset()
+		{
+			return this->try_reallocate(0, RelocationStrategy{});
+		}
+
+		template <typename RelocationStrategy = utility::relocate_move_initialize<typename base_type::initialization_strategy>>
+		annotate_nodiscard
+		bool reserve(std::size_t min_capacity)
 		{
 			if (min_capacity <= this->capacity())
 				return true;
 
-			return this->try_reallocate(min_capacity);
+			return this->try_reallocate(min_capacity, RelocationStrategy{});
 		}
+
+		annotate_nodiscard
+		bool resize(std::size_t size)
+		{
+			if (size == this->capacity())
+				return true;
+
+			if (this->capacity() < size)
+				return this->try_reallocate(size, utility::relocate_move_initialize<typename base_type::initialization_strategy>{});
+
+			return this->try_reallocate(size, utility::relocate_move_truncate{});
+		}
+
 	};
 
 	template <typename Storage,
 	          template <typename> class InitializationStrategy = utility::initialize_default,
-	          template <typename> class ReservationStrategy = utility::reserve_exact,
-	          typename RelocationStrategy = utility::relocate_move>
+	          template <typename> class ReservationStrategy = utility::reserve_exact>
 	using array = basic_array<array_data<Storage,
 	                                     InitializationStrategy<Storage>,
-	                                     ReservationStrategy<Storage>,
-	                                     RelocationStrategy>>;
+	                                     ReservationStrategy<Storage>>>;
 
 	template <template <typename> class Allocator, typename ...Ts>
 	using dynamic_array = array<dynamic_storage<Allocator, Ts...>>;

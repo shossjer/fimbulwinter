@@ -144,7 +144,7 @@ namespace core
 			};
 
 		private:
-			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type, relocate_rehash> lookup_;
+			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type> lookup_;
 			// todo keys before slots?
 			std::tuple<utility::vector<typename utility::storage_traits<ComponentStorages>::template append<Key>>...> arrays_;
 
@@ -394,7 +394,7 @@ namespace core
 					if (bucket != bucket_t(-1))
 						return bucket;
 
-					if (!debug_verify(lookup_.try_reserve(lookup_.capacity() + 1)))
+					if (!debug_verify(lookup_.reserve<relocate_rehash>(lookup_.capacity() + 1)))
 						return bucket_t(-1);
 				}
 			}
@@ -558,7 +558,7 @@ namespace core
 			};
 
 		private:
-			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type, relocate_rehash> lookup_;
+			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type> lookup_;
 			std::tuple<utility::vector<typename utility::storage_traits<ComponentStorages>::template append<Key>>...> arrays_;
 
 			decltype(auto) slots() { return lookup_.data().first; }
@@ -763,7 +763,7 @@ namespace core
 					if (bucket != bucket_t(-1))
 						return bucket;
 
-					if (!debug_verify(lookup_.try_reserve(lookup_.capacity() + 1)))
+					if (!debug_verify(lookup_.reserve<relocate_rehash>(lookup_.capacity() + 1)))
 						return bucket_t(-1);
 				}
 			}
@@ -914,7 +914,7 @@ namespace core
 			};
 
 		private:
-			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type, relocate_rehash> lookup_;
+			utility::array<typename LookupStorageTraits::template storage_type<slot_t, Key>, utility::initialize_zero, utility::reserve_nonempty<utility::reserve_power_of_two>::template type> lookup_;
 			std::tuple<utility::fragmentation<ComponentStorages>...> arrays_;
 
 			decltype(auto) slots() { return lookup_.data().first; }
@@ -1123,7 +1123,7 @@ namespace core
 					if (bucket != bucket_t(-1))
 						return bucket;
 
-					if (!debug_verify(lookup_.try_reserve(lookup_.capacity() + 1)))
+					if (!debug_verify(lookup_.reserve<relocate_rehash>(lookup_.capacity() + 1)))
 						return bucket_t(-1);
 				}
 			}
