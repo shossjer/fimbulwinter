@@ -431,8 +431,8 @@ namespace utility
 		this_type & operator -- () { ext::apply([](auto & ...ps){ int expansion_hack[] = {(--ps, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
 		this_type operator ++ (int) { return ext::apply([](auto & ...ps){ return this_type(ps++...); }, *this); }
 		this_type operator -- (int) { return ext::apply([](auto & ...ps){ return this_type(ps--...); }, *this); }
-		this_type operator + (difference_type n) { return ext::apply([n](auto & ...ps){ return this_type(ps + n...); }, *this); }
-		this_type operator - (difference_type n) { return ext::apply([n](auto & ...ps){ return this_type(ps - n...); }, *this); }
+		this_type operator + (difference_type n) const { return ext::apply([n](auto & ...ps){ return this_type(ps + n...); }, *this); }
+		this_type operator - (difference_type n) const { return ext::apply([n](auto & ...ps){ return this_type(ps - n...); }, *this); }
 		this_type & operator += (difference_type n) { ext::apply([n](auto & ...ps){ int expansion_hack[] = {(ps += n, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
 		this_type & operator -= (difference_type n) { ext::apply([n](auto & ...ps){ int expansion_hack[] = {(ps -= n, 0)...}; static_cast<void>(expansion_hack); }, *this); return *this; }
 
@@ -562,8 +562,8 @@ namespace utility
 		this_type & operator -- () { --base(); return *this; }
 		this_type operator ++ (int) { return base()++; }
 		this_type operator -- (int) { return base()--; }
-		this_type operator + (difference_type n) { return base() + n; }
-		this_type operator - (difference_type n) { return base() - n; }
+		this_type operator + (difference_type n) const { return base() + n; }
+		this_type operator - (difference_type n) const { return base() - n; }
 		this_type & operator += (difference_type n) { base() += n; return *this; }
 		this_type & operator -= (difference_type n) { base() -= n; return *this; }
 
