@@ -219,6 +219,8 @@ namespace utility
 		using rvalue_reference = typename storage_type::rvalue_reference;
 		using pointer = typename storage_type::pointer;
 		using const_pointer = typename storage_type::const_pointer;
+		using iterator = pointer;
+		using const_iterator = const_pointer;
 
 	public:
 		basic_array() = default;
@@ -233,14 +235,14 @@ namespace utility
 		constexpr std::size_t size() const { return capacity(); }
 
 		annotate_nodiscard
-		pointer begin() { return this->storage_.data(this->begin_storage()); }
+		iterator begin() { return this->storage_.data(this->begin_storage()); }
 		annotate_nodiscard
-		const_pointer begin() const { return this->storage_.data(this->begin_storage()); }
+		const_iterator begin() const { return this->storage_.data(this->begin_storage()); }
 
 		annotate_nodiscard
-		pointer end() { return this->storage_.data(this->end_storage()); }
+		iterator end() { return this->storage_.data(this->end_storage()); }
 		annotate_nodiscard
-		const_pointer end() const { return this->storage_.data(this->end_storage()); }
+		const_iterator end() const { return this->storage_.data(this->end_storage()); }
 
 		annotate_nodiscard
 		auto data() { return this->storage_.data(this->begin_storage()); }
@@ -266,6 +268,26 @@ namespace utility
 			return this->try_reallocate(size);
 		}
 	};
+
+	template <typename Data>
+	constexpr std::size_t capacity(const basic_array<Data> & x) { return x.capacity(); }
+	template <typename Data>
+	std::size_t size(const basic_array<Data> & x) { return x.size(); }
+
+	template <typename Data>
+	typename basic_array<Data>::iterator begin(basic_array<Data> & x) { return x.begin(); }
+	template <typename Data>
+	typename basic_array<Data>::const_iterator begin(const basic_array<Data> & x) { return x.begin(); }
+
+	template <typename Data>
+	typename basic_array<Data>::iterator end(basic_array<Data> & x) { return x.end(); }
+	template <typename Data>
+	typename basic_array<Data>::const_iterator end(const basic_array<Data> & x) { return x.end(); }
+
+	template <typename Data>
+	typename basic_array<Data>::pointer data(basic_array<Data> & x) { return x.data(); }
+	template <typename Data>
+	typename basic_array<Data>::const_pointer data(const basic_array<Data> & x) { return x.data(); }
 
 	template <typename Storage,
 	          template <typename> class InitializationStrategy = utility::initialize_default,

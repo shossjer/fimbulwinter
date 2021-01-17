@@ -248,6 +248,7 @@ TEST_CASE("static array", "[utility][container][array]")
 	utility::static_array<10, int, construction_counter, char> a;
 	CHECK(a.capacity() == 10);
 	REQUIRE(a.size() == a.capacity());
+	CHECK(construction_counter::construction_count == 10);
 	CHECK(construction_counter::destruction_count == 0);
 	CHECK(std::get<1>(a.data())[0].i == 1);
 	CHECK(std::get<1>(a.data())[9].i == 10);
@@ -314,6 +315,17 @@ TEST_CASE("static array", "[utility][container][array]")
 			CHECK(std::get<1>(a.data())[0].i == 1);
 			CHECK(std::get<1>(a.data())[9].i == 10);
 		}
+	}
+
+	SECTION("can be iterated")
+	{
+		int i = 0;
+		for (auto && elem : a)
+		{
+			i++;
+			CHECK(std::get<1>(elem).i == i);
+		}
+		CHECK(i == 10);
 	}
 }
 
@@ -389,6 +401,26 @@ TEST_CASE("heap array", "[utility][container][array]")
 			CHECK(std::get<1>(a.data())[0].i == 1);
 			CHECK(std::get<1>(a.data())[a.size() - 1].i == a.size());
 		}
+	}
+
+	SECTION("can be iterated")
+	{
+		int i = 0;
+		for (auto && elem : a)
+		{
+			i++;
+			CHECK(std::get<1>(elem).i == i);
+		}
+		CHECK(i == 0);
+
+		REQUIRE(a.try_reserve(7));
+
+		for (auto && elem : a)
+		{
+			i++;
+			CHECK(std::get<1>(elem).i == i);
+		}
+		CHECK(i == 7);
 	}
 }
 
