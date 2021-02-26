@@ -193,6 +193,7 @@ set(HEADERS_UTILITY
 	src/utility/preprocessor/count_arguments.hpp
 	src/utility/preprocessor/expand.hpp
 	src/utility/preprocessor/for_each.hpp
+	src/utility/priority.hpp
 	src/utility/profiling.hpp
 	src/utility/property.hpp
 	src/utility/ranges.hpp
