@@ -160,6 +160,7 @@ set(HEADERS_UTILITY
 	src/utility/arithmetics.hpp
 	src/utility/array.hpp
 	src/utility/bitmanip.hpp
+	src/utility/cast_iterator.hpp
 	src/utility/charconv.hpp
 	src/utility/compound.hpp
 	src/utility/concepts.hpp
