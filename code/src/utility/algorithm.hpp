@@ -8,17 +8,24 @@
 #include <algorithm>
 #include <array>
 #include <tuple>
+#include <valarray>
+#include <vector>
 
 namespace ext
 {
 	namespace detail
 	{
 		template <typename T, std::size_t N>
-		auto tuple_size_impl(const std::array<T, N> &) -> mpl::index_constant<N>;
+		static auto tuple_size(const T (&)[N]) -> mpl::index_constant<N>;
+		template <typename T, std::size_t N>
+		static auto tuple_size(const std::array<T, N> &) -> mpl::index_constant<N>;
 		template <typename T1, typename T2>
-		auto tuple_size_impl(const std::pair<T1, T2> &) -> mpl::index_constant<2>;
+		static auto tuple_size(const std::pair<T1, T2> &) -> mpl::index_constant<2>;
 		template <typename ...Ts>
-		auto tuple_size_impl(const std::tuple<Ts...> &) -> mpl::index_constant<sizeof...(Ts)>;
+		static auto tuple_size(const std::tuple<Ts...> &) -> mpl::index_constant<sizeof...(Ts)>;
+
+		template <typename Tuple>
+		static auto tuple_size_impl(const Tuple & tuple) -> decltype(tuple_size(tuple));
 	}
 	// c++11
 	template <typename T>
@@ -27,11 +34,16 @@ namespace ext
 	namespace detail
 	{
 		template <std::size_t I, typename T, std::size_t N>
-		auto tuple_element_impl(const std::array<T, N> &) -> mpl::enable_if_t<(I < N), T>;
+		static auto tuple_element(const T (&)[N]) -> mpl::enable_if_t<(I < N), T>;
+		template <std::size_t I, typename T, std::size_t N>
+		static auto tuple_element(const std::array<T, N> &) -> mpl::enable_if_t<(I < N), T>;
 		template <std::size_t I, typename T1, typename T2>
-		auto tuple_element_impl(const std::pair<T1, T2> &) -> mpl::type_at<I, T1, T2>;
+		static auto tuple_element(const std::pair<T1, T2> &) -> mpl::type_at<I, T1, T2>;
 		template <std::size_t I, typename ...Ts>
-		auto tuple_element_impl(const std::tuple<Ts...> &) -> mpl::type_at<I, Ts...>;
+		static auto tuple_element(const std::tuple<Ts...> &) -> mpl::type_at<I, Ts...>;
+
+		template <std::size_t I, typename Tuple>
+		static auto tuple_element_impl(const Tuple & tuple) -> decltype(tuple_element<I>(tuple));
 	}
 	// c++11
 	template <std::size_t I, typename T>
@@ -40,20 +52,86 @@ namespace ext
 	namespace detail
 	{
 		template <typename Tuple>
-		auto is_tuple_impl(int, Tuple && tuple) -> decltype(tuple_size_impl(std::forward<Tuple>(tuple)), mpl::true_type());
+		auto is_tuple_impl(int, Tuple && tuple) -> decltype(tuple_size(std::forward<Tuple>(tuple)), mpl::true_type());
 		template <typename ...Ts>
 		auto is_tuple_impl(float, Ts && ...) -> mpl::false_type;
 	}
 	template <typename ...Ts>
 	using is_tuple = decltype(detail::is_tuple_impl(0, std::declval<Ts>()...));
 
+	using std::get;
+
+	template <std::size_t I, typename T, std::size_t N>
+	mpl::enable_if_t<(I < N), T &> get(T (& array)[N]) { return array[I]; }
+	template <std::size_t I, typename T, std::size_t N>
+	mpl::enable_if_t<(I < N), const T &> get(const T (& array)[N]) { return array[I]; }
+	template <std::size_t I, typename T, std::size_t N>
+	mpl::enable_if_t<(I < N), T &&> get(T (&& array)[N]) { return static_cast<T &&>(array[I]); }
+	template <std::size_t I, typename T, std::size_t N>
+	mpl::enable_if_t<(I < N), const T &&> get(const T (&& array)[N]) { return static_cast<const T &&>(array[I]); }
+
+#if defined(_MSC_VER)
+	// microsofts standard library defines this c++17 feature
+	// regardless of our targeted version of c++ which causes
+	// ambiguities with our preferred implementation so we have to
+	// resort to this special hack
+	using std::size;
+
+	namespace detail
+	{
+		template <typename T>
+		static auto has_size_member_impl(T && x, int) -> decltype(x.size(), mpl::true_type());
+		template <typename T>
+		static auto has_size_member_impl(T &&, ...) -> mpl::false_type;
+
+		template <typename T>
+		using has_size_member = decltype(has_size_member_impl(std::declval<T>()));
+	}
+	template <typename Tuple,
+	          REQUIRES((!detail::has_size_member<Tuple>::value))> // note std::array have a size member
+	constexpr auto size_impl(const Tuple &)
+		-> decltype(ext::tuple_size<Tuple>(), std::size_t())
+	{
+		return ext::tuple_size<Tuple>::value;
+	}
+#else
+	// c++17
+	template <typename T, std::size_t N>
+	constexpr std::size_t size(const T (&)[N]) { return N; }
+
+	namespace detail
+	{
+		// c++17
+		template <typename C>
+		constexpr auto size_impl(const C & c, int)
+			-> decltype(c.size())
+		{
+			return c.size();
+		}
+
+		template <typename Tuple>
+		constexpr auto size_impl(const Tuple &, float)
+			-> decltype(ext::tuple_size<Tuple>(), std::size_t())
+		{
+			return ext::tuple_size<Tuple>::value;
+		}
+	}
+	template <typename T>
+	constexpr auto size(const T & x)
+		-> decltype(detail::size_impl(x, 0))
+	{
+		return detail::size_impl(x, 0);
+	}
+#endif
+
+	//
 	template <typename T>
 	using make_tuple_sequence = mpl::make_index_sequence<ext::tuple_size<T>::value>;
 
 	template <typename F, typename Tuple, std::size_t ...Is>
 	decltype(auto) apply_for(F && f, Tuple && tuple, mpl::index_sequence<Is...>)
 	{
-		return std::forward<F>(f)(std::get<Is>(std::forward<Tuple>(tuple))...);
+		return std::forward<F>(f)(ext::get<Is>(std::forward<Tuple>(tuple))...);
 	}
 
 	// c++17
