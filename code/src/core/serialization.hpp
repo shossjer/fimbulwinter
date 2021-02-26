@@ -12,6 +12,23 @@
 
 namespace core
 {
+	namespace detail
+	{
+		template <typename X, typename V>
+		auto get_member(X && x, V && v)
+			-> decltype(v.get(std::forward<X>(x)))
+		{
+			return v.get(std::forward<X>(x));
+		}
+
+		template <typename X, typename V>
+		auto get_member(X && x, V && v)
+			-> decltype(x.*v)
+		{
+			return x.*v;
+		}
+	}
+
 	template <typename T>
 	constexpr auto serialization(utility::in_place_type_t<T>) -> decltype(T::serialization())
 	{
@@ -101,7 +118,7 @@ namespace core
 		template <std::size_t I, typename X>
 		static decltype(auto) get(X && x)
 		{
-			return x.* lookup_table.template get_value<I>();
+			return detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>());
 		}
 
 		template <typename X, typename F>
@@ -113,7 +130,7 @@ namespace core
 		template <typename X, typename F>
 		static void for_each_member(X && x, F && f)
 		{
-			for_each_member_impl(mpl::index_constant<0>{}, std::forward<X>(x), std::forward<F>(f));
+			for_each_member_impl(mpl::make_index_sequence<lookup_table.capacity>{}, std::forward<X>(x), std::forward<F>(f));
 		}
 	private:
 #if defined(_MSC_VER)
@@ -122,46 +139,51 @@ namespace core
 		// C4702 - unreachable code
 #endif
 		template <typename X, typename F>
-		static decltype(auto) call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
+		static auto call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
+			-> decltype(f(detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<0>())))
 		{
 			debug_unreachable();
-			return f(x.* lookup_table.template get_value<0>());
+			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<0>()));
+		}
+
+		template <typename X, typename F>
+		static auto call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
+			-> decltype(f(std::declval<lookup_table_t>().template get_key<0>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<0>())))
+		{
+			debug_unreachable();
+			return f(lookup_table.template get_key<0>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<0>()));
 		}
 #if defined(_MSC_VER)
 # pragma warning( pop )
 #endif
-		template <std::size_t I, typename X, typename F>
-		static decltype(auto) call_impl(mpl::index_constant<I>, X && x, F && f)
+
+		template <std::size_t I, typename X, typename F,
+		          REQUIRES((I != std::size_t(-1)))>
+		static auto call_impl(mpl::index_constant<I>, X && x, F && f)
+			-> decltype(f(detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<I>())))
 		{
-			return f(x.* lookup_table.template get_value<I>());
+			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()));
+		}
+
+		template <std::size_t I, typename X, typename F,
+		          REQUIRES((I != std::size_t(-1)))>
+		static auto call_impl(mpl::index_constant<I>, X && x, F && f)
+			-> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<I>())))
+		{
+			return f(lookup_table.template get_key<I>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()));
 		}
 
 		template <std::size_t ...Is, typename X, typename F>
 		static decltype(auto) call_with_all_members_impl(mpl::index_sequence<Is...>, X && x, F && f)
 		{
-			return f(x.* lookup_table.template get_value<Is>()...);
+			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<Is>())...);
 		}
 
-		template <typename X, typename F>
-		static void for_each_member_impl(mpl::index_constant<lookup_table.capacity>, X &&, F &&)
+		template <std::size_t ...Is, typename X, typename F>
+		static void for_each_member_impl(mpl::index_sequence<Is...>, X && x, F && f)
 		{
-		}
-		template <std::size_t I, typename X, typename F>
-		static void for_each_member_impl(mpl::index_constant<I>, X && x, F && f)
-		{
-			call_f(mpl::index_constant<I>{}, x, f);
-			for_each_member_impl(mpl::index_constant<I + 1>{}, std::forward<X>(x), std::forward<F>(f));
-		}
-
-		template <std::size_t I, typename X, typename F>
-		static auto call_f(mpl::index_constant<I>, X && x, F && f) -> decltype(f(x.* std::declval<lookup_table_t>().template get_value<I>()), void())
-		{
-			f(x.* lookup_table.template get_value<I>());
-		}
-		template <std::size_t I, typename X, typename F>
-		static auto call_f(mpl::index_constant<I>, X && x, F && f) -> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), x.* std::declval<lookup_table_t>().template get_value<I>()), void())
-		{
-			f(lookup_table.template get_key<I>(), x.* lookup_table.template get_value<I>());
+			int expansion_hack[] = {(call_impl(mpl::index_constant<Is>{}, std::forward<X>(x), std::forward<F>(f)), 0)...};
+			static_cast<void>(expansion_hack);
 		}
 	};
 

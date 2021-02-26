@@ -1,9 +1,7 @@
+#pragma once
 
-#ifndef UTILITY_LOOKUP_TABLE_HPP
-#define UTILITY_LOOKUP_TABLE_HPP
-
-#include "concepts.hpp"
-#include "type_traits.hpp"
+#include "utility/concepts.hpp"
+#include "utility/type_traits.hpp"
 
 #include <array>
 #include <tuple>
@@ -140,6 +138,32 @@ namespace utility
 	{
 		return lookup_table<typename Pair::first_type, typename Pair::second_type, typename Pairs::second_type...>(std::forward<Pair>(pair), std::forward<Pairs>(pairs)...);
 	}
-}
 
-#endif /* UTILITY_LOOKUP_TABLE_HPP */
+	namespace detail
+	{
+		template <typename T>
+		struct array_element_t
+		{
+			T member_;
+			std::size_t index_;
+
+			constexpr explicit array_element_t(T member, std::size_t index)
+				: member_(member)
+				, index_(index)
+			{}
+
+			template <typename X>
+			decltype(auto) get(X && x) const
+			{
+				return (x.*member_)[index_];
+			}
+
+		};
+	}
+
+	template <typename T, typename C>
+	constexpr auto array_element(T C:: * member, std::size_t index)
+	{
+		return detail::array_element_t<T C:: *>(member, index);
+	}
+}
