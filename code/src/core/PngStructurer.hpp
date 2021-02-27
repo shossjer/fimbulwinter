@@ -108,7 +108,9 @@ namespace core
 			debug_printline(core::core_channel, "image_height: ", image_height);
 			debug_printline(core::core_channel, "bit_depth: ", bit_depth);
 
-			pixels.resize<uint8_t>(row_size * image_height);
+			if (!debug_verify(pixels.reshape<uint8_t>(row_size * image_height)))
+				return; // todo cleanup
+
 			rows.resize(image_height);
 			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
 			for (int i = 0; i < image_height; i++)

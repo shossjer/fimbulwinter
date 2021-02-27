@@ -314,8 +314,9 @@ namespace
 			const mesh_t & mesh,
 			core::maths::Matrix4x4f && modelview)
 			: modelview(std::move(modelview))
-			, vertices(mesh.vertices)
-		{}
+		{
+			debug_verify(copy(mesh.vertices, vertices)); // todo
+		}
 	};
 
 	core::container::UnorderedCollection
@@ -373,7 +374,7 @@ namespace
 				    mesh.normals.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					debug_cast<GLsizei>(mesh.triangles.count()),
+					debug_cast<GLsizei>(mesh.triangles.size()),
 					GL_UNSIGNED_SHORT,
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -400,7 +401,7 @@ namespace
 					mesh.coords.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					debug_cast<GLsizei>(mesh.triangles.count()),
+					debug_cast<GLsizei>(mesh.triangles.size()),
 					GL_UNSIGNED_SHORT, // TODO
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -500,7 +501,7 @@ namespace
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
-			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.count() / 3))
+			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.size() / 3))
 			{
 				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
 				core::maths::Vector4f::array_type buffer;
@@ -958,17 +959,6 @@ namespace
 		glEnable(GL_LIGHT0);
 	}
 
-	template <typename T, std::size_t N>
-	auto convert(std::array<T, N> && data)
-	{
-		core::container::Buffer buffer;
-		buffer.resize<T>(N);
-
-		std::copy(data.begin(), data.end(), buffer.data_as<T>());
-
-		return buffer;
-	}
-
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
@@ -993,10 +983,21 @@ namespace
 		glGenRenderbuffers(2, entitybuffers);
 	}
 
-	constexpr std::array<GLenum, 10> BufferFormats =
-	{{
-		GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, (GLenum)-1, GL_BYTE, GL_SHORT, GL_INT, (GLenum)-1, GL_FLOAT, GL_DOUBLE
-	}};
+	GLenum glType(utility::type_id_t type)
+	{
+		switch (type)
+		{
+		case utility::type_id<uint8_t>(): return GL_UNSIGNED_BYTE;
+		case utility::type_id<uint16_t>(): return GL_UNSIGNED_SHORT;
+		case utility::type_id<uint32_t>(): return GL_UNSIGNED_INT;
+		case utility::type_id<int8_t>(): return GL_BYTE;
+		case utility::type_id<int16_t>(): return GL_SHORT;
+		case utility::type_id<int32_t>(): return GL_INT;
+		case utility::type_id<float>(): return GL_FLOAT;
+		case utility::type_id<double>(): return GL_DOUBLE;
+		default: debug_unreachable(type, " not supported");
+		}
+	}
 
 	void render_update()
 	{
@@ -1056,7 +1057,7 @@ namespace
 			                0,
 			                component.object->vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               debug_cast<GLsizei>(component.mesh->triangles.count()),
+			               debug_cast<GLsizei>(component.mesh->triangles.size()),
 			               GL_UNSIGNED_SHORT,	// TODO
 			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
@@ -1185,17 +1186,17 @@ namespace
 
 			glVertexPointer(
 				3, // todo support 2d coordinates?
-				BufferFormats[static_cast<int>(component.mesh->vertices.format())],
+				glType(component.mesh->vertices.value_type()),
 				0,
 				component.mesh->vertices.data());
 			glNormalPointer(
-				BufferFormats[static_cast<int>(component.mesh->normals.format())],
+				glType(component.mesh->normals.value_type()),
 				0,
 				component.mesh->normals.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				debug_cast<GLsizei>(component.mesh->triangles.count()),
-				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
+				debug_cast<GLsizei>(component.mesh->triangles.size()),
+				glType(component.mesh->triangles.value_type()),
 				component.mesh->triangles.data());
 
 			glDisableClientState(GL_NORMAL_ARRAY);

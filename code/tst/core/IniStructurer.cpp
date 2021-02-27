@@ -63,7 +63,6 @@ String=name
 		&stream_data,
 		u8""));
 
-	
 	SECTION("can be read into empty struct")
 	{
 		struct data_type

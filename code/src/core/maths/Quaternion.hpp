@@ -225,6 +225,26 @@ namespace core
 		{
 			return conjugate(q);
 		}
+
+		template <typename T, typename BeginIt, typename EndIt>
+		bool copy(Quaternion<T> & x, BeginIt ibegin, EndIt iend)
+		{
+			typename Quaternion<T>::array_type buffer;
+
+			auto obegin = buffer + 0;
+			debug_expression(const auto oend = buffer + 4);
+			if (!debug_assert(iend - ibegin == oend - obegin))
+				return false;
+
+			std::copy(ibegin, iend, obegin);
+
+			x.set(buffer);
+
+			return true;
+		}
+
+		template <typename T>
+		constexpr auto size(const Quaternion<T> &) { return 4; }
 	}
 }
 

@@ -3,6 +3,7 @@
 #include "core/debug.hpp"
 
 #include "utility/charconv.hpp"
+#include "utility/iterator.hpp"
 #include "utility/lookup_table.hpp"
 #include "utility/optional.hpp"
 #include "utility/preprocessor/expand.hpp"
@@ -243,57 +244,176 @@ namespace core
 	namespace detail
 	{
 		template <typename T>
-		bool clear(mpl::index_constant<std::size_t(-1)>, T &)
+		bool clear_impl(mpl::index_constant<std::size_t(-1)>, T &)
 		{
 			return false;
 		}
 
 		template <std::size_t I, typename T>
-		bool clear(mpl::index_constant<I>, T & x)
+		auto clear_impl(mpl::index_constant<I>, T & x)
+			-> decltype(clear(core::member_table<T>::template get<I>(x)))
 		{
-			return core::clear(core::member_table<T>::template get<I>(x));
+			return clear(core::member_table<T>::template get<I>(x));
 		}
 	}
 
 	template <std::size_t I, typename T>
-	bool clear(T & x)
+	auto clear(T & x)
+		-> decltype(detail::clear_impl(mpl::index_constant<I>{}, x))
 	{
-		return detail::clear(mpl::index_constant<I>{}, x);
-	}
-
-	template <typename T, typename F>
-	auto for_each(T & x, std::size_t count, F && f)
-		-> decltype(x.resize(count), bool())
-	{
-		x.resize(count);
-
-		for (auto && y : x)
-		{
-			if (!f(y))
-				return false;
-		}
-		return true;
+		return detail::clear_impl(mpl::index_constant<I>{}, x);
 	}
 
 	namespace detail
 	{
+		namespace copy_impl_range_space
+		{
+			using utility::begin;
+
+			template <typename T, typename BeginIt, typename EndIt>
+			auto copy_impl(T & x, BeginIt ibegin, EndIt iend, int)
+				-> decltype(*begin(x) = *ibegin, bool())
+			{
+				debug_expression(using utility::end);
+
+				const auto obegin = begin(x);
+				debug_expression(const auto oend = end(x));
+				if (!debug_assert(iend - ibegin == oend - obegin))
+					return false;
+
+				std::copy(ibegin, iend, obegin);
+
+				return true;
+			}
+		}
+		using copy_impl_range_space::copy_impl;
+
+		namespace copy_impl_tuple_space
+		{
+			using ext::get;
+
+			template <typename Tuple, typename BeginIt, typename EndIt, std::size_t ...Is>
+			auto copy_impl_tuple(Tuple & tuple, BeginIt ibegin, EndIt iend, mpl::index_sequence<Is...>)
+				-> decltype(ext::declexpand(get<Is>(tuple) = *ibegin...), bool())
+			{
+				int expansion_hack[] = {(get<Is>(tuple) = *ibegin, ++ibegin, 0)...};
+				static_cast<void>(expansion_hack);
+
+				return true;
+			}
+		}
+		using copy_impl_tuple_space::copy_impl_tuple;
+
+		template <typename Tuple, typename BeginIt, typename EndIt,
+		          REQUIRES((ext::is_tuple<Tuple &>::value))>
+		auto copy_impl(Tuple & tuple, BeginIt ibegin, EndIt iend, ...)
+			-> decltype(copy_impl_tuple(tuple, ibegin, iend, ext::make_tuple_sequence<Tuple>{}))
+		{
+			return copy_impl_tuple(tuple, ibegin, iend, ext::make_tuple_sequence<Tuple>{});
+		}
+	}
+
+	template <typename T, typename BeginIt, typename EndIt>
+	auto copy(T & x, BeginIt ibegin, EndIt iend)
+		-> decltype(detail::copy_impl(x, ibegin, iend, 0))
+	{
+		return detail::copy_impl(x, ibegin, iend, 0);
+	}
+
+	template <typename T, typename BeginIt, typename EndIt>
+	using supports_copy = decltype(copy(std::declval<T>(), std::declval<BeginIt>(), std::declval<EndIt>()));
+
+	namespace detail
+	{
+		template <typename T, typename BeginIt, typename EndIt>
+		bool copy_impl(mpl::index_constant<std::size_t(-1)>, T &, BeginIt, EndIt)
+		{
+			return false;
+		}
+
+		template <std::size_t I, typename T, typename BeginIt, typename EndIt>
+		auto copy_impl(mpl::index_constant<I>, T & x, BeginIt ibegin, EndIt iend)
+			-> decltype(copy(core::member_table<T>::template get<I>(x), ibegin, iend))
+		{
+			return copy(core::member_table<T>::template get<I>(x), ibegin, iend);
+		}
+	}
+
+	template <std::size_t I, typename T, typename BeginIt, typename EndIt>
+	auto copy(T & x, BeginIt ibegin, EndIt iend)
+		-> decltype(detail::copy_impl(mpl::index_constant<I>{}, x, ibegin, iend))
+	{
+		return detail::copy_impl(mpl::index_constant<I>{}, x, ibegin, iend);
+	}
+
+	namespace detail
+	{
+		template <typename T, typename F,
+		          REQUIRES((utility::is_range<T &>::value))>
+		bool for_each_impl(T & x, F && f, int)
+		{
+			for (auto && y : x)
+			{
+				if (!f(y))
+					return false;
+			}
+			return true;
+		}
+
+		template <typename F>
+		bool for_each_impl_tuple(F &&)
+		{
+			return true;
+		}
+
+		template <typename F, typename T, typename ...Ts>
+		bool for_each_impl_tuple(F && f, T & x, Ts & ...xs)
+		{
+			if (!f(x))
+				return false;
+
+			return for_each_impl_tuple(std::forward<F>(f), xs...);
+		}
+
+		template <typename T, typename F,
+		          REQUIRES((ext::is_tuple<T &>::value))>
+		bool for_each_impl(T & x, F && f, ...)
+		{
+			ext::apply([&](auto & ...ys){ return for_each_impl_tuple(std::forward<F>(f), ys...); }, x);
+		}
+	}
+
+	template <typename T, typename F>
+	auto for_each(T & x, F && f)
+		-> decltype(detail::for_each_impl(x, std::forward<F>(f), 0))
+	{
+		return detail::for_each_impl(x, std::forward<F>(f), 0);
+	}
+
+	template <typename T, typename F>
+	using supports_for_each = decltype(for_each(std::declval<T>(), std::declval<F>()));
+
+	namespace detail
+	{
 		template <typename T, typename F>
-		bool for_each(mpl::index_constant<std::size_t(-1)>, T &, std::size_t, F &&)
+		bool for_each_impl(mpl::index_constant<std::size_t(-1)>, T &, std::size_t, F &&)
 		{
 			return false;
 		}
 
 		template <std::size_t I, typename T, typename F>
-		bool for_each(mpl::index_constant<I>, T & x, std::size_t count, F && f)
+		auto for_each_impl(mpl::index_constant<I>, T & x, std::size_t count, F && f)
+			-> decltype(for_each(core::member_table<T>::template get<I>(x), count, std::forward<F>(f)))
 		{
-			return core::for_each(core::member_table<T>::template get<I>(x), count, std::forward<F>(f));
+			return for_each(core::member_table<T>::template get<I>(x), count, std::forward<F>(f));
 		}
 	}
 
 	template <std::size_t I, typename T, typename F>
-	bool for_each(T & x, std::size_t count, F && f)
+	auto for_each(T & x, std::size_t count, F && f)
+		-> decltype(detail::for_each_impl(mpl::index_constant<I>{}, x, count, std::forward<F>(f)))
 	{
-		return detail::for_each(mpl::index_constant<I>{}, x, count, std::forward<F>(f));
+		return detail::for_each_impl(mpl::index_constant<I>{}, x, count, std::forward<F>(f));
 	}
 
 	template <typename T>
@@ -303,6 +423,51 @@ namespace core
 		x.emplace_back();
 		return x.back();
 	}
+
+	namespace detail
+	{
+		template <typename T>
+		auto resize_impl(T & x, std::size_t count, int)
+			-> decltype(x.resize(count), bool())
+		{
+			x.resize(count);
+
+			return true;
+		}
+
+		namespace resize_impl_size_space
+		{
+			using ext::size;
+
+			template <typename T>
+			auto resize_impl(T & x, std::size_t count, ...)
+				-> decltype(size(x), bool())
+			{
+				return size(x) == count;
+			}
+		}
+		using resize_impl_size_space::resize_impl;
+	}
+
+	template <typename T>
+	auto resize(T & x, std::size_t count)
+		-> decltype(detail::resize_impl(x, count, 0))
+	{
+		return detail::resize_impl(x, count, 0);
+	}
+
+	template <typename T>
+	using supports_resize = decltype(resize(std::declval<T>(), 0));
+
+	template <typename U, typename T>
+	auto reshape(T & x, std::size_t count)
+		-> decltype(x.template reshape<U>(count))
+	{
+		return x.template reshape<U>(count);
+	}
+
+	template <typename U, typename T>
+	using supports_reshape = decltype(reshape<U>(std::declval<T>(), 0));
 
 	namespace detail
 	{
@@ -336,7 +501,7 @@ namespace core
 
 		template <typename T, typename Object,
 		          REQUIRES((std::is_enum<mpl::remove_cvref_t<T>>::value))>
-		auto serialize(T & x, Object && object, int)
+		auto serialize_impl(T & x, Object && object, int)
 			-> decltype(serialize_enum(x, std::forward<Object>(object)))
 		{
 			return serialize_enum(x, std::forward<Object>(object));
@@ -382,14 +547,14 @@ namespace core
 
 		template <typename T, typename Object,
 		          REQUIRES((std::is_arithmetic<mpl::remove_cvref_t<T>>::value))>
-		auto serialize(T & x, Object && object, int)
+		auto serialize_impl(T & x, Object && object, int)
 			-> decltype(serialize_arithmetic(x, std::forward<Object>(object)))
 		{
 			return serialize_arithmetic(x, std::forward<Object>(object));
 		}
 
 		template <typename T, typename Object>
-		auto serialize(T & x, Object && object, float)
+		auto serialize_impl(T & x, Object && object, float)
 			-> decltype(x = object(), bool())
 		{
 			x = object();
@@ -397,7 +562,7 @@ namespace core
 		}
 
 		template <typename T, typename Object>
-		auto serialize(T & x, Object && object, float)
+		auto serialize_impl(T & x, Object && object, float)
 			-> decltype(x = std::forward<Object>(object), bool())
 		{
 			x = std::forward<Object>(object);
@@ -405,7 +570,7 @@ namespace core
 		}
 
 		template <typename T, typename Object>
-		bool serialize(T &, Object &&, ...)
+		bool serialize_impl(T &, Object &&, ...)
 		{
 			constexpr auto value_name = utility::type_name<T>();
 			constexpr auto object_name = utility::type_name<Object>();
@@ -416,33 +581,35 @@ namespace core
 	template <typename T, typename Object>
 	bool serialize(T & x, Object && object)
 	{
-		return detail::serialize(x, std::forward<Object>(object), 0);
-	}
-
-	namespace detail
-	{
-		template <typename T, typename Object>
-		bool serialize(mpl::index_constant<std::size_t(-1)>, T &, Object &&)
-		{
-			return false;
-		}
-
-		template <std::size_t I, typename T, typename Object>
-		bool serialize(mpl::index_constant<I>, T & x, Object && object)
-		{
-			return core::serialize(core::member_table<T>::template get<I>(x), std::forward<Object>(object));
-		}
-	}
-
-	template <std::size_t I, typename T, typename Object>
-	bool serialize(T & x, Object && object)
-	{
-		return detail::serialize(mpl::index_constant<I>{}, x, std::forward<Object>(object));
+		return detail::serialize_impl(x, std::forward<Object>(object), 0);
 	}
 
 	template <typename T, typename Object>
 	bool serialize(utility::optional<T> & x, Object && object)
 	{
 		return serialize(x ? x.value() : x.emplace(), std::forward<Object>(object));
+	}
+
+	namespace detail
+	{
+		template <typename T, typename Object>
+		bool serialize_impl(mpl::index_constant<std::size_t(-1)>, T &, Object &&)
+		{
+			return false;
+		}
+
+		template <std::size_t I, typename T, typename Object>
+		auto serialize_impl(mpl::index_constant<I>, T & x, Object && object)
+			-> decltype(serialize(core::member_table<T>::template get<I>(x), std::forward<Object>(object)))
+		{
+			return serialize(core::member_table<T>::template get<I>(x), std::forward<Object>(object));
+		}
+	}
+
+	template <std::size_t I, typename T, typename Object>
+	auto serialize(T & x, Object && object)
+		-> decltype(detail::serialize_impl(mpl::index_constant<I>{}, x, std::forward<Object>(object)))
+	{
+		return detail::serialize_impl(mpl::index_constant<I>{}, x, std::forward<Object>(object));
 	}
 }

@@ -13,6 +13,9 @@
 
 namespace ext
 {
+	template <typename ...Ps>
+	static void declexpand(Ps && ...);
+
 	namespace detail
 	{
 		template <typename T, std::size_t N>
