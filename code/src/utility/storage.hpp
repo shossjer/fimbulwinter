@@ -791,7 +791,7 @@ namespace utility
 
 		template <typename Storing, typename InputIt>
 		using can_memcpy = mpl::conjunction<std::is_trivially_copyable<Storing>,
-		                                    utility::is_contiguous_iterator<InputIt>>;
+		                                    ext::is_contiguous_iterator<InputIt>>;
 		template <typename Storing>
 		using can_memset = std::is_trivially_copyable<Storing>;
 

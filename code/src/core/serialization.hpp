@@ -268,14 +268,13 @@ namespace core
 	{
 		namespace copy_impl_range_space
 		{
-			using utility::begin;
+			using ext::begin;
+			debug_expression(using ext::end);
 
 			template <typename T, typename BeginIt, typename EndIt>
 			auto copy_impl(T & x, BeginIt ibegin, EndIt iend, int)
 				-> decltype(*begin(x) = *ibegin, bool())
 			{
-				debug_expression(using utility::end);
-
 				const auto obegin = begin(x);
 				debug_expression(const auto oend = end(x));
 				if (!debug_assert(iend - ibegin == oend - obegin))
@@ -349,7 +348,7 @@ namespace core
 	namespace detail
 	{
 		template <typename T, typename F,
-		          REQUIRES((utility::is_range<T &>::value))>
+		          REQUIRES((ext::is_range<T &>::value))>
 		bool for_each_impl(T & x, F && f, int)
 		{
 			for (auto && y : x)

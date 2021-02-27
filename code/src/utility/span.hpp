@@ -84,7 +84,7 @@ namespace utility
 		constexpr span(const this_type &) = default;
 
 		template <typename It,
-		          REQUIRES((utility::is_contiguous_iterator<It>::value)),
+		          REQUIRES((ext::is_contiguous_iterator<It>::value)),
 		          REQUIRES((mpl::is_same<T,
 		                                 mpl::add_const_if<std::is_const<T>::value,
 		                                                   mpl::remove_reference_t<decltype(*std::declval<It>())>>>::value))>
@@ -93,7 +93,7 @@ namespace utility
 		{}
 
 		template <typename It,
-		          REQUIRES((utility::is_contiguous_iterator<It>::value)),
+		          REQUIRES((ext::is_contiguous_iterator<It>::value)),
 		          REQUIRES((mpl::is_same<T,
 		                                 mpl::add_const_if<std::is_const<T>::value,
 		                                                   mpl::remove_reference_t<decltype(*std::declval<It>())>>>::value))>

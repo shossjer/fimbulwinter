@@ -15,8 +15,8 @@ namespace ext
 	template <typename Range, typename Value>
 	bool contains(Range && range, Value && value)
 	{
-		using utility::begin;
-		using utility::end;
+		using ext::begin;
+		using ext::end;
 
 		return ext::contains(begin(std::forward<Range>(range)), end(std::forward<Range>(range)), std::forward<Value>(value));
 	}
@@ -30,8 +30,8 @@ namespace ext
 	template <typename Range, typename Predicate>
 	bool contains_if(Range && range, Predicate && predicate)
 	{
-		using utility::begin;
-		using utility::end;
+		using ext::begin;
+		using ext::end;
 
 		return ext::contains_if(begin(std::forward<Range>(range)), end(std::forward<Range>(range)), std::forward<Predicate>(predicate));
 	}
@@ -45,8 +45,8 @@ namespace ext
 	template <typename Range, typename Value>
 	auto find(Range && range, Value && value)
 	{
-		using utility::begin;
-		using utility::end;
+		using ext::begin;
+		using ext::end;
 
 		return ext::find(begin(std::forward<Range>(range)), end(std::forward<Range>(range)), std::forward<Value>(value));
 	}
@@ -60,8 +60,8 @@ namespace ext
 	template <typename Range, typename Predicate>
 	auto find_if(Range && range, Predicate && predicate)
 	{
-		using utility::begin;
-		using utility::end;
+		using ext::begin;
+		using ext::end;
 
 		return ext::find_if(begin(std::forward<Range>(range)), end(std::forward<Range>(range)), std::forward<Predicate>(predicate));
 	}

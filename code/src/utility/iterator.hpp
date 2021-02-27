@@ -40,7 +40,11 @@ namespace utility
 		// this might be fine to have as a default :shrug:
 		return raw_range(begin.base(), end.base());
 	}
+}
 
+namespace ext
+{
+	// overload standard begin/end with move semantics
 	using std::begin;
 	using std::rbegin;
 	using std::cbegin;
@@ -143,7 +147,10 @@ namespace utility
 	}
 	template <typename T>
 	using is_range = decltype(detail::is_range_impl(std::declval<T>(), 0));
+}
 
+namespace utility
+{
 	template <typename It>
 	class basic_range
 	{
@@ -166,11 +173,11 @@ namespace utility
 	};
 
 	template <typename R,
-	          REQUIRES((is_range<R>::value))>
+	          REQUIRES((ext::is_range<R &&>::value))>
 	auto reverse(R && range)
 	{
-		using utility::rbegin;
-		using utility::rend;
+		using ext::rbegin;
+		using ext::rend;
 
 		return basic_range<decltype(rbegin(std::forward<R>(range)))>(rbegin(std::forward<R>(range)), rend(std::forward<R>(range)));
 	}

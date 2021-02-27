@@ -418,8 +418,8 @@ namespace rex
 	template <typename Range>
 	auto parse(const Range & range)
 	{
-		using utility::begin;
-		using utility::end;
+		using ext::begin;
+		using ext::end;
 
 		return parse(begin(range), end(range));
 	}
