@@ -9,7 +9,7 @@ TEST_CASE("remove_if", "[utility][algorithm]")
 		std::vector<int> numbers = {1, 2, 3, 4, 6, 7, 8, 9};
 
 		numbers.erase(
-			ext::remove_if(numbers, [](int n) { return (n & 1) == 1; }).base(), // todo fix conversion
+			ext::remove_if(numbers, [](int n) { return (n & 1) == 1; }),
 			numbers.end());
 
 		REQUIRE(numbers.size() == 4);
@@ -25,7 +25,7 @@ TEST_CASE("remove_if", "[utility][algorithm]")
 		std::vector<int> numbers = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 		numbers.erase(
-			ext::remove_if(numbers, [](int n) { return (n & 1) == 1; }).base(), // todo fix conversion
+			ext::remove_if(numbers, [](int n) { return (n & 1) == 1; }),
 			numbers.end());
 
 		REQUIRE(numbers.size() == 4);
@@ -45,7 +45,7 @@ TEST_CASE("remove_copy_if", "[utility][algorithm]")
 		int copy[9] = {};
 
 		numbers.erase(
-			ext::remove_copy_if(numbers, copy, [](int n) { return (n & 1) == 1; }).base(), // todo fix conversion
+			ext::remove_copy_if(numbers, copy, [](int n) { return (n & 1) == 1; }),
 			numbers.end());
 
 		REQUIRE(numbers.size() == 4);
@@ -72,7 +72,7 @@ TEST_CASE("remove_copy_if", "[utility][algorithm]")
 		int copy[10] = {};
 
 		numbers.erase(
-			ext::remove_copy_if(numbers, copy, [](int n) { return (n & 1) == 1; }).base(), // todo fix conversion
+			ext::remove_copy_if(numbers, copy, [](int n) { return (n & 1) == 1; }),
 			numbers.end());
 
 		REQUIRE(numbers.size() == 4);
