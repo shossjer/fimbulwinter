@@ -7,6 +7,7 @@ set(FILES_CORE
 	tst/core/debug.cpp
 	tst/core/file/paths.cpp
 	tst/core/IniStructurer.cpp
+	tst/core/JsonStructurer.cpp
 	tst/core/maths/Matrix.cpp
 	tst/core/maths/Quaternion.cpp
 	tst/core/maths/Vector.cpp

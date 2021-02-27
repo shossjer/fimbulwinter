@@ -1,8 +1,8 @@
+#pragma once
 
-#ifndef CORE_COLOR_HPP
-#define CORE_COLOR_HPP
+#include "core/debug.hpp"
 
-#include <core/debug.hpp>
+#include "utility/lookup_table.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -156,41 +156,36 @@ namespace core
 	template <typename T>
 	class rgb_t
 	{
+		using this_type = rgb_t<T>;
+
 	private:
-		T r;
-		T g;
-		T b;
+
+		T rgb[3];
 
 	public:
+
 		rgb_t() = default;
 		rgb_t(T r, T g, T b)
-			: r(std::move(r))
-			, g(std::move(g))
-			, b(std::move(b))
-		{
-			debug_assert(this->r >= T(0));
-			debug_assert(this->r <= T(1));
-			debug_assert(this->g >= T(0));
-			debug_assert(this->g <= T(1));
-			debug_assert(this->b >= T(0));
-			debug_assert(this->b <= T(1));
-		}
+			: rgb{r, g, b}
+		{}
 
 	public:
+
 		T red() const
 		{
-			return r;
+			return rgb[0];
 		}
 		T green() const
 		{
-			return g;
+			return rgb[1];
 		}
 		T blue() const
 		{
-			return b;
+			return rgb[2];
 		}
 
 	public:
+
 		// friend hsv_t<T> make_hsv(const rgb_t<T> &color)
 		// 	{
 		// 		hsv_t<T> ret;
@@ -228,7 +223,31 @@ namespace core
 
 		// 		return ret;
 		// 	}
-	};
-}
 
-#endif /* CORE_COLOR_HPP */
+		static constexpr auto serialization()
+		{
+			return utility::make_lookup_table(
+				std::make_pair(utility::string_units_utf8("r"), utility::array_element(&this_type::rgb, 0)),
+				std::make_pair(utility::string_units_utf8("g"), utility::array_element(&this_type::rgb, 1)),
+				std::make_pair(utility::string_units_utf8("b"), utility::array_element(&this_type::rgb, 2))
+			);
+		}
+
+	private:
+
+		template <std::size_t I>
+		friend T & get(this_type & x) { return x.rgb[I]; }
+		template <std::size_t I>
+		friend const T & get(const this_type & x) { return x.rgb[I]; }
+		template <std::size_t I>
+		friend T && get(this_type && x) { return static_cast<T &&>(x.rgb[I]); }
+		template <std::size_t I>
+		friend const T && get(const this_type && x) { return static_cast<const T &&>(x.rgb[I]); }
+	};
+
+	template <typename T>
+	static auto tuple_size(const rgb_t<T> &) -> mpl::index_constant<3>;
+
+	template <std::size_t I, typename T>
+	static auto tuple_element(const rgb_t<T> &) -> mpl::enable_if_t<(I < 3), T>;
+}

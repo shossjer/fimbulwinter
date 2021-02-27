@@ -333,10 +333,21 @@ namespace
 
 namespace
 {
-	constexpr std::array<GLenum, 10> BufferFormats =
-	{{
-		GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, (GLenum)-1, GL_BYTE, GL_SHORT, GL_INT, (GLenum)-1, GL_FLOAT, GL_DOUBLE
-	}};
+	GLenum glType(utility::type_id_t type)
+	{
+		switch (type)
+		{
+		case utility::type_id<uint8_t>(): return GL_UNSIGNED_BYTE;
+		case utility::type_id<uint16_t>(): return GL_UNSIGNED_SHORT;
+		case utility::type_id<uint32_t>(): return GL_UNSIGNED_INT;
+		case utility::type_id<int8_t>(): return GL_BYTE;
+		case utility::type_id<int16_t>(): return GL_SHORT;
+		case utility::type_id<int32_t>(): return GL_INT;
+		case utility::type_id<float>(): return GL_FLOAT;
+		case utility::type_id<double>(): return GL_DOUBLE;
+		default: debug_unreachable(type, " not supported");
+		}
+	}
 
 	struct display_t
 	{
@@ -456,8 +467,11 @@ namespace
 			const FontInfo & info = infos[index];
 
 			const std::ptrdiff_t len = text.length();
-			vertices.resize<float>(4 * len * 2);
-			texcoords.resize<float>(4 * len * 2);
+			if (!debug_verify(vertices.reshape<float>(4 * len * 2)))
+				return;
+
+			if (!debug_verify(texcoords.reshape<float>(4 * len * 2)))
+				return;
 
 			const int slots_in_width = info.texture_width / info.symbol_width;
 
@@ -635,13 +649,13 @@ namespace
 			switch (image.color())
 			{
 			case core::graphics::ColorType::R:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, image.width(), image.height(), 0, GL_RED, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, image.width(), image.height(), 0, GL_RED, glType(image.pixels().value_type()), image.data());
 				break;
 			case core::graphics::ColorType::RGB:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_RGB, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_RGB, glType(image.pixels().value_type()), image.data());
 				break;
 			case core::graphics::ColorType::RGBA:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_RGBA, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_RGBA, glType(image.pixels().value_type()), image.data());
 				break;
 			default:
 				debug_fail("color type not supported");
@@ -849,8 +863,9 @@ namespace
 			const mesh_t & mesh,
 			core::maths::Matrix4x4f && modelview)
 			: modelview(std::move(modelview))
-			, vertices(mesh.vertices)
-		{}
+		{
+			debug_verify(copy(mesh.vertices, vertices)); // todo
+		}
 	};
 
 	core::container::UnorderedCollection
@@ -981,7 +996,7 @@ namespace
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
-			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.count() / 3))
+			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.size() / 3))
 			{
 				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
 				core::maths::Vector4f::array_type buffer;
@@ -1475,17 +1490,6 @@ namespace
 		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 
-	template <typename T, std::size_t N>
-	auto convert(std::array<T, N> && data)
-	{
-		core::container::Buffer buffer;
-		buffer.resize<T>(N);
-
-		std::copy(data.begin(), data.end(), buffer.data_as<T>());
-
-		return buffer;
-	}
-
 	constexpr const auto entity_shader_asset = engine::Hash("_entity_");
 
 	void initialize_builtin_shaders()
@@ -1636,7 +1640,7 @@ void main()
 
 					glDrawElements(
 						GL_TRIANGLES,
-						debug_cast<GLsizei>(component.mesh->triangles.count()),
+						debug_cast<GLsizei>(component.mesh->triangles.size()),
 						GL_UNSIGNED_SHORT, // TODO
 						component.mesh->triangles.data());
 
@@ -1809,15 +1813,15 @@ void main()
 			const auto vertex_location = 5;
 			const auto normal_location = 6;
 			const auto texcoord_location = 7;
-			if (0 < component.mesh->vertices.count())
+			if (!empty(component.mesh->vertices))
 			{
 				glEnableVertexAttribArray(vertex_location);
 			}
-			if (0 < component.mesh->normals.count())
+			if (!empty(component.mesh->normals))
 			{
 				glEnableVertexAttribArray(normal_location);
 			}
-			if (0 < component.mesh->coords.count())
+			if (!empty(component.mesh->coords))
 			{
 				glEnableVertexAttribArray(texcoord_location);
 			}
@@ -1825,51 +1829,51 @@ void main()
 			const auto color_location = 8;
 			glVertexAttrib4f(color_location, color[0] / 255.f, color[1] / 255.f, color[2] / 255.f, color[3] / 255.f);
 
-			if (0 < component.mesh->vertices.count())
+			if (!empty(component.mesh->vertices))
 			{
 				glVertexAttribPointer(
 					vertex_location,
 					3, // todo support 2d coordinates?
-					BufferFormats[static_cast<int>(component.mesh->vertices.format())],
+					glType(component.mesh->vertices.value_type()),
 					GL_FALSE,
 					0,
 					component.mesh->vertices.data());
 			}
-			if (0 < component.mesh->normals.count())
+			if (!empty(component.mesh->normals))
 			{
 				glVertexAttribPointer(
 					normal_location,
 					3, // todo support 2d coordinates?
-					BufferFormats[static_cast<int>(component.mesh->normals.format())],
+					glType(component.mesh->normals.value_type()),
 					GL_FALSE,
 					0,
 					component.mesh->normals.data());
 			}
-			if (0 < component.mesh->coords.count())
+			if (!empty(component.mesh->coords))
 			{
 				glVertexAttribPointer(
 					texcoord_location,
 					2,
-					BufferFormats[static_cast<int>(component.mesh->coords.format())],
+					glType(component.mesh->coords.value_type()),
 					GL_FALSE,
 					0,
 					component.mesh->coords.data());
 			}
 			glDrawElements(
 				GL_TRIANGLES,
-				debug_cast<GLsizei>(component.mesh->triangles.count()),
-				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
+				debug_cast<GLsizei>(component.mesh->triangles.size()),
+				glType(component.mesh->triangles.value_type()),
 				component.mesh->triangles.data());
 
-			if (0 < component.mesh->coords.count())
+			if (!empty(component.mesh->coords))
 			{
 				glDisableVertexAttribArray(texcoord_location);
 			}
-			if (0 < component.mesh->normals.count())
+			if (!empty(component.mesh->normals))
 			{
 				glDisableVertexAttribArray(normal_location);
 			}
-			if (0 < component.mesh->vertices.count())
+			if (!empty(component.mesh->vertices))
 			{
 				glDisableVertexAttribArray(vertex_location);
 			}

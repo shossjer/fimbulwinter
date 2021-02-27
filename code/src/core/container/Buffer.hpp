@@ -1,11 +1,10 @@
+#pragma once
 
-#ifndef CORE_CONTAINER_BUFFER_HPP
-#define CORE_CONTAINER_BUFFER_HPP
+#include "core/debug.hpp"
 
-#include <core/debug.hpp>
-
-#include <utility/scalar_alloc.hpp>
-#include <utility/type_traits.hpp>
+#include "utility/scalar_alloc.hpp"
+#include "utility/type_info.hpp"
+#include "utility/type_traits.hpp"
 
 #include <climits>
 #include <cstring>
@@ -16,121 +15,103 @@ namespace core
 	{
 		class Buffer
 		{
-		public:
-			enum struct Format : uint8_t
-			{
-				uint8,
-				uint16,
-				uint32,
-				uint64,
-				int8,
-				int16,
-				int32,
-				int64,
-				float32,
-				float64
-			};
-		private:
-			using FormatTypes = mpl::type_list
-			<
-				uint8_t,
-				uint16_t,
-				uint32_t,
-				uint64_t,
-				int8_t,
-				int16_t,
-				int32_t,
-				int64_t,
-				float,
-				double
-			>;
-
-			template <typename T>
-			using SizeOfTransform = mpl::integral_constant<std::size_t, sizeof(T)>;
-
-			static constexpr auto format_size = mpl::generate_array<mpl::transform<SizeOfTransform, FormatTypes>>();
-
-			template <typename T>
-			using format_of = mpl::integral_constant<Format, static_cast<Format>(mpl::index_of<T, FormatTypes>::value)>;
+			using this_type = Buffer;
 
 		private:
+
 			utility::scalar_alloc data_;
-			Format format_; // todo 4 bits are enough
-			std::size_t count_ : (sizeof(std::size_t) * CHAR_BIT - sizeof(Format) * CHAR_BIT);
+			std::size_t size_;
+			std::uint32_t value_size_;
+			utility::type_id_t value_type_;
 
 		public:
-			Buffer() = default;
-			Buffer(Format format, std::size_t count)
-				: data_(format_size[static_cast<int>(format)] * count)
-				, format_(format)
-				, count_(count)
-			{}
-			Buffer(const Buffer & buffer)
-				: data_(buffer.size())
-				, format_(buffer.format_)
-				, count_(buffer.count_)
-			{
-				std::memcpy(data_.data(), buffer.data_.data(), buffer.size());
-			}
-			Buffer(Buffer && buffer) = default;
-			Buffer & operator = (const Buffer & buffer)
-			{
-				data_.resize(buffer.size());
-				format_ = buffer.format_;
-				count_ = buffer.count_;
 
-				std::memcpy(data_.data(), buffer.data_.data(), buffer.size());
-
-				return *this;
-			}
-			Buffer & operator = (Buffer && buffer) = default;
-
-		public:
-			std::size_t count() const
-			{
-				return count_;
-			}
 			char * data()
 			{
 				return static_cast<char *>(data_.data());
 			}
+
 			const char * data() const
 			{
 				return static_cast<const char *>(data_.data());
 			}
-			template <typename T>
+
+			template <typename T,
+			          REQUIRES((std::is_scalar<T>::value))>
 			T * data_as()
 			{
-				debug_assert(format_of<T>::value == format_);
+				if (!debug_assert(utility::type_id<T>() == value_type_))
+					return nullptr;
+
 				return data_.data_as<T>();
 			}
-			template <typename T>
+
+			template <typename T,
+			          REQUIRES((std::is_scalar<T>::value))>
 			const T * data_as() const
 			{
-				debug_assert(format_of<T>::value == format_);
+				if (!debug_assert(utility::type_id<T>() == value_type_))
+					return nullptr;
+
 				return data_.data_as<T>();
 			}
-			Format format() const
-			{
-				return format_;
-			}
+
 			std::size_t size() const
 			{
-				return format_size[static_cast<int>(format_)] * count_;
+				return size_;
 			}
+
+			std::size_t bytes_size() const { return size_ * value_size_; }
+
+			std::size_t value_size() const { return value_size_; }
+
+			utility::type_id_t value_type() const { return value_type_; }
 
 		public:
-			template <typename T>
-			void resize(std::size_t count)
-			{
-				constexpr Format format = format_of<T>::value;
 
-				data_.resize(format_size[static_cast<int>(format)] * count);
-				format_ = format;
-				count_ = count;
+			template <typename T,
+			          REQUIRES((std::is_scalar<T>::value))>
+			bool reshape(std::size_t size)
+			{
+				if (!debug_verify(data_.resize(size * sizeof(T))))
+					return false;
+
+				size_ = size;
+				value_size_ = sizeof(T);
+				value_type_ = utility::type_id<T>();
+
+				return true;
+			}
+
+		private:
+
+			friend bool copy(const this_type & in, this_type & out)
+			{
+				if (!debug_verify(out.data_.resize(in.bytes_size())))
+					return false;
+
+				std::memcpy(out.data_.data(), in.data_.data(), in.bytes_size());
+
+				out.size_ = in.size_;
+				out.value_size_ = in.value_size_;
+				out.value_type_ = in.value_type_;
+
+				return true;
 			}
 		};
+
+		template <typename BeginIt, typename EndIt>
+		auto copy(Buffer & x, BeginIt ibegin, EndIt iend)
+			-> decltype(x.data_as<typename std::iterator_traits<BeginIt>::value_type>(), bool())
+		{
+			if (!debug_assert(iend - ibegin == x.size()))
+				return false;
+
+			std::copy(ibegin, iend, x.data_as<typename std::iterator_traits<BeginIt>::value_type>());
+
+			return true;
+		}
+
+		inline bool empty(const Buffer & x) { return x.size() == 0; }
 	}
 }
-
-#endif /* CORE_CONTAINER_BUFFER_HPP */
