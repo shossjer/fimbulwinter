@@ -2,27 +2,587 @@
 
 #include <catch2/catch.hpp>
 
+#include <array>
+#include <initializer_list>
 #include <list>
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
+#include <valarray>
+#include <vector>
 
-TEST_CASE( "is_contiguous_iterator", "[utility]" )
+namespace
+{
+	struct test_range
+	{
+		char * begin();
+		const char * begin() const;
+		const char * cbegin() const;
+		char * end();
+		const char * end() const;
+		const char * cend() const;
+
+		std::reverse_iterator<char *> rbegin();
+		std::reverse_iterator<const char *> rbegin() const;
+		std::reverse_iterator<const char *> crbegin() const;
+		std::reverse_iterator<char *> rend();
+		std::reverse_iterator<const char *> rend() const;
+		std::reverse_iterator<const char *> crend() const;
+	};
+}
+
+TEST_CASE("iterator properties", "[utility][iterator]")
 {
 	using utility::begin;
+	using utility::rbegin;
+	using utility::cbegin;
+	using utility::crbegin;
 
-	static_assert(utility::is_contiguous_iterator<int*>::value, "");
-	static_assert(utility::is_contiguous_iterator<const int*>::value, "");
-	static_assert(utility::is_contiguous_iterator<std::move_iterator<int*>>::value, "");
-	static_assert(utility::is_contiguous_iterator<std::move_iterator<const int*>>::value, "");
-	static_assert(utility::is_contiguous_iterator<std::reverse_iterator<int*>>::value, "");
-	static_assert(utility::is_contiguous_iterator<std::reverse_iterator<const int*>>::value, "");
+	using utility::end;
+	using utility::rend;
+	using utility::cend;
+	using utility::crend;
 
-	static_assert(utility::is_contiguous_iterator<std::move_iterator<std::reverse_iterator<int*>>>::value, "");
-	static_assert(utility::is_contiguous_iterator<std::move_iterator<std::reverse_iterator<const int*>>>::value, "");
+	SECTION("on c-array")
+	{
+		int a[3];
+		static_assert(utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
 
-	static_assert(utility::is_contiguous_iterator<decltype(begin(std::declval<std::array<int, 10>>()))>::value, "");
-	static_assert(utility::is_contiguous_iterator<decltype(begin(std::declval<std::valarray<int>>()))>::value, "");
-	static_assert(utility::is_contiguous_iterator<decltype(begin(std::declval<std::vector<int>>()))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(std::move(a)))>::value, "");
 
-	static_assert(!utility::is_contiguous_iterator<decltype(begin(std::declval<std::list<int>>()))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::array")
+	{
+		std::array<int, 5> a;
+		static_assert(utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::initializer_list")
+	{
+		// todo moving initializer_list will not result in a move_iterator due to the way its begin/end function is implemented, so for now it is not supported
+
+		std::initializer_list<int> a;
+		static_assert(utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		//static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		//static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(std::move(a)))>::value, "");
+		//static_assert(utility::is_move_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		//static_assert(utility::is_move_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		//static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		//static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(std::move(a)))>::value, "");
+		//static_assert(utility::is_move_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		//static_assert(utility::is_move_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::list")
+	{
+		std::list<int> a;
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::map")
+	{
+		std::map<int, float> a;
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::set")
+	{
+		std::set<int> a;
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::unordered_map")
+	{
+		std::unordered_map<int, float> a;
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::unordered_set")
+	{
+		std::unordered_set<int> a;
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::valarray")
+	{
+		std::valarray<int> a;
+		static_assert(utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on std::vector")
+	{
+		std::vector<int> a;
+		static_assert(utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(std::move(a)))>::value, "");
+	}
+
+	SECTION("on test_range")
+	{
+		test_range a;
+		static_assert(utility::is_contiguous_iterator<decltype(begin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(end(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(end(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(begin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(end(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(rend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(rend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(cend(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(a))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(cend(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cbegin(std::move(a)))>::value, "");
+		static_assert(!utility::is_reverse_iterator<decltype(cend(std::move(a)))>::value, "");
+
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(!utility::is_move_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(a))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(a))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_contiguous_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_move_iterator<decltype(crend(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value, "");
+		static_assert(utility::is_reverse_iterator<decltype(crend(std::move(a)))>::value, "");
+	}
 }
 
 TEST_CASE("reverse works on", "[utility]")
