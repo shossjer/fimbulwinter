@@ -20,6 +20,26 @@ function(run_tests name executable)
 		)
 endfunction()
 
+set(private_compile_options
+	$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+		-Wall -Wextra -Wconversion -Werror -Wno-sign-conversion>
+	# sign-conversion - Warn for implicit conversions that may change
+	# the sign of an integer value, like assigning a signed integer
+	# expression to an unsigned integer variable.
+	$<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:CXX_COMPILER_VERSION,6.0>>:
+		-Wno-missing-braces>
+	# missing-braces - Warn if an aggregate or union initializer is not
+	# fully bracketed.
+	$<$<CXX_COMPILER_ID:MSVC>:
+		/W4 /WX
+		/constexpr:steps5000000>
+	)
+
+set(private_compile_definitions
+	$<$<CXX_COMPILER_ID:MSVC>:
+		NOMINMAX UNICODE _UNICODE>
+	)
+
 include (bnc/CMakeLists.txt)
 include (src/CMakeLists.txt)
 include (tst/CMakeLists.txt)
@@ -27,7 +47,7 @@ include (tst/CMakeLists.txt)
 add_library(utility "")
 target_sources(utility PRIVATE ${SOURCES_UTILITY} ${HEADERS_UTILITY} ${${CMAKE_CXX_COMPILER_ID}_UTILITY})
 target_include_directories(utility PUBLIC "src")
-target_link_libraries(utility PRIVATE generated lib_profiling PUBLIC dep_json)
+target_link_libraries(utility PRIVATE generated lib_profiling PUBLIC fiw_utility_features)
 target_compile_options(utility PRIVATE ${private_compile_options})
 target_compile_definitions(utility PRIVATE ${private_compile_definitions})
 
@@ -68,7 +88,7 @@ add_library(core "")
 add_dependencies(core ${utility_dependency})
 target_sources(core PRIVATE ${SOURCES_CORE} ${HEADERS_CORE} ${${CMAKE_CXX_COMPILER_ID}_CORE})
 target_include_directories(core PUBLIC "src")
-target_link_libraries(core PRIVATE generated utility lib_profiling PUBLIC dep_libpng dep_zlib thread_dep)
+target_link_libraries(core PRIVATE generated utility lib_profiling PUBLIC thread_dep fiw_core_features)
 target_compile_options(core PRIVATE ${private_compile_options})
 target_compile_definitions(core PRIVATE ${private_compile_definitions})
 
@@ -96,7 +116,7 @@ add_library(engine "")
 add_dependencies(engine ${core_dependency})
 target_sources(engine PRIVATE ${SOURCES_ENGINE} ${HEADERS_ENGINE})
 target_include_directories(engine PUBLIC "src")
-target_link_libraries(engine PRIVATE generated utility core lib_profiling PUBLIC audio_dep graphics_dep input_dep text_dep window_dep)
+target_link_libraries(engine PRIVATE generated utility core lib_profiling PUBLIC audio_dep graphics_dep input_dep text_dep window_dep fiw_engine_features)
 target_compile_options(engine PRIVATE ${private_compile_options})
 target_compile_definitions(engine PRIVATE ${private_compile_definitions})
 

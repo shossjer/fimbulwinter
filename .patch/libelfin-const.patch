@@ -1,0 +1,13 @@
+diff --git a/elf/data.hh b/elf/data.hh
+index ed5c7a107f44c9d318ddd92866c9cf8938064d11..4a60944760c9214b337bcf3b5acce9c20de399bf 100644
+--- a/elf/data.hh
++++ b/elf/data.hh
+@@ -553,7 +553,7 @@ struct Sym<Elf64, Order>
+                 return (stb)(info >> 4);
+         }
+ 
+-        void set_binding(stb v) const
++        void set_binding(stb v)
+         {
+                 info = (info & 0xF) | ((unsigned char)v << 4);
+         }

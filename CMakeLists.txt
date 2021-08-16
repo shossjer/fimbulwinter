@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5.1)
 
 include(CMakeDependentOption)
-include(TestBigEndian)
+include(dep/dep.cmake)
 
 # usage:
 #
@@ -36,7 +36,9 @@ macro(_resolve_options)
 	unset(_resolve_options_clear_remaining)
 endmacro()
 
-project(fimbulwinter C CXX)
+project(fimbulwinter CXX)
+
+# project setup
 
 if(DEFINED CMAKE_CONFIGURATION_TYPES)
 	message(STATUS "Detected multi configuration build: ${CMAKE_CONFIGURATION_TYPES}")
@@ -54,53 +56,306 @@ else()
 	message(FATAL_ERROR "Neither CMAKE_CONFIGURATION_TYPES or CMAKE_BUILD_TYPE are set!")
 endif()
 
-add_subdirectory(dep)
-add_subdirectory(tools)
-
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_EXTENSIONS OFF)
+if(NOT CMAKE_CXX_STANDARD)
+	set(CMAKE_CXX_STANDARD 14)
+	message(STATUS "C++ standard ${CMAKE_CXX_STANDARD} (default)")
+else()
+	message(STATUS "C++ standard ${CMAKE_CXX_STANDARD}")
+endif()
+set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# todo move into code
-set(private_compile_options
-	$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
-		-Wall -Wextra -Wconversion -Werror -Wno-sign-conversion>
-	# sign-conversion - Warn for implicit conversions that may change
-	# the sign of an integer value, like assigning a signed integer
-	# expression to an unsigned integer variable.
-	$<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:CXX_COMPILER_VERSION,6.0>>:
-		-Wno-missing-braces>
-	# missing-braces - Warn if an aggregate or union initializer is not
-	# fully bracketed.
-	$<$<CXX_COMPILER_ID:MSVC>:
-		/W4 /WX
-		/constexpr:steps5000000>
-	)
-
-set(private_compile_definitions
-	$<$<CXX_COMPILER_ID:MSVC>:
-		NOMINMAX UNICODE _UNICODE>
-	)
+set_property(DIRECTORY PROPERTY DEP_DIRECTORY "${CMAKE_SOURCE_DIR}/dep/${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}")
 
 # project information
+
 message(STATUS "Using CXX compiler ${CMAKE_CXX_COMPILER}")
-message("")
+message(STATUS "System is ${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}")
 
-message(STATUS "CMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION}")
-message(STATUS "PROJECT_BINARY_DIR=${PROJECT_BINARY_DIR}")
-message(STATUS "PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}")
+#
 
-message(STATUS "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}")
-message(STATUS "CMAKE_SYSTEM_PREFIX_PATH=${CMAKE_SYSTEM_PREFIX_PATH}")
-message(STATUS "CMAKE_INCLUDE_PATH=${CMAKE_INCLUDE_PATH}")
-message(STATUS "CMAKE_SYSTEM_INCLUDE_PATH=${CMAKE_SYSTEM_INCLUDE_PATH}")
-message("")
+add_subdirectory(tools)
 
-# hardware settings
-test_big_endian(ENDIANESS)
-if (ENDIANESS)
-  set(BIG_WORDS 1)
-endif ()
+# build dependencies
+
+macro(_package_catch)
+	dep_package(catch fiw_catch
+		${ARGV}
+
+		FILES
+		catch2/catch.hpp
+		)
+endmacro()
+
+option(FIW_BUILD_CATCH "Build catch" ON)
+if(FIW_BUILD_CATCH)
+	_package_catch(IGNORE_SYSTEM)
+
+	dep_build(catch
+		DOWNLOAD_STEP
+		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
+		GIT_TAG "v2.12.1"
+		GIT_SHALLOW True
+
+		CMAKE_OPTIONS
+		-DCATCH_BUILD_TESTING=OFF
+		-DCATCH_INSTALL_DOCS=OFF
+		-DCATCH_INSTALL_HELPERS=OFF
+		)
+endif()
+
+_package_catch()
+
+# build settings
+
+cmake_dependent_option(FIW_BUILD_TESTS "Build tests" ON "TARGET fiw_catch" OFF)
+add_library(fiw_test INTERFACE)
+if(FIW_BUILD_TESTS)
+	target_link_libraries(fiw_test INTERFACE fiw_catch)
+	# target_compile_options(fiw_test INTERFACE
+	# 	$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
+	# 		-Wno-sign-compare -Wno-sign-conversion>
+	# 	$<$<CXX_COMPILER_ID:Clang>:
+	# 		-Wno-self-move>
+	# 	$<$<CXX_COMPILER_ID:MSVC>:
+	# 		/wd4389 /wd4456>
+	# 	)
+endif()
+
+cmake_dependent_option(FIW_TESTS_BUILDTIME "Run tests as part of the build process." ON "FIW_BUILD_TESTS" OFF)
+
+cmake_dependent_option(FIW_BUILD_BENCHMARKS "Build benchmarks" OFF "TARGET fiw_catch" OFF)
+add_library(fiw_benchmark INTERFACE)
+if(FIW_BUILD_BENCHMARKS)
+	target_link_libraries(fiw_benchmark INTERFACE fiw_catch)
+	target_compile_definitions(fiw_benchmark INTERFACE CATCH_CONFIG_ENABLE_BENCHMARKING)
+endif()
+
+# build features
+
+#
+macro(_package_khrplatform)
+	dep_package(khrplatform fiw_khrplatform
+		${ARGV}
+
+		FILES
+		KHR/khrplatform.h
+		)
+endmacro()
+
+option(FIW_BUILD_KHRPLATFORM "Build khrplatform" ON)
+if(FIW_BUILD_KHRPLATFORM)
+	_package_khrplatform(IGNORE_SYSTEM)
+
+	dep_build(khrplatform
+		DOWNLOAD_STEP
+		URL "https://www.khronos.org/registry/EGL/api/KHR/khrplatform.h"
+		DOWNLOAD_NO_EXTRACT True
+		TIMEOUT 10
+
+		INSTALL_STEP
+		INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory "\$\{_install_prefix\}/include/KHR"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "\$\{_download_dir\}/khrplatform.h" "\$\{_install_prefix\}/include/KHR"
+		)
+endif()
+
+_package_khrplatform()
+
+#
+macro(_package_glext)
+	dep_package(glext fiw_glext
+		${ARGV}
+
+		DEPENDS
+		fiw_khrplatform
+
+		FILES
+		GL/glext.h
+		)
+endmacro()
+
+option(FIW_BUILD_GLEXT "Build glext" ON)
+if(FIW_BUILD_GLEXT)
+	_package_glext(IGNORE_SYSTEM)
+
+	dep_build(glext
+		DOWNLOAD_STEP
+		URL "https://www.khronos.org/registry/OpenGL/api/GL/glext.h"
+		DOWNLOAD_NO_EXTRACT True
+		TIMEOUT 10
+
+		INSTALL_STEP
+		INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory "\$\{_install_prefix\}/include/GL"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different "\$\{_download_dir\}/glext.h" "\$\{_install_prefix\}/include/GL"
+		)
+endif()
+
+_package_glext()
+
+# todo replace with simd json
+#
+macro(_package_json)
+	dep_package(json fiw_json
+		${ARGV}
+
+		FILES
+		nlohmann/json.hpp
+		)
+endmacro()
+
+option(FIW_BUILD_JSON "Build json" ON)
+if(FIW_BUILD_JSON)
+	_package_json(IGNORE_SYSTEM)
+
+	dep_build(json
+		DOWNLOAD_STEP
+		GIT_REPOSITORY "https://github.com/nlohmann/json.git"
+		GIT_TAG "ce0b3fe5a334567825a554a08b76c725d0790500"
+
+		CMAKE_OPTIONS
+		-DBuildTests=OFF
+		)
+endif()
+
+_package_json()
+
+#
+macro(_package_zlib)
+	dep_package(zlib fiw_zlib
+		SUPPORTS_DEBUG
+		${ARGV}
+
+		FILES
+		zlib.h
+
+		LIBS
+		Linux_x86_64
+		libz.a
+		Windows_AMD64
+		optimized zlibstatic
+		debug zlibstaticd
+		)
+endmacro()
+
+option(FIW_BUILD_ZLIB "Build zlib" ON)
+if(FIW_BUILD_ZLIB)
+	_package_zlib(IGNORE_SYSTEM)
+
+	dep_build(zlib
+		SUPPORTS_DEBUG
+
+		DOWNLOAD_STEP
+		URL "https://zlib.net/zlib-1.2.11.tar.xz"
+		URL_HASH "SHA256=4ff941449631ace0d4d203e3483be9dbc9da454084111f97ea0a2114e19bf066"
+		TIMEOUT 10
+
+		UPDATE_STEP
+		Windows_AMD64
+		PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_SOURCE_DIR}/.patch/zlib-cache.patch" "\$\{_source_dir\}/CMakeLists.txt"
+
+		CMAKE_OPTIONS
+		-DBUILD_SHARED_LIBS=OFF
+		-DSKIP_INSTALL_FILES=ON
+		)
+endif()
+
+_package_zlib()
+
+#
+macro(_package_libpng)
+	dep_package(libpng fiw_libpng
+		SUPPORTS_DEBUG
+		${ARGV}
+
+		DEPENDS
+		fiw_zlib
+
+		FILES
+		libpng16/png.h
+
+		LIBS
+		Linux_x86_64
+		optimized libpng16.a
+		debug libpng16d.a
+		Windows_AMD64
+		optimized libpng16_static
+		debug libpng16_staticd
+		)
+endmacro()
+
+option(FIW_BUILD_LIBPNG "Build libpng" ON)
+if(FIW_BUILD_LIBPNG)
+	_package_libpng(IGNORE_SYSTEM)
+
+	dep_build(libpng
+		SUPPORTS_DEBUG
+
+		DOWNLOAD_STEP
+		URL "ftp://ftp-osl.osuosl.org/pub/libpng/src/archive/xz/libpng16/libpng-1.6.30.tar.xz"
+		URL_HASH "SHA256=267c332ffff70cc599d3929207869f698798f1df143aa5f9597b007c14353666"
+		TIMEOUT 10
+
+		CMAKE_OPTIONS
+		-Wno-dev
+		-DPNG_TESTS=OFF
+		-DSKIP_INSTALL_EXECUTABLES=ON
+		-DSKIP_INSTALL_PROGRAMS=ON
+		-DSKIP_INSTALL_FILES=ON
+		-DSKIP_INSTALL_EXPORT=ON
+		)
+endif()
+
+_package_libpng()
+
+#
+macro(_package_freetype)
+	dep_package(freetype fiw_freetype
+		SUPPORTS_DEBUG
+		${ARGV}
+
+		DEPENDS
+		fiw_zlib
+		fiw_libpng
+
+		FILES
+		IN_DIRECTORY freetype2
+		ft2build.h
+
+		LIBS
+		optimized freetype
+		debug freetyped
+		)
+endmacro()
+
+option(FIW_BUILD_FREETYPE "Build freetype" ON)
+if(FIW_BUILD_FREETYPE)
+	_package_freetype(IGNORE_SYSTEM)
+
+	dep_build(freetype
+		SUPPORTS_DEBUG
+
+		DOWNLOAD_STEP
+		URL "https://download.savannah.gnu.org/releases/freetype/freetype-2.8.1.tar.gz"
+		URL_HASH "SHA256=876711d064a6a1bd74beb18dd37f219af26100f72daaebd2d86cb493d7cd7ec6"
+		TIMEOUT 10
+
+		CMAKE_OPTIONS
+		-DWITH_ZLIB=${FIW_BUILD_ZLIB}
+		-DWITH_PNG=${FIW_BUILD_LIBPNG}
+		-DWITH_BZip2=OFF
+		-DWITH_HarfBuzz=OFF
+		)
+endif()
+
+_package_freetype()
+
+#
+dep_package(fmod fiw_fmod
+	FILES fmod.hpp
+	LIBS
+	Linux_x86_64 fmod
+	Windows_AMD64 fmod_vc
+	)
 
 # lookup dependencies
 
@@ -108,15 +363,6 @@ endif ()
 message(STATUS "Looking for BSD")
 find_file(FILE_SYS_FILE_H sys/file.h)
 message(STATUS "Looking for BSD file - ${FILE_SYS_FILE_H}")
-
-# FMOD
-message(STATUS "Looking for FMOD")
-find_file(FILE_FMOD_HPP fmod.hpp)
-message(STATUS "Looking for FMOD header - ${FILE_FMOD_HPP}")
-find_library(LIBRARY_FMOD fmod)
-find_library(LIBRARY_FMOD fmod_vc)
-message(STATUS "Looking for FMOD library - ${LIBRARY_FMOD}")
-message(STATUS "Looking for FMOD library - ${LIBRARY_FMOD_VC}")
 
 # Linux
 message(STATUS "Looking for Linux")
@@ -175,24 +421,32 @@ message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
 # module dependencies
 
-# audio
-if(FILE_FMOD_HPP AND (LIBRARY_FMOD OR LIBRARY_FMOD_VC))
-	set(FOUND_FMOD 1)
+# todo remove
+add_library(fiw_utility_features INTERFACE)
+add_library(fiw_core_features INTERFACE)
+add_library(fiw_engine_features INTERFACE)
+
+if(TARGET fiw_json)
+	target_link_libraries(fiw_utility_features INTERFACE fiw_json)
+	target_compile_definitions(fiw_utility_features INTERFACE FIW_HAVE_JSON)
 endif()
-# hack to simplify the expression for `cmake_dependent_option`
-cmake_dependent_option(AUDIO_USE_FMOD "Use the FMOD library for the audio module" ON "FOUND_FMOD" OFF)
+
+if(TARGET fiw_libpng)
+	target_link_libraries(fiw_core_features INTERFACE fiw_libpng)
+	target_compile_definitions(fiw_core_features INTERFACE FIW_HAVE_LIBPNG)
+endif()
+
+if(TARGET fiw_zlib)
+	target_link_libraries(fiw_core_features INTERFACE fiw_zlib)
+	target_compile_definitions(fiw_core_features INTERFACE FIW_HAVE_ZLIB)
+endif()
+
+# audio
+cmake_dependent_option(AUDIO_USE_FMOD "Use the FMOD library for the audio module" ON "TARGET fiw_fmod" OFF)
 add_library(audio_dep INTERFACE)
 if(AUDIO_USE_FMOD)
 	message(STATUS "Audio - FMOD")
-
-	get_filename_component(_directory "${FILE_FMOD_HPP}" DIRECTORY)
-
-	target_include_directories(audio_dep INTERFACE "${_directory}")
-	if(LIBRARY_FMOD)
-		target_link_libraries(audio_dep INTERFACE "${LIBRARY_FMOD}")
-	else()
-		target_link_libraries(audio_dep INTERFACE "${LIBRARY_FMOD_VC}")
-	endif()
+	target_link_libraries(audio_dep INTERFACE fiw_fmod)
 else()
 	message(WARNING "Audio - Disabled")
 	set(AUDIO_USE_DUMMY 1)
@@ -236,7 +490,7 @@ else()
 endif()
 
 # graphics
-if(FILE_GL_GL_H AND TARGET dep_glext AND (LIBRARY_GL OR LIBRARY_OPENGL32))
+if(FILE_GL_GL_H AND TARGET fiw_glext AND (LIBRARY_GL OR LIBRARY_OPENGL32))
 	set(FOUND_OPENGL 1)
 endif()
 # hack to simplify the expression for `cmake_dependent_option`
@@ -245,7 +499,7 @@ add_library(graphics_dep INTERFACE)
 if(GRAPHICS_USE_OPENGL)
 	message(STATUS "Graphics - OpenGL")
 
-	target_link_libraries(graphics_dep INTERFACE dep_glext)
+	target_link_libraries(graphics_dep INTERFACE fiw_khrplatform fiw_glext)
 	if(LIBRARY_GL)
 		target_link_libraries(graphics_dep INTERFACE "${LIBRARY_GL}")
 	else()
@@ -290,7 +544,7 @@ message(STATUS "Task - Dummy (single thread)")
 set(TASK_USE_DUMMY 1)
 
 # text
-cmake_dependent_option(TEXT_USE_FREETYPE "Use Freetype as text/font source" ON "TARGET dep_freetype" OFF)
+cmake_dependent_option(TEXT_USE_FREETYPE "Use Freetype as text/font source" ON "TARGET fiw_freetype" OFF)
 cmake_dependent_option(TEXT_USE_USER32 "Use the Windows API as text/font source" ON "WINDOW_USE_USER32" OFF)
 cmake_dependent_option(TEXT_USE_X11 "Use X11/Xlib as text/font source" ON "WINDOW_USE_X11" OFF)
 _resolve_options(TEXT_USE_FREETYPE | TEXT_USE_USER32 TEXT_USE_X11)
@@ -298,7 +552,7 @@ add_library(text_dep INTERFACE)
 if(TEXT_USE_FREETYPE)
 	message(STATUS "Text - Freetype")
 
-	target_link_libraries(text_dep INTERFACE dep_freetype)
+	target_link_libraries(text_dep INTERFACE fiw_freetype)
 elseif(TEXT_USE_USER32)
 	message(WARNING "Text - User32")
 elseif(TEXT_USE_X11)
@@ -369,30 +623,6 @@ if(PROFILING_COZ)
 		)
 else()
 	message(STATUS "Disabled profiling")
-endif()
-
-# sse
-message(STATUS "Looking for SSE")
-find_file(FILE_IMMINTRIN_H immintrin.h)
-message(STATUS "Looking for SSE - ${FILE_IMMINTRIN_H}")
-if (FILE_IMMINTRIN_H)
-  set(HAVE_IMMINTRIN_H 1)
-endif()
-# if (FILE_XMMINTRIN_H)
-#   try_compile(
-# 	HAVE_XMMINTRIN_H
-# 	"${CMAKE_BINARY_DIR}"
-# 	"${CMAKE_SOURCE_DIR}/try/xmmintrin.h.cpp")
-#   message(STATUS "Looking for SSE - ${HAVE_XMMINTRIN_H}")
-# endif()
-# version helpers (Windows only)
-if (WINDOW_USE_USER32)
-  message(STATUS "Looking for versionhelpers.h")
-  find_file(FILE_VERSIONHELPERS_H versionhelpers.h)
-  message(STATUS "Looking for versionhelpers.h - ${FILE_VERSIONHELPERS_H}")
-  if (FILE_VERSIONHELPERS_H)
-    set(HAVE_VERSIONHELPERS_H 1)
-  endif()
 endif()
 
 if(CMAKE_BUILD_TYPE)
