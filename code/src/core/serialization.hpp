@@ -177,10 +177,10 @@ namespace core
 
 		template <typename X, typename F>
 		static auto call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
-			-> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<0>())))
+			-> decltype(f(std::declval<lookup_table_t>().template get_key<0>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<0>())))
 		{
 			debug_unreachable();
-			return f(lookup_table.template get_key<I>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<0>()));
+			return f(lookup_table.template get_key<0>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<0>()));
 		}
 #if defined(_MSC_VER)
 # pragma warning( pop )
@@ -295,6 +295,7 @@ namespace core
 			auto copy_impl_tuple(Tuple & tuple, BeginIt ibegin, EndIt iend, mpl::index_sequence<Is...>)
 				-> decltype(ext::declexpand(get<Is>(tuple) = *ibegin...), bool())
 			{
+				static_cast<void>(iend);
 				int expansion_hack[] = {(get<Is>(tuple) = *ibegin, ++ibegin, 0)...};
 				static_cast<void>(expansion_hack);
 
@@ -573,6 +574,8 @@ namespace core
 		{
 			constexpr auto value_name = utility::type_name<T>();
 			constexpr auto object_name = utility::type_name<Object>();
+			static_cast<void>(value_name);
+			static_cast<void>(object_name);
 			debug_unreachable("cannot serialize value of type '", value_name, "' to/from object of type '", object_name, "', maybe you are missing an overload to 'serialize'?");
 		}
 	}

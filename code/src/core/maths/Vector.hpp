@@ -1,11 +1,10 @@
-
-#ifndef CORE_MATHS_VECTOR_HPP
-#define CORE_MATHS_VECTOR_HPP
+#pragma once
 
 #include <config.h>
 
 #include "Scalar.hpp"
 
+#include "core/debug.hpp"
 #include <utility/algorithm.hpp>
 #include <utility/type_traits.hpp>
 
@@ -467,5 +466,3 @@ namespace core
 		constexpr auto size(const Vector<N, T> &) { return N; }
 	}
 }
-
-#endif /* CORE_MATHS_VECTOR_HPP */

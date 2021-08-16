@@ -148,7 +148,7 @@ namespace
 
 	void scan_directory_subdirs(utility::string_units_utf8 filepath, utility::heap_vector<utility::heap_string_utf8> & subdirs)
 	{
-		debug_verify(subdirs.try_emplace_back());
+		static_cast<void>(debug_verify(subdirs.try_emplace_back()));
 
 		utility::heap_string_utf8 pattern(filepath);
 		for (ext::index index = 0; index < static_cast<ext::index>(subdirs.size()); index++)

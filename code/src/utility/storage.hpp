@@ -802,14 +802,14 @@ namespace utility
 		template <typename S, typename P>
 		decltype(auto) construct_at_(S * s, std::piecewise_construct_t, P && p)
 		{
-			return ext::apply([&s, this](auto && ...ps) -> decltype(auto) { return construct_at_(s, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
+			return ext::apply([&s, this](auto && ...ps) -> decltype(auto) { return this->construct_at_(s, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
 		}
 
 		template <typename ...Ss,
 		          typename Reference = reference_for<Ss...>>
 		Reference construct_at_(utility::zip_iterator<Ss *...> it)
 		{
-			return ext::apply([this](auto * ...ss) -> Reference { return Reference(construct_at_(ss)...); }, it);
+			return ext::apply([this](auto * ...ss) -> Reference { return Reference(this->construct_at_(ss)...); }, it);
 		}
 
 		template <typename ...Ss, typename ...Ps,
@@ -819,21 +819,21 @@ namespace utility
 		          REQUIRES((!mpl::is_same<std::piecewise_construct_t, mpl::car<mpl::remove_cvref_t<Ps>..., void>>::value))>
 		Reference construct_at_(utility::zip_iterator<Ss *...> it, Ps && ...ps)
 		{
-			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at_(ss, std::forward<Ps>(ps))...); }, it);
+			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(this->construct_at_(ss, std::forward<Ps>(ps))...); }, it);
 		}
 
 		template <typename ...Ss, typename P,
 		          REQUIRES((ext::tuple_size<P>::value == sizeof...(Ss)))>
 		decltype(auto) construct_at_(utility::zip_iterator<Ss *...> it, P && p)
 		{
-			return ext::apply([&it, this](auto && ...ps) -> decltype(auto) { return construct_at_(it, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
+			return ext::apply([&it, this](auto && ...ps) -> decltype(auto) { return this->construct_at_(it, std::forward<decltype(ps)>(ps)...); }, std::forward<P>(p));
 		}
 
 		template <typename ...Ss, typename ...Ps,
 		          typename Reference = reference_for<Ss...>>
 		Reference construct_at_(utility::zip_iterator<Ss *...> it, std::piecewise_construct_t, Ps && ...ps)
 		{
-			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(construct_at_(ss, std::piecewise_construct, std::forward<Ps>(ps))...); }, it);
+			return ext::apply([&ps..., this](auto * ...ss) -> Reference { return Reference(this->construct_at_(ss, std::piecewise_construct, std::forward<Ps>(ps))...); }, it);
 		}
 
 		template <typename S, typename ...Ps>
@@ -925,7 +925,7 @@ namespace utility
 		template <typename ...Ss>
 		void destruct_at(utility::zip_iterator<Ss *...> it)
 		{
-			utl::for_each(it, [this](auto * s){ destruct_at(s); });
+			utl::for_each(it, [this](auto * s){ this->destruct_at(s); });
 		}
 
 		template <typename S>

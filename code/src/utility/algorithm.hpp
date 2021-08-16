@@ -1,6 +1,4 @@
-
-#ifndef UTILITY_ALGORITHM_HPP
-#define UTILITY_ALGORITHM_HPP
+#pragma once
 
 #include "utility/concepts.hpp"
 #include "utility/type_traits.hpp"
@@ -10,6 +8,19 @@
 #include <tuple>
 #include <valarray>
 #include <vector>
+
+namespace ext
+{
+	namespace detail
+	{
+		struct not_this_type {};
+	}
+}
+
+namespace std
+{
+	void size(ext::detail::not_this_type);
+}
 
 namespace ext
 {
@@ -432,5 +443,3 @@ namespace utl
 		return utl::to_array(std::move(values));
 	}
 }
-
-#endif /* UTILITY_ALGORITHM_HPP */

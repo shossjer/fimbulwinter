@@ -551,11 +551,11 @@ namespace engine
 				{
 					void operator () (MessageRegisterArmature && x)
 					{
-						debug_verify(sources.emplace<Armature>(x.asset, std::move(x.data)));
+						static_cast<void>(debug_verify(sources.emplace<Armature>(x.asset, std::move(x.data))));
 					}
 					void operator () (MessageRegisterObject && x)
 					{
-						debug_verify(sources.emplace<engine::animation::object>(x.asset, std::move(x.data)));
+						static_cast<void>(debug_verify(sources.emplace<engine::animation::object>(x.asset, std::move(x.data))));
 					}
 				};
 				visit(ProcessMessage{}, std::move(asset_message));
@@ -576,7 +576,7 @@ namespace engine
 						if (!debug_assert(armature))
 							return; // error
 
-						debug_verify(components.emplace<Character>(x.entity, x.entity, *armature));
+						static_cast<void>(debug_verify(components.emplace<Character>(x.entity, x.entity, *armature)));
 					}
 					void operator () (MessageAddModel && x)
 					{
@@ -588,7 +588,7 @@ namespace engine
 						if (!debug_assert(object))
 							return; // error
 
-						debug_verify(components.emplace<Model>(x.entity, x.entity, *object));
+						static_cast<void>(debug_verify(components.emplace<Model>(x.entity, x.entity, *object)));
 					}
 					void operator () (MessageUpdateAction && x)
 					{

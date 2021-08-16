@@ -301,6 +301,7 @@ namespace core
 		bool read_array(const json &, T &, ext::priority_default)
 		{
 			constexpr auto name = utility::type_name<T>();
+			static_cast<void>(name);
 			return debug_fail("attempting to read array into ", name, " from json '", filepath_, "'");
 		}
 
@@ -374,6 +375,7 @@ namespace core
 		bool read_object(const json &, T &)
 		{
 			constexpr auto name = utility::type_name<T>();
+			static_cast<void>(name);
 			return debug_fail("attempting to read object into ", name, " from json '", filepath_, "'");
 		}
 
@@ -382,6 +384,7 @@ namespace core
 		bool read_object(const json &, T &)
 		{
 			constexpr auto name = utility::type_name<T>();
+			static_cast<void>(name);
 			return debug_fail("attempting to read object into ", name, " from json '", filepath_, "'");
 		}
 

@@ -687,6 +687,7 @@ namespace
 		engine::file::unready_callback * unreadycall,
 		utility::any && data)
 	{
+		static_cast<void>(filetype);
 		return loads.call(file_it, ext::overload(
 			[&](RadicalLoad &) -> bool { debug_unreachable(); },
 			[&](LoadingLoad & y)
@@ -1576,7 +1577,7 @@ namespace
 			}
 			else
 			{
-				debug_verify(task.impl->delayed_messages.push_back(std::move(task.message)));
+				static_cast<void>(debug_verify(task.impl->delayed_messages.push_back(std::move(task.message))));
 			}
 		}
 		else

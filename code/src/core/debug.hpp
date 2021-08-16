@@ -215,6 +215,13 @@ namespace core
 
 /**
  * Does nothing.
+ *
+ * \note Always evaluates the expression.
+ */
+# define debug_inform(expr, ...) static_cast<bool>(expr)
+
+/**
+ * Does nothing.
  */
 # define debug_printline(...)
 

@@ -245,6 +245,7 @@ namespace core
 			Key * get_all_keys(Key * buffer, ext::usize size) const
 			{
 				debug_expression(Key * const buffer_end = buffer + size);
+				static_cast<void>(size);
 
 				for (auto it = lookup_.data().second; it != lookup_.data().second + lookup_.size(); ++it)
 				{
@@ -267,7 +268,7 @@ namespace core
 			{
 				utl::for_each(
 					arrays_,
-					[this](auto & array)
+					[](auto & array)
 					{
 						// todo add memset to ext
 						std::memset(array.data().second, static_cast<int>(ext::byte{}), array.size() * sizeof(Key));
@@ -1163,7 +1164,7 @@ namespace core
 					return;
 
 				keys()[bucket] = Key{};
-				debug_verify(array.try_erase(index));
+				static_cast<void>(debug_verify(array.try_erase(index)));
 			}
 
 			void remove_impl(bucket_t bucket)

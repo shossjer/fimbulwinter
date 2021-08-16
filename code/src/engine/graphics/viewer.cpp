@@ -391,14 +391,14 @@ namespace
 				data.inv_projection = core::maths::Matrix4x4f::identity();
 			}
 			data.frame = core::maths::Matrix4x4f{
-				viewport.width / 2.f, 0.f, 0.f, /*viewport.x +*/ viewport.width / 2.f,
-				0.f, viewport.height / -2.f, 0.f, /*viewport.y +*/ viewport.height / 2.f,
+				static_cast<float>(viewport.width) / 2.f, 0.f, 0.f, /*viewport.x +*/ static_cast<float>(viewport.width) / 2.f,
+				0.f, static_cast<float>(viewport.height) / -2.f, 0.f, /*viewport.y +*/ static_cast<float>(viewport.height) / 2.f,
 				0.f, 0.f, 0.f, 0.f,
 				0.f, 0.f, 0.f, 1.f
 			};
 			data.inv_frame = core::maths::Matrix4x4f{
-				2.f / viewport.width, 0.f, 0.f, -(/*viewport.x * 2.f / viewport.width +*/ 1.f),
-				0.f, -2.f / viewport.height, 0.f, 1.f/* - viewport.y * 2.f / viewport.height*/,
+				2.f / static_cast<float>(viewport.width), 0.f, 0.f, -(/*viewport.x * 2.f / viewport.width +*/ 1.f),
+				0.f, -2.f / static_cast<float>(viewport.height), 0.f, 1.f/* - viewport.y * 2.f / viewport.height*/,
 				0.f, 0.f, 0.f, 0.f,
 				0.f, 0.f, 0.f, 1.f
 			};
@@ -424,11 +424,11 @@ namespace
 
 			void operator () (engine::Token asset, const DynamicFrame & node)
 			{
-				debug_verify(viewports.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(asset), std::forward_as_tuple(x, y, width, height, node.camera)));
+				static_cast<void>(debug_verify(viewports.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(asset), std::forward_as_tuple(x, y, width, height, node.camera))));
 			}
 			void operator () (engine::Token asset, const FixedFrame & node)
 			{
-				debug_verify(viewports.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(asset), std::forward_as_tuple(x, y, width, height, node.camera)));
+				static_cast<void>(debug_verify(viewports.try_emplace_back(std::piecewise_construct, std::forward_as_tuple(asset), std::forward_as_tuple(x, y, width, height, node.camera))));
 			}
 			void operator () (const Root & node)
 			{
@@ -636,7 +636,7 @@ namespace engine
 		{
 			::renderer = &renderer;
 
-			debug_verify(nodes.emplace<Root>(engine::graphics::root_frame, engine::Hash{}));
+			static_cast<void>(debug_verify(nodes.emplace<Root>(engine::graphics::root_frame, engine::Hash{})));
 		}
 
 		void update(viewer &)
@@ -667,7 +667,7 @@ namespace engine
 
 							cameras.erase(camera_it);
 						}
-						debug_verify(cameras.emplace<Camera>(data.entity, std::move(data.data)));
+						static_cast<void>(debug_verify(cameras.emplace<Camera>(data.entity, std::move(data.data))));
 					}
 					void operator () (MessageAddFrameDynamic && data)
 					{
@@ -676,7 +676,7 @@ namespace engine
 							return; // error
 
 						nodes.call(parent_it, add_child{data.asset, data.data.slot});
-						debug_verify(nodes.emplace<DynamicFrame>(data.asset, std::move(data.data)));
+						static_cast<void>(debug_verify(nodes.emplace<DynamicFrame>(data.asset, std::move(data.data))));
 					}
 					void operator () (MessageAddFrameFixed && data)
 					{
@@ -685,15 +685,15 @@ namespace engine
 							return; // error
 
 						nodes.call(parent_it, add_child{data.asset, data.data.slot});
-						debug_verify(nodes.emplace<FixedFrame>(data.asset, std::move(data.data)));
+						static_cast<void>(debug_verify(nodes.emplace<FixedFrame>(data.asset, std::move(data.data))));
 					}
 					void operator () (MessageAddProjectionOrthographic && data)
 					{
-						debug_verify(projections.emplace<Orthographic>(data.asset, std::move(data.data)));
+						static_cast<void>(debug_verify(projections.emplace<Orthographic>(data.asset, std::move(data.data))));
 					}
 					void operator () (MessageAddProjectionPerspective && data)
 					{
-						debug_verify(projections.replace<Perspective>(data.asset, std::move(data.data)));
+						static_cast<void>(debug_verify(projections.replace<Perspective>(data.asset, std::move(data.data))));
 					}
 					void operator () (MessageAddSplitHorizontal && data)
 					{
@@ -702,7 +702,7 @@ namespace engine
 							return; // error
 
 						nodes.call(parent_it, add_child{data.asset, data.data.slot});
-						debug_verify(nodes.emplace<HorizontalSplit>(data.asset, std::move(data.data)));
+						static_cast<void>(debug_verify(nodes.emplace<HorizontalSplit>(data.asset, std::move(data.data))));
 					}
 					void operator () (MessageAddSplitVertical && data)
 					{
@@ -711,7 +711,7 @@ namespace engine
 							return; // error
 
 						nodes.call(parent_it, add_child{data.asset, data.data.slot});
-						debug_verify(nodes.emplace<VerticalSplit>(data.asset, std::move(data.data)));
+						static_cast<void>(debug_verify(nodes.emplace<VerticalSplit>(data.asset, std::move(data.data))));
 					}
 					void operator () (MessageBind && data)
 					{

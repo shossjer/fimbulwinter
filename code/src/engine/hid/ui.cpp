@@ -671,7 +671,7 @@ namespace hid
 				void operator () (AddAxisMove && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y));
+					static_cast<void>(debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -681,7 +681,7 @@ namespace hid
 				void operator () (AddAxisTilt && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max));
+					static_cast<void>(debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -691,7 +691,7 @@ namespace hid
 				void operator () (AddButtonPress && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.emplace<ButtonPress>(filter, x.command));
+					static_cast<void>(debug_verify(filters.emplace<ButtonPress>(filter, x.command)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -701,7 +701,7 @@ namespace hid
 				void operator () (AddButtonRelease && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.emplace<ButtonRelease>(filter, x.command));
+					static_cast<void>(debug_verify(filters.emplace<ButtonRelease>(filter, x.command)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
