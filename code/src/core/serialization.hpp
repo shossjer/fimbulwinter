@@ -379,7 +379,7 @@ namespace core
 		          REQUIRES((ext::is_tuple<T &>::value))>
 		bool for_each_impl(T & x, F && f, ...)
 		{
-			ext::apply([&](auto & ...ys){ return for_each_impl_tuple(std::forward<F>(f), ys...); }, x);
+			return ext::apply([&](auto & ...ys){ return for_each_impl_tuple(std::forward<F>(f), ys...); }, x);
 		}
 	}
 
