@@ -63,6 +63,7 @@ namespace core
 			}
 			catch (std::exception & x)
 			{
+				static_cast<void>(x);
 				debug_fail("json '", filepath_, "' failed due to: ", x.what());
 			}
 		}
@@ -77,6 +78,11 @@ namespace core
 
 	private:
 
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4702 )
+		// C4702 - unreachable code
+#endif
 		template <typename T>
 		bool read(const json & j, T & x)
 		{
@@ -111,6 +117,9 @@ namespace core
 			}
 			return true;
 		}
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 
 		utility::type_id_t figure_out_array_type(json::const_iterator from, json::const_iterator to) const
 		{

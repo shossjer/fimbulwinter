@@ -1591,7 +1591,15 @@ void main()
 		//
 		////////////////////////////////////////
 		const auto entity_shader_it = find(resources, entity_shader_asset);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 		if (debug_assert(entity_shader_it != resources.end()) && debug_assert(resources.contains<Shader>(entity_shader_it)))
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 		{
 			const Shader * const entity_shader = resources.get<Shader>(entity_shader_it);
 

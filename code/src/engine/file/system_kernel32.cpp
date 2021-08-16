@@ -216,7 +216,7 @@ namespace
 		HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
-			debug_expression(const auto error = ::GetLastError());
+			const auto error = ::GetLastError();
 			debug_inform(hFile != INVALID_HANDLE_VALUE, "CreateFileW(\"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\") failed with last error ", error);
 			return debug_verify((error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_SHARING_VIOLATION));
 		}
@@ -279,7 +279,7 @@ namespace
 		HANDLE hFile = ::CreateFileW(filepath.data(), dwDesiredAccess, 0, nullptr, dwCreationDisposition, FILE_ATTRIBUTE_NORMAL, nullptr);
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
-			debug_expression(const auto error = ::GetLastError());
+			const auto error = ::GetLastError();
 			debug_inform(hFile != INVALID_HANDLE_VALUE, "CreateFileW(\"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\") failed with last error ", error);
 			return debug_verify(error == ERROR_FILE_EXISTS);
 		}

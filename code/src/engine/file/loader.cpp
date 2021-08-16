@@ -505,7 +505,15 @@ namespace
 							debug_assert(!call_data.ready);
 
 							engine::file::loader loader(call_data.impl);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 							{
 								for (auto && call : call_data.calls)
 								{
@@ -589,7 +597,15 @@ namespace
 							debug_assert(call_data.ready);
 
 							engine::file::loader loader(call_data.impl);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 							{
 								for (auto && call : call_data.calls)
 								{
@@ -831,7 +847,15 @@ namespace
 							debug_assert(!call_data.ready);
 
 							engine::file::loader loader(call_data.impl);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 							{
 								for (auto && call : call_data.calls)
 								{
@@ -918,7 +942,15 @@ namespace
 						FileCallData & call_data = *call_ptr;
 
 						engine::file::loader loader(call_data.impl);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 						if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 						{
 							for (auto && call : call_data.calls)
 							{
