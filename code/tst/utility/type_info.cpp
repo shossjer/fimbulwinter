@@ -71,8 +71,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation int short")
 			{
-				constexpr auto signature = utility::type_signature<int short>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int short>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -83,8 +83,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation short signed")
 			{
-				constexpr auto signature = utility::type_signature<short signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<short signed>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -95,32 +95,32 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation signed int short")
 			{
-				constexpr auto signature = utility::type_signature<signed int short>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<signed int short>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation short signed int")
 			{
-				constexpr auto signature = utility::type_signature<short signed int>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<short signed int>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation short int signed")
 			{
-				constexpr auto signature = utility::type_signature<short int signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<short int signed>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int signed short")
 			{
-				constexpr auto signature = utility::type_signature<int signed short>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int signed short>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int short signed")
 			{
-				constexpr auto signature = utility::type_signature<int short signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int short signed>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 	}
@@ -136,8 +136,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation short unsigned")
 			{
-				constexpr auto signature = utility::type_signature<short unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<short unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -148,32 +148,32 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation unsigned int short")
 			{
-				constexpr auto signature = utility::type_signature<unsigned int short>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<unsigned int short>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation short unsigned int")
 			{
-				constexpr auto signature = utility::type_signature<short unsigned int>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<short unsigned int>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation short int unsigned")
 			{
-				constexpr auto signature = utility::type_signature<short int unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<short int unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int unsigned short")
 			{
-				constexpr auto signature = utility::type_signature<int unsigned short>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int unsigned short>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int short unsigned")
 			{
-				constexpr auto signature = utility::type_signature<int short unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int short unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 	}
@@ -201,8 +201,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation int signed")
 			{
-				constexpr auto signature = utility::type_signature<int signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int signed>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 	}
@@ -224,8 +224,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation int unsigned")
 			{
-				constexpr auto signature = utility::type_signature<int unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 	}
@@ -247,8 +247,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation int long")
 			{
-				constexpr auto signature = utility::type_signature<int long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int long>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -259,8 +259,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation long signed")
 			{
-				constexpr auto signature = utility::type_signature<long signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long signed>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -271,32 +271,32 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation signed int long")
 			{
-				constexpr auto signature = utility::type_signature<signed int long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<signed int long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long signed int")
 			{
-				constexpr auto signature = utility::type_signature<long signed int>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long signed int>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long int signed")
 			{
-				constexpr auto signature = utility::type_signature<long int signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long int signed>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int signed long")
 			{
-				constexpr auto signature = utility::type_signature<int signed long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int signed long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int long signed")
 			{
-				constexpr auto signature = utility::type_signature<int long signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int long signed>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 	}
@@ -312,8 +312,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation long unsigned")
 			{
-				constexpr auto signature = utility::type_signature<long unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -324,32 +324,32 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation unsigned int long")
 			{
-				constexpr auto signature = utility::type_signature<unsigned int long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<unsigned int long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long unsigned int")
 			{
-				constexpr auto signature = utility::type_signature<long unsigned int>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long unsigned int>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long int unsigned")
 			{
-				constexpr auto signature = utility::type_signature<long int unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long int unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int unsigned long")
 			{
-				constexpr auto signature = utility::type_signature<int unsigned long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int unsigned long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int long unsigned")
 			{
-				constexpr auto signature = utility::type_signature<int long unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int long unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 	}
@@ -375,14 +375,14 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation long int long")
 			{
-				constexpr auto signature = utility::type_signature<long int long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long int long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int long long")
 			{
-				constexpr auto signature = utility::type_signature<int long long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int long long>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -393,14 +393,14 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation long signed long")
 			{
-				constexpr auto signature = utility::type_signature<long signed long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long signed long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long long signed")
 			{
-				constexpr auto signature = utility::type_signature<long long signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long long signed>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -411,68 +411,68 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation signed long int long")
 			{
-				constexpr auto signature = utility::type_signature<signed long int long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<signed long int long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation signed int long long")
 			{
-				constexpr auto signature = utility::type_signature<signed int long long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<signed int long long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long signed long int")
 			{
-				constexpr auto signature = utility::type_signature<long signed long int>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long signed long int>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long signed int long")
 			{
-				constexpr auto signature = utility::type_signature<long signed int long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long signed int long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long long signed int")
 			{
-				constexpr auto signature = utility::type_signature<long long signed int>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long long signed int>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long long int signed")
 			{
-				constexpr auto signature = utility::type_signature<long long int signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long long int signed>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long int signed long")
 			{
-				constexpr auto signature = utility::type_signature<long int signed long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long int signed long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long int long signed")
 			{
-				constexpr auto signature = utility::type_signature<long int long signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long int long signed>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int signed long long")
 			{
-				constexpr auto signature = utility::type_signature<int signed long long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int signed long long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int long signed long")
 			{
-				constexpr auto signature = utility::type_signature<int long signed long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int long signed long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int long long signed")
 			{
-				constexpr auto signature = utility::type_signature<int long long signed>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int long long signed>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 	}
@@ -492,14 +492,14 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation long unsigned long")
 			{
-				constexpr auto signature = utility::type_signature<long unsigned long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long unsigned long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long long unsigned")
 			{
-				constexpr auto signature = utility::type_signature<long long unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long long unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 
@@ -510,68 +510,68 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 			SECTION("permutation unsigned long int long")
 			{
-				constexpr auto signature = utility::type_signature<unsigned long int long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<unsigned long int long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation unsigned int long long")
 			{
-				constexpr auto signature = utility::type_signature<unsigned int long long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<unsigned int long long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long unsigned long int")
 			{
-				constexpr auto signature = utility::type_signature<long unsigned long int>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long unsigned long int>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long unsigned int long")
 			{
-				constexpr auto signature = utility::type_signature<long unsigned int long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long unsigned int long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long long unsigned int")
 			{
-				constexpr auto signature = utility::type_signature<long long unsigned int>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long long unsigned int>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long long int unsigned")
 			{
-				constexpr auto signature = utility::type_signature<long long int unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long long int unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long int unsigned long")
 			{
-				constexpr auto signature = utility::type_signature<long int unsigned long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long int unsigned long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation long int long unsigned")
 			{
-				constexpr auto signature = utility::type_signature<long int long unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<long int long unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int unsigned long long")
 			{
-				constexpr auto signature = utility::type_signature<int unsigned long long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int unsigned long long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int long unsigned long")
 			{
-				constexpr auto signature = utility::type_signature<int long unsigned long>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int long unsigned long>();
+				CHECK(signature2 == signature_str);
 			}
 
 			SECTION("permutation int long long unsigned")
 			{
-				constexpr auto signature = utility::type_signature<int long long unsigned>();
-				CHECK(signature == signature_str);
+				constexpr auto signature2 = utility::type_signature<int long long unsigned>();
+				CHECK(signature2 == signature_str);
 			}
 		}
 	}
@@ -633,8 +633,8 @@ TEST_CASE("fundamental type signature", "[utility][type info]")
 
 		SECTION("permutation double long")
 		{
-			constexpr auto name = utility::type_signature<double long>();
-			CHECK(name == signature_str);
+			constexpr auto signature2 = utility::type_signature<double long>();
+			CHECK(signature2 == signature_str);
 		}
 	}
 }
@@ -896,8 +896,8 @@ TEST_CASE("const/volatile type signature", "[utility][type info]")
 
 		SECTION("permutation int const")
 		{
-			constexpr auto signature = utility::type_signature<int const>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<int const>();
+			CHECK(signature2 == signature_str);
 		}
 	}
 
@@ -910,8 +910,8 @@ TEST_CASE("const/volatile type signature", "[utility][type info]")
 
 		SECTION("permutation int volatile")
 		{
-			constexpr auto signature = utility::type_signature<int volatile>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<int volatile>();
+			CHECK(signature2 == signature_str);
 		}
 	}
 
@@ -928,20 +928,20 @@ TEST_CASE("const/volatile type signature", "[utility][type info]")
 
 		SECTION("permutation const int volatile")
 		{
-			constexpr auto signature = utility::type_signature<const int volatile>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<const int volatile>();
+			CHECK(signature2 == signature_str);
 		}
 
 		SECTION("permutation volatile const int")
 		{
-			constexpr auto signature = utility::type_signature<volatile const int>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<volatile const int>();
+			CHECK(signature2 == signature_str);
 		}
 
 		SECTION("permutation volatile int const")
 		{
-			constexpr auto signature = utility::type_signature<volatile int const>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<volatile int const>();
+			CHECK(signature2 == signature_str);
 		}
 	}
 
@@ -958,8 +958,8 @@ TEST_CASE("const/volatile type signature", "[utility][type info]")
 
 		SECTION("permutation int const * const * const")
 		{
-			constexpr auto signature = utility::type_signature<int const * const * const>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<int const * const * const>();
+			CHECK(signature2 == signature_str);
 		}
 	}
 
@@ -976,8 +976,8 @@ TEST_CASE("const/volatile type signature", "[utility][type info]")
 
 		SECTION("permutation int volatile * volatile * volatile")
 		{
-			constexpr auto signature = utility::type_signature<int volatile * volatile * volatile>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<int volatile * volatile * volatile>();
+			CHECK(signature2 == signature_str);
 		}
 	}
 
@@ -994,20 +994,20 @@ TEST_CASE("const/volatile type signature", "[utility][type info]")
 
 		SECTION("permutation int * const volatile * volatile const")
 		{
-			constexpr auto signature = utility::type_signature<int * const volatile * volatile const>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<int * const volatile * volatile const>();
+			CHECK(signature2 == signature_str);
 		}
 
 		SECTION("permutation int * volatile const * const volatile")
 		{
-			constexpr auto signature = utility::type_signature<int * volatile const * const volatile>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<int * volatile const * const volatile>();
+			CHECK(signature2 == signature_str);
 		}
 
 		SECTION("permutation int * volatile const * volatile const")
 		{
-			constexpr auto signature = utility::type_signature<int * volatile const * volatile const>();
-			CHECK(signature == signature_str);
+			constexpr auto signature2 = utility::type_signature<int * volatile const * volatile const>();
+			CHECK(signature2 == signature_str);
 		}
 	}
 }
@@ -1023,8 +1023,8 @@ TEST_CASE("const/volatile type name", "[utility][type info]")
 
 		SECTION("permutation int const")
 		{
-			constexpr auto name = utility::type_name<int const>();
-			CHECK(name == name_str);
+			constexpr auto name2 = utility::type_name<int const>();
+			CHECK(name2 == name_str);
 		}
 	}
 
@@ -1037,8 +1037,8 @@ TEST_CASE("const/volatile type name", "[utility][type info]")
 
 		SECTION("permutation int volatile")
 		{
-			constexpr auto name = utility::type_name<int volatile>();
-			CHECK(name == name_str);
+			constexpr auto name2 = utility::type_name<int volatile>();
+			CHECK(name2 == name_str);
 		}
 	}
 
@@ -1051,20 +1051,20 @@ TEST_CASE("const/volatile type name", "[utility][type info]")
 
 		SECTION("permutation const int volatile")
 		{
-			constexpr auto name = utility::type_name<const int volatile>();
-			CHECK(name == name_str);
+			constexpr auto name2 = utility::type_name<const int volatile>();
+			CHECK(name2 == name_str);
 		}
 
 		SECTION("permutation volatile const int")
 		{
-			constexpr auto name = utility::type_name<volatile const int>();
-			CHECK(name == name_str);
+			constexpr auto name2 = utility::type_name<volatile const int>();
+			CHECK(name2 == name_str);
 		}
 
 		SECTION("permutation volatile int const")
 		{
-			constexpr auto name = utility::type_name<volatile int const>();
-			CHECK(name == name_str);
+			constexpr auto name2 = utility::type_name<volatile int const>();
+			CHECK(name2 == name_str);
 		}
 	}
 
@@ -1077,8 +1077,8 @@ TEST_CASE("const/volatile type name", "[utility][type info]")
 
 		SECTION("permutation int const * const * const")
 		{
-			constexpr auto name = utility::type_name<int const * const * const>();
-			CHECK(name == name_str);
+			constexpr auto name2 = utility::type_name<int const * const * const>();
+			CHECK(name2 == name_str);
 		}
 	}
 
