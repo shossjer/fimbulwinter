@@ -786,11 +786,11 @@ namespace
 			}
 			else
 			{
-				if (!debug_verify(x.impl.directories.emplace<Directory>(directory_asset, std::move(filepath))))
+				if (!debug_verify(x.impl.directories.emplace<Directory>(engine::Token(directory_asset), std::move(filepath))))
 					return; // error
 			}
 
-			if (!debug_verify(x.impl.aliases.emplace<Alias>(x.alias, directory_asset)))
+			if (!debug_verify(x.impl.aliases.emplace<Alias>(engine::Token(x.alias), engine::Token(directory_asset))))
 				return; // error
 		}
 	};
@@ -833,13 +833,13 @@ namespace
 			}
 
 			const auto directory_asset = make_asset(filepath);
-			if (!debug_verify(x.impl.directories.emplace<TemporaryDirectory>(directory_asset, std::move(filepath))))
+			if (!debug_verify(x.impl.directories.emplace<TemporaryDirectory>(engine::Token(directory_asset), std::move(filepath))))
 			{
 				purge_temporary_directory(filepath);
 				return; // error
 			}
 
-			if (!debug_verify(x.impl.aliases.emplace<Alias>(x.alias, directory_asset)))
+			if (!debug_verify(x.impl.aliases.emplace<Alias>(engine::Token(x.alias), engine::Token(directory_asset))))
 				return; // error
 		}
 	};
@@ -1160,13 +1160,13 @@ namespace engine
 
 				const auto root_asset = make_asset(root.filepath_);
 
-				if (!debug_verify(impl->directories.emplace<Directory>(root_asset, std::move(root.filepath_))))
+				if (!debug_verify(impl->directories.emplace<Directory>(engine::Token(root_asset), std::move(root.filepath_))))
 				{
 					destroy_impl(*impl);
 					return nullptr;
 				}
 
-				if (!debug_verify(impl->aliases.emplace<Alias>(engine::file::working_directory, root_asset)))
+				if (!debug_verify(impl->aliases.emplace<Alias>(engine::Token(engine::file::working_directory), engine::Token(root_asset))))
 				{
 					destroy_impl(*impl);
 					return nullptr;

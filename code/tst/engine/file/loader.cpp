@@ -128,7 +128,7 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 		engine::file::load_independent(
 			fileloader,
-			engine::Asset("my independent load"),
+			engine::Token(engine::Asset("my independent load")),
 			engine::Asset(u8"maybe.exists"),
 			filetype,
 			[](engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset /*name*/, const utility::any & stash, engine::Asset /*file*/)
@@ -163,7 +163,7 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 		engine::file::load_independent(
 			fileloader,
-			engine::Asset("my other independent load"),
+			engine::Token(engine::Asset("my other independent load")),
 			engine::Asset(u8"folder/maybe.exists"),
 			filetype,
 			[](engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset /*name*/, const utility::any & stash, engine::Asset /*file*/)
@@ -203,8 +203,8 @@ TEST_CASE("file loader can read files", "[engine][file]")
 		CHECK(sync_data[0].unload_value == 0);
 		CHECK(sync_data[1].unload_value == 0);
 
-		engine::file::unload_independent(fileloader, engine::Asset("my independent load"));
-		engine::file::unload_independent(fileloader, engine::Asset("my other independent load"));
+		engine::file::unload_independent(fileloader, engine::Token(engine::Asset("my independent load")));
+		engine::file::unload_independent(fileloader, engine::Token(engine::Asset("my other independent load")));
 
 		REQUIRE(sync_data[0].unload_event.wait(timeout));
 		REQUIRE(sync_data[1].unload_event.wait(timeout));
@@ -410,7 +410,7 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 
 		engine::file::scoped_filetype filetype(fileloader, engine::Asset("tmpfiletype"), tree_load, tree_unload);
 
-		engine::file::load_independent(fileloader, engine::Asset("tree root"), engine::Asset(u8"tree.root"), filetype, tree_ready, tree_unready, utility::any(&sync_data));
+		engine::file::load_independent(fileloader, engine::Token(engine::Asset("tree root")), engine::Asset(u8"tree.root"), filetype, tree_ready, tree_unready, utility::any(&sync_data));
 
 		REQUIRE(sync_data.ready_event.wait(timeout));
 		CHECK(sync_data.ready_values[0] == 1);
@@ -432,7 +432,7 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 		CHECK(sync_data.ready_values[4] == 1);
 		CHECK(sync_data.ready_values[5] == 1);
 
-		engine::file::unload_independent(fileloader, engine::Asset("tree root"));
+		engine::file::unload_independent(fileloader, engine::Token(engine::Asset("tree root")));
 
 		REQUIRE(sync_data.unload_event.wait(timeout));
 		CHECK(sync_data.ready_values[0] == 0);

@@ -529,10 +529,10 @@ namespace
 		void create(utility::heap_string_utf8 && name, std::vector<utility::unicode_code_point> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
 		{
 			const engine::Asset asset(name);
-			const auto index = find(asset);
+			const auto index = find(engine::Token(asset));
 			debug_assert(index >= count, "font asset ", asset, " already exists");
 
-			assets[index] = asset;
+			assets[index] = engine::Token(asset);
 
 			FontInfo & info = infos[index];
 			info.allowed_unicodes = std::move(allowed_unicodes);
@@ -549,7 +549,7 @@ namespace
 
 		void destroy(engine::Asset asset)
 		{
-			const auto index = find(asset);
+			const auto index = find(engine::Token(asset));
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			assets[index] = std::move(assets[count - 1]);
@@ -1127,11 +1127,11 @@ namespace
 
 					if (x.material.diffuse)
 					{
-						debug_verify(resources.emplace<ColorClass>(x.asset, x.material.diffuse.value(), x.material.shader.value()));
+						debug_verify(resources.emplace<ColorClass>(x.asset, x.material.diffuse.value(), engine::Token(x.material.shader.value())));
 					}
 					else
 					{
-						debug_verify(resources.emplace<ShaderClass>(x.asset, x.material.shader.value()));
+						debug_verify(resources.emplace<ShaderClass>(x.asset, engine::Token(x.material.shader.value())));
 					}
 				}
 
@@ -1530,7 +1530,7 @@ void main()
 	out_entitytex = color;
 }
 )###";
-		debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterShader>, entity_shader_asset, std::move(entity_shader_data)));
+		debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterShader>, engine::Token(entity_shader_asset), std::move(entity_shader_data)));
 	}
 
 	void render_setup()

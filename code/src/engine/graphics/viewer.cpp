@@ -636,7 +636,7 @@ namespace engine
 		{
 			::renderer = &renderer;
 
-			static_cast<void>(debug_verify(nodes.emplace<Root>(engine::graphics::root_frame, engine::Hash{})));
+			static_cast<void>(debug_verify(nodes.emplace<Root>(engine::Token(engine::graphics::root_frame), engine::Token(engine::Hash{}))));
 		}
 
 		void update(viewer &)

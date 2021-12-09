@@ -337,7 +337,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			utility::any(&sync_data),
 			engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH);
 
-		scoped_watch watch(filesystem, engine::Hash("my scan"));
+		scoped_watch watch(filesystem, engine::Token(engine::Hash("my scan")));
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);

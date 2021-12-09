@@ -81,7 +81,7 @@ TEST_CASE("Token can be constructed", "[engine][assert][entity][token]")
 {
 	SECTION("from Asset")
 	{
-		engine::Token token = engine::Asset("name");
+		engine::Token token(engine::Asset("name"));
 
 		CHECK(token.value() == 1579384326);
 #if MODE_DEBUG
@@ -91,7 +91,7 @@ TEST_CASE("Token can be constructed", "[engine][assert][entity][token]")
 
 	SECTION("from Entity")
 	{
-		engine::Token token = engine::Entity(11);
+		engine::Token token(engine::Entity(11));
 
 		CHECK(token.value() == 11);
 #if MODE_DEBUG
@@ -101,7 +101,7 @@ TEST_CASE("Token can be constructed", "[engine][assert][entity][token]")
 
 	SECTION("from Hash")
 	{
-		engine::Token token = engine::Hash("eman");
+		engine::Token token(engine::Hash("eman"));
 
 		CHECK(token.value() == 3143603943);
 #if MODE_DEBUG
@@ -111,7 +111,7 @@ TEST_CASE("Token can be constructed", "[engine][assert][entity][token]")
 
 	SECTION("from int")
 	{
-		engine::Token token = 7;
+		engine::Token token(7);
 
 		CHECK(token.value() == 7);
 #if MODE_DEBUG
@@ -187,9 +187,9 @@ TEST_CASE("Token can be ostreamed", "[engine][assert][entity][token]")
 
 TEST_CASE("Token compares", "[engine][token]")
 {
-	engine::Token small = char(2);
-	engine::Token big = int(17);
-	engine::Token also_small = int(2);
+	engine::Token small(char(2));
+	engine::Token big(int(17));
+	engine::Token also_small(int(2));
 
 	SECTION("w.r.t. ==")
 	{

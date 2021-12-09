@@ -488,7 +488,7 @@ namespace
 				{
 #if MODE_DEBUG
 					const auto id = x.directory ^ engine::Asset(x.filepath);
-					engine::file::remove_watch(*impl.filesystem, id);
+					engine::file::remove_watch(*impl.filesystem, engine::Token(id));
 #endif
 
 					engine::task::post_work(
@@ -580,7 +580,7 @@ namespace
 				{
 #if MODE_DEBUG
 					const auto id = x.directory ^ engine::Asset(x.filepath);
-					engine::file::remove_watch(*impl.filesystem, id);
+					engine::file::remove_watch(*impl.filesystem, engine::Token(id));
 #endif
 
 					engine::task::post_work(
@@ -686,7 +686,7 @@ namespace
 		const auto mode = engine::file::flags{};
 #endif
 		const auto id = loading_load->directory ^ engine::Asset(loading_load->filepath);
-		engine::file::read(*impl.filesystem, id, loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, utility::any(utility::in_place_type<ReadData>, &impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)), mode);
+		engine::file::read(*impl.filesystem, engine::Token(id), loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, utility::any(utility::in_place_type<ReadData>, &impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)), mode);
 
 		return true;
 	}
@@ -827,7 +827,7 @@ namespace
 			{
 #if MODE_DEBUG
 				const auto id = y.directory ^ engine::Asset(y.filepath);
-				engine::file::remove_watch(*impl.filesystem, id);
+				engine::file::remove_watch(*impl.filesystem, engine::Token(id));
 #endif
 
 				// todo figure out what this does
@@ -927,7 +927,7 @@ namespace
 			{
 #if MODE_DEBUG
 				const auto id = y.directory ^ engine::Asset(y.filepath);
-				engine::file::remove_watch(*impl.filesystem, id);
+				engine::file::remove_watch(*impl.filesystem, engine::Token(id));
 #endif
 
 				engine::task::post_work(
@@ -1421,7 +1421,7 @@ namespace
 							return; // error
 					}
 
-					if (!load_old(impl, underlying_owner.first, underlying_owner.first, underlying_load.first, underlying_load.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+					if (!load_old(impl, engine::Token(underlying_owner.first), underlying_owner.first, underlying_load.first, underlying_load.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 						return; // error
 				}
 				else
@@ -1443,12 +1443,12 @@ namespace
 					const auto underlying_load_ = find_underlying_load(underlying_file.first);
 					if (underlying_load_.second != loads.end())
 					{
-						if (!load_old(impl, underlying_owner.first, underlying_owner.first, underlying_load_.first, underlying_load_.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_old(impl, engine::Token(underlying_owner.first), underlying_owner.first, underlying_load_.first, underlying_load_.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 					else
 					{
-						if (!load_new(impl, underlying_owner.first, underlying_owner.first, underlying_file.first, underlying_file.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_new(impl, engine::Token(underlying_owner.first), underlying_owner.first, underlying_file.first, underlying_file.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 				}
@@ -1709,14 +1709,14 @@ namespace engine
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES;
 #endif
 			const auto id = directory;
-			engine::file::scan(*loader->filesystem, id, directory, strand, file_scan, utility::any(&loader), mode);
+			engine::file::scan(*loader->filesystem, engine::Token(id), directory, strand, file_scan, utility::any(&loader), mode);
 		}
 
 		void unregister_library(loader & loader, engine::Hash directory)
 		{
 #if MODE_DEBUG
 			const auto id = directory;
-			engine::file::remove_watch(*loader->filesystem, id);
+			engine::file::remove_watch(*loader->filesystem, engine::Token(id));
 #endif
 
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterLibrary>, directory));

@@ -53,7 +53,7 @@ namespace engine
 		          typename T = mpl::remove_cvref_t<P>,
 		          REQUIRES((!mpl::is_same<this_type, T>::value)),
 		          REQUIRES((std::is_constructible<value_type, P>::value))>
-		constexpr Token(P && p)
+		explicit constexpr Token(P && p)
 			: value_(std::forward<P>(p))
 #if MODE_DEBUG
 			, type_(utility::type_id<T>())
