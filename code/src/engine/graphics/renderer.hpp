@@ -43,7 +43,6 @@ namespace engine
 				OPENGL_1_2,
 				OPENGL_3_0,
 #endif
-				DUMMY_HACK, // todo the serialization function needs at least one thing
 			};
 
 		public:
@@ -53,12 +52,11 @@ namespace engine
 
 		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)
 		{
-			return utility::make_lookup_table(
+			return utility::make_lookup_table<utility::string_units_utf8>(
 #if GRAPHICS_USE_OPENGL
 				std::make_pair(utility::string_units_utf8("opengl1.2"), renderer::Type::OPENGL_1_2),
-				std::make_pair(utility::string_units_utf8("opengl3.0"), renderer::Type::OPENGL_3_0),
+				std::make_pair(utility::string_units_utf8("opengl3.0"), renderer::Type::OPENGL_3_0)
 #endif
-				std::make_pair(utility::string_units_utf8("dummy"), renderer::Type::DUMMY_HACK)
 				);
 		}
 

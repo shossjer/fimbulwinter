@@ -19,7 +19,7 @@ TEST_CASE("Graphics Viewer can be created and destroyed", "[.engine][.graphics]"
 #else
 	engine::application::window window(config);
 #endif
-	engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type::DUMMY_HACK);
+	engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type{});
 
 	for (int i = 0; i < 2; i++)
 	{

@@ -134,13 +134,17 @@ namespace core
 		{
 			switch (index)
 			{
-#define CASE(n) case (n):	  \
-				return call_impl(mpl::index_constant<((n) < lookup_table.size() ? (n) : std::size_t(-1))>{}, std::forward<X>(x), std::forward<F>(f))
+#define CASE(n) case (n): \
+				return true ? \
+					call_impl(mpl::index_constant<((n) < lookup_table.size() ? (n) : std::size_t(-1))>{}, std::forward<X>(x), std::forward<F>(f)) : \
+					call_impl(mpl::index_constant<(0 < lookup_table.size() ? 0 : std::size_t(-1))>{}, std::forward<X>(x), std::forward<F>(f))
 
 				PP_EXPAND_128(CASE, 0);
 #undef CASE
 			default:
-				return call_impl(mpl::index_constant<std::size_t(-1)>{}, std::forward<X>(x), std::forward<F>(f));
+				return true ?
+					call_impl(mpl::index_constant<std::size_t(-1)>{}, std::forward<X>(x), std::forward<F>(f)) :
+					call_impl(mpl::index_constant<(0 < lookup_table.size() ? 0 : std::size_t(-1))>{}, std::forward<X>(x), std::forward<F>(f));
 			}
 		}
 
@@ -168,19 +172,11 @@ namespace core
 		// C4702 - unreachable code
 #endif
 		template <typename X, typename F>
-		static auto call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
-			-> decltype(f(detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<0>())))
+		static utility::detail::invalid_type call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
 		{
-			debug_unreachable();
-			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<0>()));
-		}
-
-		template <typename X, typename F>
-		static auto call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
-			-> decltype(f(std::declval<lookup_table_t>().template get_key<0>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<0>())))
-		{
-			debug_unreachable();
-			return f(lookup_table.template get_key<0>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<0>()));
+			static_cast<void>(x);
+			static_cast<void>(f);
+			intrinsic_unreachable();
 		}
 #if defined(_MSC_VER)
 # pragma warning( pop )

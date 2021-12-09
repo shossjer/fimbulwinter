@@ -21,7 +21,7 @@ TEST_CASE("Graphics Renderer can be created and destroyed", "[.engine][.graphics
 
 	for (int i = 0; i < 2; i++)
 	{
-		engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type::DUMMY_HACK);
+		engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type{});
 	}
 
 #if GRAPHICS_USE_OPENGL
