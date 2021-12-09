@@ -364,31 +364,33 @@ namespace utility
 			}
 		}
 
-		iterator erase(iterator it) // todo const_iterator
+		iterator erase(const_iterator it)
 		{
+			iterator nonit = undo_const(it);
 			if (!/*debug_assert*/(begin() <= it && it < end()))
-				return it;
+				return nonit;
 
 			auto last = this->end_storage();
 			--last;
 
 			using utility::iter_move;
-			*it = iter_move(this->storage_.data(last));
+			*nonit = iter_move(this->storage_.data(last));
 			this->storage_.destruct_at(last);
 			this->set_end(last);
 
-			return it;
+			return nonit;
 		}
 
-		iterator erase(iterator from, const_iterator to) // todo const_iterator
+		iterator erase(const_iterator from, const_iterator to)
 		{
+			iterator nonfrom = undo_const(from);
 			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
-				return from;
+				return nonfrom;
 
 			auto last = this->end_storage();
 
 			// idea split loop into two
-			for (iterator it = from; it != to; ++it)
+			for (iterator it = nonfrom; it != to; ++it)
 			{
 				--last;
 
@@ -398,16 +400,17 @@ namespace utility
 			}
 			this->set_end(last);
 
-			return from;
+			return nonfrom;
 		}
 
-		iterator erase(utility::stable_t, iterator it) // todo const_iterator
+		iterator erase(utility::stable_t, const_iterator it)
 		{
+			iterator nonit = undo_const(it);
 			if (!/*debug_assert*/(begin() <= it && it < end()))
-				return it;
+				return nonit;
 
-			iterator write = it;
-			for (const_iterator read = it + 1; read != end(); ++write, ++read)
+			iterator write = nonit;
+			for (iterator read = nonit + 1; read != end(); ++write, ++read)
 			{
 				using utility::iter_move;
 				*write = iter_move(read);
@@ -415,16 +418,17 @@ namespace utility
 			this->storage_.destruct_at(this->storage_.iter(write));
 			this->set_end(this->storage_.iter(write));
 
-			return it;
+			return nonit;
 		}
 
-		iterator erase(utility::stable_t, iterator from, const_iterator to) // todo const_iterator
+		iterator erase(utility::stable_t, const_iterator from, const_iterator to)
 		{
+			iterator nonfrom = undo_const(from);
 			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
-				return from;
+				return nonfrom;
 
-			iterator write = from;
-			for (const_iterator read = to; read != end(); ++write, ++read)
+			iterator write = nonfrom;
+			for (iterator read = undo_const(to); read != end(); ++write, ++read)
 			{
 				using utility::iter_move;
 				*write = iter_move(read);
@@ -432,7 +436,7 @@ namespace utility
 			this->storage_.destruct_range(this->storage_.iter(write), this->end_storage());
 			this->set_end(this->storage_.iter(write));
 
-			return from;
+			return nonfrom;
 		}
 	};
 

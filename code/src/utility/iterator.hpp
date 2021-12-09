@@ -411,6 +411,24 @@ namespace utility
 			return ext::apply([](auto & ...ps){ return utility::forward_as_compound(iter_move(ps)...); }, x);
 		}
 	};
+
+	template <typename T>
+	const T * make_const(const T * x) { return x; }
+
+	template <typename ...Ptrs>
+	auto make_const(const zip_pointer<Ptrs...> & x)
+	{
+		return ext::apply([](auto & ...ps){ return zip_pointer<mpl::add_const_t<mpl::remove_reference_t<decltype(*ps)>> *...>(const_cast<mpl::add_const_t<mpl::remove_reference_t<decltype(*ps)>> *>(ps)...); }, x);
+	}
+
+	template <typename T>
+	T * undo_const(const T * x) { return const_cast<T *>(x); }
+
+	template <typename ...Ptrs>
+	auto undo_const(const zip_pointer<Ptrs...> & x)
+	{
+		return ext::apply([](auto & ...ps){ return zip_pointer<mpl::remove_cvref_t<decltype(*ps)> *...>(const_cast<mpl::remove_cvref_t<decltype(*ps)> *>(ps)...); }, x);
+	}
 }
 
 namespace ext
