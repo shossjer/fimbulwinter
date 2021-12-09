@@ -11,31 +11,6 @@ TEST_CASE("any empty", "[utility][any]")
 	CHECK(!a1.has_value());
 	CHECK(a1.type_id() == utility::type_id<void>());
 
-	SECTION("can be copy constructed")
-	{
-		utility::any a2 = a1;
-		CHECK(!a1.has_value());
-		CHECK(a1.type_id() == utility::type_id<void>());
-		CHECK(!a2.has_value());
-		CHECK(a2.type_id() == utility::type_id<void>());
-
-		SECTION("and copy assigned")
-		{
-			a1 = a2;
-			CHECK(!a1.has_value());
-			CHECK(a1.type_id() == utility::type_id<void>());
-			CHECK(!a2.has_value());
-			CHECK(a2.type_id() == utility::type_id<void>());
-
-			SECTION("even to itself")
-			{
-				a1 = a1;
-				CHECK(!a1.has_value());
-				CHECK(a1.type_id() == utility::type_id<void>());
-			}
-		}
-	}
-
 	SECTION("can be move constructed")
 	{
 		utility::any a2 = std::move(a1);
@@ -83,7 +58,7 @@ TEST_CASE("any small", "[utility][any]")
 
 	SECTION("can be conversion constructed")
 	{
-		utility::any a2 = int{1};
+		utility::any a2(int{1});
 		CHECK(a2.has_value());
 		REQUIRE(a2.type_id() == utility::type_id<int>());
 		CHECK(utility::any_cast<int>(a2) == 1);
@@ -94,45 +69,6 @@ TEST_CASE("any small", "[utility][any]")
 			CHECK(a2.has_value());
 			REQUIRE(a2.type_id() == utility::type_id<int>());
 			CHECK(utility::any_cast<int>(a2) == 11);
-		}
-	}
-
-	SECTION("can be copy constructed")
-	{
-		utility::any a2 = a1;
-		CHECK(a1.has_value());
-		REQUIRE(a1.type_id() == utility::type_id<int>());
-		CHECK(utility::any_cast<int>(a1) == 1);
-		CHECK(a2.has_value());
-		REQUIRE(a2.type_id() == utility::type_id<int>());
-		CHECK(utility::any_cast<int>(a2) == 1);
-
-		SECTION("and copy assigned")
-		{
-			a1 = a2;
-			CHECK(a1.has_value());
-			REQUIRE(a1.type_id() == utility::type_id<int>());
-			CHECK(utility::any_cast<int>(a1) == 1);
-			CHECK(a2.has_value());
-			REQUIRE(a2.type_id() == utility::type_id<int>());
-			CHECK(utility::any_cast<int>(a2) == 1);
-
-			a1.reset();
-			a1 = a2;
-			CHECK(a1.has_value());
-			REQUIRE(a1.type_id() == utility::type_id<int>());
-			CHECK(utility::any_cast<int>(a1) == 1);
-			CHECK(a2.has_value());
-			REQUIRE(a2.type_id() == utility::type_id<int>());
-			CHECK(utility::any_cast<int>(a2) == 1);
-
-			SECTION("even to itself")
-			{
-				a1 = a1;
-				CHECK(a1.has_value());
-				REQUIRE(a1.type_id() == utility::type_id<int>());
-				CHECK(utility::any_cast<int>(a1) == 1);
-			}
 		}
 	}
 
@@ -195,7 +131,7 @@ TEST_CASE("any big", "[utility][any]")
 
 	SECTION("can be conversion constructed")
 	{
-		utility::any a2 = std::string("111");
+		utility::any a2(std::string("111"));
 		CHECK(a2.has_value());
 		REQUIRE(a2.type_id() == utility::type_id<std::string>());
 		CHECK(utility::any_cast<std::string>(a2) == "111");
@@ -206,45 +142,6 @@ TEST_CASE("any big", "[utility][any]")
 			CHECK(a2.has_value());
 			REQUIRE(a2.type_id() == utility::type_id<std::string>());
 			CHECK(utility::any_cast<std::string>(a2) == "111111");
-		}
-	}
-
-	SECTION("can be copy constructed")
-	{
-		utility::any a2 = a1;
-		CHECK(a1.has_value());
-		REQUIRE(a1.type_id() == utility::type_id<std::string>());
-		CHECK(utility::any_cast<std::string>(a1) == "111");
-		CHECK(a2.has_value());
-		REQUIRE(a2.type_id() == utility::type_id<std::string>());
-		CHECK(utility::any_cast<std::string>(a2) == "111");
-
-		SECTION("and copy assigned")
-		{
-			a1 = a2;
-			CHECK(a1.has_value());
-			REQUIRE(a1.type_id() == utility::type_id<std::string>());
-			CHECK(utility::any_cast<std::string>(a1) == "111");
-			CHECK(a2.has_value());
-			REQUIRE(a2.type_id() == utility::type_id<std::string>());
-			CHECK(utility::any_cast<std::string>(a2) == "111");
-
-			a1.reset();
-			a1 = a2;
-			CHECK(a1.has_value());
-			REQUIRE(a1.type_id() == utility::type_id<std::string>());
-			CHECK(utility::any_cast<std::string>(a1) == "111");
-			CHECK(a2.has_value());
-			REQUIRE(a2.type_id() == utility::type_id<std::string>());
-			CHECK(utility::any_cast<std::string>(a2) == "111");
-
-			SECTION("even to itself")
-			{
-				a1 = a1;
-				CHECK(a1.has_value());
-				REQUIRE(a1.type_id() == utility::type_id<std::string>());
-				CHECK(utility::any_cast<std::string>(a1) == "111");
-			}
 		}
 	}
 
@@ -325,7 +222,7 @@ TEST_CASE( "any reset", "[utility][any]" )
 	}
 	SECTION( "" )
 	{
-		utility::any a1 = int{1};
+		utility::any a1(int{1});
 		a1.reset();
 		CHECK(!a1.has_value());
 		CHECK(a1.type_id() == utility::type_id<void>());

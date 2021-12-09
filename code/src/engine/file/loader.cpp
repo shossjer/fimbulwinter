@@ -419,7 +419,7 @@ namespace
 				loader.detach();
 			}
 		},
-			loaded_file->call_ptr);
+			utility::any(loaded_file->call_ptr));
 
 		return true;
 	}
@@ -480,7 +480,7 @@ namespace
 						call_data.calls.erase(call_it);
 					}
 				},
-					std::make_pair(x.call_ptr, relation.first));
+					utility::any(std::make_pair(x.call_ptr, relation.first)));
 
 				x.owners.erase(owner_it);
 
@@ -524,7 +524,7 @@ namespace
 							loader.detach();
 						}
 					},
-						x.call_ptr);
+						utility::any(x.call_ptr));
 
 					if (debug_verify(relations.try_reserve(relations.size() + x.attachments.size())))
 					{
@@ -572,7 +572,7 @@ namespace
 						call_data.calls.erase(call_it);
 					}
 				},
-					std::make_pair(x.call_ptr, relation.first));
+					utility::any(std::make_pair(x.call_ptr, relation.first)));
 
 				x.owners.erase(owner_it);
 
@@ -616,7 +616,7 @@ namespace
 							loader.detach();
 						}
 					},
-						x.call_ptr);
+						utility::any(x.call_ptr));
 
 					if (debug_verify(relations.try_reserve(relations.size() + x.attachments.size())))
 					{
@@ -686,7 +686,7 @@ namespace
 		const auto mode = engine::file::flags{};
 #endif
 		const auto id = loading_load->directory ^ engine::Asset(loading_load->filepath);
-		engine::file::read(*impl.filesystem, id, loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, ReadData{&impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)}, mode);
+		engine::file::read(*impl.filesystem, id, loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, utility::any(utility::in_place_type<ReadData>, &impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)), mode);
 
 		return true;
 	}
@@ -738,7 +738,7 @@ namespace
 					}
 				}
 			},
-				FileCallDataPlusOne{y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}});
+				utility::any(utility::in_place_type<FileCallDataPlusOne>, y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}));
 
 			return true;
 		},
@@ -774,7 +774,7 @@ namespace
 					}
 				}
 			},
-				FileCallDataPlusOne{y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}});
+				utility::any(utility::in_place_type<FileCallDataPlusOne>, y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}));
 
 			return true;
 		}));
@@ -819,7 +819,7 @@ namespace
 					call_data.calls.erase(call_it);
 				}
 			},
-				std::make_pair(y.call_ptr, tag));
+				utility::any(std::make_pair(y.call_ptr, tag)));
 
 			y.owners.erase(owner_it);
 
@@ -866,7 +866,7 @@ namespace
 							loader.detach();
 						}
 					},
-						y.call_ptr);
+						utility::any(y.call_ptr));
 				}
 
 				utility::heap_vector<engine::Asset, engine::Asset> relations;
@@ -919,7 +919,7 @@ namespace
 					call_data.calls.erase(call_it);
 				}
 			},
-				std::make_pair(y.call_ptr, tag));
+				utility::any(std::make_pair(y.call_ptr, tag)));
 
 			y.owners.erase(owner_it);
 
@@ -961,7 +961,7 @@ namespace
 						loader.detach();
 					}
 				},
-					y.call_ptr);
+					utility::any(y.call_ptr));
 
 				utility::heap_vector<engine::Asset, engine::Asset> relations;
 				if (debug_verify(relations.try_reserve(y.attachments.size())))
@@ -1681,7 +1681,7 @@ namespace engine
 				core::sync::Event<true> * barrier = utility::any_cast<core::sync::Event<true> *>(data);
 				barrier->set();
 			},
-				&barrier);
+				utility::any(&barrier));
 
 			barrier.wait();
 
@@ -1709,7 +1709,7 @@ namespace engine
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES;
 #endif
 			const auto id = directory;
-			engine::file::scan(*loader->filesystem, id, directory, strand, file_scan, &loader, mode);
+			engine::file::scan(*loader->filesystem, id, directory, strand, file_scan, utility::any(&loader), mode);
 		}
 
 		void unregister_library(loader & loader, engine::Hash directory)

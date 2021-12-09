@@ -510,7 +510,7 @@ namespace engine
 					filesystem.detach();
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(FileReadWork && data)
@@ -553,7 +553,7 @@ namespace engine
 					}
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanChangeWork && data)
@@ -609,7 +609,7 @@ namespace engine
 					filesystem.detach();
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanOnceWork && data)
@@ -648,7 +648,7 @@ namespace engine
 					filesystem.detach();
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanRecursiveWork && data)
@@ -687,7 +687,7 @@ namespace engine
 					filesystem.detach();
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(FileWriteWork && data)
@@ -724,7 +724,7 @@ namespace engine
 					}
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 	}
 }

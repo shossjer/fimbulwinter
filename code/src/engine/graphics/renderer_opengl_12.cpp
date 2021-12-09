@@ -1087,7 +1087,7 @@ namespace
 			while (queue_select.try_pop(select_args))
 			{
 				engine::graphics::data::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
-				callback_select(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
+				callback_select(std::get<2>(select_args), std::get<3>(select_args), utility::any(std::move(select_data)));
 			}
 		}
 

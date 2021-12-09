@@ -70,7 +70,7 @@ TEST_CASE("task scheduler", "[engine][task]")
 						}
 					}
 				},
-				&data);
+				utility::any(&data));
 		}
 
 		REQUIRE(data.event.wait(timeout));
@@ -101,7 +101,7 @@ TEST_CASE("task scheduler", "[engine][task]")
 						d->count++;
 					}
 				},
-				&data);
+				utility::any(&data));
 
 			engine::task::post_work(
 				taskscheduler,
@@ -124,7 +124,7 @@ TEST_CASE("task scheduler", "[engine][task]")
 						}
 					}
 				},
-				&data);
+				utility::any(&data));
 		}
 
 		REQUIRE(data.event.wait(timeout));

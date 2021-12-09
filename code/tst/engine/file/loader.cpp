@@ -321,25 +321,25 @@ namespace
 		switch (file)
 		{
 		case engine::Hash(u8"tree.root"):
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.2"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.2"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.1"):
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.2"):
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.4"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.4"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.3"):
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.4"):
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.5"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.5"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.5"):
@@ -410,7 +410,7 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 
 		engine::file::scoped_filetype filetype(fileloader, engine::Asset("tmpfiletype"), tree_load, tree_unload);
 
-		engine::file::load_independent(fileloader, engine::Asset("tree root"), engine::Asset(u8"tree.root"), filetype, tree_ready, tree_unready, &sync_data);
+		engine::file::load_independent(fileloader, engine::Asset("tree root"), engine::Asset(u8"tree.root"), filetype, tree_ready, tree_unready, utility::any(&sync_data));
 
 		REQUIRE(sync_data.ready_event.wait(timeout));
 		CHECK(sync_data.ready_values[0] == 1);

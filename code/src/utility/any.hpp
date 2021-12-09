@@ -16,7 +16,6 @@ namespace utility
 		enum class any_action
 		{
 			destruct,
-			const_copy,
 			move,
 			none_type_id,
 			const_get,
@@ -88,17 +87,6 @@ namespace utility
 				: handler_(nullptr)
 			{}
 
-			any_data(const this_type & other)
-				: handler_(nullptr)
-			{
-				if (other.handler_)
-				{
-					any_input in(other);
-					any_output out(*this);
-					other.handler_(any_action::const_copy, in, out);
-				}
-			}
-
 			any_data(this_type && other) noexcept
 				: handler_(nullptr)
 			{
@@ -115,12 +103,6 @@ namespace utility
 			explicit any_data(utility::in_place_type_t<T>, Ps && ...ps)
 			{
 				create<T>(std::forward<Ps>(ps)...);
-			}
-
-			any_data & operator = (const this_type & other)
-			{
-				any_data tmp(other);
-				return *this = std::move(tmp);
 			}
 
 			any_data & operator = (this_type && other) noexcept
@@ -248,10 +230,6 @@ namespace utility
 				case any_action::destruct:
 					delete static_cast<T *>(in.data_->ptr_);
 					break;
-				case any_action::const_copy:
-					out.data_->ptr_ = utility::construct_new<T>(*static_cast<const T *>(in.const_data_->ptr_));
-					out.data_->handler_ = &any_big<T>::handler;
-					break;
 				case any_action::move:
 					out.data_->ptr_ = in.data_->ptr_;
 					out.data_->handler_ = &any_big<T>::handler;
@@ -288,14 +266,6 @@ namespace utility
 				case any_action::destruct:
 					static_cast<T *>(static_cast<void *>(&in.data_->buffer_))->~T();
 					break;
-				case any_action::const_copy:
-				{
-					auto & x = utility::construct_at<T>(&out.data_->buffer_, *static_cast<const T *>(static_cast<const void *>(&in.data_->buffer_)));
-					static_cast<void>(x);
-					assert(static_cast<void *>(&x) == static_cast<void *>(&out.data_->buffer_)); // [new.delete.placement]§2
-					out.data_->handler_ = &any_small<T>::handler;
-					break;
-				}
 				case any_action::move:
 				{
 					auto & x = utility::construct_at<T>(&out.data_->buffer_, static_cast<T &&>(*static_cast<T *>(static_cast<void *>(&in.data_->buffer_))));
@@ -345,10 +315,9 @@ namespace utility
 
 		template <typename P,
 		          typename T = mpl::decay_t<P>,
-		          REQUIRES((!mpl::is_same<this_type, T>::value)),
-		          // REQUIRES((!mpl::is_same<in_place_type, T>::value)),
-		          REQUIRES((std::is_copy_constructible<T>::value))>
-		any(P && p)
+		          REQUIRES((!mpl::is_same<this_type, T>::value))
+		          >
+		explicit any(P && p)
 			: data_(utility::in_place_type<T>, std::forward<P>(p))
 		{}
 
@@ -359,8 +328,8 @@ namespace utility
 
 		template <typename P,
 		          typename T = mpl::decay_t<P>,
-		          REQUIRES((!mpl::is_same<this_type, T>::value)),
-		          REQUIRES((std::is_copy_constructible<T>::value))>
+		          REQUIRES((!mpl::is_same<this_type, T>::value))
+		          >
 		this_type & operator = (P && p)
 		{
 			data_ = detail::any_data(utility::in_place_type<T>, std::forward<P>(p));
@@ -375,8 +344,8 @@ namespace utility
 	public:
 
 		template <typename T, typename ...Ps,
-		          REQUIRES((std::is_constructible<T, Ps...>::value)),
-		          REQUIRES((std::is_copy_constructible<T>::value))>
+		          REQUIRES((std::is_constructible<T, Ps...>::value))
+		          >
 		T & emplace(Ps && ...ps)
 		{
 			data_.destroy();
