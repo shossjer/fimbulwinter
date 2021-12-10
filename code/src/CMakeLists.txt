@@ -169,7 +169,6 @@ set(HEADERS_UTILITY
 	src/utility/container/vector.hpp
 	src/utility/crypto/crc.hpp
 	src/utility/ext/stddef.hpp
-	src/utility/ext/string.hpp
 	src/utility/ext/unistd.hpp
 	src/utility/encoding_traits.hpp
 	src/utility/functional.hpp
@@ -204,15 +203,9 @@ set(HEADERS_UTILITY
 	src/utility/storage.hpp
 	src/utility/storing.hpp
 	src/utility/stream.hpp
-	src/utility/string.hpp
-	src/utility/string_iterator.hpp
-	src/utility/string_view.hpp
 	src/utility/tuple.hpp
 	src/utility/type_info.hpp
 	src/utility/type_traits.hpp
-	src/utility/unicode/encoding_traits.hpp
-	src/utility/unicode/string.hpp
-	src/utility/unicode/string_view.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
 	src/utility/weak_ptr.hpp

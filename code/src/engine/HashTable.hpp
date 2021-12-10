@@ -4,9 +4,10 @@
 
 #if MODE_DEBUG
 
+#include "ful/cstr.hpp"
+
 #include <cstdint>
 #include <initializer_list>
-#include <ostream>
 
 namespace engine
 {
@@ -21,9 +22,6 @@ namespace engine
 		void add(const Hash & hash, const char * str);
 		void add(const Hash & hash, const char * str, std::size_t n);
 	};
-
-	// note debug only
-	std::ostream & operator << (std::ostream & stream, const Hash & hash);
 }
 
 #define static_hashes(...) static engine::HashTable add_static_hashes({__VA_ARGS__})

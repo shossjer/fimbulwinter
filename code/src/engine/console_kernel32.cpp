@@ -2,12 +2,10 @@
 
 #if CONSOLE_USE_KERNEL32
 
-#include "console.hpp"
-
 #include "core/async/Thread.hpp"
 #include "core/debug.hpp"
 
-#include "utility/unicode/string_view.hpp"
+#include "engine/console.hpp"
 
 #include <iostream>
 #include <string>
@@ -18,7 +16,7 @@ namespace engine
 {
 	namespace detail
 	{
-		void read_input(utility::string_units_utf8 line);
+		void read_input(ful::view_utf8 line);
 	}
 }
 
@@ -45,7 +43,7 @@ namespace
 				break;
 			}
 
-			engine::detail::read_input(utility::string_units_utf8(line.data(), line.size()));
+			engine::detail::read_input(ful::view_utf8(line.data(), line.size()));
 		}
 
 		debug_printline("console thread stopping");

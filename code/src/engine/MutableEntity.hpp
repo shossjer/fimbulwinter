@@ -20,8 +20,7 @@ namespace engine
 		{}
 
 	public:
-		// todo remove
-		explicit operator std::size_t () const
+		explicit operator Entity::value_type () const
 		{
 			return entity_.value();
 		}
@@ -44,7 +43,8 @@ namespace engine
 		friend bool operator == (Entity a, this_type b) { return a == b.entity_; }
 		friend bool operator != (Entity a, this_type b) { return a != b.entity_; }
 
-		friend std::ostream & operator << (std::ostream & stream, this_type x)
+		template <typename Stream>
+		friend Stream & operator << (Stream & stream, this_type x)
 		{
 			return stream << "(" << x.entity_ << ", " << x.version_ << ")";
 		}

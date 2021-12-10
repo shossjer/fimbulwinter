@@ -4,25 +4,24 @@
 
 namespace core
 {
-	template <typename StorageTraits, typename Encoding>
+	template <typename StorageTraits>
 	class StringStream
 	{
 	public:
 
 		class end_sentry {};
 
-		template <typename Boundary>
 		class ConstIterator
 		{
-			template <typename StorageTraits_, typename Encoding_>
+			template <typename StorageTraits_>
 			friend class StringStream;
 
-			using this_type = ConstIterator<Boundary>;
+			using this_type = ConstIterator;
 
 		public:
 
-			using const_pointer = typename Boundary::const_pointer;
-			using const_reference = typename Boundary::const_reference;
+			using const_pointer = const char *;
+			using const_reference = char;
 
 		private:
 
@@ -38,12 +37,12 @@ namespace core
 
 		public:
 
-			const_reference operator * () const { return Boundary::dereference(stream_->buffered_stream_.data() + index_); }
+			const_reference operator * () const { return stream_->buffered_stream_.data()[index_]; }
 
-			this_type & operator ++ () { index_ = stream_->next<Boundary>(index_); return *this; }
-			this_type operator ++ (int) { auto tmp = *this; index_ = stream_->next<Boundary>(index_); return tmp; }
-			this_type & operator -- () { index_ = stream_->prev<Boundary>(index_); return *this; }
-			this_type operator -- (int) { auto tmp = *this; index_ = stream_->prev<Boundary>(index_); return tmp; }
+			this_type & operator ++ () { index_ = stream_->next(index_); return *this; }
+			this_type operator ++ (int) { auto tmp = *this; index_ = stream_->next(index_); return tmp; }
+			this_type & operator -- () { if (debug_assert(0 < index_)) index_--; return *this; }
+			this_type operator -- (int) { auto tmp = *this; if (debug_assert(0 < index_)) index_--; return tmp; }
 
 			const_pointer get() const { return stream_->data() + index_; }
 
@@ -62,9 +61,9 @@ namespace core
 			}
 		};
 
-		using value_type = typename utility::encoding_traits<Encoding>::value_type;
+		using value_type = char;
 
-		using const_iterator = ConstIterator<utility::boundary_unit<Encoding>>;
+		using const_iterator = ConstIterator;
 
 	private:
 
@@ -72,17 +71,17 @@ namespace core
 
 	public:
 
-		StringStream(ReadStream && stream)
+		explicit StringStream(ReadStream && stream)
 			: buffered_stream_(std::move(stream))
 		{}
 
 	public:
 
-		const utility::heap_string_utf8 & filepath() const { return buffered_stream_.filepath(); }
+		ful::cstr_utf8 filepath() const { return buffered_stream_.filepath(); }
 
 		const_iterator begin() const
 		{
-			while (size() < 1)
+			while (buffered_stream_.size() == 0)
 			{
 				if (!buffered_stream_.read_more())
 					break;
@@ -90,15 +89,13 @@ namespace core
 				if (buffered_stream_.done())
 					break;
 			}
-			read_more<utility::boundary_unit<Encoding>>(0);
 
 			return const_iterator(*this, 0);
 		}
 		end_sentry end() const { return end_sentry(); }
 
 		// note invalidates all iterators
-		template <typename Boundary>
-		void consume(ConstIterator<Boundary> it)
+		void consume(const_iterator it)
 		{
 			buffered_stream_.consume(it.index_ * sizeof(value_type));
 		}
@@ -109,51 +106,31 @@ namespace core
 	public:
 #endif
 
-		// todo reinterpret_cast is ugly
-		const value_type * data() const { return reinterpret_cast<const value_type *>(buffered_stream_.data()); }
-		ext::usize size() const { return buffered_stream_.size() / sizeof(value_type); }
+		const value_type * data() const { return buffered_stream_.data(); }
+		ext::usize size() const { return buffered_stream_.size(); }
 
 #if defined(_MSC_VER)
 	private:
 #endif
 
-		template <typename Boundary>
-		void read_more(ext::ssize index) const
-		{
-			if (static_cast<ext::ssize>(size()) <= index)
-				return; // end of stream
-
-			const auto next_index = index + Boundary::next(data() + index);
-
-			while (static_cast<ext::ssize>(size()) <= next_index)
-			{
-				if (!buffered_stream_.read_more())
-					return;
-
-				if (buffered_stream_.done())
-					break;
-			}
-		}
-
-		template <typename Boundary>
 		ext::ssize next(ext::ssize index) const
 		{
-			if (debug_assert(index < size()))
+			if (debug_assert(index < buffered_stream_.size()))
 			{
-				index += Boundary::next(data() + index);
-				read_more<Boundary>(index);
+				index++;
+
+				do
+				{
+					if (buffered_stream_.done())
+						break;
+
+					if (!buffered_stream_.read_more())
+						return index - 1;
+				}
+				while (static_cast<ext::ssize>(buffered_stream_.size()) <= index);
 			}
 			return index;
 		}
 
-		template <typename Boundary>
-		ext::ssize prev(ext::ssize index) const
-		{
-			if (debug_assert(0 < index))
-			{
-				index -= Boundary::previous(data() + index);
-			}
-			return index;
-		}
 	};
 }

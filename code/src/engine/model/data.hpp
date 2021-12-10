@@ -1,9 +1,9 @@
 #pragma once
 
-#include <core/container/Buffer.hpp>
+#include "core/container/Buffer.hpp"
 #include "core/serialization.hpp"
 
-#include <engine/common.hpp>
+#include "engine/common.hpp"
 
 #include <vector>
 
@@ -18,9 +18,9 @@ namespace model
 
 		static constexpr auto serialization()
 		{
-			return utility::make_lookup_table(
-				std::make_pair(utility::string_units_utf8("index"), &weight_t::index),
-				std::make_pair(utility::string_units_utf8("value"), &weight_t::value)
+			return utility::make_lookup_table<ful::view_utf8>(
+				std::make_pair(ful::cstr_utf8("index"), &weight_t::index),
+				std::make_pair(ful::cstr_utf8("value"), &weight_t::value)
 				);
 		}
 	};
@@ -35,13 +35,13 @@ namespace model
 
 		static constexpr auto serialization()
 		{
-			return utility::make_lookup_table(
-				std::make_pair(utility::string_units_utf8("matrix"), &mesh_t::matrix),
-				std::make_pair(utility::string_units_utf8("vertices"), &mesh_t::xyz),
-				std::make_pair(utility::string_units_utf8("uvs"), &mesh_t::uv),
-				std::make_pair(utility::string_units_utf8("weights"), &mesh_t::weights),
-				std::make_pair(utility::string_units_utf8("normals"), &mesh_t::normals),
-				std::make_pair(utility::string_units_utf8("triangles"), &mesh_t::triangles)
+			return utility::make_lookup_table<ful::view_utf8>(
+				std::make_pair(ful::cstr_utf8("matrix"), &mesh_t::matrix),
+				std::make_pair(ful::cstr_utf8("vertices"), &mesh_t::xyz),
+				std::make_pair(ful::cstr_utf8("uvs"), &mesh_t::uv),
+				std::make_pair(ful::cstr_utf8("weights"), &mesh_t::weights),
+				std::make_pair(ful::cstr_utf8("normals"), &mesh_t::normals),
+				std::make_pair(ful::cstr_utf8("triangles"), &mesh_t::triangles)
 				);
 		}
 	};

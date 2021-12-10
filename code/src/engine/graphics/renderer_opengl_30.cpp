@@ -36,8 +36,15 @@
 #include "utility/lookup_table.hpp"
 #include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
-#include "utility/unicode/string.hpp"
 #include "utility/variant.hpp"
+
+#include "ful/convert.hpp"
+#include "ful/cstrext.hpp"
+#include "ful/heap.hpp"
+#include "ful/point.hpp"
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+#include "ful/view.hpp"
 
 #include <atomic>
 #include <utility>
@@ -170,7 +177,7 @@ namespace
 			GLint vertex;
 			GLint fragment;
 
-			utility::heap_vector<GLint, utility::heap_string_utf8> uniforms;
+			utility::heap_vector<GLint, ful::heap_string_utf8> uniforms;
 		};
 
 		utility::heap_vector<engine::Token, Data> shaders;
@@ -268,7 +275,7 @@ namespace
 			auto fragment_parser = rex::parse(shader_data.fragment_source);
 			while (true)
 			{
-				const auto uniform_declaration = fragment_parser.find((rex::str("uniform") >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str("*/") >> rex::str("*/")))));
+				const auto uniform_declaration = fragment_parser.find((rex::str(ful::cstr_utf8("uniform")) >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str(ful::cstr_utf8("*/")) >> rex::str(ful::cstr_utf8("*/"))))));
 				if (uniform_declaration.first == uniform_declaration.second)
 					break;
 
@@ -295,12 +302,19 @@ namespace
 				if (!uniform_semicolon.first)
 					continue;
 
-				const auto type = utility::string_units_utf8(uniform_declaration.second, uniform_type.second);
-				const auto name = utility::string_units_utf8(uniform_type_space_name.second, uniform_name.second);
+				const auto type = ful::view_utf8(uniform_declaration.second, uniform_type.second);
+				const auto name = ful::view_utf8(uniform_type_space_name.second, uniform_name.second);
 
 				if (type == u8"sampler2D")
 				{
-					debug_verify(shader.second.uniforms.try_emplace_back(GL_TEXTURE_2D, utility::heap_string_utf8(name)));
+					if (debug_verify(shader.second.uniforms.try_emplace_back()))
+					{
+						ext::back(shader.second.uniforms).first = GL_TEXTURE_2D;
+						if (!debug_verify(ful::copy(name, ext::back(shader.second.uniforms).second)))
+						{
+							ext::pop_back(shader.second.uniforms);
+						}
+					}
 				}
 			}
 
@@ -432,7 +446,7 @@ namespace
 
 		struct FontInfo
 		{
-			std::vector<utility::unicode_code_point> allowed_unicodes;
+			std::vector<ful::point_utf> allowed_unicodes;
 			std::vector<SymbolData> symbol_data;
 
 			int symbol_width;
@@ -440,7 +454,7 @@ namespace
 			int texture_width; // ?
 			int texture_height; // ?
 
-			utility::heap_string_utf8 name;
+			ful::heap_string_utf8 name;
 			int size;
 		};
 
@@ -459,19 +473,23 @@ namespace
 		}
 
 		// todo boundary_symbol
-		void compile(engine::Token asset, utility::string_points_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
+		void compile(engine::Token asset, ful::view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
 			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
-			const FontInfo & info = infos[index];
+			ful::heap_string_utf32 text32;
+			if (!debug_verify(ful::convert(text, text32)))
+				return;
 
-			const std::ptrdiff_t len = text.length();
+			const std::ptrdiff_t len = text32.size();
 			if (!debug_verify(vertices.reshape<float>(4 * len * 2)))
 				return;
 
 			if (!debug_verify(texcoords.reshape<float>(4 * len * 2)))
 				return;
+
+			const FontInfo & info = infos[index];
 
 			const int slots_in_width = info.texture_width / info.symbol_width;
 
@@ -481,10 +499,10 @@ namespace
 			int x = 0;
 			int y = 0;
 			int i = 0;
-			for (auto cp : text)
+			for (auto cp : text32)
 			{
 				// the null glyph is stored at the end
-				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp);
+				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), ful::point_utf(cp));
 				const int slot = static_cast<int>((maybe == info.allowed_unicodes.end() || *maybe != cp ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin());
 				const int slot_y = slot / slots_in_width;
 				const int slot_x = slot % slots_in_width;
@@ -526,7 +544,7 @@ namespace
 			}
 		}
 
-		void create(utility::heap_string_utf8 && name, std::vector<utility::unicode_code_point> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
+		void create(ful::heap_string_utf8 && name, std::vector<ful::point_utf> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
 		{
 			const engine::Asset asset(name);
 			const auto index = find(engine::Token(asset));
@@ -606,7 +624,7 @@ namespace
 		GLint vertex;
 		GLint fragment;
 
-		utility::heap_vector<GLint, utility::heap_string_utf8> uniforms;
+		utility::heap_vector<GLint, ful::heap_string_utf8> uniforms;
 	};
 
 	struct ShaderClass
@@ -772,7 +790,7 @@ namespace
 		auto fragment_parser = rex::parse(shader_data.fragment_source);
 		while (true)
 		{
-			const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
+			const auto uniform_declaration = fragment_parser.find((rex::str(ful::cstr_utf8("uniform")) >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str(ful::cstr_utf8("*/")) >> rex::str(ful::cstr_utf8("*/"))))));
 			if (uniform_declaration.first == uniform_declaration.second)
 				break;
 
@@ -799,12 +817,19 @@ namespace
 			if (!uniform_semicolon.first)
 				continue;
 
-			const auto type = utility::string_units_utf8(uniform_declaration.second, uniform_type.second);
-			const auto name = utility::string_units_utf8(uniform_type_space_name.second, uniform_name.second);
+			const auto type = ful::view_utf8(uniform_declaration.second, uniform_type.second);
+			const auto name = ful::view_utf8(uniform_type_space_name.second, uniform_name.second);
 
 			if (type == u8"sampler2D")
 			{
-				debug_verify(shader->uniforms.try_emplace_back(GL_TEXTURE_2D, utility::heap_string_utf8(name)));
+				if (debug_verify(shader->uniforms.try_emplace_back()))
+				{
+					ext::back(shader->uniforms).first = GL_TEXTURE_2D;
+					if (!debug_verify(ful::copy(name, ext::back(shader->uniforms).second)))
+					{
+						ext::pop_back(shader->uniforms);
+					}
+				}
 			}
 		}
 
@@ -1170,7 +1195,7 @@ namespace
 
 				void operator () (MessageCreateMaterialInstance && x)
 				{
-					auto material_it = find(materials, x.entity);
+					const auto material_it = find(materials, x.entity);
 					if (material_it != materials.end())
 					{
 						if (!debug_assert(materials.get_key(material_it) < x.entity, "trying to add an older version object"))
@@ -1495,9 +1520,15 @@ namespace
 	void initialize_builtin_shaders()
 	{
 		engine::graphics::data::ShaderData entity_shader_data;
-		entity_shader_data.inputs.push_back({"in_vertex", 4});
-		entity_shader_data.inputs.push_back({"in_color", 5});
-		entity_shader_data.vertex_source = R"###(
+		entity_shader_data.inputs.emplace_back();
+		entity_shader_data.inputs.back().value = 4;
+		if (!debug_verify(ful::assign(entity_shader_data.inputs.back().name, ful::cstr_utf8("in_vertex"))))
+			return; // error
+		entity_shader_data.inputs.emplace_back();
+		entity_shader_data.inputs.back().value = 5;
+		if (!debug_verify(ful::assign(entity_shader_data.inputs.back().name, ful::cstr_utf8("in_color"))))
+			return; // error
+		if (!debug_verify(ful::assign(entity_shader_data.vertex_source, ful::cstr_utf8(R"###(
 #version 130
 
 uniform mat4 projection_matrix;
@@ -1513,10 +1544,17 @@ void main()
 	gl_Position = projection_matrix * modelview_matrix * vec4(in_vertex.xyz, 1.f);
 	color = in_color;
 }
-)###";
-		entity_shader_data.outputs.push_back({"out_framebuffer", 0});
-		entity_shader_data.outputs.push_back({"out_entitytex", 1});
-		entity_shader_data.fragment_source = R"###(
+)###"))))
+			return; // error
+		entity_shader_data.outputs.emplace_back();
+		entity_shader_data.outputs.back().value = 0;
+		if (!debug_verify(ful::assign(entity_shader_data.outputs.back().name, ful::cstr_utf8("out_framebuffer"))))
+			return; // error
+		entity_shader_data.outputs.emplace_back();
+		entity_shader_data.outputs.back().value = 1;
+		if (!debug_verify(ful::assign(entity_shader_data.outputs.back().name, ful::cstr_utf8("out_entitytex"))))
+			return; // error
+		if (!debug_verify(ful::assign(entity_shader_data.fragment_source, ful::cstr_utf8(R"###(
 #version 130
 
 in vec4 color;
@@ -1529,7 +1567,8 @@ void main()
 	out_framebuffer = color;
 	out_entitytex = color;
 }
-)###";
+)###"))))
+			return; // error
 		debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterShader>, engine::Token(entity_shader_asset), std::move(entity_shader_data)));
 	}
 
@@ -1538,9 +1577,9 @@ void main()
 		debug_printline(engine::graphics_channel, "render_callback starting");
 		make_current(*engine::graphics::detail::window);
 
-		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
-		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
-		debug_printline(engine::graphics_channel, "glGetString GL_VERSION: ", glGetString(GL_VERSION));
+		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", ful::make_cstr_utf8(glGetString(GL_VENDOR)));
+		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", ful::make_cstr_utf8(glGetString(GL_RENDERER)));
+		debug_printline(engine::graphics_channel, "glGetString GL_VERSION: ", ful::make_cstr_utf8(glGetString(GL_VERSION)));
 
 		engine::graphics::opengl::init();
 

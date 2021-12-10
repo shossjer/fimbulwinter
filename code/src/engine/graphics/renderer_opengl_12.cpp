@@ -30,6 +30,8 @@
 #include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
+#include "ful/cstrext.hpp"
+
 #include <atomic>
 #include <utility>
 
@@ -665,9 +667,6 @@ namespace
 
 				void operator () (MessageCreateMaterialInstance && x)
 				{
-					if (!debug_verify(find(resources, x.data.materialclass) != resources.end(), x.data.materialclass))
-						return; // error
-
 					const auto material_it = find(materials, x.entity);
 					if (material_it != materials.end())
 					{
@@ -681,8 +680,8 @@ namespace
 
 				void operator () (MessageDestroy && x)
 				{
-					const auto material_it = find(materials, x.entity);
-					if (debug_assert(material_it != materials.end()))
+					auto material_it = find(materials, x.entity);
+					if (material_it != materials.end())
 					{
 						materials.erase(material_it);
 					}
@@ -964,9 +963,9 @@ namespace
 		debug_printline(engine::graphics_channel, "render_callback starting");
 		make_current(*engine::graphics::detail::window);
 
-		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
-		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
-		debug_printline(engine::graphics_channel, "glGetString GL_VERSION: ", glGetString(GL_VERSION));
+		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", ful::make_cstr_utf8(glGetString(GL_VENDOR)));
+		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", ful::make_cstr_utf8(glGetString(GL_RENDERER)));
+		debug_printline(engine::graphics_channel, "glGetString GL_VERSION: ", ful::make_cstr_utf8(glGetString(GL_VERSION)));
 
 		engine::graphics::opengl::init();
 

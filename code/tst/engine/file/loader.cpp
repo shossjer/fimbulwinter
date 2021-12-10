@@ -11,6 +11,9 @@
 
 #include "utility/any.hpp"
 
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+
 #include <catch2/catch.hpp>
 
 static_hashes("tmpdir", "tree.root", "dependency.1", "dependency.2", "dependency.3", "dependency.4", "dependency.5");
@@ -57,8 +60,12 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 	SECTION("")
 	{
-		engine::file::write(filesystem, tmpdir, u8"maybe.exists", engine::Hash{}, write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("maybe.exists"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("folder/maybe.exists"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
 		engine::file::scoped_library tmplib(fileloader, tmpdir);
 
@@ -399,12 +406,24 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 
 	SECTION("")
 	{
-		engine::file::write(filesystem, tmpdir, u8"tree.root", engine::Asset{}, write_char, utility::any(char(1)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.1", engine::Asset{}, write_char, utility::any(char(11)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.2", engine::Asset{}, write_char, utility::any(char(12)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.3", engine::Asset{}, write_char, utility::any(char(13)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.4", engine::Asset{}, write_char, utility::any(char(14)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.5", engine::Asset{}, write_char, utility::any(char(15)));
+		ful::heap_string_utf8 filepath0;
+		ful::assign(filepath0, ful::cstr_utf8("tree.root"));
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("dependency.1"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("dependency.2"));
+		ful::heap_string_utf8 filepath3;
+		ful::assign(filepath3, ful::cstr_utf8("dependency.3"));
+		ful::heap_string_utf8 filepath4;
+		ful::assign(filepath4, ful::cstr_utf8("dependency.4"));
+		ful::heap_string_utf8 filepath5;
+		ful::assign(filepath5, ful::cstr_utf8("dependency.5"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath0), engine::Asset{}, write_char, utility::any(char(1)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Asset{}, write_char, utility::any(char(11)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Asset{}, write_char, utility::any(char(12)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath3), engine::Asset{}, write_char, utility::any(char(13)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath4), engine::Asset{}, write_char, utility::any(char(14)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath5), engine::Asset{}, write_char, utility::any(char(15)));
 
 		engine::file::scoped_library tmplib(fileloader, tmpdir);
 
@@ -422,7 +441,8 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 
 		sync_data.watch_event.reset();
 
-		engine::file::write(filesystem, tmpdir, u8"dependency.2", engine::Asset{}, write_char, utility::any(char(21)), engine::file::flags::OVERWRITE_EXISTING);
+		ful::assign(filepath2, ful::cstr_utf8("dependency.2"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Asset{}, write_char, utility::any(char(21)), engine::file::flags::OVERWRITE_EXISTING);
 
 		REQUIRE(sync_data.watch_event.wait(timeout));
 		CHECK(sync_data.ready_values[0] == 1);

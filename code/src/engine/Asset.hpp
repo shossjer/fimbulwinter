@@ -37,11 +37,12 @@ namespace engine
 #endif
 		}
 
-		explicit Asset(utility::string_units_utf8 str)
-			: Hash(str.data(), str.size())
+		template <typename R, typename = decltype(data(std::declval<R>()), size(std::declval<R>()))>
+		explicit Asset(const R & str)
+			: Hash(data(str), size(str))
 		{
 #if MODE_DEBUG
-			add_string_to_hash_table(str.data(), str.size());
+			add_string_to_hash_table(data(str), size(str));
 #endif
 		}
 
@@ -57,16 +58,21 @@ namespace engine
 
 		static constexpr auto serialization()
 		{
-			return utility::make_lookup_table(
-				std::make_pair(utility::string_units_utf8("id"), &Asset::value_)
+			return utility::make_lookup_table<ful::view_utf8>(
+				std::make_pair(ful::cstr_utf8("id"), &Asset::value_)
 				);
 		}
 
 	};
 
-	inline bool serialize(Asset & x, utility::string_units_utf8 object)
+	inline bool serialize(Asset & x, ful::view_utf8 object)
 	{
 		x = Asset(object);
 		return true;
+	}
+
+	inline bool serialize(Asset & x, ful::cstr_utf8 object)
+	{
+		return serialize(x, static_cast<ful::view_utf8>(object));
 	}
 }

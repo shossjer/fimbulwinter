@@ -2,9 +2,12 @@
 
 #if FILE_SYSTEM_USE_KERNEL32
 
-#include "file.hpp"
-
+#include "core/native/file.hpp"
 #include "core/ReadStream.hpp"
+
+#include "ful/convert.hpp"
+#include "ful/heap.hpp"
+#include "ful/string_init.hpp"
 
 #include <utility>
 
@@ -14,9 +17,13 @@ namespace core
 {
 	namespace native
 	{
-		bool try_read_file(utility::heap_string_utf8 && filepath, void(* callback)(core::ReadStream && stream, void * data), void * data)
+		bool try_read_file(ful::cstr_utf8 filepath, void (* callback)(core::ReadStream && stream, void * data), void * data)
 		{
-			HANDLE hFile = ::CreateFileW(utility::heap_widen(filepath).data(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+			ful::heap_string_utfw wide_filepath; // todo static
+			if (!convert(filepath.begin(), filepath.end(), wide_filepath))
+				return false;
+
+			HANDLE hFile = ::CreateFileW(wide_filepath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 			if (hFile == INVALID_HANDLE_VALUE)
 			{
 				debug_assert(::GetLastError() == ERROR_FILE_NOT_FOUND, "CreateFileW \"", filepath, "\" failed with last error ", ::GetLastError());
@@ -36,7 +43,7 @@ namespace core
 				return ext::ssize(read);
 			},
 					reinterpret_cast<void *>(hFile),
-					std::move(filepath)),
+					filepath),
 				data);
 
 			debug_verify(::CloseHandle(hFile) != FALSE, " failed with last error ", ::GetLastError());

@@ -27,7 +27,7 @@ namespace engine
 				register_temporary_directory(system_, name_);
 			}
 
-			explicit scoped_directory(system & system, engine::Hash name, utility::heap_string_utf8 && filepath, engine::Hash parent)
+			explicit scoped_directory(system & system, engine::Hash name, ful::heap_string_utf8 && filepath, engine::Hash parent)
 				: system_(system)
 				, name_(name)
 			{

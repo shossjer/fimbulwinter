@@ -29,7 +29,7 @@ TEST_CASE("ReadStream", "[core][stream]")
 			return ext::ssize(n);
 		},
 		&src_data,
-		u8"");
+		ful::cstr_utf8(""));
 
 	SECTION("can read some")
 	{
@@ -116,11 +116,11 @@ TEST_CASE("ReadStream", "[core][stream]")
 TEST_CASE("ReadStream reports errors", "[core][stream]")
 {
 	core::ReadStream rs([](void * /*dest*/, ext::usize /*n*/, void * /*data*/)
-	                     {
-		                     return ext::ssize(-1);
-	                     },
-	                     nullptr,
-	                     u8"");
+	                    {
+		                    return ext::ssize(-1);
+	                    },
+	                    nullptr,
+	                    ful::cstr_utf8(""));
 
 	SECTION("writing some")
 	{

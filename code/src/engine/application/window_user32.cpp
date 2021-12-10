@@ -7,8 +7,10 @@
 #include "engine/application/config.hpp"
 #include "engine/debug.hpp"
 
+#include "ful/point.hpp"
+
 #if TEXT_USE_USER32
-# include "utility/unicode/string_view.hpp"
+# include "ful/cstr.hpp"
 #endif
 
 #include <windowsx.h>
@@ -32,7 +34,7 @@ namespace engine
 		extern void process_input(devices & devices, HRAWINPUT input);
 #endif
 
-		extern void key_character(devices & devices, int scancode, const char16_t * character);
+		extern void key_character(devices & devices, int scancode, ful::point_utf character);
 
 		extern void key_down(devices & devices, WPARAM wParam, LPARAM lParam, LONG time);
 		extern void key_up(devices & devices, WPARAM wParam, LPARAM lParam, LONG time);
@@ -91,8 +93,11 @@ namespace
 			break;
 #endif
 
-		 case WM_CHAR:
-			key_character(*::devices, uint32_t(lParam & 0xff0000) >> 16, reinterpret_cast<const char16_t *>(&wParam));
+		case WM_UNICHAR:
+			if (wParam == UNICODE_NOCHAR)
+				return TRUE;
+			else
+				key_character(*::devices, uint32_t(lParam & 0xff0000) >> 16, ful::point_utf(static_cast<ful::uint32>(wParam)));
 			break;
 
 		case WM_KEYDOWN:

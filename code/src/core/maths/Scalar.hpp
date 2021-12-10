@@ -3,7 +3,6 @@
 #define CORE_MATHS_SCALAR_HPP
 
 #include <algorithm>
-#include <ostream>
 
 namespace core
 {
@@ -109,7 +108,8 @@ namespace core
 				return value_type{1} / s.value;
 			}
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & s)
+			template <typename Stream>
+			friend Stream & operator << (Stream & stream, const this_type & s)
 			{
 				return stream << s.value;
 			}

@@ -11,11 +11,16 @@
 #include "utility/container/vector.hpp"
 #include "utility/functional/utility.hpp"
 
+#include "ful/view.hpp"
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+#include "ful/string_search.hpp"
+
 #include <Windows.h>
 
 namespace
 {
-	engine::Hash make_asset(utility::string_units_utfw filepath, bool recurse)
+	engine::Hash make_asset(ful::view_utfw filepath, bool recurse)
 	{
 		// todo
 		return engine::Hash(engine::Hash(reinterpret_cast<const char *>(filepath.data()), filepath.size() * sizeof(wchar_t)) ^ (recurse ? engine::Hash::value_type(-1) : engine::Hash::value_type{}));
@@ -49,11 +54,11 @@ namespace
 	{
 		OVERLAPPED overlapped;
 
-		utility::heap_vector<utility::string_units_utfw, ext::heap_shared_ptr<engine::file::ReadData>> reads;
-		utility::heap_vector<utility::string_units_utfw, ext::heap_shared_ptr<engine::file::ReadData>> missing_reads;
+		utility::heap_vector<ful::view_utfw, ext::heap_shared_ptr<engine::file::ReadData>> reads;
+		utility::heap_vector<ful::view_utfw, ext::heap_shared_ptr<engine::file::ReadData>> missing_reads;
 		utility::heap_vector<ext::heap_shared_ptr<engine::file::ScanData>> scans;
 
-		utility::heap_string_utfw filepath;
+		ful::heap_string_utfw filepath;
 
 		std::aligned_storage_t<1024, alignof(DWORD)> buffer; // arbitrary
 
@@ -63,7 +68,7 @@ namespace
 			debug_expression(overlapped.hEvent = nullptr);
 		}
 
-		explicit WatchData(HANDLE hDirectory, utility::heap_string_utfw && filepath)
+		explicit WatchData(HANDLE hDirectory, ful::heap_string_utfw && filepath)
 			: filepath(std::move(filepath))
 		{
 			// this is fine, see documentation of ReadDirectoryChangesW
@@ -107,11 +112,11 @@ namespace
 	>
 	aliases;
 
-	HANDLE start_watch(const utility::heap_string_utfw & dirpath)
+	HANDLE start_watch(ful::cstr_utfw dirpath)
 	{
-		debug_printline("starting watch \"", utility::heap_narrow<utility::encoding_utf8>(dirpath), "\"");
+		debug_printline("starting watch \"", dirpath, "\"");
 		HANDLE hDirectory = ::CreateFileW(
-			dirpath.data(),
+			dirpath.c_str(),
 			FILE_LIST_DIRECTORY,
 			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 			nullptr,
@@ -127,7 +132,7 @@ namespace
 
 	bool stop_watch(WatchData & watch_data)
 	{
-		debug_printline("stopping watch \"", utility::heap_narrow<utility::encoding_utf8>(watch_data.filepath), "\"");
+		debug_printline("stopping watch \"", watch_data.filepath, "\"");
 		if (::CancelIoEx(watch_data.overlapped.hEvent, &watch_data.overlapped) == FALSE)
 		{
 			const auto error = ::GetLastError();
@@ -160,7 +165,7 @@ namespace
 		}
 		else
 		{
-			utility::heap_vector<utility::heap_string_utfw> changes;
+			utility::heap_vector<ful::heap_string_utfw> changes;
 
 			for (std::size_t offset = 0;;)
 			{
@@ -169,29 +174,36 @@ namespace
 				const FILE_NOTIFY_INFORMATION * const info = reinterpret_cast<const FILE_NOTIFY_INFORMATION *>(reinterpret_cast<const char *>(&watch_data->buffer) + offset);
 				debug_assert(info->FileNameLength % sizeof(wchar_t) == 0);
 
-				const auto filename = utility::string_units_utfw(info->FileName, info->FileName + info->FileNameLength / sizeof(wchar_t));
+				const auto filename = ful::view_utfw(info->FileName, info->FileNameLength / sizeof(wchar_t));
 
 				switch (info->Action)
 				{
 				case FILE_ACTION_ADDED:
-					debug_printline("FILE_ACTION_ADDED: ", utility::heap_narrow<utility::encoding_utf8>(utility::string_points_utfw(filename.data(), filename.data() + filename.size())));
 					if (debug_verify(changes.try_emplace_back()))
 					{
 						auto & file = ext::back(changes);
-						if (!(debug_verify(file.try_push_back(L'+')) &&
-						      debug_verify(file.try_append(filename))))
+						if (debug_verify(resize(file, filename.size() + 1)))
+						{
+							file.data()[0] = L'+';
+							copy(filename, file.begin() + 1, file.end());
+						}
+						else
 						{
 							ext::pop_back(changes);
 						}
 					}
 					break;
 				case FILE_ACTION_REMOVED:
-					debug_printline("FILE_ACTION_REMOVED: ", utility::heap_narrow<utility::encoding_utf8>(utility::string_points_utfw(filename.data(), filename.data() + filename.size())));
+					debug_printline("FILE_ACTION_REMOVED: ", filename);
 					if (debug_verify(changes.try_emplace_back()))
 					{
 						auto & file = ext::back(changes);
-						if (!(debug_verify(file.try_push_back(L'-')) &&
-						      debug_verify(file.try_append(filename))))
+						if (debug_verify(resize(file, filename.size() + 1)))
+						{
+							file.data()[0] = L'-';
+							copy(filename, file.begin() + 1, file.end());
+						}
+						else
 						{
 							ext::pop_back(changes);
 						}
@@ -205,7 +217,7 @@ namespace
 					}
 					break;
 				case FILE_ACTION_MODIFIED:
-					debug_printline("FILE_ACTION_MODIFIED: ", utility::heap_narrow<utility::encoding_utf8>(utility::string_points_utfw(filename.data(), filename.data() + filename.size())));
+					debug_printline("FILE_ACTION_MODIFIED: ", filename);
 					for (auto && read : watch_data->reads)
 					{
 						if (read.first == filename)
@@ -215,10 +227,10 @@ namespace
 					}
 					break;
 				case FILE_ACTION_RENAMED_OLD_NAME:
-					debug_printline("FILE_ACTION_RENAMED_OLD_NAME: ", utility::heap_narrow<utility::encoding_utf8>(utility::string_points_utfw(filename.data(), filename.data() + filename.size())));
+					debug_printline("FILE_ACTION_RENAMED_OLD_NAME: ", filename);
 					break;
 				case FILE_ACTION_RENAMED_NEW_NAME:
-					debug_printline("FILE_ACTION_RENAMED_NEW_NAME: ", utility::heap_narrow<utility::encoding_utf8>(utility::string_points_utfw(filename.data(), filename.data() + filename.size())));
+					debug_printline("FILE_ACTION_RENAMED_NEW_NAME: ", filename);
 					break;
 				default:
 					debug_unreachable("unknown action ", info->Action);
@@ -234,7 +246,33 @@ namespace
 			{
 				for (auto && scan : watch_data->scans)
 				{
-					engine::file::post_work(engine::file::ScanChangeWork{scan, watch_data->filepath, changes});
+					ful::heap_string_utfw filepath;
+					if (!debug_verify(ful::copy(watch_data->filepath, filepath)))
+						continue; // error ????
+
+					utility::heap_vector<ful::heap_string_utfw> changes_copy;
+					if (!changes_copy.try_reserve(changes.size()))
+						continue; // error ????
+
+					bool fail = false;
+					for (const auto & change : changes)
+					{
+						if (!changes_copy.try_emplace_back())
+						{
+							fail = true;
+							break;
+						}
+
+						if (!debug_verify(ful::copy(change, ext::back(changes_copy))))
+						{
+							fail = true;
+							break;
+						}
+					}
+					if (fail)
+						continue; // error ????
+
+					engine::file::post_work(engine::file::ScanChangeWork{scan, std::move(filepath), std::move(changes_copy)});
 				}
 			}
 
@@ -242,7 +280,7 @@ namespace
 				return;
 		}
 
-		debug_printline("deleting watch \"", utility::heap_narrow<utility::encoding_utf8>(watch_data->filepath), "\"");
+		debug_printline("deleting watch \"", watch_data->filepath, "\"");
 		delete watch_data;
 	}
 
@@ -269,7 +307,7 @@ namespace
 		return alias->watch_data;
 	}
 
-	WatchData * get_or_create_directory(engine::Hash asset, utility::string_units_utfw filepath, bool recurse)
+	WatchData * get_or_create_directory(engine::Hash asset, ful::view_utfw filepath, bool recurse)
 	{
 		const auto alias_it = find(aliases, asset);
 		if (alias_it != aliases.end())
@@ -284,8 +322,11 @@ namespace
 		}
 		else
 		{
-			utility::heap_string_utfw filepath_null(filepath);
-			HANDLE hDirectory = start_watch(filepath_null);
+			ful::heap_string_utfw filepath_null;
+			if (!debug_verify(ful::copy(filepath, filepath_null)))
+				return nullptr; // error
+
+			HANDLE hDirectory = start_watch(ful::cstr_utfw(filepath_null));
 			if (!hDirectory)
 				return nullptr;
 
@@ -355,15 +396,15 @@ namespace engine
 			if (!debug_verify(watches.emplace<ReadWatch>(id, ptr)))
 				return;
 
-			const auto directory_split = utility::rfind(ptr->filepath, L'\\');
+			const auto directory_split = ful::rfind(ptr->filepath, ful::char16{'\\'});
 			if (!debug_assert(directory_split != ptr->filepath.end()))
 				return;
 
-			utility::string_units_utfw filepath(ptr->filepath.begin(), directory_split + 1); // include '\\'
+			ful::view_utfw filepath(ptr->filepath.begin(), directory_split + 1); // include '\\'
 			const auto alias = make_asset(filepath, false);
 			if (WatchData * const watch_data = get_or_create_directory(alias, filepath, false))
 			{
-				utility::string_units_utfw filename(directory_split + 1, ptr->filepath.end());
+				ful::view_utfw filename(directory_split + 1, ptr->filepath.end());
 
 				bool using_directory = false;
 
@@ -386,7 +427,7 @@ namespace engine
 			if (!debug_verify(watches.emplace<ScanWatch>(id, ptr, recurse_directories)))
 				return;
 
-			utility::string_units_utfw filepath(ptr->dirpath);
+			ful::view_utfw filepath(ptr->dirpath);
 			const auto alias = make_asset(filepath, recurse_directories);
 			if (WatchData * const watch_data = get_or_create_directory(alias, filepath, recurse_directories))
 			{
@@ -407,15 +448,15 @@ namespace engine
 				watch_it,
 				[](const ReadWatch & x)
 			{
-				const auto directory_split = utility::rfind(x.ptr->filepath, L'\\');
+				const auto directory_split = ful::rfind(x.ptr->filepath, ful::char16{'\\'});
 				if (!debug_assert(directory_split != x.ptr->filepath.end()))
 					return;
 
-				utility::string_units_utfw filepath(x.ptr->filepath.begin(), directory_split + 1); // include '\\'
+				ful::view_utfw filepath(x.ptr->filepath.begin(), directory_split + 1); // include '\\'
 				const auto alias = make_asset(filepath, false);
 				if (WatchData * const watch_data = get_directory(alias))
 				{
-					utility::string_units_utfw filename(directory_split + 1, x.ptr->filepath.end());
+					ful::view_utfw filename(directory_split + 1, x.ptr->filepath.end());
 
 					bool using_directory = false;
 
@@ -441,7 +482,7 @@ namespace engine
 			},
 				[](const ScanWatch & x)
 			{
-				utility::string_units_utfw filepath(x.ptr->dirpath);
+				ful::view_utfw filepath(x.ptr->dirpath);
 				const auto alias = make_asset(filepath, x.recurse_directories);
 				if (WatchData * const watch_data = get_directory(alias))
 				{

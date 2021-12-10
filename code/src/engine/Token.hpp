@@ -6,7 +6,7 @@
 #include "utility/type_info.hpp"
 
 #if MODE_DEBUG
-# include <ostream>
+# include "fio/stdio.hpp"
 #endif
 
 namespace engine
@@ -23,7 +23,7 @@ namespace engine
 
 #if MODE_DEBUG
 		// note debug only
-		static std::ostream & (* ostream_debug)(std::ostream & stream, this_type token);
+		static fio::stdostream & (* ostream_debug)(fio::stdostream & stream, this_type token);
 #endif
 
 	private:
@@ -79,9 +79,11 @@ namespace engine
 
 #if MODE_DEBUG
 		// note debug only
-		friend std::ostream & operator << (std::ostream & stream, this_type token)
+		template <typename Stream>
+		friend auto operator << (Stream & stream, this_type x)
+			-> decltype(ostream_debug(stream, x))
 		{
-			return ostream_debug(stream, token);
+			return ostream_debug(stream, x);
 		}
 #endif
 

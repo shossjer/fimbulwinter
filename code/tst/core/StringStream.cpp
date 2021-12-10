@@ -12,7 +12,7 @@ TEST_CASE("StringStream", "[core][stream]")
 		const char * end;
 	} src_data{src, src + sizeof src - 1};
 
-	core::StringStream<utility::heap_storage_traits, utility::encoding_utf8> stream(
+	core::StringStream<utility::heap_storage_traits> stream(
 		core::ReadStream(
 			[](void * dest, ext::usize n, void * data)
 			{
@@ -28,7 +28,7 @@ TEST_CASE("StringStream", "[core][stream]")
 				return ext::ssize(n);
 			},
 			&src_data,
-			u8""));
+			ful::cstr_utf8("")));
 
 	SECTION("")
 	{

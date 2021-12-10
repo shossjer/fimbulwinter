@@ -4,10 +4,6 @@
 
 #include <cstdint>
 
-#if MODE_DEBUG
-# include <ostream>
-#endif
-
 namespace engine
 {
 	class Entity
@@ -39,13 +35,11 @@ namespace engine
 		friend constexpr bool operator == (this_type a, this_type b) { return a.value_ == b.value_; }
 		friend constexpr bool operator != (this_type a, this_type b) { return !(a == b); }
 
-#if MODE_DEBUG
-		// note debug only
-		friend std::ostream & operator << (std::ostream & stream, this_type x)
+		template <typename Stream>
+		friend Stream & operator << (Stream & stream, this_type x)
 		{
 			return stream << x.value_;
 		}
-#endif
 
 	};
 }

@@ -5,8 +5,7 @@
 #include "engine/file/system/callbacks.hpp"
 #include "engine/module.hpp"
 
-// todo forward declare
-#include "utility/unicode/string.hpp"
+#include "ful/heap.hpp"
 
 namespace utility
 {
@@ -34,17 +33,13 @@ namespace engine
 
 		private:
 #if defined(_MSC_VER)
-			utility::heap_string_utfw filepath_;
+			ful::heap_string_utfw filepath_;
 #else
-			utility::heap_string_utf8 filepath_;
+			ful::heap_string_utf8 filepath_;
 #endif
 
 		private:
 			directory() = default;
-
-			explicit directory(ext::usize size)
-				: filepath_(size)
-			{}
 
 		public:
 			// note not thread safe
@@ -94,7 +89,7 @@ namespace engine
 
 		constexpr const engine::Hash working_directory = engine::Hash("_working directory_");
 
-		void register_directory(system & system, engine::Hash name, utility::heap_string_utf8 && filepath, engine::Hash parent);
+		void register_directory(system & system, engine::Hash name, ful::heap_string_utf8 && filepath, engine::Hash parent);
 		void register_temporary_directory(system & system, engine::Hash name);
 		void unregister_directory(system & system, engine::Hash name);
 
@@ -103,7 +98,7 @@ namespace engine
 			system & system,
 			engine::Token id,
 			engine::Hash directory,
-			utility::heap_string_utf8 && filepath,
+			ful::heap_string_utf8 && filepath,
 			engine::Hash strand,
 			read_callback * callback,
 			utility::any && data,
@@ -127,7 +122,7 @@ namespace engine
 		void write(
 			system & system,
 			engine::Hash directory,
-			utility::heap_string_utf8 && filepath,
+			ful::heap_string_utf8 && filepath,
 			engine::Hash strand,
 			write_callback * callback,
 			utility::any && data,

@@ -1,80 +1,88 @@
 #pragma once
 
-#include "utility/unicode/string.hpp"
+#include "utility/concepts.hpp"
+#include "utility/type_traits.hpp"
+
+#include "ful/view.hpp"
+#include "ful/string_search.hpp"
 
 namespace core
 {
 	namespace file
 	{
-		// todo generalize
-		inline utility::string_units_utf8 filename(utility::string_units_utf8 filepath)
+		inline ful::view_utf8 filename(ful::view_utf8 filepath)
 		{
-			auto from = rfind(filepath, '/');
-			if (from == filepath.end())
+			auto sep = ful::rfind(filepath, ful::char8{'/'});
+			if (sep == filepath.end())
 			{
-				from = filepath.begin();
+				sep = filepath.begin();
 			}
 			else
 			{
-				++from; // do not include '/'
+				++sep; // do not include '/'
 			}
 
-			auto to = rfind(from, filepath.end(), '.');
+			auto to = rfind(from(filepath, sep), ful::char8{'.'});
 
-			return utility::string_units_utf8(from, to);
+			return ful::view_utf8(sep, to);
 		}
 
-		template <typename StorageTraits, typename Encoding>
-		utility::string_units_utf8 filename(const utility::basic_string<StorageTraits, Encoding> & filepath)
+		// todo move to ful
+		template <typename T>
+		inline void replace(T * begin, T * end, T o, T n)
 		{
-			return filename(static_cast<utility::string_units_utf8>(filepath));
-		}
-
-		// todo make generic replace function
-		template <typename BeginIt, typename EndIt>
-		void backslash_to_slash(BeginIt begin, EndIt end)
-		{
-			using T = typename std::iterator_traits<BeginIt>::value_type;
-
 			while (true)
 			{
-				const auto slash = find(begin, end, static_cast<T>('\\'));
+				const auto slash = ful::find(begin, end, o);
 				if (slash == end)
 					break;
 
-				*slash = static_cast<T>('/');
+				*slash = n;
 
 				begin = slash + 1;
 			}
 		}
 
-		template <typename StorageTraits, typename Encoding>
-		void backslash_to_slash(utility::basic_string<StorageTraits, Encoding> & filepath)
+		template <typename T, REQUIRES(sizeof(T) == sizeof(ful::char8))>
+		inline void backslash_to_slash(T * begin, T * end)
 		{
-			return backslash_to_slash(filepath.begin(), filepath.end());
+			replace(reinterpret_cast<ful::char8 *>(begin), reinterpret_cast<ful::char8 *>(end), ful::char8{'\\'}, ful::char8{'/'});
 		}
 
-		template <typename BeginIt, typename EndIt>
-		void slash_to_backslash(BeginIt begin, EndIt end)
+		template <typename T, REQUIRES(sizeof(T) == sizeof(ful::char16))>
+		inline void backslash_to_slash(T * begin, T * end)
 		{
-			using T = typename std::iterator_traits<BeginIt>::value_type;
-
-			while (true)
-			{
-				const auto slash = find(begin, end, static_cast<T>('/'));
-				if (slash == end)
-					break;
-
-				*slash = static_cast<T>('\\');
-
-				begin = slash + 1;
-			}
+			replace(reinterpret_cast<ful::char16 *>(begin), reinterpret_cast<ful::char16 *>(end), ful::char16{'\\'}, ful::char16{'/'});
 		}
 
-		template <typename StorageTraits, typename Encoding>
-		void slash_to_backslash(utility::basic_string<StorageTraits, Encoding> & filepath)
+		template <typename R>
+		inline void backslash_to_slash(R & x)
 		{
-			return slash_to_backslash(filepath.begin(), filepath.end());
+			using ful::begin;
+			using ful::end;
+
+			backslash_to_slash(begin(x), end(x));
+		}
+
+		template <typename T, REQUIRES(sizeof(T) == sizeof(ful::char8))>
+		inline void slash_to_backslash(T * begin, T * end)
+		{
+			replace(reinterpret_cast<ful::char8 *>(begin), reinterpret_cast<ful::char8 *>(end), ful::char8{'/'}, ful::char8{'\\'});
+		}
+
+		template <typename T, REQUIRES(sizeof(T) == sizeof(ful::char16))>
+		inline void slash_to_backslash(T * begin, T * end)
+		{
+			replace(reinterpret_cast<ful::char16 *>(begin), reinterpret_cast<ful::char16 *>(end), ful::char16{'/'}, ful::char16{'\\'});
+		}
+
+		template <typename R>
+		inline void slash_to_backslash(R & x)
+		{
+			using ful::begin;
+			using ful::end;
+
+			slash_to_backslash(begin(x), end(x));
 		}
 	}
 }

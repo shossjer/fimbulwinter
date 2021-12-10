@@ -422,7 +422,7 @@ namespace
 				                        utility::if_name_is(data.name));
 				if (action == x.armature->actions.end())
 				{
-					debug_printline(engine::animation_channel, "Could not find action ", data.name, " in armature ", x.armature->name);
+					debug_printline(engine::animation_channel, "Could not find action ", ful::view_utf8(data.name), " in armature ", x.armature->name);
 				}
 				else
 				{
@@ -446,7 +446,7 @@ namespace
 				                        utility::if_name_is(data.name));
 				if (action == x.object->actions.end())
 				{
-					debug_printline(engine::animation_channel, "Could not find action ", data.name, " in object ", x.object->name);
+					debug_printline(engine::animation_channel, "Could not find action ", ful::view_utf8(data.name), " in object ", ful::view_utf8(x.object->name));
 				}
 				else
 				{

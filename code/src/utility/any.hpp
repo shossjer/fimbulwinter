@@ -5,8 +5,9 @@
 #include "utility/type_info.hpp"
 #include "utility/utility.hpp"
 
+#include "fio/stdio.hpp"
+
 #include <cassert>
-#include <iostream>
 #include <memory>
 
 namespace utility
@@ -38,13 +39,13 @@ namespace utility
 		{
 			any_data * data_;
 			utility::type_id_t type_id_;
-			std::ostream * ostream_;
+			fio::stdostream * ostream_;
 			const void * const_ptr_;
 
 			any_output() = default;
 			any_output(any_data & data) : data_(&data) {}
 			any_output(utility::type_id_t type_id) : type_id_(type_id) {}
-			any_output(std::ostream & ostream) : ostream_(&ostream) {}
+			any_output(fio::stdostream & ostream) : ostream_(&ostream) {}
 		};
 
 		template <typename T>
@@ -208,7 +209,7 @@ namespace utility
 				return out.type_id_;
 			}
 
-			std::ostream & ostream(std::ostream & stream) const
+			fio::stdostream & ostream(fio::stdostream & stream) const
 			{
 				if (!handler_)
 					return stream << "(empty)";
@@ -365,9 +366,8 @@ namespace utility
 
 	private:
 
-		template <typename This,
-		          REQUIRES((mpl::is_same<any, mpl::remove_cvref_t<This>>::value))>
-		friend std::ostream & operator << (std::ostream & stream, This && x)
+		template <typename Stream>
+		friend Stream & operator << (Stream & stream, const this_type & x)
 		{
 			return x.data_.ostream(stream);
 		}

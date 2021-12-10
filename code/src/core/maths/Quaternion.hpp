@@ -9,7 +9,6 @@
 #include "Vector.hpp"
 
 #include <cmath>
-#include <ostream>
 
 namespace core
 {
@@ -210,7 +209,8 @@ namespace core
 				return q * inverse(q.length());
 			}
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & q)
+			template <typename Stream>
+			friend Stream & operator << (Stream & stream, const this_type & q)
 			{
 				return stream << "(" << q.values[0] << ", " << q.values[1] << ", " << q.values[2] << ", " << q.values[3] << ")";
 			}

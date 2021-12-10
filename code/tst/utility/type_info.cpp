@@ -1,5 +1,7 @@
 #include "utility/type_info.hpp"
 
+#include "ful/string_compare.hpp"
+
 #include <catch2/catch.hpp>
 
 namespace
@@ -1208,9 +1210,9 @@ TEST_CASE("type signature", "[utility][type info]")
 		// we do not promise any name in particular for an anonymous type, but
 		// everything up to the point of its name must be correct
 #if defined(__GNUG__)
-		CHECK(compare(signature.begin() + 0, signature.begin() + 23, "(anonymous namespace)::") == 0);
+		CHECK(ful::view_utf8(signature.begin() + 0, signature.begin() + 23) == "(anonymous namespace)::");
 #elif defined(_MSC_VER)
-		CHECK(compare(signature.begin() + 0, signature.begin() + 23, "`anonymous-namespace'::") == 0);
+		CHECK(ful::view_utf8(signature.begin() + 0, signature.begin() + 23) == "`anonymous-namespace'::");
 #endif
 	}
 
@@ -1220,9 +1222,9 @@ TEST_CASE("type signature", "[utility][type info]")
 		// we do not promise any name in particular for a lambda type, but
 		// everything up to the point of its name must be correct
 #if defined(__GNUG__)
-		CHECK(compare(signature.begin() + 0, signature.begin() + 23, "(anonymous namespace)::") == 0);
+		CHECK(ful::view_utf8(signature.begin() + 0, signature.begin() + 23) == "(anonymous namespace)::");
 #elif defined(_MSC_VER)
-		CHECK(compare(signature.begin() + 0, signature.begin() + 29, "class `anonymous-namespace'::") == 0);
+		CHECK(ful::view_utf8(signature.begin() + 0, signature.begin() + 29) == "class `anonymous-namespace'::");
 #endif
 	}
 
@@ -1288,7 +1290,7 @@ TEST_CASE("type name", "[utility][type info]")
 		constexpr auto name = utility::type_name<anonymous_type>();
 		// we do not promise any name in particular for an anonymous type, but
 		// everything up to the point of its name must be correct
-		CHECK(compare(name.begin() + 0, name.begin() + 21, "anonymous-namespace::") == 0);
+		CHECK(ful::view_utf8(name.begin() + 0, name.begin() + 21) == "anonymous-namespace::");
 	}
 
 	SECTION("of lambda_type")
@@ -1296,7 +1298,7 @@ TEST_CASE("type name", "[utility][type info]")
 		constexpr auto name = utility::type_name<lambda_type>();
 		// we do not promise any name in particular for a lambda type, but
 		// everything up to the point of its name must be correct
-		CHECK(compare(name.begin() + 0, name.begin() + 21, "anonymous-namespace::") == 0);
+		CHECK(ful::view_utf8(name.begin() + 0, name.begin() + 21) == "anonymous-namespace::");
 	}
 
 	SECTION("of type in function")

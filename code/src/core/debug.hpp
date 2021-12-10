@@ -4,13 +4,14 @@
 
 #include "utility/concepts.hpp"
 #include "utility/intrinsics.hpp"
-#include "utility/spinlock.hpp"
 #include "utility/stream.hpp"
 
-#include <cstdlib>
-#include <exception>
-#include <iostream>
-#include <mutex>
+#include "fio/stdio.hpp"
+
+#include "ful/cstr.hpp"
+#include "ful/string_compare.hpp"
+
+#include <utility>
 
 #if defined(__GNUG__)
 // GCC complains abount missing parentheses in `debug_assert` if the
@@ -46,9 +47,9 @@
  * Additionally returns the evaluation of the condition.
  */
 # if defined(_MSC_VER)
-#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n"); }(core::debug::empty_t{} < expr) || (debug_break(), false))
+#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")); }(core::debug::empty_t{} < expr) || (debug_break(), false))
 # else
-#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n"); }(core::debug::empty_t{} < expr) || (debug_break(), false))
+#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")); }(core::debug::empty_t{} < expr) || (debug_break(), false))
 # endif
 
 /**
@@ -136,9 +137,9 @@ namespace core
  * \note Always returns false.
  */
 # if defined(_MSC_VER)
-#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n") || (debug_break(), false))
+#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")) || (debug_break(), false))
 # else
-#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? "\n" : "\nexplanation: ", ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? "" : "\n") || (debug_break(), false))
+#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")) || (debug_break(), false))
 # endif
 
 /**
@@ -147,9 +148,9 @@ namespace core
  * \note Always evaluates the expression.
  */
 # if defined (_MSC_VER)
-#  define debug_inform(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printline(__FILE__, __LINE__, #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? "" : "\nexplanation: ", __VA_ARGS__), false); }(core::debug::empty_t{} < expr)
+#  define debug_inform(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printline(__FILE__, __LINE__, #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__), false); }(core::debug::empty_t{} < expr)
 # else
-#  define debug_inform(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printline(__FILE__, __LINE__, #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? "" : "\nexplanation: ", ##__VA_ARGS__), false); }(core::debug::empty_t{} < expr)
+#  define debug_inform(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printline(__FILE__, __LINE__, #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__), false); }(core::debug::empty_t{} < expr)
 # endif
 
 /**
@@ -269,7 +270,8 @@ namespace core
 				return static_cast<bool>(value);
 			}
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & comp)
+			template <typename Stream>
+			friend Stream & operator << (Stream && stream, const this_type & comp)
 			{
 				return stream << "failed with value: " << utility::try_stream(comp.value);
 			}
@@ -293,7 +295,8 @@ namespace core
 				return F{}(std::forward<L>(left), std::forward<R>(right));
 			}
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & comp)
+			template <typename Stream>
+			friend Stream & operator << (Stream && stream, const this_type & comp)
 			{
 				return stream << "failed with lhs: " << utility::try_stream(comp.left) << "\n"
 				              << "            rhs: " << utility::try_stream(comp.right);
@@ -351,17 +354,19 @@ namespace core
 		using compare_ge_t = compare_binary_t<L, R, ge_t>;
 
 	private:
-		using lock_t = utility::spinlock;
-
-	private:
-		lock_t lock;
 		uint64_t mask_;
 		bool (* fail_hook_)() = nullptr;
 
 	private:
 		debug()
 			: mask_(0xffffffffffffffffull)
-		{}
+		{
+#if defined(_MSC_VER)
+			fio::set_stdout_console();
+
+			::SetConsoleOutputCP(65001); // utf8
+#endif
+		}
 
 	public:
 		void set_mask(uint64_t mask)
@@ -377,11 +382,9 @@ namespace core
 		template <typename ...Ps>
 		bool fail(Ps && ...ps)
 		{
-			{
-				std::lock_guard<lock_t> guard{this->lock};
-				utility::to_stream(std::cerr, std::forward<Ps>(ps)...);
-				std::cerr.flush();
-			}
+			utility::to_stream(fio::stdostream{}, std::forward<Ps>(ps)...);
+			fio::flush_stdout();
+
 			return fail_hook_ ? fail_hook_() : false;
 		}
 
@@ -406,16 +409,14 @@ namespace core
 		template <std::size_t N, typename ...Ps>
 		void printline_all(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
-			std::lock_guard<lock_t> guard{this->lock};
-			utility::to_stream(
-				std::cout,
+			utility::to_stream(fio::stdostream{},
 #if defined(_MSC_VER)
 				file_name, "(", line_number, ")",
 #else
 				file_name, ":", line_number,
 #endif
 				": ", std::forward<Ps>(ps)..., "\n");
-			std::cout.flush();
+			fio::flush_stdout();
 		}
 
 	public:

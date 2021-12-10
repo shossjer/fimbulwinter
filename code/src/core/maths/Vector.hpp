@@ -11,7 +11,6 @@
 #include <array>
 #include <algorithm>
 #include <cmath>
-#include <ostream>
 
 namespace core
 {
@@ -282,7 +281,8 @@ namespace core
 			template <std::size_t D_, typename T_>
 			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & v)
+			template <typename Stream>
+			friend Stream & operator << (Stream & stream, const this_type & v)
 			{
 				return stream << "(" << v.values[0] << ", " << v.values[1] << ")";
 			}
@@ -346,7 +346,8 @@ namespace core
 			template <std::size_t D_, typename T_>
 			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & v)
+			template <typename Stream>
+			friend Stream & operator << (Stream & stream, const this_type & v)
 			{
 				return stream << "(" << v.values[0] << ", " << v.values[1] << ", " << v.values[2] << ")";
 			}

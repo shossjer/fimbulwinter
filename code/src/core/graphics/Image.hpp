@@ -4,9 +4,6 @@
 #include "core/graphics/types.hpp"
 #include "core/serialization.hpp"
 
-#include <cstdint>
-#include <vector>
-
 namespace core
 {
 	namespace graphics
@@ -48,13 +45,13 @@ namespace core
 		public:
 			static constexpr auto serialization()
 			{
-				return utility::make_lookup_table(
-					std::make_pair(utility::string_units_utf8("width"), &Image::width_),
-					std::make_pair(utility::string_units_utf8("height"), &Image::height_),
-					std::make_pair(utility::string_units_utf8("bit_depth"), &Image::bit_depth_),
-					std::make_pair(utility::string_units_utf8("channel_count"), &Image::channel_count_),
-					std::make_pair(utility::string_units_utf8("color_type"), &Image::color_),
-					std::make_pair(utility::string_units_utf8("pixel_data"), &Image::pixels_)
+				return utility::make_lookup_table<ful::view_utf8>(
+					std::make_pair(ful::cstr_utf8("width"), &Image::width_),
+					std::make_pair(ful::cstr_utf8("height"), &Image::height_),
+					std::make_pair(ful::cstr_utf8("bit_depth"), &Image::bit_depth_),
+					std::make_pair(ful::cstr_utf8("channel_count"), &Image::channel_count_),
+					std::make_pair(ful::cstr_utf8("color_type"), &Image::color_),
+					std::make_pair(ful::cstr_utf8("pixel_data"), &Image::pixels_)
 					);
 			}
 		};

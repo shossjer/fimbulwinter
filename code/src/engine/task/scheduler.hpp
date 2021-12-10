@@ -3,6 +3,8 @@
 #include "engine/Hash.hpp"
 #include "engine/module.hpp"
 
+#include "utility/ext/stddef.hpp"
+
 namespace utility
 {
 	class any;

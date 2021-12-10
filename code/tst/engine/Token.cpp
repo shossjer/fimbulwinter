@@ -5,7 +5,7 @@
 
 #include <catch2/catch.hpp>
 
-#include <sstream>
+#undef small
 
 static_hashes("eman");
 
@@ -119,71 +119,6 @@ TEST_CASE("Token can be constructed", "[engine][assert][entity][token]")
 #endif
 	}
 }
-
-#if MODE_DEBUG
-
-TEST_CASE("Token can be ostreamed", "[engine][assert][entity][token]")
-{
-	std::ostringstream ostream;
-
-	SECTION("as an Asset")
-	{
-		ostream << engine::Token(engine::Asset("name"));
-
-		CHECK(ostream.str() == "1579384326(\"name\")");
-	}
-
-	SECTION("as an Entity")
-	{
-		ostream << engine::Token(engine::Entity(11));
-
-		CHECK(ostream.str() == "11");
-	}
-
-	SECTION("as an Hash")
-	{
-		ostream << engine::Token(engine::Hash("eman"));
-
-		CHECK(ostream.str() == "3143603943(\"eman\")");
-	}
-
-	SECTION("as a value_type")
-	{
-		ostream << engine::Token(engine::Token::value_type(123456789));
-
-		CHECK(ostream.str() == "123456789");
-	}
-
-	SECTION("arbitrarily")
-	{
-		struct undo_t
-		{
-			std::ostream & (* original_ostream)(std::ostream &, engine::Token);
-
-			~undo_t()
-			{
-				engine::Token::ostream_debug = original_ostream;
-			}
-
-			undo_t()
-				: original_ostream(engine::Token::ostream_debug)
-			{
-				engine::Token::ostream_debug = custom_ostream;
-			}
-
-			static std::ostream & custom_ostream(std::ostream & stream, engine::Token)
-			{
-				return stream << "hello";
-			}
-		} undo;
-
-		ostream << engine::Token();
-
-		CHECK(ostream.str() == "hello");
-	}
-}
-
-#endif
 
 TEST_CASE("Token compares", "[engine][token]")
 {

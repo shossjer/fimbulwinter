@@ -1,3 +1,9 @@
 [submodule "dep"]
 	path = dep
 	url = https://github.com/shossjer/dep.git
+[submodule "ful"]
+	path = ful
+	url = git@github.com:shossjer/ful.git
+[submodule "fio"]
+	path = fio
+	url = git@github.com:shossjer/fio.git

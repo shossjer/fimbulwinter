@@ -8,8 +8,10 @@
 #include "utility/optional.hpp"
 #include "utility/preprocessor/expand.hpp"
 #include "utility/type_traits.hpp"
-#include "utility/unicode/string_view.hpp"
 #include "utility/utility.hpp"
+
+#include "ful/view.hpp"
+#include "ful/string_compare.hpp"
 
 namespace core
 {
@@ -73,12 +75,12 @@ namespace core
 		static_assert(lookup_table.all_values_same_type, "");
 
 	public:
-		static constexpr bool has(utility::string_units_utf8 name)
+		static constexpr bool has(ful::view_utf8 name)
 		{
 			return lookup_table.contains(name);
 		}
 
-		static constexpr std::size_t find(utility::string_units_utf8 name)
+		static constexpr std::size_t find(ful::view_utf8 name)
 		{
 			return lookup_table.find(name);
 		}
@@ -94,7 +96,7 @@ namespace core
 			return lookup_table.get_value(index);
 		}
 
-		static constexpr decltype(auto) get(utility::string_units_utf8 name)
+		static constexpr decltype(auto) get(ful::view_utf8 name)
 		{
 			return get(find(name));
 		}
@@ -119,12 +121,12 @@ namespace core
 		static constexpr lookup_table_t lookup_table = serialization(utility::in_place_type<T>);
 
 	public:
-		static constexpr bool has(utility::string_units_utf8 name)
+		static constexpr bool has(ful::view_utf8 name)
 		{
 			return lookup_table.contains(name);
 		}
 
-		static constexpr std::size_t find(utility::string_units_utf8 name)
+		static constexpr std::size_t find(ful::view_utf8 name)
 		{
 			return lookup_table.find(name);
 		}
@@ -550,7 +552,21 @@ namespace core
 		}
 
 		template <typename T, typename Object>
-		auto serialize_impl(T & x, Object && object, float)
+		auto serialize_assign(T & x, Object && object, int)
+			-> decltype(static_cast<bool>(assign(x, object())))
+		{
+			return static_cast<bool>(assign(x, object()));
+		}
+
+		template <typename T, typename Object>
+		auto serialize_assign(T & x, Object && object, int)
+			-> decltype(static_cast<bool>(assign(x, std::forward<Object>(object))))
+		{
+			return static_cast<bool>(assign(x, std::forward<Object>(object)));
+		}
+
+		template <typename T, typename Object>
+		auto serialize_assign(T & x, Object && object, ...)
 			-> decltype(x = object(), bool())
 		{
 			x = object();
@@ -558,11 +574,18 @@ namespace core
 		}
 
 		template <typename T, typename Object>
-		auto serialize_impl(T & x, Object && object, float)
+		auto serialize_assign(T & x, Object && object, ...)
 			-> decltype(x = std::forward<Object>(object), bool())
 		{
 			x = std::forward<Object>(object);
 			return true;
+		}
+
+		template <typename T, typename Object>
+		auto serialize_impl(T & x, Object && object, float)
+			-> decltype(serialize_assign(x, std::forward<Object>(object), 0))
+		{
+			return serialize_assign(x, std::forward<Object>(object), 0);
 		}
 
 		template <typename T, typename Object>
@@ -572,7 +595,7 @@ namespace core
 			constexpr auto object_name = utility::type_name<Object>();
 			static_cast<void>(value_name);
 			static_cast<void>(object_name);
-			debug_unreachable("cannot serialize value of type '", value_name, "' to/from object of type '", object_name, "', maybe you are missing an overload to 'serialize'?");
+			return debug_fail("cannot serialize value of type '", value_name, "' to/from object of type '", object_name, "', maybe you are missing an overload to 'serialize'?");
 		}
 	}
 

@@ -2,8 +2,7 @@
 
 #include "engine/Hash.hpp"
 
-// todo forward declare string
-#include "utility/unicode/string.hpp"
+#include "ful/heapfwd.hpp"
 
 namespace core
 {
@@ -30,8 +29,8 @@ namespace engine
 		using scan_callback = void(
 			engine::file::system & filesystem,
 			engine::Hash directory,
-			utility::heap_string_utf8 && existing_files, // multiple files separated by ;
-			utility::heap_string_utf8 && removed_files, // multiple files separated by ;
+			ful::heap_string_utf8 && existing_files, // multiple files separated by ;
+			ful::heap_string_utf8 && removed_files, // multiple files separated by ;
 			utility::any & data);
 
 		using write_callback = void(

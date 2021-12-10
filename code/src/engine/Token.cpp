@@ -10,7 +10,7 @@
 
 namespace
 {
-	std::ostream & ostream_asset_or_entity(std::ostream & stream, engine::Token token)
+	fio::stdostream & ostream_asset_or_entity(fio::stdostream & stream, engine::Token token)
 	{
 		switch (token.type())
 		{
@@ -30,7 +30,7 @@ namespace
 
 namespace engine
 {
-	std::ostream & (* Token::ostream_debug)(std::ostream & stream, Token token) = ostream_asset_or_entity;
+	fio::stdostream & (* Token::ostream_debug)(fio::stdostream & stream, Token token) = ostream_asset_or_entity;
 }
 
 #endif

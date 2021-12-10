@@ -14,25 +14,26 @@ TEST_CASE("WriteStream can write", "[core][stream]")
 		char * end;
 	} dest_data{dest, dest + sizeof src};
 
-	core::WriteStream ws([](const void * src, ext::usize n, void * data)
-	                     {
-		                     auto & dest_data = *static_cast<struct dest_data *>(data);
+	core::WriteStream ws(
+		[](const void * src, ext::usize n, void * data)
+		{
+			auto & dest_data = *static_cast<struct dest_data *>(data);
 
-		                     // limit writes to at most three bytes,
-		                     // this makes it possible to test both
-		                     // `write_some` and `write_all`
-		                     n = 3 < n ? 3 : n;
+			// limit writes to at most three bytes,
+			// this makes it possible to test both
+			// `write_some` and `write_all`
+			n = 3 < n ? 3 : n;
 
-		                     for (ext::index i = 0; ext::usize(i) < n; i++)
-		                     {
-			                     dest_data.begin[i] = static_cast<const char *>(src)[i];
-		                     }
-		                     dest_data.begin += n;
+			for (ext::index i = 0; ext::usize(i) < n; i++)
+			{
+				dest_data.begin[i] = static_cast<const char *>(src)[i];
+			}
+			dest_data.begin += n;
 
-		                     return ext::ssize(n);
-	                     },
-	                     &dest_data,
-	                     u8"");
+			return ext::ssize(n);
+		},
+		&dest_data,
+		ful::cstr_utf8(""));
 
 	SECTION("some")
 	{
@@ -61,12 +62,13 @@ TEST_CASE("WriteStream can write", "[core][stream]")
 
 TEST_CASE("WriteStream reports errors", "[core][stream]")
 {
-	core::WriteStream ws([](const void * /*src*/, ext::usize /*n*/, void * /*data*/)
-	                     {
-		                     return ext::ssize(-1);
-	                     },
-	                     nullptr,
-	                     u8"");
+	core::WriteStream ws(
+		[](const void * /*src*/, ext::usize /*n*/, void * /*data*/)
+		{
+			return ext::ssize(-1);
+		},
+		nullptr,
+		ful::cstr_utf8(""));
 
 	SECTION("writing some")
 	{

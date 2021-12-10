@@ -22,15 +22,15 @@ namespace
 
 	constexpr auto serialization(utility::in_place_type_t<Enum>)
 	{
-		return utility::make_lookup_table(
-			std::make_pair(utility::string_units_utf8("zero"), Enum::zero),
-			std::make_pair(utility::string_units_utf8("one"), Enum::one),
-			std::make_pair(utility::string_units_utf8("two"), Enum::two),
-			std::make_pair(utility::string_units_utf8("three"), Enum::three),
-			std::make_pair(utility::string_units_utf8("four"), Enum::four),
-			std::make_pair(utility::string_units_utf8("five"), Enum::five),
-			std::make_pair(utility::string_units_utf8("six"), Enum::five),
-			std::make_pair(utility::string_units_utf8("seven"), Enum::five)
+		return utility::make_lookup_table<ful::view_utf8>(
+			std::make_pair(ful::cstr_utf8("zero"), Enum::zero),
+			std::make_pair(ful::cstr_utf8("one"), Enum::one),
+			std::make_pair(ful::cstr_utf8("two"), Enum::two),
+			std::make_pair(ful::cstr_utf8("three"), Enum::three),
+			std::make_pair(ful::cstr_utf8("four"), Enum::four),
+			std::make_pair(ful::cstr_utf8("five"), Enum::five),
+			std::make_pair(ful::cstr_utf8("six"), Enum::five),
+			std::make_pair(ful::cstr_utf8("seven"), Enum::five)
 			);
 	}
 }
@@ -58,7 +58,7 @@ TEST_CASE("integer json arrays", "[core][json][structurer]")
 		return n;
 	},
 		&stream_data,
-		u8""));
+		ful::cstr_utf8("")));
 
 	SECTION("can be read into c-array")
 	{
@@ -176,24 +176,7 @@ TEST_CASE("simple json objects", "[core][json][structurer]")
 			return n;
 		},
 		&stream_data,
-		u8""));
-
-	SECTION("can be read into empty struct")
-	{
-		struct data_type
-		{
-			int dummy_;
-
-			static constexpr auto serialization()
-			{
-				return utility::make_lookup_table(std::make_pair(utility::string_units_utf8("dummy"), &data_type::dummy_));
-			}
-		}
-		data{};
-
-		REQUIRE(structurer.read(data));
-		CHECK(data.dummy_ == 0);
-	}
+		ful::cstr_utf8("")));
 
 	SECTION("can be read into full struct")
 	{
@@ -207,10 +190,10 @@ TEST_CASE("simple json objects", "[core][json][structurer]")
 
 				static constexpr auto serialization()
 				{
-					return utility::make_lookup_table(
-						std::make_pair(utility::string_units_utf8("floating point"), &number_type::floating_point),
-						std::make_pair(utility::string_units_utf8("signed integer"), &number_type::signed_integer),
-						std::make_pair(utility::string_units_utf8("unsigned integer"), &number_type::unsigned_integer)
+					return utility::make_lookup_table<ful::view_utf8>(
+						std::make_pair(ful::cstr_utf8("floating point"), &number_type::floating_point),
+						std::make_pair(ful::cstr_utf8("signed integer"), &number_type::signed_integer),
+						std::make_pair(ful::cstr_utf8("unsigned integer"), &number_type::unsigned_integer)
 					);
 				}
 			}
@@ -221,10 +204,10 @@ TEST_CASE("simple json objects", "[core][json][structurer]")
 
 			static constexpr auto serialization()
 			{
-				return utility::make_lookup_table(
-					std::make_pair(utility::string_units_utf8("boolean"), &data_type::boolean),
-					std::make_pair(utility::string_units_utf8("enum name"), &data_type::enum_name),
-					std::make_pair(utility::string_units_utf8("numbers"), &data_type::number)
+				return utility::make_lookup_table<ful::view_utf8>(
+					std::make_pair(ful::cstr_utf8("boolean"), &data_type::boolean),
+					std::make_pair(ful::cstr_utf8("enum name"), &data_type::enum_name),
+					std::make_pair(ful::cstr_utf8("numbers"), &data_type::number)
 					);
 			}
 		}
@@ -275,7 +258,7 @@ TEST_CASE("", "[core][json][structurer]")
 		return n;
 	},
 		&stream_data,
-		u8""));
+		ful::cstr_utf8("")));
 
 	SECTION("can be read into rgb type")
 	{
@@ -286,9 +269,9 @@ TEST_CASE("", "[core][json][structurer]")
 
 			static constexpr auto serialization()
 			{
-				return utility::make_lookup_table(
-					std::make_pair(utility::string_units_utf8("rgb type"), &data_type::rgb_as_class),
-					std::make_pair(utility::string_units_utf8("rgb array"), &data_type::rgb_as_array)
+				return utility::make_lookup_table<ful::view_utf8>(
+					std::make_pair(ful::cstr_utf8("rgb type"), &data_type::rgb_as_class),
+					std::make_pair(ful::cstr_utf8("rgb array"), &data_type::rgb_as_array)
 				);
 			}
 		}
@@ -329,7 +312,7 @@ TEST_CASE("", "[core][json][structurer]")
 		return n;
 	},
 		&stream_data,
-		u8""));
+		ful::cstr_utf8("")));
 
 	SECTION("can be read into vector type")
 	{
@@ -339,8 +322,8 @@ TEST_CASE("", "[core][json][structurer]")
 
 			static constexpr auto serialization()
 			{
-				return utility::make_lookup_table(
-					std::make_pair(utility::string_units_utf8("four floats"), &data_type::vector)
+				return utility::make_lookup_table<ful::view_utf8>(
+					std::make_pair(ful::cstr_utf8("four floats"), &data_type::vector)
 				);
 			}
 		}
@@ -363,8 +346,8 @@ TEST_CASE("", "[core][json][structurer]")
 
 			static constexpr auto serialization()
 			{
-				return utility::make_lookup_table(
-					std::make_pair(utility::string_units_utf8("four floats"), &data_type::quat)
+				return utility::make_lookup_table<ful::view_utf8>(
+					std::make_pair(ful::cstr_utf8("four floats"), &data_type::quat)
 				);
 			}
 		}

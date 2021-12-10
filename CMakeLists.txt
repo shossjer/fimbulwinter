@@ -3,39 +3,6 @@ cmake_minimum_required(VERSION 3.5.1)
 include(CMakeDependentOption)
 include(dep/dep.cmake)
 
-# usage:
-#
-#   _resolve_options(options... [| options...]*)
-#
-# description:
-#
-#   generates an error if more than one option is set within a section
-#   (separated by "|"), turns off all options from remaining sections
-#   (not including the section with the first set option) and
-#   generates a warning in the process
-macro(_resolve_options)
-	set(_resolve_options_chosen "")
-	set(_resolve_options_clear_remaining "")
-
-	foreach(_arg IN ITEMS ${ARGV})
-		if(_arg MATCHES "\\|")
-			set(_resolve_options_clear_remaining ${_resolve_options_chosen})
-		elseif(${_arg})
-			if(_resolve_options_clear_remaining)
-				message(WARNING "option ${_arg} is overridden by ${_resolve_options_chosen}")
-				set(${_arg} OFF)
-			elseif(_resolve_options_chosen)
-				message(FATAL_ERROR "conflicting options ${_resolve_options_chosen} and ${_arg}")
-			else()
-				set(_resolve_options_chosen ${_arg})
-			endif()
-		endif()
-	endforeach()
-
-	unset(_resolve_options_chosen)
-	unset(_resolve_options_clear_remaining)
-endmacro()
-
 project(fimbulwinter CXX)
 
 # project setup
@@ -59,13 +26,18 @@ endif()
 if(NOT CMAKE_CXX_STANDARD)
 	set(CMAKE_CXX_STANDARD 14)
 	message(STATUS "C++ standard ${CMAKE_CXX_STANDARD} (default)")
+elseif(CMAKE_CXX_STANDARD LESS 14)
+	message(FATAL_ERROR "Require C++ standard >= 14")
 else()
 	message(STATUS "C++ standard ${CMAKE_CXX_STANDARD}")
 endif()
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set_property(DIRECTORY PROPERTY DEP_DIRECTORY "${CMAKE_SOURCE_DIR}/dep/${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}")
+get_property(_dep_directory_set DIRECTORY PROPERTY "DEP_DIRECTORY" SET)
+if(NOT _dep_directory_set)
+	set_property(DIRECTORY PROPERTY DEP_DIRECTORY "${CMAKE_SOURCE_DIR}/dep/${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}")
+endif()
 
 # project information
 
@@ -74,6 +46,8 @@ message(STATUS "System is ${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}")
 
 #
 
+add_subdirectory(fio)
+add_subdirectory(ful)
 add_subdirectory(tools)
 
 # build dependencies
@@ -421,6 +395,39 @@ message(STATUS "Looking for X11 - ${LIBRARY_X11}")
 
 # module dependencies
 
+# usage:
+#
+#   _resolve_options(options... [| options...]*)
+#
+# description:
+#
+#   generates an error if more than one option is set within a section
+#   (separated by "|"), turns off all options from remaining sections
+#   (not including the section with the first set option) and
+#   generates a warning in the process
+macro(_resolve_options)
+	set(_resolve_options_chosen "")
+	set(_resolve_options_clear_remaining "")
+
+	foreach(_arg IN ITEMS ${ARGV})
+		if(_arg MATCHES "\\|")
+			set(_resolve_options_clear_remaining ${_resolve_options_chosen})
+		elseif(${_arg})
+			if(_resolve_options_clear_remaining)
+				message(WARNING "option ${_arg} is overridden by ${_resolve_options_chosen}")
+				set(${_arg} OFF)
+			elseif(_resolve_options_chosen)
+				message(FATAL_ERROR "conflicting options ${_resolve_options_chosen} and ${_arg}")
+			else()
+				set(_resolve_options_chosen ${_arg})
+			endif()
+		endif()
+	endforeach()
+
+	unset(_resolve_options_chosen)
+	unset(_resolve_options_clear_remaining)
+endmacro()
+
 # todo remove
 add_library(fiw_utility_features INTERFACE)
 add_library(fiw_core_features INTERFACE)
@@ -578,46 +585,17 @@ else()
 	message(FATAL_ERROR "Thread - Disabled")
 endif()
 
-# build settings
-cmake_dependent_option(BUILD_TESTS "Build tests" ON "TARGET dep_catch" OFF)
-add_library(lib_test INTERFACE)
-if(BUILD_TESTS)
-	target_link_libraries(lib_test INTERFACE dep_catch)
-	target_compile_options(lib_test INTERFACE
-		$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
-			-Wno-sign-compare -Wno-sign-conversion>
-		# sign-conversion - Warn for implicit conversions that may
-		#   change the sign of an integer value, like assigning a signed
-		#   integer expression to an unsigned integer variable.
-		$<$<CXX_COMPILER_ID:Clang>:
-			-Wno-self-move>
-		# self-move - explicitly moving variable of type A to itself
-		$<$<CXX_COMPILER_ID:MSVC>:
-			/wd4389 /wd4456>
-		# C4389 - 'operator' : signed/unsigned mismatch
-		# C4456 - declaration of 'identifier' hides previous local
-		#   declaration
-	)
-endif()
-
-cmake_dependent_option(BUILD_BENCHMARKS "Build benchmarks" OFF "TARGET dep_catch" OFF)
-add_library(lib_benchmark INTERFACE)
-if(BUILD_BENCHMARKS)
-	target_link_libraries(lib_benchmark INTERFACE dep_catch)
-	target_compile_definitions(lib_benchmark INTERFACE CATCH_CONFIG_ENABLE_BENCHMARKING)
-endif()
-
 # lookup features
 
 cmake_dependent_option(PROFILING_COZ "Enable Coz profiling" OFF "TARGET dep_coz" OFF)
-add_library(lib_profiling INTERFACE)
+add_library(fiw_profiling INTERFACE)
 if(PROFILING_COZ)
 	message(STATUS "Enabled Coz profiling")
-	target_link_libraries(lib_profiling INTERFACE dep_coz)
-	target_compile_definitions(lib_profiling INTERFACE
+	target_link_libraries(fiw_profiling INTERFACE dep_coz)
+	target_compile_definitions(fiw_profiling INTERFACE
 		PROFILING_COZ=1
 		)
-	target_compile_options(lib_profiling INTERFACE
+	target_compile_options(fiw_profiling INTERFACE
 		$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:
 			-g>
 		)

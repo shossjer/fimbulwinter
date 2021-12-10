@@ -124,10 +124,10 @@ namespace core
 			png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
 
 			using core::serialize;
-			serialize<member_table<T>::find("width")>(x, image_width);
-			serialize<member_table<T>::find("height")>(x, image_height);
+			serialize<member_table<T>::find(ful::cstr_utf8("width"))>(x, image_width);
+			serialize<member_table<T>::find(ful::cstr_utf8("height"))>(x, image_height);
 
-			serialize<member_table<T>::find("bit_depth")>(x, [bit_depth]()
+			serialize<member_table<T>::find(ful::cstr_utf8("bit_depth"))>(x, [bit_depth]()
 			{
 				switch (bit_depth)
 				{
@@ -142,7 +142,7 @@ namespace core
 				}
 			});
 
-			serialize<member_table<T>::find("channel_count")>(x, [channels]()
+			serialize<member_table<T>::find(ful::cstr_utf8("channel_count"))>(x, [channels]()
 			{
 				switch (channels)
 				{
@@ -156,7 +156,7 @@ namespace core
 				}
 			});
 
-			serialize<member_table<T>::find("color_type")>(x, [color_type]()
+			serialize<member_table<T>::find(ful::cstr_utf8("color_type"))>(x, [color_type]()
 			{
 				switch (color_type)
 				{
@@ -169,7 +169,7 @@ namespace core
 				}
 			});
 
-			serialize<member_table<T>::find("pixel_data")>(x, std::move(pixels));
+			serialize<member_table<T>::find(ful::cstr_utf8("pixel_data"))>(x, std::move(pixels));
 		}
 	};
 }

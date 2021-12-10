@@ -12,6 +12,42 @@ namespace utility
 {
 	namespace detail
 	{
+		template <typename T>
+		struct cxp_value
+		{
+			T && t;
+		};
+
+		template <typename T>
+		constexpr cxp_value<T> cxp(T && t)
+		{
+			return cxp_value<T>{t};
+		}
+
+		namespace detail
+		{
+			template <typename T1, typename T2>
+			constexpr auto equals(cxp_value<T1> && x, cxp_value<T2> && y, int)
+				-> decltype(cxp_equals(std::forward<T1>(x.t), std::forward<T2>(y.t)))
+			{
+				return cxp_equals(std::forward<T1>(x.t), std::forward<T2>(y.t));
+			}
+
+			template <typename T1, typename T2>
+			constexpr auto equals(cxp_value<T1> && x, cxp_value<T2> && y, ...)
+				-> decltype(std::forward<T1>(x.t) == std::forward<T2>(y.t))
+			{
+				return std::forward<T1>(x.t) == std::forward<T2>(y.t);
+			}
+		}
+
+		template <typename T1, typename T2>
+		constexpr auto operator == (cxp_value<T1> && x, cxp_value<T2> && y)
+			-> decltype(detail::equals(static_cast<cxp_value<T1> &&>(x), static_cast<cxp_value<T2> &&>(y), 0))
+		{
+			return detail::equals(static_cast<cxp_value<T1> &&>(x), static_cast<cxp_value<T2> &&>(y), 0);
+		}
+
 		template <typename Key, std::size_t N>
 		struct lookup_table_keys
 		{
@@ -45,7 +81,7 @@ namespace utility
 			template <std::size_t I>
 			constexpr std::size_t find_impl(const Key & key, mpl::index_constant<I>) const
 			{
-				return std::get<I>(keys) == key ? I : find_impl(key, mpl::index_constant<I + 1>{});
+				return cxp(std::get<I>(keys)) == cxp(key) ? I : find_impl(key, mpl::index_constant<I + 1>{});
 			}
 		};
 

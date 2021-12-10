@@ -226,10 +226,10 @@ namespace core
 
 		static constexpr auto serialization()
 		{
-			return utility::make_lookup_table(
-				std::make_pair(utility::string_units_utf8("r"), core::array_element(&this_type::rgb, 0)),
-				std::make_pair(utility::string_units_utf8("g"), core::array_element(&this_type::rgb, 1)),
-				std::make_pair(utility::string_units_utf8("b"), core::array_element(&this_type::rgb, 2))
+			return utility::make_lookup_table<ful::view_utf8>(
+				std::make_pair(ful::cstr_utf8("r"), core::array_element(&this_type::rgb, 0)),
+				std::make_pair(ful::cstr_utf8("g"), core::array_element(&this_type::rgb, 1)),
+				std::make_pair(ful::cstr_utf8("b"), core::array_element(&this_type::rgb, 2))
 			);
 		}
 

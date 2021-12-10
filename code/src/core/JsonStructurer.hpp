@@ -10,6 +10,9 @@
 #include "utility/priority.hpp"
 #include "utility/ranges.hpp"
 
+#include "ful/cstrext.hpp"
+#include "ful/string_search.hpp"
+
 #include <cfloat>
 #include <cstdint>
 #include <limits>
@@ -33,7 +36,7 @@ namespace core
 	{
 	private:
 
-		utility::heap_string_utf8 filepath_;
+		ful::cstr_utf8 filepath_;
 
 		json root;
 
@@ -64,7 +67,7 @@ namespace core
 			catch (std::exception & x)
 			{
 				static_cast<void>(x);
-				debug_fail("json '", filepath_, "' failed due to: ", x.what());
+				debug_fail("json '", filepath_, "' failed due to: ", ful::make_cstr_utf8(x.what()));
 			}
 		}
 
@@ -191,7 +194,8 @@ namespace core
 			}
 			catch (std::exception & x)
 			{
-				return debug_fail(x.what());
+				static_cast<void>(x);
+				return debug_fail(ful::make_cstr_utf8(x.what()));
 			}
 		}
 
@@ -284,7 +288,8 @@ namespace core
 			}
 			catch (std::exception & x)
 			{
-				debug_unreachable(x.what());
+				static_cast<void>(x);
+				debug_unreachable(ful::make_cstr_utf8(x.what()));
 			}
 		}
 
@@ -367,7 +372,7 @@ namespace core
 			for (auto it = j.begin(); it != j.end(); ++it)
 			{
 				const auto key_string = it.key();
-				const utility::string_units_utf8 key = key_string.c_str();
+				const ful::cstr_utf8 key(key_string);
 				const auto key_index = member_table<T>::find(key);
 				if (key_index == std::size_t(-1))
 					continue;
@@ -406,7 +411,7 @@ namespace core
 			const typename json::string_t & string = j;
 
 			using core::serialize;
-			return debug_verify(serialize(x, utility::string_units_utf8(string.data(), string.size())));
+			return debug_verify(serialize(x, ful::cstr_utf8(string)));
 		}
 	};
 }

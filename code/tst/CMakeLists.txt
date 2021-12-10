@@ -53,7 +53,6 @@ set(FILES_UTILITY
 	tst/utility/container/fragmentation.cpp
 	tst/utility/container/vector.cpp
 	tst/utility/crypto/crc.cpp
-	tst/utility/ext/string.cpp
 	tst/utility/functional/comparison.cpp
 	tst/utility/functional/utility.cpp
 	tst/utility/iterator.cpp
@@ -69,11 +68,8 @@ set(FILES_UTILITY
 	tst/utility/span.cpp
 	tst/utility/storage.cpp
 	tst/utility/storing.cpp
-	tst/utility/string.cpp
 	tst/utility/type_info.cpp
 	tst/utility/type_traits.cpp
-	tst/utility/unicode/string.cpp
-	tst/utility/unicode/string_view.cpp
 	tst/utility/variant.cpp
 	tst/utility/weak_ptr.cpp
 	)
