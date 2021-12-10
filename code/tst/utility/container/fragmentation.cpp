@@ -247,7 +247,7 @@ TEST_CASE("trivial heap fragmentation", "[utility][container][fragmentation]")
 
 		SECTION("and will reallocate when adding more")
 		{
-			REQUIRE(index_of(a.try_emplace(1, 2., '3')) == old_cap);
+			REQUIRE(index_of(a.try_emplace(1, 2., '3')) == static_cast<ext::index>(old_cap));
 			CHECK(a.capacity() > old_cap);
 			CHECK(a.size() == old_cap + 1);
 			CHECK(std::get<0>(a[0]) == 1);
@@ -421,7 +421,7 @@ TEST_CASE("heap fragmentation", "[utility][container][fragmentation]")
 
 		SECTION("and will reallocate when adding more")
 		{
-			REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == old_cap);
+			REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == static_cast<ext::index>(old_cap));
 			CHECK(a.capacity() > old_cap);
 			CHECK(a.size() == old_cap + 1);
 			CHECK(construction_counter::destruction_count == old_cap);
