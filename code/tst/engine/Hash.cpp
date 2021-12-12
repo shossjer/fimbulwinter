@@ -13,7 +13,7 @@ TEST_CASE("A zero initialized Hash", "[engine][hash]")
 
 	SECTION("contains the underlying value zero")
 	{
-		CHECK(hash.value() == 0);
+		CHECK(static_cast<engine::Hash::value_type>(hash) == 0);
 	}
 
 	SECTION("is the same as Hash of the empty string")

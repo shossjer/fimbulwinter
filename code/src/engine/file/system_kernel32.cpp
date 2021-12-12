@@ -760,10 +760,10 @@ namespace
 			std::unique_ptr<ProcessRegisterDirectory> data(reinterpret_cast<ProcessRegisterDirectory *>(Parameter));
 			ProcessRegisterDirectory & x = *data;
 
-			if (!debug_verify(find(x.impl.aliases, x.alias) == x.impl.aliases.end()))
+			if (!debug_verify(find(x.impl.aliases, engine::Token(x.alias)) == x.impl.aliases.end()))
 				return; // error
 
-			const auto parent_alias_it = find(x.impl.aliases, x.parent);
+			const auto parent_alias_it = find(x.impl.aliases, engine::Token(x.parent));
 			if (!debug_verify(parent_alias_it != x.impl.aliases.end()))
 				return; // error
 
@@ -792,7 +792,7 @@ namespace
 			}
 
 			const auto directory_asset = make_asset(ful::view_utfw(filepath));
-			const auto directory_it = find(x.impl.directories, directory_asset);
+			const auto directory_it = find(x.impl.directories, engine::Token(directory_asset));
 			if (directory_it != x.impl.directories.end())
 			{
 				const auto directory_ptr = x.impl.directories.get<Directory>(directory_it);
@@ -876,7 +876,7 @@ namespace
 			std::unique_ptr<ProcessUnregisterDirectory> data(reinterpret_cast<ProcessUnregisterDirectory *>(Parameter));
 			ProcessUnregisterDirectory & x = *data;
 
-			const auto alias_it = find(x.impl.aliases, x.alias);
+			const auto alias_it = find(x.impl.aliases, engine::Token(x.alias));
 			if (!debug_verify(alias_it != x.impl.aliases.end(), "alias does not exist"))
 				return; // error
 
@@ -925,7 +925,7 @@ namespace
 			std::unique_ptr<ProcessRead> data(reinterpret_cast<ProcessRead *>(Parameter));
 			ProcessRead & x = *data;
 
-			const auto alias_it = find(x.impl.aliases, x.directory);
+			const auto alias_it = find(x.impl.aliases, engine::Token(x.directory));
 			if (!debug_verify(alias_it != x.impl.aliases.end()))
 				return; // error
 
@@ -990,7 +990,7 @@ namespace
 			std::unique_ptr<ProcessScan> data(reinterpret_cast<ProcessScan *>(Parameter));
 			ProcessScan & x = *data;
 
-			const auto alias_it = find(x.impl.aliases, x.directory);
+			const auto alias_it = find(x.impl.aliases, engine::Token(x.directory));
 			if (!debug_verify(alias_it != x.impl.aliases.end()))
 				return; // error
 
@@ -1041,7 +1041,7 @@ namespace
 			std::unique_ptr<ProcessWrite> data(reinterpret_cast<ProcessWrite *>(Parameter));
 			ProcessWrite & x = *data;
 
-			const auto alias_it = find(x.impl.aliases, x.directory);
+			const auto alias_it = find(x.impl.aliases, engine::Token(x.directory));
 			if (!debug_verify(alias_it != x.impl.aliases.end()))
 				return; // error
 

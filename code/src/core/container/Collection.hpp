@@ -1,6 +1,4 @@
-
-#ifndef CORE_CONTAINER_COLLECTION_HPP
-#define CORE_CONTAINER_COLLECTION_HPP
+#pragma once
 
 #include "core/debug.hpp"
 
@@ -26,6 +24,20 @@ namespace core
 	{
 		namespace detail
 		{
+			template <typename K>
+			auto hash_of(K key, ext::usize nkeys)
+				-> decltype(static_cast<ext::usize>(key))
+			{
+				return (static_cast<ext::usize>(key) * static_cast<ext::usize>(key)) % nkeys; // todo
+			}
+
+			template <typename K>
+			auto hash_of(K key, ext::usize nkeys)
+				-> decltype(hash_of(key.value(), nkeys))
+			{
+				return hash_of(key.value(), nkeys);
+			}
+
 			template <typename F, typename K, typename P>
 			auto call_impl_func(F && func, K key, P && p) ->
 				decltype(func(key, std::forward<P>(p)))
@@ -371,7 +383,7 @@ namespace core
 				if (!debug_assert(nkeys != 0))
 					return bucket_t(-1);
 
-				const auto first_bucket = (std::size_t(key) * std::size_t(key)) % nkeys; // todo
+				const auto first_bucket = detail::hash_of(key, nkeys);
 
 				return find_bucket(key, keys, nkeys, first_bucket);
 			}
@@ -382,7 +394,7 @@ namespace core
 				if (!debug_assert(nkeys != 0))
 					return bucket_t(-1);
 
-				const auto first_bucket = (std::size_t(key) * std::size_t(key)) % nkeys; // todo
+				const auto first_bucket = detail::hash_of(key, nkeys);
 
 				return find_bucket(Key{}, keys, nkeys, first_bucket);
 			}
@@ -736,7 +748,7 @@ namespace core
 				if (!debug_assert(nkeys != 0))
 					return bucket_t(-1);
 
-				const auto first_bucket = (std::size_t(key) * std::size_t(key)) % nkeys; // todo
+				const auto first_bucket = detail::hash_of(key, nkeys);
 
 				return find_bucket(key, keys, nkeys, first_bucket);
 			}
@@ -747,7 +759,7 @@ namespace core
 				if (!debug_assert(nkeys != 0))
 					return bucket_t(-1);
 
-				const auto first_bucket = (std::size_t(key) * std::size_t(key)) % nkeys; // todo
+				const auto first_bucket = detail::hash_of(key, nkeys);
 
 				return find_bucket(Key{}, keys, nkeys, first_bucket);
 			}
@@ -1100,7 +1112,7 @@ namespace core
 				if (!debug_assert(nkeys != 0))
 					return bucket_t(-1);
 
-				const auto first_bucket = (std::size_t(key) * std::size_t(key)) % nkeys; // todo
+				const auto first_bucket = detail::hash_of(key, nkeys);
 
 				return find_bucket(key, keys, nkeys, first_bucket);
 			}
@@ -1111,7 +1123,7 @@ namespace core
 				if (!debug_assert(nkeys != 0))
 					return bucket_t(-1);
 
-				const auto first_bucket = (std::size_t(key) * std::size_t(key)) % nkeys; // todo
+				const auto first_bucket = detail::hash_of(key, nkeys);
 
 				return find_bucket(Key{}, keys, nkeys, first_bucket);
 			}
@@ -1216,5 +1228,3 @@ namespace core
 		};
 	}
 }
-
-#endif /* CORE_CONTAINER_COLLECTION_HPP */

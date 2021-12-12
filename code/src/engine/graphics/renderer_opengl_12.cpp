@@ -670,9 +670,6 @@ namespace
 					const auto material_it = find(materials, x.entity);
 					if (material_it != materials.end())
 					{
-						if (!debug_assert(materials.get_key(material_it) < x.entity, "trying to add an older version object"))
-							return; // error
-
 						materials.erase(material_it);
 					}
 					debug_verify(materials.emplace<ColorMaterial>(x.entity, x.data.diffuse, x.data.materialclass));
@@ -692,9 +689,6 @@ namespace
 					const auto object_it = find(objects, x.entity);
 					if (object_it != objects.end())
 					{
-						if (!debug_assert(objects.get_key(object_it) < x.entity, "trying to add an older version object"))
-							return; // error
-
 						objects.erase(object_it);
 					}
 					auto * const object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
@@ -711,9 +705,6 @@ namespace
 					const auto component_it = find(components, x.entity);
 					if (component_it != components.end())
 					{
-						if (!debug_assert(components.get_key(component_it) < x.entity, "trying to add an older version mesh"))
-							return; // error
-
 						components.erase(component_it);
 					}
 					debug_verify(components.emplace<MeshObject>(x.entity, object, mesh, x.object.material));
@@ -740,10 +731,11 @@ namespace
 
 				void operator () (MessageMakeSelectable && x)
 				{
-					const engine::graphics::opengl::Color4ub color = {(x.entity & 0x000000ff) >> 0,
-					                                                  (x.entity & 0x0000ff00) >> 8,
-					                                                  (x.entity & 0x00ff0000) >> 16,
-					                                                  (x.entity & 0xff000000) >> 24};
+					// todo 64-bit colors
+					const engine::graphics::opengl::Color4ub color = {(x.entity.value() & 0x000000ff) >> 0,
+					                                                  (x.entity.value() & 0x0000ff00) >> 8,
+					                                                  (x.entity.value() & 0x00ff0000) >> 16,
+					                                                  (x.entity.value() & 0xff000000) >> 24};
 
 					const auto selectable_it = find(selectable_components, x.entity);
 					if (selectable_it != selectable_components.end())

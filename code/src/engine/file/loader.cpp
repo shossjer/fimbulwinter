@@ -32,6 +32,14 @@ static_hashes("_file_loader_");
 
 namespace
 {
+	engine::Token make_token(engine::Hash directory, engine::Hash filepath)
+	{
+		return engine::Token(static_cast<engine::Hash::value_type>(directory) ^ static_cast<engine::Hash::value_type>(filepath));
+	}
+}
+
+namespace
+{
 	struct Filetype
 	{
 		engine::file::load_callback * loadcall;
@@ -473,7 +481,7 @@ namespace
 						std::pair<FileCallPtr, engine::Asset> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Asset> &&>(std::move(data));
 						FileCallData & call_data = *call_ptr.first;
 
-						const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
+						const auto call_it = ext::find_if(call_data.calls, fun::first == engine::Token(call_ptr.second));
 						if (!debug_assert(call_it != call_data.calls.end()))
 							return;
 
@@ -494,8 +502,8 @@ namespace
 				if (ext::empty(x.owners))
 				{
 #if MODE_DEBUG
-					const auto id = x.directory ^ engine::Asset(x.filepath);
-					engine::file::remove_watch(*impl.filesystem, engine::Token(id));
+					const engine::Token id = make_token(x.directory, engine::Asset(x.filepath));
+					engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 					engine::task::post_work(
@@ -565,7 +573,7 @@ namespace
 						std::pair<FileCallPtr, engine::Asset> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Asset> &&>(std::move(data));
 						FileCallData & call_data = *call_ptr.first;
 
-						const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
+						const auto call_it = ext::find_if(call_data.calls, fun::first == engine::Token(call_ptr.second));
 						if (!debug_assert(call_it != call_data.calls.end()))
 							return;
 
@@ -586,8 +594,8 @@ namespace
 				if (ext::empty(x.owners))
 				{
 #if MODE_DEBUG
-					const auto id = x.directory ^ engine::Asset(x.filepath);
-					engine::file::remove_watch(*impl.filesystem, engine::Token(id));
+					const engine::Token id = make_token(x.directory, engine::Asset(x.filepath));
+					engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 					engine::task::post_work(
@@ -702,8 +710,8 @@ namespace
 #else
 		const auto mode = engine::file::flags{};
 #endif
-		const auto id = loading_load->directory ^ engine::Asset(loading_load->filepath);
-		engine::file::read(*impl.filesystem, engine::Token(id), loading_load->directory, std::move(loading_load_filepath), file, ReadData::file_load, utility::any(utility::in_place_type<ReadData>, &impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)), mode);
+		const engine::Token id = make_token(loading_load->directory, engine::Asset(loading_load->filepath));
+		engine::file::read(*impl.filesystem, id, loading_load->directory, std::move(loading_load_filepath), file, ReadData::file_load, utility::any(utility::in_place_type<ReadData>, &impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)), mode);
 
 		return true;
 	}
@@ -843,8 +851,8 @@ namespace
 			if (ext::empty(y.owners))
 			{
 #if MODE_DEBUG
-				const auto id = y.directory ^ engine::Asset(y.filepath);
-				engine::file::remove_watch(*impl.filesystem, engine::Token(id));
+				const engine::Token id = make_token(y.directory, engine::Asset(y.filepath));
+				engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 				// todo figure out what this does
@@ -943,8 +951,8 @@ namespace
 			if (ext::empty(y.owners))
 			{
 #if MODE_DEBUG
-				const auto id = y.directory ^ engine::Asset(y.filepath);
-				engine::file::remove_watch(*impl.filesystem, engine::Token(id));
+				const engine::Token id = make_token(y.directory, engine::Asset(y.filepath));
+				engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
 				engine::task::post_work(

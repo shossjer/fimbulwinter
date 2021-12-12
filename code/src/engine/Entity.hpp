@@ -1,8 +1,6 @@
 #pragma once
 
-#include "config.h"
-
-#include <cstdint>
+#include "engine/Token.hpp"
 
 namespace engine
 {
@@ -12,7 +10,7 @@ namespace engine
 
 	public:
 
-		using value_type = std::uint32_t;
+		using value_type = ext::usize;
 
 	private:
 
@@ -22,13 +20,15 @@ namespace engine
 
 		Entity() = default;
 
-		explicit Entity(value_type value) : value_{value} {}
+		explicit constexpr Entity(value_type value)
+			: value_{value}
+		{}
 
 	public:
 
-		value_type value() const { return value_; }
+		constexpr value_type value() const { return value_; }
 
-		operator value_type () const { return value_; }
+		constexpr operator Token () const { return Token(value_); }
 
 	private:
 
@@ -36,9 +36,15 @@ namespace engine
 		friend constexpr bool operator != (this_type a, this_type b) { return !(a == b); }
 
 		template <typename Stream>
-		friend Stream & operator << (Stream & stream, this_type x)
+		friend auto operator << (Stream & stream, this_type x)
+			-> decltype(stream << x.value_)
 		{
+#if MODE_DEBUG
+			ful::unit_utf8 chars[100]; // todo
+			return stream << x.value_ << ful::view_utf8(chars + 0, debug_tokentable_copy(x.value_, chars + 0, chars + 100));
+#else
 			return stream << x.value_;
+#endif
 		}
 
 	};

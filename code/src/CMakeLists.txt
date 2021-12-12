@@ -59,7 +59,6 @@ set(SOURCES_ENGINE
 	src/engine/application/window_dummy.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
-	src/engine/Asset.cpp
 	src/engine/audio/system_dummy.cpp
 	src/engine/audio/system_fmod.cpp
 	src/engine/console.cpp
@@ -91,7 +90,7 @@ set(SOURCES_ENGINE
 	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
 	src/engine/task/scheduler_dummy.cpp
-	src/engine/Token.cpp
+	src/engine/TokenTable.cpp
 	)
 
 set(HEADERS_ENGINE
@@ -100,6 +99,7 @@ set(HEADERS_ENGINE
 	src/engine/commands.hpp
 	src/engine/console.hpp
 	src/engine/Entity.hpp
+	src/engine/EntityEnum.hpp
 	src/engine/EntityFactory.hpp
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
@@ -131,7 +131,6 @@ set(HEADERS_ENGINE
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
 	src/engine/module.hpp
-	src/engine/MutableEntity.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
 	src/engine/physics/defines.hpp

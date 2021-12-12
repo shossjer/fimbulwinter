@@ -4,10 +4,12 @@
 
 #include "ful/view.hpp"
 
-#include <cstdint>
-
 namespace engine
 {
+#if MODE_DEBUG
+	extern ful::unit_utf8 * debug_hashtable_copy(std::uint32_t value, ful::unit_utf8 * begin, ful::unit_utf8 * end);
+#endif
+
 	class Hash
 	{
 		using this_type = Hash;
@@ -16,7 +18,7 @@ namespace engine
 
 		using value_type = std::uint32_t;
 
-	protected: // todo needed for serialization
+	protected:
 
 		value_type value_;
 
@@ -40,24 +42,20 @@ namespace engine
 
 	public:
 
-		constexpr value_type value() const { return value_; }
-
-		constexpr operator value_type () const { return value_; }
+		constexpr operator value_type() const { return value_; }
 
 	private:
-
-#if MODE_DEBUG
-		static ful::view_utf8 get_string_from_hash_table(Hash hash);
-#endif
 
 		friend constexpr bool operator == (this_type a, this_type b) { return a.value_ == b.value_; }
 		friend constexpr bool operator != (this_type a, this_type b) { return !(a == b); }
 
 		template <typename Stream>
-		friend decltype(auto) operator << (Stream & stream, this_type x)
+		friend auto operator << (Stream && stream, this_type x)
+			-> decltype(stream << x.value_)
 		{
 #if MODE_DEBUG
-			return stream << x.value_ << get_string_from_hash_table(x);
+			ful::unit_utf8 chars[100]; // todo
+			return stream << x.value_ << ful::view_utf8(chars + 0, debug_hashtable_copy(x.value_, chars + 0, chars + 100));
 #else
 			return stream << x.value_;
 #endif

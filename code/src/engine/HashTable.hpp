@@ -4,27 +4,26 @@
 
 #if MODE_DEBUG
 
-#include "ful/cstr.hpp"
+#include "utility/crypto/crc.hpp"
 
-#include <cstdint>
-#include <initializer_list>
+#include "ful/cstr.hpp"
 
 namespace engine
 {
-	class Hash;
+	extern void debug_hashtable_add(std::uint32_t value, ful::view_utf8 string);
 
-	struct HashTable
+	struct StaticHashes
 	{
-		HashTable() = default;
-
-		explicit HashTable(std::initializer_list<const char *> strs);
-
-		void add(const Hash & hash, const char * str);
-		void add(const Hash & hash, const char * str, std::size_t n);
+		template <typename ...Ps>
+		explicit StaticHashes(Ps && ...ps)
+		{
+			int expansion_hack[] = {(debug_hashtable_add(utility::crypto::crc32(ps), ful::cstr_utf8(ps)), 0)...};
+			static_cast<void>(expansion_hack);
+		}
 	};
 }
 
-#define static_hashes(...) static engine::HashTable add_static_hashes({__VA_ARGS__})
+#define static_hashes(...) static engine::StaticHashes __static_hashes__(__VA_ARGS__)
 
 #else
 

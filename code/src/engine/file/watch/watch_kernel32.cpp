@@ -22,8 +22,7 @@ namespace
 {
 	engine::Hash make_asset(ful::view_utfw filepath, bool recurse)
 	{
-		// todo
-		return engine::Hash(engine::Hash(reinterpret_cast<const char *>(filepath.data()), filepath.size() * sizeof(wchar_t)) ^ (recurse ? engine::Hash::value_type(-1) : engine::Hash::value_type{}));
+		return engine::Hash(static_cast<engine::Hash::value_type>(engine::Hash(reinterpret_cast<const char *>(filepath.data()), filepath.size() * sizeof(wchar_t))) ^ (recurse ? engine::Hash::value_type(-1) : engine::Hash::value_type{}));
 	}
 }
 

@@ -118,7 +118,7 @@ namespace
 		}
 		void operator () (Root & x)
 		{
-			debug_assert(x.node == engine::Hash{});
+			debug_assert(x.node == engine::Token{});
 			x.node = child;
 		}
 		void operator () (HorizontalSplit & x)
@@ -126,11 +126,11 @@ namespace
 			switch (slot)
 			{
 			case 0:
-				debug_assert(x.bottom == engine::Hash{});
+				debug_assert(x.bottom == engine::Token{});
 				x.bottom = child;
 				break;
 			case 1:
-				debug_assert(x.top == engine::Hash{});
+				debug_assert(x.top == engine::Token{});
 				x.top = child;
 				break;
 			default:
@@ -142,11 +142,11 @@ namespace
 			switch (slot)
 			{
 			case 0:
-				debug_assert(x.left == engine::Hash{});
+				debug_assert(x.left == engine::Token{});
 				x.left = child;
 				break;
 			case 1:
-				debug_assert(x.right == engine::Hash{});
+				debug_assert(x.right == engine::Token{});
 				x.right = child;
 				break;
 			default:
@@ -472,7 +472,7 @@ namespace
 			}
 		};
 
-		const auto root_it = find(nodes, engine::graphics::root_frame);
+		const auto root_it = find(nodes, engine::Token(engine::graphics::root_frame));
 		if (debug_assert(root_it != nodes.end()))
 		{
 			nodes.call(root_it, BuildViewports{0, 0, dimension.width, dimension.height});
@@ -605,7 +605,7 @@ namespace engine
 	{
 		viewer::~viewer()
 		{
-			const auto root_it = find(nodes, engine::graphics::root_frame);
+			const auto root_it = find(nodes, engine::Token(engine::graphics::root_frame));
 			if (debug_assert(root_it != nodes.end()))
 			{
 				nodes.erase(root_it);
@@ -636,7 +636,7 @@ namespace engine
 		{
 			::renderer = &renderer;
 
-			static_cast<void>(debug_verify(nodes.emplace<Root>(engine::Token(engine::graphics::root_frame), engine::Token(engine::Hash{}))));
+			static_cast<void>(debug_verify(nodes.emplace<Root>(engine::Token(engine::graphics::root_frame), engine::Token{})));
 		}
 
 		void update(viewer &)
@@ -662,9 +662,6 @@ namespace engine
 						const auto camera_it = find(cameras, data.entity);
 						if (camera_it != cameras.end())
 						{
-							if (!debug_assert(cameras.get_key(camera_it) < data.entity, "trying to add an older version camera"))
-								return; // error
-
 							cameras.erase(camera_it);
 						}
 						static_cast<void>(debug_verify(cameras.emplace<Camera>(data.entity, std::move(data.data))));

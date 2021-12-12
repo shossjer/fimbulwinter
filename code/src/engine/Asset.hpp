@@ -7,6 +7,10 @@
 
 namespace engine
 {
+#if MODE_DEBUG
+	extern void debug_hashtable_add(std::uint32_t value, ful::view_utf8 string);
+#endif
+
 	class Asset : public Hash
 	{
 		using this_type = Asset;
@@ -19,21 +23,28 @@ namespace engine
 
 		Asset() = default;
 
-		explicit Asset(value_type value) : Hash(value) {}
+		explicit constexpr Asset(value_type value)
+			: Hash(value)
+		{}
 
-		explicit Asset(const char * str)
-			: Hash(str)
-		{
-#if MODE_DEBUG
-			add_string_to_hash_table(str);
-#endif
-		}
+		explicit constexpr Asset(Hash hash)
+			: Hash(hash)
+		{}
 
 		explicit Asset(const char * str, std::size_t n)
 			: Hash(str, n)
 		{
 #if MODE_DEBUG
-			add_string_to_hash_table(str, n);
+			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(str, n));
+#endif
+		}
+
+		template <unsigned long long N>
+		explicit constexpr Asset(const char (& str)[N])
+			: Hash(str, N - 1) // subtract terminating null
+		{
+#if MODE_DEBUG
+			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(str, N - 1));
 #endif
 		}
 
@@ -42,17 +53,9 @@ namespace engine
 			: Hash(data(str), size(str))
 		{
 #if MODE_DEBUG
-			add_string_to_hash_table(data(str), size(str));
+			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(data(str), size(str)));
 #endif
 		}
-
-	private:
-
-#if MODE_DEBUG
-		void add_string_to_hash_table(const char * str);
-
-		void add_string_to_hash_table(const char * str, std::size_t n);
-#endif
 
 	public:
 
