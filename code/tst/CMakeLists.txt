@@ -46,7 +46,6 @@ set(FILES_UTILITY
 	tst/utility/any.cpp
 	tst/utility/array.cpp
 	tst/utility/bitmanip.cpp
-	tst/utility/charconv.cpp
 	tst/utility/compound.cpp
 	tst/utility/container/array.cpp
 	tst/utility/container/fragmentation.cpp
