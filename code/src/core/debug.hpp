@@ -1,6 +1,8 @@
 #pragma once
 
-#include <config.h>
+#include "config.h"
+
+#include "core/iostream.hpp"
 
 #include "utility/concepts.hpp"
 #include "utility/intrinsics.hpp"
@@ -10,6 +12,7 @@
 
 #include "ful/cstr.hpp"
 #include "ful/string_compare.hpp"
+#include "ful/string_init.hpp"
 
 #include <utility>
 
@@ -39,6 +42,11 @@
 // https://docs.microsoft.com/en-us/cpp/preprocessor/preprocessor-experimental-overview#macro-arguments-are-unpacked
 #define NO_ARGS(...) (sizeof "" #__VA_ARGS__ == 1)
 
+#if defined(_MSC_VER)
+# define WIDEN_CHARS2(x) L##x
+# define WIDEN_CHARS(x) WIDEN_CHARS2(x)
+#endif
+
 #if MODE_DEBUG
 
 /**
@@ -48,6 +56,7 @@
  */
 # if defined(_MSC_VER)
 #  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")); }(core::debug::empty_t{} < expr) || (debug_break(), false))
+#  define debug_assertw(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().failw(WIDEN_CHARS(LINE_LINK ": " #expr "\n"), cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"\n") : ful::cstr_utfw(L"\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"") : ful::cstr_utfw(L"\n")); }(core::debug::emptyw_t{} < expr) || (debug_break(), false))
 # else
 #  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")); }(core::debug::empty_t{} < expr) || (debug_break(), false))
 # endif
@@ -138,6 +147,7 @@ namespace core
  */
 # if defined(_MSC_VER)
 #  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")) || (debug_break(), false))
+#  define debug_failw(...) (core::debug::instance().failw(WIDEN_CHARS(LINE_LINK ": failed"), NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"\n") : ful::cstr_utfw(L"\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"") : ful::cstr_utfw(L"\n")) || (debug_break(), false))
 # else
 #  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")) || (debug_break(), false))
 # endif
@@ -149,6 +159,7 @@ namespace core
  */
 # if defined (_MSC_VER)
 #  define debug_inform(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printline(__FILE__, __LINE__, #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__), false); }(core::debug::empty_t{} < expr)
+#  define debug_informw(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printlinew(WIDEN_CHARS(__FILE__), __LINE__, WIDEN_CHARS(#expr "\n"), cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"") : ful::cstr_utfw(L"\nexplanation: "), __VA_ARGS__), false); }(core::debug::emptyw_t{} < expr)
 # else
 #  define debug_inform(expr, ...) [&](auto && cond){ return cond() ? true : (core::debug::instance().printline(__FILE__, __LINE__, #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__), false); }(core::debug::empty_t{} < expr)
 # endif
@@ -164,12 +175,18 @@ namespace core
 #  define debug_printline(...) core::debug::instance().printline(__FILE__, __LINE__, ##__VA_ARGS__)
 # else
 #  define debug_printline(...) core::debug::instance().printline(__FILE__, __LINE__, __VA_ARGS__)
+#  if defined (_MSC_VER)
+#   define debug_printlinew(...) core::debug::instance().printlinew(WIDEN_CHARS(__FILE__), __LINE__, __VA_ARGS__)
+#  endif
 # endif
 
 /**
  * Fails unconditionally and terminates execution.
  */
 # define debug_unreachable(...) do { debug_fail(__VA_ARGS__); std::terminate(); } while(false)
+# if defined (_MSC_VER)
+#  define debug_unreachablew(...) do { debug_failw(__VA_ARGS__); std::terminate(); } while(false)
+# endif
 // todo: change terminate to __builtin_trap if available
 
 /**
@@ -181,6 +198,9 @@ namespace core
 #  define debug_verify(expr, ...) debug_assert(expr, ##__VA_ARGS__)
 # else
 #  define debug_verify(expr, ...) debug_assert(expr, __VA_ARGS__)
+#  if defined (_MSC_VER)
+#   define debug_verifyw(expr, ...) debug_assertw(expr, __VA_ARGS__)
+#  endif
 # endif
 
 #else
@@ -189,6 +209,9 @@ namespace core
  * Returns true as the condition is assumed to be true always.
  */
 # define debug_assert(expr, ...) true
+# if defined (_MSC_VER)
+#  define debug_assertw(expr, ...) true
+# endif
 
 /**
  * Does nothing.
@@ -213,6 +236,9 @@ namespace core
  * \note Always returns false.
  */
 # define debug_fail(...) false
+# if defined (_MSC_VER)
+#  define debug_failw(...) false
+# endif
 
 /**
  * Does nothing.
@@ -220,16 +246,25 @@ namespace core
  * \note Always evaluates the expression.
  */
 # define debug_inform(expr, ...) static_cast<bool>(expr)
+# if defined (_MSC_VER)
+#  define debug_informw(expr, ...) static_cast<bool>(expr)
+# endif
 
 /**
  * Does nothing.
  */
 # define debug_printline(...)
+# if defined (_MSC_VER)
+#  define debug_printlinew(...)
+# endif
 
 /**
  * Hint to the compiler that this path will never be reached.
  */
 # define debug_unreachable(...) intrinsic_unreachable()
+# if defined (_MSC_VER)
+#  define debug_unreachablew(...) intrinsic_unreachable()
+# endif
 
 /**
  * Verifies that the expression is true.
@@ -237,6 +272,9 @@ namespace core
  * \note Always evaluates the expression.
  */
 # define debug_verify(expr, ...) static_cast<bool>(expr)
+# if defined (_MSC_VER)
+#  define debug_verifyw(expr, ...) static_cast<bool>(expr)
+# endif
 
 #endif
 
@@ -303,6 +341,61 @@ namespace core
 			}
 		};
 
+#if defined(_MSC_VER)
+
+		struct emptyw_t {};
+
+		template <typename T>
+		struct valuew_t
+		{
+			using this_type = valuew_t<T>;
+
+			T value;
+
+			valuew_t(T value)
+				: value(std::forward<T>(value))
+			{}
+
+			bool operator () ()
+			{
+				return static_cast<bool>(value);
+			}
+
+			template <typename Stream>
+			friend Stream & operator << (Stream && stream, const this_type & comp)
+			{
+				return stream << L"failed with value: " << utility::try_stream(comp.value);
+			}
+		};
+
+		template <typename L, typename R, typename F>
+		struct compare_binaryw_t
+		{
+			using this_type = compare_binaryw_t<L, R, F>;
+
+			L left;
+			R right;
+
+			compare_binaryw_t(L left, R right)
+				: left(std::forward<L>(left))
+				, right(std::forward<R>(right))
+			{}
+
+			decltype(auto) operator () ()
+			{
+				return F{}(std::forward<L>(left), std::forward<R>(right));
+			}
+
+			template <typename Stream>
+			friend Stream & operator << (Stream && stream, const this_type & comp)
+			{
+				return stream << L"failed with lhs: " << utility::try_stream(comp.left) << L"\n"
+				              << L"            rhs: " << utility::try_stream(comp.right);
+			}
+		};
+
+#endif
+
 		// we make an exception to allow the following
 		// warnings to make it easier to use the debug
 		// library
@@ -353,6 +446,23 @@ namespace core
 		template <typename L, typename R>
 		using compare_ge_t = compare_binary_t<L, R, ge_t>;
 
+#if defined(_MSC_VER)
+
+		template <typename L, typename R>
+		using compare_eqw_t = compare_binaryw_t<L, R, eq_t>;
+		template <typename L, typename R>
+		using compare_new_t = compare_binaryw_t<L, R, ne_t>;
+		template <typename L, typename R>
+		using compare_ltw_t = compare_binaryw_t<L, R, lt_t>;
+		template <typename L, typename R>
+		using compare_lew_t = compare_binaryw_t<L, R, le_t>;
+		template <typename L, typename R>
+		using compare_gtw_t = compare_binaryw_t<L, R, gt_t>;
+		template <typename L, typename R>
+		using compare_gew_t = compare_binaryw_t<L, R, ge_t>;
+
+#endif
+
 	private:
 		uint64_t mask_;
 		bool (* fail_hook_)() = nullptr;
@@ -382,8 +492,8 @@ namespace core
 		template <typename ...Ps>
 		bool fail(Ps && ...ps)
 		{
-			utility::to_stream(fio::stdostream{}, std::forward<Ps>(ps)...);
-			fio::flush_stdout();
+			utility::to_stream(core::cout, std::forward<Ps>(ps)...);
+			core::cout.flush();
 
 			return fail_hook_ ? fail_hook_() : false;
 		}
@@ -409,15 +519,59 @@ namespace core
 		template <std::size_t N, typename ...Ps>
 		void printline_all(const char (& file_name)[N], int line_number, Ps && ...ps)
 		{
-			utility::to_stream(fio::stdostream{},
+			utility::to_stream(core::cout,
 #if defined(_MSC_VER)
 				file_name, "(", line_number, ")",
 #else
 				file_name, ":", line_number,
 #endif
 				": ", std::forward<Ps>(ps)..., "\n");
-			fio::flush_stdout();
+			core::cout.flush();
 		}
+
+#if defined(_MSC_VER)
+
+		template <typename ...Ps>
+		bool failw(Ps && ...ps)
+		{
+			utility::to_stream(core::wcout, std::forward<Ps>(ps)...);
+			core::wcout.flush();
+
+			return fail_hook_ ? fail_hook_() : false;
+		}
+
+		template <std::size_t N, uint64_t Bitmask, typename ...Ps>
+		void printlinew(const wchar_t (& file_name)[N], int line_number, channel_t<Bitmask>, Ps && ...ps)
+		{
+			if ((mask_ & Bitmask) == 0)
+				return;
+
+			printlinew_all(file_name, line_number, std::forward<Ps>(ps)...);
+		}
+
+		template <std::size_t N, typename ...Ps>
+		void printlinew(const wchar_t (& file_name)[N], int line_number, Ps && ...ps)
+		{
+			if (mask_ == 0)
+				return;
+
+			printlinew_all(file_name, line_number, std::forward<Ps>(ps)...);
+		}
+
+		template <std::size_t N, typename ...Ps>
+		void printlinew_all(const wchar_t (& file_name)[N], int line_number, Ps && ...ps)
+		{
+			utility::to_stream(core::wcout,
+#if defined(_MSC_VER)
+				file_name, L"(", line_number, L")",
+#else
+				file_name, L":", line_number,
+#endif
+				L": ", std::forward<Ps>(ps)..., L"\n");
+			core::wcout.flush();
+		}
+
+#endif
 
 	public:
 		static debug & instance()
@@ -518,4 +672,99 @@ namespace core
 	{
 		return debug::compare_ge_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
 	}
+
+#if defined(_MSC_VER)
+
+	template <typename T,
+		REQUIRES((!std::is_scalar<mpl::decay_t<T>>::value))>
+	debug::valuew_t<T &&> operator < (debug::emptyw_t &&, T && value)
+	{
+		return debug::valuew_t<T &&>(std::forward<T>(value));
+	}
+	template <typename T,
+		REQUIRES((std::is_scalar<T>::value))>
+	debug::valuew_t<T> operator < (debug::emptyw_t &&, T value)
+	{
+		return debug::valuew_t<T>(std::forward<T>(value));
+	}
+
+	template <typename L, typename R,
+		REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
+	auto operator == (debug::valuew_t<L> && left, R && right)
+	{
+		return debug::compare_eqw_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+		REQUIRES((std::is_scalar<R>::value))>
+	auto operator == (debug::valuew_t<L> && left, R right)
+	{
+		return debug::compare_eqw_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+		REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
+	auto operator != (debug::valuew_t<L> && left, R && right)
+	{
+		return debug::compare_new_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+		REQUIRES((std::is_scalar<R>::value))>
+	auto operator != (debug::valuew_t<L> && left, R right)
+	{
+		return debug::compare_new_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+		REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
+	auto operator < (debug::valuew_t<L> && left, R && right)
+	{
+		return debug::compare_ltw_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+		REQUIRES((std::is_scalar<R>::value))>
+	auto operator < (debug::valuew_t<L> && left, R right)
+	{
+		return debug::compare_ltw_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+		REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
+	auto operator <= (debug::valuew_t<L> && left, R && right)
+	{
+		return debug::compare_lew_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+		REQUIRES((std::is_scalar<R>::value))>
+	auto operator <= (debug::valuew_t<L> && left, R right)
+	{
+		return debug::compare_lew_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+		REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
+	auto operator > (debug::valuew_t<L> && left, R && right)
+	{
+		return debug::compare_gtw_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+		REQUIRES((std::is_scalar<R>::value))>
+	auto operator > (debug::valuew_t<L> && left, R right)
+	{
+		return debug::compare_gtw_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+	template <typename L, typename R,
+		REQUIRES((!std::is_scalar<mpl::decay_t<R>>::value))>
+	auto operator >= (debug::valuew_t<L> && left, R && right)
+	{
+		return debug::compare_gew_t<L, R &&>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+	template <typename L, typename R,
+		REQUIRES((std::is_scalar<R>::value))>
+	auto operator >= (debug::valuew_t<L> && left, R right)
+	{
+		return debug::compare_gew_t<L, R>(std::forward<L>(left.value), std::forward<R>(right));
+	}
+
+#endif
 }

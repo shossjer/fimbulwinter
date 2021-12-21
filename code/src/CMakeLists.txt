@@ -2,6 +2,7 @@
 set(SOURCES_CORE
 	src/core/async/Thread_kernel32.cpp
 	src/core/async/Thread_pthread.cpp
+	src/core/iostream.cpp
 	src/core/native/file_kernel32.cpp
 	src/core/native/file_posix.cpp
 	)
@@ -24,6 +25,7 @@ set(HEADERS_CORE
 	src/core/graphics/types.hpp
 	src/core/IniSerializer.hpp
 	src/core/IniStructurer.hpp
+	src/core/iostream.hpp
 	src/core/JsonSerializer.hpp
 	src/core/JsonStructurer.hpp
 	src/core/LevelStructurer.hpp

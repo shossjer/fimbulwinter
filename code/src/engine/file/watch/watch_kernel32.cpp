@@ -113,7 +113,7 @@ namespace
 
 	HANDLE start_watch(ful::cstr_utfw dirpath)
 	{
-		debug_printline("starting watch \"", dirpath, "\"");
+		debug_printlinew(L"starting watch \"", dirpath, L"\"");
 		HANDLE hDirectory = ::CreateFileW(
 			dirpath.c_str(),
 			FILE_LIST_DIRECTORY,
@@ -131,7 +131,7 @@ namespace
 
 	bool stop_watch(WatchData & watch_data)
 	{
-		debug_printline("stopping watch \"", watch_data.filepath, "\"");
+		debug_printlinew(L"stopping watch \"", watch_data.filepath, L"\"");
 		if (::CancelIoEx(watch_data.overlapped.hEvent, &watch_data.overlapped) == FALSE)
 		{
 			const auto error = ::GetLastError();
@@ -193,7 +193,7 @@ namespace
 					}
 					break;
 				case FILE_ACTION_REMOVED:
-					debug_printline("FILE_ACTION_REMOVED: ", filename);
+					debug_printlinew(L"FILE_ACTION_REMOVED: ", filename);
 					if (debug_verify(changes.try_emplace_back()))
 					{
 						auto & file = ext::back(changes);
@@ -216,7 +216,7 @@ namespace
 					}
 					break;
 				case FILE_ACTION_MODIFIED:
-					debug_printline("FILE_ACTION_MODIFIED: ", filename);
+					debug_printlinew(L"FILE_ACTION_MODIFIED: ", filename);
 					for (auto && read : watch_data->reads)
 					{
 						if (read.first == filename)
@@ -226,10 +226,10 @@ namespace
 					}
 					break;
 				case FILE_ACTION_RENAMED_OLD_NAME:
-					debug_printline("FILE_ACTION_RENAMED_OLD_NAME: ", filename);
+					debug_printlinew(L"FILE_ACTION_RENAMED_OLD_NAME: ", filename);
 					break;
 				case FILE_ACTION_RENAMED_NEW_NAME:
-					debug_printline("FILE_ACTION_RENAMED_NEW_NAME: ", filename);
+					debug_printlinew(L"FILE_ACTION_RENAMED_NEW_NAME: ", filename);
 					break;
 				default:
 					debug_unreachable("unknown action ", info->Action);
@@ -279,7 +279,7 @@ namespace
 				return;
 		}
 
-		debug_printline("deleting watch \"", watch_data->filepath, "\"");
+		debug_printlinew(L"deleting watch \"", watch_data->filepath, L"\"");
 		delete watch_data;
 	}
 

@@ -138,7 +138,7 @@ namespace
 {
 	void scan_directory(const ful::heap_string_utfw & dirpath, bool recurse, ful::heap_string_utfw & files)
 	{
-		debug_printline("scanning directory \"", dirpath, "\"");
+		debug_printlinew(L"scanning directory \"", dirpath, L"\"");
 
 		utility::heap_vector<ful::heap_string_utfw> subdirs;
 		if (!debug_verify(subdirs.try_emplace_back()))
@@ -226,7 +226,7 @@ namespace
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
 			const auto error = ::GetLastError();
-			debug_inform(hFile != INVALID_HANDLE_VALUE, "CreateFileW(\"", filepath, "\") failed with last error ", error);
+			debug_informw(hFile != INVALID_HANDLE_VALUE, L"CreateFileW(\"", filepath, L"\") failed with last error ", error);
 			return debug_verify((error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_SHARING_VIOLATION));
 		}
 
@@ -290,7 +290,7 @@ namespace
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
 			const auto error = ::GetLastError();
-			debug_inform(hFile != INVALID_HANDLE_VALUE, "CreateFileW(\"", filepath, "\") failed with last error ", error);
+			debug_informw(hFile != INVALID_HANDLE_VALUE, L"CreateFileW(\"", filepath, L"\") failed with last error ", error);
 			return debug_verify(error == ERROR_FILE_EXISTS);
 		}
 
@@ -331,7 +331,7 @@ namespace
 
 		filepath.data()[filepath.size() - 1] = L'\0';
 
-		debug_printline("removing temporary directory \"", filepath, "\"");
+		debug_printlinew(L"removing temporary directory \"", filepath, L"\"");
 
 		SHFILEOPSTRUCTW op =
 		{
@@ -846,7 +846,7 @@ namespace
 			if (!debug_verify(::CreateDirectoryW(filepath.data(), nullptr) != FALSE, "failed with last error ", ::GetLastError()))
 				return;
 
-			debug_printline("created temporary directory \"", filepath, "\"");
+			debug_printlinew(L"created temporary directory \"", filepath, L"\"");
 
 			if (!debug_verify(ful::push_back(filepath, ful::char16{'\\'})))
 			{

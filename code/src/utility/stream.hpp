@@ -3,19 +3,6 @@
 #include "utility/type_info.hpp"
 #include "utility/type_traits.hpp"
 
-#include "fio/stdio.hpp"
-
-namespace mpl
-{
-	// todo move to fio
-	template <typename T, typename = void>
-	struct is_ostreamable_impl : mpl::false_type {};
-	template <typename T>
-	struct is_ostreamable_impl<T, mpl::void_t<decltype(std::declval<fio::stdostream &>() << std::declval<T>())>> : mpl::true_type {};
-	template <typename T>
-	using is_ostreamable = is_ostreamable_impl<T>;
-}
-
 namespace utility
 {
 	// todo remove
@@ -29,40 +16,40 @@ namespace utility
 		return false;
 	}
 
-	/**
-	 */
-	template <typename T>
-	struct try_stream_yes_t
+	namespace detail
 	{
-		T && t;
-
-		try_stream_yes_t(T && t) : t(t) {}
-
-		template <typename Stream>
-		friend Stream & operator << (Stream & stream, try_stream_yes_t<T> && t)
+		template <typename Stream, typename T>
+		auto try_stream_impl(Stream && stream, T && t, int)
+			-> decltype(std::forward<Stream>(stream) << std::forward<T>(t))
 		{
-			return stream << std::forward<T>(t.t);
+			return std::forward<Stream>(stream) << std::forward<T>(t);
 		}
-	};
-	template <typename T>
-	struct try_stream_no_t
-	{
-		template <typename Stream>
-		friend Stream & operator << (Stream & stream, try_stream_no_t<T> &&)
+
+		template <typename Stream, typename T>
+		auto try_stream_impl(Stream && stream, T && t, ...)
+			-> decltype(stream)
 		{
-			return stream << "?";
+			static_cast<void>(t);
+			return std::forward<Stream>(stream) << static_cast<typename mpl::remove_cvref_t<Stream>::char_type>('?');
 		}
-	};
-	template <typename T,
-	          mpl::enable_if_t<mpl::is_ostreamable<T>::value, int> = 0>
-	try_stream_yes_t<T> try_stream(T && t)
-	{
-		return try_stream_yes_t<T>{t};
+
+		template <typename T>
+		struct try_stream_type
+		{
+			T && t;
+
+			template <typename Stream>
+			friend auto operator << (Stream && stream, try_stream_type<T> && x)
+				-> decltype(try_stream_impl(std::forward<Stream>(stream), std::forward<T>(x.t), 0))
+			{
+				return try_stream_impl(std::forward<Stream>(stream), std::forward<T>(x.t), 0);
+			}
+		};
 	}
-	template <typename T,
-	          mpl::disable_if_t<mpl::is_ostreamable<T>::value, int> = 0>
-	try_stream_no_t<T> try_stream(T &&)
+
+	template <typename T>
+	detail::try_stream_type<T> try_stream(T && t)
 	{
-		return try_stream_no_t<T>{};
+		return detail::try_stream_type<T>{std::forward<T>(t)};
 	}
 }

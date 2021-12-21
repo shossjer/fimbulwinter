@@ -101,7 +101,7 @@ namespace engine
 					return;
 				}
 			}
-			fio::stdostream{} << "no matching observer found to \"" << command_name << "\"\n";
+			debug_printline("no matching observer found to \"", command_name, "\"");
 		}
 	}
 
