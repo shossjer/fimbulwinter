@@ -1,8 +1,7 @@
+#pragma once
 
-#ifndef CORE_COLOR_HPP
-#define CORE_COLOR_HPP
-
-#include <core/debug.hpp>
+#include "core/debug.hpp"
+#include "core/serialization.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -251,5 +250,3 @@ namespace core
 	template <std::size_t I, typename T>
 	static auto tuple_element(const rgb_t<T> &) -> mpl::enable_if_t<(I < 3), T>;
 }
-
-#endif /* CORE_COLOR_HPP */

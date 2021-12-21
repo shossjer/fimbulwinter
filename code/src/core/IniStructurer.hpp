@@ -170,8 +170,8 @@ namespace core
 				if (!core::member_table<T>::call(member, x,
 				                                 [&](auto & y)
 				                                 {
-					                                 using core::serialize;
-					                                 return serialize(y, value);
+					                                 // todo read directly from parser
+					                                 return static_cast<bool>(fio::istream<ful::view_utf8>(value) >> y);
 				                                 }))
 					return std::make_pair(false, equals_match.second);
 			}
@@ -208,6 +208,7 @@ namespace core
 		auto read_key_values(T &, Parser parser)
 		{
 			constexpr auto type_name = utility::type_name<T>();
+			static_cast<void>(type_name);
 
 			return std::make_pair(debug_fail("cannot read key values into object of type '", type_name, "'"), parser.begin());
 		}

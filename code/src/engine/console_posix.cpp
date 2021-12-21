@@ -2,12 +2,10 @@
 
 #if CONSOLE_USE_POSIX
 
-#include "console.hpp"
-
 #include "core/async/Thread.hpp"
 #include "core/debug.hpp"
 
-#include "utility/unicode/string_view.hpp"
+#include "engine/console.hpp"
 
 #include <iostream>
 #include <string>
@@ -19,7 +17,7 @@ namespace engine
 {
 	namespace detail
 	{
-		void read_input(utility::string_units_utf8 line);
+		void read_input(ful::view_utf8 line);
 	}
 }
 
@@ -64,7 +62,7 @@ namespace
 					break;
 				}
 
-				engine::detail::read_input(utility::string_units_utf8(line.data(), line.size()));
+				engine::detail::read_input(ful::view_utf8(line));
 			}
 		}
 		close(interupt_pipe[0]);

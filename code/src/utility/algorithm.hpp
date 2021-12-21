@@ -94,24 +94,35 @@ namespace ext
 	template <typename T>
 	using has_std_size = decltype(detail::has_std_size_impl(std::declval<T>(), 0));
 
-#if defined(_MSC_VER)
-	// microsofts standard library defines this c++17 feature regardless of our targeted c++ version
-	using std::size;
-#else
 	// c++17
 	template <typename T, std::size_t N>
 	constexpr std::size_t size(const T (&)[N]) { return N; }
-	// note array is a tuple but it is not found by ADL in the std namespace, so we have to define it here
 
-	// c++17
-	template <typename C,
-	          REQUIRES((!has_std_size<C>::value))> // note our implementation collides with the one in std
-	constexpr auto size(const C & c) -> decltype(c.size()) { return c.size(); }
-#endif
+	namespace detail
+	{
+		template <typename T,
+		          REQUIRES((!has_std_size<T>::value))>
+		constexpr auto size_impl(const T & x, int)
+			-> decltype(x.size())
+		{
+			return x.size();
+		}
 
-	template <typename Tuple,
-	          REQUIRES((!has_std_size<Tuple>::value))> // note std::array is a tuple, so we have to guard against collisions here as well
-	constexpr auto size(const Tuple &) -> decltype(ext::tuple_size<Tuple>(), std::size_t()) { return ext::tuple_size<Tuple>::value; }
+		template <typename T,
+		          REQUIRES((!has_std_size<T>::value))>
+		constexpr auto size_impl(const T & x, float)
+			-> decltype(ext::tuple_size<T>::value)
+		{
+			return static_cast<void>(x), ext::tuple_size<T>::value;
+		}
+	}
+
+	template <typename T>
+	constexpr auto size(const T & x)
+		-> decltype(detail::size_impl(x, 0))
+	{
+		return detail::size_impl(x, 0);
+	}
 
 	//
 	template <typename T>

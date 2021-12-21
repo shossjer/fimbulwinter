@@ -6,6 +6,8 @@
 #include "utility/utility.hpp"
 
 #include "fio/stdio.hpp"
+#include "ful/heap.hpp"
+#include "ful/string_init.hpp"
 
 #include <cassert>
 #include <memory>
@@ -39,13 +41,13 @@ namespace utility
 		{
 			any_data * data_;
 			utility::type_id_t type_id_;
-			fio::stdostream * ostream_;
+			fio::stdostream<ful::heap_string_utf8> * ostream_;
 			const void * const_ptr_;
 
 			any_output() = default;
 			any_output(any_data & data) : data_(&data) {}
 			any_output(utility::type_id_t type_id) : type_id_(type_id) {}
-			any_output(fio::stdostream & ostream) : ostream_(&ostream) {}
+			any_output(fio::stdostream<ful::heap_string_utf8> & ostream) : ostream_(&ostream) {}
 		};
 
 		template <typename T>
@@ -209,7 +211,7 @@ namespace utility
 				return out.type_id_;
 			}
 
-			fio::stdostream & ostream(fio::stdostream & stream) const
+			fio::stdostream<ful::heap_string_utf8> & ostream(fio::stdostream<ful::heap_string_utf8> & stream) const
 			{
 				if (!handler_)
 					return stream << "(empty)";

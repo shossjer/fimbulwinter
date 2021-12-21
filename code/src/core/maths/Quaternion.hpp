@@ -1,12 +1,12 @@
+#pragma once
 
-#ifndef CORE_MATHS_QUATERNION_HPP
-#define CORE_MATHS_QUATERNION_HPP
+#include "config.h"
 
-#include <config.h>
+#include "core/maths/Matrix.hpp"
+#include "core/maths/Scalar.hpp"
+#include "core/maths/Vector.hpp"
 
-#include "Matrix.hpp"
-#include "Scalar.hpp"
-#include "Vector.hpp"
+#include "utility/ext/stddef.hpp"
 
 #include <cmath>
 
@@ -244,8 +244,6 @@ namespace core
 		}
 
 		template <typename T>
-		constexpr auto size(const Quaternion<T> &) { return 4; }
+		constexpr ext::usize size(const Quaternion<T> &) { return 4; }
 	}
 }
-
-#endif /* CORE_MATHS_QUATERNION_HPP */

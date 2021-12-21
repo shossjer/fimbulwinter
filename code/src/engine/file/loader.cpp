@@ -25,6 +25,7 @@
 #include "ful/string_search.hpp"
 
 #include <atomic>
+#include <climits>
 #include <memory>
 #include <mutex>
 

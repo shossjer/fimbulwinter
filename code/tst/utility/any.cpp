@@ -29,7 +29,8 @@ TEST_CASE("any empty", "[utility][any]")
 
 			SECTION("even to itself")
 			{
-				a1 = std::move(a1);
+				auto & a3 = a1;
+				a1 = std::move(a3);
 				CHECK(!a1.has_value());
 				CHECK(a1.type_id() == utility::type_id<void>());
 			}
@@ -92,7 +93,8 @@ TEST_CASE("any small", "[utility][any]")
 
 			SECTION("even to itself")
 			{
-				a1 = std::move(a1);
+				auto & a3 = a1;
+				a1 = std::move(a3);
 				CHECK(!a1.has_value());
 				CHECK(a1.type_id() == utility::type_id<void>());
 			}
@@ -165,7 +167,8 @@ TEST_CASE("any big", "[utility][any]")
 
 			SECTION("even to itself")
 			{
-				a1 = std::move(a1);
+				auto & a3 = a1;
+				a1 = std::move(a3);
 				CHECK(!a1.has_value());
 				CHECK(a1.type_id() == utility::type_id<void>());
 			}

@@ -45,7 +45,7 @@ namespace engine
 
 		template <typename Stream>
 		friend auto operator << (Stream && stream, this_type x)
-			-> decltype(stream << x.value_)
+			-> decltype(stream << value_type{})
 		{
 #if MODE_DEBUG
 			ful::unit_utf8 chars[100]; // todo

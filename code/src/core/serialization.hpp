@@ -2,13 +2,14 @@
 
 #include "core/debug.hpp"
 
-#include "utility/charconv.hpp"
 #include "utility/iterator.hpp"
 #include "utility/lookup_table.hpp"
 #include "utility/optional.hpp"
 #include "utility/preprocessor/expand.hpp"
 #include "utility/type_traits.hpp"
 #include "utility/utility.hpp"
+
+#include "fio/from_chars.hpp"
 
 #include "ful/view.hpp"
 #include "ful/string_compare.hpp"
@@ -469,6 +470,59 @@ namespace core
 
 	namespace detail
 	{
+		template <typename Stream, typename Value,
+		          REQUIRES((std::is_enum<mpl::remove_cvref_t<Value>>::value)),
+		          REQUIRES((core::has_lookup_table<mpl::remove_cvref_t<Value>>::value))>
+		auto serialize__(Stream && stream, Value && value, int)
+			-> decltype(core::value_table<mpl::remove_cvref_t<Value>>::find(stream.buffer()), std::declval<Stream &&>())
+		{
+			const auto index = core::value_table<mpl::remove_cvref_t<Value>>::find(stream.buffer());
+			if (index != std::size_t(-1))
+			{
+				value = core::value_table<mpl::remove_cvref_t<Value>>::get(index);
+
+				// todo consume whole stream buffer
+			}
+			else
+			{
+				constexpr auto value_name = utility::type_name<mpl::remove_cvref_t<Value>>();
+				static_cast<void>(value_name);
+
+				static_cast<void>(debug_fail("cannot serialize enum of type '", value_name, "' from stream value '", stream.buffer(), "'"));
+
+				stream.setstate(stream.failbit);
+			}
+
+			return static_cast<Stream &&>(stream);
+		}
+
+		template <typename Stream, typename Value>
+		Stream && serialize__(Stream && stream, Value && value, ...)
+		{
+			static_cast<void>(value);
+
+			constexpr auto stream_name = utility::type_name< mpl::remove_cvref_t<Stream>>();
+			constexpr auto value_name = utility::type_name<mpl::remove_cvref_t<Value>>();
+			static_cast<void>(stream_name);
+			static_cast<void>(value_name);
+
+			static_cast<void>(debug_fail("cannot serialize value of type '", value_name, "' from stream of type '", stream_name, "', maybe you are missing an overload to 'operator >>'?"));
+
+			stream.setstate(stream.failbit);
+
+			return static_cast<Stream &&>(stream);
+		}
+	}
+
+	template <typename Stream, typename Value>
+	auto operator >> (Stream && stream, Value && value)
+		-> decltype(detail::serialize__(static_cast<Stream &&>(stream), static_cast<Value &&>(value), 0))
+	{
+		return detail::serialize__(static_cast<Stream &&>(stream), static_cast<Value &&>(value), 0);
+	}
+
+	namespace detail
+	{
 		// todo implement invoke and simplify object
 
 		template <typename T, typename Object,
@@ -523,10 +577,9 @@ namespace core
 
 		template <typename T, typename Value>
 		auto serialize_arithmetic_impl(T & x, Value && value)
-			-> decltype(ext::from_chars(value.data(), value.data() + value.size(), x), bool())
+			-> decltype(fio::from_chars(value.data(), value.data() + value.size(), x), bool())
 		{
-			const auto result = ext::from_chars(value.data(), value.data() + value.size(), x);
-			return result.ec == std::errc{};
+			return fio::from_chars(value.data(), value.data() + value.size(), x) != nullptr;
 		}
 
 		template <typename T, typename Object>

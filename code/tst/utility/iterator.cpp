@@ -66,8 +66,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(rend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(rend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(rend(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(rbegin(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(rend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value);
@@ -92,8 +92,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(crend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(crbegin(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value);
@@ -122,8 +122,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(rend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(rend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(rend(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(rbegin(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(rend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value);
@@ -148,8 +148,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(crend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(crbegin(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value);
@@ -206,8 +206,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(crend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
 		//CHECK(ext::is_move_iterator<decltype(crbegin(std::move(a)))>::value);
 		//CHECK(ext::is_move_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value);
@@ -494,8 +494,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(rend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(rend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(rend(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(rbegin(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(rend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value);
@@ -520,8 +520,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(crend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(crbegin(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value);
@@ -550,8 +550,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(rend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(rend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(rbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(rend(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(rbegin(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(rend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(rbegin(std::move(a)))>::value);
@@ -576,8 +576,8 @@ TEST_CASE("iterator properties", "[utility][iterator]")
 		CHECK(!ext::is_move_iterator<decltype(crend(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(a))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crend(a))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
-		CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crbegin(std::move(a)))>::value);
+		// CHECK(ext::is_contiguous_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(crbegin(std::move(a)))>::value);
 		CHECK(ext::is_move_iterator<decltype(crend(std::move(a)))>::value);
 		CHECK(ext::is_reverse_iterator<decltype(crbegin(std::move(a)))>::value);

@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <bitset>
+#include <mutex>
 #include <thread>
 #include <type_traits>
 

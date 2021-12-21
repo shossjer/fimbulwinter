@@ -6,8 +6,8 @@ namespace
 {
 	struct construction_counter
 	{
-		static int construction_count;
-		static int destruction_count;
+		static ext::usize construction_count;
+		static ext::usize destruction_count;
 
 		static void reset()
 		{
@@ -15,7 +15,7 @@ namespace
 			destruction_count = 0;
 		}
 
-		int i;
+		ext::usize i;
 
 		~construction_counter()
 		{
@@ -34,8 +34,8 @@ namespace
 		construction_counter & operator = (construction_counter &&) = default;
 	};
 
-	int construction_counter::construction_count = -1;
-	int construction_counter::destruction_count = -1;
+	ext::usize construction_counter::construction_count = ext::usize(-1);
+	ext::usize construction_counter::destruction_count = ext::usize(-1);
 }
 
 TEST_CASE("", "")

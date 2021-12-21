@@ -39,8 +39,8 @@ namespace utility
 			T && t;
 
 			template <typename Stream>
-			friend auto operator << (Stream && stream, try_stream_type<T> && x)
-				-> decltype(try_stream_impl(std::forward<Stream>(stream), std::forward<T>(x.t), 0))
+			friend auto operator << (Stream && stream, try_stream_type && x)
+				-> decltype(try_stream_impl(std::forward<Stream>(stream), std::declval<T &&>(), 0))
 			{
 				return try_stream_impl(std::forward<Stream>(stream), std::forward<T>(x.t), 0);
 			}
