@@ -11,7 +11,6 @@ set(HEADERS_CORE
 	src/core/ArmatureStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
-	src/core/BufferedStream.hpp
 	src/core/BytesStructurer.hpp
 	src/core/color.hpp
 	src/core/container/Buffer.hpp
@@ -19,6 +18,7 @@ set(HEADERS_CORE
 	src/core/container/ExchangeQueue.hpp
 	src/core/container/Stack.hpp
 	src/core/container/Queue.hpp
+	src/core/content.hpp
 	src/core/debug.hpp
 	src/core/file/paths.hpp
 	src/core/graphics/Image.hpp
@@ -40,11 +40,9 @@ set(HEADERS_CORE
 	src/core/NoSerializer.hpp
 	src/core/PlaceholderStructurer.hpp
 	src/core/PngStructurer.hpp
-	src/core/ReadStream.hpp
 	src/core/serialization.hpp
 	src/core/ShaderStructurer.hpp
 	src/core/StringSerializer.hpp
-	src/core/StringStream.hpp
 	src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp

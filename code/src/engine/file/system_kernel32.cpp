@@ -4,8 +4,8 @@
 
 #include "core/async/Thread.hpp"
 #include "core/container/Collection.hpp"
+#include "core/content.hpp"
 #include "core/file/paths.hpp"
-#include "core/ReadStream.hpp"
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
@@ -243,31 +243,51 @@ namespace
 			last_write_time = by_handle_file_information.ftLastWriteTime;
 		}
 
+		LARGE_INTEGER file_size;
+		if (!debug_verify(::GetFileSizeEx(hFile, &file_size) != FALSE, "failed with last error ", ::GetLastError()))
+		{
+			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+			return false;
+		}
+
+		HANDLE hMappingObject = ::CreateFileMappingW(hFile, nullptr, PAGE_WRITECOPY, 0, 0, nullptr);
+		if (!debug_verify(hMappingObject != (HANDLE)NULL, "CreateFileMappingW failed with last error ", ::GetLastError()))
+		{
+			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+			return false;
+		}
+
+		LPVOID file_view = ::MapViewOfFile(hMappingObject, FILE_MAP_COPY, 0, 0, 0);
+		if (!debug_verify(file_view != (LPVOID)NULL, "MapViewOfFile failed with last error ", ::GetLastError()))
+		{
+			debug_verify(::CloseHandle(hMappingObject) != FALSE, "failed with last error ", ::GetLastError());
+			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+			return false;
+		}
+
 		ful::heap_string_utf8 relpath;
 		if (!debug_verify(convert(filepath.data() + root, filepath.data() + filepath.size(), relpath)))
-			return false; // error
+		{
+			debug_verify(::UnmapViewOfFile(file_view) != FALSE, "failed with last error ", ::GetLastError());
+			debug_verify(::CloseHandle(hMappingObject) != FALSE, "failed with last error ", ::GetLastError());
+			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+			return false;
+		}
 
 		core::file::backslash_to_slash(relpath);
 
-		ful::cstr_utf8 relpath_(relpath);
-		core::ReadStream stream(
-			[](void * dest, ext::usize n, void * data)
-		{
-			HANDLE hFile = reinterpret_cast<HANDLE>(data);
-
-			DWORD read;
-			if (!debug_verify(::ReadFile(hFile, dest, debug_cast<DWORD>(n), &read, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
-				return ext::ssize(-1);
-
-			return ext::ssize(read);
-		},
-			reinterpret_cast<void *>(hFile),
-			relpath_);
+		core::content content(ful::cstr_utf8(relpath), file_view, file_size.QuadPart);
 
 		engine::file::system filesystem(impl);
-		callback(filesystem, std::move(stream), data);
+		callback(filesystem, content, data);
 		filesystem.detach();
 
+		debug_verify(::UnmapViewOfFile(file_view) != FALSE, "failed with last error ", ::GetLastError());
+		debug_verify(::CloseHandle(hMappingObject) != FALSE, "failed with last error ", ::GetLastError());
 		debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
 		return true;
@@ -515,11 +535,10 @@ namespace engine
 
 					core::file::backslash_to_slash(relpath);
 
-					ful::cstr_utf8 relpath_(relpath);
-					core::ReadStream stream(relpath_);
+					core::content content((ful::cstr_utf8)relpath);
 
 					engine::file::system filesystem(read_data.impl);
-					read_data.callback(filesystem, std::move(stream), read_data.data);
+					read_data.callback(filesystem, content, read_data.data);
 					filesystem.detach();
 				}
 			},
@@ -558,11 +577,10 @@ namespace engine
 
 						core::file::backslash_to_slash(relpath);
 
-						ful::cstr_utf8 relpath_(relpath);
-						core::ReadStream stream(relpath_);
+						core::content content((ful::cstr_utf8)relpath);
 
 						engine::file::system filesystem(read_data.impl);
-						read_data.callback(filesystem, std::move(stream), read_data.data);
+						read_data.callback(filesystem, content, read_data.data);
 						filesystem.detach();
 					}
 				}

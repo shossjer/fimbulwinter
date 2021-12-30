@@ -1,7 +1,7 @@
 #pragma once
 
+#include "core/content.hpp"
 #include "core/debug.hpp"
-#include "core/ReadStream.hpp"
 #include "core/serialization.hpp"
 
 #include "utility/algorithm.hpp"
@@ -42,27 +42,12 @@ namespace core
 
 	public:
 
-		explicit JsonStructurer(core::ReadStream && read_stream)
-			: filepath_(read_stream.filepath())
+		explicit JsonStructurer(core::content & content)
+			: filepath_(content.filepath())
 		{
-			std::vector<char> buffer;
-			std::size_t filled = 0;
-
-			while (!read_stream.done())
-			{
-				const auto extra = 0x1000;
-				buffer.resize(filled + extra); // todo might throw
-
-				const ext::ssize ret = read_stream.read_some(buffer.data() + filled, extra);
-				if (!debug_verify(ret >= 0))
-					return;
-
-				filled += ret;
-			}
-
 			try
 			{
-				root = json::parse(buffer.data(), buffer.data() + filled);
+				root = json::parse(static_cast<ful::unit_utf8 *>(content.data()), static_cast<ful::unit_utf8 *>(content.data()) + content.size());
 			}
 			catch (std::exception & x)
 			{

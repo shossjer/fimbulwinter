@@ -6,17 +6,13 @@
 	CHECK(var.size() == 0); \
 	CHECK(var.data() == arr); \
 	CHECK(utility::to_address(var.begin()) == arr); \
-	CHECK(utility::to_address(var.end()) == arr); \
-	CHECK(utility::to_address(var.rbegin()) + 1 == arr); \
-	CHECK(utility::to_address(var.rend()) + 1 == arr)
+	CHECK(utility::to_address(var.end()) == arr);
 
 #define CHECK_SPAN_1(var, arr) \
 	CHECK(var.size() == 1); \
 	CHECK(var.data() == arr); \
 	CHECK(utility::to_address(var.begin()) == arr); \
 	CHECK(utility::to_address(var.end()) == arr + 1); \
-	CHECK(utility::to_address(var.rbegin()) == arr); \
-	CHECK(utility::to_address(var.rend()) + 1 == arr); \
 	CHECK(var[0] == 1)
 
 #define CHECK_SPAN_2(var, arr) \
@@ -24,8 +20,6 @@
 	CHECK(var.data() == arr); \
 	CHECK(utility::to_address(var.begin()) == arr); \
 	CHECK(utility::to_address(var.end()) == arr + 2); \
-	CHECK(utility::to_address(var.rbegin()) == arr + 1); \
-	CHECK(utility::to_address(var.rend()) + 1 == arr); \
 	CHECK(var[0] == 1); \
 	CHECK(var[1] == 2)
 
@@ -34,8 +28,6 @@
 	CHECK(var.data() == arr); \
 	CHECK(utility::to_address(var.begin()) == arr); \
 	CHECK(utility::to_address(var.end()) == arr + 3); \
-	CHECK(utility::to_address(var.rbegin()) == arr + 2); \
-	CHECK(utility::to_address(var.rend()) + 1 == arr); \
 	CHECK(var[0] == 1); \
 	CHECK(var[2] == 3)
 
@@ -44,8 +36,6 @@
 	CHECK(var.data() == arr); \
 	CHECK(utility::to_address(var.begin()) == arr); \
 	CHECK(utility::to_address(var.end()) == arr + 4); \
-	CHECK(utility::to_address(var.rbegin()) == arr + 3); \
-	CHECK(utility::to_address(var.rend()) + 1 == arr); \
 	CHECK(var[0] == 1); \
 	CHECK(var[3] == 4)
 
@@ -54,25 +44,21 @@
 	CHECK(var.data() == arr); \
 	CHECK(utility::to_address(var.begin()) == arr); \
 	CHECK(utility::to_address(var.end()) == arr + 5); \
-	CHECK(utility::to_address(var.rbegin()) == arr + 4); \
-	CHECK(utility::to_address(var.rend()) + 1 == arr); \
 	CHECK(var[0] == 1); \
 	CHECK(var[4] == 5)
 
 TEST_CASE("", "[utility][span]")
 {
-	utility::span<int> s;
+	utility::span<int> s{};
 	CHECK(s.size() == 0);
 	CHECK(s.begin() == s.end());
-	CHECK(s.rbegin() == s.rend());
 }
 
 TEST_CASE("", "[utility][span]")
 {
-	utility::span<int, 0> s;
+	utility::span<int, 0> s{};
 	CHECK(s.size() == 0);
 	CHECK(s.begin() == s.end());
-	CHECK(s.rbegin() == s.rend());
 }
 
 TEST_CASE("", "[utility][span]")
@@ -81,121 +67,121 @@ TEST_CASE("", "[utility][span]")
 
 	SECTION("")
 	{
-		utility::span<int> s = {a, 0};
+		utility::span<int> s(a, 0);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = {a, 0};
+		utility::span<const int> s(a, 0);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int, 0> s = {a, 0};
+		utility::span<int, 0> s(a, 0);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 0> s = {a, 0};
+		utility::span<const int, 0> s(a, 0);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int> s = {a, 1};
+		utility::span<int> s(a, 1);
 		CHECK_SPAN_1(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = {a, 2};
+		utility::span<const int> s(a, 2);
 		CHECK_SPAN_2(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int, 3> s = {a, 3};
+		utility::span<int, 3> s(a, 3);
 		CHECK_SPAN_3(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 4> s = {a, 4};
+		utility::span<const int, 4> s(a, 4);
 		CHECK_SPAN_4(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int> s = {a, a};
+		utility::span<int> s(a, a);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = {a, a};
+		utility::span<const int> s(a, a);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int, 0> s = {a, a};
+		utility::span<int, 0> s(a, a);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 0> s = {a, a};
+		utility::span<const int, 0> s(a, a);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int> s = {a, a + 1};
+		utility::span<int> s(a, a + 1);
 		CHECK_SPAN_1(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = {a, a + 2};
+		utility::span<const int> s(a, a + 2);
 		CHECK_SPAN_2(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int, 3> s = {a, a + 3};
+		utility::span<int, 3> s(a, a + 3);
 		CHECK_SPAN_3(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 4> s = {a, a + 4};
+		utility::span<const int, 4> s(a, a + 4);
 		CHECK_SPAN_4(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int> s = a;
+		utility::span<int> s(a);
 		CHECK_SPAN_5(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = a;
+		utility::span<const int> s(a);
 		CHECK_SPAN_5(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<int, 5> s = a;
+		utility::span<int, 5> s(a);
 		CHECK_SPAN_5(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 5> s = a;
+		utility::span<const int, 5> s(a);
 		CHECK_SPAN_5(s, a);
 	}
 }
@@ -206,61 +192,61 @@ TEST_CASE("", "[utility][span]")
 
 	SECTION("")
 	{
-		utility::span<const int> s = {a, 0};
+		utility::span<const int> s(a, 0);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 0> s = {a, 0};
+		utility::span<const int, 0> s(a, 0);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = {a, 2};
+		utility::span<const int> s(a, 2);
 		CHECK_SPAN_2(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 4> s = {a, 4};
+		utility::span<const int, 4> s(a, 4);
 		CHECK_SPAN_4(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = {a, a};
+		utility::span<const int> s(a, a);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 0> s = {a, a};
+		utility::span<const int, 0> s(a, a);
 		CHECK_SPAN_0(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = {a, a + 2};
+		utility::span<const int> s(a, a + 2);
 		CHECK_SPAN_2(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 4> s = {a, a + 4};
+		utility::span<const int, 4> s(a, a + 4);
 		CHECK_SPAN_4(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = a;
+		utility::span<const int> s(a);
 		CHECK_SPAN_5(s, a);
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 5> s = a;
+		utility::span<const int, 5> s(a);
 		CHECK_SPAN_5(s, a);
 	}
 }
@@ -271,25 +257,25 @@ TEST_CASE("", "[utility][span]")
 
 	SECTION("")
 	{
-		utility::span<int> s = a;
+		utility::span<int> s(a);
 		CHECK_SPAN_5(s, a.data());
 	}
 
 	SECTION("")
 	{
-		utility::span<const int> s = a;
+		utility::span<const int> s(a);
 		CHECK_SPAN_5(s, a.data());
 	}
 
 	SECTION("")
 	{
-		utility::span<int, 5> s = a;
+		utility::span<int, 5> s(a);
 		CHECK_SPAN_5(s, a.data());
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 5> s = a;
+		utility::span<const int, 5> s(a);
 		CHECK_SPAN_5(s, a.data());
 	}
 }
@@ -300,13 +286,13 @@ TEST_CASE("", "[utility][span]")
 
 	SECTION("")
 	{
-		utility::span<const int> s = a;
+		utility::span<const int> s(a);
 		CHECK_SPAN_5(s, a.data());
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 5> s = a;
+		utility::span<const int, 5> s(a);
 		CHECK_SPAN_5(s, a.data());
 	}
 }
@@ -317,13 +303,24 @@ TEST_CASE("", "[utility][span]")
 
 	SECTION("")
 	{
-		utility::span<int> s = a;
+		utility::span<int> s(a);
 
 		SECTION("")
 		{
 			utility::span<int> ss = s;
 			CHECK_SPAN_5(ss, a);
 		}
+
+		SECTION("")
+		{
+			utility::span<const int> ss(s);
+			CHECK_SPAN_5(ss, a);
+		}
+	}
+
+	SECTION("")
+	{
+		utility::span<const int> s(a);
 
 		SECTION("")
 		{
@@ -334,28 +331,17 @@ TEST_CASE("", "[utility][span]")
 
 	SECTION("")
 	{
-		utility::span<const int> s = a;
+		utility::span<int, 5> s(a);
 
 		SECTION("")
 		{
-			utility::span<const int> ss = s;
-			CHECK_SPAN_5(ss, a);
-		}
-	}
-
-	SECTION("")
-	{
-		utility::span<int, 5> s = a;
-
-		SECTION("")
-		{
-			utility::span<int> ss = s;
+			utility::span<int> ss(s);
 			CHECK_SPAN_5(ss, a);
 		}
 
 		SECTION("")
 		{
-			utility::span<const int> ss = s;
+			utility::span<const int> ss(s);
 			CHECK_SPAN_5(ss, a);
 		}
 
@@ -367,18 +353,18 @@ TEST_CASE("", "[utility][span]")
 
 		SECTION("")
 		{
-			utility::span<const int, 5> ss = s;
+			utility::span<const int, 5> ss(s);
 			CHECK_SPAN_5(ss, a);
 		}
 	}
 
 	SECTION("")
 	{
-		utility::span<const int, 5> s = a;
+		utility::span<const int, 5> s(a);
 
 		SECTION("")
 		{
-			utility::span<const int> ss = s;
+			utility::span<const int> ss(s);
 			CHECK_SPAN_5(ss, a);
 		}
 
@@ -396,7 +382,7 @@ TEST_CASE("utility span functions", "[utility][span]")
 
 	SECTION("for dynamic spans")
 	{
-		utility::span<int> s = a;
+		utility::span<int> s(a);
 
 		SECTION("supports empty")
 		{
@@ -509,7 +495,7 @@ TEST_CASE("utility span functions", "[utility][span]")
 
 	SECTION("for static spans")
 	{
-		utility::span<int, 3> s = a;
+		utility::span<int, 3> s(a);
 
 		SECTION("supports empty")
 		{
@@ -572,11 +558,11 @@ TEST_CASE("utility span functions", "[utility][span]")
 
 		SECTION("")
 		{
-			utility::span<int> ss = utility::subspan<0>(s);
+			utility::span<int> ss(utility::subspan<0>(s));
 			CHECK(ss.data() == a);
 			CHECK(ss.size() == 3);
 
-			utility::span<int> sss = utility::subspan<3>(s);
+			utility::span<int> sss(utility::subspan<3>(s));
 			CHECK(sss.data() == a + 3);
 			CHECK(sss.size() == 0);
 		}
@@ -622,7 +608,7 @@ TEST_CASE("utility span functions", "[utility][span]")
 
 	SECTION("for dynamic const spans")
 	{
-		utility::span<const int> s = a;
+		utility::span<const int> s(a);
 
 		SECTION("supports empty")
 		{
@@ -735,7 +721,7 @@ TEST_CASE("utility span functions", "[utility][span]")
 
 	SECTION("for static const spans")
 	{
-		utility::span<const int, 3> s = a;
+		utility::span<const int, 3> s(a);
 
 		SECTION("supports empty")
 		{
@@ -798,11 +784,11 @@ TEST_CASE("utility span functions", "[utility][span]")
 
 		SECTION("")
 		{
-			utility::span<const int> ss = utility::subspan<0>(s);
+			utility::span<const int> ss(utility::subspan<0>(s));
 			CHECK(ss.data() == a);
 			CHECK(ss.size() == 3);
 
-			utility::span<const int> sss = utility::subspan<3>(s);
+			utility::span<const int> sss(utility::subspan<3>(s));
 			CHECK(sss.data() == a + 3);
 			CHECK(sss.size() == 0);
 		}

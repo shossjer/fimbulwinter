@@ -85,7 +85,7 @@ namespace
 		engine::Asset file;
 		ext::heap_weak_ptr<FileCallData> file_callback;
 
-		static void file_load(engine::file::system & filesystem, core::ReadStream && stream, utility::any & data);
+		static void file_load(engine::file::system & filesystem, core::content & content, utility::any & data);
 	};
 
 	constexpr auto global = engine::Hash{};
@@ -1677,7 +1677,7 @@ namespace
 		loader_update(*loader->taskscheduler, strand, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageFileScan>, directory, std::move(existing_files), std::move(removed_files)));
 	}
 
-	void ReadData::file_load(engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+	void ReadData::file_load(engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 	{
 		ReadData * const read_data = utility::any_cast<ReadData>(&data);
 		if (!debug_assert(read_data))
@@ -1698,7 +1698,7 @@ namespace
 			}
 			filecall_ptr->ready = false;
 		}
-		filecall_ptr->filetype.loadcall(loader, std::move(stream), filecall_ptr->stash, read_data->file);
+		filecall_ptr->filetype.loadcall(loader, content, filecall_ptr->stash, read_data->file);
 		loader.detach();
 
 		engine::task::post_work(*read_data->impl->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *read_data->impl, utility::in_place_type<MessageLoadDone>, read_data->file));

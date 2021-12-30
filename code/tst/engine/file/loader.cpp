@@ -1,4 +1,4 @@
-#include "core/ReadStream.hpp"
+#include "core/content.hpp"
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
@@ -29,11 +29,12 @@ namespace
 		stream.write_all(&number, sizeof number);
 	};
 
-	char read_char(core::ReadStream & stream)
+	char read_char(core::content & content)
 	{
-		char number = -1;
-		stream.read_all(&number, sizeof number);
-		return number;
+		if (content.size() < 1)
+			return static_cast<char>(-1);
+
+		return *static_cast<char *>(content.data());
 	}
 
 	const int timeout = 1000; // milliseconds
@@ -80,17 +81,17 @@ TEST_CASE("file loader can read files", "[engine][file]")
 		engine::file::scoped_filetype filetype(
 			fileloader,
 			engine::Asset("tmpfiletype"),
-			[](engine::file::loader & /*fileloader*/, core::ReadStream && stream, utility::any & stash, engine::Asset file)
+			[](engine::file::loader & /*fileloader*/, core::content & content, utility::any & stash, engine::Asset file)
 		{
 			FileData & file_data = stash.emplace<FileData>();
 
 			switch (file)
 			{
 			case engine::Hash(u8"maybe.exists"):
-				file_data.value += int(read_char(stream));
+				file_data.value += int(read_char(content));
 				break;
 			case engine::Hash(u8"folder/maybe.exists"):
-				file_data.value += int(read_char(stream));
+				file_data.value += int(read_char(content));
 				break;
 			default:
 				debug_fail();
@@ -321,7 +322,7 @@ namespace
 		}
 	}
 
-	void tree_load(engine::file::loader & fileloader, core::ReadStream && stream, utility::any & stash, engine::Asset file)
+	void tree_load(engine::file::loader & fileloader, core::content & content, utility::any & stash, engine::Asset file)
 	{
 		TreeFileData & file_data = stash.emplace<TreeFileData>();
 
@@ -331,26 +332,26 @@ namespace
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.2"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.1"):
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.2"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.4"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.3"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.4"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.5"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.5"):
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		default:
 			debug_fail();

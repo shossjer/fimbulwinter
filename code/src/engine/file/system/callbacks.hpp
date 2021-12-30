@@ -6,7 +6,7 @@
 
 namespace core
 {
-	class ReadStream;
+	class content;
 	class WriteStream;
 }
 
@@ -23,7 +23,7 @@ namespace engine
 
 		using read_callback = void(
 			engine::file::system & filesystem,
-			core::ReadStream && stream,
+			core::content & content,
 			utility::any & data);
 
 		using scan_callback = void(

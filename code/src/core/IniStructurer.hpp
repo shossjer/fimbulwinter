@@ -1,8 +1,8 @@
 #pragma once
 
+#include "core/content.hpp"
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
-#include "core/StringStream.hpp"
 
 #include "utility/regex.hpp"
 
@@ -12,14 +12,14 @@ namespace core
 	{
 	private:
 
-		StringStream<utility::heap_storage_traits> stream_;
+		core::content content_;
 
-		using Parser = rex::parser_for<StringStream<utility::heap_storage_traits>>;
+		using Parser = rex::parser<ful::unit_utf8 *, ful::unit_utf8 *>;
 
 	public:
 
-		explicit IniStructurer(ReadStream && stream)
-			: stream_(std::move(stream))
+		explicit IniStructurer(content & content)
+			: content_(content)
 		{}
 
 	public:
@@ -27,7 +27,7 @@ namespace core
 		template <typename T>
 		bool read(T & x)
 		{
-			Parser parser = rex::parse(stream_);
+			Parser parser = rex::parse(static_cast<ful::unit_utf8 *>(content_.data()), static_cast<ful::unit_utf8 *>(content_.data()) + content_.size());
 
 			const auto key_values = read_key_values(x, parser);
 			if (!key_values.first)
@@ -53,7 +53,7 @@ namespace core
 			parser.seek(key_match.second);
 
 			const auto equals_match = parser.match(rex::ch('='));
-			if (!debug_verify(equals_match.first, equals_match.second - stream_.begin()))
+			if (!debug_verify(equals_match.first, equals_match.second - static_cast<ful::unit_utf8 *>(content_.data())))
 				return equals_match;
 
 			parser.seek(equals_match.second);
@@ -101,7 +101,7 @@ namespace core
 			if (!debug_verify(bracket_close.first != parser.end()))
 				return std::make_pair(false, bracket_close.first);
 
-			const auto header_name = ful::view_utf8(bracket_open.second.get(), bracket_close.first.get());
+			const auto header_name = ful::view_utf8(bracket_open.second, bracket_close.first);
 
 			parser.seek(bracket_close.first);
 
@@ -148,7 +148,7 @@ namespace core
 			if (!debug_verify(key_match.first))
 				return key_match;
 
-			const auto key = ful::view_utf8(parser.begin().get(), key_match.second.get());
+			const auto key = ful::view_utf8(parser.begin(), key_match.second);
 
 			parser.seek(key_match.second);
 
@@ -162,7 +162,7 @@ namespace core
 			if (!debug_verify(value_match.first))
 				return value_match;
 
-			const auto value = ful::view_utf8(parser.begin().get(), value_match.second.get());
+			const auto value = ful::view_utf8(parser.begin(), value_match.second);
 
 			const auto member = core::member_table<T>::find(key);
 			if (member != std::size_t(-1))

@@ -468,27 +468,37 @@ namespace core
 	template <typename U, typename T>
 	using supports_reshape = decltype(reshape<U>(std::declval<T>(), 0));
 
+	//template <typename Stream, typename T>
+	//auto operator >> (Stream && stream, utility::optional<T> & value)
+	//	-> decltype(static_cast<Stream &&>(stream) >> value.value())
+	//{
+	//	// todo expect !value?
+	//	return static_cast<Stream &&>(stream) >> (value ? value.value() : value.emplace());
+	//}
+	template <typename Stream, typename T>
+	Stream && operator >> (Stream && stream, utility::optional<T> & value) = delete;
+
 	namespace detail
 	{
 		template <typename Stream, typename Value,
-		          REQUIRES((std::is_enum<mpl::remove_cvref_t<Value>>::value)),
-		          REQUIRES((core::has_lookup_table<mpl::remove_cvref_t<Value>>::value))>
-		auto serialize__(Stream && stream, Value && value, int)
-			-> decltype(core::value_table<mpl::remove_cvref_t<Value>>::find(stream.buffer()), std::declval<Stream &&>())
+		          REQUIRES((std::is_enum<Value>::value)),
+		          REQUIRES((core::has_lookup_table<Value>::value))>
+		auto serialize__(Stream && stream, Value & value, int)
+			-> decltype(core::value_table<Value>::find(stream.buffer()), std::declval<Stream &&>())
 		{
-			const auto index = core::value_table<mpl::remove_cvref_t<Value>>::find(stream.buffer());
+			const auto index = core::value_table<Value>::find(stream.buffer());
 			if (index != std::size_t(-1))
 			{
-				value = core::value_table<mpl::remove_cvref_t<Value>>::get(index);
+				value = core::value_table<Value>::get(index);
 
 				// todo consume whole stream buffer
 			}
 			else
 			{
-				constexpr auto value_name = utility::type_name<mpl::remove_cvref_t<Value>>();
+				constexpr auto value_name = utility::type_name<Value>();
 				static_cast<void>(value_name);
 
-				static_cast<void>(debug_fail("cannot serialize enum of type '", value_name, "' from stream value '", stream.buffer(), "'"));
+				debug_printline("cannot serialize enum of type '", value_name, "' from stream value '", stream.buffer(), "'");
 
 				stream.setstate(stream.failbit);
 			}
@@ -497,12 +507,28 @@ namespace core
 		}
 
 		template <typename Stream, typename Value>
-		Stream && serialize__(Stream && stream, Value && value, ...)
+		auto serialize__(Stream && stream, Value & value, float)
+			-> decltype(assign(value, stream.buffer()), std::declval<Stream &&>())
+		{
+			if (assign(value, stream.buffer()))
+			{
+				// todo consume whole stream buffer
+			}
+			else
+			{
+				stream.setstate(stream.failbit);
+			}
+
+			return static_cast<Stream &&>(stream);
+		}
+
+		template <typename Stream, typename Value>
+		Stream && serialize__(Stream && stream, Value & value, ...)
 		{
 			static_cast<void>(value);
 
 			constexpr auto stream_name = utility::type_name< mpl::remove_cvref_t<Stream>>();
-			constexpr auto value_name = utility::type_name<mpl::remove_cvref_t<Value>>();
+			constexpr auto value_name = utility::type_name<Value>();
 			static_cast<void>(stream_name);
 			static_cast<void>(value_name);
 
@@ -515,111 +541,49 @@ namespace core
 	}
 
 	template <typename Stream, typename Value>
-	auto operator >> (Stream && stream, Value && value)
-		-> decltype(detail::serialize__(static_cast<Stream &&>(stream), static_cast<Value &&>(value), 0))
+	Stream && operator >> (Stream && stream, const Value & value) = delete;
+
+	template <typename Stream, typename Value>
+	auto operator >> (Stream && stream, Value & value)
+		-> decltype(detail::serialize__(static_cast<Stream &&>(stream), value, 0))
 	{
-		return detail::serialize__(static_cast<Stream &&>(stream), static_cast<Value &&>(value), 0);
+		return detail::serialize__(static_cast<Stream &&>(stream), value, 0);
+	}
+
+	template <typename T>
+	auto serialize(T & x, ful::view_utf8 object)
+		-> decltype(fio::istream<ful::view_utf8>(object) >> x, bool())
+	{
+		return static_cast<bool>(fio::istream<ful::view_utf8>(object) >> x);
+	}
+
+	template <typename T>
+	auto serialize(T & x, ful::cstr_utf8 object)
+		-> decltype(fio::istream<ful::view_utf8>(object) >> x, bool())
+	{
+		return static_cast<bool>(fio::istream<ful::view_utf8>(object) >> x);
 	}
 
 	namespace detail
 	{
-		// todo implement invoke and simplify object
-
-		template <typename T, typename Object,
-		          REQUIRES((core::has_lookup_table<T>::value))>
-		auto serialize_enum(T & x, Object && object)
-			-> decltype(core::value_table<T>::find(object()), bool())
-		{
-			const auto index = core::value_table<T>::find(object());
-			if (index == std::size_t(-1))
-				return debug_fail("unknown enum value");
-
-			x = core::value_table<T>::get(index);
-			return true;
-		}
-
-		template <typename T, typename Object,
-		          REQUIRES((core::has_lookup_table<T>::value))>
-		auto serialize_enum(T & x, Object && object)
-			-> decltype(core::value_table<T>::find(std::forward<Object>(object)), bool())
-		{
-			const auto index = core::value_table<T>::find(std::forward<Object>(object));
-			if (index == std::size_t(-1))
-				return debug_fail("unknown enum value");
-
-			x = core::value_table<T>::get(index);
-			return true;
-		}
-
-		template <typename T, typename Object,
-		          REQUIRES((std::is_enum<mpl::remove_cvref_t<T>>::value))>
-		auto serialize_impl(T & x, Object && object, int)
-			-> decltype(serialize_enum(x, std::forward<Object>(object)))
-		{
-			return serialize_enum(x, std::forward<Object>(object));
-		}
-
 		template <typename T, typename Object>
-		auto serialize_arithmetic(T & x, Object && object)
-			-> decltype(x = object(), bool())
+		auto serialize_(T & x, Object && object, int)
+			-> decltype(x = object(), x == object(), bool())
 		{
 			x = debug_cast<T>(object());
 			return true;
 		}
 
 		template <typename T, typename Object>
-		auto serialize_arithmetic(T & x, Object && object)
-			-> decltype(x = std::forward<Object>(object), bool())
+		auto serialize_(T & x, Object && object, int)
+			-> decltype(x = static_cast<Object &&>(object), x == object, bool())
 		{
-			x = debug_cast<T>(std::forward<Object>(object));
+			x = debug_cast<T>(static_cast<Object &&>(object));
 			return true;
 		}
 
-		template <typename T, typename Value>
-		auto serialize_arithmetic_impl(T & x, Value && value)
-			-> decltype(fio::from_chars(value.data(), value.data() + value.size(), x), bool())
-		{
-			return fio::from_chars(value.data(), value.data() + value.size(), x) != nullptr;
-		}
-
 		template <typename T, typename Object>
-		auto serialize_arithmetic(T & x, Object && object)
-			-> decltype(serialize_arithmetic_impl(x, object()))
-		{
-			return serialize_arithmetic_impl(x, object());
-		}
-
-		template <typename T, typename Object>
-		auto serialize_arithmetic(T & x, Object && object)
-			-> decltype(serialize_arithmetic_impl(x, std::forward<Object>(object)))
-		{
-			return serialize_arithmetic_impl(x, std::forward<Object>(object));
-		}
-
-		template <typename T, typename Object,
-		          REQUIRES((std::is_arithmetic<mpl::remove_cvref_t<T>>::value))>
-		auto serialize_impl(T & x, Object && object, int)
-			-> decltype(serialize_arithmetic(x, std::forward<Object>(object)))
-		{
-			return serialize_arithmetic(x, std::forward<Object>(object));
-		}
-
-		template <typename T, typename Object>
-		auto serialize_assign(T & x, Object && object, int)
-			-> decltype(static_cast<bool>(assign(x, object())))
-		{
-			return static_cast<bool>(assign(x, object()));
-		}
-
-		template <typename T, typename Object>
-		auto serialize_assign(T & x, Object && object, int)
-			-> decltype(static_cast<bool>(assign(x, std::forward<Object>(object))))
-		{
-			return static_cast<bool>(assign(x, std::forward<Object>(object)));
-		}
-
-		template <typename T, typename Object>
-		auto serialize_assign(T & x, Object && object, ...)
+		auto serialize_(T & x, Object && object, float)
 			-> decltype(x = object(), bool())
 		{
 			x = object();
@@ -627,22 +591,15 @@ namespace core
 		}
 
 		template <typename T, typename Object>
-		auto serialize_assign(T & x, Object && object, ...)
-			-> decltype(x = std::forward<Object>(object), bool())
+		auto serialize_(T & x, Object && object, float)
+			-> decltype(x = static_cast<Object &&>(object), bool())
 		{
-			x = std::forward<Object>(object);
+			x = static_cast<Object &&>(object);
 			return true;
 		}
 
 		template <typename T, typename Object>
-		auto serialize_impl(T & x, Object && object, float)
-			-> decltype(serialize_assign(x, std::forward<Object>(object), 0))
-		{
-			return serialize_assign(x, std::forward<Object>(object), 0);
-		}
-
-		template <typename T, typename Object>
-		bool serialize_impl(T &, Object &&, ...)
+		bool serialize_(T &, Object &&, ...)
 		{
 			constexpr auto value_name = utility::type_name<T>();
 			constexpr auto object_name = utility::type_name<Object>();
@@ -653,15 +610,16 @@ namespace core
 	}
 
 	template <typename T, typename Object>
-	bool serialize(T & x, Object && object)
+	auto serialize(T & x, Object && object)
+		-> decltype(detail::serialize_(x, static_cast<Object &&>(object), 0))
 	{
-		return detail::serialize_impl(x, std::forward<Object>(object), 0);
+		return detail::serialize_(x, static_cast<Object &&>(object), 0);
 	}
 
 	template <typename T, typename Object>
 	bool serialize(utility::optional<T> & x, Object && object)
 	{
-		return serialize(x ? x.value() : x.emplace(), std::forward<Object>(object));
+		return serialize(x ? x.value() : x.emplace(), static_cast<Object &&>(object));
 	}
 
 	namespace detail

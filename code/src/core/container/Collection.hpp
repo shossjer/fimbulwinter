@@ -187,7 +187,7 @@ namespace core
 			utility::span<C> get()
 			{
 				auto & array = std::get<mpl::index_of<C, component_types>::value>(arrays_);
-				return {array.data().first, array.size()};
+				return utility::span<C>(array.data().first, array.size());
 			}
 
 			template <typename C>
@@ -195,7 +195,7 @@ namespace core
 			utility::span<const C> get() const
 			{
 				const auto & array = std::get<mpl::index_of<C, component_types>::value>(arrays_);
-				return {array.data().first, array.size()};
+				return utility::span<const C>(array.data().first, array.size());
 			}
 
 			template <typename C>
@@ -601,7 +601,7 @@ namespace core
 			utility::span<C> get()
 			{
 				auto & array = std::get<mpl::index_of<C, component_types>::value>(arrays_);
-				return {array.data().first, array.size()};
+				return utility::span<C>(array.data().first, array.size());
 			}
 
 			template <typename C>
@@ -609,7 +609,7 @@ namespace core
 			utility::span<const C> get() const
 			{
 				const auto & array = std::get<mpl::index_of<C, component_types>::value>(arrays_);
-				return {array.data().first, array.size()};
+				return utility::span<const C>(array.data().first, array.size());
 			}
 
 			template <typename C>

@@ -29,7 +29,7 @@ namespace test
 
 TEST_CASE("", "[core][ini][structurer]")
 {
-	const char simple[] = R"(
+	char simple[] = R"(
 ; variables without group
 Int=79817
 Bool=1
@@ -44,24 +44,8 @@ Int=-789872
 String=name
 )";
 
-	struct stream_data
-	{
-		const char * begin;
-		const char * end;
-	}
-	stream_data{simple, simple + sizeof simple - 1};
-
-	core::IniStructurer structurer(core::ReadStream(
-		[](void * dest, ext::usize n, void * data) -> ext::ssize
-		{
-			auto & d = *static_cast<struct stream_data *>(data);
-			n = std::min(n, ext::usize(d.end - d.begin));
-			std::copy_n(d.begin, n, static_cast<char *>(dest));
-			d.begin += n;
-			return n;
-		},
-		&stream_data,
-		ful::cstr_utf8("")));
+	core::content content(ful::cstr_utf8(""), simple + 0, sizeof simple - 1);
+	core::IniStructurer structurer(content);
 
 	SECTION("can be read into full struct")
 	{

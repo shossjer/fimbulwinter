@@ -1,5 +1,5 @@
+#include "core/content.hpp"
 #include "core/debug.hpp"
-#include "core/ReadStream.hpp"
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
@@ -47,11 +47,11 @@ namespace
 		}
 	};
 
-	char read_char(core::ReadStream & stream)
+	char read_char(core::content & content, int index = 0)
 	{
-		char number = -1;
-		stream.read_all(&number, sizeof number);
-		return number;
+		if (index < content.size())
+			return *(static_cast<char *>(content.data()) + index);
+		return static_cast<char>(-1);
 	}
 
 	const int timeout = 1000; // milliseconds
@@ -97,15 +97,15 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash{},
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				debug_printline(stream.filepath());
-				sync_data.value = stream.filepath() == u8"maybe.exists" ? int(read_char(stream)) : -1;
+				debug_printline(content.filepath());
+				sync_data.value = content.filepath() == u8"maybe.exists" ? int(read_char(content)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(sync_data + 0));
@@ -116,15 +116,15 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			std::move(filepath2),
 			engine::Hash{},
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				debug_printline(stream.filepath());
-				sync_data.value = stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
+				debug_printline(content.filepath());
+				sync_data.value = content.filepath() == u8"folder/maybe.exists" ? int(read_char(content)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(sync_data + 1));
@@ -161,14 +161,14 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash("strand"),
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
 
 			auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-			const auto value = int(read_char(stream));
+			const auto value = int(read_char(content));
 			if (value == 3)
 			{
 				if (sync_data.value_3 == 0)
@@ -408,14 +408,14 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash("strand"),
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) : -1;
+				sync_data.value = content.filepath() == u8"new.file" ? int(read_char(content)) + int(read_char(content, 1)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(&sync_data));
@@ -449,14 +449,14 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash("strand"),
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) : -1;
+				sync_data.value = content.filepath() == u8"new.file" ? int(read_char(content)) + int(read_char(content, 1)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(&sync_data));
@@ -490,14 +490,14 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash("strand"),
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) + int(read_char(stream)) : -1;
+				sync_data.value = content.filepath() == u8"new.file" ? int(read_char(content)) + int(read_char(content, 1)) + int(read_char(content, 2)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(&sync_data));

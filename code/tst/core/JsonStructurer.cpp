@@ -37,28 +37,12 @@ namespace
 
 TEST_CASE("integer json arrays", "[core][json][structurer]")
 {
-	const char integer_array[] = u8R"(
+	char integer_array[] = u8R"(
 [ 9, -8, 7, -6, 5, -4, 3, -2, 1 ]
 )";
 
-	struct stream_data
-	{
-		const char * begin;
-		const char * end;
-	}
-	stream_data{integer_array, integer_array + sizeof integer_array - 1};
-
-	core::JsonStructurer structurer(core::ReadStream(
-		[](void * dest, ext::usize n, void * data) -> ext::ssize
-	{
-		auto & d = *static_cast<struct stream_data *>(data);
-		n = std::min(n, ext::usize(d.end - d.begin));
-		std::copy_n(d.begin, n, static_cast<char *>(dest));
-		d.begin += n;
-		return n;
-	},
-		&stream_data,
-		ful::cstr_utf8("")));
+	core::content content(ful::cstr_utf8(""), integer_array, sizeof integer_array - 1);
+	core::JsonStructurer structurer(content);
 
 	SECTION("can be read into c-array")
 	{
@@ -146,7 +130,7 @@ TEST_CASE("integer json arrays", "[core][json][structurer]")
 
 TEST_CASE("simple json objects", "[core][json][structurer]")
 {
-	const char simple_object[] = u8R"(
+	char simple_object[] = u8R"(
 {
 	"boolean": true,
 	"enum name": "three",
@@ -159,24 +143,8 @@ TEST_CASE("simple json objects", "[core][json][structurer]")
 }
 )";
 
-	struct stream_data
-	{
-		const char * begin;
-		const char * end;
-	}
-	stream_data{simple_object, simple_object + sizeof simple_object - 1};
-
-	core::JsonStructurer structurer(core::ReadStream(
-		[](void * dest, ext::usize n, void * data) -> ext::ssize
-		{
-			auto & d = *static_cast<struct stream_data *>(data);
-			n = std::min(n, ext::usize(d.end - d.begin));
-			std::copy_n(d.begin, n, static_cast<char *>(dest));
-			d.begin += n;
-			return n;
-		},
-		&stream_data,
-		ful::cstr_utf8("")));
+	core::content content(ful::cstr_utf8(""), simple_object, sizeof simple_object - 1);
+	core::JsonStructurer structurer(content);
 
 	SECTION("can be read into full struct")
 	{
@@ -224,7 +192,7 @@ TEST_CASE("simple json objects", "[core][json][structurer]")
 
 TEST_CASE("", "[core][json][structurer]")
 {
-	const char color_source[] = u8R"(
+	char color_source[] = u8R"(
 {
 	"rgb type":
 	{
@@ -241,24 +209,8 @@ TEST_CASE("", "[core][json][structurer]")
 }
 )";
 
-	struct stream_data
-	{
-		const char * begin;
-		const char * end;
-	}
-	stream_data{color_source, color_source + sizeof color_source - 1};
-
-	core::JsonStructurer structurer(core::ReadStream(
-		[](void * dest, ext::usize n, void * data) -> ext::ssize
-	{
-		auto & d = *static_cast<struct stream_data *>(data);
-		n = std::min(n, ext::usize(d.end - d.begin));
-		std::copy_n(d.begin, n, static_cast<char *>(dest));
-		d.begin += n;
-		return n;
-	},
-		&stream_data,
-		ful::cstr_utf8("")));
+	core::content content(ful::cstr_utf8(""), color_source, sizeof color_source - 1);
+	core::JsonStructurer structurer(content);
 
 	SECTION("can be read into rgb type")
 	{
@@ -289,30 +241,14 @@ TEST_CASE("", "[core][json][structurer]")
 
 TEST_CASE("", "[core][json][structurer]")
 {
-	const char vector_source[] = u8R"(
+	char vector_source[] = u8R"(
 {
 	"four floats": [ 0.25, 0.75, -2.0, -1.5 ]
 }
 )";
 
-	struct stream_data
-	{
-		const char * begin;
-		const char * end;
-	}
-	stream_data{vector_source, vector_source + sizeof vector_source - 1};
-
-	core::JsonStructurer structurer(core::ReadStream(
-		[](void * dest, ext::usize n, void * data) -> ext::ssize
-	{
-		auto & d = *static_cast<struct stream_data *>(data);
-		n = std::min(n, ext::usize(d.end - d.begin));
-		std::copy_n(d.begin, n, static_cast<char *>(dest));
-		d.begin += n;
-		return n;
-	},
-		&stream_data,
-		ful::cstr_utf8("")));
+	core::content content(ful::cstr_utf8(""), vector_source, sizeof vector_source - 1);
+	core::JsonStructurer structurer(content);
 
 	SECTION("can be read into vector type")
 	{

@@ -66,16 +66,17 @@ namespace engine
 				);
 		}
 
+	private:
+
+		template <typename Stream>
+		friend Stream && operator >> (Stream && stream, this_type & value)
+		{
+			value = Asset(stream.buffer());
+
+			// todo consume whole stream buffer
+
+			return static_cast<Stream &&>(stream);
+		}
+
 	};
-
-	inline bool serialize(Asset & x, ful::view_utf8 object)
-	{
-		x = Asset(object);
-		return true;
-	}
-
-	inline bool serialize(Asset & x, ful::cstr_utf8 object)
-	{
-		return serialize(x, static_cast<ful::view_utf8>(object));
-	}
 }

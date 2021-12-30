@@ -4,7 +4,7 @@
 
 #include "core/async/Thread.hpp"
 #include "core/container/Collection.hpp"
-#include "core/ReadStream.hpp"
+#include "core/content.hpp"
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
@@ -28,6 +28,7 @@
 #include <ftw.h>
 #include <poll.h>
 #include <sys/file.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -213,7 +214,7 @@ namespace
 		const int fd = ::open(filepath.data(), O_RDONLY | O_NOATIME);
 		if (fd == -1)
 		{
-			debug_verify(errno == ENOENT, "open(\"", filepath, "\", O_RDONLY) failed with errno ", errno);
+			debug_verify(errno == ENOENT, "open(\"", filepath, "\", O_RDONLY | O_NOATIME) failed with errno ", errno);
 			return false;
 		}
 
@@ -226,22 +227,28 @@ namespace
 			}
 		}
 
-		ful::cstr_utf8 relpath_(filepath.data() + root, filepath.data() + filepath.size());
-		core::ReadStream stream(
-			[](void * dest, ext::usize n, void * data)
-			{
-				const int fd = static_cast<int>(reinterpret_cast<std::intptr_t>(data));
+		struct stat statbuf;
+		debug_verify(::fstat(fd, &statbuf) == 0, "failed with errno ", errno);
 
-				return ext::read_some_nonzero(fd, dest, n);
-			},
-			reinterpret_cast<void *>(fd),
-			relpath_);
+		void * map = ::mmap(nullptr, statbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+		if (map == MAP_FAILED)
+		{
+			debug_verify(::close(fd) == 0, "failed with errno ", errno);
+
+			return false;
+		}
+
+		ful::cstr_utf8 relpath(filepath.data() + root, filepath.data() + filepath.size());
+
+		core::content content(relpath, map, statbuf.st_size);
 
 		engine::file::system filesystem(impl);
-		callback(filesystem, std::move(stream), data);
+		callback(filesystem, content, data);
 		filesystem.detach();
 
-		debug_verify(::close(fd) != -1, "failed with errno ", errno);
+		debug_verify(::munmap(map, statbuf.st_size) == 0, "failed with errno ", errno);
+		debug_verify(::close(fd) == 0, "failed with errno ", errno);
+
 		return true;
 	}
 
@@ -475,11 +482,12 @@ namespace engine
 						FileMissingWork && work = utility::any_cast<FileMissingWork &&>(std::move(data));
 						engine::file::ReadData & read_data = *work.ptr;
 
-						ful::cstr_utf8 relpath_(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size());
-						core::ReadStream stream(relpath_);
+						ful::cstr_utf8 relpath(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size());
+
+						core::content content(relpath);
 
 						engine::file::system filesystem(read_data.impl);
-						read_data.callback(filesystem, std::move(stream), read_data.data);
+						read_data.callback(filesystem, content, read_data.data);
 						filesystem.detach();
 					}
 				},
@@ -506,11 +514,12 @@ namespace engine
 						}
 						else
 						{
-							ful::cstr_utf8 relpath_(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size());
-							core::ReadStream stream(relpath_);
+							ful::cstr_utf8 relpath(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size());
+
+							core::content content(relpath);
 
 							engine::file::system filesystem(read_data.impl);
-							read_data.callback(filesystem, std::move(stream), read_data.data);
+							read_data.callback(filesystem, content, read_data.data);
 							filesystem.detach();
 						}
 					}
