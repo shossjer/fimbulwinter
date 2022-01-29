@@ -1120,6 +1120,7 @@ namespace
 		},
 			[&](engine::Asset key, LoadingLoad & y)
 		{
+			static_cast<void>(key);
 			if (debug_verify(y.attachments.push_back(attachment)))
 			{
 				y.remaining_count++;

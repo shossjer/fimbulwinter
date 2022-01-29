@@ -73,7 +73,7 @@ namespace
 
 		devices.push_back(device);
 		device_mappings.emplace_back();
-		debug_verify(device_sources.try_emplace_back());
+		static_cast<void>(debug_verify(device_sources.try_emplace_back()));
 	}
 
 	void remove_device(Device device)
@@ -897,7 +897,7 @@ namespace hid
 
 					const auto i = find_device(x.id);
 					debug_assert(std::find_if(device_sources[i].begin(), device_sources[i].end(), [&](const DeviceSource & source){ return source.path == x.path; }) == device_sources[i].end());
-					debug_verify(device_sources[i].try_emplace_back(x.type, std::move(x.path), std::move(x.name)));
+					static_cast<void>(debug_verify(device_sources[i].try_emplace_back(x.type, std::move(x.path), std::move(x.name))));
 				}
 
 				void operator () (RemoveSource && x)

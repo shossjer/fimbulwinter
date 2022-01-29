@@ -142,10 +142,17 @@ namespace utility
 
 	};
 
+#if defined(__GNUC__)
+	template <typename T, ext::usize N>
+	constexpr __attribute__((const)) typename span<T, N>::iterator begin(const span<T, N> & s) { return s.begin(); }
+	template <typename T, ext::usize N>
+	constexpr __attribute__((const)) typename span<T, N>::iterator end(const span<T, N> & s) { return s.end(); }
+#else
 	template <typename T, ext::usize N>
 	constexpr typename span<T, N>::iterator begin(const span<T, N> & s) { return s.begin(); }
 	template <typename T, ext::usize N>
 	constexpr typename span<T, N>::iterator end(const span<T, N> & s) { return s.end(); }
+#endif
 
 	template <typename T, ext::usize N>
 	constexpr typename span<T, N>::pointer data(const span<T, N> & s) { return s.data(); }
