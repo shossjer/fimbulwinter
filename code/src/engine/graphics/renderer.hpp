@@ -129,8 +129,8 @@ namespace engine
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table<ful::view_utf8>(
-						std::make_pair(ful::cstr_utf8("diffuse"), &MaterialAsset::diffuse),
-						std::make_pair(ful::cstr_utf8("shader"), &MaterialAsset::shader)
+						std::make_pair(ful::cstr_utf8("diffuse"), core::optional(&MaterialAsset::diffuse)),
+						std::make_pair(ful::cstr_utf8("shader"), core::optional(&MaterialAsset::shader))
 					);
 				}
 			};

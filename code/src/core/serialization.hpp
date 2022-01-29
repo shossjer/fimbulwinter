@@ -36,12 +36,77 @@ namespace core
 			}
 
 		};
+
+		struct identity_t
+		{
+			template <typename X>
+			X && get(X && x) const
+			{
+				return static_cast<X &&>(x);
+			}
+		};
+
+		template <typename T>
+		struct optional_t
+		{
+			T member_;
+
+			template <typename X>
+			decltype(auto) get(X && x) const
+			{
+				auto && y = x.*member_;
+				return y.has_value() ? y.value() : y.emplace();
+			}
+		};
+
+		template <typename T, typename Proxy>
+		struct proxy_t
+		{
+			T member_;
+
+			template <typename X>
+			decltype(auto) get(X && x) const
+			{
+				return Proxy{x.*member_};
+			}
+		};
 	}
 
 	template <typename T, typename C>
 	constexpr auto array_element(T C:: * member, std::size_t index)
 	{
 		return detail::array_element_t<T C:: *>(member, index);
+	}
+
+	constexpr detail::identity_t identity()
+	{
+		return detail::identity_t();
+	}
+
+	template <typename T, typename C>
+	constexpr auto optional(T C:: * member)
+		-> decltype((std::declval<C>().*member).has_value(), (std::declval<C>().*member).value(), (std::declval<C>().*member).emplace(), detail::optional_t<T C:: *>())
+	{
+		return detail::optional_t<T C:: *>{member};
+	}
+
+	template <typename T, typename C>
+	constexpr auto vector(T C:: * member)
+	{
+		struct vector_proxy
+		{
+			using proxy_type = typename T::array_type;
+
+			T & value_;
+
+			bool set(const typename T::array_type & buffer)
+			{
+				value_.set(buffer);
+				return true;
+			}
+		};
+
+		return detail::proxy_t<T C:: *, vector_proxy>{member};
 	}
 
 	namespace detail

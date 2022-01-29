@@ -57,15 +57,6 @@ namespace engine
 #endif
 		}
 
-	public:
-
-		static constexpr auto serialization()
-		{
-			return utility::make_lookup_table<ful::view_utf8>(
-				std::make_pair(ful::cstr_utf8("id"), &Asset::value_)
-				);
-		}
-
 	private:
 
 		template <typename Stream>

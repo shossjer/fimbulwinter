@@ -5,398 +5,577 @@
 #include "core/serialization.hpp"
 
 #include "utility/algorithm.hpp"
-#include "utility/cast_iterator.hpp"
-#include "utility/json.hpp"
-#include "utility/priority.hpp"
-#include "utility/ranges.hpp"
 
 #include "ful/cstrext.hpp"
 #include "ful/string_search.hpp"
 
-#include <cfloat>
-#include <cstdint>
-#include <limits>
-
-namespace ext
-{
-	template <typename S>
-	struct signature;
-
-	template <typename R>
-	struct signature<R (...)>
-	{
-		template <typename ...Ps>
-		R operator () (Ps && ...);
-	};
-}
-
 namespace core
 {
-	class JsonStructurer
+	namespace detail
 	{
-	private:
-
-		ful::cstr_utf8 filepath_;
-
-		json root;
-
-	public:
-
-		explicit JsonStructurer(core::content & content)
-			: filepath_(content.filepath())
+		template <typename T>
+		auto grow_range(T & x, int)
+			-> decltype(x.emplace_back() == x.data(), x.data())
 		{
-			try
+			return x.emplace_back();
+		}
+
+		// todo iff exceptions enabled
+		template <typename T>
+		auto grow_range(T & x, int)
+			-> decltype(&x.emplace_back() == x.data(), x.data())
+		{
+			//std::is_nothrow_default_constructible<typename T::value_type>::value
+			return &x.emplace_back();
+		}
+
+		// todo iff exceptions enabled
+		template <typename T>
+		auto grow_range(T & x, ...)
+			-> decltype(x.emplace_back(), x.back(), x.data())
+		{
+			//std::is_nothrow_default_constructible<typename T::value_type>::value
+			x.emplace_back();
+			return &x.back();
+		}
+	}
+
+	template <typename T>
+	auto grow_range(T & x)
+		-> decltype(detail::grow_range(x, 0))
+	{
+		return detail::grow_range(x, 0);
+	}
+
+	namespace detail
+	{
+		struct structure_json
+		{
+			struct error_json
 			{
-				root = json::parse(static_cast<ful::unit_utf8 *>(content.data()), static_cast<ful::unit_utf8 *>(content.data()) + content.size());
+				enum type
+				{
+					unexpected_eof,
+					unexpected_error,
+					unexpected_symbol,
+				};
+
+				ful::view_utf8 type_name;
 			}
-			catch (std::exception & x)
+			err;
+
+			template <error_json::type E>
+#if defined(_MSC_VER)
+			__declspec(noinline)
+#else
+			__attribute__((noinline))
+#endif
+			ext::ssize structure_json_error(ext::ssize size, ful::unit_utf8 * end)
 			{
+				static_cast<void>(end);
+
+				err.type_name = ful::view_utf8{};
+
+				return -size;
+			}
+
+			template <error_json::type E, typename T>
+#if defined(_MSC_VER)
+			__declspec(noinline)
+#else
+			__attribute__((noinline))
+#endif
+			ext::ssize structure_json_error(ext::ssize size, ful::unit_utf8 * end, T & x)
+			{
+				static_cast<void>(end);
 				static_cast<void>(x);
-				debug_fail("json '", filepath_, "' failed due to: ", ful::make_cstr_utf8(x.what()));
-			}
-		}
 
-	public:
+				constexpr const auto type_name = utility::type_name<T>();
+				err.type_name = type_name;
 
-		template <typename T>
-		bool read(T & x)
-		{
-			return read(root, x);
-		}
+				return -size;
+			}
 
-	private:
-
-#if defined(_MSC_VER)
-# pragma warning( push )
-# pragma warning( disable : 4702 )
-		// C4702 - unreachable code
-#endif
-		template <typename T>
-		bool read(const json & j, T & x)
-		{
-			if (j.is_array())
+			inline
+			ext::ssize structure_json_whitespace(ext::ssize size, ful::unit_utf8 * end)
 			{
-				if (!read_array(j, x))
-					return false;
-			}
-			else if (j.is_boolean())
-			{
-				if (!read_bool(j, x))
-					return false;
-			}
-			else if (j.is_number())
-			{
-				if (!read_number(j, x))
-					return false;
-			}
-			else if (j.is_object())
-			{
-				if (!read_object(j, x))
-					return false;
-			}
-			else if (j.is_string())
-			{
-				if (!read_string(j, x))
-					return false;
-			}
-			else
-			{
-				debug_unreachable("unknown value type in json '", filepath_, "'");
-			}
-			return true;
-		}
-#if defined(_MSC_VER)
-# pragma warning( pop )
-#endif
-
-		utility::type_id_t figure_out_array_type(json::const_iterator from, json::const_iterator to) const
-		{
-			static_assert(FLT_RADIX == 2, "");
-			constexpr uint64_t biggest_int_in_float = (uint64_t(1) << FLT_MANT_DIG) - 1;
-
-			int64_t smallest_int = 0;
-			uint64_t biggest_int = 0;
-			bool is_float = false;
-
-			for (; from != to; from++)
-			{
-				if (from->is_number_float())
+				if (size < 0)
 				{
-					if (static_cast<double>(static_cast<float>(*from)) != static_cast<double>(*from))
-						return utility::type_id<double>();
-					is_float = true;
+					do
+					{
+						if (static_cast<unsigned char>(*(end + size)) > 32)
+							break;
+
+						size++;
+					}
+					while (size < 0);
 				}
-				else if (from->is_number_unsigned())
+				return size;
+			}
+
+			inline
+			ext::ssize structure_json_string(ext::ssize size, ful::unit_utf8 * end, ful::view_utf8 & x)
+			{
+				if (!debug_inform(*(end + size) == '"'))
+					return structure_json_error<error_json::unexpected_symbol>(size, end);
+
+				const ext::ssize first = size + 1;
+
+				while (true)
 				{
-					biggest_int = std::max(biggest_int, static_cast<uint64_t>(*from));
+					size++;
+
+					ful::unit_utf8 * found = ful::find(end + size, end, ful::char8{'"'});
+					if (found == end)
+						return structure_json_error<error_json::unexpected_eof>(size, end);
+
+					size = found - end;
+
+					if (*(found - 1) != '\\')
+						break;
+					if (*(found - 2) == '\\')
+					{
+						if (*(found - 3) != '\\')
+							break;
+						if (*(found - 4) == '\\')
+						{
+							if (!debug_fail("more than 3 \\ at the end of string not implemented"))
+								return structure_json_error<error_json::unexpected_error>(size, end);
+						}
+					}
 				}
-				else if (from->is_number_integer())
+
+				const ext::ssize last = size;
+				x = ful::view_utf8(end + first, end + last);
+
+				return size;
+			}
+
+			inline
+			ext::ssize structure_json_skip(ext::ssize size, ful::unit_utf8 * end)
+			{
+				switch (*(end + size))
 				{
-					debug_assert(static_cast<int64_t>(*from) < 0);
-					smallest_int = std::min(smallest_int, static_cast<int64_t>(*from));
+				case '"':
+				{
+					ful::view_utf8 x;
+					size = structure_json_string(size, end, x);
+					if (size >= 0)
+						return size;
+
+					return size + 1;
+				}
+				case '-':
+				case '0':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
+				case '8':
+				case '9':
+				{
+					const ful::unit_utf8 * first; // unused
+					const ful::unit_utf8 * dot; // unused
+					const ful::unit_utf8 * last; // unused
+					fio::ssize exp; // unused
+					const ful::unit_utf8 * const ptr = fio::detail::float_parse(end + size, end, first, dot, last, exp);
+					if (!debug_inform(ptr != nullptr))
+						return structure_json_error<error_json::unexpected_symbol>(size, end);
+
+					return ptr - end;
+				}
+				case '[':
+					size++;
+
+					size = structure_json_whitespace(size, end);
+					if (size >= 0)
+						return structure_json_error<error_json::unexpected_eof>(size, end);
+
+					if (*(end + size) != ']')
+						goto entry_array;
+
+					return size + 1;
+
+					do
+					{
+						size++;
+
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return structure_json_error<error_json::unexpected_eof>(size, end);
+
+					entry_array:
+						size = structure_json_skip(size, end);
+
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return structure_json_error<error_json::unexpected_eof>(size, end);
+					}
+					while (*(end + size) == ',');
+
+					if (!debug_inform(*(end + size) == ']'))
+						return structure_json_error<error_json::unexpected_symbol>(size, end);
+
+					return size + 1;
+				case 'f':
+					return size + 5;
+				case 'n':
+				case 't':
+					return size + 4;
+				case '{':
+					do
+					{
+						size++;
+
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return size;
+
+						ful::view_utf8 x;
+						size = structure_json_string(size, end, x);
+						if (size >= 0)
+							return size;
+
+						size++;
+
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return structure_json_error<error_json::unexpected_eof>(size, end);
+
+						if (!debug_inform(*(end + size) == ':'))
+							return structure_json_error<error_json::unexpected_symbol>(size, end);
+
+						size++;
+
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return structure_json_error<error_json::unexpected_eof>(size, end);
+
+						size = structure_json_skip(size, end);
+
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return structure_json_error<error_json::unexpected_eof>(size, end);
+					}
+					while (*(end + size) == ',');
+
+					if (!debug_inform(*(end + size) == '}'))
+						return structure_json_error<error_json::unexpected_symbol>(size, end);
+
+					return size + 1;
+				default:
+					return structure_json_error<error_json::unexpected_symbol>(size, end);
+				}
+			}
+
+			inline
+			ext::ssize structure_json_value(ext::ssize size, ful::unit_utf8 * end, bool & x)
+			{
+				size = structure_json_whitespace(size, end);
+
+				if (size < -4)
+				{
+					if (*reinterpret_cast<unsigned int *>(end + size) == 0x736c6166 && // fals (LE)
+						*(end + size + 4) == 'e') // e
+					{
+						x = false;
+						return size + 5;
+					}
+				}
+				else if (size > -4)
+				{
+					return structure_json_error<error_json::unexpected_eof>(size, end, x);
+				}
+
+				if (*reinterpret_cast<unsigned int *>(end + size) == 0x65757274) // true (LE)
+				{
+					x = true;
+					return size + 4;
 				}
 				else
 				{
-					return utility::type_id_t{};
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
 				}
 			}
 
-			if (is_float)
-				return
-					static_cast<uint64_t>(-smallest_int) > biggest_int_in_float || biggest_int > biggest_int_in_float ? utility::type_id<double>() :
-					utility::type_id<float>();
-
-			if (smallest_int < 0)
-				return
-					smallest_int < std::numeric_limits<int32_t>::min() || biggest_int > std::numeric_limits<int32_t>::max() ? utility::type_id<int64_t>() :
-					smallest_int < std::numeric_limits<int16_t>::min() || biggest_int > std::numeric_limits<int16_t>::max() ? utility::type_id<int32_t>() :
-					smallest_int < std::numeric_limits<int8_t>::min() || biggest_int > std::numeric_limits<int8_t>::max() ? utility::type_id<int16_t>() :
-					utility::type_id<int8_t>();
-
-			return
-				biggest_int > std::numeric_limits<uint32_t>::max() ? utility::type_id<uint64_t>() :
-				biggest_int > std::numeric_limits<uint16_t>::max() ? utility::type_id<uint32_t>() :
-				biggest_int > std::numeric_limits<uint8_t>::max() ? utility::type_id<uint16_t>() :
-				utility::type_id<uint8_t>();
-		}
-
-		template <typename T>
-		auto read_array(const json & j, T & x, ext::priority_highest)
-			-> decltype(core::supports_resize<T &>(), core::supports_copy<T &, json::const_iterator, json::const_iterator>())
-		{
-			if (!debug_assert(j.is_array()))
-				return false;
-
-			using core::copy;
-			using core::resize;
-
-			if (!resize(x, j.size()))
-				return false;
-
-			try
+			template <typename T>
+			inline
+			auto structure_json_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+				-> decltype(fio::from_chars(end, end, x), ext::ssize())
 			{
-				return copy(x, j.begin(), j.end());
+				size = structure_json_whitespace(size, end);
+
+				const ext::ssize n = fio::from_chars(end + size, end, x) - (end + size);
+				if (!debug_inform(n > 0))
+					return structure_json_error<error_json::unexpected_symbol>(size, end);
+
+				return size + n;
 			}
-			catch (std::exception & x)
+
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_enum<T>::value))>
+			inline
+			ext::ssize structure_json_value(ext::ssize size, ful::unit_utf8 * end, T & x)
 			{
-				static_cast<void>(x);
-				return debug_fail(ful::make_cstr_utf8(x.what()));
-			}
-		}
+				size = structure_json_whitespace(size, end);
+				if (size >= 0)
+					return size;
 
-		template <typename T>
-		auto read_array(const json & j, T & x, ext::priority_high)
-			-> decltype(core::supports_reshape<uint8_t, T &>(),
-			            core::supports_reshape<uint16_t, T &>(),
-			            core::supports_reshape<uint32_t, T &>(),
-			            core::supports_reshape<uint64_t, T &>(),
-			            core::supports_reshape<int8_t, T &>(),
-			            core::supports_reshape<int16_t, T &>(),
-			            core::supports_reshape<int32_t, T &>(),
-			            core::supports_reshape<int64_t, T &>(),
-			            core::supports_reshape<float, T &>(),
-			            core::supports_reshape<double, T &>(),
-			            core::supports_copy<T &, ext::cast_iterator<uint8_t, json::const_iterator>, ext::cast_iterator<uint8_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<uint16_t, json::const_iterator>, ext::cast_iterator<uint16_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<uint32_t, json::const_iterator>, ext::cast_iterator<uint32_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<uint64_t, json::const_iterator>, ext::cast_iterator<uint64_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<int8_t, json::const_iterator>, ext::cast_iterator<int8_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<int16_t, json::const_iterator>, ext::cast_iterator<int16_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<int32_t, json::const_iterator>, ext::cast_iterator<int32_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<int64_t, json::const_iterator>, ext::cast_iterator<int64_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<float, json::const_iterator>, ext::cast_iterator<float, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<double, json::const_iterator>, ext::cast_iterator<double, json::const_iterator>>())
-		{
-			if (!debug_assert(j.is_array()))
-				return false;
+				ful::view_utf8 str;
+				size = structure_json_string(size, end, str);
+				if (size >= 0)
+					return size;
 
-			using core::copy;
-			using core::reshape;
-
-			try
-			{
-				switch (figure_out_array_type(j.begin(), j.end()))
+				const auto index = core::value_table<T>::find(str);
+				if (index != std::size_t(-1))
 				{
-				case utility::type_id<uint8_t>():
-					if (!reshape<uint8_t>(x, j.size()))
-						return false;
+					x = core::value_table<T>::get(index);
 
-					return copy(x, ext::make_cast_iterator<uint8_t>(j.begin()), ext::make_cast_iterator<uint8_t>(j.end()));
-				case utility::type_id<uint16_t>():
-					if (!reshape<uint16_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<uint16_t>(j.begin()), ext::make_cast_iterator<uint16_t>(j.end()));
-				case utility::type_id<uint32_t>():
-					if (!reshape<uint32_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<uint32_t>(j.begin()), ext::make_cast_iterator<uint32_t>(j.end()));
-				case utility::type_id<uint64_t>():
-					if (!reshape<uint64_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<uint64_t>(j.begin()), ext::make_cast_iterator<uint64_t>(j.end()));
-				case utility::type_id<int8_t>():
-					if (!reshape<int8_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<int8_t>(j.begin()), ext::make_cast_iterator<int8_t>(j.end()));
-				case utility::type_id<int16_t>():
-					if (!reshape<int16_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<int16_t>(j.begin()), ext::make_cast_iterator<int16_t>(j.end()));
-				case utility::type_id<int32_t>():
-					if (!reshape<int32_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<int32_t>(j.begin()), ext::make_cast_iterator<int32_t>(j.end()));
-				case utility::type_id<int64_t>():
-					if (!reshape<int64_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<int64_t>(j.begin()), ext::make_cast_iterator<int64_t>(j.end()));
-				case utility::type_id<float>():
-					if (!reshape<float>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<float>(j.begin()), ext::make_cast_iterator<float>(j.end()));
-				case utility::type_id<double>():
-					if (!reshape<double>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<double>(j.begin()), ext::make_cast_iterator<double>(j.end()));
-				default:
-					return debug_fail();
+					return size + 1;
+				}
+				else
+				{
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
 				}
 			}
-			catch (std::exception & x)
+
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_class<T>::value))>
+			inline
+			ext::ssize structure_json_value(ext::ssize size, ful::unit_utf8 * end, T & x)
 			{
-				static_cast<void>(x);
-				debug_unreachable(ful::make_cstr_utf8(x.what()));
+				size = structure_json_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (!debug_inform(*(end + size) == '{'))
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
+
+				do
+				{
+					size++;
+
+					size = structure_json_whitespace(size, end);
+					if (size >= 0)
+						return size;
+
+					ful::view_utf8 key;
+					size = structure_json_string(size, end, key);
+					if (size >= 0)
+						return size;
+
+					size++;
+
+					size = structure_json_whitespace(size, end);
+					if (size >= 0)
+						return structure_json_error<error_json::unexpected_eof>(size, end, x);
+
+					if (!debug_inform(*(end + size) == ':'))
+						return structure_json_error<error_json::unexpected_symbol>(size, end, x);
+
+					size++;
+
+					const auto key_index = core::member_table<T>::find(key);
+					if (key_index != std::size_t(-1))
+					{
+						size = core::member_table<T>::call(key_index, x, [=](auto && y){ return structure_json_value(size, end, static_cast<decltype(y)>(y)); });
+
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return structure_json_error<error_json::unexpected_eof>(size, end, x);
+					}
+					else
+					{
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return structure_json_error<error_json::unexpected_eof>(size, end, x);
+
+						size = structure_json_skip(size, end);
+
+						size = structure_json_whitespace(size, end);
+						if (size >= 0)
+							return structure_json_error<error_json::unexpected_eof>(size, end, x);
+					}
+				}
+				while (*(end + size) == ',');
+
+				if (!debug_inform(*(end + size) == '}'))
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
+
+				return size + 1;
 			}
-		}
 
-		template <typename T>
-		auto read_array(const json & j, T & x, ext::priority_normal)
-			-> decltype(core::supports_resize<T &>(),
-			            core::supports_for_each<T &, ext::signature<bool(...)>>())
-		{
-			if (!debug_assert(j.is_array()))
-				return false;
-
-			using core::for_each;
-			using core::resize;
-
-			if (!resize(x, j.size()))
-				return false;
-
-			auto it = j.begin();
-			return for_each(x, [&](auto & y){ return read(*it++, y); });
-		}
-
-		template <typename T>
-		bool read_array(const json &, T &, ext::priority_default)
-		{
-			constexpr auto name = utility::type_name<T>();
-			static_cast<void>(name);
-			return debug_fail("attempting to read array into ", name, " from json '", filepath_, "'");
-		}
-
-		template <typename T>
-		bool read_array(const json & j, T & x)
-		{
-			return read_array(j, x, ext::resolve_priority);
-		}
-
-		template <typename T>
-		bool read_bool(const json & j, T & x)
-		{
-			if (!debug_assert(j.is_boolean()))
-				return false;
-
-			using core::serialize;
-			return debug_verify(serialize(x, static_cast<typename json::boolean_t>(j)));
-		}
-
-		template <typename T>
-		bool read_number(const json & j, T & x)
-		{
-			if (!debug_assert(j.is_number()))
-				return false;
-
-			using core::serialize;
-
-			if (j.is_number_float())
+			template <typename T>
+			inline
+			auto structure_json_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+				-> decltype(core::grow_range(x), ext::ssize())
 			{
-				return debug_verify(serialize(x, static_cast<typename json::number_float_t>(j)));
+				size = structure_json_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (!debug_inform(*(end + size) == '['))
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
+
+				size++;
+
+				size = structure_json_whitespace(size, end);
+				if (size >= 0)
+					return structure_json_error<error_json::unexpected_eof>(size, end);
+
+				if (*(end + size) != ']')
+					goto entry_array;
+
+				return size + 1;
+
+				do
+				{
+					size++;
+
+				entry_array:
+					auto it = core::grow_range(x);
+					if (!it)
+						return structure_json_error<error_json::unexpected_error>(size, end, x);
+
+					size = structure_json_value(size, end, *it);
+
+					size = structure_json_whitespace(size, end);
+					if (size >= 0)
+						return structure_json_error<error_json::unexpected_eof>(size, end, x);
+				}
+				while (*(end + size) == ',');
+
+				if (!debug_inform(*(end + size) == ']'))
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
+
+				return size + 1;
 			}
-			else if (j.is_number_unsigned())
+
+			template <typename T>
+			fio_inline
+			ext::ssize structure_json_value_tuple_impl(ext::ssize size, ful::unit_utf8 * end, T & x, mpl::index_constant<(ext::tuple_size<T>::value - 1)>, int)
 			{
-				return debug_verify(serialize(x, static_cast<typename json::number_unsigned_t>(j)));
+				size++;
+
+				using ext::get;
+				size = structure_json_value(size, end, get<(ext::tuple_size<T>::value - 1)>(x));
+
+				size = structure_json_whitespace(size, end);
+				if (size >= 0)
+					return structure_json_error<error_json::unexpected_eof>(size, end, x);
+
+				if (!debug_inform(*(end + size) == ']'))
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
+
+				return size + 1;
 			}
-			else if (j.is_number_integer())
+
+			template <typename T, size_t I>
+			fio_inline
+			ext::ssize structure_json_value_tuple_impl(ext::ssize size, ful::unit_utf8 * end, T & x, mpl::index_constant<I>, float)
 			{
-				return debug_verify(serialize(x, static_cast<typename json::number_integer_t>(j)));
+				size++;
+
+				using ext::get;
+				size = structure_json_value(size, end, get<I>(x));
+
+				size = structure_json_whitespace(size, end);
+				if (size >= 0)
+					return structure_json_error<error_json::unexpected_eof>(size, end, x);
+
+				if (!debug_inform(*(end + size) == ','))
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
+
+				return structure_json_value_tuple_impl(size, end, x, mpl::index_constant<(I + 1)>{}, 0);
+			}
+
+			template <typename T>
+			inline
+			auto structure_json_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+				-> decltype(mpl::enable_if_t<ext::is_tuple<T>::value>(), ext::ssize())
+			{
+				size = structure_json_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (!debug_inform(*(end + size) == '['))
+					return structure_json_error<error_json::unexpected_symbol>(size, end, x);
+
+				return structure_json_value_tuple_impl(size, end, x, mpl::index_constant<0>{}, 0);
+			}
+
+			template <typename T>
+			inline
+			auto structure_json_value(ext::ssize size, ful::unit_utf8 * end, T && x)
+				-> decltype(sizeof(typename T::proxy_type), ext::ssize())
+			{
+				typename T::proxy_type proxy;
+				size = structure_json_value(size, end, proxy);
+				if (size >= 0)
+					return size;
+
+				if (!x.set(proxy))
+					return structure_json_error<error_json::unexpected_error>(size, end, x);
+
+				return size;
+			}
+
+			template <typename T>
+			inline
+			auto structure_json_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+				-> decltype(x = T(ful::view_utf8{}), ext::ssize())
+			{
+				size = structure_json_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				ful::view_utf8 str;
+				size = structure_json_string(size, end, str);
+				if (size >= 0)
+					return size;
+
+				x = T(str);
+
+				return size + 1;
+			}
+
+		};
+	}
+
+	template <typename T>
+	inline
+	ful::unit_utf8 * structure_json(ful::unit_utf8 * begin, ful::unit_utf8 * end, T & x)
+	{
+		detail::structure_json state;
+		const ext::ssize remainder = state.structure_json_value(begin - end, end, x);
+		if (remainder <= 0)
+		{
+			return end + remainder;
+		}
+		else
+		{
+			if (ful::empty(state.err.type_name))
+			{
+				debug_printline("(", (end - remainder - begin), ") error");
 			}
 			else
 			{
-				debug_unreachable("not a number");
+				debug_printline("(", (end - remainder - begin), ") error when structuring ", state.err.type_name);
 			}
+
+			return nullptr;
 		}
+	}
 
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_class<T>::value))>
-		bool read_object(const json & j, T & x)
-		{
-			if (!debug_assert(j.is_object()))
-				return false;
-
-			for (auto it = j.begin(); it != j.end(); ++it)
-			{
-				const auto key_string = it.key();
-				const ful::cstr_utf8 key(key_string);
-				const auto key_index = member_table<T>::find(key);
-				if (key_index == std::size_t(-1))
-					continue;
-
-				if (!member_table<T>::call(key_index, x, [&](auto & y){ return read(it.value(), y); }))
-					return false;
-			}
-			return true;
-		}
-
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_enum<T>::value))>
-		bool read_object(const json &, T &)
-		{
-			constexpr auto name = utility::type_name<T>();
-			static_cast<void>(name);
-			return debug_fail("attempting to read object into ", name, " from json '", filepath_, "'");
-		}
-
-		template <typename T,
-		          REQUIRES((!core::has_lookup_table<T>::value))>
-		bool read_object(const json &, T &)
-		{
-			constexpr auto name = utility::type_name<T>();
-			static_cast<void>(name);
-			return debug_fail("attempting to read object into ", name, " from json '", filepath_, "'");
-		}
-
-		template <typename T>
-		bool read_string(const json & j, T & x)
-		{
-			if (!debug_assert(j.is_string()))
-				return false;
-
-			const typename json::string_t & string = j;
-
-			using core::serialize;
-			return debug_verify(serialize(x, ful::cstr_utf8(string)));
-		}
-	};
+	template <typename T>
+	inline
+	bool structure_json(core::content & content, T & x)
+	{
+		return core::structure_json(static_cast<ful::unit_utf8 *>(content.data()), static_cast<ful::unit_utf8 *>(content.data()) + content.size(), x) != nullptr;
+	}
 }
