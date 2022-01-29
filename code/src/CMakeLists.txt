@@ -179,7 +179,6 @@ set(HEADERS_UTILITY
 	src/utility/inaccessible.hpp
 	src/utility/intrinsics.hpp
 	src/utility/iterator.hpp
-	src/utility/json.hpp
 	src/utility/lookup_table.hpp
 	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
