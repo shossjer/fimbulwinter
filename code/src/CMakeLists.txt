@@ -109,6 +109,7 @@ set(HEADERS_ENGINE
 	src/engine/audio/system.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
+	src/engine/file/config.hpp
 	src/engine/file/loader.hpp
 	src/engine/file/scoped_directory.hpp
 	src/engine/file/scoped_library.hpp

@@ -181,12 +181,20 @@ namespace core
 	class member_table
 	{
 	private:
+
 		using lookup_table_t = decltype(serialization(utility::in_place_type<T>));
 
 	private:
+
 		static constexpr lookup_table_t lookup_table = serialization(utility::in_place_type<T>);
 
 	public:
+
+		static constexpr bool empty()
+		{
+			return lookup_table.size() == 0;
+		}
+
 		static constexpr bool has(ful::view_utf8 name)
 		{
 			return lookup_table.contains(name);
@@ -229,11 +237,13 @@ namespace core
 		}
 
 		template <typename X, typename F>
-		static void for_each_member(X && x, F && f)
+		static bool for_each_member(X && x, F && f)
 		{
-			for_each_member_impl(mpl::make_index_sequence<lookup_table.capacity>{}, std::forward<X>(x), std::forward<F>(f));
+			return for_each_member_impl(static_cast<X &&>(x), static_cast<F &&>(f), mpl::index_constant<0>{});
 		}
+
 	private:
+
 #if defined(_MSC_VER)
 # pragma warning( push )
 # pragma warning( disable : 4702 )
@@ -266,18 +276,39 @@ namespace core
 			return f(lookup_table.template get_key<I>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()));
 		}
 
+		template <std::size_t I, typename X, typename F,
+		          REQUIRES((I != std::size_t(-1)))>
+		static auto call_impl(mpl::index_constant<I> index, X && x, F && f)
+			-> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<I>()), index))
+		{
+			return f(lookup_table.template get_key<I>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()), index);
+		}
+
 		template <std::size_t ...Is, typename X, typename F>
 		static decltype(auto) call_with_all_members_impl(mpl::index_sequence<Is...>, X && x, F && f)
 		{
 			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<Is>())...);
 		}
 
-		template <std::size_t ...Is, typename X, typename F>
-		static void for_each_member_impl(mpl::index_sequence<Is...>, X && x, F && f)
+		template <typename X, typename F>
+		static bool for_each_member_impl(X && x, F && f, mpl::index_constant<lookup_table.capacity> index)
 		{
-			int expansion_hack[] = {(call_impl(mpl::index_constant<Is>{}, std::forward<X>(x), std::forward<F>(f)), 0)...};
-			static_cast<void>(expansion_hack);
+			static_cast<void>(x);
+			static_cast<void>(f);
+			static_cast<void>(index);
+
+			return true;
 		}
+
+		template <typename X, typename F, size_t I>
+		static bool for_each_member_impl(X && x, F && f, mpl::index_constant<I> index)
+		{
+			if (!call_impl(index, static_cast<X &&>(x), static_cast<F &&>(f)))
+				return false;
+
+			return for_each_member_impl(static_cast<X &&>(x), static_cast<F &&>(f), mpl::index_constant<(I + 1)>{});
+		}
+
 	};
 
 	template <typename T>
@@ -412,38 +443,68 @@ namespace core
 
 	namespace detail
 	{
+		template <typename T, typename F, typename Index>
+		auto for_each_impl_call(T & x, F && f, Index index)
+			-> decltype(static_cast<F &&>(f)(x))
+		{
+			static_cast<void>(index);
+
+			return static_cast<F &&>(f)(x);
+		}
+
+		template <typename T, typename F, typename Index>
+		auto for_each_impl_call(T & x, F && f, Index index)
+			-> decltype(static_cast<F &&>(f)(x, index))
+		{
+			return static_cast<F &&>(f)(x, index);
+		}
+
 		template <typename T, typename F,
 		          REQUIRES((ext::is_range<T &>::value))>
 		bool for_each_impl(T & x, F && f, int)
 		{
-			for (auto && y : x)
+			auto begin_ = begin(x);
+			auto end_ = end(x);
+			ext::index index_ = 0;
+			if (begin_ != end_)
 			{
-				if (!f(y))
-					return false;
+				do
+				{
+					if (!for_each_impl_call(*begin_, static_cast<F &&>(f), index_))
+						return false;
+
+					++begin_;
+					index_++;
+				}
+				while (begin_ != end_);
 			}
 			return true;
 		}
 
-		template <typename F>
-		bool for_each_impl_tuple(F &&)
+		template <typename T, typename F>
+		bool for_each_impl_tuple(T & x, F && f, ext::tuple_size<T> index)
 		{
+			static_cast<void>(x);
+			static_cast<void>(f);
+			static_cast<void>(index);
+
 			return true;
 		}
 
-		template <typename F, typename T, typename ...Ts>
-		bool for_each_impl_tuple(F && f, T & x, Ts & ...xs)
+		template <typename T, typename F, size_t I>
+		bool for_each_impl_tuple(T & x, F && f, mpl::index_constant<I> index)
 		{
-			if (!f(x))
+			if (!for_each_impl_call(ext::get<I>(x), static_cast<F &&>(f), index))
 				return false;
 
-			return for_each_impl_tuple(std::forward<F>(f), xs...);
+			return for_each_impl_tuple(x, static_cast<F &&>(f), mpl::index_constant<(I + 1)>{});
 		}
 
 		template <typename T, typename F,
 		          REQUIRES((ext::is_tuple<T &>::value))>
 		bool for_each_impl(T & x, F && f, ...)
 		{
-			return ext::apply([&](auto & ...ys){ return for_each_impl_tuple(std::forward<F>(f), ys...); }, x);
+			return for_each_impl_tuple(x, static_cast<F &&>(f), mpl::index_constant<0>{});
 		}
 	}
 

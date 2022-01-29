@@ -24,6 +24,7 @@ namespace engine
 {
 	namespace file
 	{
+		struct config_t;
 		struct system;
 		struct system_impl;
 
@@ -50,7 +51,7 @@ namespace engine
 		{
 			using module<system, system_impl>::module;
 
-			static system_impl * construct(engine::task::scheduler & taskscheduler, directory && root);
+			static system_impl * construct(engine::task::scheduler & taskscheduler, directory && root, config_t && config);
 			static void destruct(system_impl & impl);
 		};
 

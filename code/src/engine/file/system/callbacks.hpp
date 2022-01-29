@@ -33,9 +33,9 @@ namespace engine
 			ful::heap_string_utf8 && removed_files, // multiple files separated by ;
 			utility::any & data);
 
-		using write_callback = void(
+		using write_callback = ext::ssize(
 			engine::file::system & filesystem,
-			core::WriteStream && stream,
+			core::content & content,
 			utility::any && data);
 	}
 }

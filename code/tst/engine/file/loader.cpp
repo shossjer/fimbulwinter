@@ -2,6 +2,7 @@
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
+#include "engine/file/config.hpp"
 #include "engine/file/loader.hpp"
 #include "engine/file/scoped_directory.hpp"
 #include "engine/file/scoped_library.hpp"
@@ -20,13 +21,13 @@ static_hashes("tmpdir", "tree.root", "dependency.1", "dependency.2", "dependency
 
 namespace
 {
-	void write_char(engine::file::system & /*filesystem*/, core::WriteStream && stream, utility::any && data)
+	ext::ssize write_char(engine::file::system & /*filesystem*/, core::content & content, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
-			return;
+			return 0;
 
 		const char number = utility::any_cast<char>(data);
-		stream.write_all(&number, sizeof number);
+		return ful::memcopy(&number + 0, &number + 1, static_cast<char *>(content.data())) - static_cast<char *>(content.data());
 	};
 
 	char read_char(core::content & content)
@@ -43,7 +44,7 @@ namespace
 TEST_CASE("file loader can be created and destroyed", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -54,7 +55,7 @@ TEST_CASE("file loader can be created and destroyed", "[engine][file]")
 TEST_CASE("file loader can read files", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 	engine::file::loader fileloader(taskscheduler, filesystem);
 
 	engine::file::scoped_directory tmpdir(filesystem, engine::Hash("tmpdir"));
@@ -400,7 +401,7 @@ namespace
 TEST_CASE("file loader can load tree", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 	engine::file::loader fileloader(taskscheduler, filesystem);
 
 	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));

@@ -9,6 +9,7 @@
 #include "core/WriteStream.hpp"
 
 #include "engine/Asset.hpp"
+#include "engine/file/config.hpp"
 #include "engine/file/system.hpp"
 #include "engine/file/watch/watch.hpp"
 #include "engine/HashTable.hpp"
@@ -75,6 +76,8 @@ namespace engine
 
 			engine::Hash strand;
 
+			config_t config;
+
 			core::container::Collection
 			<
 				engine::Token,
@@ -95,6 +98,10 @@ namespace engine
 			int pipe[2];
 			core::async::Thread thread;
 
+			system_impl(config_t && config)
+				: config(static_cast<config_t &&>(config))
+			{}
+
 			const ful::heap_string_utf8 & get_dirpath(decltype(directories)::const_iterator it)
 			{
 				return directories.call(it, [](const auto & x) -> const ful::heap_string_utf8 & { return x.dirpath; });
@@ -108,14 +115,14 @@ namespace
 	utility::spinlock singelton_lock;
 	utility::optional<engine::file::system_impl> singelton;
 
-	engine::file::system_impl * create_impl()
+	engine::file::system_impl * create_impl(engine::file::config_t && config)
 	{
 		std::lock_guard<utility::spinlock> guard(singelton_lock);
 
 		if (singelton)
 			return nullptr;
 
-		singelton.emplace();
+		singelton.emplace(static_cast<engine::file::config_t &&>(config));
 
 		return &singelton.value();
 	}
@@ -283,22 +290,40 @@ namespace
 			}
 		}
 
-		ful::cstr_utf8 relpath_(filepath.data() + root, filepath.data() + filepath.size());
-		core::WriteStream stream(
-			[](const void * src, ext::usize n, void * data)
-			{
-				const int fd = static_cast<int>(reinterpret_cast<std::intptr_t>(data));
+		void * write_mem = ::mmap(nullptr, impl.config.write_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		if (write_mem == MAP_FAILED)
+		{
+			debug_verify(::close(fd) != -1, "failed with errno ", errno);
 
-				return ext::write_some_nonzero(fd, src, n);
-			},
-			reinterpret_cast<void *>(fd),
-			relpath_);
+			return false;
+		}
+
+		ful::cstr_utf8 relpath(filepath.data() + root, filepath.data() + filepath.size());
+
+		core::content content(relpath, write_mem, impl.config.write_size);
 
 		engine::file::system filesystem(impl);
-		callback(filesystem, std::move(stream), std::move(data));
+		ext::ssize remaining = callback(filesystem, content, std::move(data));
 		filesystem.detach();
 
+		const char * const write_end = static_cast<const char *>(write_mem) + remaining;
+		do
+		{
+			const ext::ssize written = ::write(fd, write_end - remaining, static_cast<ext::usize>(remaining));
+			if (!debug_verify(written >= 0))
+			{
+				debug_verify(::munmap(write_mem, impl.config.write_size) == 0, "failed with errno ", errno);
+				debug_verify(::close(fd) != -1, "failed with errno ", errno);
+
+				return false;
+			}
+			remaining -= written;
+		}
+		while (remaining > 0);
+
+		debug_verify(::munmap(write_mem, impl.config.write_size) == 0, "failed with errno ", errno);
 		debug_verify(::close(fd) != -1, "failed with errno ", errno);
+
 		return true;
 	}
 
@@ -662,11 +687,12 @@ namespace engine
 						}
 						else
 						{
-							ful::cstr_utf8 relpath_(write_data.filepath.data() + write_data.root, write_data.filepath.data() + write_data.filepath.size());
-							core::WriteStream stream(relpath_);
+							ful::cstr_utf8 relpath(write_data.filepath.data() + write_data.root, write_data.filepath.data() + write_data.filepath.size());
+
+							core::content content(relpath);
 
 							engine::file::system filesystem(write_data.impl);
-							write_data.callback(filesystem, std::move(stream), std::move(write_data.data));
+							write_data.callback(filesystem, content, std::move(write_data.data));
 							filesystem.detach();
 						}
 					}
@@ -1111,9 +1137,9 @@ namespace engine
 			destroy_impl(impl);
 		}
 
-		system_impl * system::construct(engine::task::scheduler & taskscheduler, directory && root)
+		system_impl * system::construct(engine::task::scheduler & taskscheduler, directory && root, config_t && config)
 		{
-			system_impl * const impl = create_impl();
+			system_impl * const impl = create_impl(static_cast<config_t &&>(config));
 			if (debug_verify(impl))
 			{
 				impl->taskscheduler = &taskscheduler;

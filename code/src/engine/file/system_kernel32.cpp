@@ -9,6 +9,7 @@
 #include "core/sync/Event.hpp"
 #include "core/WriteStream.hpp"
 
+#include "engine/file/config.hpp"
 #include "engine/file/system.hpp"
 #include "engine/file/watch/watch.hpp"
 #include "engine/HashTable.hpp"
@@ -81,6 +82,8 @@ namespace engine
 
 			engine::Hash strand;
 
+			config_t config;
+
 			core::container::Collection
 			<
 				engine::Token,
@@ -101,6 +104,10 @@ namespace engine
 			HANDLE hThread;
 			HANDLE hTerminateEvent;
 
+			system_impl(config_t && config)
+				: config(static_cast<config_t &&>(config))
+			{}
+
 			const ful::heap_string_utfw & get_dirpath(decltype(directories)::const_iterator it)
 			{
 				return directories.call(it, [](const auto & x) -> const ful::heap_string_utfw & { return x.dirpath; });
@@ -114,14 +121,14 @@ namespace
 	utility::spinlock singelton_lock;
 	utility::optional<engine::file::system_impl> singelton;
 
-	engine::file::system_impl * create_impl()
+	engine::file::system_impl * create_impl(engine::file::config_t && config)
 	{
 		std::lock_guard<utility::spinlock> guard(singelton_lock);
 
 		if (singelton)
 			return nullptr;
 
-		singelton.emplace();
+		singelton.emplace(static_cast<engine::file::config_t &&>(config));
 
 		return &singelton.value();
 	}
@@ -316,29 +323,44 @@ namespace
 
 		ful::heap_string_utf8 relpath;
 		if (!debug_verify(convert(filepath.data() + root, filepath.data() + filepath.size(), relpath)))
-			return false; // error
+		{
+			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+			return false;
+		}
 
 		core::file::backslash_to_slash(relpath);
 
-		ful::cstr_utf8 relpath_(relpath);
-		core::WriteStream stream(
-			[](const void * src, ext::usize n, void * data)
+		void * write_mem = ::VirtualAlloc(nullptr, impl.config.write_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		if (!debug_verify(write_mem != nullptr))
 		{
-			HANDLE hFile = reinterpret_cast<HANDLE>(data);
+			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
-			DWORD written;
-			if (!debug_verify(::WriteFile(hFile, src, debug_cast<DWORD>(n), &written, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
-				return ext::ssize(-1);
+			return false;
+		}
 
-			return ext::ssize(written);
-		},
-			reinterpret_cast<void *>(hFile),
-			relpath_);
+		core::content content(ful::cstr_utf8(relpath), write_mem, impl.config.write_size);
 
 		engine::file::system filesystem(impl);
-		callback(filesystem, std::move(stream), std::move(data));
+		ext::ssize remaining = callback(filesystem, content, std::move(data));
 		filesystem.detach();
 
+		const char * const write_end = static_cast<const char *>(write_mem) + remaining;
+		do
+		{
+			DWORD written;
+			if (!debug_verify(::WriteFile(hFile, write_end - remaining, remaining < DWORD(-1) ? static_cast<DWORD>(remaining) : DWORD(-1), &written, nullptr) != FALSE, "failed with last error ", ::GetLastError()))
+			{
+				debug_verify(::VirtualFree(write_mem, 0, MEM_RELEASE) != FALSE, "failed with last error ", ::GetLastError());
+				debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+				return false;
+			}
+			remaining -= written;
+		}
+		while (remaining > 0);
+
+		debug_verify(::VirtualFree(write_mem, 0, MEM_RELEASE) != FALSE, "failed with last error ", ::GetLastError());
 		debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
 		return true;
@@ -750,11 +772,10 @@ namespace engine
 
 						core::file::backslash_to_slash(relpath);
 
-						ful::cstr_utf8 relpath_(relpath);
-						core::WriteStream stream(relpath_);
+						core::content content((ful::cstr_utf8)relpath);
 
 						engine::file::system filesystem(write_data.impl);
-						write_data.callback(filesystem, std::move(stream), std::move(write_data.data));
+						write_data.callback(filesystem, content, std::move(write_data.data));
 						filesystem.detach();
 					}
 				}
@@ -1193,9 +1214,9 @@ namespace engine
 			destroy_impl(impl);
 		}
 
-		system_impl * system::construct(engine::task::scheduler & taskscheduler, directory && root)
+		system_impl * system::construct(engine::task::scheduler & taskscheduler, directory && root, config_t && config)
 		{
-			system_impl * const impl = create_impl();
+			system_impl * const impl = create_impl(static_cast<config_t &&>(config));
 			if (debug_verify(impl))
 			{
 				impl->taskscheduler = &taskscheduler;
