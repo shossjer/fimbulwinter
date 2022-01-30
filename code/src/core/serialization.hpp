@@ -2,6 +2,7 @@
 
 #include "core/debug.hpp"
 
+#include "utility/ext/stddef.hpp"
 #include "utility/iterator.hpp"
 #include "utility/lookup_table.hpp"
 #include "utility/optional.hpp"
@@ -14,8 +15,69 @@
 #include "ful/view.hpp"
 #include "ful/string_compare.hpp"
 
+namespace std
+{
+	template <class T>
+	struct tuple_size;
+}
+
 namespace core
 {
+	template <typename T, unsigned long long N>
+	ful_inline ful_pure constexpr T * begin(T (& x)[N]) { return x + 0; }
+
+	template <typename T, unsigned long long N>
+	ful_inline ful_pure constexpr T * end(T (& x)[N]) { return x + N; }
+
+	template <typename T, unsigned long long N>
+	ful_inline ful_pure constexpr bool empty(T (& x)[N]) { return ful_unused(x), N == 0; }
+
+	template <typename T>
+	static T && declval();
+
+	namespace detail
+	{
+		template <typename T>
+		static auto is_range(const T & x, int) -> decltype(begin(x), end(x), mpl::true_type());
+		template <typename T>
+		static auto is_range(const T &, ...) -> mpl::false_type;
+	}
+	template <typename T>
+	static auto is_range(const T & x) -> decltype(detail::is_range(x, 0));
+
+	namespace detail
+	{
+		template <typename T>
+		static auto is_same(const T &, const T &, int) -> mpl::true_type;
+		template <typename T, typename U>
+		static auto is_same(const T &, const U &, ...) -> mpl::false_type;
+
+		template <typename U, typename T>
+		static auto is_range_of(const T & x, int) -> decltype(end(x), is_same(*begin(x), declval<U>(), 0));
+		template <typename T>
+		static auto is_range_of(const T &, ...) -> mpl::false_type;
+	}
+	template <typename U, typename T>
+	static auto is_range_of(const T & x) -> decltype(detail::is_range_of<U>(x, 0));
+
+	template <typename T, std::size_t N>
+	static auto tuple_size(const T(&)[N]) -> mpl::index_constant<N>;
+	template <typename T>
+	static auto tuple_size(const T &) -> mpl::index_constant<std::tuple_size<T>::value>;
+
+	namespace detail
+	{
+		template <typename T>
+		static auto is_tuple(const T & x, int) -> decltype(tuple_size(x), mpl::true_type());
+		template <typename T>
+		static auto is_tuple(const T &, ...) -> mpl::false_type;
+	}
+	template <typename T>
+	static auto is_tuple(const T & x) -> decltype(detail::is_tuple(x, 0));
+
+	template <typename T = void>
+	static inline T only_if(mpl::true_type);
+
 	namespace detail
 	{
 		template <typename T>
@@ -195,6 +257,11 @@ namespace core
 			return lookup_table.size() == 0;
 		}
 
+		static constexpr ext::usize size()
+		{
+			return lookup_table.size();
+		}
+
 		static constexpr bool has(ful::view_utf8 name)
 		{
 			return lookup_table.contains(name);
@@ -263,31 +330,31 @@ namespace core
 		template <std::size_t I, typename X, typename F,
 		          REQUIRES((I != std::size_t(-1)))>
 		static auto call_impl(mpl::index_constant<I>, X && x, F && f)
-			-> decltype(f(detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<I>())))
+			-> decltype(static_cast<F &&>(f)(detail::get_member(static_cast<X &&>(x), std::declval<lookup_table_t>().template get_value<I>())))
 		{
-			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()));
+			return static_cast<F &&>(f)(detail::get_member(static_cast<X &&>(x), lookup_table.template get_value<I>()));
 		}
 
 		template <std::size_t I, typename X, typename F,
 		          REQUIRES((I != std::size_t(-1)))>
 		static auto call_impl(mpl::index_constant<I>, X && x, F && f)
-			-> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<I>())))
+			-> decltype(static_cast<F &&>(f)(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(static_cast<X &&>(x), std::declval<lookup_table_t>().template get_value<I>())))
 		{
-			return f(lookup_table.template get_key<I>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()));
+			return static_cast<F &&>(f)(lookup_table.template get_key<I>(), detail::get_member(static_cast<X &&>(x), lookup_table.template get_value<I>()));
 		}
 
 		template <std::size_t I, typename X, typename F,
 		          REQUIRES((I != std::size_t(-1)))>
 		static auto call_impl(mpl::index_constant<I> index, X && x, F && f)
-			-> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<I>()), index))
+			-> decltype(static_cast<F &&>(f)(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(static_cast<X &&>(x), std::declval<lookup_table_t>().template get_value<I>()), index))
 		{
-			return f(lookup_table.template get_key<I>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()), index);
+			return static_cast<F &&>(f)(lookup_table.template get_key<I>(), detail::get_member(static_cast<X &&>(x), lookup_table.template get_value<I>()), index);
 		}
 
 		template <std::size_t ...Is, typename X, typename F>
 		static decltype(auto) call_with_all_members_impl(mpl::index_sequence<Is...>, X && x, F && f)
 		{
-			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<Is>())...);
+			return static_cast<F &&>(f)(detail::get_member(static_cast<X &&>(x), lookup_table.template get_value<Is>())...);
 		}
 
 		template <typename X, typename F>

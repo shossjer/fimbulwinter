@@ -7,7 +7,6 @@
 namespace core
 {
 	class content;
-	class WriteStream;
 }
 
 namespace utility

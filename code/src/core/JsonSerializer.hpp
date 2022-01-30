@@ -3,75 +3,13 @@
 #include "core/content.hpp"
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
-#include "core/WriteStream.hpp"
 
 #include "fio/to_chars.hpp"
 
 #include "ful/string_modify.hpp"
 
-namespace std
-{
-	template <class T>
-	struct tuple_size;
-}
-
 namespace core
 {
-	template <typename T, unsigned long long N>
-	ful_inline ful_pure constexpr T * begin(T (& x)[N]) { return x + 0; }
-
-	template <typename T, unsigned long long N>
-	ful_inline ful_pure constexpr T * end(T (& x)[N]) { return x + N; }
-
-	template <typename T, unsigned long long N>
-	ful_inline ful_pure constexpr bool empty(T (& x)[N]) { return ful_unused(x), N == 0; }
-
-	template <typename T>
-	static T && declval();
-
-	namespace detail
-	{
-		template <typename T>
-		static auto is_range(const T & x, int) -> decltype(begin(x), end(x), mpl::true_type());
-		template <typename T>
-		static auto is_range(const T &, ...) -> mpl::false_type;
-	}
-	template <typename T>
-	static auto is_range(const T & x) -> decltype(detail::is_range(x, 0));
-
-	namespace detail
-	{
-		template <typename T>
-		static auto is_same(const T &, const T &, int) -> mpl::true_type;
-		template <typename T, typename U>
-		static auto is_same(const T &, const U &, ...) -> mpl::false_type;
-
-		template <typename U, typename T>
-		static auto is_range_of(const T & x, int) -> decltype(end(x), is_same(*begin(x), declval<U>(), 0));
-		template <typename T>
-		static auto is_range_of(const T &, ...) -> mpl::false_type;
-	}
-	template <typename U, typename T>
-	static auto is_range_of(const T & x) -> decltype(detail::is_range_of<U>(x, 0));
-
-	template <typename T, std::size_t N>
-	static auto tuple_size(const T (&)[N]) -> mpl::index_constant<N>;
-	template <typename T>
-	static auto tuple_size(const T &) -> mpl::index_constant<std::tuple_size<T>::value>;
-
-	namespace detail
-	{
-		template <typename T>
-		static auto is_tuple(const T & x, int) -> decltype(tuple_size(x), mpl::true_type());
-		template <typename T>
-		static auto is_tuple(const T &, ...) -> mpl::false_type;
-	}
-	template <typename T>
-	static auto is_tuple(const T & x) -> decltype(detail::is_tuple(x, 0));
-
-	template <typename T = void>
-	static inline T only_if(mpl::true_type);
-
 	namespace detail
 	{
 		struct serialize_json

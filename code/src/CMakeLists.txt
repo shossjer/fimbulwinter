@@ -47,7 +47,6 @@ set(HEADERS_CORE
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
-	src/core/WriteStream.hpp
 	)
 
 set(MSVC_CORE

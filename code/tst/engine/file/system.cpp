@@ -1,7 +1,6 @@
 #include "core/content.hpp"
 #include "core/debug.hpp"
 #include "core/sync/Event.hpp"
-#include "core/WriteStream.hpp"
 
 #include "engine//file/config.hpp"
 #include "engine/file/scoped_directory.hpp"

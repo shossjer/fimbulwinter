@@ -13,7 +13,6 @@ set(FILES_CORE
 	tst/core/maths/Vector.cpp
 	tst/core/maths/util.cpp
 	tst/core/serialization.cpp
-	tst/core/WriteStream.cpp
 	)
 
 set(FILES_ENGINE

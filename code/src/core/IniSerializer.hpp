@@ -1,108 +1,255 @@
 #pragma once
 
+#include "core/content.hpp"
 #include "core/debug.hpp"
 #include "core/serialization.hpp"
-#include "core/WriteStream.hpp"
 
 #include "fio/to_chars.hpp"
 
-#include <string>
-#include <cstdint>
+#include "ful/string_modify.hpp"
 
 namespace core
 {
-	class IniSerializer
+	namespace detail
 	{
-	private:
-		core::WriteStream stream;
-
-	public:
-		IniSerializer(core::WriteStream && stream)
-			: stream(std::move(stream))
-		{}
-
-	public:
-		template <typename T>
-		void write(const T & x)
+		struct serialize_ini
 		{
-			write_key_values(x);
-			write_headers(x);
-		}
-	private:
-		void write_key_value(const ful::view_utf8 & name, const bool & x)
+		private:
+
+			struct has_key_values_test
+			{
+				template <typename ...Ts>
+				mpl::disjunction<mpl::bool_constant<!core::has_lookup_table<Ts>::value || !std::is_class<Ts>::value>...> operator () (const Ts & ...);
+			};
+
+			struct has_headers_test
+			{
+				template <typename ...Ts>
+				mpl::disjunction<mpl::bool_constant<core::has_lookup_table<Ts>::value && std::is_class<Ts>::value>...> operator () (const Ts & ...);
+			};
+
+		private:
+
+			ext::ssize write(ext::ssize size, ful::unit_utf8 * end, ful::unit_utf8 c)
+			{
+				if (ful_expect(size < 0))
+				{
+					*(end + size) = c;
+
+					return size + 1;
+				}
+				else
+				{
+					return size;
+				}
+			}
+
+			ext::ssize write(ext::ssize size, ful::unit_utf8 * end, ful::view_utf8 data)
+			{
+				ful::unit_utf8 * const ret = ful::copy(data, end + size, end);
+				if (ret)
+				{
+					return ret - end;
+				}
+				else
+				{
+					return -size;
+				}
+			}
+
+		public:
+
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_class<T>::value))>
+			ext::ssize write_all(ext::ssize size, ful::unit_utf8 * end, const T & x)
+			{
+				using has_key_values = decltype(member_table<T>::call_with_all_members(x, has_key_values_test{}));
+				using has_headers = decltype(member_table<T>::call_with_all_members(x, has_headers_test{}));
+
+				if (has_key_values::value)
+				{
+					if (!member_table<T>::for_each_member(x, [&](auto name, const auto & y)
+					{
+						size = try_write_key_value(size, end, name, y, 0);
+						if (size >= 0)
+							return false;
+
+						return true;
+					}))
+						return size;
+
+					size = write(size, end, '\n');
+					if (size >= 0)
+						return false;
+				}
+
+				if (has_headers::value)
+				{
+					if (!member_table<T>::for_each_member(x, [&](auto name, const auto & y)
+					{
+						size = try_write_header(size, end, name, y, 0);
+						if (size >= 0)
+							return false;
+
+						return true;
+					}))
+						return size;
+				}
+
+				return size;
+			}
+
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_class<T>::value))>
+			ext::ssize try_write_key_value(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & key, const T & value, int)
+			{
+				static_cast<void>(end);
+				static_cast<void>(key);
+				static_cast<void>(value);
+
+				// ignore, this object should have a header
+				return size;
+			}
+
+			template <typename T>
+			ext::ssize try_write_key_value(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & key, const T & value, ...)
+			{
+				return write_key_value(size, end, key, value);
+			}
+
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_class<T>::value))>
+			ext::ssize try_write_header(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & key, const T & value, int)
+			{
+				return write_header(size, end, key, value);
+			}
+
+			template <typename T>
+			ext::ssize try_write_header(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & key, const T & value, ...)
+			{
+				static_cast<void>(end);
+				static_cast<void>(key);
+				static_cast<void>(value);
+
+				// ignore, this object does not have a header
+				return size;
+			}
+
+			template <unsigned long long N>
+			ext::ssize write_string(ext::ssize size, ful::unit_utf8 * end, const ful::unit_utf8 (& x)[N])
+			{
+				return write(size, end, ful::cstr_utf8(x));
+			}
+
+			template <typename T>
+			auto write_string(ext::ssize size, ful::unit_utf8 * end, const T & x)
+				-> decltype(core::only_if(core::is_range_of<ful::unit_utf8>(x)), ext::ssize())
+			{
+				return write(size, end, ful::view_utf8(x));
+			}
+
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_enum<T>::value))>
+			ext::ssize write_value(ext::ssize size, ful::unit_utf8 * end, const T & x)
+			{
+				const auto key = core::value_table<T>::get_key(x);
+				return write_value(size, end, key);
+			}
+
+			template <typename T>
+			auto write_value(ext::ssize size, ful::unit_utf8 * end, const T & x)
+				-> decltype(write_string(size, end, x))
+			{
+				size = write_string(size, end, x);
+				if (size >= 0)
+					return size;
+
+				return write(size, end, '\n');
+			}
+
+			template <typename T>
+			auto write_value(ext::ssize size, ful::unit_utf8 * end, const T & x)
+				-> decltype(fio::to_chars(x, end + size), ext::ssize())
+			{
+				ful::unit_utf8 * const ret = fio::to_chars(x, end + size);
+				if (ret == nullptr)
+					return -size;
+
+				size = ret - end;
+
+				return write(size, end, '\n');
+			}
+
+			ext::ssize write_key_value(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & name, const bool & x)
+			{
+				size = write(size, end, name);
+				if (size >= 0)
+					return size;
+
+				return write(size, end, x ? ful::cstr_utf8(" = true\n") : ful::cstr_utf8(" = false\n"));
+			}
+
+			template <typename T>
+			ext::ssize write_key_value(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & name, const T & x)
+			{
+				size = write(size, end, name);
+				if (size >= 0)
+					return size;
+
+				size = write(size, end, ful::cstr_utf8(" = "));
+				if (size >= 0)
+					return size;
+
+				return write_value(size, end, x);
+			}
+
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_class<T>::value))>
+			ext::ssize write_header(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & name, const T & x)
+			{
+				size = write(size, end, '[');
+				if (size >= 0)
+					return size;
+
+				size = write_string(size, end, name);
+				if (size >= 0)
+					return size;
+
+				size = write(size, end, ful::cstr_utf8("]\n"));
+				if (size >= 0)
+					return size;
+
+				return write_all(size, end, x);
+			}
+
+		};
+	}
+
+	template <typename T>
+	fio_inline
+	ext::ssize serialize_ini(ful::unit_utf8 * begin, ful::unit_utf8 * end, const T & x)
+	{
+		detail::serialize_ini state;
+		const ext::ssize size = state.write_all(begin - end, end, x);
+		if (size < 0)
 		{
-			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
-			const auto value = x ? ful::cstr_utf8("=true\n") : ful::cstr_utf8("=false\n");
-			debug_verify(stream.write_all(value.data(), value.size()) == value.size());
+			return size - (begin - end);
 		}
-
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_class<T>::value))>
-		void write_key_value(const ful::view_utf8 &, const T &)
+		else
 		{
+			return 0;
 		}
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_enum<T>::value))>
-		void write_key_value(const ful::view_utf8 & name, const T & x)
-		{
-			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
-			debug_verify(stream.write_all("=", sizeof "=" - 1) == sizeof "=" - 1);
+	}
 
-			ful::view_utf8 value = value_table<T>::get_key(x);
-			debug_verify(stream.write_all(value.data(), value.size()) == value.size());
-
-			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
-		}
-		template <typename T,
-		          REQUIRES((!core::has_lookup_table<T>::value))>
-		void write_key_value(const ful::view_utf8 & name, const T & x)
-		{
-			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
-			debug_verify(stream.write_all("=", sizeof "=" - 1) == sizeof "=" - 1);
-
-			char buffer[32]; // todo
-			const char * buffer_end = fio::to_chars(x, buffer);
-			const ext::usize size = buffer_end - buffer;
-			debug_verify(stream.write_all(buffer, size) == size);
-
-			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
-		}
-
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value))>
-		void write_key_values(const T & x)
-		{
-			member_table<T>::for_each_member(x, [&](const auto& name, const auto& y){ write_key_value(name, y); } );
-		}
-
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_class<T>::value))>
-		void write_header(const ful::view_utf8 & name, const T & x)
-		{
-			debug_verify(stream.write_all("[", sizeof "[" - 1) == sizeof "[" - 1);
-			debug_verify(stream.write_all(name.data(), name.size()) == name.size());
-			debug_verify(stream.write_all("]", sizeof "]" - 1) == sizeof "]" - 1);
-			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
-
-			member_table<T>::for_each_member(x, [&](const auto& k, const auto& y){ write_key_value(k, y); } );
-
-			debug_verify(stream.write_all("\n", sizeof "\n" - 1) == sizeof "\n" - 1);
-		}
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((!std::is_class<T>::value))>
-		void write_header(const ful::view_utf8 &, const T &)
-		{
-		}
-
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value))>
-		void write_headers(const T & x)
-		{
-			member_table<T>::for_each_member(x, [&](const auto& name, const auto& y){ write_header(name, y); } );
-		}
-	};
+	template <typename T>
+	fio_inline
+	ext::ssize serialize_ini(core::content & content, const T & x)
+	{
+		return core::serialize_ini(static_cast<ful::unit_utf8 *>(content.data()), static_cast<ful::unit_utf8 *>(content.data()) + content.size(), x);
+	}
 }
