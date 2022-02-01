@@ -2,6 +2,7 @@
 set(SOURCES_CORE
 	src/core/async/Thread_kernel32.cpp
 	src/core/async/Thread_pthread.cpp
+	src/core/error.cpp
 	src/core/iostream.cpp
 	src/core/native/file_kernel32.cpp
 	src/core/native/file_posix.cpp
@@ -20,6 +21,7 @@ set(HEADERS_CORE
 	src/core/container/Queue.hpp
 	src/core/content.hpp
 	src/core/debug.hpp
+	src/core/error.hpp
 	src/core/file/paths.hpp
 	src/core/graphics/Image.hpp
 	src/core/graphics/types.hpp
