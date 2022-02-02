@@ -7,7 +7,7 @@ namespace
 	void find_row_and_col(ext::ssize size, const ful::unit_utf8 * end, ext::ssize & row, ext::ssize & col)
 	{
 		ext::ssize m = 0;
-		ext::ssize n = size;
+		ext::ssize n = size - 1; // one extra for phantom newline
 
 		if (size < 0)
 		{
@@ -29,8 +29,8 @@ namespace
 			}
 		}
 	done:
-		row = m;
-		col = 1 - n;
+		row = m + 1;
+		col = 0 - n;
 	}
 }
 
@@ -46,9 +46,9 @@ namespace core
 		find_row_and_col((begin - end) - error.where, end + error.where, row, col);
 
 #if defined(_MSC_VER)
-		core::debug::instance().fail(content.filepath(), '(', row, "): ", error.message, empty(error.type) ? ful::view_utf8{} : ful::cstr_utf8(", with type "), empty(error.type) ? ful::view_utf8{} : error.type);
+		core::debug::instance().fail(content.filepath(), '(', row, ',', col, "): error: ", error.message, empty(error.type) ? ful::view_utf8{} : ful::cstr_utf8(", for type "), empty(error.type) ? ful::view_utf8{} : error.type, '\n');
 #else
-		core::debug::instance().fail(content.filepath(), ':', row, ": ", error.message, empty(error.type) ? ful::view_utf8{} : ful::cstr_utf8(", with type "), empty(error.type) ? ful::view_utf8{} : error.type);
+		core::debug::instance().fail(content.filepath(), ':', row, ':', col, ": error: ", error.message, empty(error.type) ? ful::view_utf8{} : ful::cstr_utf8(", for type "), empty(error.type) ? ful::view_utf8{} : error.type, '\n');
 #endif
 	}
 }

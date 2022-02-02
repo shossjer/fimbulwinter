@@ -19,10 +19,14 @@ namespace core
 				enum type : ext::ssize
 				{
 					// reached_eof, // not an error
-					missing_spaces = 1,
-					unexpected_eof,
+					unexpected_eof = 1,
 					unexpected_eol,
+					unexpected_header1,
+					unexpected_key,
 					unexpected_symbol,
+					unexpected_value,
+					unexpected_value2,
+					missing_spaces,
 					type_mismatch,
 				};
 			};
@@ -35,7 +39,7 @@ namespace core
 #else
 			__attribute__((noinline))
 #endif
-			ext::ssize error(ext::ssize size, ful::unit_utf8 * end)
+			ext::ssize error(ext::ssize size, const ful::unit_utf8 * end)
 			{
 				static_cast<void>(end);
 
@@ -44,18 +48,27 @@ namespace core
 
 				switch (E)
 				{
-				case error_code::missing_spaces:
-					error_.message = ful::cstr_utf8("missing spaces around =");
-					return E;
 				case error_code::unexpected_eof:
 					error_.message = ful::cstr_utf8("unexpected end of file");
 					return E;
 				case error_code::unexpected_eol:
 					error_.message = ful::cstr_utf8("unexpected end of line");
 					return E;
+				case error_code::unexpected_header1:
+					error_.where += 1; // '['
+					error_.message = ful::cstr_utf8("unexpected header");
+					return E;
+				case error_code::unexpected_key:
+					error_.message = ful::cstr_utf8("unexpected key");
+					return E;
 				case error_code::unexpected_symbol:
 					error_.message = ful::cstr_utf8("unexpected symbol");
 					return E;
+				case error_code::missing_spaces:
+					error_.message = ful::cstr_utf8("missing spaces around =");
+					return E;
+				case error_code::unexpected_value:
+				case error_code::unexpected_value2:
 				case error_code::type_mismatch:
 #if defined(_MSC_VER)
 				default:
@@ -70,7 +83,7 @@ namespace core
 #else
 			__attribute__((noinline))
 #endif
-			ext::ssize error(ext::ssize size, ful::unit_utf8 * end, T & x)
+			ext::ssize error(ext::ssize size, const ful::unit_utf8 * end, T & x)
 			{
 				static_cast<void>(end);
 				static_cast<void>(x);
@@ -85,12 +98,19 @@ namespace core
 				case error_code::unexpected_symbol:
 					error_.message = ful::cstr_utf8("unexpected symbol");
 					return E;
+				case error_code::unexpected_value2:
+					error_.where += 2; // '= '
+				case error_code::unexpected_value:
+					error_.message = ful::cstr_utf8("unexpected value");
+					return E;
 				case error_code::type_mismatch:
 					error_.message = ful::cstr_utf8("type mismatch");
 					return E;
-				case error_code::missing_spaces:
 				case error_code::unexpected_eof:
 				case error_code::unexpected_eol:
+				case error_code::unexpected_header1:
+				case error_code::unexpected_key:
+				case error_code::missing_spaces:
 #if defined(_MSC_VER)
 				default:
 #endif
@@ -105,7 +125,7 @@ namespace core
 			template <typename T,
 			          REQUIRES((core::has_lookup_table<T>::value)),
 			          REQUIRES((std::is_class<T>::value))>
-			ext::ssize read_all(ext::ssize size, ful::unit_utf8 * end, T & x)
+			ext::ssize read_all(ext::ssize size, const ful::unit_utf8 * end, T & x)
 			{
 				if (size >= 0)
 					return size;
@@ -114,7 +134,7 @@ namespace core
 				// rundant bounds checking where the separator is actually
 				// parsed
 				if (*(end + size) == '=')
-					return error<error_code::unexpected_symbol>(size, end);
+					return error<error_code::missing_spaces>(size, end);
 
 				size = read_key_values(size, end, x, 0);
 				if (size >= 0)
@@ -123,47 +143,57 @@ namespace core
 				while (true)
 				{
 					ful::view_utf8 header;
-					size = read_header(size, end, header);
-					if (size >= 0)
-						return size;
+					const ext::ssize length = read_header(size, end, header);
+					if (length >= 0)
+						return length;
 
 					const auto member = core::member_table<T>::find(header);
 					if (member != std::size_t(-1))
 					{
-						size = core::member_table<T>::call(member, x, [&](auto & y){ return read_key_values(size, end, y, 0); });
+						size = core::member_table<T>::call(member, x, [&](auto & y){ return read_key_values(length, end, y, 0); });
 						if (size >= 0)
 							return size;
 					}
 					else
 					{
-						size = skip_key_values(size, end);
-						if (size >= 0)
-							return size;
+						return error<error_code::unexpected_header1>(size, end);
 					}
 				}
 			}
 
-			ext::ssize read_header(ext::ssize size, ful::unit_utf8 * end, ful::view_utf8 & x)
+			ext::ssize read_header(ext::ssize size, const ful::unit_utf8 * end, ful::view_utf8 & x)
 			{
 				if (!ful_expect(*(end + size) == '['))
 					return error<error_code::unexpected_symbol>(size, end);
 
 				const ful::unit_utf8 * const from = end + size + 1;
 
-				size = skip_to_line(size, end);
+				size = skip_to_char(size, end, ']');
+				if (size >= 0)
+					return size;
 
-				if (*(end + size - 1) != ']')
-					return error<error_code::unexpected_eol>(size, end);
+				size++; // ']'
+				if (size < 0)
+				{
+					if (*(end + size) == '\n' || *(end + size) == '\r')
+					{
+						x = ful::view_utf8(from, end + size - 1);
 
-				x = ful::view_utf8(from, end + size - 1);
+						return size;
+					}
+					else
+					{
+						return error<error_code::unexpected_symbol>(size, end);
+					}
+				}
 
-				return size;
+				return error<error_code::unexpected_eof>(size, end);
 			}
 
 			template <typename T,
 			          REQUIRES((core::has_lookup_table<T>::value)),
 			          REQUIRES((std::is_class<T>::value))>
-			ext::ssize read_key_values(ext::ssize size, ful::unit_utf8 * end, T & x, int)
+			ext::ssize read_key_values(ext::ssize size, const ful::unit_utf8 * end, T & x, int)
 			{
 				while (true)
 				{
@@ -179,6 +209,8 @@ namespace core
 					if (*(end + size) != '=')
 					{
 						size = skip_to_char(size, end, '=');
+						if (size >= 0)
+							return size;
 					}
 
 					if (*(end + size - 1) != ' ' || *(end + size + 1) != ' ')
@@ -195,7 +227,7 @@ namespace core
 					}
 					else
 					{
-						*(end + size) = ';'; // hack
+						return error<error_code::unexpected_key>(from - end, end);
 					}
 				}
 
@@ -203,12 +235,12 @@ namespace core
 			}
 
 			template <typename T>
-			ext::ssize read_key_values(ext::ssize size, ful::unit_utf8 * end, T & x, ...)
+			ext::ssize read_key_values(ext::ssize size, const ful::unit_utf8 * end, T & x, ...)
 			{
 				return error<error_code::type_mismatch>(size, end, x);
 			}
 
-			ext::ssize read_value(ext::ssize size, ful::unit_utf8 * end, bool & x)
+			ext::ssize read_value(ext::ssize size, const ful::unit_utf8 * end, bool & x)
 			{
 				if (!ful_expect(*(end + size) == '='))
 					return error<error_code::unexpected_symbol>(size, end);
@@ -216,30 +248,40 @@ namespace core
 				// size++; // '='
 				// size++; // ' '
 
-				if (size <= -6)
+				if (size <= -(2 + 4 + 1)) // one extra for eol
 				{
-					if (*reinterpret_cast<unsigned int *>(end + size + 6 - 4) == 0x65757274) // 'true' (LE)
+					if (*reinterpret_cast<const unsigned long long *>(end + size + 2 + 4 + 1 - 8) == 0x0a65757274203d20ull) // ' = true\n' (LE)
 					{
 						x = true;
-						return size + 6;
+						return size + 2 + 4;
+					}
+					else if (*reinterpret_cast<const unsigned long long *>(end + size + 2 + 4 + 1 - 8) == 0x0d65757274203d20ull) // ' = true\r' (LE)
+					{
+						x = true;
+						return size + 2 + 4;
 					}
 				}
 
-				if (size <= -7)
+				if (size <= -(2 + 5 + 1)) // one extra for eol
 				{
-					if (*reinterpret_cast<unsigned long long *>(end + size + 7 - 8) == 0x65736c6166203d20ull) // ' = false' (LE)
+					if (*reinterpret_cast<const unsigned long long *>(end + size + 2 + 5 + 1 - 8) == 0x0a65736c6166203dull) // '= false\n' (LE)
 					{
 						x = false;
-						return size + 7;
+						return size + 2 + 5;
+					}
+					else if (*reinterpret_cast<const unsigned long long *>(end + size + 2 + 5 + 1 - 8) == 0x0d65736c6166203dull) // '= false\r' (LE)
+					{
+						x = false;
+						return size + 2 + 5;
 					}
 				}
 
-				return error<error_code::unexpected_symbol>(size, end, x);
+				return error<error_code::unexpected_value2>(size, end, x);
 			}
 
 			template <typename T>
-			auto read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
-				-> decltype(fio::from_chars(end + size + 1, end, x), ext::ssize())
+			auto read_value(ext::ssize size, const ful::unit_utf8 * end, T & x)
+				-> decltype(fio::from_chars(end, end, x), ext::ssize())
 			{
 				if (!ful_expect(*(end + size) == '='))
 					return error<error_code::unexpected_symbol>(size, end, x);
@@ -247,53 +289,61 @@ namespace core
 				size++; // '='
 				size++; // ' '
 
-				const ext::ssize n = fio::from_chars(end + size, end, x) - (end + size);
-				if (n <= 0)
-					return error<error_code::unexpected_symbol>(size, end, x);
+				const ext::ssize n = (end + size) - fio::from_chars(end + size, end, x);
+				if (n < 0)
+				{
+					if (size < n)
+					{
+						if (*(end + size - n) == '\n' || *(end + size - n) == '\r')
+						{
+							return size - n;
+						}
+					}
+				}
 
-				return size + n;
+				return error<error_code::unexpected_value>(size, end, x);
 			}
 
 			template <typename T,
 			          REQUIRES((core::has_lookup_table<T>::value)),
 			          REQUIRES((std::is_enum<T>::value))>
-			ext::ssize read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+			ext::ssize read_value(ext::ssize size, const ful::unit_utf8 * end, T & x)
 			{
 				if (!ful_expect(*(end + size) == '='))
 					return error<error_code::unexpected_symbol>(size, end, x);
 
 				const ful::unit_utf8 * const from = end + size + 2;
 
-				size++; // '='
+				// size++; // '='
 				// size++; // ' '
 
-				size = skip_to_line(size, end);
+				const ext::ssize length = skip_to_line(size + 1, end);
 
-				const ful::view_utf8 str(from, end + size);
+				const ful::view_utf8 str(from, end + length);
 
 				const auto index = core::value_table<T>::find(str);
 				if (index != std::size_t(-1))
 				{
 					x = core::value_table<T>::get(index);
 
-					return size;
+					return length;
 				}
 				else
 				{
-					return error<error_code::unexpected_symbol>(size, end, x);
+					return error<error_code::unexpected_value2>(size, end, x);
 				}
 			}
 
 			template <typename T,
 			          REQUIRES((core::has_lookup_table<T>::value)),
 			          REQUIRES((std::is_class<T>::value))>
-			ext::ssize read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+			ext::ssize read_value(ext::ssize size, const ful::unit_utf8 * end, T & x)
 			{
 				return error<error_code::type_mismatch>(size, end, x);
 			}
 
 			template <typename T>
-			auto read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+			auto read_value(ext::ssize size, const ful::unit_utf8 * end, T & x)
 				-> decltype(x = T(ful::view_utf8{}), ext::ssize())
 			{
 				if (!ful_expect(*(end + size) == '='))
@@ -301,37 +351,20 @@ namespace core
 
 				const ful::unit_utf8 * const from = end + size + 2;
 
-				size++; // '='
+				// size++; // '='
 				// size++; // ' '
 
-				size = skip_to_line(size, end);
+				const ext::ssize length = skip_to_line(size + 1, end);
 
-				const ful::view_utf8 str(from, end + size);
+				const ful::view_utf8 str(from, end + length);
 
 				x = T(str);
 
-				return size;
-			}
-
-			ext::ssize skip_key_values(ext::ssize size, ful::unit_utf8 * end)
-			{
-				while (true)
-				{
-					size = skip_whitespace(size, end);
-					if (size >= 0)
-						return size;
-
-					if (*(end + size) == '[')
-						break;
-
-					*(end + size) = ';'; // hack
-				}
-
-				return size;
+				return length;
 			}
 
 			ful_inline
-			ext::ssize skip_to_char(ext::ssize size, ful::unit_utf8 * end, ful::unit_utf8 c)
+			ext::ssize skip_to_char(ext::ssize size, const ful::unit_utf8 * end, ful::unit_utf8 c)
 			{
 				if (!ful_expect(size < 0))
 					return error<error_code::unexpected_eof>(size, end);
@@ -355,7 +388,7 @@ namespace core
 			}
 
 			ful_inline
-			ext::ssize skip_to_line(ext::ssize size, ful::unit_utf8 * end)
+			ext::ssize skip_to_line(ext::ssize size, const ful::unit_utf8 * end)
 			{
 				if (!ful_expect(size < 0))
 					return error<error_code::unexpected_eof>(size, end);
@@ -376,7 +409,7 @@ namespace core
 			}
 
 			ful_inline
-			ext::ssize skip_whitespace(ext::ssize size, ful::unit_utf8 * end)
+			ext::ssize skip_whitespace(ext::ssize size, const ful::unit_utf8 * end)
 			{
 				if (!ful_expect(size < 0))
 					return error<error_code::unexpected_eof>(size, end);
@@ -387,6 +420,8 @@ namespace core
 					{
 				case ';':
 						size = skip_to_line(size, end);
+						if (size >= 0)
+							return size;
 				case 0:
 				case 1:
 				case 2:
