@@ -493,8 +493,10 @@ namespace core
 		template <typename ...Ps>
 		bool fail(Ps && ...ps)
 		{
+			core::cout.setcolor(fio::color::foreground_red);
 			utility::to_stream(core::cout, std::forward<Ps>(ps)...);
 			core::cout.flush();
+			core::cout.clearcolor();
 
 			return fail_hook_ ? fail_hook_() : false;
 		}
