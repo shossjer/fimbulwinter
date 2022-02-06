@@ -2,9 +2,8 @@
 
 #if WINDOW_USE_USER32
 
-#include "devices.hpp"
-
 #include "engine/console.hpp"
+#include "engine/hid/devices.hpp"
 #include "engine/hid/input.hpp"
 
 #include "utility/ext/stddef.hpp"
@@ -17,7 +16,8 @@
 #include "ful/convert.hpp"
 
 #if INPUT_HAS_USER32_RAWINPUT
-# include <vector>
+# include "utility/container/array.hpp"
+# include "utility/container/vector.hpp"
 #endif
 
 #include <Windows.h>
@@ -198,7 +198,7 @@ namespace
 		}
 	};
 
-	std::vector<Device> devices;
+	utility::heap_vector<Device> devices;
 
 # if INPUT_HAS_USER32_HID
 	struct Format
@@ -212,11 +212,11 @@ namespace
 			int index;
 		};
 
-		std::vector<Format::Field> fields;
-		std::vector<HIDP_BUTTON_CAPS> button_caps;
-		std::vector<HIDP_VALUE_CAPS> value_caps;
+		utility::heap_array<Format::Field> fields;
+		utility::heap_array<HIDP_BUTTON_CAPS> button_caps;
+		utility::heap_array<HIDP_VALUE_CAPS> value_caps;
 	};
-	std::vector<Format> formats;
+	utility::heap_vector<Format> formats;
 # endif
 #endif
 
@@ -386,10 +386,10 @@ namespace engine
 				debug_verify(GetRawInputDeviceInfoW(handle, RIDI_DEVICEINFO, &rdi, &len) == sizeof rdi);
 			}
 
-			::devices.emplace_back(handle);
-			Device & device = ::devices.back();
+			::devices.try_emplace_back(handle);
+			Device & device = ext::back(::devices);
 # if INPUT_HAS_USER32_HID
-			formats.emplace_back();
+			formats.try_emplace_back();
 # endif
 
 			switch (rdi.dwType)
@@ -421,7 +421,7 @@ namespace engine
 				HIDP_CAPS caps;
 				HidP_GetCaps(preparsed_data, &caps);
 
-				auto & fields = formats.back().fields;
+				auto & fields = ext::back(formats).fields;
 				fields.resize(caps.NumberInputDataIndices + caps.NumberOutputDataIndices + caps.NumberFeatureDataIndices);
 				const int field_offsets[] = { 0, caps.NumberInputDataIndices, caps.NumberInputDataIndices + caps.NumberOutputDataIndices };
 
@@ -459,7 +459,7 @@ namespace engine
 					}
 				};
 
-				auto & button_caps = formats.back().button_caps;
+				auto & button_caps = ext::back(formats).button_caps;
 				button_caps.resize(caps.NumberInputButtonCaps + caps.NumberOutputButtonCaps + caps.NumberFeatureButtonCaps);
 				USHORT nbutton_caps;
 				HidP_GetButtonCaps(HidP_Input, button_caps.data(), &nbutton_caps, preparsed_data);
@@ -540,7 +540,7 @@ namespace engine
 					}
 				};
 
-				auto & value_caps = formats.back().value_caps;
+				auto & value_caps = ext::back(formats).value_caps;
 				value_caps.resize(caps.NumberInputValueCaps + caps.NumberOutputValueCaps + caps.NumberFeatureValueCaps);
 				USHORT nvalue_caps;
 				HidP_GetValueCaps(HidP_Input, value_caps.data(), &nvalue_caps, preparsed_data);
@@ -684,8 +684,8 @@ namespace engine
 			UINT len = 0;
 			debug_verify(GetRawInputData(input, RID_INPUT, nullptr, &len, sizeof(RAWINPUTHEADER)) == 0);
 
-			std::vector<char> bytes; // what about alignment?
-			bytes.resize(len);
+			utility::heap_array<char> bytes; // what about alignment?
+			debug_verify(bytes.resize(len));
 			debug_verify(GetRawInputData(input, RID_INPUT, bytes.data(), &len, sizeof(RAWINPUTHEADER)) == len);
 
 			const RAWINPUT & ri = *reinterpret_cast<const RAWINPUT *>(bytes.data());

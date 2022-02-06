@@ -1,27 +1,23 @@
-#include "console.hpp"
-
 #include "engine/Asset.hpp"
+#include "engine/console.hpp"
 #include "engine/debug.hpp"
 
-#include "fio/stdio.hpp"
+#include "fio/from_chars.hpp"
 
 #include "ful/string_search.hpp"
 
-#include <algorithm>
-#include <vector>
-
 namespace
 {
-	std::vector<std::pair<engine::Asset, std::unique_ptr<engine::detail::CallbackBase>>> observers;
+	utility::heap_vector<engine::Asset, ext::heap_unique_ptr<engine::detail::CallbackBase>> observers;
 }
 
 namespace engine
 {
 	namespace detail
 	{
-		std::vector<Argument> parse_params(ful::view_utf8 line)
+		utility::heap_vector<Argument> parse_params(ful::view_utf8 line)
 		{
-			std::vector<Argument> params;
+			utility::heap_vector<Argument> params;
 
 			auto begin = line.data();
 			auto end = line.data() + line.size();
@@ -32,9 +28,11 @@ namespace engine
 				{
 					const auto to = ful::find(begin + 1, end, ful::char8{'"'});
 					if (to == end)
-						throw std::runtime_error("missing ending quote (\") on string argument");
+						break;
 
-					params.emplace_back(utility::in_place_type<ful::view_utf8>, begin + 1, to - begin - 1);
+					if (!params.try_emplace_back(utility::in_place_type<ful::view_utf8>, begin + 1, to - begin - 1))
+						break;
+
 					begin = to + 1; // '"'
 					continue;
 				}
@@ -49,36 +47,51 @@ namespace engine
 				const auto word = ful::view_utf8(begin, to);
 				if (word == "true")
 				{
-					params.emplace_back(utility::in_place_type<bool>, true);
+					if (!params.try_emplace_back(utility::in_place_type<bool>, true))
+						break;
 				}
 				else if (word == "false")
 				{
-					params.emplace_back(utility::in_place_type<bool>, false);
-				}
-				else if (ful::find(begin, to, ful::char8{'.'}) != to)
-				{
-					// todo error handling
-					params.emplace_back(utility::in_place_type<double>, std::strtod(begin, nullptr));
+					if (!params.try_emplace_back(utility::in_place_type<bool>, false))
+						break;
 				}
 				else
 				{
-					// todo error handling
-					// todo fio::from_chars
-					params.emplace_back(utility::in_place_type<int64_t>, std::strtoll(begin, nullptr, 0));
+					float tmpf; // todo double
+					const char * retf = fio::from_chars(word.begin(), word.end(), tmpf);
+
+					ext::ssize tmpi;
+					const char * reti = fio::from_chars(word.begin(), word.end(), tmpi);
+
+					if (reti == word.end())
+					{
+						if (!params.try_emplace_back(utility::in_place_type<ext::ssize>, tmpi))
+							break;
+					}
+					else if (retf == word.end())
+					{
+						if (!params.try_emplace_back(utility::in_place_type<double>, static_cast<double>(tmpf)))
+							break;
+					}
+					else
+					{
+						// todo report error
+					}
 				}
+
 				begin = to;
 			}
 
 			return params;
 		}
 
-		void observe_impl(ful::view_utf8 keyword, std::unique_ptr<CallbackBase> && callback)
+		void observe_impl(ful::view_utf8 keyword, ext::heap_unique_ptr<CallbackBase> && callback)
 		{
 			const auto key = engine::Asset(keyword);
 			if (!debug_assert(std::find_if(observers.begin(), observers.end(), [key](const auto & p){ return p.first == key; }) == observers.end(), "\"", keyword, "\" is being observed twice"))
 				return;
 
-			observers.emplace_back(key, std::move(callback));
+			observers.try_emplace_back(key, std::move(callback));
 		}
 
 		void read_input(ful::view_utf8 line)
@@ -91,9 +104,9 @@ namespace engine
 			const auto command_name = ful::view_utf8(line.begin(), command_end);
 			const engine::Asset command_key(command_name);
 
-			const std::vector<Argument> params = parse_params(ful::view_utf8(command_end + 1, line.end()));
+			const utility::heap_vector<Argument> params = parse_params(ful::view_utf8(command_end + 1, line.end()));
 
-			for (auto & observer : observers)
+			for (auto && observer : observers)
 			{
 				if (observer.first == command_key)
 				{

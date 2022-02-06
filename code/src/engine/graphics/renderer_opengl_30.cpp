@@ -14,7 +14,6 @@
 #include "core/container/Queue.hpp"
 #include "core/container/Collection.hpp"
 #include "core/container/ExchangeQueue.hpp"
-#include "core/container/Stack.hpp"
 #include "core/file/paths.hpp"
 #include "core/maths/Vector.hpp"
 #include "core/maths/algorithm.hpp"
@@ -32,6 +31,7 @@
 
 #include "utility/algorithm/find.hpp"
 #include "utility/any.hpp"
+#include "utility/container/vector.hpp"
 #include "utility/functional/utility.hpp"
 #include "utility/lookup_table.hpp"
 #include "utility/profiling.hpp"
@@ -100,42 +100,42 @@ namespace
 		using prime_type = value_type::value_type;
 
 	private:
-		core::container::Stack<value_type, capacity> stack;
+		utility::static_vector<capacity, value_type> stack;
 
 	public:
 		Stack()
 		{
-			this->stack.emplace();
+			debug_verify(this->stack.try_emplace_back());
 		}
 
 	public:
-		const value_type & top() const { return stack.top(); }
+		const value_type & top() const { return ext::back(stack); }
 
 		void pop()
 		{
 			debug_assert(this->stack.size() > std::size_t{1});
-			this->stack.pop();
+			ext::pop_back(this->stack);
 		}
 		void push()
 		{
 			debug_assert(this->stack.size() < capacity);
-			this->stack.push(this->stack.top());
+			this->stack.push_back(top());
 		}
 
 		void load(const value_type matrix)
 		{
-			this->stack.top() = matrix;
+			ext::back(stack) = matrix;
 		}
 		void mult(const value_type matrix)
 		{
-			this->stack.top() *= matrix;
+			ext::back(stack) *= matrix;
 		}
 		/**
 		 * \note Use `mult` instead.
 		 */
 		void rotate(const core::maths::radian<prime_type> radian, const prime_type x, const prime_type y, const prime_type z)
 		{
-			this->stack.top() *= value_type::rotation(radian, x, y, z);
+			ext::back(stack) *= value_type::rotation(radian, x, y, z);
 		}
 		/**
 		 * \note Use `mult` instead.
@@ -149,14 +149,14 @@ namespace
 		 */
 		void scale(const prime_type x, const prime_type y, const prime_type z)
 		{
-			this->stack.top() *= value_type::scale(x, y, z);
+			ext::back(stack) *= value_type::scale(x, y, z);
 		}
 		/**
 		 * \note Use `mult` instead.
 		 */
 		void translate(const prime_type x, const prime_type y, const prime_type z)
 		{
-			this->stack.top() *= value_type::translation(x, y, z);
+			ext::back(stack) *= value_type::translation(x, y, z);
 		}
 
 	public:
@@ -446,8 +446,8 @@ namespace
 
 		struct FontInfo
 		{
-			std::vector<ful::point_utf> allowed_unicodes;
-			std::vector<SymbolData> symbol_data;
+			utility::heap_vector<ful::point_utf> allowed_unicodes;
+			utility::heap_vector<SymbolData> symbol_data;
 
 			int symbol_width;
 			int symbol_height;
@@ -544,7 +544,7 @@ namespace
 			}
 		}
 
-		void create(ful::heap_string_utf8 && name, std::vector<ful::point_utf> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
+		void create(ful::heap_string_utf8 && name, utility::heap_vector<ful::point_utf> && allowed_unicodes, utility::heap_vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
 		{
 			const engine::Asset asset(name);
 			const auto index = find(engine::Token(asset));
@@ -584,7 +584,7 @@ namespace
 		core::container::Buffer triangles;
 		core::container::Buffer normals;
 		core::container::Buffer coords;
-		std::vector<engine::model::weight_t> weights;
+		utility::heap_array<engine::model::weight_t> weights;
 
 		explicit mesh_t(engine::graphics::data::MeshAsset && data)
 			: modelview(core::maths::Matrix4x4f::identity())
@@ -1005,7 +1005,7 @@ namespace
 		const mesh_t * mesh;
 		object_modelview_vertices * object;
 
-		std::vector<core::maths::Matrix4x4f> matrix_pallet;
+		utility::heap_array<core::maths::Matrix4x4f> matrix_pallet;
 
 		updateable_character_t(
 			const mesh_t & mesh,
@@ -1016,7 +1016,7 @@ namespace
 
 		void update()
 		{
-			if (matrix_pallet.empty())
+			if (matrix_pallet.size() == 0)
 				return;
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
@@ -1405,7 +1405,7 @@ namespace
 	GLuint framebuffer;
 	GLuint entitybuffers[2]; // color, depth
 	GLuint entitytexture; // color
-	std::vector<uint32_t> entitypixels;
+	utility::heap_array<uint32_t> entitypixels;
 	engine::graphics::opengl::Color4ub highlighted_color{255, 191, 64, 255};
 	engine::graphics::opengl::Color4ub selected_color{64, 191, 255, 255};
 
@@ -1444,7 +1444,7 @@ namespace
 		glDrawBuffers(2, buffers);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
-		entitypixels.resize(framebuffer_width * framebuffer_height);
+		debug_verify(entitypixels.resize(framebuffer_width * framebuffer_height));
 
 		debug_assert(glGetError() == GL_NO_ERROR);
 	}
@@ -1512,13 +1512,13 @@ namespace
 	void initialize_builtin_shaders()
 	{
 		engine::graphics::data::ShaderData entity_shader_data;
-		entity_shader_data.inputs.emplace_back();
-		entity_shader_data.inputs.back().value = 4;
-		if (!debug_verify(ful::assign(entity_shader_data.inputs.back().name, ful::cstr_utf8("in_vertex"))))
+		debug_verify(entity_shader_data.inputs.try_emplace_back());
+		ext::back(entity_shader_data.inputs).value = 4;
+		if (!debug_verify(ful::assign(ext::back(entity_shader_data.inputs).name, ful::cstr_utf8("in_vertex"))))
 			return; // error
-		entity_shader_data.inputs.emplace_back();
-		entity_shader_data.inputs.back().value = 5;
-		if (!debug_verify(ful::assign(entity_shader_data.inputs.back().name, ful::cstr_utf8("in_color"))))
+		debug_verify(entity_shader_data.inputs.try_emplace_back());
+		ext::back(entity_shader_data.inputs).value = 5;
+		if (!debug_verify(ful::assign(ext::back(entity_shader_data.inputs).name, ful::cstr_utf8("in_color"))))
 			return; // error
 		if (!debug_verify(ful::assign(entity_shader_data.vertex_source, ful::cstr_utf8(R"###(
 #version 130
@@ -1538,13 +1538,13 @@ void main()
 }
 )###"))))
 			return; // error
-		entity_shader_data.outputs.emplace_back();
-		entity_shader_data.outputs.back().value = 0;
-		if (!debug_verify(ful::assign(entity_shader_data.outputs.back().name, ful::cstr_utf8("out_framebuffer"))))
+		debug_verify(entity_shader_data.outputs.try_emplace_back());
+		ext::back(entity_shader_data.outputs).value = 0;
+		if (!debug_verify(ful::assign(ext::back(entity_shader_data.outputs).name, ful::cstr_utf8("out_framebuffer"))))
 			return; // error
-		entity_shader_data.outputs.emplace_back();
-		entity_shader_data.outputs.back().value = 1;
-		if (!debug_verify(ful::assign(entity_shader_data.outputs.back().name, ful::cstr_utf8("out_entitytex"))))
+		debug_verify(entity_shader_data.outputs.try_emplace_back());
+		ext::back(entity_shader_data.outputs).value = 1;
+		if (!debug_verify(ful::assign(ext::back(entity_shader_data.outputs).name, ful::cstr_utf8("out_entitytex"))))
 			return; // error
 		if (!debug_verify(ful::assign(entity_shader_data.fragment_source, ful::cstr_utf8(R"###(
 #version 130

@@ -9,7 +9,7 @@ namespace engine
 {
 	namespace detail
 	{
-		extern std::vector<Argument> parse_params(ful::view_utf8 line);
+		extern utility::heap_vector<Argument> parse_params(ful::view_utf8 line);
 	}
 }
 
@@ -50,7 +50,7 @@ TEST_CASE("Verify number parsing")
 	{
 		test("0.0", 0.0);
 		test("-1.0", -1.0);
-		test("1234.5678", 1234.5678);
+		test("1234.5678", static_cast<double>(1234.5678f));
 	}
 }
 
@@ -138,9 +138,9 @@ TEST_CASE("Verify variadic parsing")
 	SECTION("Lookup no args")
 	{
 		auto callback = create_callback(f_empty, nullptr);
-		std::vector<engine::detail::Argument> params;
+		utility::heap_vector<engine::detail::Argument> params;
 		REQUIRE(callback.call(params));
-		params.emplace_back(utility::in_place_type<ful::view_utf8>);
+		REQUIRE(params.try_emplace_back(utility::in_place_type<ful::view_utf8>));
 		REQUIRE(!callback.call(params));
 	}
 
@@ -149,11 +149,11 @@ TEST_CASE("Verify variadic parsing")
 		auto c_empty = create_callback(f_empty, nullptr);
 		auto c_single = create_callback(f_single, nullptr);
 
-		std::vector<engine::detail::Argument> params;
+		utility::heap_vector<engine::detail::Argument> params;
 		REQUIRE(c_empty.call(params));		// match
 		REQUIRE(!c_single.call(params));	// too few args
 
-		params.emplace_back(utility::in_place_type<ful::view_utf8>);
+		REQUIRE(params.try_emplace_back(utility::in_place_type<ful::view_utf8>));
 
 		REQUIRE(!c_empty.call(params));		// too many args
 		REQUIRE(c_single.call(params));		// match
@@ -163,23 +163,23 @@ TEST_CASE("Verify variadic parsing")
 	{
 		auto c_single = create_callback(f_single, nullptr);
 
-		std::vector<engine::detail::Argument> params;
-		params.emplace_back(utility::in_place_type<bool>, false);
+		utility::heap_vector<engine::detail::Argument> params;
+		REQUIRE(params.try_emplace_back(utility::in_place_type<bool>, false));
 
 		REQUIRE(!c_single.call(params));	// missmatch
 	}
 	SECTION("Lookup multi args match")
 	{
-		std::vector<engine::detail::Argument> params;
+		utility::heap_vector<engine::detail::Argument> params;
 
 		auto call_match = create_callback(f_dual1, nullptr);
 		auto call_inval = create_callback(f_dual2, nullptr);
 
-		params.emplace_back(utility::in_place_type<bool>, false);
+		REQUIRE(params.try_emplace_back(utility::in_place_type<bool>, false));
 		REQUIRE(!call_match.call(params));	// too few args
 		REQUIRE(!call_inval.call(params));	// too few args
 
-		params.emplace_back(utility::in_place_type<int64_t>, 0);
+		REQUIRE(params.try_emplace_back(utility::in_place_type<int64_t>, 0));
 		REQUIRE(call_match.call(params));	// match
 		REQUIRE(!call_inval.call(params));	// missmatch
 	}
@@ -188,7 +188,7 @@ TEST_CASE("Verify variadic parsing")
 		void (*const fun)(void * data) = [](void * data){ REQUIRE(reinterpret_cast<std::intptr_t>(data) == 4711); };
 		auto callback = create_callback(fun, reinterpret_cast<void *>(4711));
 
-		std::vector<engine::detail::Argument> params;
+		utility::heap_vector<engine::detail::Argument> params;
 		REQUIRE(callback.call(params));
 	}
 }

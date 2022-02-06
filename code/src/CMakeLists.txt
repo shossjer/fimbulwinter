@@ -17,7 +17,6 @@ set(HEADERS_CORE
 	src/core/container/Buffer.hpp
 	src/core/container/Collection.hpp
 	src/core/container/ExchangeQueue.hpp
-	src/core/container/Stack.hpp
 	src/core/container/Queue.hpp
 	src/core/content.hpp
 	src/core/debug.hpp
@@ -205,6 +204,7 @@ set(HEADERS_UTILITY
 	src/utility/tuple.hpp
 	src/utility/type_info.hpp
 	src/utility/type_traits.hpp
+	src/utility/unique_ptr.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
 	src/utility/weak_ptr.hpp

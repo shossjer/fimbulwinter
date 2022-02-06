@@ -296,6 +296,31 @@ namespace utility
 		}
 
 		template <typename ...Ps>
+		annotate_nodiscard
+		bool resize(std::size_t size, Ps && ...ps)
+		{
+			if (size < this->size())
+			{
+				const auto it = this->begin_storage() + size;
+
+				this->storage_.destruct_range(it, this->end_storage());
+				this->set_end(it);
+			}
+			else
+			{
+				if (size > this->capacity())
+				{
+					if (!this->try_reallocate(size))
+						return false;
+				}
+
+				this->set_end(this->storage_.construct_fill(this->end_storage(), size - this->size(), static_cast<Ps &&>(ps)...));
+			}
+
+			return true;
+		}
+
+		template <typename ...Ps>
 		bool try_emplace_back(utility::no_failure_t, Ps && ...ps)
 		{
 			auto end = this->end_storage();
@@ -439,6 +464,26 @@ namespace utility
 			return nonfrom;
 		}
 	};
+
+	template <typename Data>
+	constexpr std::size_t capacity(const basic_vector<Data> & x) { return x.capacity(); }
+	template <typename Data>
+	std::size_t size(const basic_vector<Data> & x) { return x.size(); }
+
+	template <typename Data>
+	typename basic_vector<Data>::iterator begin(basic_vector<Data> & x) { return x.begin(); }
+	template <typename Data>
+	typename basic_vector<Data>::const_iterator begin(const basic_vector<Data> & x) { return x.begin(); }
+
+	template <typename Data>
+	typename basic_vector<Data>::iterator end(basic_vector<Data> & x) { return x.end(); }
+	template <typename Data>
+	typename basic_vector<Data>::const_iterator end(const basic_vector<Data> & x) { return x.end(); }
+
+	template <typename Data>
+	typename basic_vector<Data>::pointer data(basic_vector<Data> & x) { return x.data(); }
+	template <typename Data>
+	typename basic_vector<Data>::const_pointer data(const basic_vector<Data> & x) { return x.data(); }
 
 	template <typename Storage,
 	          template <typename> class ReservationStrategy = utility::reserve_power_of_two,

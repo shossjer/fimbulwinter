@@ -17,10 +17,6 @@
 #include "utility/profiling.hpp"
 #include "utility/variant.hpp"
 
-#include <cstdint>
-#include <utility>
-#include <vector>
-
 namespace
 {
 	engine::graphics::renderer * renderer = nullptr;
@@ -80,7 +76,7 @@ namespace
 		int framei_;
 
 		// vvvvvvvv tmp
-		std::vector<core::maths::Matrix4x4f> matrices;
+		utility::heap_array<core::maths::Matrix4x4f> matrices;
 		core::maths::Vector3f position_movement;
 		core::maths::Quaternionf orientation_movement;
 
@@ -150,12 +146,14 @@ namespace
 			return childi;
 		}
 
-		void extract(std::vector<core::maths::Matrix4x4f> & matrix_pallet) const
+		void extract(utility::heap_array<core::maths::Matrix4x4f> & matrix_pallet) const
 		{
 			// vvvvvvvv tmp
-			debug_assert(matrix_pallet.size() == matrices.size());
-			for (int i = 0; i < static_cast<int>(armature->joints.size()); i++)
-				matrix_pallet[i] = matrices[i] * armature->joints[i].inv_matrix;
+			if (matrix_pallet.resize(matrices.size()))
+			{
+				for (int i = 0; i < static_cast<int>(armature->joints.size()); i++)
+					matrix_pallet[i] = matrices[i] * armature->joints[i].inv_matrix;
+			}
 			// ^^^"^^^^ tmp
 		}
 
@@ -275,7 +273,7 @@ namespace
 	};
 	struct extract_pallet
 	{
-		std::vector<core::maths::Matrix4x4f> & matrix_pallet;
+		utility::heap_array<core::maths::Matrix4x4f> & matrix_pallet;
 
 		void operator () (Playback & x)
 		{
@@ -324,7 +322,6 @@ namespace
 
 		Mixer mixer;
 
-		std::vector<core::maths::Matrix4x4f> matrix_pallet;
 		core::maths::Vector3f position_movement;
 		core::maths::Quaternionf orientation_movement;
 
@@ -332,7 +329,6 @@ namespace
 			: me(me)
 			, armature(&armature)
 			, mixer(invalid_mixer)
-			, matrix_pallet(armature.joints.size())
 		{}
 
 		void finalize()
@@ -347,13 +343,14 @@ namespace
 				pCallbacks->onFinish(this->me);
 			}
 
+			utility::heap_array<core::maths::Matrix4x4f> matrix_pallet;
 			mixers.call(mixer_it, extract_pallet{matrix_pallet});
 			const bool has_position_movement = mixers.call(mixer_it, extract_position_movement{position_movement});
 			const bool has_orientation_movement = mixers.call(mixer_it, extract_orientation_movement{orientation_movement});
 			post_update_characterskinning(
 				*renderer,
 				me,
-				engine::graphics::data::CharacterSkinning{matrix_pallet});
+				engine::graphics::data::CharacterSkinning{std::move(matrix_pallet)});
 			if (has_position_movement)
 			{
 				post_update_movement(*::simulation, me, engine::physics::movement_data{engine::physics::movement_data::Type::CHARACTER, position_movement});

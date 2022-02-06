@@ -6,11 +6,10 @@
 #include "core/graphics/types.hpp"
 #include "core/serialization.hpp"
 
+#include "utility/container/array.hpp"
 #include "utility/span.hpp"
 
 #include "ful/string_modify.hpp" // ful::copy
-
-#include <vector>
 
 #include <png.h>
 
@@ -64,7 +63,7 @@ namespace core
 			// all objects with a non-trivial destructor have to be
 			// put before the setjmp
 			core::container::Buffer pixels;
-			std::vector<png_bytep> rows;
+			utility::heap_array<png_bytep> rows;
 
 #if defined(_MSC_VER)
 # pragma warning( push )
@@ -119,7 +118,8 @@ namespace core
 			if (!debug_verify(pixels.reshape<uint8_t>(row_size * image_height)))
 				return; // todo cleanup
 
-			rows.resize(image_height);
+			if (!debug_verify(rows.resize(image_height)))
+				return; // todo cleanup
 			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
 			for (int i = 0; i < image_height; i++)
 			{

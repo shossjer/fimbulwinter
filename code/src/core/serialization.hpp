@@ -616,6 +616,20 @@ namespace core
 		return x.back();
 	}
 
+	template <typename T>
+	auto grow(T & x)
+		-> decltype(x.try_emplace_back(), ext::back(x))
+	{
+		if (x.try_emplace_back())
+		{
+			return ext::back(x);
+		}
+		else
+		{
+			debug_unreachable();
+		}
+	}
+
 	namespace detail
 	{
 		template <typename T>

@@ -5,7 +5,7 @@
 
 #include "engine/common.hpp"
 
-#include <vector>
+#include "utility/container/array.hpp"
 
 namespace engine
 {
@@ -29,7 +29,7 @@ namespace model
 		core::maths::Matrix4x4f matrix;
 		core::container::Buffer xyz;
 		core::container::Buffer uv;
-		std::vector<weight_t> weights;
+		utility::heap_array<weight_t> weights;
 		core::container::Buffer normals;
 		core::container::Buffer triangles;
 
