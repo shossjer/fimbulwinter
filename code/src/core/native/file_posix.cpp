@@ -17,13 +17,13 @@ namespace core
 {
 	namespace native
 	{
-		bool try_read_file(ful::cstr_utf8 filepath, void (* callback)(core::content & content, void * data), void * data)
+		int try_read_file(ful::cstr_utf8 filepath, bool (* callback)(core::content & content, void * data), void * data)
 		{
 			const int fd = ::open(filepath.c_str(), O_RDONLY);
 			if (fd == -1)
 			{
 				debug_assert(errno == ENOENT, "open \"", filepath, "\" failed with errno ", errno);
-				return false;
+				return 0;
 			}
 
 			struct stat statbuf;
@@ -34,17 +34,17 @@ namespace core
 			{
 				debug_verify(::close(fd) == 0, "failed with errno ", errno);
 
-				return false;
+				return 0;
 			}
 
 			core::content content(filepath, map, statbuf.st_size);
 
-			callback(content, data);
+			const bool ret = callback(content, data);
 
 			debug_verify(::munmap(map, statbuf.st_size) == 0, "failed with errno ", errno);
 			debug_verify(::close(fd) == 0, "failed with errno ", errno);
 
-			return true;
+			return ret ? 1 : -1;
 		}
 	}
 }

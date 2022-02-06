@@ -249,6 +249,16 @@ namespace
 			last_write_time = by_handle_file_information.ftLastWriteTime;
 		}
 
+		ful::heap_string_utf8 relpath;
+		if (!debug_verify(convert(filepath.data() + root, filepath.data() + filepath.size(), relpath)))
+		{
+			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+
+			return false;
+		}
+
+		core::file::backslash_to_slash(relpath);
+
 		LARGE_INTEGER file_size;
 		if (!debug_verify(::GetFileSizeEx(hFile, &file_size) != FALSE, "failed with last error ", ::GetLastError()))
 		{
@@ -257,46 +267,49 @@ namespace
 			return false;
 		}
 
-		HANDLE hMappingObject = ::CreateFileMappingW(hFile, nullptr, PAGE_WRITECOPY, 0, 0, nullptr);
-		if (!debug_verify(hMappingObject != (HANDLE)NULL, "CreateFileMappingW failed with last error ", ::GetLastError()))
+		if (file_size.QuadPart != 0)
 		{
-			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+			HANDLE hMappingObject = ::CreateFileMappingW(hFile, nullptr, PAGE_WRITECOPY, 0, 0, nullptr);
+			if (!debug_verify(hMappingObject != (HANDLE)NULL, "CreateFileMappingW failed with last error ", ::GetLastError()))
+			{
+				debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
-			return false;
-		}
+				return false;
+			}
 
-		LPVOID file_view = ::MapViewOfFile(hMappingObject, FILE_MAP_COPY, 0, 0, 0);
-		if (!debug_verify(file_view != (LPVOID)NULL, "MapViewOfFile failed with last error ", ::GetLastError()))
-		{
-			debug_verify(::CloseHandle(hMappingObject) != FALSE, "failed with last error ", ::GetLastError());
-			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
+			LPVOID file_view = ::MapViewOfFile(hMappingObject, FILE_MAP_COPY, 0, 0, 0);
+			if (!debug_verify(file_view != (LPVOID)NULL, "MapViewOfFile failed with last error ", ::GetLastError()))
+			{
+				debug_verify(::CloseHandle(hMappingObject) != FALSE, "failed with last error ", ::GetLastError());
+				debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
-			return false;
-		}
+				return false;
+			}
 
-		ful::heap_string_utf8 relpath;
-		if (!debug_verify(convert(filepath.data() + root, filepath.data() + filepath.size(), relpath)))
-		{
+			core::content content(ful::cstr_utf8(relpath), file_view, file_size.QuadPart);
+
+			engine::file::system filesystem(impl);
+			callback(filesystem, content, data);
+			filesystem.detach();
+
 			debug_verify(::UnmapViewOfFile(file_view) != FALSE, "failed with last error ", ::GetLastError());
 			debug_verify(::CloseHandle(hMappingObject) != FALSE, "failed with last error ", ::GetLastError());
 			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
-			return false;
+			return true;
 		}
+		else
+		{
+			core::content content(ful::cstr_utf8(relpath), nullptr, file_size.QuadPart);
 
-		core::file::backslash_to_slash(relpath);
+			engine::file::system filesystem(impl);
+			callback(filesystem, content, data);
+			filesystem.detach();
 
-		core::content content(ful::cstr_utf8(relpath), file_view, file_size.QuadPart);
+			debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
-		engine::file::system filesystem(impl);
-		callback(filesystem, content, data);
-		filesystem.detach();
-
-		debug_verify(::UnmapViewOfFile(file_view) != FALSE, "failed with last error ", ::GetLastError());
-		debug_verify(::CloseHandle(hMappingObject) != FALSE, "failed with last error ", ::GetLastError());
-		debug_verify(::CloseHandle(hFile) != FALSE, "failed with last error ", ::GetLastError());
-
-		return true;
+			return true;
+		}
 	}
 
 	bool write_file(engine::file::system_impl & impl, ful::heap_string_utfw & filepath, std::uint32_t root, engine::file::write_callback * callback, utility::any & data, bool append, bool overwrite)
