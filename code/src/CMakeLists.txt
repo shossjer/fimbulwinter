@@ -160,6 +160,7 @@ set(HEADERS_UTILITY
 	src/utility/array.hpp
 	src/utility/bitmanip.hpp
 	src/utility/cast_iterator.hpp
+	src/utility/compiler.hpp
 	src/utility/compound.hpp
 	src/utility/concepts.hpp
 	src/utility/container/array.hpp
@@ -177,7 +178,6 @@ set(HEADERS_UTILITY
 	src/utility/functional/utility.hpp
 	src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
-	src/utility/intrinsics.hpp
 	src/utility/iterator.hpp
 	src/utility/lookup_table.hpp
 	src/utility/null_allocator.hpp

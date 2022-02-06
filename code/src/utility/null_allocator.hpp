@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utility/intrinsics.hpp"
+#include "utility/compiler.hpp"
 
 #include <cstddef>
 #include <type_traits>

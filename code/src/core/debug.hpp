@@ -2,8 +2,8 @@
 
 #include "core/iostream.hpp"
 
+#include "utility/compiler.hpp"
 #include "utility/concepts.hpp"
-#include "utility/intrinsics.hpp"
 #include "utility/stream.hpp"
 
 #include "fio/stdio.hpp"

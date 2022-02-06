@@ -1,9 +1,9 @@
 #pragma once
 
 #include "utility/algorithm.hpp"
+#include "utility/compiler.hpp"
 #include "utility/compound.hpp"
 #include "utility/concepts.hpp"
-#include "utility/intrinsics.hpp"
 #include "utility/type_traits.hpp"
 #include "utility/utility.hpp"
 

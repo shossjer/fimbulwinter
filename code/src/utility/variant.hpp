@@ -1,13 +1,11 @@
+#pragma once
 
-#ifndef UTILITY_VARIANT_HPP
-#define UTILITY_VARIANT_HPP
-
-#include <utility/concepts.hpp>
-#include <utility/intrinsics.hpp>
-#include <utility/preprocessor/expand.hpp>
-#include <utility/property.hpp>
-#include <utility/type_traits.hpp>
-#include <utility/utility.hpp>
+#include "utility/compiler.hpp"
+#include "utility/concepts.hpp"
+#include "utility/preprocessor/expand.hpp"
+#include "utility/property.hpp"
+#include "utility/type_traits.hpp"
+#include "utility/utility.hpp"
 
 #include <exception>
 #include <ostream>
@@ -951,5 +949,3 @@ namespace utility
 		return detail::visitation<F &&>{std::forward<F>(visitor)}.call(std::forward<Vs>(variants)...);
 	}
 }
-
-#endif /* UTILITY_VARIANT_HPP */
