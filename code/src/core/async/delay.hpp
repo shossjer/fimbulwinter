@@ -1,8 +1,6 @@
+#pragma once
 
-#ifndef CORE_ASYNC_DELAY_HPP
-#define CORE_ASYNC_DELAY_HPP
-
-#include <config.h>
+#include "config.h"
 
 #if THREAD_USE_KERNEL32
 # include <windows.h>
@@ -50,5 +48,3 @@ namespace core
 		}
 	}
 }
-
-#endif /* CORE_ASYNC_DELAY_HPP */

@@ -1,14 +1,12 @@
+#pragma once
 
-#ifndef CORE_SYNC_EVENT_HPP
-#define CORE_SYNC_EVENT_HPP
-
-#include <config.h>
+#include "config.h"
 
 #if THREAD_USE_KERNEL32
 # include <Windows.h>
 #else
-# include "ConditionVariable.hpp"
-# include "Mutex.hpp"
+# include "core/sync/ConditionVariable.hpp"
+# include "core/sync/Mutex.hpp"
 #endif
 
 namespace core
@@ -257,5 +255,3 @@ namespace sync
 	}
 }
 }
-
-#endif /* CORE_SYNC_EVENT_HPP */

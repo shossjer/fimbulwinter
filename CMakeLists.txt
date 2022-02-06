@@ -571,11 +571,6 @@ else()
 	message(STATUS "Disabled profiling")
 endif()
 
-if(CMAKE_BUILD_TYPE)
-	string(TOUPPER "${CMAKE_BUILD_TYPE}" _upper_build_type)
-	set(MODE_${_upper_build_type} 1)
-endif()
-
 configure_file(
   "${PROJECT_SOURCE_DIR}/config.h.in"
   "${PROJECT_BINARY_DIR}/generated/config.h"

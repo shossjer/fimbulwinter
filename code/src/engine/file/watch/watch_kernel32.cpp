@@ -77,7 +77,7 @@ namespace
 		bool read(bool recurse, LPOVERLAPPED_COMPLETION_ROUTINE callback)
 		{
 			DWORD notify_filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE;
-//#if MODE_DEBUG
+//#if defined(_DEBUG) || !defined(NDEBUG)
 //			notify_filter |= FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_ACCESS | FILE_NOTIFY_CHANGE_CREATION | FILE_NOTIFY_CHANGE_SECURITY;
 //#endif
 			return debug_inform(
@@ -365,7 +365,7 @@ namespace
 		{
 			WatchData * const watch_data = alias->watch_data;
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			if (debug_assert(watch_data))
 			{
 				debug_inform(ext::empty(watch_data->reads));

@@ -616,7 +616,7 @@ namespace
 				}
 			}
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			for (const auto & source : device.sources)
 			{
 				debug_printline("  source ", source.path, "(", source.type, "): ", source.name);

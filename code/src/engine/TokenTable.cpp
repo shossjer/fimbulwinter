@@ -1,6 +1,4 @@
-#include "config.h"
-
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 
 #include "core/debug.hpp"
 

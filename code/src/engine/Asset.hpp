@@ -7,7 +7,7 @@
 
 namespace engine
 {
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 	extern void debug_hashtable_add(std::uint32_t value, ful::view_utf8 string);
 #endif
 
@@ -34,7 +34,7 @@ namespace engine
 		explicit Asset(const char * str, std::size_t n)
 			: Hash(str, n)
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(str, n));
 #endif
 		}
@@ -43,7 +43,7 @@ namespace engine
 		explicit constexpr Asset(const char (& str)[N])
 			: Hash(str, N - 1) // subtract terminating null
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(str, N - 1));
 #endif
 		}
@@ -52,7 +52,7 @@ namespace engine
 		explicit Asset(const R & str)
 			: Hash(data(str), size(str))
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(data(str), size(str)));
 #endif
 		}

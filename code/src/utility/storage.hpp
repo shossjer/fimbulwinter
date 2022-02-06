@@ -1,7 +1,5 @@
 #pragma once
 
-#include "config.h"
-
 #include "utility/aggregation_allocator.hpp"
 #include "utility/algorithm.hpp"
 #include "utility/annotate.hpp"
@@ -308,13 +306,13 @@ namespace utility
 	private:
 		struct empty_allocator_hack : allocator_type
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			void * storage_ = nullptr;
 #else
 			void * storage_;
 #endif
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			~empty_allocator_hack()
 			{
 				assert(!storage_);
@@ -326,7 +324,7 @@ namespace utility
 			{}
 			empty_allocator_hack & operator = (empty_allocator_hack && other)
 			{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 				assert(!storage_);
 #endif
 				storage_ = std::exchange(other.storage_, nullptr);
@@ -339,7 +337,7 @@ namespace utility
 		annotate_nodiscard
 		bool allocate(std::size_t capacity)
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			assert(!storage());
 #endif
 			storage() = allocator_traits::allocate(allocator(), capacity);
@@ -354,11 +352,11 @@ namespace utility
 
 		void deallocate(std::size_t capacity)
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			assert(storage());
 #endif
 			allocator_traits::deallocate(allocator(), storage(), capacity);
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			storage() = nullptr;
 #endif
 		}
@@ -367,7 +365,7 @@ namespace utility
 		T & construct_at(T * ptr_, Ps && ...ps)
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			assert(storage());
 #endif
 			allocator_traits::construct(allocator(), ptr_, std::forward<Ps>(ps)...);
@@ -378,7 +376,7 @@ namespace utility
 		void destruct_at(T * ptr_)
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			assert(storage());
 #endif
 			allocator_traits::destroy(allocator(), ptr_);

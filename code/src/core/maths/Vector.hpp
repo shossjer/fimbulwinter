@@ -1,12 +1,9 @@
 #pragma once
 
-#include <config.h>
+#include "core/maths/Scalar.hpp"
 
-#include "Scalar.hpp"
-
-#include "core/debug.hpp"
-#include <utility/algorithm.hpp>
-#include <utility/type_traits.hpp>
+#include "utility/algorithm.hpp"
+#include "utility/type_traits.hpp"
 
 #include <array>
 #include <algorithm>

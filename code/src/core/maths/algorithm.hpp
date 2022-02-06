@@ -1,12 +1,8 @@
+#pragma once
 
-#ifndef CORE_MATHS_ALGORITHM_HPP
-#define CORE_MATHS_ALGORITHM_HPP
+#include "core/debug.hpp"
 
-#include <config.h>
-
-#include <utility/algorithm.hpp>
-
-#include <core/debug.hpp>
+#include "utility/algorithm.hpp"
 
 namespace core
 {
@@ -255,5 +251,3 @@ namespace core
 		}
 	}
 }
-
-#endif /* CORE_MATHS_ALGORITHM_HPP */

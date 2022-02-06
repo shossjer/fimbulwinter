@@ -1,7 +1,5 @@
 #pragma once
 
-#include "config.h"
-
 #include "core/iostream.hpp"
 
 #include "utility/concepts.hpp"
@@ -47,7 +45,7 @@
 # define WIDEN_CHARS(x) WIDEN_CHARS2(x)
 #endif
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 
 /**
  * Asserts that the condition is true.

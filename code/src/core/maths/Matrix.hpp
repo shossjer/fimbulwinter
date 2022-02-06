@@ -1,13 +1,11 @@
+#pragma once
 
-#ifndef CORE_MATHS_MATRIX_HPP
-#define CORE_MATHS_MATRIX_HPP
+#include "core/maths/util.hpp"
 
-#include "util.hpp"
-
-#include <utility/algorithm.hpp>
-#include <utility/concepts.hpp>
-#include <utility/type_traits.hpp>
-#include <utility/utility.hpp>
+#include "utility/algorithm.hpp"
+#include "utility/concepts.hpp"
+#include "utility/type_traits.hpp"
+#include "utility/utility.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -308,5 +306,3 @@ namespace core
 		using Matrix4x4f = Matrix<4, 4, float>;
 	}
 }
-
-#endif /* CORE_MATHS_MATRIX_HPP */

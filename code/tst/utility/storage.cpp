@@ -100,7 +100,7 @@ TEST_CASE("heap_storage<int>", "[utility]")
 {
 	using heap_storage = utility::heap_storage<int>;
 	static_assert(std::is_standard_layout<heap_storage>::value, "");
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 	static_assert(!std::is_trivially_destructible<heap_storage>::value, "");
 #else
 	static_assert(std::is_trivially_destructible<heap_storage>::value, "");
@@ -151,7 +151,7 @@ TEST_CASE("heap_storage<unique_ptr>", "[utility]")
 {
 	using heap_storage = utility::heap_storage<std::unique_ptr<int>>;
 	static_assert(std::is_standard_layout<heap_storage>::value, "");
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 	static_assert(!std::is_trivially_destructible<heap_storage>::value, "");
 #else
 	static_assert(std::is_trivially_destructible<heap_storage>::value, "");

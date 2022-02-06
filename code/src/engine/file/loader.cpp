@@ -502,7 +502,7 @@ namespace
 
 				if (ext::empty(x.owners))
 				{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 					const engine::Token id = make_token(x.directory, engine::Asset(x.filepath));
 					engine::file::remove_watch(*impl.filesystem, id);
 #endif
@@ -594,7 +594,7 @@ namespace
 
 				if (ext::empty(x.owners))
 				{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 					const engine::Token id = make_token(x.directory, engine::Asset(x.filepath));
 					engine::file::remove_watch(*impl.filesystem, id);
 #endif
@@ -706,7 +706,7 @@ namespace
 		if (loading_load_filepath_it != loading_load_filepath.end())
 			return false; // error
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 		const auto mode = engine::file::flags::ADD_WATCH; // todo ought to add engine::file::flags::RECURSE_DIRECTORIES if filepath contains subdir, but since a recursive scan watch has already been made it might be fine anyway?
 #else
 		const auto mode = engine::file::flags{};
@@ -851,7 +851,7 @@ namespace
 
 			if (ext::empty(y.owners))
 			{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 				const engine::Token id = make_token(y.directory, engine::Asset(y.filepath));
 				engine::file::remove_watch(*impl.filesystem, id);
 #endif
@@ -951,7 +951,7 @@ namespace
 
 			if (ext::empty(y.owners))
 			{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 				const engine::Token id = make_token(y.directory, engine::Asset(y.filepath));
 				engine::file::remove_watch(*impl.filesystem, id);
 #endif
@@ -1750,7 +1750,7 @@ namespace engine
 		{
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterLibrary>, directory));
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH;
 #else
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES;
@@ -1761,7 +1761,7 @@ namespace engine
 
 		void unregister_library(loader & loader, engine::Hash directory)
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			const auto id = directory;
 			engine::file::remove_watch(*loader->filesystem, engine::Token(id));
 #endif

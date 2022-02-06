@@ -509,7 +509,7 @@ namespace
 		Touch,
 	};
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 	constexpr auto serialization(utility::in_place_type_t<EventType>)
 	{
 		return utility::make_lookup_table<ful::view_utf8>(
