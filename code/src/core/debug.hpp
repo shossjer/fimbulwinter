@@ -20,10 +20,6 @@
 # pragma GCC diagnostic ignored "-Wparentheses"
 #endif
 
-#ifndef __has_builtin
-# define __has_builtin(x) 0
-#endif
-
 #define QUOTE(x) #x
 #define STRINGIFY(x) QUOTE(x)
 
@@ -53,41 +49,10 @@
  * Additionally returns the evaluation of the condition.
  */
 # if defined(_MSC_VER)
-#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")); }(core::debug::empty_t{} < expr) || (debug_break(), false))
-#  define debug_assertw(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().failw(WIDEN_CHARS(LINE_LINK ": " #expr "\n"), cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"\n") : ful::cstr_utfw(L"\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"") : ful::cstr_utfw(L"\n")); }(core::debug::emptyw_t{} < expr) || (debug_break(), false))
+#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")); }(core::debug::empty_t{} < expr) || (fiw_break(), false))
+#  define debug_assertw(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().failw(WIDEN_CHARS(LINE_LINK ": " #expr "\n"), cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"\n") : ful::cstr_utfw(L"\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"") : ful::cstr_utfw(L"\n")); }(core::debug::emptyw_t{} < expr) || (fiw_break(), false))
 # else
-#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")); }(core::debug::empty_t{} < expr) || (debug_break(), false))
-# endif
-
-/**
- * Breaks into debugger if available.
- */
-# if defined(__clang__) && __has_builtin(__builtin_debugtrap)
-#  define debug_break() __builtin_debugtrap()
-// probably the most portable way in clang to break into the debugger,
-// actual documentation on it seem to be scarce
-//
-// https://github.com/llvm-mirror/llvm/blob/5aa20382007f603fb5ffda182868c72532c0b4a7/include/llvm/Support/Compiler.h#L324
-# elif defined(_MSC_VER)
-#  include <intrin.h>
-#  define debug_break() __debugbreak()
-# elif defined(__i386__) || defined(__x86_64__)
-#  define debug_break() [](){ __asm__("int3"); }()
-// can we get some authoritative proof why `int3` works, and why it is
-// preferable over `raise(SIGTRAP)`? all we have to go on is rumors
-// :slightly_frowning_face:
-//
-// http://www.ouah.org/linux-anti-debugging.txt
-// https://github.com/scottt/debugbreak/blob/8b4a755e76717103adc814c0c05ceb3b91befa7d/debugbreak.h#L46
-// https://github.com/nemequ/portable-snippets/blob/db0ac507dfcc749ce601e5aa1bc93e2ba86050a2/debug-trap/debug-trap.h#L36
-# else
-#  include <csignal>
-#  ifdef SIGTRAP
-#   define debug_break() ::raise(SIGTRAP)
-#  else
-#   define debug_break()
-// not possible to break into debugger
-#  endif
+#  define debug_assert(expr, ...) ([&](auto && cond){ return cond() ? true : core::debug::instance().fail(LINE_LINK ": " #expr "\n", cond, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")); }(core::debug::empty_t{} < expr) || (fiw_break(), false))
 # endif
 
 namespace core
@@ -144,10 +109,10 @@ namespace core
  * \note Always returns false.
  */
 # if defined(_MSC_VER)
-#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")) || (debug_break(), false))
-#  define debug_failw(...) (core::debug::instance().failw(WIDEN_CHARS(LINE_LINK ": failed"), NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"\n") : ful::cstr_utfw(L"\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"") : ful::cstr_utfw(L"\n")) || (debug_break(), false))
+#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")) || (fiw_break(), false))
+#  define debug_failw(...) (core::debug::instance().failw(WIDEN_CHARS(LINE_LINK ": failed"), NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"\n") : ful::cstr_utfw(L"\nexplanation: "), __VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utfw(L"") : ful::cstr_utfw(L"\n")) || (fiw_break(), false))
 # else
-#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")) || (debug_break(), false))
+#  define debug_fail(...) (core::debug::instance().fail(LINE_LINK ": failed", NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("\n") : ful::cstr_utf8("\nexplanation: "), ##__VA_ARGS__, NO_ARGS(__VA_ARGS__) ? ful::cstr_utf8("") : ful::cstr_utf8("\n")) || (fiw_break(), false))
 # endif
 
 /**
@@ -181,9 +146,9 @@ namespace core
 /**
  * Fails unconditionally and terminates execution.
  */
-# define debug_unreachable(...) do { debug_fail(__VA_ARGS__); std::terminate(); } while(false)
+# define debug_unreachable(...) do { debug_fail(__VA_ARGS__); fiw_crash(); } while(false)
 # if defined (_MSC_VER)
-#  define debug_unreachablew(...) do { debug_failw(__VA_ARGS__); std::terminate(); } while(false)
+#  define debug_unreachablew(...) do { debug_failw(__VA_ARGS__); fiw_crash(); } while(false)
 # endif
 // todo: change terminate to __builtin_trap if available
 
@@ -210,11 +175,6 @@ namespace core
 # if defined (_MSC_VER)
 #  define debug_assertw(expr, ...) true
 # endif
-
-/**
- * Does nothing.
- */
-# define debug_break()
 
 /**
  * Performs a `static_cast`.
