@@ -302,7 +302,9 @@ namespace utility
 		annotate_nodiscard
 		bool try_erase(ext::index index)
 		{
-			if (!/*debug_assert*/(std::find(this->storage_.data(this->begin_indices()) + this->size(), this->storage_.data(this->begin_indices()) + this->capacity(), static_cast<std::size_t>(index)) == this->storage_.data(this->begin_indices()) + this->capacity()))
+			const auto found = std::find(this->storage_.data(this->begin_indices()) + this->size(), this->storage_.data(this->begin_indices()) + this->capacity(), static_cast<std::size_t>(index));
+			const auto outside = this->storage_.data(this->begin_indices()) + this->capacity();
+			if (!fiw_expect(found == outside))
 				return false;
 
 			const auto last = this->size() - 1;

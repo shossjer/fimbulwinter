@@ -10,7 +10,8 @@ namespace ext
 	// fd - blocking file descriptor
 	inline ssize write_some_nonzero(int fd, const void * buffer, usize size)
 	{
-		fiw_assert(size != 0);
+		if (!fiw_expect(size != 0))
+			return 0;
 
 	try_again:
 		const ssize n = ::write(fd, buffer, size);

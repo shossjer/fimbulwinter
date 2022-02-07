@@ -391,7 +391,9 @@ namespace utility
 		iterator erase(const_iterator it)
 		{
 			iterator nonit = undo_const(it);
-			if (!/*debug_assert*/(begin() <= it && it < end()))
+			const auto beg__ = begin();
+			const auto end__ = end();
+			if (!fiw_expect(beg__ <= it && it < end__))
 				return nonit;
 
 			auto last = this->end_storage();
@@ -408,7 +410,9 @@ namespace utility
 		iterator erase(const_iterator from, const_iterator to)
 		{
 			iterator nonfrom = undo_const(from);
-			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
+			const auto beg__ = begin();
+			const auto end__ = end();
+			if (!fiw_expect(beg__ <= from && from <= to && to <= end__))
 				return nonfrom;
 
 			auto last = this->end_storage();
@@ -430,7 +434,9 @@ namespace utility
 		iterator erase(utility::stable_t, const_iterator it)
 		{
 			iterator nonit = undo_const(it);
-			if (!/*debug_assert*/(begin() <= it && it < end()))
+			const auto beg__ = begin();
+			const auto end__ = end();
+			if (!fiw_expect(beg__ <= it && it < end__))
 				return nonit;
 
 			iterator write = nonit;
@@ -448,7 +454,9 @@ namespace utility
 		iterator erase(utility::stable_t, const_iterator from, const_iterator to)
 		{
 			iterator nonfrom = undo_const(from);
-			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
+			const auto beg__ = begin();
+			const auto end__ = end();
+			if (!fiw_expect(beg__ <= from && from <= to && to <= end__))
 				return nonfrom;
 
 			iterator write = nonfrom;

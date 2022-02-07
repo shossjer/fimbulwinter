@@ -58,6 +58,16 @@ extern "C" __declspec(noreturn) void __fastfail(unsigned int code);
 # error Missing implementation!
 #endif
 
+#if defined(_DEBUG) || !defined(NDEBUG)
+// breaks into the debugger if false (in debug builds), optimize
+// knowing that the expression is true (in nondebug builds)
+# define fiw_expect(x) ((x) ? true : (fiw_break(), false))
+#else
+// breaks into the debugger if false (in debug builds), optimize
+// knowing that the expression is true (in nondebug builds)
+# define fiw_expect(x) (fiw_assume(x), true)
+#endif
+
 #if __has_builtin(__builtin_expect) || defined(__GNUC__)
 // optimize knowing that this branch is almost always the one
 # define fiw_likely(x) __builtin_expect(!!(x), 1)

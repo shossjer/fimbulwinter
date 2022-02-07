@@ -74,7 +74,7 @@ namespace utility
 		annotate_nodiscard
 		bool allocate(std::size_t capacity)
 		{
-			return /*debug_assert*/(capacity == Capacity);
+			return fiw_expect(capacity == Capacity);
 		}
 
 		annotate_nodiscard
