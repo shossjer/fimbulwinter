@@ -72,7 +72,7 @@ namespace
 
 		devices.push_back(device);
 		debug_verify(device_mappings.try_emplace_back());
-		static_cast<void>(debug_verify(device_sources.try_emplace_back()));
+		fiw_unused(debug_verify(device_sources.try_emplace_back()));
 	}
 
 	void remove_device(Device device)
@@ -659,7 +659,7 @@ namespace hid
 				void operator () (AddAxisMove && x)
 				{
 					const Filter filter = next_available_filter++;
-					static_cast<void>(debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y)));
+					fiw_unused(debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -669,7 +669,7 @@ namespace hid
 				void operator () (AddAxisTilt && x)
 				{
 					const Filter filter = next_available_filter++;
-					static_cast<void>(debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max)));
+					fiw_unused(debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -679,7 +679,7 @@ namespace hid
 				void operator () (AddButtonPress && x)
 				{
 					const Filter filter = next_available_filter++;
-					static_cast<void>(debug_verify(filters.emplace<ButtonPress>(filter, x.command)));
+					fiw_unused(debug_verify(filters.emplace<ButtonPress>(filter, x.command)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -689,7 +689,7 @@ namespace hid
 				void operator () (AddButtonRelease && x)
 				{
 					const Filter filter = next_available_filter++;
-					static_cast<void>(debug_verify(filters.emplace<ButtonRelease>(filter, x.command)));
+					fiw_unused(debug_verify(filters.emplace<ButtonRelease>(filter, x.command)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -899,7 +899,7 @@ namespace hid
 
 					const auto i = find_device(x.id);
 					debug_assert(std::find_if(device_sources[i].begin(), device_sources[i].end(), [&](const DeviceSource & source){ return source.path == x.path; }) == device_sources[i].end());
-					static_cast<void>(debug_verify(device_sources[i].try_emplace_back(x.type, std::move(x.path), std::move(x.name))));
+					fiw_unused(debug_verify(device_sources[i].try_emplace_back(x.type, std::move(x.path), std::move(x.name))));
 				}
 
 				void operator () (RemoveSource && x)

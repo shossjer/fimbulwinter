@@ -30,7 +30,7 @@ namespace utility
 			void set_capacity(std::size_t capacity)
 			{
 				assert(capacity == 0 || capacity == storage_traits::capacity_value);
-				static_cast<void>(capacity);
+				fiw_unused(capacity);
 			}
 
 			void set_size(std::size_t size)

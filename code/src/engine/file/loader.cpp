@@ -729,7 +729,7 @@ namespace
 		engine::file::unready_callback * unreadycall,
 		utility::any && data)
 	{
-		static_cast<void>(filetype);
+		fiw_unused(filetype);
 		return loads.call(file_it, ext::overload(
 			[&](RadicalLoad &) -> bool { debug_unreachable(); },
 			[&](LoadingLoad & y)
@@ -1120,7 +1120,7 @@ namespace
 		},
 			[&](engine::Asset key, LoadingLoad & y)
 		{
-			static_cast<void>(key);
+			fiw_unused(key);
 			if (debug_verify(y.attachments.push_back(attachment)))
 			{
 				y.remaining_count++;
@@ -1656,7 +1656,7 @@ namespace
 			}
 			else
 			{
-				static_cast<void>(debug_verify(task.impl->delayed_messages.push_back(std::move(task.message))));
+				fiw_unused(debug_verify(task.impl->delayed_messages.push_back(std::move(task.message))));
 			}
 		}
 		else

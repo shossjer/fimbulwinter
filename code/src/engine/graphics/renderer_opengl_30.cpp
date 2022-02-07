@@ -1976,7 +1976,7 @@ void main()
 		for (auto i : ranges::index_sequence(resource_count))
 		{
 			debug_printline(engine::asset_channel, resources_not_unregistered[i]);
-			static_cast<void>(i);
+			fiw_unused(i);
 		}
 
 		engine::Token materials_not_destroyed[materials.max_size()];
@@ -1985,7 +1985,7 @@ void main()
 		for (auto i : ranges::index_sequence(material_count))
 		{
 			debug_printline(engine::asset_channel, materials_not_destroyed[i]);
-			static_cast<void>(i);
+			fiw_unused(i);
 		}
 	}
 }

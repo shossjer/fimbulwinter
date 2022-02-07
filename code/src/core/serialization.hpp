@@ -319,9 +319,9 @@ namespace core
 		template <typename X, typename F>
 		static utility::detail::invalid_type call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
 		{
-			static_cast<void>(x);
-			static_cast<void>(f);
-			intrinsic_unreachable();
+			fiw_unused(x);
+			fiw_unused(f);
+			fiw_unreachable();
 		}
 #if defined(_MSC_VER)
 # pragma warning( pop )
@@ -360,9 +360,9 @@ namespace core
 		template <typename X, typename F>
 		static bool for_each_member_impl(X && x, F && f, mpl::index_constant<lookup_table.capacity> index)
 		{
-			static_cast<void>(x);
-			static_cast<void>(f);
-			static_cast<void>(index);
+			fiw_unused(x);
+			fiw_unused(f);
+			fiw_unused(index);
 
 			return true;
 		}
@@ -457,9 +457,9 @@ namespace core
 			auto copy_impl_tuple(Tuple & tuple, BeginIt ibegin, EndIt iend, mpl::index_sequence<Is...>)
 				-> decltype(ext::declexpand(get<Is>(tuple) = *ibegin...), bool())
 			{
-				static_cast<void>(iend);
+				fiw_unused(iend);
 				int expansion_hack[] = {(get<Is>(tuple) = *ibegin, ++ibegin, 0)...};
-				static_cast<void>(expansion_hack);
+				fiw_unused(expansion_hack);
 
 				return true;
 			}
@@ -514,7 +514,7 @@ namespace core
 		auto for_each_impl_call(T & x, F && f, Index index)
 			-> decltype(static_cast<F &&>(f)(x))
 		{
-			static_cast<void>(index);
+			fiw_unused(index);
 
 			return static_cast<F &&>(f)(x);
 		}
@@ -551,9 +551,9 @@ namespace core
 		template <typename T, typename F>
 		bool for_each_impl_tuple(T & x, F && f, ext::tuple_size<T> index)
 		{
-			static_cast<void>(x);
-			static_cast<void>(f);
-			static_cast<void>(index);
+			fiw_unused(x);
+			fiw_unused(f);
+			fiw_unused(index);
 
 			return true;
 		}
@@ -703,7 +703,7 @@ namespace core
 			else
 			{
 				constexpr auto value_name = utility::type_name<Value>();
-				static_cast<void>(value_name);
+				fiw_unused(value_name);
 
 				debug_printline("cannot serialize enum of type '", value_name, "' from stream value '", stream.buffer(), "'");
 
@@ -732,14 +732,14 @@ namespace core
 		template <typename Stream, typename Value>
 		Stream && serialize__(Stream && stream, Value & value, ...)
 		{
-			static_cast<void>(value);
+			fiw_unused(value);
 
 			constexpr auto stream_name = utility::type_name< mpl::remove_cvref_t<Stream>>();
 			constexpr auto value_name = utility::type_name<Value>();
-			static_cast<void>(stream_name);
-			static_cast<void>(value_name);
+			fiw_unused(stream_name);
+			fiw_unused(value_name);
 
-			static_cast<void>(debug_fail("cannot serialize value of type '", value_name, "' from stream of type '", stream_name, "', maybe you are missing an overload to 'operator >>'?"));
+			fiw_unused(debug_fail("cannot serialize value of type '", value_name, "' from stream of type '", stream_name, "', maybe you are missing an overload to 'operator >>'?"));
 
 			stream.setstate(stream.failbit);
 
@@ -810,8 +810,8 @@ namespace core
 		{
 			constexpr auto value_name = utility::type_name<T>();
 			constexpr auto object_name = utility::type_name<Object>();
-			static_cast<void>(value_name);
-			static_cast<void>(object_name);
+			fiw_unused(value_name);
+			fiw_unused(object_name);
 			return debug_fail("cannot serialize value of type '", value_name, "' to/from object of type '", object_name, "', maybe you are missing an overload to 'serialize'?");
 		}
 	}

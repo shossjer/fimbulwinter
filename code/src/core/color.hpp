@@ -147,7 +147,7 @@ namespace core
 			case 5:
 				return rgb_t<T>{C + m, m, C * (T(6) - Hp) + m};
 			default:
-				intrinsic_unreachable();
+				fiw_unreachable();
 			}
 		}
 	};

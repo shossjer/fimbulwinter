@@ -36,7 +36,7 @@ namespace engine
 			: from(from)
 			, count(count)
 		{
-			static_cast<void>(name);
+			fiw_unused(name);
 #if defined(_DEBUG) || !defined(NDEBUG)
 			if (count != 0)
 			{

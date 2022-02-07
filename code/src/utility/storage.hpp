@@ -87,7 +87,7 @@ namespace utility
 		void deallocate(std::size_t capacity)
 		{
 			assert(capacity == Capacity);
-			static_cast<void>(capacity);
+			fiw_unused(capacity);
 		}
 
 		annotate_nodiscard
@@ -1002,7 +1002,7 @@ namespace utility
 		void destruct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> begin, utility::zip_iterator<Ss *...> end)
 		{
 			int expansion_hack[] = {(destruct_range(std::get<Is>(begin), std::get<Is>(end)), 0)...};
-			static_cast<void>(expansion_hack);
+			fiw_unused(expansion_hack);
 		}
 	};
 

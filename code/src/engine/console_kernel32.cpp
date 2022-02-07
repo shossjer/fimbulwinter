@@ -33,7 +33,7 @@ namespace
 {
 	core::async::thread_return thread_decl read_input(core::async::thread_param arg)
 	{
-		static_cast<void>(arg);
+		fiw_unused(arg);
 
 #if 0
 		// todo we would like to use this code but the windows console

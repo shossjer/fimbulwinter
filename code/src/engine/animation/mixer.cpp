@@ -516,7 +516,7 @@ namespace engine
 			for (auto i : ranges::index_sequence(source_count))
 			{
 				debug_printline(sources_not_unregistered[i]);
-				static_cast<void>(i);
+				fiw_unused(i);
 			}
 
 			::simulation = nullptr;
@@ -548,11 +548,11 @@ namespace engine
 				{
 					void operator () (MessageRegisterArmature && x)
 					{
-						static_cast<void>(debug_verify(sources.emplace<Armature>(x.asset, std::move(x.data))));
+						fiw_unused(debug_verify(sources.emplace<Armature>(x.asset, std::move(x.data))));
 					}
 					void operator () (MessageRegisterObject && x)
 					{
-						static_cast<void>(debug_verify(sources.emplace<engine::animation::object>(x.asset, std::move(x.data))));
+						fiw_unused(debug_verify(sources.emplace<engine::animation::object>(x.asset, std::move(x.data))));
 					}
 				};
 				visit(ProcessMessage{}, std::move(asset_message));
@@ -573,7 +573,7 @@ namespace engine
 						if (!debug_assert(armature))
 							return; // error
 
-						static_cast<void>(debug_verify(components.emplace<Character>(x.entity, x.entity, *armature)));
+						fiw_unused(debug_verify(components.emplace<Character>(x.entity, x.entity, *armature)));
 					}
 					void operator () (MessageAddModel && x)
 					{
@@ -585,7 +585,7 @@ namespace engine
 						if (!debug_assert(object))
 							return; // error
 
-						static_cast<void>(debug_verify(components.emplace<Model>(x.entity, x.entity, *object)));
+						fiw_unused(debug_verify(components.emplace<Model>(x.entity, x.entity, *object)));
 					}
 					void operator () (MessageUpdateAction && x)
 					{

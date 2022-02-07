@@ -289,7 +289,7 @@ namespace utility
 		annotate_nodiscard
 		bool try_reserve(std::size_t min_capacity)
 		{
-			if (intrinsic_likely(min_capacity <= this->capacity()))
+			if (fiw_likely(min_capacity <= this->capacity()))
 				return true;
 
 			return this->try_reallocate(min_capacity);
@@ -334,7 +334,7 @@ namespace utility
 		annotate_nodiscard
 		bool try_emplace_back(utility::no_reallocate_t, Ps && ...ps)
 		{
-			if (intrinsic_likely(this->position_end() != this->position_cap()))
+			if (fiw_likely(this->position_end() != this->position_cap()))
 				return try_emplace_back(utility::no_failure, std::forward<Ps>(ps)...);
 
 			return false;
@@ -344,7 +344,7 @@ namespace utility
 		annotate_nodiscard
 		bool try_emplace_back(Ps && ...ps)
 		{
-			if (intrinsic_likely(try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...)))
+			if (fiw_likely(try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...)))
 				return true;
 
 			if (this->try_reserve(this->size() + 1))

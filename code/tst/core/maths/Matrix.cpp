@@ -47,7 +47,7 @@ namespace
 TEST_CASE( "matrix default construction", "[core][maths]" )
 {
 	core::maths::Matrix4x4f matrix;
-	static_cast<void>(matrix);
+	fiw_unused(matrix);
 }
 
 TEST_CASE( "matrix copy construction", "[core][maths]" )

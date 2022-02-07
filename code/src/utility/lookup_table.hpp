@@ -90,13 +90,13 @@ namespace utility
 			template <typename T>
 			operator T & () const
 			{
-				intrinsic_unreachable();
+				fiw_unreachable();
 			}
 
 			template <typename T>
 			operator T && () const
 			{
-				intrinsic_unreachable();
+				fiw_unreachable();
 			}
 		};
 
@@ -108,7 +108,7 @@ namespace utility
 			template <typename Value>
 			constexpr std::ptrdiff_t find_value(const Value & value) const
 			{
-				return static_cast<void>(value), std::ptrdiff_t(-1);
+				return fiw_unused(value), std::ptrdiff_t(-1);
 			}
 
 			template <std::size_t I,
@@ -117,17 +117,17 @@ namespace utility
 
 			invalid_type get_value(std::ptrdiff_t index) const
 			{
-				return static_cast<void>(index), invalid_type{};
+				return fiw_unused(index), invalid_type{};
 			}
 
 			constexpr bool contains(const Key & key) const
 			{
-				return static_cast<void>(key), false;
+				return fiw_unused(key), false;
 			}
 
 			constexpr std::size_t find(const Key & key) const
 			{
-				return static_cast<void>(key), std::size_t(-1);
+				return fiw_unused(key), std::size_t(-1);
 			}
 
 			template <std::size_t I,
@@ -136,7 +136,7 @@ namespace utility
 
 			const Key & get_key(std::ptrdiff_t index) const
 			{
-				return static_cast<void>(index), invalid_type{};
+				return fiw_unused(index), invalid_type{};
 			}
 		};
 

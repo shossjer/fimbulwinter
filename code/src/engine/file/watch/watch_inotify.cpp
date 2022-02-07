@@ -152,7 +152,7 @@ namespace
 
 	void scan_directory_subdirs(ful::view_utf8 filepath, utility::heap_vector<ful::heap_string_utf8> & subdirs)
 	{
-		static_cast<void>(debug_verify(subdirs.try_emplace_back()));
+		fiw_unused(debug_verify(subdirs.try_emplace_back()));
 
 		ful::heap_string_utf8 pattern;
 		if (!debug_verify(ful::assign(pattern, filepath)))

@@ -76,7 +76,7 @@ namespace core
 
 			ext::ssize write_value(ext::ssize size, ful::unit_utf8 * end, const bool & x, int depth)
 			{
-				static_cast<void>(depth);
+				fiw_unused(depth);
 
 				return write(size, end, x ? ful::cstr_utf8("true") : ful::cstr_utf8("false"));
 			}
@@ -86,7 +86,7 @@ namespace core
 			          REQUIRES((std::is_enum<T>::value))>
 			ext::ssize write_value(ext::ssize size, ful::unit_utf8 * end, const T & x, int depth)
 			{
-				static_cast<void>(depth);
+				fiw_unused(depth);
 
 				const auto key = core::value_table<T>::get_key(x);
 				return write_string(size, end, key);
@@ -226,7 +226,7 @@ namespace core
 			auto write_value(ext::ssize size, ful::unit_utf8 * end, const T & x, int depth)
 				-> decltype(write_string(size, end, x))
 			{
-				static_cast<void>(depth);
+				fiw_unused(depth);
 
 				return write_string(size, end, x);
 			}
@@ -235,7 +235,7 @@ namespace core
 			auto write_value(ext::ssize size, ful::unit_utf8 * end, const T & x, int depth)
 				-> decltype(fio::to_chars(x, end + size), ext::ssize())
 			{
-				static_cast<void>(depth);
+				fiw_unused(depth);
 
 				ful::unit_utf8 * const ret = fio::to_chars(x, end + size); // todo integers does not return nullptr on failure
 				if (ret != nullptr)

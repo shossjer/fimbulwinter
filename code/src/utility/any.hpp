@@ -272,7 +272,7 @@ namespace utility
 				case any_action::move:
 				{
 					auto & x = utility::construct_at<T>(&out.data_->buffer_, static_cast<T &&>(*static_cast<T *>(static_cast<void *>(&in.data_->buffer_))));
-					static_cast<void>(x);
+					fiw_unused(x);
 					assert(static_cast<void *>(&x) == static_cast<void *>(&out.data_->buffer_)); // [new.delete.placement]§2
 					out.data_->handler_ = &any_small<T>::handler;
 					static_cast<T *>(static_cast<void *>(&in.data_->buffer_))->~T();

@@ -108,14 +108,14 @@ namespace utility
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, P && p)
 		{
 			int expansion_hack[] = {(construct(std::get<Is>(ptrs), std::get<Is>(std::forward<P>(p))), 0)...};
-			static_cast<void>(expansion_hack);
+			fiw_unused(expansion_hack);
 		}
 		template <std::size_t ...Is, typename ...Ps,
 		          REQUIRES((!ext::is_tuple<Ps...>::value))>
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, Ps && ...ps)
 		{
 			int expansion_hack[] = {(construct(std::get<Is>(ptrs), std::forward<Ps>(ps)), 0)...};
-			static_cast<void>(expansion_hack);
+			fiw_unused(expansion_hack);
 		}
 #if defined(_MSC_VER)
 # pragma warning( pop )

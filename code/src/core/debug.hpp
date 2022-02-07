@@ -259,9 +259,9 @@ namespace core
 /**
  * Hint to the compiler that this path will never be reached.
  */
-# define debug_unreachable(...) intrinsic_unreachable()
+# define debug_unreachable(...) fiw_unreachable()
 # if defined (_MSC_VER)
-#  define debug_unreachablew(...) intrinsic_unreachable()
+#  define debug_unreachablew(...) fiw_unreachable()
 # endif
 
 /**

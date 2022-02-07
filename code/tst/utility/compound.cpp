@@ -194,7 +194,7 @@ TEST_CASE("compound pairs", "[utility][compound]")
 		SECTION("can convert to value")
 		{
 			std::pair<std::string, std::string> p = c;
-			static_cast<void>(p);
+			fiw_unused(p);
 			CHECK(s == "1");
 			CHECK(ss == "22");
 		}
@@ -202,7 +202,7 @@ TEST_CASE("compound pairs", "[utility][compound]")
 		SECTION("can convert to rvalue reference")
 		{
 			std::pair<std::string, std::string> && p = std::move(c);
-			static_cast<void>(p);
+			fiw_unused(p);
 			CHECK(s == "1");
 			CHECK(ss == "");
 		}
@@ -280,7 +280,7 @@ TEST_CASE("compound tuples", "[utility][compound]")
 		SECTION("can convert to value")
 		{
 			std::tuple<std::string, std::string, std::string> t = c;
-			static_cast<void>(t);
+			fiw_unused(t);
 			CHECK(s == "1");
 			CHECK(ss == "22");
 			CHECK(sss == "333");
@@ -289,7 +289,7 @@ TEST_CASE("compound tuples", "[utility][compound]")
 		SECTION("can convert to rvalue reference")
 		{
 			std::tuple<std::string, std::string, std::string> && t = std::move(c);
-			static_cast<void>(t);
+			fiw_unused(t);
 			CHECK(s == "1");
 			CHECK(ss == "22");
 			CHECK(sss == "");

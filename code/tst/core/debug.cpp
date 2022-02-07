@@ -39,8 +39,8 @@ TEST_CASE( "debug_assert", "[utility]" )
 	const int a = 7;
 	const int b = 7;
 	debug_assert(a == b);
-	static_cast<void>(a);
-	static_cast<void>(b);
+	fiw_unused(a);
+	fiw_unused(b);
 
 	debug_assert(1 != 2);
 	debug_assert(a < 11);

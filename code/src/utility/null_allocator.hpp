@@ -24,17 +24,17 @@ namespace utility
 
 		using propagate_on_container_move_assignment = std::true_type;
 
-		constexpr pointer address(reference /*x*/) const { return intrinsic_unreachable(), nullptr; }
-		constexpr const_pointer address(const_reference /*x*/) const { return intrinsic_unreachable(), nullptr; }
+		constexpr pointer address(reference /*x*/) const { return fiw_unreachable(), nullptr; }
+		constexpr const_pointer address(const_reference /*x*/) const { return fiw_unreachable(), nullptr; }
 
 		constexpr pointer allocate(size_type /*n*/, const void * /*hint*/ = nullptr) { return nullptr; }
-		void deallocate(pointer /*p*/, size_type /*n*/) { intrinsic_unreachable(); }
+		void deallocate(pointer /*p*/, size_type /*n*/) { fiw_unreachable(); }
 
 		constexpr size_type max_size() const { return 0; }
 
 		template <typename U, typename ...Ps>
-		void construct(U * /*p*/, Ps && .../*ps*/) { intrinsic_unreachable(); }
+		void construct(U * /*p*/, Ps && .../*ps*/) { fiw_unreachable(); }
 		template <typename U>
-		void destroy(U * /*p*/) { intrinsic_unreachable(); }
+		void destroy(U * /*p*/) { fiw_unreachable(); }
 	};
 }

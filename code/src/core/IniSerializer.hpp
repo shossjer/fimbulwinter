@@ -105,9 +105,9 @@ namespace core
 			          REQUIRES((std::is_class<T>::value))>
 			ext::ssize try_write_key_value(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & key, const T & value, int)
 			{
-				static_cast<void>(end);
-				static_cast<void>(key);
-				static_cast<void>(value);
+				fiw_unused(end);
+				fiw_unused(key);
+				fiw_unused(value);
 
 				// ignore, this object should have a header
 				return size;
@@ -130,9 +130,9 @@ namespace core
 			template <typename T>
 			ext::ssize try_write_header(ext::ssize size, ful::unit_utf8 * end, const ful::view_utf8 & key, const T & value, ...)
 			{
-				static_cast<void>(end);
-				static_cast<void>(key);
-				static_cast<void>(value);
+				fiw_unused(end);
+				fiw_unused(key);
+				fiw_unused(value);
 
 				// ignore, this object does not have a header
 				return size;

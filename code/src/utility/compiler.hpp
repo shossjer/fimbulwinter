@@ -1,26 +1,27 @@
+#pragma once
 
-#ifndef UTILITY_INTRINSICS_HPP
-#define UTILITY_INTRINSICS_HPP
-
-#if defined(_MSC_VER)
-# include <intrin.h>
+#ifndef __has_builtin
+# define __has_builtin(x) 0
 #endif
 
-#if defined(__GNUG__)
-# define intrinsic_likely(x) __builtin_expect(!!(x), 1)
+#if __has_builtin(__builtin_expect) || defined(__GNUC__)
+// optimize knowing that this branch is almost always the one
+# define fiw_likely(x) __builtin_expect(!!(x), 1)
 #else
-# define intrinsic_likely(x) !!(x)
+// optimize knowing that this branch is almost always the one
+# define fiw_likely(x) !!(x)
 #endif
 
-/**
- * Hint to the compiler that this path will never be reached.
- */
-#if defined(__GNUG__)
-# define intrinsic_unreachable() __builtin_unreachable()
-#elif defined (_MSC_VER)
-# define intrinsic_unreachable() __assume(0)
+#if __has_builtin(__builtin_unreachable) ||\
+	(defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ >= 5))))
+// optimize knowing that this branch is impossible
+# define fiw_unreachable() __builtin_unreachable()
+#elif defined(_MSC_VER)
+// optimize knowing that this branch is impossible
+# define fiw_unreachable() __assume(0)
 #else
-# define intrinsic_unreachable() do {} while(0)
+# error Missing implementation!
 #endif
 
-#endif /* UTILITY_INTRINSICS_HPP */
+// silence warning about unused variable
+# define fiw_unused(x) static_cast<void>(x)

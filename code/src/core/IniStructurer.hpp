@@ -41,7 +41,7 @@ namespace core
 #endif
 			ext::ssize error(ext::ssize size, const ful::unit_utf8 * end)
 			{
-				static_cast<void>(end);
+				fiw_unused(end);
 
 				error_.where = size;
 				error_.type = ful::view_utf8{};
@@ -85,8 +85,8 @@ namespace core
 #endif
 			ext::ssize error(ext::ssize size, const ful::unit_utf8 * end, T & x)
 			{
-				static_cast<void>(end);
-				static_cast<void>(x);
+				fiw_unused(end);
+				fiw_unused(x);
 
 				constexpr const auto name = utility::type_name<T>();
 
