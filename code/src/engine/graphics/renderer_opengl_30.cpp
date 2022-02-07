@@ -19,7 +19,6 @@
 #include "core/maths/algorithm.hpp"
 #include "core/PngStructurer.hpp"
 #include "core/serialization.hpp"
-#include "core/ShaderStructurer.hpp"
 #include "core/sync/Event.hpp"
 
 #include "engine/Command.hpp"
@@ -36,6 +35,7 @@
 #include "utility/lookup_table.hpp"
 #include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
+#include "utility/regex.hpp"
 #include "utility/variant.hpp"
 
 #include "ful/convert.hpp"

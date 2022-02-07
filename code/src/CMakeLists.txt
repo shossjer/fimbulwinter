@@ -9,10 +9,8 @@ set(SOURCES_CORE
 	)
 
 set(HEADERS_CORE
-	src/core/ArmatureStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
-	src/core/BytesStructurer.hpp
 	src/core/color.hpp
 	src/core/container/Buffer.hpp
 	src/core/container/Collection.hpp
@@ -29,7 +27,6 @@ set(HEADERS_CORE
 	src/core/iostream.hpp
 	src/core/JsonSerializer.hpp
 	src/core/JsonStructurer.hpp
-	src/core/LevelStructurer.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp
@@ -38,13 +35,8 @@ set(HEADERS_CORE
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
 	src/core/native/file.hpp
-	src/core/NoSerializer.hpp
-	src/core/PlaceholderStructurer.hpp
 	src/core/PngStructurer.hpp
 	src/core/serialization.hpp
-	src/core/ShaderStructurer.hpp
-	src/core/StringSerializer.hpp
-	src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
