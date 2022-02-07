@@ -29,13 +29,13 @@ namespace utility
 		protected:
 			void set_capacity(std::size_t capacity)
 			{
-				assert(capacity == 0 || capacity == storage_traits::capacity_value);
+				fiw_assert(capacity == 0 || capacity == storage_traits::capacity_value);
 				fiw_unused(capacity);
 			}
 
 			void set_size(std::size_t size)
 			{
-				assert(size <= size_type(-1) && size <= storage_traits::capacity_value);
+				fiw_assert(size <= size_type(-1) && size <= storage_traits::capacity_value);
 
 				size_ = static_cast<size_type>(size);
 			}
@@ -67,7 +67,7 @@ namespace utility
 
 			void set_size(std::size_t size)
 			{
-				assert(size <= capacity_);
+				fiw_assert(size <= capacity_);
 
 				size_ = size;
 			}

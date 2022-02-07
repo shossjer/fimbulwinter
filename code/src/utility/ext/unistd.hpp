@@ -1,17 +1,16 @@
 #pragma once
 
+#include "utility/compiler.hpp"
 #include "utility/ext/stddef.hpp"
 
-#include <cassert>
 #include <unistd.h>
 
 namespace ext
 {
-
 	// fd - blocking file descriptor
 	inline ssize write_some_nonzero(int fd, const void * buffer, usize size)
 	{
-		assert(size != 0);
+		fiw_assert(size != 0);
 
 	try_again:
 		const ssize n = ::write(fd, buffer, size);
@@ -37,13 +36,13 @@ namespace ext
 
 		do
 		{
-			assert(remaining <= size);
+			fiw_assert(remaining <= size);
 
 			const ssize n = write_some_nonzero(fd, ptr, remaining);
 			if (n <= 0)
 				break;
 
-			assert(static_cast<usize>(n) <= remaining);
+			fiw_assert(static_cast<usize>(n) <= remaining);
 			ptr += n;
 			remaining -= n;
 		}

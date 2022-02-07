@@ -13,7 +13,6 @@
 #include "utility/tuple.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstring>
 
 namespace utility
@@ -86,7 +85,7 @@ namespace utility
 
 		void deallocate(std::size_t capacity)
 		{
-			assert(capacity == Capacity);
+			fiw_assert(capacity == Capacity);
 			fiw_unused(capacity);
 		}
 
@@ -315,7 +314,7 @@ namespace utility
 #if defined(_DEBUG) || !defined(NDEBUG)
 			~empty_allocator_hack()
 			{
-				assert(!storage_);
+				fiw_assert(!storage_);
 			}
 #endif
 			empty_allocator_hack() = default;
@@ -325,7 +324,7 @@ namespace utility
 			empty_allocator_hack & operator = (empty_allocator_hack && other)
 			{
 #if defined(_DEBUG) || !defined(NDEBUG)
-				assert(!storage_);
+				fiw_assert(!storage_);
 #endif
 				storage_ = std::exchange(other.storage_, nullptr);
 
@@ -338,7 +337,7 @@ namespace utility
 		bool allocate(std::size_t capacity)
 		{
 #if defined(_DEBUG) || !defined(NDEBUG)
-			assert(!storage());
+			fiw_assert(!storage());
 #endif
 			storage() = allocator_traits::allocate(allocator(), capacity);
 			return good();
@@ -353,7 +352,7 @@ namespace utility
 		void deallocate(std::size_t capacity)
 		{
 #if defined(_DEBUG) || !defined(NDEBUG)
-			assert(storage());
+			fiw_assert(storage());
 #endif
 			allocator_traits::deallocate(allocator(), storage(), capacity);
 #if defined(_DEBUG) || !defined(NDEBUG)
@@ -366,7 +365,7 @@ namespace utility
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
 #if defined(_DEBUG) || !defined(NDEBUG)
-			assert(storage());
+			fiw_assert(storage());
 #endif
 			allocator_traits::construct(allocator(), ptr_, std::forward<Ps>(ps)...);
 			return *ptr_;
@@ -377,7 +376,7 @@ namespace utility
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
 #if defined(_DEBUG) || !defined(NDEBUG)
-			assert(storage());
+			fiw_assert(storage());
 #endif
 			allocator_traits::destroy(allocator(), ptr_);
 		}
@@ -963,7 +962,7 @@ namespace utility
 			using utility::raw_range;
 			auto range = raw_range(begin, end);
 
-			assert(range.first <= range.second);
+			fiw_assert(range.first <= range.second);
 			std::memcpy(this->data(start), range.first, (range.second - range.first) * sizeof(S));
 
 			return start + (range.second - range.first);

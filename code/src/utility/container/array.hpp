@@ -3,8 +3,6 @@
 #include "utility/annotate.hpp"
 #include "utility/container/container.hpp"
 
-#include <cassert>
-
 namespace utility
 {
 	namespace detail

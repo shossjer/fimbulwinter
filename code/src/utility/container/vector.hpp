@@ -1,9 +1,8 @@
 #pragma once
 
 #include "utility/annotate.hpp"
+#include "utility/compiler.hpp"
 #include "utility/container/container.hpp"
-
-#include <cassert>
 
 namespace utility
 {
