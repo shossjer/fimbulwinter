@@ -585,29 +585,6 @@ namespace core
 	template <typename T, typename F>
 	using supports_for_each = decltype(for_each(std::declval<T>(), std::declval<F>()));
 
-	namespace detail
-	{
-		template <typename T, typename F>
-		bool for_each_impl(mpl::index_constant<std::size_t(-1)>, T &, std::size_t, F &&)
-		{
-			return false;
-		}
-
-		template <std::size_t I, typename T, typename F>
-		auto for_each_impl(mpl::index_constant<I>, T & x, std::size_t count, F && f)
-			-> decltype(for_each(core::member_table<T>::template get<I>(x), count, std::forward<F>(f)))
-		{
-			return for_each(core::member_table<T>::template get<I>(x), count, std::forward<F>(f));
-		}
-	}
-
-	template <std::size_t I, typename T, typename F>
-	auto for_each(T & x, std::size_t count, F && f)
-		-> decltype(detail::for_each_impl(mpl::index_constant<I>{}, x, count, std::forward<F>(f)))
-	{
-		return detail::for_each_impl(mpl::index_constant<I>{}, x, count, std::forward<F>(f));
-	}
-
 	template <typename T>
 	auto grow(T & x)
 		-> decltype(x.emplace_back(), x.back())
