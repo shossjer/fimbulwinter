@@ -1,3 +1,4 @@
+#include "utility/iterator.hpp"
 #include "utility/regex.hpp"
 
 #include <catch2/catch.hpp>

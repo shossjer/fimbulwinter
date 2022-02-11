@@ -74,15 +74,12 @@ namespace engine
 				face = nullptr;
 			}
 
-			bool Font::Data::load(utility::string_units_utf8 name, int height)
+			bool Font::Data::load(ful::cstr_utf8 name, int height)
 			{
 				debug_assert(face == nullptr);
 
-				if (!debug_assert(*(name.data() + name.size()) == '\0', "'name' must be null terminated, please sanitize your data!"))
-					return false;
-
 				// todo send file content to freetype
-				if (FT_New_Face(library, name.data(), 0, &face))
+				if (FT_New_Face(library, name.c_str(), 0, &face))
 				{
 					debug_fail();
 					return false;
@@ -300,9 +297,9 @@ namespace engine
 				glDisable(GL_BLEND);
 			}
 
-			void Font::draw(int x, int y, const std::string & string) const
+			void Font::draw(int x, int y, ful::view_utf8 str) const
 			{
-				draw(x, y, string.c_str(), string.length());
+				draw(x, y, str.data(), str.size());
 			}
 
 			void Font::draw(int x, int y, const char * text, std::ptrdiff_t length) const

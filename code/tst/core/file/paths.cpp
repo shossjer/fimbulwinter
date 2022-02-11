@@ -1,14 +1,15 @@
 #include "core/file/paths.hpp"
 
-#include "utility/unicode/string_view.hpp"
+#include "ful/cstr.hpp"
+#include "ful/string_compare.hpp"
 
 #include <catch2/catch.hpp>
 
 TEST_CASE("", "[engine][file]")
 {
-	CHECK(core::file::filename(utility::string_units_utf8(u8"path/to/some.thing")) == u8"some");
-	CHECK(core::file::filename(utility::string_units_utf8(u8"path/to/extensionless")) == u8"extensionless");
-	CHECK(core::file::filename(utility::string_units_utf8(u8"filename.extension")) == u8"filename");
-	CHECK(core::file::filename(utility::string_units_utf8(u8"without-path-and-extension")) == u8"without-path-and-extension");
-	CHECK(core::file::filename(utility::string_units_utf8(u8"")) == u8"");
+	CHECK(core::file::filename(ful::cstr_utf8("path/to/some.thing")) == "some");
+	CHECK(core::file::filename(ful::cstr_utf8("path/to/extensionless")) == "extensionless");
+	CHECK(core::file::filename(ful::cstr_utf8("filename.extension")) == "filename");
+	CHECK(core::file::filename(ful::cstr_utf8("without-path-and-extension")) == "without-path-and-extension");
+	CHECK(core::file::filename(ful::cstr_utf8("")) == "");
 }

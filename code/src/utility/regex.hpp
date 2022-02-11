@@ -1,6 +1,8 @@
 #pragma once
 
-#include "utility/string.hpp"
+#include "utility/type_traits.hpp"
+
+#include "ful/view.hpp"
 
 namespace rex
 {
@@ -328,14 +330,13 @@ namespace rex
 			}
 		};
 
-		template <typename Boundary>
 		class string_t
 		{
 		private:
-			utility::basic_string_view<Boundary> str;
+			ful::view_utf8 str;
 
 		public:
-			explicit string_t(utility::basic_string_view<Boundary> str) : str(str) {}
+			explicit string_t(ful::view_utf8 str) : str(str) {}
 
 		public:
 			template <typename BeginIt, typename EndIt, bool Negation>
@@ -361,9 +362,9 @@ namespace rex
 		return pattern<detail::char_t<char>>(c);
 	}
 
-	inline auto str(const char * str)
+	inline auto str(ful::view_utf8 str)
 	{
-		return pattern<detail::string_t<utility::boundary_unit<char>>>(str);
+		return pattern<detail::string_t>(str);
 	}
 
 	template <typename BeginIt, typename EndIt>
@@ -418,7 +419,10 @@ namespace rex
 	template <typename Range>
 	auto parse(const Range & range)
 	{
-		return parse(utility::begin(range), utility::end(range));
+		using ext::begin;
+		using ext::end;
+
+		return parse(begin(range), end(range));
 	}
 
 	template <typename Range>

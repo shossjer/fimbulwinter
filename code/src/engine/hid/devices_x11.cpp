@@ -512,12 +512,12 @@ namespace
 #if MODE_DEBUG
 	constexpr auto serialization(utility::in_place_type_t<EventType>)
 	{
-		return utility::make_lookup_table(
-			std::make_pair(utility::string_units_utf8("unknown"), EventType::Unknown),
-			std::make_pair(utility::string_units_utf8("gamepad"), EventType::Gamepad),
-			std::make_pair(utility::string_units_utf8("keyboard"), EventType::Keyboard),
-			std::make_pair(utility::string_units_utf8("mouse"), EventType::Mouse),
-			std::make_pair(utility::string_units_utf8("touch"), EventType::Touch)
+		return utility::make_lookup_table<ful::view_utf8>(
+			std::make_pair(ful::cstr_utf8("unknown"), EventType::Unknown),
+			std::make_pair(ful::cstr_utf8("gamepad"), EventType::Gamepad),
+			std::make_pair(ful::cstr_utf8("keyboard"), EventType::Keyboard),
+			std::make_pair(ful::cstr_utf8("mouse"), EventType::Mouse),
+			std::make_pair(ful::cstr_utf8("touch"), EventType::Touch)
 			);
 	}
 #endif

@@ -4,32 +4,56 @@
 
 #include "core/debug.hpp"
 
-#include "engine/Hash.hpp"
-#include "engine/HashTable.hpp"
-
+#include "utility/ext/stddef.hpp"
 #include "utility/spinlock.hpp"
-#include "utility/unicode/string.hpp"
+
+#include "ful/heap.hpp"
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
 
 #include <mutex>
 #include <unordered_map>
 
+namespace engine
+{
+	extern void debug_tokentable_unregister(ext::usize from, ext::usize count);
+	extern bool debug_tokentable_register(ext::usize from, ext::usize count, ful::view_utf8 name, ful::unit_utf8 * (* callback)(ext::usize value, ful::unit_utf8 * begin, ful::unit_utf8 * end));
+
+	ful::unit_utf8 * debug_hashtable_copy(std::uint32_t value, ful::unit_utf8 * begin, ful::unit_utf8 * end);
+}
+
 namespace
 {
+	ful::unit_utf8 * hashtable_copy(ext::usize value, ful::unit_utf8 * begin, ful::unit_utf8 * end)
+	{
+		if (debug_assert(value <= std::uint32_t(-1)))
+		{
+			return engine::debug_hashtable_copy(static_cast<std::uint32_t>(value), begin, end);
+		}
+		else
+		{
+			return ful::copy(ful::cstr_utf8("( ? )"), begin, end);
+		}
+	}
+
 	class impl
 	{
 		utility::spinlock lock;
-		std::unordered_map<engine::Hash::value_type, utility::heap_string_utf8> table;
+		std::unordered_map<std::uint32_t, ful::heap_string_utf8> table;
+
+		~impl()
+		{
+			engine::debug_tokentable_unregister(0, std::uint32_t(-1) & (ext::usize(-1) >> 1));
+		}
 
 		impl()
 		{
-			table.emplace(engine::Hash{}.value(), "(\"\")");
-		}
+#if MODE_DEBUG
+			engine::debug_tokentable_register(0, std::uint32_t(-1) & (ext::usize(-1) >> 1), ful::cstr_utf8("__hash_table__"), hashtable_copy);
+#endif
 
-		utility::string_units_utf8 add_string(engine::Hash hash, utility::heap_string_utf8 && string)
-		{
-			std::lock_guard<utility::spinlock> guard(lock);
-			const auto p = table.emplace(hash.value(), std::move(string));
-			return p.first->second;
+			ful::heap_string_utf8 string;
+			table.emplace(std::uint32_t{}, std::move(string));
 		}
 
 	public:
@@ -40,89 +64,49 @@ namespace
 			return x;
 		}
 
-		bool add_string(engine::Hash hash, const char * str)
+		bool add_string(std::uint32_t value, ful::view_utf8 string)
 		{
-			utility::heap_string_utf8 string;
-			if (!(debug_verify(string.try_append("(\"")) &&
-			      debug_verify(string.try_append(str)) &&
-			      debug_verify(string.try_append("\")"))))
+			ful::heap_string_utf8 copy;
+			if (!debug_verify(ful::append(copy, string)))
 				return false;
 
-			const auto found_string = add_string(hash, std::move(string));
-			return debug_verify(utility::string_units_utf8(found_string.begin() + 2, found_string.end() - 2) == str);
+			{
+				std::lock_guard<utility::spinlock> guard(lock);
+
+				const auto p = table.emplace(value, std::move(copy));
+				return p.first != table.end();
+			}
 		}
 
-		bool add_string(engine::Hash hash, const char * str, std::size_t n)
-		{
-			utility::heap_string_utf8 string;
-			if (!(debug_verify(string.try_append("(\"")) &&
-			      debug_verify(string.try_append(str, n)) &&
-			      debug_verify(string.try_append("\")"))))
-				return false;
-
-			const auto found_string = add_string(hash, std::move(string));
-			return debug_verify(utility::string_units_utf8(found_string.begin() + 2, found_string.end() - 2) == utility::string_units_utf8(str, n));
-		}
-
-		utility::string_units_utf8 lookup_string(engine::Hash hash)
+		ful::unit_utf8 * copy_string(std::uint32_t value, ful::unit_utf8 * begin, ful::unit_utf8 * end)
 		{
 			std::lock_guard<utility::spinlock> guard(lock);
-			const auto it = table.find(hash.value());
-			return it != table.end() ? utility::string_units_utf8(it->second) : utility::string_units_utf8("( ? )");
+			const auto it = table.find(value);
+			if (debug_assert(it != table.end()))
+			{
+				*begin = '(';
+				end = ful::copy(it->second, begin + 1, end - 1);
+				*end = ')';
+				return end + 1;
+			}
+			else
+			{
+				return ful::copy(ful::cstr_utf8("( ? )"), begin, end);
+			}
 		}
 	};
 }
 
 namespace engine
 {
-	HashTable::HashTable(std::initializer_list<const char *> strs)
+	ful::unit_utf8 * debug_hashtable_copy(std::uint32_t value, ful::unit_utf8 * begin, ful::unit_utf8 * end)
 	{
-		utility::heap_string_utf8 message;
-		message.try_append("adding hashes:");
-		for (const char * str : strs)
-		{
-			message.try_append(" \"");
-			message.try_append(str);
-			message.try_append("\"");
-		}
-		debug_printline(message);
-
-		for (const char * str : strs)
-		{
-			// todo locking is over-restrictive since this constructor
-			// should only be called before main, which is guaranteed to
-			// be single threaded <insert standardese here>
-			impl::instance().add_string(engine::Hash(str), str);
-		}
+		return impl::instance().copy_string(value, begin, end);
 	}
 
-	void HashTable::add(const Hash & hash, const char * str)
+	void debug_hashtable_add(std::uint32_t value, ful::view_utf8 string)
 	{
-		impl::instance().add_string(hash, str);
-	}
-
-	void HashTable::add(const Hash & hash, const char * str, std::size_t n)
-	{
-		impl::instance().add_string(hash, str, n);
-	}
-
-	std::ostream & operator << (std::ostream & stream, const Hash & hash)
-	{
-		// note we copy just in case someone alters the hash while we
-		// are printing it so that the value and name guarantees* to
-		// match
-
-		// *) guarantee is a bit misleading because Hash is not thread
-		// safe so all bets are off if someone alters it but this
-		// function is meant for debugging purposes, so something that
-		// "might" do the right thing is better than something that does
-		// not even try, maybe
-		const auto cpy = hash;
-		// todo take some time and look at the assembly to see if there
-		// actually is any difference whatsoever, maybe the compiler is
-		// smart enough
-
-		return stream << cpy.value() << impl::instance().lookup_string(cpy);
+		impl::instance().add_string(value, string);
 	}
 }
 

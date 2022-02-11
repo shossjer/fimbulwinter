@@ -6,8 +6,8 @@ namespace
 {
 	struct construction_counter
 	{
-		static int construction_count;
-		static int destruction_count;
+		static ext::usize construction_count;
+		static ext::usize destruction_count;
 
 		static void reset()
 		{
@@ -15,7 +15,7 @@ namespace
 			destruction_count = 0;
 		}
 
-		int i;
+		ext::usize i;
 
 		~construction_counter()
 		{
@@ -34,8 +34,8 @@ namespace
 		construction_counter & operator = (construction_counter &&) = default;
 	};
 
-	int construction_counter::construction_count = -1;
-	int construction_counter::destruction_count = -1;
+	ext::usize construction_counter::construction_count = ext::usize(-1);
+	ext::usize construction_counter::destruction_count = ext::usize(-1);
 }
 
 TEST_CASE("", "")
@@ -247,7 +247,7 @@ TEST_CASE("trivial heap fragmentation", "[utility][container][fragmentation]")
 
 		SECTION("and will reallocate when adding more")
 		{
-			REQUIRE(index_of(a.try_emplace(1, 2., '3')) == old_cap);
+			REQUIRE(index_of(a.try_emplace(1, 2., '3')) == static_cast<ext::index>(old_cap));
 			CHECK(a.capacity() > old_cap);
 			CHECK(a.size() == old_cap + 1);
 			CHECK(std::get<0>(a[0]) == 1);
@@ -421,7 +421,7 @@ TEST_CASE("heap fragmentation", "[utility][container][fragmentation]")
 
 		SECTION("and will reallocate when adding more")
 		{
-			REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == old_cap);
+			REQUIRE(index_of(a.try_emplace(std::piecewise_construct, std::forward_as_tuple(1), std::tuple<>(), std::forward_as_tuple('3'))) == static_cast<ext::index>(old_cap));
 			CHECK(a.capacity() > old_cap);
 			CHECK(a.size() == old_cap + 1);
 			CHECK(construction_counter::destruction_count == old_cap);

@@ -8,7 +8,8 @@
 #include "utility/any.hpp"
 #include "utility/container/vector.hpp"
 #include "utility/shared_ptr.hpp"
-#include "utility/unicode/string.hpp"
+
+#include "ful/heap.hpp"
 
 #if FILE_SYSTEM_USE_KERNEL32
 # include <Windows.h>
@@ -25,9 +26,9 @@ namespace engine
 			engine::file::system_impl & impl;
 
 #if FILE_SYSTEM_USE_KERNEL32
-			utility::heap_string_utfw filepath;
+			ful::heap_string_utfw filepath;
 #elif FILE_SYSTEM_USE_POSIX
-			utility::heap_string_utf8 filepath;
+			ful::heap_string_utf8 filepath;
 #endif
 			std::uint32_t root;
 
@@ -45,9 +46,9 @@ namespace engine
 			engine::file::system_impl & impl;
 
 #if FILE_SYSTEM_USE_KERNEL32
-			utility::heap_string_utfw dirpath;
+			ful::heap_string_utfw dirpath;
 #elif FILE_SYSTEM_USE_POSIX
-			utility::heap_string_utf8 dirpath;
+			ful::heap_string_utf8 dirpath;
 #endif
 			engine::Hash directory;
 
@@ -56,9 +57,9 @@ namespace engine
 			utility::any data;
 
 #if FILE_SYSTEM_USE_KERNEL32
-			utility::heap_string_utfw files;
+			ful::heap_string_utfw files;
 #elif FILE_SYSTEM_USE_POSIX
-			utility::heap_string_utf8 files;
+			ful::heap_string_utf8 files;
 #endif
 		};
 
@@ -67,9 +68,9 @@ namespace engine
 			engine::file::system_impl & impl;
 
 #if FILE_SYSTEM_USE_KERNEL32
-			utility::heap_string_utfw filepath;
+			ful::heap_string_utfw filepath;
 #elif FILE_SYSTEM_USE_POSIX
-			utility::heap_string_utf8 filepath;
+			ful::heap_string_utf8 filepath;
 #endif
 			std::uint32_t root;
 
@@ -95,11 +96,11 @@ namespace engine
 		{
 			ext::heap_shared_ptr<ScanData> ptr;
 #if FILE_SYSTEM_USE_KERNEL32
-			utility::heap_string_utfw filepath; // (sub)directory
-			utility::heap_vector<utility::heap_string_utfw> files;
+			ful::heap_string_utfw filepath; // (sub)directory
+			utility::heap_vector<ful::heap_string_utfw> files;
 #elif FILE_SYSTEM_USE_POSIX
-			utility::heap_string_utf8 filepath; // (sub)directory
-			utility::heap_vector<utility::heap_string_utf8> files;
+			ful::heap_string_utf8 filepath; // (sub)directory
+			utility::heap_vector<ful::heap_string_utf8> files;
 #endif
 		};
 

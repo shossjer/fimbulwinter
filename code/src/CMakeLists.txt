@@ -2,7 +2,7 @@
 set(SOURCES_CORE
 	src/core/async/Thread_kernel32.cpp
 	src/core/async/Thread_pthread.cpp
-	src/core/container/Buffer.cpp
+	src/core/iostream.cpp
 	src/core/native/file_kernel32.cpp
 	src/core/native/file_posix.cpp
 	)
@@ -25,6 +25,7 @@ set(HEADERS_CORE
 	src/core/graphics/types.hpp
 	src/core/IniSerializer.hpp
 	src/core/IniStructurer.hpp
+	src/core/iostream.hpp
 	src/core/JsonSerializer.hpp
 	src/core/JsonStructurer.hpp
 	src/core/LevelStructurer.hpp
@@ -57,10 +58,9 @@ set(MSVC_CORE
 
 set(SOURCES_ENGINE
 	src/engine/animation/mixer.cpp
-      src/engine/application/window_dummy.cpp
+	src/engine/application/window_dummy.cpp
 	src/engine/application/window_user32.cpp
 	src/engine/application/window_x11.cpp
-	src/engine/Asset.cpp
 	src/engine/audio/system_dummy.cpp
 	src/engine/audio/system_fmod.cpp
 	src/engine/console.cpp
@@ -83,7 +83,7 @@ set(SOURCES_ENGINE
 	src/engine/graphics/viewer.cpp
 	src/engine/HashTable.cpp
 	src/engine/hid/devices.cpp
-      src/engine/hid/devices_dummy.cpp
+	src/engine/hid/devices_dummy.cpp
 	src/engine/hid/devices_user32.cpp
 	src/engine/hid/devices_x11.cpp
 	src/engine/hid/ui.cpp
@@ -92,7 +92,7 @@ set(SOURCES_ENGINE
 	src/engine/physics/joint_physx.cpp
 	src/engine/physics/physics_physx.cpp
 	src/engine/task/scheduler_dummy.cpp
-	src/engine/Token.cpp
+	src/engine/TokenTable.cpp
 	)
 
 set(HEADERS_ENGINE
@@ -101,6 +101,7 @@ set(HEADERS_ENGINE
 	src/engine/commands.hpp
 	src/engine/console.hpp
 	src/engine/Entity.hpp
+	src/engine/EntityEnum.hpp
 	src/engine/EntityFactory.hpp
 	src/engine/animation/Armature.hpp
 	src/engine/animation/Callbacks.hpp
@@ -132,7 +133,6 @@ set(HEADERS_ENGINE
 	src/engine/hid/ui.hpp
 	src/engine/model/data.hpp
 	src/engine/module.hpp
-	src/engine/MutableEntity.hpp
 	src/engine/physics/actor_physx.hpp
 	src/engine/physics/Callback.hpp
 	src/engine/physics/defines.hpp
@@ -160,7 +160,7 @@ set(HEADERS_UTILITY
 	src/utility/arithmetics.hpp
 	src/utility/array.hpp
 	src/utility/bitmanip.hpp
-	src/utility/charconv.hpp
+	src/utility/cast_iterator.hpp
 	src/utility/compound.hpp
 	src/utility/concepts.hpp
 	src/utility/container/array.hpp
@@ -169,7 +169,6 @@ set(HEADERS_UTILITY
 	src/utility/container/vector.hpp
 	src/utility/crypto/crc.hpp
 	src/utility/ext/stddef.hpp
-	src/utility/ext/string.hpp
 	src/utility/ext/unistd.hpp
 	src/utility/encoding_traits.hpp
 	src/utility/functional.hpp
@@ -192,6 +191,7 @@ set(HEADERS_UTILITY
 	src/utility/preprocessor/count_arguments.hpp
 	src/utility/preprocessor/expand.hpp
 	src/utility/preprocessor/for_each.hpp
+	src/utility/priority.hpp
 	src/utility/profiling.hpp
 	src/utility/property.hpp
 	src/utility/ranges.hpp
@@ -203,15 +203,9 @@ set(HEADERS_UTILITY
 	src/utility/storage.hpp
 	src/utility/storing.hpp
 	src/utility/stream.hpp
-	src/utility/string.hpp
-	src/utility/string_iterator.hpp
-	src/utility/string_view.hpp
 	src/utility/tuple.hpp
 	src/utility/type_info.hpp
 	src/utility/type_traits.hpp
-	src/utility/unicode/encoding_traits.hpp
-	src/utility/unicode/string.hpp
-	src/utility/unicode/string_view.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
 	src/utility/weak_ptr.hpp

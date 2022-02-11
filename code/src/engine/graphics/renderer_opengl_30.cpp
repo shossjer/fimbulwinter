@@ -36,8 +36,15 @@
 #include "utility/lookup_table.hpp"
 #include "utility/profiling.hpp"
 #include "utility/ranges.hpp"
-#include "utility/unicode/string.hpp"
 #include "utility/variant.hpp"
+
+#include "ful/convert.hpp"
+#include "ful/cstrext.hpp"
+#include "ful/heap.hpp"
+#include "ful/point.hpp"
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+#include "ful/view.hpp"
 
 #include <atomic>
 #include <utility>
@@ -170,7 +177,7 @@ namespace
 			GLint vertex;
 			GLint fragment;
 
-			utility::heap_vector<GLint, utility::heap_string_utf8> uniforms;
+			utility::heap_vector<GLint, ful::heap_string_utf8> uniforms;
 		};
 
 		utility::heap_vector<engine::Token, Data> shaders;
@@ -179,7 +186,7 @@ namespace
 
 		const Data * find(engine::Asset asset) const
 		{
-			return ext::find_if(shaders, fun::first == asset).second;
+			return ext::find_if(shaders, fun::first == engine::Token(asset)).second;
 		}
 
 		bool create(engine::Token asset, engine::graphics::data::ShaderData && shader_data)
@@ -268,7 +275,7 @@ namespace
 			auto fragment_parser = rex::parse(shader_data.fragment_source);
 			while (true)
 			{
-				const auto uniform_declaration = fragment_parser.find((rex::str("uniform") >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str("*/") >> rex::str("*/")))));
+				const auto uniform_declaration = fragment_parser.find((rex::str(ful::cstr_utf8("uniform")) >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str(ful::cstr_utf8("*/")) >> rex::str(ful::cstr_utf8("*/"))))));
 				if (uniform_declaration.first == uniform_declaration.second)
 					break;
 
@@ -295,12 +302,19 @@ namespace
 				if (!uniform_semicolon.first)
 					continue;
 
-				const auto type = utility::string_units_utf8(uniform_declaration.second, uniform_type.second);
-				const auto name = utility::string_units_utf8(uniform_type_space_name.second, uniform_name.second);
+				const auto type = ful::view_utf8(uniform_declaration.second, uniform_type.second);
+				const auto name = ful::view_utf8(uniform_type_space_name.second, uniform_name.second);
 
 				if (type == u8"sampler2D")
 				{
-					debug_verify(shader.second.uniforms.try_emplace_back(GL_TEXTURE_2D, utility::heap_string_utf8(name)));
+					if (debug_verify(shader.second.uniforms.try_emplace_back()))
+					{
+						ext::back(shader.second.uniforms).first = GL_TEXTURE_2D;
+						if (!debug_verify(ful::copy(name, ext::back(shader.second.uniforms).second)))
+						{
+							ext::pop_back(shader.second.uniforms);
+						}
+					}
 				}
 			}
 
@@ -333,10 +347,21 @@ namespace
 
 namespace
 {
-	constexpr std::array<GLenum, 10> BufferFormats =
-	{{
-		GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, (GLenum)-1, GL_BYTE, GL_SHORT, GL_INT, (GLenum)-1, GL_FLOAT, GL_DOUBLE
-	}};
+	GLenum glType(utility::type_id_t type)
+	{
+		switch (type)
+		{
+		case utility::type_id<uint8_t>(): return GL_UNSIGNED_BYTE;
+		case utility::type_id<uint16_t>(): return GL_UNSIGNED_SHORT;
+		case utility::type_id<uint32_t>(): return GL_UNSIGNED_INT;
+		case utility::type_id<int8_t>(): return GL_BYTE;
+		case utility::type_id<int16_t>(): return GL_SHORT;
+		case utility::type_id<int32_t>(): return GL_INT;
+		case utility::type_id<float>(): return GL_FLOAT;
+		case utility::type_id<double>(): return GL_DOUBLE;
+		default: debug_unreachable(type, " not supported");
+		}
+	}
 
 	struct display_t
 	{
@@ -421,7 +446,7 @@ namespace
 
 		struct FontInfo
 		{
-			std::vector<utility::unicode_code_point> allowed_unicodes;
+			std::vector<ful::point_utf> allowed_unicodes;
 			std::vector<SymbolData> symbol_data;
 
 			int symbol_width;
@@ -429,7 +454,7 @@ namespace
 			int texture_width; // ?
 			int texture_height; // ?
 
-			utility::heap_string_utf8 name;
+			ful::heap_string_utf8 name;
 			int size;
 		};
 
@@ -448,16 +473,23 @@ namespace
 		}
 
 		// todo boundary_symbol
-		void compile(engine::Token asset, utility::string_points_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
+		void compile(engine::Token asset, ful::view_utf8 text, core::container::Buffer & vertices, core::container::Buffer & texcoords)
 		{
 			const auto index = find(asset);
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
-			const FontInfo & info = infos[index];
+			ful::heap_string_utf32 text32;
+			if (!debug_verify(ful::convert(text, text32)))
+				return;
 
-			const std::ptrdiff_t len = text.length();
-			vertices.resize<float>(4 * len * 2);
-			texcoords.resize<float>(4 * len * 2);
+			const std::ptrdiff_t len = text32.size();
+			if (!debug_verify(vertices.reshape<float>(4 * len * 2)))
+				return;
+
+			if (!debug_verify(texcoords.reshape<float>(4 * len * 2)))
+				return;
+
+			const FontInfo & info = infos[index];
 
 			const int slots_in_width = info.texture_width / info.symbol_width;
 
@@ -467,10 +499,10 @@ namespace
 			int x = 0;
 			int y = 0;
 			int i = 0;
-			for (auto cp : text)
+			for (auto cp : text32)
 			{
 				// the null glyph is stored at the end
-				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), cp);
+				const auto maybe = std::lower_bound(info.allowed_unicodes.begin(), info.allowed_unicodes.end(), ful::point_utf(cp));
 				const int slot = static_cast<int>((maybe == info.allowed_unicodes.end() || *maybe != cp ? info.allowed_unicodes.end() : maybe) - info.allowed_unicodes.begin());
 				const int slot_y = slot / slots_in_width;
 				const int slot_x = slot % slots_in_width;
@@ -512,13 +544,13 @@ namespace
 			}
 		}
 
-		void create(utility::heap_string_utf8 && name, std::vector<utility::unicode_code_point> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
+		void create(ful::heap_string_utf8 && name, std::vector<ful::point_utf> && allowed_unicodes, std::vector<SymbolData> && symbol_data, int symbol_width, int symbol_height, int texture_width, int texture_height)
 		{
 			const engine::Asset asset(name);
-			const auto index = find(asset);
+			const auto index = find(engine::Token(asset));
 			debug_assert(index >= count, "font asset ", asset, " already exists");
 
-			assets[index] = asset;
+			assets[index] = engine::Token(asset);
 
 			FontInfo & info = infos[index];
 			info.allowed_unicodes = std::move(allowed_unicodes);
@@ -535,7 +567,7 @@ namespace
 
 		void destroy(engine::Asset asset)
 		{
-			const auto index = find(asset);
+			const auto index = find(engine::Token(asset));
 			debug_assert(index < count, "font asset ", asset, " does not exist");
 
 			assets[index] = std::move(assets[count - 1]);
@@ -592,7 +624,7 @@ namespace
 		GLint vertex;
 		GLint fragment;
 
-		utility::heap_vector<GLint, utility::heap_string_utf8> uniforms;
+		utility::heap_vector<GLint, ful::heap_string_utf8> uniforms;
 	};
 
 	struct ShaderClass
@@ -635,13 +667,13 @@ namespace
 			switch (image.color())
 			{
 			case core::graphics::ColorType::R:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, image.width(), image.height(), 0, GL_RED, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, image.width(), image.height(), 0, GL_RED, glType(image.pixels().value_type()), image.data());
 				break;
 			case core::graphics::ColorType::RGB:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_RGB, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_RGB, glType(image.pixels().value_type()), image.data());
 				break;
 			case core::graphics::ColorType::RGBA:
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_RGBA, BufferFormats[static_cast<int>(image.pixels().format())], image.data());
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_RGBA, glType(image.pixels().value_type()), image.data());
 				break;
 			default:
 				debug_fail("color type not supported");
@@ -758,7 +790,7 @@ namespace
 		auto fragment_parser = rex::parse(shader_data.fragment_source);
 		while (true)
 		{
-			const auto uniform_declaration = fragment_parser.find((rex::str(u8"uniform") >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str(u8"*/") >> rex::str(u8"*/")))));
+			const auto uniform_declaration = fragment_parser.find((rex::str(ful::cstr_utf8("uniform")) >> +rex::blank) | (rex::ch('/') >> ((rex::ch('/') >> *!rex::newline >> rex::newline) | (rex::ch('*') >> *!rex::str(ful::cstr_utf8("*/")) >> rex::str(ful::cstr_utf8("*/"))))));
 			if (uniform_declaration.first == uniform_declaration.second)
 				break;
 
@@ -785,12 +817,19 @@ namespace
 			if (!uniform_semicolon.first)
 				continue;
 
-			const auto type = utility::string_units_utf8(uniform_declaration.second, uniform_type.second);
-			const auto name = utility::string_units_utf8(uniform_type_space_name.second, uniform_name.second);
+			const auto type = ful::view_utf8(uniform_declaration.second, uniform_type.second);
+			const auto name = ful::view_utf8(uniform_type_space_name.second, uniform_name.second);
 
 			if (type == u8"sampler2D")
 			{
-				debug_verify(shader->uniforms.try_emplace_back(GL_TEXTURE_2D, utility::heap_string_utf8(name)));
+				if (debug_verify(shader->uniforms.try_emplace_back()))
+				{
+					ext::back(shader->uniforms).first = GL_TEXTURE_2D;
+					if (!debug_verify(ful::copy(name, ext::back(shader->uniforms).second)))
+					{
+						ext::pop_back(shader->uniforms);
+					}
+				}
 			}
 		}
 
@@ -849,8 +888,9 @@ namespace
 			const mesh_t & mesh,
 			core::maths::Matrix4x4f && modelview)
 			: modelview(std::move(modelview))
-			, vertices(mesh.vertices)
-		{}
+		{
+			debug_verify(copy(mesh.vertices, vertices)); // todo
+		}
 	};
 
 	core::container::UnorderedCollection
@@ -981,7 +1021,7 @@ namespace
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
-			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.count() / 3))
+			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.size() / 3))
 			{
 				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
 				core::maths::Vector4f::array_type buffer;
@@ -1112,11 +1152,11 @@ namespace
 
 					if (x.material.diffuse)
 					{
-						debug_verify(resources.emplace<ColorClass>(x.asset, x.material.diffuse.value(), x.material.shader.value()));
+						debug_verify(resources.emplace<ColorClass>(x.asset, x.material.diffuse.value(), engine::Token(x.material.shader.value())));
 					}
 					else
 					{
-						debug_verify(resources.emplace<ShaderClass>(x.asset, x.material.shader.value()));
+						debug_verify(resources.emplace<ShaderClass>(x.asset, engine::Token(x.material.shader.value())));
 					}
 				}
 
@@ -1155,12 +1195,9 @@ namespace
 
 				void operator () (MessageCreateMaterialInstance && x)
 				{
-					auto material_it = find(materials, x.entity);
+					const auto material_it = find(materials, x.entity);
 					if (material_it != materials.end())
 					{
-						if (!debug_assert(materials.get_key(material_it) < x.entity, "trying to add an older version object"))
-							return; // error
-
 						materials.erase(material_it);
 					}
 
@@ -1190,9 +1227,6 @@ namespace
 					const auto object_it = find(objects, x.entity);
 					if (object_it != objects.end())
 					{
-						if (!debug_assert(objects.get_key(object_it) < x.entity, "trying to add an older version object"))
-							return; // error
-
 						objects.erase(object_it);
 					}
 					auto * const object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
@@ -1209,9 +1243,6 @@ namespace
 					const auto component_it = find(components, x.entity);
 					if (component_it != components.end())
 					{
-						if (!debug_assert(components.get_key(component_it) < x.entity, "trying to add an older version mesh"))
-							return; // error
-
 						components.erase(component_it);
 					}
 					debug_verify(components.emplace<MeshObject>(x.entity, object, mesh, x.object.material));
@@ -1238,10 +1269,11 @@ namespace
 
 				void operator () (MessageMakeSelectable && x)
 				{
-					const engine::graphics::opengl::Color4ub color = {(x.entity & 0x000000ff) >> 0,
-					                                                  (x.entity & 0x0000ff00) >> 8,
-					                                                  (x.entity & 0x00ff0000) >> 16,
-					                                                  (x.entity & 0xff000000) >> 24};
+					// todo 64-bit colors
+					const engine::graphics::opengl::Color4ub color = {(x.entity.value() & 0x000000ff) >> 0,
+					                                                  (x.entity.value() & 0x0000ff00) >> 8,
+					                                                  (x.entity.value() & 0x00ff0000) >> 16,
+					                                                  (x.entity.value() & 0xff000000) >> 24};
 
 					const auto selectable_it = find(selectable_components, x.entity);
 					if (selectable_it != selectable_components.end())
@@ -1475,25 +1507,20 @@ namespace
 		debug_assert(glGetError() == GL_NO_ERROR);
 	}
 
-	template <typename T, std::size_t N>
-	auto convert(std::array<T, N> && data)
-	{
-		core::container::Buffer buffer;
-		buffer.resize<T>(N);
-
-		std::copy(data.begin(), data.end(), buffer.data_as<T>());
-
-		return buffer;
-	}
-
 	constexpr const auto entity_shader_asset = engine::Hash("_entity_");
 
 	void initialize_builtin_shaders()
 	{
 		engine::graphics::data::ShaderData entity_shader_data;
-		entity_shader_data.inputs.push_back({"in_vertex", 4});
-		entity_shader_data.inputs.push_back({"in_color", 5});
-		entity_shader_data.vertex_source = R"###(
+		entity_shader_data.inputs.emplace_back();
+		entity_shader_data.inputs.back().value = 4;
+		if (!debug_verify(ful::assign(entity_shader_data.inputs.back().name, ful::cstr_utf8("in_vertex"))))
+			return; // error
+		entity_shader_data.inputs.emplace_back();
+		entity_shader_data.inputs.back().value = 5;
+		if (!debug_verify(ful::assign(entity_shader_data.inputs.back().name, ful::cstr_utf8("in_color"))))
+			return; // error
+		if (!debug_verify(ful::assign(entity_shader_data.vertex_source, ful::cstr_utf8(R"###(
 #version 130
 
 uniform mat4 projection_matrix;
@@ -1509,10 +1536,17 @@ void main()
 	gl_Position = projection_matrix * modelview_matrix * vec4(in_vertex.xyz, 1.f);
 	color = in_color;
 }
-)###";
-		entity_shader_data.outputs.push_back({"out_framebuffer", 0});
-		entity_shader_data.outputs.push_back({"out_entitytex", 1});
-		entity_shader_data.fragment_source = R"###(
+)###"))))
+			return; // error
+		entity_shader_data.outputs.emplace_back();
+		entity_shader_data.outputs.back().value = 0;
+		if (!debug_verify(ful::assign(entity_shader_data.outputs.back().name, ful::cstr_utf8("out_framebuffer"))))
+			return; // error
+		entity_shader_data.outputs.emplace_back();
+		entity_shader_data.outputs.back().value = 1;
+		if (!debug_verify(ful::assign(entity_shader_data.outputs.back().name, ful::cstr_utf8("out_entitytex"))))
+			return; // error
+		if (!debug_verify(ful::assign(entity_shader_data.fragment_source, ful::cstr_utf8(R"###(
 #version 130
 
 in vec4 color;
@@ -1525,8 +1559,9 @@ void main()
 	out_framebuffer = color;
 	out_entitytex = color;
 }
-)###";
-		debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterShader>, entity_shader_asset, std::move(entity_shader_data)));
+)###"))))
+			return; // error
+		debug_verify(message_queue.try_emplace(utility::in_place_type<MessageRegisterShader>, engine::Token(entity_shader_asset), std::move(entity_shader_data)));
 	}
 
 	void render_setup()
@@ -1534,9 +1569,9 @@ void main()
 		debug_printline(engine::graphics_channel, "render_callback starting");
 		make_current(*engine::graphics::detail::window);
 
-		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
-		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
-		debug_printline(engine::graphics_channel, "glGetString GL_VERSION: ", glGetString(GL_VERSION));
+		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", ful::make_cstr_utf8(glGetString(GL_VENDOR)));
+		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", ful::make_cstr_utf8(glGetString(GL_RENDERER)));
+		debug_printline(engine::graphics_channel, "glGetString GL_VERSION: ", ful::make_cstr_utf8(glGetString(GL_VERSION)));
 
 		engine::graphics::opengl::init();
 
@@ -1586,8 +1621,16 @@ void main()
 		//  entity buffer
 		//
 		////////////////////////////////////////
-		const auto entity_shader_it = find(resources, entity_shader_asset);
+		const auto entity_shader_it = find(resources, engine::Token(entity_shader_asset));
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 		if (debug_assert(entity_shader_it != resources.end()) && debug_assert(resources.contains<Shader>(entity_shader_it)))
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 		{
 			const Shader * const entity_shader = resources.get<Shader>(entity_shader_it);
 
@@ -1636,7 +1679,7 @@ void main()
 
 					glDrawElements(
 						GL_TRIANGLES,
-						debug_cast<GLsizei>(component.mesh->triangles.count()),
+						debug_cast<GLsizei>(component.mesh->triangles.size()),
 						GL_UNSIGNED_SHORT, // TODO
 						component.mesh->triangles.data());
 
@@ -1672,7 +1715,7 @@ void main()
 			while (queue_select.try_pop(select_args))
 			{
 				engine::graphics::data::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
-				callback_select(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
+				callback_select(std::get<2>(select_args), std::get<3>(select_args), utility::any(std::move(select_data)));
 			}
 		}
 
@@ -1809,15 +1852,15 @@ void main()
 			const auto vertex_location = 5;
 			const auto normal_location = 6;
 			const auto texcoord_location = 7;
-			if (0 < component.mesh->vertices.count())
+			if (!empty(component.mesh->vertices))
 			{
 				glEnableVertexAttribArray(vertex_location);
 			}
-			if (0 < component.mesh->normals.count())
+			if (!empty(component.mesh->normals))
 			{
 				glEnableVertexAttribArray(normal_location);
 			}
-			if (0 < component.mesh->coords.count())
+			if (!empty(component.mesh->coords))
 			{
 				glEnableVertexAttribArray(texcoord_location);
 			}
@@ -1825,51 +1868,51 @@ void main()
 			const auto color_location = 8;
 			glVertexAttrib4f(color_location, color[0] / 255.f, color[1] / 255.f, color[2] / 255.f, color[3] / 255.f);
 
-			if (0 < component.mesh->vertices.count())
+			if (!empty(component.mesh->vertices))
 			{
 				glVertexAttribPointer(
 					vertex_location,
 					3, // todo support 2d coordinates?
-					BufferFormats[static_cast<int>(component.mesh->vertices.format())],
+					glType(component.mesh->vertices.value_type()),
 					GL_FALSE,
 					0,
 					component.mesh->vertices.data());
 			}
-			if (0 < component.mesh->normals.count())
+			if (!empty(component.mesh->normals))
 			{
 				glVertexAttribPointer(
 					normal_location,
 					3, // todo support 2d coordinates?
-					BufferFormats[static_cast<int>(component.mesh->normals.format())],
+					glType(component.mesh->normals.value_type()),
 					GL_FALSE,
 					0,
 					component.mesh->normals.data());
 			}
-			if (0 < component.mesh->coords.count())
+			if (!empty(component.mesh->coords))
 			{
 				glVertexAttribPointer(
 					texcoord_location,
 					2,
-					BufferFormats[static_cast<int>(component.mesh->coords.format())],
+					glType(component.mesh->coords.value_type()),
 					GL_FALSE,
 					0,
 					component.mesh->coords.data());
 			}
 			glDrawElements(
 				GL_TRIANGLES,
-				debug_cast<GLsizei>(component.mesh->triangles.count()),
-				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
+				debug_cast<GLsizei>(component.mesh->triangles.size()),
+				glType(component.mesh->triangles.value_type()),
 				component.mesh->triangles.data());
 
-			if (0 < component.mesh->coords.count())
+			if (!empty(component.mesh->coords))
 			{
 				glDisableVertexAttribArray(texcoord_location);
 			}
-			if (0 < component.mesh->normals.count())
+			if (!empty(component.mesh->normals))
 			{
 				glDisableVertexAttribArray(normal_location);
 			}
-			if (0 < component.mesh->vertices.count())
+			if (!empty(component.mesh->vertices))
 			{
 				glDisableVertexAttribArray(vertex_location);
 			}

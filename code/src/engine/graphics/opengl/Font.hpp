@@ -4,10 +4,9 @@
 
 #include "engine/graphics/opengl.hpp"
 
-#include "utility/string.hpp"
-#include "utility/unicode/string_view.hpp"
+#include "ful/cstr.hpp"
 
-# include <string>
+#include <vector>
 
 #if TEXT_USE_FREETYPE
 # include <ft2build.h>
@@ -73,9 +72,9 @@ namespace engine
 				public:
 					void free();
 #if TEXT_USE_FREETYPE
-					bool load(utility::string_units_utf8 name, int height);
+					bool load(ful::cstr_utf8 name, int height);
 #elif TEXT_USE_USER32 || TEXT_USE_X11
-					bool load(engine::application::window & window, utility::string_view_utf8 name, int height);
+					bool load(engine::application::window & window, ful::cstr_utf8 name, int height);
 #endif
 
 				public:
@@ -143,17 +142,11 @@ namespace engine
 				void draw(int x, int y, const char * text) const;
 				/**
 				 */
-				void draw(int x, int y, const std::string & string) const;
+				void draw(int x, int y, ful::view_utf8 str) const;
 				/**
 				 */
 				void draw(int x, int y, const char * text, std::ptrdiff_t length) const;
-				/**
-				 */
-				template <class ...Args>
-				void drawt(int x, int y, Args && ... args) const
-				{
-					draw(x, y, utility::to_string(std::forward<Args>(args)...));
-				}
+
 			};
 		}
 	}

@@ -16,6 +16,10 @@
 #include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
+#include "ful/heap.hpp"
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+
 #include <algorithm>
 #include <tuple>
 #include <vector>
@@ -47,13 +51,13 @@ namespace
 	struct DeviceSource
 	{
 		int type;
-		std::string path;
-		utility::heap_string_utf8 name;
+		ful::heap_string_utf8 path;
+		ful::heap_string_utf8 name;
 	};
 
 	std::vector<Device> devices;
 	std::vector<DeviceMapping> device_mappings;
-	std::vector<std::vector<DeviceSource>> device_sources;
+	utility::heap_vector<utility::heap_vector<DeviceSource>> device_sources;
 
 	std::ptrdiff_t find_device(Device device)
 	{
@@ -69,7 +73,7 @@ namespace
 
 		devices.push_back(device);
 		device_mappings.emplace_back();
-		device_sources.emplace_back();
+		debug_verify(device_sources.try_emplace_back());
 	}
 
 	void remove_device(Device device)
@@ -485,14 +489,14 @@ namespace
 	{
 		int id;
 		int type;
-		std::string path;
-		utility::heap_string_utf8 name;
+		ful::heap_string_utf8 path;
+		ful::heap_string_utf8 name;
 	};
 
 	struct RemoveSource
 	{
 		int id;
-		std::string path;
+		ful::heap_string_utf8 path;
 	};
 
 	using InputMessage = utility::variant
@@ -613,21 +617,6 @@ namespace
 				}
 			}
 
-			std::string context_str;
-			if (contexts_using_device.empty())
-			{
-				context_str = " unsused";
-			}
-			else
-			{
-				context_str = " used in contexts:";
-				for (auto i : contexts_using_device)
-				{
-					context_str += utility::to_string(" ", contexts_[i].asset);
-				}
-			}
-			debug_printline(" device ", device.id, context_str);
-
 #if MODE_DEBUG
 			for (const auto & source : device.sources)
 			{
@@ -644,12 +633,12 @@ namespace hid
 {
 	ui::~ui()
 	{
-		engine::abandon("print-devices");
+		engine::abandon(ful::cstr_utf8("print-devices"));
 	}
 
 	ui::ui()
 	{
-		engine::observe("print-devices", callback_print_devices, nullptr);
+		engine::observe(ful::cstr_utf8("print-devices"), callback_print_devices, nullptr);
 	}
 
 	void update(ui &)
@@ -671,7 +660,7 @@ namespace hid
 				void operator () (AddAxisMove && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y));
+					static_cast<void>(debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -681,7 +670,7 @@ namespace hid
 				void operator () (AddAxisTilt && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max));
+					static_cast<void>(debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -691,7 +680,7 @@ namespace hid
 				void operator () (AddButtonPress && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.emplace<ButtonPress>(filter, x.command));
+					static_cast<void>(debug_verify(filters.emplace<ButtonPress>(filter, x.command)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -701,7 +690,7 @@ namespace hid
 				void operator () (AddButtonRelease && x)
 				{
 					const Filter filter = next_available_filter++;
-					debug_verify(filters.emplace<ButtonRelease>(filter, x.command));
+					static_cast<void>(debug_verify(filters.emplace<ButtonRelease>(filter, x.command)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -781,7 +770,14 @@ namespace hid
 					for (auto i : ranges::index_sequence_for(devices))
 					{
 						(*x.devices)[i].id = devices[i];
-						(*x.devices)[i].sources = device_sources[i];
+						(*x.devices)[i].sources.reserve(device_sources[i].size());
+						for (const auto & source : device_sources[i])
+						{
+							(*x.devices)[i].sources.emplace_back();
+							(*x.devices)[i].sources.back().type = source.type;
+							ful::copy(source.path, (*x.devices)[i].sources.back().path);
+							ful::copy(source.name, (*x.devices)[i].sources.back().name);
+						}
 					}
 
 					x.ready->fetch_add(1, std::memory_order_release);
@@ -901,7 +897,7 @@ namespace hid
 
 					const auto i = find_device(x.id);
 					debug_assert(std::find_if(device_sources[i].begin(), device_sources[i].end(), [&](const DeviceSource & source){ return source.path == x.path; }) == device_sources[i].end());
-					device_sources[i].push_back({x.type, std::move(x.path), std::move(x.name)});
+					debug_verify(device_sources[i].try_emplace_back(x.type, std::move(x.path), std::move(x.name)));
 				}
 
 				void operator () (RemoveSource && x)
@@ -983,12 +979,16 @@ namespace hid
 		debug_verify(queue_input.try_emplace(utility::in_place_type<DeviceLost>, id));
 	}
 
-	void notify_add_source(ui &, int id, std::string && path, int type, utility::string_units_utf8 name)
+	void notify_add_source(ui &, int id, ful::heap_string_utf8 && path, int type, ful::view_utf8 name)
 	{
-		debug_verify(queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), utility::heap_string_utf8(name)));
+		ful::heap_string_utf8 name_;
+		if (!debug_verify(ful::assign(name_, name)))
+			return;
+
+		debug_verify(queue_input.try_emplace(utility::in_place_type<AddSource>, id, type, std::move(path), std::move(name_)));
 	}
 
-	void notify_remove_source(ui &, int id, std::string && path)
+	void notify_remove_source(ui &, int id, ful::heap_string_utf8 && path)
 	{
 		debug_verify(queue_input.try_emplace(utility::in_place_type<RemoveSource>, id, std::move(path)));
 	}

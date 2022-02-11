@@ -110,7 +110,8 @@ TEST_CASE("shared_ptr", "[utility]")
 
 	SECTION("can be copied/moved to itself")
 	{
-		y = y;
+		auto & yref = y;
+		y = yref;
 		CHECK(y);
 		CHECK(Counter::destruction_counter == 0);
 		CHECK(Counter::default_construction_counter == 1);
@@ -119,7 +120,7 @@ TEST_CASE("shared_ptr", "[utility]")
 		CHECK(Counter::copy_assignment_counter == 0);
 		CHECK(Counter::move_assignment_counter == 0);
 
-		y = std::move(y);
+		y = std::move(yref);
 		// note after move, y is formally only 'valid but unspecified' so the following states should not be relied on elsewhere
 		CHECK_FALSE(y);
 		CHECK(Counter::destruction_counter == 1);

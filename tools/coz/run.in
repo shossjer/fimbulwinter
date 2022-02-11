@@ -1,3 +1,2 @@
 #!/bin/sh
-export LD_LIBRARY_PATH=@_install_prefix@/lib
-@_install_prefix@/bin/coz run --- "$@"
+@_executable@ run --- "$@"

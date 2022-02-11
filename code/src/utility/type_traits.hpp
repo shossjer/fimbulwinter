@@ -190,6 +190,8 @@ namespace mpl
 	//////////////////////////////////////////////////////////////////
 	template <typename ...Ts>
 	struct car_impl : car_impl<type_list<Ts...>> {};
+	template <>
+	struct car_impl<type_list<>> {};
 	template <typename T1, typename ...Ts>
 	struct car_impl<type_list<T1, Ts...>> : type_is<T1> {};
 	template <typename ...Ts>
@@ -197,6 +199,8 @@ namespace mpl
 
 	template <typename ...Ts>
 	struct cdr_impl : cdr_impl<type_list<Ts...>> {};
+	template <>
+	struct cdr_impl<type_list<>> {};
 	template <typename T1, typename ...Ts>
 	struct cdr_impl<type_list<T1, Ts...>> : type_is<type_list<Ts...>> {};
 	template <typename ...Ts>

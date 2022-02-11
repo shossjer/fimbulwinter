@@ -1,18 +1,16 @@
-
-#ifndef CORE_MATHS_VECTOR_HPP
-#define CORE_MATHS_VECTOR_HPP
+#pragma once
 
 #include <config.h>
 
 #include "Scalar.hpp"
 
+#include "core/debug.hpp"
 #include <utility/algorithm.hpp>
 #include <utility/type_traits.hpp>
 
 #include <array>
 #include <algorithm>
 #include <cmath>
-#include <ostream>
 
 namespace core
 {
@@ -283,7 +281,8 @@ namespace core
 			template <std::size_t D_, typename T_>
 			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & v)
+			template <typename Stream>
+			friend Stream & operator << (Stream & stream, const this_type & v)
 			{
 				return stream << "(" << v.values[0] << ", " << v.values[1] << ")";
 			}
@@ -347,7 +346,8 @@ namespace core
 			template <std::size_t D_, typename T_>
 			friend Plane<D_, T_> make_plane(const Vector<D_, T_> & point, const Vector<D_, T_> & normal);
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & v)
+			template <typename Stream>
+			friend Stream & operator << (Stream & stream, const this_type & v)
 			{
 				return stream << "(" << v.values[0] << ", " << v.values[1] << ", " << v.values[2] << ")";
 			}
@@ -445,7 +445,25 @@ namespace core
 		using Vector3d = Vector<3, double>;
 		using Vector4f = Vector<4, float>;
 		using Vector4d = Vector<4, double>;
+
+		template <std::size_t N, typename T, typename BeginIt, typename EndIt>
+		bool copy(Vector<N, T> & x, BeginIt ibegin, EndIt iend)
+		{
+			typename Vector<N, T>::array_type buffer;
+
+			auto obegin = buffer + 0;
+			debug_expression(const auto oend = buffer + N);
+			if (!debug_assert(iend - ibegin == oend - obegin))
+				return false;
+
+			std::copy(ibegin, iend, obegin);
+
+			x.set(buffer);
+
+			return true;
+		}
+
+		template <std::size_t N, typename T>
+		constexpr auto size(const Vector<N, T> &) { return N; }
 	}
 }
-
-#endif /* CORE_MATHS_VECTOR_HPP */

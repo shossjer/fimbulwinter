@@ -3,6 +3,9 @@
 
 #include "engine/hid/input.hpp"
 
+#include "ful/heapfwd.hpp"
+#include "ful/view.hpp"
+
 #include <bitset>
 #include <vector>
 
@@ -13,8 +16,8 @@ namespace engine
 		extern void notify_device_found(ui & ui, int id);
 		extern void notify_device_lost(ui & ui, int id);
 
-		extern void notify_add_source(ui & ui, int id, std::string && path, int type, utility::string_units_utf8 name);
-		extern void notify_remove_source(ui & ui, int id, std::string && path);
+		extern void notify_add_source(ui & ui, int id, ful::heap_string_utf8 && path, int type, ful::view_utf8 name);
+		extern void notify_remove_source(ui & ui, int id, ful::heap_string_utf8 && path);
 
 		extern void notify_input(ui & ui, const engine::hid::Input & input);
 
@@ -79,13 +82,13 @@ namespace engine
 			notify_device_lost(*::ui, id);
 		}
 
-		void add_source(int id, const char * path, int type, utility::string_units_utf8 name)
+		void add_source(int id, ful::heap_string_utf8 && path, int type, ful::view_utf8 name)
 		{
-			notify_add_source(*::ui, id, path, type, name);
+			notify_add_source(*::ui, id, static_cast<ful::heap_string_utf8 &&>(path), type, name);
 		}
-		void remove_source(int id, const char * path)
+		void remove_source(int id, ful::heap_string_utf8 && path)
 		{
-			notify_remove_source(*::ui, id, path);
+			notify_remove_source(*::ui, id, static_cast<ful::heap_string_utf8 &&>(path));
 		}
 
 		void dispatch(const Input & input)

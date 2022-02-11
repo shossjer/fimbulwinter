@@ -2,88 +2,58 @@
 
 #include "config.h"
 
-#include "utility/concepts.hpp"
-#include "utility/type_info.hpp"
+#include "utility/ext/stddef.hpp"
 
 #if MODE_DEBUG
-# include <ostream>
+# include "ful/view.hpp"
 #endif
 
 namespace engine
 {
+#if MODE_DEBUG
+	extern ful::unit_utf8 * debug_tokentable_copy(ext::usize value, ful::unit_utf8 * beg, ful::unit_utf8 * end);
+#endif
+
 	class Token
 	{
 		using this_type = Token;
 
 	public:
 
-		using value_type = std::uint32_t;
-
-	public:
-
-#if MODE_DEBUG
-		// note debug only
-		static std::ostream & (* ostream_debug)(std::ostream & stream, this_type token);
-#endif
+		using value_type = ext::usize;
 
 	private:
 
 		value_type value_;
 
-#if MODE_DEBUG
-		utility::type_id_t type_;
-#endif
-
 	public:
 
 		Token() = default;
 
-#if MODE_DEBUG
-		explicit constexpr Token(value_type value, utility::type_id_t type)
+		explicit constexpr Token(value_type value)
 			: value_(value)
-			, type_(type)
-		{}
-#else
-		explicit constexpr Token(value_type value, utility::type_id_t /*type*/)
-			: value_(value)
-		{}
-#endif
-
-		template <typename P,
-		          typename T = mpl::remove_cvref_t<P>,
-		          REQUIRES((!mpl::is_same<this_type, T>::value)),
-		          REQUIRES((std::is_constructible<value_type, P>::value))>
-		constexpr Token(P && p)
-			: value_(std::forward<P>(p))
-#if MODE_DEBUG
-			, type_(utility::type_id<T>())
-#endif
 		{}
 
 	public:
 
 		constexpr value_type value() const { return value_; }
 
-#if MODE_DEBUG
-		// note debug only
-		constexpr utility::type_id_t type() const { return type_; }
-#endif
-
-		// todo remove
-		constexpr operator value_type () const { return value_; }
-
-	public:
+	private:
 
 		friend constexpr bool operator == (this_type a, this_type b) { return a.value_ == b.value_; }
 		friend constexpr bool operator != (this_type a, this_type b) { return !(a == b); }
 
-#if MODE_DEBUG
-		// note debug only
-		friend std::ostream & operator << (std::ostream & stream, this_type token)
+		template <typename Stream>
+		friend auto operator << (Stream && stream, this_type x)
+			-> decltype(stream << value_type{})
 		{
-			return ostream_debug(stream, token);
-		}
+#if MODE_DEBUG
+			ful::unit_utf8 chars[100]; // todo
+			return stream << x.value_ << ful::view_utf8(chars + 0, debug_tokentable_copy(x.value_, chars + 0, chars + 100));
+#else
+			return stream << x.value_;
 #endif
+		}
 
 	};
 }

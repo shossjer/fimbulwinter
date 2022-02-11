@@ -10,6 +10,9 @@
 
 #include "utility/any.hpp"
 
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+
 #include <catch2/catch.hpp>
 
 static_hashes("tmpdir", "my read", "my scan", "strand");
@@ -80,14 +83,19 @@ TEST_CASE("file system can read files", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data[2];
 
-		engine::file::write(filesystem, tmpdir, u8"maybe.exists", engine::Hash{}, write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("maybe.exists"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("folder/maybe.exists"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
+		ful::assign(filepath1, ful::cstr_utf8("maybe.exists"));
 		engine::file::read(
 			filesystem,
 			engine::Token{},
 			tmpdir,
-			u8"maybe.exists",
+			std::move(filepath1),
 			engine::Hash{},
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
@@ -101,11 +109,12 @@ TEST_CASE("file system can read files", "[engine][file]")
 				sync_data.event.set();
 			},
 			utility::any(sync_data + 0));
+		ful::assign(filepath2, ful::cstr_utf8("folder/maybe.exists"));
 		engine::file::read(
 			filesystem,
 			engine::Token{},
 			tmpdir,
-			u8"folder/maybe.exists",
+			std::move(filepath2),
 			engine::Hash{},
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
@@ -141,13 +150,16 @@ TEST_CASE("file system can read files", "[engine][file]")
 		// note strand must be set in order for the reads and writes not to
 		// collide, since they all operate on the same file
 
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Hash("strand"), write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("folder/maybe.exists"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash("strand"), write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
+		ful::assign(filepath1, ful::cstr_utf8("folder/maybe.exists"));
 		engine::file::read(
 			filesystem,
-			engine::Hash("my read"),
+			engine::Token(engine::Hash("my read")),
 			tmpdir,
-			u8"folder/maybe.exists",
+			std::move(filepath1),
 			engine::Hash("strand"),
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 		{
@@ -179,12 +191,13 @@ TEST_CASE("file system can read files", "[engine][file]")
 			utility::any(&sync_data),
 			engine::file::flags::ADD_WATCH);
 
-		scoped_watch watch(filesystem, engine::Hash("my read"));
+		scoped_watch watch(filesystem, engine::Token(engine::Hash("my read")));
 
 		REQUIRE(sync_data.event_3.wait(timeout));
 		CHECK(sync_data.value_3 == 3);
 
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Hash("strand"), write_char, utility::any(char(7)), engine::file::flags::OVERWRITE_EXISTING);
+		ful::assign(filepath1, ful::cstr_utf8("folder/maybe.exists"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash("strand"), write_char, utility::any(char(7)), engine::file::flags::OVERWRITE_EXISTING);
 
 		REQUIRE(sync_data.event_7.wait(timeout));
 		CHECK(sync_data.value_7 == 7);
@@ -211,7 +224,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			engine::Token{},
 			tmpdir,
 			engine::Hash{},
-			[](engine::file::system & /*filesystem*/, engine::Hash directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Hash directory, ful::heap_string_utf8 && existing_files, ful::heap_string_utf8 && /*removed_files*/, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -249,15 +262,19 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			core::sync::Event<true> event;
 		} sync_data;
 
-		engine::file::write(filesystem, tmpdir, u8"file.whatever", engine::Hash{}, write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("file.whatever"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("folder/maybe.exists"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
 		engine::file::scan(
 			filesystem,
 			engine::Token{},
 			tmpdir,
 			engine::Hash{},
-			[](engine::file::system & /*filesystem*/, engine::Hash directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Hash directory, ful::heap_string_utf8 && existing_files, ful::heap_string_utf8 && /*removed_files*/, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
@@ -298,10 +315,10 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 
 		engine::file::scan(
 			filesystem,
-			engine::Hash("my scan"),
+			engine::Token(engine::Hash("my scan")),
 			tmpdir,
 			engine::Hash{},
-			[](engine::file::system & /*filesystem*/, engine::Hash directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && /*removed_files*/, utility::any & data)
+			[](engine::file::system & /*filesystem*/, engine::Hash directory, ful::heap_string_utf8 && existing_files, ful::heap_string_utf8 && /*removed_files*/, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
@@ -337,19 +354,23 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 			utility::any(&sync_data),
 			engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH);
 
-		scoped_watch watch(filesystem, engine::Hash("my scan"));
+		scoped_watch watch(filesystem, engine::Token(engine::Hash("my scan")));
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 1);
 		sync_data.event.reset();
 
-		engine::file::write(filesystem, tmpdir, u8"file.whatever", engine::Hash{}, write_char, utility::any(char(2)));
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("file.whatever"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash{}, write_char, utility::any(char(2)));
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 2);
 		sync_data.event.reset();
 
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("folder/maybe.exists"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
 		REQUIRE(sync_data.event.wait(timeout));
 		REQUIRE(sync_data.count == 3);
@@ -373,14 +394,19 @@ TEST_CASE("file system can write files", "[engine][file]")
 		// note strand must be set in order for the reads and writes not to
 		// collide, since they all operate on the same file
 
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Hash("strand"), write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Hash("strand"), write_char, utility::any(char(3)));
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("new.file"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("new.file"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash("strand"), write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Hash("strand"), write_char, utility::any(char(3)));
 
+		ful::assign(filepath1, ful::cstr_utf8("new.file"));
 		engine::file::read(
 			filesystem,
 			engine::Token{},
 			tmpdir,
-			u8"new.file",
+			std::move(filepath1),
 			engine::Hash("strand"),
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
@@ -409,14 +435,19 @@ TEST_CASE("file system can write files", "[engine][file]")
 		// note strand must be set in order for the reads and writes not to
 		// collide, since they all operate on the same file
 
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Hash("strand"), write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Hash("strand"), write_char, utility::any(char(3)), engine::file::flags::OVERWRITE_EXISTING);
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("new.file"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("new.file"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash("strand"), write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Hash("strand"), write_char, utility::any(char(3)), engine::file::flags::OVERWRITE_EXISTING);
 
+		ful::assign(filepath1, ful::cstr_utf8("new.file"));
 		engine::file::read(
 			filesystem,
 			engine::Token{},
 			tmpdir,
-			u8"new.file",
+			std::move(filepath1),
 			engine::Hash("strand"),
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{
@@ -445,14 +476,19 @@ TEST_CASE("file system can write files", "[engine][file]")
 		// note strand must be set in order for the reads and writes not to
 		// collide, since they all operate on the same file
 
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Hash("strand"), write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"new.file", engine::Hash("strand"), write_char, utility::any(char(3)), engine::file::flags::APPEND_EXISTING);
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("new.file"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("new.file"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash("strand"), write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Hash("strand"), write_char, utility::any(char(3)), engine::file::flags::APPEND_EXISTING);
 
+		ful::assign(filepath1, ful::cstr_utf8("new.file"));
 		engine::file::read(
 			filesystem,
 			engine::Token{},
 			tmpdir,
-			u8"new.file",
+			std::move(filepath1),
 			engine::Hash("strand"),
 			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
 			{

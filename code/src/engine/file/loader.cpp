@@ -14,13 +14,30 @@
 #include "utility/functional/utility.hpp"
 #include "utility/overload.hpp"
 #include "utility/shared_ptr.hpp"
+#include "utility/spinlock.hpp"
 #include "utility/variant.hpp"
 #include "utility/weak_ptr.hpp"
 
+#include "ful/heap.hpp"
+#include "ful/view.hpp"
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+#include "ful/string_search.hpp"
+
 #include <atomic>
+#include <climits>
 #include <memory>
+#include <mutex>
 
 static_hashes("_file_loader_");
+
+namespace
+{
+	engine::Token make_token(engine::Hash directory, engine::Hash filepath)
+	{
+		return engine::Token(static_cast<engine::Hash::value_type>(directory) ^ static_cast<engine::Hash::value_type>(filepath));
+	}
+}
 
 namespace
 {
@@ -80,8 +97,8 @@ namespace
 	struct MessageFileScan
 	{
 		engine::Hash directory;
-		utility::heap_string_utf8 existing_files;
-		utility::heap_string_utf8 removed_files;
+		ful::heap_string_utf8 existing_files;
+		ful::heap_string_utf8 removed_files;
 	};
 
 	struct MessageLoadIndependent
@@ -222,7 +239,7 @@ namespace
 
 	struct AmbiguousFile
 	{
-		utility::heap_vector<engine::Hash, utility::heap_string_utf8> metas;
+		utility::heap_vector<engine::Hash, ful::heap_string_utf8> metas;
 
 		utility::heap_vector<engine::Hash, engine::Asset> radicals;
 
@@ -230,7 +247,7 @@ namespace
 			: radicals(std::move(radicals))
 		{}
 
-		explicit AmbiguousFile(utility::heap_vector<engine::Hash, utility::heap_string_utf8> && metas, utility::heap_vector<engine::Hash, engine::Asset> && radicals)
+		explicit AmbiguousFile(utility::heap_vector<engine::Hash, ful::heap_string_utf8> && metas, utility::heap_vector<engine::Hash, engine::Asset> && radicals)
 			: metas(std::move(metas))
 			, radicals(std::move(radicals))
 		{}
@@ -249,16 +266,15 @@ namespace
 	struct UniqueFile
 	{
 		engine::Hash directory;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 
 		utility::heap_vector<engine::Hash, engine::Asset> radicals;
 
-		explicit UniqueFile(engine::Hash directory, utility::heap_string_utf8 && filepath)
+		explicit UniqueFile(engine::Hash directory)
 			: directory(directory)
-			, filepath(std::move(filepath))
 		{}
 
-		explicit UniqueFile(engine::Hash directory, utility::heap_string_utf8 && filepath, utility::heap_vector<engine::Hash, engine::Asset> && radicals)
+		explicit UniqueFile(engine::Hash directory, ful::heap_string_utf8 && filepath, utility::heap_vector<engine::Hash, engine::Asset> && radicals)
 			: directory(directory)
 			, filepath(std::move(filepath))
 			, radicals(std::move(radicals))
@@ -297,7 +313,7 @@ namespace
 		engine::Hash filetype;
 		engine::Hash directory;
 		engine::Asset radical;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 
 		FileCallPtr call_ptr;
 
@@ -307,7 +323,7 @@ namespace
 		std::int32_t previous_count; // the number of attachments after loading completed
 		std::int32_t remaining_count; // the remaining number of attachments that are required (the most significant bit is set if the file itself is not yet finished reading)
 
-		explicit LoadingLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr)
+		explicit LoadingLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, ful::heap_string_utf8 && filepath, FileCallPtr && call_ptr)
 			: filetype(filetype)
 			, directory(directory)
 			, radical(radical)
@@ -317,7 +333,7 @@ namespace
 			, remaining_count(INT_MIN)
 		{}
 
-		explicit LoadingLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+		explicit LoadingLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, ful::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
 			: filetype(filetype)
 			, directory(directory)
 			, radical(radical)
@@ -335,14 +351,14 @@ namespace
 		engine::Hash filetype;
 		engine::Hash directory;
 		engine::Asset radical;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 
 		FileCallPtr call_ptr;
 
 		utility::heap_vector<engine::Asset> owners;
 		utility::heap_vector<engine::Asset> attachments;
 
-		explicit LoadedLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, utility::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
+		explicit LoadedLoad(engine::Hash filetype, engine::Hash directory, engine::Asset radical, ful::heap_string_utf8 && filepath, FileCallPtr && call_ptr, utility::heap_vector<engine::Asset> && owners, utility::heap_vector<engine::Asset> && attachments)
 			: filetype(filetype)
 			, directory(directory)
 			, radical(radical)
@@ -419,7 +435,7 @@ namespace
 				loader.detach();
 			}
 		},
-			loaded_file->call_ptr);
+			utility::any(loaded_file->call_ptr));
 
 		return true;
 	}
@@ -466,7 +482,7 @@ namespace
 						std::pair<FileCallPtr, engine::Asset> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Asset> &&>(std::move(data));
 						FileCallData & call_data = *call_ptr.first;
 
-						const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
+						const auto call_it = ext::find_if(call_data.calls, fun::first == engine::Token(call_ptr.second));
 						if (!debug_assert(call_it != call_data.calls.end()))
 							return;
 
@@ -480,14 +496,14 @@ namespace
 						call_data.calls.erase(call_it);
 					}
 				},
-					std::make_pair(x.call_ptr, relation.first));
+					utility::any(std::make_pair(x.call_ptr, relation.first)));
 
 				x.owners.erase(owner_it);
 
 				if (ext::empty(x.owners))
 				{
 #if MODE_DEBUG
-					const auto id = x.directory ^ engine::Asset(x.filepath);
+					const engine::Token id = make_token(x.directory, engine::Asset(x.filepath));
 					engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
@@ -505,7 +521,15 @@ namespace
 							debug_assert(!call_data.ready);
 
 							engine::file::loader loader(call_data.impl);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 							{
 								for (auto && call : call_data.calls)
 								{
@@ -516,7 +540,7 @@ namespace
 							loader.detach();
 						}
 					},
-						x.call_ptr);
+						utility::any(x.call_ptr));
 
 					if (debug_verify(relations.try_reserve(relations.size() + x.attachments.size())))
 					{
@@ -550,7 +574,7 @@ namespace
 						std::pair<FileCallPtr, engine::Asset> call_ptr = utility::any_cast<std::pair<FileCallPtr, engine::Asset> &&>(std::move(data));
 						FileCallData & call_data = *call_ptr.first;
 
-						const auto call_it = ext::find_if(call_data.calls, fun::first == call_ptr.second);
+						const auto call_it = ext::find_if(call_data.calls, fun::first == engine::Token(call_ptr.second));
 						if (!debug_assert(call_it != call_data.calls.end()))
 							return;
 
@@ -564,14 +588,14 @@ namespace
 						call_data.calls.erase(call_it);
 					}
 				},
-					std::make_pair(x.call_ptr, relation.first));
+					utility::any(std::make_pair(x.call_ptr, relation.first)));
 
 				x.owners.erase(owner_it);
 
 				if (ext::empty(x.owners))
 				{
 #if MODE_DEBUG
-					const auto id = x.directory ^ engine::Asset(x.filepath);
+					const engine::Token id = make_token(x.directory, engine::Asset(x.filepath));
 					engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
@@ -589,7 +613,15 @@ namespace
 							debug_assert(call_data.ready);
 
 							engine::file::loader loader(call_data.impl);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 							{
 								for (auto && call : call_data.calls)
 								{
@@ -600,7 +632,7 @@ namespace
 							loader.detach();
 						}
 					},
-						x.call_ptr);
+						utility::any(x.call_ptr));
 
 					if (debug_verify(relations.try_reserve(relations.size() + x.attachments.size())))
 					{
@@ -654,7 +686,12 @@ namespace
 		if (!debug_verify(call_ptr->calls.try_emplace_back(tag, RelationCallback{name, readycall, unreadycall, std::move(data)})))
 			return false; // error
 
-		LoadingLoad * const loading_load = loads.emplace<LoadingLoad>(file, filetype, unique_file->directory, name, utility::heap_string_utf8(unique_file->filepath), std::move(call_ptr));
+		ful::heap_string_utf8 unique_file_filepath;
+		const auto unique_file_filepath_it = copy(unique_file->filepath, unique_file_filepath);
+		if (unique_file_filepath_it != unique_file_filepath.end())
+			return false; // error
+
+		LoadingLoad * const loading_load = loads.emplace<LoadingLoad>(file, filetype, unique_file->directory, name, std::move(unique_file_filepath), std::move(call_ptr));
 		if (!debug_verify(loading_load))
 			return false; // error
 
@@ -664,13 +701,18 @@ namespace
 			return false; // error
 		}
 
+		ful::heap_string_utf8 loading_load_filepath;
+		const auto loading_load_filepath_it = copy(loading_load->filepath, loading_load_filepath);
+		if (loading_load_filepath_it != loading_load_filepath.end())
+			return false; // error
+
 #if MODE_DEBUG
 		const auto mode = engine::file::flags::ADD_WATCH; // todo ought to add engine::file::flags::RECURSE_DIRECTORIES if filepath contains subdir, but since a recursive scan watch has already been made it might be fine anyway?
 #else
 		const auto mode = engine::file::flags{};
 #endif
-		const auto id = loading_load->directory ^ engine::Asset(loading_load->filepath);
-		engine::file::read(*impl.filesystem, id, loading_load->directory, utility::heap_string_utf8(loading_load->filepath), file, ReadData::file_load, ReadData{&impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)}, mode);
+		const engine::Token id = make_token(loading_load->directory, engine::Asset(loading_load->filepath));
+		engine::file::read(*impl.filesystem, id, loading_load->directory, std::move(loading_load_filepath), file, ReadData::file_load, utility::any(utility::in_place_type<ReadData>, &impl, file, ext::heap_weak_ptr<FileCallData>(loading_load->call_ptr)), mode);
 
 		return true;
 	}
@@ -687,6 +729,7 @@ namespace
 		engine::file::unready_callback * unreadycall,
 		utility::any && data)
 	{
+		static_cast<void>(filetype);
 		return loads.call(file_it, ext::overload(
 			[&](RadicalLoad &) -> bool { debug_unreachable(); },
 			[&](LoadingLoad & y)
@@ -721,7 +764,7 @@ namespace
 					}
 				}
 			},
-				FileCallDataPlusOne{y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}});
+				utility::any(utility::in_place_type<FileCallDataPlusOne>, y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}));
 
 			return true;
 		},
@@ -757,7 +800,7 @@ namespace
 					}
 				}
 			},
-				FileCallDataPlusOne{y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}});
+				utility::any(utility::in_place_type<FileCallDataPlusOne>, y.call_ptr, tag, RelationCallback{name, readycall, unreadycall, std::move(data)}));
 
 			return true;
 		}));
@@ -802,14 +845,14 @@ namespace
 					call_data.calls.erase(call_it);
 				}
 			},
-				std::make_pair(y.call_ptr, tag));
+				utility::any(std::make_pair(y.call_ptr, tag)));
 
 			y.owners.erase(owner_it);
 
 			if (ext::empty(y.owners))
 			{
 #if MODE_DEBUG
-				const auto id = y.directory ^ engine::Asset(y.filepath);
+				const engine::Token id = make_token(y.directory, engine::Asset(y.filepath));
 				engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
@@ -830,7 +873,15 @@ namespace
 							debug_assert(!call_data.ready);
 
 							engine::file::loader loader(call_data.impl);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 							if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 							{
 								for (auto && call : call_data.calls)
 								{
@@ -841,7 +892,7 @@ namespace
 							loader.detach();
 						}
 					},
-						y.call_ptr);
+						utility::any(y.call_ptr));
 				}
 
 				utility::heap_vector<engine::Asset, engine::Asset> relations;
@@ -894,14 +945,14 @@ namespace
 					call_data.calls.erase(call_it);
 				}
 			},
-				std::make_pair(y.call_ptr, tag));
+				utility::any(std::make_pair(y.call_ptr, tag)));
 
 			y.owners.erase(owner_it);
 
 			if (ext::empty(y.owners))
 			{
 #if MODE_DEBUG
-				const auto id = y.directory ^ engine::Asset(y.filepath);
+				const engine::Token id = make_token(y.directory, engine::Asset(y.filepath));
 				engine::file::remove_watch(*impl.filesystem, id);
 #endif
 
@@ -917,7 +968,15 @@ namespace
 						FileCallData & call_data = *call_ptr;
 
 						engine::file::loader loader(call_data.impl);
+#if defined(_MSC_VER)
+# pragma warning( push )
+# pragma warning( disable : 4127 )
+// C4127 - conditional expression is constant
+#endif
 						if (!debug_assert(ext::empty(call_data.calls)) && call_data.ready)
+#if defined(_MSC_VER)
+# pragma warning( pop )
+#endif
 						{
 							for (auto && call : call_data.calls)
 							{
@@ -928,7 +987,7 @@ namespace
 						loader.detach();
 					}
 				},
-					y.call_ptr);
+					utility::any(y.call_ptr));
 
 				utility::heap_vector<engine::Asset, engine::Asset> relations;
 				if (debug_verify(relations.try_reserve(y.attachments.size())))
@@ -1000,6 +1059,7 @@ namespace
 					std::swap(*attachment_it, *split_it);
 
 					loading_owner->remaining_count--;
+					debug_printline(relation.first, ": ", loading_owner->remaining_count, " remaining");
 					if (loading_owner->remaining_count == 0)
 					{
 						if (debug_verify(relations.try_reserve(relations.size() + loading_owner->owners.size())))
@@ -1058,11 +1118,12 @@ namespace
 		{
 			debug_unreachable("radicals cannot be owners");
 		},
-			[&](LoadingLoad & y)
+			[&](engine::Asset key, LoadingLoad & y)
 		{
 			if (debug_verify(y.attachments.push_back(attachment)))
 			{
 				y.remaining_count++;
+				debug_printline(key, ": ", y.remaining_count & INT_MAX, " remaining after adding ", attachment);
 				return true;
 			}
 			return false;
@@ -1084,18 +1145,17 @@ namespace
 				impl.scanning_directory = engine::Asset{};
 
 				{
-					auto begin = x.removed_files.begin();
-					const auto end = x.removed_files.end();
+					auto removed_files = ful::view_utf8(begin(x.removed_files), end(x.removed_files));
 
-					if (begin != end)
+					if (!empty(removed_files))
 					{
 						while (true)
 						{
-							const auto split = find(begin, end, ';');
-							if (!debug_assert(split != begin, "unexpected file without name"))
+							const auto split = ful::find(removed_files, ful::char8{';'});
+							if (!debug_assert(split != removed_files.begin(), "unexpected file without name"))
 								return; // error
 
-							const auto filepath = utility::string_units_utf8(begin, split);
+							const auto filepath = ful::to(removed_files, split);
 							const auto file_asset = engine::Asset(filepath);
 
 							const auto file_it = find(files, file_asset);
@@ -1110,11 +1170,10 @@ namespace
 										y.metas.erase(meta_it);
 										if (y.metas.size() == 1)
 										{
-											auto tmp_directory = ext::front(std::move(y.metas)).first;
-											auto tmp_filepath = ext::front(std::move(y.metas)).second;
-											auto tmp_radicals = std::move(y.radicals);
+											utility::compound<engine::Hash, ful::heap_string_utf8> tmp_meta = ext::front(std::move(y.metas));
+											utility::heap_vector<engine::Hash, engine::Asset> tmp_radicals = std::move(y.radicals);
 											files.erase(file_it);
-											if (!debug_verify(files.emplace<UniqueFile>(file_asset, tmp_directory, std::move(tmp_filepath), std::move(tmp_radicals))))
+											if (!debug_verify(files.emplace<UniqueFile>(file_asset, tmp_meta.first, std::move(tmp_meta.second), std::move(tmp_radicals))))
 												return; // error
 										}
 									}
@@ -1151,10 +1210,10 @@ namespace
 								}));
 							}
 
-							const auto extension = rfind(begin, split, '.');
+							const auto extension = ful::rfind(filepath, ful::char8{'.'});
 							if (extension != split)
 							{
-								const auto radical = utility::string_units_utf8(begin, extension);
+								const auto radical = ful::to(filepath, extension);
 								const auto radical_asset = engine::Asset(radical);
 
 								const auto radical_it = find(files, radical_asset);
@@ -1188,27 +1247,26 @@ namespace
 								}
 							}
 
-							if (split == end)
+							if (split == removed_files.end())
 								break;
 
-							begin = split + 1; // skip ';'
+							removed_files = ful::from(removed_files, split + 1); // skip ';'
 						}
 					}
 				}
 
 				{
-					auto begin = x.existing_files.begin();
-					const auto end = x.existing_files.end();
+					auto existing_files = ful::view_utf8(x.existing_files);
 
-					if (begin != end)
+					if (!empty(existing_files))
 					{
 						while (true)
 						{
-							const auto split = find(begin, end, ';');
-							if (!debug_assert(split != begin, "unexpected file without name"))
+							const auto split = ful::find(existing_files, ful::char8{';'});
+							if (!debug_assert(split != existing_files.begin(), "unexpected file without name"))
 								return; // error
 
-							const auto filepath = utility::string_units_utf8(begin, split);
+							const auto filepath = ful::to(existing_files, split);
 							const auto file_asset = engine::Asset(filepath);
 
 							const auto file_it = find(files, file_asset);
@@ -1220,16 +1278,21 @@ namespace
 									const auto meta_it = ext::find_if(y.metas, fun::first == x.directory && fun::second == filepath);
 									if (meta_it == y.metas.end())
 									{
+										ful::heap_string_utf8 filepath_copy;
+										const auto filepath_copy_it = copy(filepath, filepath_copy);
+										if (filepath_copy_it != filepath_copy.end())
+											return; // error
+
 										if (ext::empty(y.metas))
 										{
 											auto radicals = std::move(y.radicals);
 											files.erase(file_it);
-											if (!debug_verify(files.emplace<UniqueFile>(file_asset, x.directory, utility::heap_string_utf8(filepath), std::move(radicals))))
+											if (!debug_verify(files.emplace<UniqueFile>(file_asset, x.directory, std::move(filepath_copy), std::move(radicals))))
 												return; // error
 										}
 										else
 										{
-											if (!debug_verify(y.metas.try_emplace_back(x.directory, utility::heap_string_utf8(filepath))))
+											if (!debug_verify(y.metas.try_emplace_back(x.directory, std::move(filepath_copy))))
 												return; // error
 										}
 									}
@@ -1240,22 +1303,32 @@ namespace
 								},
 									[&](RadicalFile & y)
 								{
+									ful::heap_string_utf8 filepath_copy;
+									const auto filepath_copy_it = copy(filepath, filepath_copy);
+									if (filepath_copy_it != filepath_copy.end())
+										return; // error
+
 									utility::heap_vector<engine::Hash, engine::Asset> radicals;
 									if (!debug_verify(radicals.try_emplace_back(y.directory, y.file)))
 										return; // error
 
 									files.erase(file_it);
-									if (!debug_verify(files.emplace<UniqueFile>(file_asset, x.directory, utility::heap_string_utf8(filepath), std::move(radicals))))
+									if (!debug_verify(files.emplace<UniqueFile>(file_asset, x.directory, std::move(filepath_copy), std::move(radicals))))
 										return; // error
 								},
 									[&](UniqueFile & y)
 								{
 									if (!(y.directory == x.directory && y.filepath == filepath))
 									{
-										utility::heap_vector<engine::Hash, utility::heap_string_utf8> metas;
+										ful::heap_string_utf8 filepath_copy;
+										const auto filepath_copy_it = copy(filepath, filepath_copy);
+										if (filepath_copy_it != filepath_copy.end())
+											return; // error
+
+										utility::heap_vector<engine::Hash, ful::heap_string_utf8> metas;
 										if (!debug_verify(metas.try_emplace_back(y.directory, std::move(y.filepath))))
 											return; // error
-										if (!debug_verify(metas.try_emplace_back(x.directory, utility::heap_string_utf8(filepath))))
+										if (!debug_verify(metas.try_emplace_back(x.directory, std::move(filepath_copy))))
 											return; // error
 
 										auto radicals = std::move(y.radicals);
@@ -1267,13 +1340,18 @@ namespace
 							}
 							else
 							{
-								if (!debug_verify(files.emplace<UniqueFile>(file_asset, x.directory, utility::heap_string_utf8(filepath))))
+								const auto new_unique_file = files.emplace<UniqueFile>(file_asset, x.directory);
+								if (!debug_verify(new_unique_file))
 									return; // error
 
-								const auto extension = rfind(begin, split, '.');
+								const auto filepath_it = copy(filepath, new_unique_file->filepath);
+								if (filepath_it != new_unique_file->filepath.end())
+									return; // error
+
+								const auto extension = ful::rfind(filepath, ful::char8{'.'});
 								if (extension != split)
 								{
-									const auto radical = utility::string_units_utf8(begin, extension);
+									const auto radical = ful::to(filepath, extension);
 									const auto radical_asset = engine::Asset(radical);
 
 									const auto radical_it = find(files, radical_asset);
@@ -1315,10 +1393,10 @@ namespace
 								}
 							}
 
-							if (split == end)
+							if (split == existing_files.end())
 								break;
 
-							begin = split + 1;
+							existing_files = ful::from(existing_files, split + 1); // skip ';'
 						}
 					}
 				}
@@ -1388,7 +1466,7 @@ namespace
 							return; // error
 					}
 
-					if (!load_old(impl, underlying_owner.first, underlying_owner.first, underlying_load.first, underlying_load.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+					if (!load_old(impl, engine::Token(underlying_owner.first), underlying_owner.first, underlying_load.first, underlying_load.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 						return; // error
 				}
 				else
@@ -1410,12 +1488,12 @@ namespace
 					const auto underlying_load_ = find_underlying_load(underlying_file.first);
 					if (underlying_load_.second != loads.end())
 					{
-						if (!load_old(impl, underlying_owner.first, underlying_owner.first, underlying_load_.first, underlying_load_.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_old(impl, engine::Token(underlying_owner.first), underlying_owner.first, underlying_load_.first, underlying_load_.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 					else
 					{
-						if (!load_new(impl, underlying_owner.first, underlying_owner.first, underlying_file.first, underlying_file.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
+						if (!load_new(impl, engine::Token(underlying_owner.first), underlying_owner.first, underlying_file.first, underlying_file.second, x.name, x.filetype, x.readycall, x.unreadycall, std::move(x.data)))
 							return; // error
 					}
 				}
@@ -1445,6 +1523,7 @@ namespace
 					return; // error
 
 				loading_load->remaining_count &= INT32_MAX;
+				debug_printline(x.file, ": ", loading_load->remaining_count, " remaining");
 				if (loading_load->remaining_count == 0)
 				{
 					finish_loading(impl, x.file, file_it, std::move(*loading_load));
@@ -1576,7 +1655,7 @@ namespace
 			}
 			else
 			{
-				debug_verify(task.impl->delayed_messages.push_back(std::move(task.message)));
+				static_cast<void>(debug_verify(task.impl->delayed_messages.push_back(std::move(task.message))));
 			}
 		}
 		else
@@ -1588,7 +1667,7 @@ namespace
 
 namespace
 {
-	void file_scan(engine::file::system & /*filesystem*/, engine::Hash directory, utility::heap_string_utf8 && existing_files, utility::heap_string_utf8 && removed_files, utility::any & data)
+	void file_scan(engine::file::system & /*filesystem*/, engine::Hash directory, ful::heap_string_utf8 && existing_files, ful::heap_string_utf8 && removed_files, utility::any & data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<engine::file::loader *>()))
 			return;
@@ -1648,7 +1727,7 @@ namespace engine
 				core::sync::Event<true> * barrier = utility::any_cast<core::sync::Event<true> *>(data);
 				barrier->set();
 			},
-				&barrier);
+				utility::any(&barrier));
 
 			barrier.wait();
 
@@ -1676,14 +1755,14 @@ namespace engine
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES;
 #endif
 			const auto id = directory;
-			engine::file::scan(*loader->filesystem, id, directory, strand, file_scan, &loader, mode);
+			engine::file::scan(*loader->filesystem, engine::Token(id), directory, strand, file_scan, utility::any(&loader), mode);
 		}
 
 		void unregister_library(loader & loader, engine::Hash directory)
 		{
 #if MODE_DEBUG
 			const auto id = directory;
-			engine::file::remove_watch(*loader->filesystem, id);
+			engine::file::remove_watch(*loader->filesystem, engine::Token(id));
 #endif
 
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageUnregisterLibrary>, directory));

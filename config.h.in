@@ -50,10 +50,6 @@
 
 /**
  */
-#cmakedefine BIG_WORDS 1
-
-/**
- */
 #cmakedefine AUDIO_USE_DUMMY 1
 /**
  */
@@ -135,31 +131,3 @@
 /**
  */
 #cmakedefine WINDOW_USE_X11 1
-
-/**
- */
-#cmakedefine HAVE_IMMINTRIN_H 1
-
-/**
- */
-#cmakedefine HAVE_VERSIONHELPERS_H 1
-
-/**
- */
-#cmakedefine PHYSICS_USE_BOX2D 1
-/**
- */
-#cmakedefine PHYSICS_USE_PHYSX 1
-
-/**
- * Hack that defines `_DEBUG` for PhysX
- *
- * PhysX needs the non standard `_DEBUG` :facepalm:
- */
-#if PHYSICS_USE_PHYSX
-# if MODE_DEBUG
-#  ifndef _DEBUG
-#   define _DEBUG 1
-#  endif
-# endif
-#endif

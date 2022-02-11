@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <ostream>
 
 namespace core
 {
@@ -282,7 +281,8 @@ namespace core
 			template <std::size_t M_, std::size_t N_, typename T_>
 			friend Vector<M_, T_> operator * (const Matrix<M_, N_, T_> & m, const Vector<N_, T_> & v);
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & m)
+			template <typename Stream>
+			friend Stream & operator << (Stream & stream, const this_type & m)
 			{
 				stream << "(\n";
 				for (std::size_t i = 0; i < M; i++)

@@ -5,7 +5,6 @@
 #include "core/StringStream.hpp"
 
 #include "utility/regex.hpp"
-#include "utility/string.hpp"
 
 namespace core
 {
@@ -13,13 +12,13 @@ namespace core
 	{
 	private:
 
-		StringStream<utility::heap_storage_traits, utility::encoding_utf8> stream_;
+		StringStream<utility::heap_storage_traits> stream_;
 
-		using Parser = rex::parser_for<StringStream<utility::heap_storage_traits, utility::encoding_utf8>>;
+		using Parser = rex::parser_for<StringStream<utility::heap_storage_traits>>;
 
 	public:
 
-		IniStructurer(ReadStream && stream)
+		explicit IniStructurer(ReadStream && stream)
 			: stream_(std::move(stream))
 		{}
 
@@ -102,7 +101,7 @@ namespace core
 			if (!debug_verify(bracket_close.first != parser.end()))
 				return std::make_pair(false, bracket_close.first);
 
-			const auto header_name = utility::string_units_utf8(bracket_open.second.get(), bracket_close.first.get());
+			const auto header_name = ful::view_utf8(bracket_open.second.get(), bracket_close.first.get());
 
 			parser.seek(bracket_close.first);
 
@@ -149,7 +148,7 @@ namespace core
 			if (!debug_verify(key_match.first))
 				return key_match;
 
-			const auto key = utility::string_units_utf8(parser.begin().get(), key_match.second.get());
+			const auto key = ful::view_utf8(parser.begin().get(), key_match.second.get());
 
 			parser.seek(key_match.second);
 
@@ -163,7 +162,7 @@ namespace core
 			if (!debug_verify(value_match.first))
 				return value_match;
 
-			const auto value = utility::string_units_utf8(parser.begin().get(), value_match.second.get());
+			const auto value = ful::view_utf8(parser.begin().get(), value_match.second.get());
 
 			const auto member = core::member_table<T>::find(key);
 			if (member != std::size_t(-1))
@@ -171,8 +170,8 @@ namespace core
 				if (!core::member_table<T>::call(member, x,
 				                                 [&](auto & y)
 				                                 {
-					                                 using core::serialize;
-					                                 return serialize(y, value);
+					                                 // todo read directly from parser
+					                                 return static_cast<bool>(fio::istream<ful::view_utf8>(value) >> y);
 				                                 }))
 					return std::make_pair(false, equals_match.second);
 			}
@@ -209,6 +208,7 @@ namespace core
 		auto read_key_values(T &, Parser parser)
 		{
 			constexpr auto type_name = utility::type_name<T>();
+			static_cast<void>(type_name);
 
 			return std::make_pair(debug_fail("cannot read key values into object of type '", type_name, "'"), parser.begin());
 		}

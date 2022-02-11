@@ -7,6 +7,10 @@
 
 namespace engine
 {
+#if MODE_DEBUG
+	extern void debug_hashtable_add(std::uint32_t value, ful::view_utf8 string);
+#endif
+
 	class Asset : public Hash
 	{
 		using this_type = Asset;
@@ -19,54 +23,59 @@ namespace engine
 
 		Asset() = default;
 
-		explicit Asset(value_type value) : Hash(value) {}
+		explicit constexpr Asset(value_type value)
+			: Hash(value)
+		{}
 
-		explicit Asset(const char * str)
-			: Hash(str)
-		{
-#if MODE_DEBUG
-			add_string_to_hash_table(str);
-#endif
-		}
+		explicit constexpr Asset(Hash hash)
+			: Hash(hash)
+		{}
 
 		explicit Asset(const char * str, std::size_t n)
 			: Hash(str, n)
 		{
 #if MODE_DEBUG
-			add_string_to_hash_table(str, n);
+			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(str, n));
 #endif
 		}
 
-		explicit Asset(utility::string_units_utf8 str)
-			: Hash(str.data(), str.size())
+		template <unsigned long long N>
+		explicit constexpr Asset(const char (& str)[N])
+			: Hash(str, N - 1) // subtract terminating null
 		{
 #if MODE_DEBUG
-			add_string_to_hash_table(str.data(), str.size());
+			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(str, N - 1));
 #endif
 		}
 
-	private:
-
+		template <typename R, typename = decltype(data(std::declval<R>()), size(std::declval<R>()))>
+		explicit Asset(const R & str)
+			: Hash(data(str), size(str))
+		{
 #if MODE_DEBUG
-		void add_string_to_hash_table(const char * str);
-
-		void add_string_to_hash_table(const char * str, std::size_t n);
+			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(data(str), size(str)));
 #endif
+		}
 
 	public:
 
 		static constexpr auto serialization()
 		{
-			return utility::make_lookup_table(
-				std::make_pair(utility::string_units_utf8("id"), &Asset::value_)
+			return utility::make_lookup_table<ful::view_utf8>(
+				std::make_pair(ful::cstr_utf8("id"), &Asset::value_)
 				);
 		}
 
 	};
 
-	inline bool serialize(Asset & x, utility::string_units_utf8 object)
+	inline bool serialize(Asset & x, ful::view_utf8 object)
 	{
 		x = Asset(object);
 		return true;
+	}
+
+	inline bool serialize(Asset & x, ful::cstr_utf8 object)
+	{
+		return serialize(x, static_cast<ful::view_utf8>(object));
 	}
 }

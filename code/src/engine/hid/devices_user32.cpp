@@ -7,8 +7,14 @@
 #include "engine/console.hpp"
 #include "engine/hid/input.hpp"
 
+#include "utility/ext/stddef.hpp"
 #include "utility/ranges.hpp"
-#include "utility/unicode/string.hpp"
+
+#include "ful/cstr.hpp"
+#include "ful/heap.hpp"
+#include "ful/static.hpp"
+#include "ful/string_modify.hpp"
+#include "ful/convert.hpp"
 
 #if INPUT_HAS_USER32_RAWINPUT
 # include <vector>
@@ -48,8 +54,8 @@ namespace engine
 		extern void found_device(int id, int vendor, int product);
 		extern void lost_device(int id);
 
-		extern void add_source(int id, const char * path, int type, utility::string_units_utf8 name);
-		extern void remove_source(int id, const char * path);
+		extern void add_source(int id, ful::heap_string_utf8 && path, int type, ful::view_utf8 name);
+		extern void remove_source(int id, ful::heap_string_utf8 && path);
 
 		extern void dispatch(const Input & input);
 	}
@@ -232,23 +238,23 @@ namespace
 		engine::hid::Input::Button::MOUSE_LEFT, // TOUCH
 	};
 
-	const char * const ds4_values[] = {
-		"unused", "unused", "unused", "unused", "unused", "unused", "unused", "unused",
-		"unused", "unused", "unused", "unused", "unused", "unused", "unused", "unused",
-		"unused", "unused", "unused", "unused", "unused", "unused", "unused", "unused",
-		"unused", "unused", "unused", "unused", "unused", "unused", "unused", "unused",
-		"unused", "unused", "unused", "unused", "unused", "unused", "unused", "unused",
-		"unused", "unused", "unused", "unused", "unused", "unused", "unused", "unused",
-		"LS-x",
-		"LS-y",
-		"RS-x",
-		"L2-z",
-		"R2-z",
-		"RS-y",
-		"unused",
-		"unused",
-		"unused",
-		"D-PAD",
+	const ful::cstr_utf8 ds4_values[] = {
+		ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"),
+		ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"),
+		ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"),
+		ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"),
+		ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"),
+		ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"), ful::cstr_utf8("unused"),
+		ful::cstr_utf8("LS-x"),
+		ful::cstr_utf8("LS-y"),
+		ful::cstr_utf8("RS-x"),
+		ful::cstr_utf8("L2-z"),
+		ful::cstr_utf8("R2-z"),
+		ful::cstr_utf8("RS-y"),
+		ful::cstr_utf8("unused"),
+		ful::cstr_utf8("unused"),
+		ful::cstr_utf8("unused"),
+		ful::cstr_utf8("D-PAD"),
 	};
 
 	engine::hid::Input::Button get_button(int scan_code, int virtual_key)
@@ -364,13 +370,13 @@ namespace engine
 		{
 			debug_assert(std::find_if(::devices.begin(), ::devices.end(), [&handle](const Device & device){ return device.handle == handle; }) == ::devices.end(), "device has already been added!");
 
-			utility::static_string_utf8<256> name = "Unknown (try_narrow failed)";
+			ful::static_string_utf8<256> name;
 			{
 				wchar_t namew[256] = L"Unknown (buffer too small)";
 				UINT len = sizeof namew;
 				const auto ret = GetRawInputDeviceInfoW(handle, RIDI_DEVICENAME, namew, &len);
 				debug_assert(ret >= UINT(0), "buffer too small, expected ", len);
-				debug_verify(utility::try_narrow(namew, name));
+				debug_verify(ful::convert(namew, namew + ret / sizeof(wchar_t), name));
 			}
 
 			RID_DEVICE_INFO rdi;
@@ -389,21 +395,21 @@ namespace engine
 			switch (rdi.dwType)
 			{
 			case RIM_TYPEMOUSE:
-				debug_printline("device ", ::devices.size() - 1, "(mouse) added: \"", name, "\" id ", rdi.mouse.dwId, " buttons ", rdi.mouse.dwNumberOfButtons, " sample rate ", rdi.mouse.dwSampleRate, rdi.mouse.fHasHorizontalWheel ? " has horizontal wheel" : "");
+				debug_printline("device ", ::devices.size() - 1, "(mouse) added: \"", name, "\" id ", rdi.mouse.dwId, " buttons ", rdi.mouse.dwNumberOfButtons, " sample rate ", rdi.mouse.dwSampleRate, rdi.mouse.fHasHorizontalWheel ? ful::cstr_utf8(" has horizontal wheel") : ful::cstr_utf8(""));
 				found_device(device.id, 0, 0);
-				add_source(device.id, "", 3, name);
+				add_source(device.id, ful::heap_string_utf8(), 3, ful::view_utf8(name));
 				break;
 			case RIM_TYPEKEYBOARD:
 				debug_printline("device ", ::devices.size() - 1, "(keyboard) added: \"", name, "\" type ", rdi.keyboard.dwType, " sub type ", rdi.keyboard.dwSubType, " mode ", rdi.keyboard.dwKeyboardMode, " function keys ", rdi.keyboard.dwNumberOfFunctionKeys, " indicators ", rdi.keyboard.dwNumberOfIndicators, " keys ", rdi.keyboard.dwNumberOfKeysTotal);
 				found_device(device.id, 0, 0);
-				add_source(device.id, "", 2, name);
+				add_source(device.id, ful::heap_string_utf8(), 2, ful::view_utf8(name));
 				break;
 # if INPUT_HAS_USER32_HID
 			case RIM_TYPEHID:
 			{
 				debug_printline("device ", ::devices.size() - 1, "(hid) added: \"", name, "\" vendor id ", rdi.hid.dwVendorId, " product id ", rdi.hid.dwProductId, " version ", rdi.hid.dwVersionNumber, " usage page ", rdi.hid.usUsagePage, " usage ", rdi.hid.usUsage);
 				found_device(device.id, rdi.hid.dwVendorId, rdi.hid.dwProductId);
-				add_source(device.id, "", 0, name);
+				add_source(device.id, ful::heap_string_utf8(), 0, ful::view_utf8(name));
 
 				PHIDP_PREPARSED_DATA preparsed_data = nullptr;
 				UINT len;
@@ -423,8 +429,8 @@ namespace engine
 					debug_printline("  usage page ", button_cap.UsagePage);
 					debug_printline("  report id ", int(button_cap.ReportID));
 					debug_printline("  bit field ", button_cap.BitField);
-					debug_printline("  is absolute ", button_cap.IsAbsolute ? "yes" : "no");
-					debug_printline("  is range ", button_cap.IsRange ? "yes" : "no");
+					debug_printline("  is absolute ", button_cap.IsAbsolute ? ful::cstr_utf8("yes") : ful::cstr_utf8("no"));
+					debug_printline("  is range ", button_cap.IsRange ? ful::cstr_utf8("yes") : ful::cstr_utf8("no"));
 					if (button_cap.IsRange)
 					{
 						debug_printline("  usage min ", button_cap.Range.UsageMin, " max ", button_cap.Range.UsageMax);
@@ -496,8 +502,8 @@ namespace engine
 					debug_printline("  usage page ", value_cap.UsagePage);
 					debug_printline("  report id ", int(value_cap.ReportID));
 					debug_printline("  bit field ", value_cap.BitField);
-					debug_printline("  is absolute ", value_cap.IsAbsolute ? "yes" : "no");
-					debug_printline("  is range ", value_cap.IsRange ? "yes" : "no");
+					debug_printline("  is absolute ", value_cap.IsAbsolute ? ful::cstr_utf8("yes") : ful::cstr_utf8("no"));
+					debug_printline("  is range ", value_cap.IsRange ? ful::cstr_utf8("yes") : ful::cstr_utf8("no"));
 					debug_printline("  bit size ", value_cap.BitSize);
 					debug_printline("  report count ", value_cap.ReportCount);
 					debug_printline("  units exp ", value_cap.UnitsExp);
@@ -581,11 +587,7 @@ namespace engine
 				{
 					const auto & field = fields[i];
 					const HIDP_REPORT_TYPE type = i < static_cast<ext::usize>(field_offsets[1]) ? HidP_Input : i < static_cast<ext::usize>(field_offsets[2]) ? HidP_Output : HidP_Feature;
-					const char * const type_names[] = { "input", "output", "feature" };
-#if MODE_DEBUG
-					const char * const field_name = field.type ? "value" : "button";
-					debug_printline("field ", i, "(", type_names[type], " ", field_name, ") ", field.nbits, " bits, starting at bit ", bit_offset);
-#endif
+					const ful::cstr_utf8 type_names[] = {ful::cstr_utf8("input"), ful::cstr_utf8("output"), ful::cstr_utf8("feature")};
 
 					if (field.type)
 					{
@@ -650,9 +652,9 @@ namespace engine
 			disable_hardware_input();
 #endif
 
-			engine::abandon("toggle-hardware-input");
-			engine::abandon("enable-hardware-input");
-			engine::abandon("disable-hardware-input");
+			engine::abandon(ful::cstr_utf8("toggle-hardware-input"));
+			engine::abandon(ful::cstr_utf8("enable-hardware-input"));
+			engine::abandon(ful::cstr_utf8("disable-hardware-input"));
 
 			lost_device(0); // non hardware device
 
@@ -666,9 +668,9 @@ namespace engine
 			found_device(0, 0, 0); // non hardware device
 
 #if INPUT_HAS_USER32_RAWINPUT
-			engine::observe("disable-hardware-input", disable_hardware_input_callback, nullptr);
-			engine::observe("enable-hardware-input", enable_hardware_input_callback, nullptr);
-			engine::observe("toggle-hardware-input", toggle_hardware_input_callback, nullptr);
+			engine::observe(ful::cstr_utf8("disable-hardware-input"), disable_hardware_input_callback, nullptr);
+			engine::observe(ful::cstr_utf8("enable-hardware-input"), enable_hardware_input_callback, nullptr);
+			engine::observe(ful::cstr_utf8("toggle-hardware-input"), toggle_hardware_input_callback, nullptr);
 
 			if (hardware_input_)
 			{
@@ -856,11 +858,8 @@ namespace engine
 					// based on dualshock4_parse_report
 					// https://github.com/torvalds/linux/blob/9637d517347e80ee2fe1c5d8ce45ba1b88d8b5cd/drivers/hid/hid-sony.c#L919
 
-					std::string data = utility::to_string("device ", it - ::devices.begin(), " ds4 specifics:");
-
 					const int time_offset = 10;
 					const uint16_t timestamp = (uint16_t(ri.data.hid.bRawData[time_offset + 1]) << 8) | uint16_t(ri.data.hid.bRawData[time_offset]);
-					data += utility::to_string(" timestamp ", timestamp);
 
 					// todo: gyro and accelerometer
 					// https://github.com/torvalds/linux/blob/9637d517347e80ee2fe1c5d8ce45ba1b88d8b5cd/drivers/hid/hid-sony.c#L1005
@@ -892,15 +891,8 @@ namespace engine
 					}
 					battery_capacity = std::min(battery_capacity, 10);
 					battery_capacity *= 10;
-					data += utility::to_string(" battery ", battery_capacity, "%");
-					if (battery_charging)
-					{
-						data += "(charging)";
-					}
 
 					const int touchpad_offset = 33;
-					int ntouches = ri.data.hid.bRawData[touchpad_offset];
-					data += utility::to_string(" touches ", ntouches);
 
 					const uint8_t time_of_touch = ri.data.hid.bRawData[touchpad_offset + 1];
 					const bool touch1 = (ri.data.hid.bRawData[touchpad_offset + 2] & 0x80) == 0;
@@ -908,20 +900,14 @@ namespace engine
 					{
 						const uint16_t x1 = ((uint16_t(ri.data.hid.bRawData[touchpad_offset + 4]) & 0x0f) << 8) | uint16_t(ri.data.hid.bRawData[touchpad_offset + 3]);
 						const uint16_t y1 = (uint16_t(ri.data.hid.bRawData[touchpad_offset + 5]) << 4) | (uint16_t(ri.data.hid.bRawData[touchpad_offset + 4]) >> 4);
-						data += utility::to_string(" 1{", x1, ", ", y1, "}");
 					}
 					const bool touch2 = (ri.data.hid.bRawData[touchpad_offset + 6] & 0x80) == 0;
 					if (touch2)
 					{
 						const uint16_t x2 = ((uint16_t(ri.data.hid.bRawData[touchpad_offset + 8]) & 0x0f) << 8) | uint16_t(ri.data.hid.bRawData[touchpad_offset + 7]);
 						const uint16_t y2 = (uint16_t(ri.data.hid.bRawData[touchpad_offset + 9]) << 4) | (uint16_t(ri.data.hid.bRawData[touchpad_offset + 8]) >> 4);
-						data += utility::to_string(" 2{", x2, ", ", y2, "}");
 					}
-
-					debug_printline(data);
 				}
-
-				std::string data = utility::to_string("device ", it - ::devices.begin(), " fields:");
 
 				int bit_offset = CHAR_BIT; // skip the first byte
 				for (const auto & field : formats[it - ::devices.begin()].fields)
@@ -938,15 +924,8 @@ namespace engine
 					value = value >> (bit_offset % CHAR_BIT);
 					value = value & ((uint64_t(1) << field.nbits) - 1);
 
-					data += ' ';
-					for (int i = 0; i < field.nbits; i++)
-					{
-						data += value & (uint64_t(1) << i) ? '1' : '0';
-					}
-
 					bit_offset += field.nbits;
 				}
-				debug_printline(data);
 				break;
 			}
 # endif
@@ -954,10 +933,10 @@ namespace engine
 		}
 #endif
 
-		void key_character(devices & /*devices*/, int scancode, const char16_t * u16)
+		void key_character(devices & /*devices*/, int scancode, ful::point_utf character)
 		{
 			const engine::hid::Input::Button button = sc_to_button[scancode];
-			dispatch(KeyCharacterInput(0, button, utility::unicode_code_point(u16)));
+			dispatch(KeyCharacterInput(0, button, character));
 		}
 
 		void key_down(devices & /*devices*/, WPARAM wParam, LPARAM lParam, LONG /*time*/)

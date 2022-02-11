@@ -108,7 +108,9 @@ namespace core
 			debug_printline(core::core_channel, "image_height: ", image_height);
 			debug_printline(core::core_channel, "bit_depth: ", bit_depth);
 
-			pixels.resize<uint8_t>(row_size * image_height);
+			if (!debug_verify(pixels.reshape<uint8_t>(row_size * image_height)))
+				return; // todo cleanup
+
 			rows.resize(image_height);
 			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
 			for (int i = 0; i < image_height; i++)
@@ -122,10 +124,10 @@ namespace core
 			png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
 
 			using core::serialize;
-			serialize<member_table<T>::find("width")>(x, image_width);
-			serialize<member_table<T>::find("height")>(x, image_height);
+			serialize<member_table<T>::find(ful::cstr_utf8("width"))>(x, image_width);
+			serialize<member_table<T>::find(ful::cstr_utf8("height"))>(x, image_height);
 
-			serialize<member_table<T>::find("bit_depth")>(x, [bit_depth]()
+			serialize<member_table<T>::find(ful::cstr_utf8("bit_depth"))>(x, [bit_depth]()
 			{
 				switch (bit_depth)
 				{
@@ -140,7 +142,7 @@ namespace core
 				}
 			});
 
-			serialize<member_table<T>::find("channel_count")>(x, [channels]()
+			serialize<member_table<T>::find(ful::cstr_utf8("channel_count"))>(x, [channels]()
 			{
 				switch (channels)
 				{
@@ -154,7 +156,7 @@ namespace core
 				}
 			});
 
-			serialize<member_table<T>::find("color_type")>(x, [color_type]()
+			serialize<member_table<T>::find(ful::cstr_utf8("color_type"))>(x, [color_type]()
 			{
 				switch (color_type)
 				{
@@ -167,7 +169,7 @@ namespace core
 				}
 			});
 
-			serialize<member_table<T>::find("pixel_data")>(x, std::move(pixels));
+			serialize<member_table<T>::find(ful::cstr_utf8("pixel_data"))>(x, std::move(pixels));
 		}
 	};
 }

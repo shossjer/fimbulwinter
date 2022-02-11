@@ -16,20 +16,20 @@ namespace test
 
 	constexpr auto serialization(utility::in_place_type_t<Enum>)
 	{
-		return utility::make_lookup_table(
-			std::make_pair(utility::string_units_utf8("zero"), Enum::zero),
-			std::make_pair(utility::string_units_utf8("one"), Enum::one),
-			std::make_pair(utility::string_units_utf8("two"), Enum::two),
-			std::make_pair(utility::string_units_utf8("three"), Enum::three),
-			std::make_pair(utility::string_units_utf8("four"), Enum::four),
-			std::make_pair(utility::string_units_utf8("five"), Enum::five)
+		return utility::make_lookup_table<ful::view_utf8>(
+			std::make_pair(ful::cstr_utf8("zero"), Enum::zero),
+			std::make_pair(ful::cstr_utf8("one"), Enum::one),
+			std::make_pair(ful::cstr_utf8("two"), Enum::two),
+			std::make_pair(ful::cstr_utf8("three"), Enum::three),
+			std::make_pair(ful::cstr_utf8("four"), Enum::four),
+			std::make_pair(ful::cstr_utf8("five"), Enum::five)
 			);
 	}
 }
 
 TEST_CASE("", "[core][ini][structurer]")
 {
-	const char simple[] = u8R"(
+	const char simple[] = R"(
 ; variables without group
 Int=79817
 Bool=1
@@ -61,24 +61,7 @@ String=name
 			return n;
 		},
 		&stream_data,
-		u8""));
-
-	
-	SECTION("can be read into empty struct")
-	{
-		struct data_type
-		{
-			int dummy_;
-
-			static constexpr auto serialization()
-			{
-				return utility::make_lookup_table(std::make_pair(utility::string_units_utf8("dummy"), &data_type::dummy_));
-			}
-		}
-		data;
-
-		REQUIRE(structurer.read(data));
-	}
+		ful::cstr_utf8("")));
 
 	SECTION("can be read into full struct")
 	{
@@ -91,9 +74,9 @@ String=name
 
 				static constexpr auto serialization()
 				{
-					return utility::make_lookup_table(
-						std::make_pair(utility::string_units_utf8("type"), &group1_type::type),
-						std::make_pair(utility::string_units_utf8("Int"), &group1_type::Int)
+					return utility::make_lookup_table<ful::view_utf8>(
+						std::make_pair(ful::cstr_utf8("type"), &group1_type::type),
+						std::make_pair(ful::cstr_utf8("Int"), &group1_type::Int)
 					);
 				}
 			}
@@ -106,9 +89,9 @@ String=name
 
 				static constexpr auto serialization()
 				{
-					return utility::make_lookup_table(
-						std::make_pair(utility::string_units_utf8("type"), &group2_type::type),
-						std::make_pair(utility::string_units_utf8("Int"), &group2_type::Int)
+					return utility::make_lookup_table<ful::view_utf8>(
+						std::make_pair(ful::cstr_utf8("type"), &group2_type::type),
+						std::make_pair(ful::cstr_utf8("Int"), &group2_type::Int)
 					);
 				}
 			}
@@ -119,11 +102,11 @@ String=name
 
 			static constexpr auto serialization()
 			{
-				return utility::make_lookup_table(
-					std::make_pair(utility::string_units_utf8("Int"), &data_type::Int),
-					std::make_pair(utility::string_units_utf8("Bool"), &data_type::Bool),
-					std::make_pair(utility::string_units_utf8("group1"), &data_type::group1),
-					std::make_pair(utility::string_units_utf8("group2"), &data_type::group2)
+				return utility::make_lookup_table<ful::view_utf8>(
+					std::make_pair(ful::cstr_utf8("Int"), &data_type::Int),
+					std::make_pair(ful::cstr_utf8("Bool"), &data_type::Bool),
+					std::make_pair(ful::cstr_utf8("group1"), &data_type::group1),
+					std::make_pair(ful::cstr_utf8("group2"), &data_type::group2)
 					);
 			}
 		}

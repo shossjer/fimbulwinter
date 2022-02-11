@@ -1,15 +1,14 @@
+#pragma once
 
-#ifndef CORE_MATHS_QUATERNION_HPP
-#define CORE_MATHS_QUATERNION_HPP
+#include "config.h"
 
-#include <config.h>
+#include "core/maths/Matrix.hpp"
+#include "core/maths/Scalar.hpp"
+#include "core/maths/Vector.hpp"
 
-#include "Matrix.hpp"
-#include "Scalar.hpp"
-#include "Vector.hpp"
+#include "utility/ext/stddef.hpp"
 
 #include <cmath>
-#include <ostream>
 
 namespace core
 {
@@ -210,7 +209,8 @@ namespace core
 				return q * inverse(q.length());
 			}
 
-			friend std::ostream & operator << (std::ostream & stream, const this_type & q)
+			template <typename Stream>
+			friend Stream & operator << (Stream & stream, const this_type & q)
 			{
 				return stream << "(" << q.values[0] << ", " << q.values[1] << ", " << q.values[2] << ", " << q.values[3] << ")";
 			}
@@ -225,7 +225,25 @@ namespace core
 		{
 			return conjugate(q);
 		}
+
+		template <typename T, typename BeginIt, typename EndIt>
+		bool copy(Quaternion<T> & x, BeginIt ibegin, EndIt iend)
+		{
+			typename Quaternion<T>::array_type buffer;
+
+			auto obegin = buffer + 0;
+			debug_expression(const auto oend = buffer + 4);
+			if (!debug_assert(iend - ibegin == oend - obegin))
+				return false;
+
+			std::copy(ibegin, iend, obegin);
+
+			x.set(buffer);
+
+			return true;
+		}
+
+		template <typename T>
+		constexpr ext::usize size(const Quaternion<T> &) { return 4; }
 	}
 }
-
-#endif /* CORE_MATHS_QUATERNION_HPP */

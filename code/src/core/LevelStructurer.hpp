@@ -64,7 +64,9 @@ namespace core
 			uint16_t count;
 			read_count(count);
 
-			x.resize<T>(count * element_size);
+			if (!debug_verify(x.reshape<T>(count * element_size)))
+				return 0;
+
 			read_bytes(x.data(), count * element_size * sizeof(T));
 			return count * element_size;
 		}

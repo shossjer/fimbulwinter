@@ -1,7 +1,5 @@
 #pragma once
 
-#include <iostream>
-
 namespace utility
 {
 	template <typename Derived, typename T>
@@ -195,7 +193,8 @@ namespace utility
 			return as_this(x).value >= as_this(y).value;
 		}
 
-		friend std::ostream & operator << (std::ostream & os, const Derived & x)
+		template <typename Stream>
+		friend Stream & operator << (Stream & os, const Derived & x)
 		{
 			return os << as_this(x).value;
 		}

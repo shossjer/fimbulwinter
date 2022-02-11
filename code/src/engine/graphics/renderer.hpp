@@ -12,8 +12,8 @@
 #include "engine/Token.hpp"
 
 #include "utility/optional.hpp"
-// todo forward declare
-#include "utility/unicode/string.hpp"
+
+#include "ful/heap.hpp"
 
 #include <vector>
 
@@ -43,7 +43,6 @@ namespace engine
 				OPENGL_1_2,
 				OPENGL_3_0,
 #endif
-				DUMMY_HACK, // todo the serialization function needs at least one thing
 			};
 
 		public:
@@ -53,12 +52,11 @@ namespace engine
 
 		constexpr auto serialization(utility::in_place_type_t<renderer::Type>)
 		{
-			return utility::make_lookup_table(
+			return utility::make_lookup_table<ful::view_utf8>(
 #if GRAPHICS_USE_OPENGL
-				std::make_pair(utility::string_units_utf8("opengl1.2"), renderer::Type::OPENGL_1_2),
-				std::make_pair(utility::string_units_utf8("opengl3.0"), renderer::Type::OPENGL_3_0),
+				std::make_pair(ful::cstr_utf8("opengl1.2"), renderer::Type::OPENGL_1_2),
+				std::make_pair(ful::cstr_utf8("opengl3.0"), renderer::Type::OPENGL_3_0)
 #endif
-				std::make_pair(utility::string_units_utf8("dummy"), renderer::Type::DUMMY_HACK)
 				);
 		}
 
@@ -71,9 +69,9 @@ namespace engine
 
 				static constexpr auto serialization()
 				{
-					return utility::make_lookup_table(
-						std::make_pair(utility::string_units_utf8("x"), &Cursor::x),
-						std::make_pair(utility::string_units_utf8("y"), &Cursor::y)
+					return utility::make_lookup_table<ful::view_utf8>(
+						std::make_pair(ful::cstr_utf8("x"), &Cursor::x),
+						std::make_pair(ful::cstr_utf8("y"), &Cursor::y)
 					);
 				}
 			};
@@ -85,9 +83,9 @@ namespace engine
 
 				static constexpr auto serialization()
 				{
-					return utility::make_lookup_table(
-						std::make_pair(utility::string_units_utf8("entity"), &SelectData::entity),
-						std::make_pair(utility::string_units_utf8("cursor"), &SelectData::cursor)
+					return utility::make_lookup_table<ful::view_utf8>(
+						std::make_pair(ful::cstr_utf8("entity"), &SelectData::entity),
+						std::make_pair(ful::cstr_utf8("cursor"), &SelectData::cursor)
 					);
 				}
 			};
@@ -130,9 +128,9 @@ namespace engine
 
 				static constexpr auto serialization()
 				{
-					return utility::make_lookup_table(
-						std::make_pair(utility::string_units_utf8("diffuse"), &MaterialAsset::diffuse),
-						std::make_pair(utility::string_units_utf8("shader"), &MaterialAsset::shader)
+					return utility::make_lookup_table<ful::view_utf8>(
+						std::make_pair(ful::cstr_utf8("diffuse"), &MaterialAsset::diffuse),
+						std::make_pair(ful::cstr_utf8("shader"), &MaterialAsset::shader)
 					);
 				}
 			};
@@ -141,44 +139,44 @@ namespace engine
 			{
 				struct FragmentOutput
 				{
-					utility::heap_string_utf8 name;
+					ful::heap_string_utf8 name;
 					int value;
 
 					static constexpr auto serialization()
 					{
-						return make_lookup_table(
-							std::make_pair(utility::string_units_utf8("name"), &FragmentOutput::name),
-							std::make_pair(utility::string_units_utf8("value"), &FragmentOutput::value)
+						return utility::make_lookup_table<ful::view_utf8>(
+							std::make_pair(ful::cstr_utf8("name"), &FragmentOutput::name),
+							std::make_pair(ful::cstr_utf8("value"), &FragmentOutput::value)
 						);
 					}
 				};
 
 				struct VertexInput
 				{
-					utility::heap_string_utf8 name;
+					ful::heap_string_utf8 name;
 					int value;
 
 					static constexpr auto serialization()
 					{
-						return make_lookup_table(
-							std::make_pair(utility::string_units_utf8("name"), &VertexInput::name),
-							std::make_pair(utility::string_units_utf8("value"), &VertexInput::value)
+						return utility::make_lookup_table<ful::view_utf8>(
+							std::make_pair(ful::cstr_utf8("name"), &VertexInput::name),
+							std::make_pair(ful::cstr_utf8("value"), &VertexInput::value)
 						);
 					}
 				};
 
 				std::vector<VertexInput> inputs;
 				std::vector<FragmentOutput> outputs;
-				utility::heap_string_utf8 vertex_source;
-				utility::heap_string_utf8 fragment_source;
+				ful::heap_string_utf8 vertex_source;
+				ful::heap_string_utf8 fragment_source;
 
 				static constexpr auto serialization()
 				{
-					return make_lookup_table(
-						std::make_pair(utility::string_units_utf8("inputs"), &ShaderData::inputs),
-						std::make_pair(utility::string_units_utf8("outputs"), &ShaderData::outputs),
-						std::make_pair(utility::string_units_utf8("vertex_source"), &ShaderData::vertex_source),
-						std::make_pair(utility::string_units_utf8("fragment_source"), &ShaderData::fragment_source)
+					return utility::make_lookup_table<ful::view_utf8>(
+						std::make_pair(ful::cstr_utf8("inputs"), &ShaderData::inputs),
+						std::make_pair(ful::cstr_utf8("outputs"), &ShaderData::outputs),
+						std::make_pair(ful::cstr_utf8("vertex_source"), &ShaderData::vertex_source),
+						std::make_pair(ful::cstr_utf8("fragment_source"), &ShaderData::fragment_source)
 					);
 				}
 			};

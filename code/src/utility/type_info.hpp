@@ -4,7 +4,9 @@
 #if !defined(_MSC_VER)
 # include "utility/ranges.hpp"
 #endif
-#include "utility/unicode/string_view.hpp"
+
+#include "ful/constexpr.hpp"
+#include "ful/cstr.hpp"
 
 #include <cstdint>
 
@@ -16,12 +18,12 @@ namespace utility
 		//
 		// https://stackoverflow.com/a/56600402
 		template <typename T>
-		constexpr const char * get_function_signature()
+		constexpr ful::cstr_utf8 get_function_signature()
 		{
 #if defined(__GNUG__)
-			return __PRETTY_FUNCTION__;
+			return ful::cstr_utf8(__PRETTY_FUNCTION__);
 #elif defined(_MSC_VER)
-			return __FUNCSIG__;
+			return ful::cstr_utf8(__FUNCSIG__);
 #else
 # error "compiler does not support constexpr type information"
 #endif
@@ -29,19 +31,19 @@ namespace utility
 
 		// ditto
 		template <typename T>
-		constexpr string_units_utf8 get_type_signature()
+		constexpr ful::view_utf8 get_type_signature()
 		{
-			string_units_utf8 signature = get_function_signature<T>();
+			ful::cstr_utf8 signature = get_function_signature<T>();
 
 #if defined(__GNUG__)
-			const auto from = find(signature, "T = ") + 4;
-			const auto to = rfind(signature, "]");
+			const auto from = ful::cxp::find(signature, "T = ") + 4;
+			const auto to = ful::cxp::rfind(signature, "]");
 #elif defined(_MSC_VER)
-			const auto from = find(signature, "utility::detail::get_function_signature<") + 40;
-			const auto to = rfind(signature, ">(");
+			const auto from = ful::cxp::find(signature, "utility::detail::get_function_signature<") + 40;
+			const auto to = ful::cxp::find(ful::from(signature, from), ">(");
 #endif
 
-			return string_units_utf8(from, to);
+			return ful::view_utf8(from, to);
 		}
 
 		// in order to make the names platform independent (to the best of our
@@ -66,60 +68,60 @@ namespace utility
 		struct TypePattern
 		{
 			std::size_t replace;
-			string_units_utf8 with;
+			ful::view_utf8 with;
 		};
 
-		inline constexpr TypePattern next_word(const char * const cstr)
+		inline constexpr TypePattern next_word(ful::view_utf8 str)
 		{
 			std::size_t count = 1;
 
-			if (is_identifier_character(cstr[0]))
+			if (is_identifier_character(str.data()[0]))
 			{
-				for (; is_identifier_character(cstr[count]); count++);
+				for (; is_identifier_character(str.data()[count]); count++);
 			}
 
-			return TypePattern{count, string_units_utf8(cstr, count)};
+			return TypePattern{count, first(str, count)};
 		}
 
-		inline constexpr TypePattern find_type_pattern(const char * const cstr)
+		inline constexpr TypePattern find_type_pattern(ful::view_utf8 str)
 		{
 			return
 #if defined(__GNUG__)
-				starts_with(string_units_utf8(cstr), "long long") ? TypePattern{ 9, string_units_utf8("long long int") } :
+				ful::cxp::starts_with(str, "long long") ? TypePattern{ 9, ful::cstr_utf8("long long int") } :
 #elif defined(_MSC_VER)
-				starts_with(string_units_utf8(cstr), "volatile const ") && is_identifier_character(*(cstr + 15)) ? TypePattern{ 15, string_units_utf8("const volatile ") } :
-				starts_with(string_units_utf8(cstr), "volatile const") && !is_identifier_character(*(cstr + 14)) ? TypePattern{ 14, string_units_utf8("const volatile") } :
+				ful::cxp::starts_with(str, "volatile const ") && is_identifier_character(str.data()[15]) ? TypePattern{ 15, ful::cstr_utf8("const volatile ") } :
+				ful::cxp::starts_with(str, "volatile const") && !is_identifier_character(str.data()[14]) ? TypePattern{ 14, ful::cstr_utf8("const volatile") } :
 #endif
-				starts_with(string_units_utf8(cstr), "const ") && is_identifier_character(*(cstr + 6)) ? TypePattern{ 6, string_units_utf8("const ") } :
-				starts_with(string_units_utf8(cstr), "signed ") && is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_units_utf8("signed ") } :
-				starts_with(string_units_utf8(cstr), "unsigned ") && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("unsigned ") } :
-				starts_with(string_units_utf8(cstr), "volatile ") && is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("volatile ") } :
-				starts_with(string_units_utf8(cstr), "long double") ? TypePattern{ 11, string_units_utf8("long double") } :
-				starts_with(string_units_utf8(cstr), "long") && !is_identifier_character(*(cstr + 4)) ? TypePattern{ 4, string_units_utf8("long int") } :
-				starts_with(string_units_utf8(cstr), "short") && !is_identifier_character(*(cstr + 5)) ? TypePattern{ 5, string_units_utf8("short int") } :
+				ful::cxp::starts_with(str, "const ") && is_identifier_character(str.data()[6]) ? TypePattern{ 6, ful::cstr_utf8("const ") } :
+				ful::cxp::starts_with(str, "signed ") && is_identifier_character(str.data()[7]) ? TypePattern{ 7, ful::cstr_utf8("signed ") } :
+				ful::cxp::starts_with(str, "unsigned ") && is_identifier_character(str.data()[9]) ? TypePattern{ 9, ful::cstr_utf8("unsigned ") } :
+				ful::cxp::starts_with(str, "volatile ") && is_identifier_character(str.data()[9]) ? TypePattern{ 9, ful::cstr_utf8("volatile ") } :
+				ful::cxp::starts_with(str, "long double") ? TypePattern{ 11, ful::cstr_utf8("long double") } :
+				ful::cxp::starts_with(str, "long") && !is_identifier_character(str.data()[4]) ? TypePattern{ 4, ful::cstr_utf8("long int") } :
+				ful::cxp::starts_with(str, "short") && !is_identifier_character(str.data()[5]) ? TypePattern{ 5, ful::cstr_utf8("short int") } :
 #if defined(__GNUG__)
-				starts_with(string_units_utf8(cstr), "nullptr_t") && !is_identifier_character(*(cstr + 9)) ? TypePattern{ 9, string_units_utf8("std::nullptr_t") } :
-				starts_with(string_units_utf8(cstr), "(anonymous namespace)") ? TypePattern{ 21, string_units_utf8("anonymous-namespace") } :
+				ful::cxp::starts_with(str, "nullptr_t") && !is_identifier_character(str.data()[9]) ? TypePattern{ 9, ful::cstr_utf8("std::nullptr_t") } :
+				ful::cxp::starts_with(str, "(anonymous namespace)") ? TypePattern{ 21, ful::cstr_utf8("anonymous-namespace") } :
 #elif defined(_MSC_VER)
-				starts_with(string_units_utf8(cstr), "class ") ? TypePattern{ 6, string_units_utf8() } :
-				starts_with(string_units_utf8(cstr), "struct ") ? TypePattern{ 7, string_units_utf8() } :
-				starts_with(string_units_utf8(cstr), "__int64") && !is_identifier_character(*(cstr + 7)) ? TypePattern{ 7, string_units_utf8("long long int") } :
-				starts_with(string_units_utf8(cstr), "`anonymous-namespace'") ? TypePattern{ 21, string_units_utf8("anonymous-namespace") } :
+				ful::cxp::starts_with(str, "class ") ? TypePattern{ 6, ful::cstr_utf8() } :
+				ful::cxp::starts_with(str, "struct ") ? TypePattern{ 7, ful::cstr_utf8() } :
+				ful::cxp::starts_with(str, "__int64") && !is_identifier_character(str.data()[7]) ? TypePattern{ 7, ful::cstr_utf8("long long int") } :
+				ful::cxp::starts_with(str, "`anonymous-namespace'") ? TypePattern{ 21, ful::cstr_utf8("anonymous-namespace") } :
 #endif
-				starts_with(string_units_utf8(cstr), " ") ? TypePattern{ 1, string_units_utf8() } :
-				next_word(cstr);
+				ful::cxp::starts_with(str, " ") ? TypePattern{ 1, ful::cstr_utf8() } :
+				next_word(str);
 		}
 
-		inline constexpr std::size_t length_of_type_name(string_units_utf8 str)
+		inline constexpr std::size_t length_of_type_name(ful::view_utf8 str)
 		{
 			std::size_t length = 0;
 
-			for (std::size_t i = 0; i < str.size();)
+			for (std::size_t rem = str.size(); 0 < rem;)
 			{
-				const TypePattern pattern = find_type_pattern(str.data() + i);
+				const TypePattern pattern = find_type_pattern(last(str, rem));
 
 				length += pattern.with.size();
-				i += pattern.replace;
+				rem -= pattern.replace;
 			}
 
 			return length;
@@ -136,14 +138,14 @@ namespace utility
 		};
 
 		template <std::size_t N>
-		constexpr constexpr_array<N> build_type_name(string_units_utf8 str)
+		constexpr constexpr_array<N> build_type_name(ful::view_utf8 str)
 		{
 			constexpr_array<N> name{};
 			std::ptrdiff_t length = 0;
 
-			for (std::size_t i = 0; i < str.size();)
+			for (std::size_t rem = str.size(); 0 < rem;)
 			{
-				const TypePattern pattern = find_type_pattern(str.data() + i);
+				const TypePattern pattern = find_type_pattern(last(str, rem));
 
 #if defined(_MSC_VER)
 				// the microsoft compiler does not support constexpr
@@ -159,7 +161,7 @@ namespace utility
 				}
 
 				length += pattern.with.size();
-				i += pattern.replace;
+				rem -= pattern.replace;
 			}
 
 			return name;
@@ -169,13 +171,13 @@ namespace utility
 	template <typename T>
 	struct type_info
 	{
-		static constexpr string_units_utf8 type_signature = detail::get_type_signature<T>();
+		static constexpr ful::view_utf8 type_signature = detail::get_type_signature<T>();
 		static constexpr auto type_name_length = detail::length_of_type_name(type_signature);
 		static constexpr detail::constexpr_array<type_name_length> type_name = detail::build_type_name<type_name_length>(type_signature);
 	};
 
 	template <typename T>
-	constexpr string_units_utf8 type_info<T>::type_signature;
+	constexpr ful::view_utf8 type_info<T>::type_signature;
 	template <typename T>
 	constexpr detail::constexpr_array<type_info<T>::type_name_length> type_info<T>::type_name;
 
@@ -195,8 +197,8 @@ namespace utility
 #endif
 
 	using type_id_t = uint32_t;
-	using type_name_t = string_units_utf8;
-	using type_signature_t = string_units_utf8;
+	using type_name_t = ful::view_utf8;
+	using type_signature_t = ful::view_utf8;
 
 	/*
 	 * \note The type id is plaform independant. Though keep in mind that aliases
@@ -210,7 +212,7 @@ namespace utility
 	 * aliases like `std::int64_t` is not the same type on all platforms!
 	 */
 	template <typename T>
-	constexpr type_name_t type_name() { return string_units_utf8(type_info<T>::type_name.data(), type_info<T>::type_name_length); }
+	constexpr type_name_t type_name() { return ful::view_utf8(type_info<T>::type_name.data(), type_info<T>::type_name_length); }
 
 	/*
 	 * \note The type signature is platform dependant!

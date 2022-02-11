@@ -6,8 +6,8 @@ namespace
 {
 	struct construction_counter
 	{
-		static int construction_count;
-		static int destruction_count;
+		static ext::usize construction_count;
+		static ext::usize destruction_count;
 
 		static void reset()
 		{
@@ -15,7 +15,7 @@ namespace
 			destruction_count = 0;
 		}
 
-		int i;
+		ext::usize i;
 
 		~construction_counter()
 		{
@@ -32,8 +32,8 @@ namespace
 		{}
 	};
 
-	int construction_counter::construction_count = -1;
-	int construction_counter::destruction_count = -1;
+	ext::usize construction_counter::construction_count = ext::usize(-1);
+	ext::usize construction_counter::destruction_count = ext::usize(-1);
 }
 
 TEST_CASE("", "")
@@ -294,7 +294,7 @@ TEST_CASE("static array understands zero initialization", "[utility][container][
 
 	utility::array<utility::static_storage<10, int, construction_counter, char>, utility::initialize_zero> a;
 	REQUIRE(a.size() == 10);
-	for (ext::index i = 0; static_cast<std::size_t>(i) < a.size(); i++)
+	for (ext::usize i = 0; i < a.size(); i++)
 	{
 		CHECK(std::get<0>(a.data())[i] == 0);
 		CHECK(std::get<1>(a.data())[i].i == i + 1);
@@ -316,7 +316,7 @@ TEST_CASE("heap array understands zero initialization", "[utility][container][ar
 		CHECK(a.capacity() >= 10);
 		REQUIRE(a.size() == a.capacity());
 		CHECK(construction_counter::destruction_count == 0);
-		for (ext::index i = 0; static_cast<std::size_t>(i) < a.size(); i++)
+		for (ext::usize i = 0; i < a.size(); i++)
 		{
 			CHECK(std::get<0>(a.data())[i] == 0);
 			CHECK(std::get<1>(a.data())[i].i == i + 1);

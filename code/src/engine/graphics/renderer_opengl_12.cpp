@@ -30,6 +30,8 @@
 #include "utility/ranges.hpp"
 #include "utility/variant.hpp"
 
+#include "ful/cstrext.hpp"
+
 #include <atomic>
 #include <utility>
 
@@ -314,8 +316,9 @@ namespace
 			const mesh_t & mesh,
 			core::maths::Matrix4x4f && modelview)
 			: modelview(std::move(modelview))
-			, vertices(mesh.vertices)
-		{}
+		{
+			debug_verify(copy(mesh.vertices, vertices)); // todo
+		}
 	};
 
 	core::container::UnorderedCollection
@@ -373,7 +376,7 @@ namespace
 				    mesh.normals.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					debug_cast<GLsizei>(mesh.triangles.count()),
+					debug_cast<GLsizei>(mesh.triangles.size()),
 					GL_UNSIGNED_SHORT,
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -400,7 +403,7 @@ namespace
 					mesh.coords.data());
 				glDrawElements(
 					GL_TRIANGLES,
-					debug_cast<GLsizei>(mesh.triangles.count()),
+					debug_cast<GLsizei>(mesh.triangles.size()),
 					GL_UNSIGNED_SHORT, // TODO
 					mesh.triangles.data());
 				glDisableClientState(GL_NORMAL_ARRAY);
@@ -500,7 +503,7 @@ namespace
 
 			const float * const untransformed_vertices = mesh->vertices.data_as<float>();
 			float * const transformed_vertices = object->vertices.data_as<float>();
-			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.count() / 3))
+			for (std::ptrdiff_t i : ranges::index_sequence(object->vertices.size() / 3))
 			{
 				const core::maths::Vector4f vertex = matrix_pallet[mesh->weights[i].index] * core::maths::Vector4f{untransformed_vertices[3 * i + 0], untransformed_vertices[3 * i + 1], untransformed_vertices[3 * i + 2], 1.f};
 				core::maths::Vector4f::array_type buffer;
@@ -664,15 +667,9 @@ namespace
 
 				void operator () (MessageCreateMaterialInstance && x)
 				{
-					if (!debug_verify(find(resources, x.data.materialclass) != resources.end(), x.data.materialclass))
-						return; // error
-
 					const auto material_it = find(materials, x.entity);
 					if (material_it != materials.end())
 					{
-						if (!debug_assert(materials.get_key(material_it) < x.entity, "trying to add an older version object"))
-							return; // error
-
 						materials.erase(material_it);
 					}
 					debug_verify(materials.emplace<ColorMaterial>(x.entity, x.data.diffuse, x.data.materialclass));
@@ -680,8 +677,8 @@ namespace
 
 				void operator () (MessageDestroy && x)
 				{
-					const auto material_it = find(materials, x.entity);
-					if (debug_assert(material_it != materials.end()))
+					auto material_it = find(materials, x.entity);
+					if (material_it != materials.end())
 					{
 						materials.erase(material_it);
 					}
@@ -692,9 +689,6 @@ namespace
 					const auto object_it = find(objects, x.entity);
 					if (object_it != objects.end())
 					{
-						if (!debug_assert(objects.get_key(object_it) < x.entity, "trying to add an older version object"))
-							return; // error
-
 						objects.erase(object_it);
 					}
 					auto * const object = objects.emplace<object_modelview>(x.entity, std::move(x.object.matrix));
@@ -711,9 +705,6 @@ namespace
 					const auto component_it = find(components, x.entity);
 					if (component_it != components.end())
 					{
-						if (!debug_assert(components.get_key(component_it) < x.entity, "trying to add an older version mesh"))
-							return; // error
-
 						components.erase(component_it);
 					}
 					debug_verify(components.emplace<MeshObject>(x.entity, object, mesh, x.object.material));
@@ -740,10 +731,11 @@ namespace
 
 				void operator () (MessageMakeSelectable && x)
 				{
-					const engine::graphics::opengl::Color4ub color = {(x.entity & 0x000000ff) >> 0,
-					                                                  (x.entity & 0x0000ff00) >> 8,
-					                                                  (x.entity & 0x00ff0000) >> 16,
-					                                                  (x.entity & 0xff000000) >> 24};
+					// todo 64-bit colors
+					const engine::graphics::opengl::Color4ub color = {(x.entity.value() & 0x000000ff) >> 0,
+					                                                  (x.entity.value() & 0x0000ff00) >> 8,
+					                                                  (x.entity.value() & 0x00ff0000) >> 16,
+					                                                  (x.entity.value() & 0xff000000) >> 24};
 
 					const auto selectable_it = find(selectable_components, x.entity);
 					if (selectable_it != selectable_components.end())
@@ -958,25 +950,14 @@ namespace
 		glEnable(GL_LIGHT0);
 	}
 
-	template <typename T, std::size_t N>
-	auto convert(std::array<T, N> && data)
-	{
-		core::container::Buffer buffer;
-		buffer.resize<T>(N);
-
-		std::copy(data.begin(), data.end(), buffer.data_as<T>());
-
-		return buffer;
-	}
-
 	void render_setup()
 	{
 		debug_printline(engine::graphics_channel, "render_callback starting");
 		make_current(*engine::graphics::detail::window);
 
-		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", glGetString(GL_VENDOR));
-		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", glGetString(GL_RENDERER));
-		debug_printline(engine::graphics_channel, "glGetString GL_VERSION: ", glGetString(GL_VERSION));
+		debug_printline(engine::graphics_channel, "glGetString GL_VENDOR: ", ful::make_cstr_utf8(glGetString(GL_VENDOR)));
+		debug_printline(engine::graphics_channel, "glGetString GL_RENDERER: ", ful::make_cstr_utf8(glGetString(GL_RENDERER)));
+		debug_printline(engine::graphics_channel, "glGetString GL_VERSION: ", ful::make_cstr_utf8(glGetString(GL_VERSION)));
 
 		engine::graphics::opengl::init();
 
@@ -993,10 +974,21 @@ namespace
 		glGenRenderbuffers(2, entitybuffers);
 	}
 
-	constexpr std::array<GLenum, 10> BufferFormats =
-	{{
-		GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT, (GLenum)-1, GL_BYTE, GL_SHORT, GL_INT, (GLenum)-1, GL_FLOAT, GL_DOUBLE
-	}};
+	GLenum glType(utility::type_id_t type)
+	{
+		switch (type)
+		{
+		case utility::type_id<uint8_t>(): return GL_UNSIGNED_BYTE;
+		case utility::type_id<uint16_t>(): return GL_UNSIGNED_SHORT;
+		case utility::type_id<uint32_t>(): return GL_UNSIGNED_INT;
+		case utility::type_id<int8_t>(): return GL_BYTE;
+		case utility::type_id<int16_t>(): return GL_SHORT;
+		case utility::type_id<int32_t>(): return GL_INT;
+		case utility::type_id<float>(): return GL_FLOAT;
+		case utility::type_id<double>(): return GL_DOUBLE;
+		default: debug_unreachable(type, " not supported");
+		}
+	}
 
 	void render_update()
 	{
@@ -1056,7 +1048,7 @@ namespace
 			                0,
 			                component.object->vertices.data());
 			glDrawElements(GL_TRIANGLES,
-			               debug_cast<GLsizei>(component.mesh->triangles.count()),
+			               debug_cast<GLsizei>(component.mesh->triangles.size()),
 			               GL_UNSIGNED_SHORT,	// TODO
 			               component.mesh->triangles.data());
 			glDisableClientState(GL_VERTEX_ARRAY);
@@ -1086,7 +1078,7 @@ namespace
 			while (queue_select.try_pop(select_args))
 			{
 				engine::graphics::data::SelectData select_data = {get_entity_at_screen(std::get<0>(select_args), std::get<1>(select_args)), {std::get<0>(select_args), std::get<1>(select_args)}};
-				callback_select(std::get<2>(select_args), std::get<3>(select_args), std::move(select_data));
+				callback_select(std::get<2>(select_args), std::get<3>(select_args), utility::any(std::move(select_data)));
 			}
 		}
 
@@ -1185,17 +1177,17 @@ namespace
 
 			glVertexPointer(
 				3, // todo support 2d coordinates?
-				BufferFormats[static_cast<int>(component.mesh->vertices.format())],
+				glType(component.mesh->vertices.value_type()),
 				0,
 				component.mesh->vertices.data());
 			glNormalPointer(
-				BufferFormats[static_cast<int>(component.mesh->normals.format())],
+				glType(component.mesh->normals.value_type()),
 				0,
 				component.mesh->normals.data());
 			glDrawElements(
 				GL_TRIANGLES,
-				debug_cast<GLsizei>(component.mesh->triangles.count()),
-				BufferFormats[static_cast<int>(component.mesh->triangles.format())],
+				debug_cast<GLsizei>(component.mesh->triangles.size()),
+				glType(component.mesh->triangles.value_type()),
 				component.mesh->triangles.data());
 
 			glDisableClientState(GL_NORMAL_ARRAY);

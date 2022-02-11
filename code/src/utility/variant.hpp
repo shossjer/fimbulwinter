@@ -711,14 +711,14 @@ namespace utility
 			{
 				if (variant.valueless_by_exception())
 					throw bad_variant_access();
-				return get_instance(detail::get_alternative<I>(get_storage(std::forward<Variant>(variant))));
+				return get_instance(get_alternative<I>(get_storage(std::forward<Variant>(variant))));
 			}
 			template <size_t I, typename Variant>
 			decltype(auto) get_if(Variant & variant)
 			{
 				if (variant.valueless_by_exception())
 					return nullptr;
-				return std::addressof(get_instance(detail::get_alternative<I>(get_storage(variant))));
+				return std::addressof(get_instance(get_alternative<I>(get_storage(variant))));
 			}
 		};
 

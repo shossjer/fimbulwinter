@@ -22,9 +22,9 @@ namespace engine
 
 		static constexpr auto serialization()
 		{
-			return utility::make_lookup_table(
-				std::make_pair(utility::string_units_utf8("pos"), &transform_t::pos),
-				std::make_pair(utility::string_units_utf8("quat"), &transform_t::quat)
+			return utility::make_lookup_table<ful::view_utf8>(
+				std::make_pair(ful::cstr_utf8("pos"), &transform_t::pos),
+				std::make_pair(ful::cstr_utf8("quat"), &transform_t::quat)
 				);
 		}
 	};

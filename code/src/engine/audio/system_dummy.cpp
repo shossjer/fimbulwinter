@@ -6,6 +6,8 @@
 
 #include "core/debug.hpp"
 
+#include <atomic>
+
 namespace
 {
 	std::atomic_bool created(false);

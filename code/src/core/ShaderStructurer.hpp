@@ -5,7 +5,6 @@
 #include "core/StringStream.hpp"
 
 #include "utility/regex.hpp"
-#include "utility/unicode/string_view.hpp"
 
 namespace core
 {
@@ -13,9 +12,9 @@ namespace core
 	{
 	private:
 
-		StringStream<utility::heap_storage_traits, utility::encoding_utf8> stream_;
+		StringStream<utility::heap_storage_traits> stream_;
 
-		using Parser = rex::parser_for<StringStream<utility::heap_storage_traits, utility::encoding_utf8>>;
+		using Parser = rex::parser_for<StringStream<utility::heap_storage_traits>>;
 
 	public:
 
@@ -30,14 +29,14 @@ namespace core
 		{
 			Parser parser = rex::parse(stream_);
 
-			const auto vertex_section = parser.match(rex::str("[vertex]") >> rex::newline);
+			const auto vertex_section = parser.match(rex::str(ful::cstr_utf8("[vertex]")) >> rex::newline);
 			if (!debug_verify(vertex_section.first, stream_.filepath(), ":", vertex_section.second - stream_.begin(), ": expected vertex section and newline"))
 				return; // error
 
 			parser.seek(vertex_section.second);
 
 			using core::clear;
-			clear<core::member_table<T>::find("inputs")>(x);
+			clear<core::member_table<T>::find(ful::cstr_utf8("inputs"))>(x);
 			while (true)
 			{
 				const auto property = parser.match(rex::ch('['));
@@ -46,51 +45,51 @@ namespace core
 
 				parser.seek(property.second);
 
-				const auto bind = parser.match(rex::str("bind") >> rex::blank);
+				const auto bind = parser.match(rex::str(ful::cstr_utf8("bind")) >> rex::blank);
 				if (!bind.first)
 					return; // error
 
 				parser.seek(bind.second);
 
-				const auto bind_name_value = read_name_value(x, mpl::index_constant<core::member_table<T>::find("inputs")>{}, parser);
+				const auto bind_name_value = read_name_value(x, mpl::index_constant<core::member_table<T>::find(ful::cstr_utf8("inputs"))>{}, parser);
 				if (!bind_name_value.first)
 					return; // error
 
 				parser.seek(bind_name_value.second);
 
-				const auto bind_name_value_end = parser.match(rex::str("]") >> rex::newline);
+				const auto bind_name_value_end = parser.match(rex::ch(']') >> rex::newline);
 				if (!debug_verify(bind_name_value_end.first, stream_.filepath(), ":", vertex_section.second - stream_.begin(), ": expected ending bracket and newline"))
 					return; // error
 
 				parser.seek(bind_name_value_end.second);
 			}
 
-			const auto fragment_section = parser.find(rex::str("[fragment]") >> rex::newline); // todo beginline
+			const auto fragment_section = parser.find(rex::str(ful::cstr_utf8("[fragment]")) >> rex::newline); // todo beginline
 			if (!debug_verify(fragment_section.first != fragment_section.second, stream_.filepath(), ":?", ": expected fragment section and newline"))
 				return; // error
 
 			using core::serialize;
-			debug_verify(serialize<core::member_table<T>::find("vertex_source")>(x, utility::string_units_utf8(parser.begin().get(), fragment_section.first.get())));
+			debug_verify(serialize<core::member_table<T>::find(ful::cstr_utf8("vertex_source"))>(x, ful::view_utf8(parser.begin().get(), fragment_section.first.get())));
 
 			parser.seek(fragment_section.second);
 
 			using core::clear;
-			clear<core::member_table<T>::find("outputs")>(x);
+			clear<core::member_table<T>::find(ful::cstr_utf8("outputs"))>(x);
 			while (true)
 			{
-				const auto bind = parser.match(rex::str("[bind") >> rex::blank);
+				const auto bind = parser.match(rex::str(ful::cstr_utf8("[bind")) >> rex::blank);
 				if (!bind.first)
 					break;
 
 				parser.seek(bind.second);
 
-				const auto bind_name_value = read_name_value(x, mpl::index_constant<core::member_table<T>::find("outputs")>{}, parser);
+				const auto bind_name_value = read_name_value(x, mpl::index_constant<core::member_table<T>::find(ful::cstr_utf8("outputs"))>{}, parser);
 				if (!bind_name_value.first)
 					return; // error
 
 				parser.seek(bind_name_value.second);
 
-				const auto bind_name_value_end = parser.match(rex::str("]") >> rex::newline);
+				const auto bind_name_value_end = parser.match(rex::ch(']') >> rex::newline);
 				if (!debug_verify(bind_name_value_end.first, stream_.filepath(), ":", vertex_section.second - stream_.begin(), ": expected ending bracket and newline"))
 					return; // error
 
@@ -100,7 +99,7 @@ namespace core
 			const auto end = parser.find(rex::end);
 
 			using core::serialize;
-			debug_verify(serialize<core::member_table<T>::find("fragment_source")>(x, utility::string_units_utf8(parser.begin().get(), end.first.get())));
+			debug_verify(serialize<core::member_table<T>::find(ful::cstr_utf8("fragment_source"))>(x, ful::view_utf8(parser.begin().get(), end.first.get())));
 		}
 
 	private:
@@ -108,7 +107,7 @@ namespace core
 		template <typename T>
 		auto read_name_value(T & /*x*/, mpl::index_constant<std::size_t(-1)>, Parser parser)
 		{
-			const auto nextline = parser.find(rex::str("]"));
+			const auto nextline = parser.find(rex::ch(']'));
 			return std::make_pair(true, nextline.first);
 		}
 
@@ -124,7 +123,7 @@ namespace core
 			if (!name.first)
 				return name;
 
-			debug_verify(serialize<core::member_table<mpl::remove_cvref_t<decltype(y)>>::find("name")>(y, utility::string_units_utf8(parser.begin().get(), name.second.get())));
+			debug_verify(serialize<core::member_table<mpl::remove_cvref_t<decltype(y)>>::find(ful::cstr_utf8("name"))>(y, ful::view_utf8(parser.begin().get(), name.second.get())));
 
 			parser.seek(name.second);
 
@@ -138,7 +137,7 @@ namespace core
 			if (!value.first)
 				return value;
 
-			debug_verify(serialize<core::member_table<mpl::remove_cvref_t<decltype(y)>>::find("value")>(y, utility::string_units_utf8(parser.begin().get(), value.second.get())));
+			debug_verify(serialize<core::member_table<mpl::remove_cvref_t<decltype(y)>>::find(ful::cstr_utf8("value"))>(y, ful::view_utf8(parser.begin().get(), value.second.get())));
 
 			return value;
 		}

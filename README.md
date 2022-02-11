@@ -246,3 +246,6 @@ or, if you built Coz as part of the configure process, simply execute
 
 Make use of https://plasma-umass.org/coz/ to make sense of the
 profiling being made. More about Coz can be read at their site.
+
+Building Coz requires `pkg-config`, and `rst2man` (see
+`python-docutils`) to be installed on the system.

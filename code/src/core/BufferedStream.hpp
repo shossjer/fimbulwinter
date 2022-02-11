@@ -27,7 +27,7 @@ namespace core
 
 	public:
 
-		BufferedStream(ReadStream && stream)
+		explicit BufferedStream(ReadStream && stream)
 			: read_stream_(std::move(stream))
 		{
 			from_ = buffer_.data();
@@ -36,7 +36,7 @@ namespace core
 
 	public:
 
-		const utility::heap_string_utf8 & filepath() const { return read_stream_.filepath(); }
+		ful::cstr_utf8 filepath() const { return read_stream_.filepath(); }
 
 		bool done() const { return read_stream_.done(); }
 

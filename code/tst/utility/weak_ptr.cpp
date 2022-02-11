@@ -88,10 +88,11 @@ TEST_CASE("weak_ptr", "[utility]")
 
 	SECTION("can be copied/moved to itself")
 	{
-		y = y;
+		auto & yref = y;
+		y = yref;
 		CHECK_FALSE(y.expired());
 
-		y = std::move(y);
+		y = std::move(yref);
 		// note after move, y is formally only 'valid but unspecified' so the following states should not be relied on elsewhere
 		CHECK(y.expired());
 	}

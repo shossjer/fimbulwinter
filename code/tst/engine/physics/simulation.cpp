@@ -20,7 +20,7 @@ TEST_CASE("Physics Simulation can be created and destroyed", "[.engine][.physics
 #else
 	engine::application::window window(config);
 #endif
-	engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type::DUMMY_HACK);
+	engine::graphics::renderer renderer(window, nullptr, engine::graphics::renderer::Type{});
 	engine::graphics::viewer viewer(renderer);
 
 	for (int i = 0; i < 2; i++)

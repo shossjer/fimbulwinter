@@ -17,6 +17,15 @@
 #include "utility/any.hpp"
 #include "utility/optional.hpp"
 #include "utility/shared_ptr.hpp"
+#include "utility/spinlock.hpp"
+
+#include "ful/static.hpp"
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+#include "ful/string_search.hpp"
+#include "ful/convert.hpp"
+
+#include <mutex>
 
 #include <Windows.h>
 
@@ -24,7 +33,7 @@ static_hashes("_working directory_");
 
 namespace
 {
-	engine::Hash make_asset(utility::string_units_utfw filepath)
+	engine::Hash make_asset(ful::view_utfw filepath)
 	{
 		// todo maybe add wchar_t support for Asset?
 		return engine::Hash(reinterpret_cast<const char *>(filepath.data()), filepath.size() * sizeof(wchar_t));
@@ -35,22 +44,22 @@ namespace
 {
 	struct Directory
 	{
-		utility::heap_string_utfw dirpath;
+		ful::heap_string_utfw dirpath;
 
 		ext::ssize share_count;
 
-		explicit Directory(utility::heap_string_utfw && dirpath)
-			: dirpath(std::move(dirpath))
+		explicit Directory(ful::heap_string_utfw && dirpath)
+			: dirpath(static_cast<ful::heap_string_utfw &&>(dirpath))
 			, share_count(0)
 		{}
 	};
 
 	struct TemporaryDirectory
 	{
-		utility::heap_string_utfw dirpath;
+		ful::heap_string_utfw dirpath;
 
-		explicit TemporaryDirectory(utility::heap_string_utfw && dirpath)
-			: dirpath(std::move(dirpath))
+		explicit TemporaryDirectory(ful::heap_string_utfw && dirpath)
+			: dirpath(static_cast<ful::heap_string_utfw &&>(dirpath))
 		{}
 	};
 
@@ -92,9 +101,9 @@ namespace engine
 			HANDLE hThread;
 			HANDLE hTerminateEvent;
 
-			const utility::heap_string_utfw & get_dirpath(decltype(directories)::const_iterator it)
+			const ful::heap_string_utfw & get_dirpath(decltype(directories)::const_iterator it)
 			{
-				return directories.call(it, [](const auto & x) -> const utility::heap_string_utfw & { return x.dirpath; });
+				return directories.call(it, [](const auto & x) -> const ful::heap_string_utfw & { return x.dirpath; });
 			}
 		};
 	}
@@ -127,16 +136,16 @@ namespace
 
 namespace
 {
-	void scan_directory(const utility::heap_string_utfw & dirpath, bool recurse, utility::heap_string_utfw & files)
+	void scan_directory(const ful::heap_string_utfw & dirpath, bool recurse, ful::heap_string_utfw & files)
 	{
-		debug_printline("scanning directory \"", utility::heap_narrow<utility::encoding_utf8>(dirpath), "\"");
+		debug_printlinew(L"scanning directory \"", dirpath, L"\"");
 
-		utility::heap_vector<utility::heap_string_utfw> subdirs;
+		utility::heap_vector<ful::heap_string_utfw> subdirs;
 		if (!debug_verify(subdirs.try_emplace_back()))
 			return; // error
 
-		utility::heap_string_utfw pattern;
-		if (!debug_verify(pattern.try_append(dirpath)))
+		ful::heap_string_utfw pattern;
+		if (!debug_verify(ful::append(pattern, dirpath)))
 			return; // error
 
 		while (!ext::empty(subdirs))
@@ -144,10 +153,10 @@ namespace
 			auto subdir = ext::back(std::move(subdirs));
 			ext::pop_back(subdirs);
 
-			if (!debug_verify(pattern.try_append(subdir)))
+			if (!debug_verify(ful::append(pattern, subdir)))
 				return; // error
 
-			if (!debug_verify(pattern.try_push_back(L'*')))
+			if (!debug_verify(ful::push_back(pattern, ful::char16{'*'})))
 				return; // error
 
 			WIN32_FIND_DATAW data;
@@ -173,25 +182,25 @@ namespace
 
 						auto & dir = ext::back(subdirs);
 
-						if (!debug_verify(dir.try_append(subdir)))
+						if (!debug_verify(ful::append(dir, subdir)))
 							return; // error
 
-						if (!debug_verify(dir.try_append(static_cast<const wchar_t *>(data.cFileName))))
+						if (!debug_verify(ful::append(dir, ful::begin(data.cFileName), ful::strend(data.cFileName))))
 							return; // error
 
-						if (!debug_verify(dir.try_push_back(L'\\')))
+						if (!debug_verify(ful::push_back(dir, ful::char16{'\\'})))
 							return; // error
 					}
 				}
 				else
 				{
-					if (!debug_verify(files.try_append(subdir)))
+					if (!debug_verify(ful::append(files, subdir.begin(), subdir.end())))
 						return; // error
 
-					if (!debug_verify(files.try_append(static_cast<const wchar_t *>(data.cFileName))))
+					if (!debug_verify(ful::append(files, ful::begin(data.cFileName), ful::strend(data.cFileName))))
 						return; // error
 
-					if (!debug_verify(files.try_push_back(L';')))
+					if (!debug_verify(ful::push_back(files, ful::char16{';'})))
 						return; // error
 				}
 			}
@@ -202,22 +211,22 @@ namespace
 
 			debug_verify(::FindClose(hFile) != FALSE, "failed with last error ", ::GetLastError());
 
-			pattern.reduce(subdir.size() + 1); // * is one character
+			reduce(pattern, pattern.begin() + dirpath.size());
 		}
 
 		if (!empty(files))
 		{
-			files.reduce(1); // trailing ;
+			files.reduce(files.end() - 1); // trailing ;
 		}
 	}
 
-	bool read_file(engine::file::system_impl & impl, utility::heap_string_utfw & filepath, std::uint32_t root, engine::file::read_callback * callback, utility::any & data, FILETIME & last_write_time)
+	bool read_file(engine::file::system_impl & impl, ful::heap_string_utfw & filepath, std::uint32_t root, engine::file::read_callback * callback, utility::any & data, FILETIME & last_write_time)
 	{
 		HANDLE hFile = ::CreateFileW(filepath.data(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
-			debug_expression(const auto error = ::GetLastError());
-			debug_inform(hFile != INVALID_HANDLE_VALUE, "CreateFileW(\"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\") failed with last error ", error);
+			const auto error = ::GetLastError();
+			debug_informw(hFile != INVALID_HANDLE_VALUE, L"CreateFileW(\"", filepath, L"\") failed with last error ", error);
 			return debug_verify((error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND || error == ERROR_SHARING_VIOLATION));
 		}
 
@@ -234,12 +243,13 @@ namespace
 			last_write_time = by_handle_file_information.ftLastWriteTime;
 		}
 
-		utility::heap_string_utf8 relpath;
-		if (!debug_verify(utility::try_narrow(utility::string_points_utfw(filepath.data() + root, filepath.data() + filepath.size()), relpath)))
+		ful::heap_string_utf8 relpath;
+		if (!debug_verify(convert(filepath.data() + root, filepath.data() + filepath.size(), relpath)))
 			return false; // error
 
 		core::file::backslash_to_slash(relpath);
 
+		ful::cstr_utf8 relpath_(relpath);
 		core::ReadStream stream(
 			[](void * dest, ext::usize n, void * data)
 		{
@@ -252,7 +262,7 @@ namespace
 			return ext::ssize(read);
 		},
 			reinterpret_cast<void *>(hFile),
-			std::move(relpath));
+			relpath_);
 
 		engine::file::system filesystem(impl);
 		callback(filesystem, std::move(stream), data);
@@ -263,7 +273,7 @@ namespace
 		return true;
 	}
 
-	bool write_file(engine::file::system_impl & impl, utility::heap_string_utfw & filepath, std::uint32_t root, engine::file::write_callback * callback, utility::any & data, bool append, bool overwrite)
+	bool write_file(engine::file::system_impl & impl, ful::heap_string_utfw & filepath, std::uint32_t root, engine::file::write_callback * callback, utility::any & data, bool append, bool overwrite)
 	{
 		DWORD dwCreationDisposition = CREATE_NEW;
 		DWORD dwDesiredAccess = GENERIC_WRITE;
@@ -279,17 +289,18 @@ namespace
 		HANDLE hFile = ::CreateFileW(filepath.data(), dwDesiredAccess, 0, nullptr, dwCreationDisposition, FILE_ATTRIBUTE_NORMAL, nullptr);
 		if (hFile == INVALID_HANDLE_VALUE)
 		{
-			debug_expression(const auto error = ::GetLastError());
-			debug_inform(hFile != INVALID_HANDLE_VALUE, "CreateFileW(\"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\") failed with last error ", error);
+			const auto error = ::GetLastError();
+			debug_informw(hFile != INVALID_HANDLE_VALUE, L"CreateFileW(\"", filepath, L"\") failed with last error ", error);
 			return debug_verify(error == ERROR_FILE_EXISTS);
 		}
 
-		utility::heap_string_utf8 relpath;
-		if (!debug_verify(utility::try_narrow(utility::string_points_utfw(filepath.data() + root, filepath.data() + filepath.size()), relpath)))
+		ful::heap_string_utf8 relpath;
+		if (!debug_verify(convert(filepath.data() + root, filepath.data() + filepath.size(), relpath)))
 			return false; // error
 
 		core::file::backslash_to_slash(relpath);
 
+		ful::cstr_utf8 relpath_(relpath);
 		core::WriteStream stream(
 			[](const void * src, ext::usize n, void * data)
 		{
@@ -302,7 +313,7 @@ namespace
 			return ext::ssize(written);
 		},
 			reinterpret_cast<void *>(hFile),
-			std::move(relpath));
+			relpath_);
 
 		engine::file::system filesystem(impl);
 		callback(filesystem, std::move(stream), std::move(data));
@@ -313,14 +324,14 @@ namespace
 		return true;
 	}
 
-	void purge_temporary_directory(utility::heap_string_utfw & filepath)
+	void purge_temporary_directory(ful::heap_string_utfw & filepath)
 	{
-		if (!debug_assert(back(filepath) == L'\\'))
+		if (!debug_assert(filepath.data()[filepath.size() - 1] == L'\\'))
 			return;
 
 		filepath.data()[filepath.size() - 1] = L'\0';
 
-		debug_printline("removing temporary directory \"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\"");
+		debug_printlinew(L"removing temporary directory \"", filepath, L"\"");
 
 		SHFILEOPSTRUCTW op =
 		{
@@ -339,7 +350,7 @@ namespace
 		debug_verify((ret == 0 && op.fAnyOperationsAborted == FALSE), "SHFileOperationW failed with return value ", ret);
 	}
 
-	utility::const_string_iterator<utility::boundary_unit_utf8> check_filepath(utility::const_string_iterator<utility::boundary_unit_utf8> begin, utility::const_string_iterator<utility::boundary_unit_utf8> end)
+	const ful::unit_utf8 * check_filepath(const ful::unit_utf8 * begin, const ful::unit_utf8 * end)
 	{
 		// todo disallow windows absolute paths
 
@@ -347,7 +358,7 @@ namespace
 
 		while (true)
 		{
-			const auto slash = find(begin, end, '/');
+			const auto slash = ful::find(begin, end, ful::char8{'/'});
 			if (slash == begin)
 				return slash; // note this disallows linux absolute paths
 
@@ -372,12 +383,12 @@ namespace
 		return end;
 	}
 
-	bool validate_filepath(utility::string_units_utf8 str)
+	bool validate_filepath(ful::view_utf8 str)
 	{
 		return check_filepath(str.begin(), str.end()) == str.end();
 	}
 
-	bool add_file(utility::heap_string_utfw & files, utility::string_units_utfw subdir, utility::string_units_utfw filename)
+	bool add_file(ful::heap_string_utfw & files, ful::view_utfw subdir, ful::view_utfw filename)
 	{
 		auto begin = files.begin();
 		const auto end = files.end();
@@ -385,11 +396,11 @@ namespace
 		{
 			while (true)
 			{
-				const auto split = find(begin, end, L';');
-				if (utility::starts_with(begin, end, subdir))
+				const auto split = ful::find(begin, end, ful::char16{';'});
+				if (starts_with(begin, end, subdir))
 				{
 					const auto dir_skip = begin + subdir.size();
-					if (utility::string_units_utfw(dir_skip, split) == filename)
+					if (ful::view_utfw(dir_skip, split) == filename)
 						return false; // already added
 				}
 
@@ -399,21 +410,22 @@ namespace
 				begin = split + 1; // skip ;
 			}
 
-			if (!debug_verify(files.try_push_back(L';')))
+			if (!debug_verify(ful::push_back(files, ful::char16{';'})))
 				return false;
 		}
 
-		if (!(debug_verify(files.try_append(subdir)) &&
-		      debug_verify(files.try_append(filename))))
+		if (!(debug_verify(ful::append(files, subdir)) &&
+		      debug_verify(ful::append(files, filename))))
 		{
-			files.erase(begin == end ? files.begin() : rfind(files, L';'), files.end());
+			// todo ?
+			files.erase(begin == end ? files.begin() : rfind(files, ful::char16{';'}), files.end());
 			return false;
 		}
 
 		return true;
 	}
 
-	bool remove_file(utility::heap_string_utfw & files, utility::string_units_utfw subdir, utility::string_units_utfw filename)
+	bool remove_file(ful::heap_string_utfw & files, ful::view_utfw subdir, ful::view_utfw filename)
 	{
 		auto begin = files.begin();
 		const auto end = files.end();
@@ -421,13 +433,13 @@ namespace
 		auto prev_split = begin;
 		while (true)
 		{
-			const auto split = find(begin, end, L';');
+			const auto split = ful::find(begin, end, ful::char16{';'});
 			if (split == end)
 				break;
 
 			const auto next_begin = split + 1; // skip ;
 
-			if (starts_with(begin, split, subdir) && utility::string_units_utfw(begin + subdir.size(), split) == filename)
+			if (starts_with(begin, split, subdir) && ful::view_utfw(begin + subdir.size(), split) == filename)
 			{
 				files.erase(begin, next_begin);
 
@@ -438,7 +450,7 @@ namespace
 			begin = next_begin;
 		}
 
-		if (starts_with(begin, end, subdir) && utility::string_units_utfw(begin + subdir.size(), end) == filename)
+		if (starts_with(begin, end, subdir) && ful::view_utfw(begin + subdir.size(), end) == filename)
 		{
 			files.erase(prev_split, end);
 
@@ -448,7 +460,7 @@ namespace
 		return false; // already removed
 	}
 
-	void remove_duplicates(utility::heap_string_utfw & files, utility::string_units_utfw duplicates)
+	void remove_duplicates(ful::heap_string_utfw & files, ful::view_utfw duplicates)
 	{
 		auto duplicates_begin = duplicates.begin();
 		const auto duplicates_end = duplicates.end();
@@ -457,11 +469,11 @@ namespace
 		{
 			while (true)
 			{
-				const auto duplicates_split = find(duplicates_begin, duplicates_end, L';');
+				const auto duplicates_split = ful::find(duplicates_begin, duplicates_end, ful::char16{';'});
 				if (!debug_assert(duplicates_split != duplicates_begin, "unexpected file without name"))
 					return; // error
 
-				remove_file(files, L"", utility::string_units_utfw(duplicates_begin, duplicates_split));
+				remove_file(files, ful::view_utfw{}, ful::view_utfw(duplicates_begin, duplicates_split));
 
 				if (duplicates_split == duplicates_end)
 					break;
@@ -497,20 +509,21 @@ namespace engine
 					read_data.last_write_time.dwHighDateTime = DWORD(-1);
 					read_data.last_write_time.dwLowDateTime = DWORD(-1);
 
-					utility::heap_string_utf8 relpath;
-					if (!debug_verify(utility::try_narrow(utility::string_points_utfw(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size()), relpath)))
+					ful::heap_string_utf8 relpath;
+					if (!debug_verify(convert(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size(), relpath)))
 						return; // error
 
 					core::file::backslash_to_slash(relpath);
 
-					core::ReadStream stream(std::move(relpath));
+					ful::cstr_utf8 relpath_(relpath);
+					core::ReadStream stream(relpath_);
 
 					engine::file::system filesystem(read_data.impl);
 					read_data.callback(filesystem, std::move(stream), read_data.data);
 					filesystem.detach();
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(FileReadWork && data)
@@ -539,13 +552,14 @@ namespace engine
 						read_data.last_write_time.dwHighDateTime = DWORD(-1);
 						read_data.last_write_time.dwLowDateTime = DWORD(-1);
 
-						utility::heap_string_utf8 relpath;
-						if (!debug_verify(utility::try_narrow(utility::string_points_utfw(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size()), relpath)))
+						ful::heap_string_utf8 relpath;
+						if (!debug_verify(convert(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size(), relpath)))
 							return; // error
 
 						core::file::backslash_to_slash(relpath);
 
-						core::ReadStream stream(std::move(relpath));
+						ful::cstr_utf8 relpath_(relpath);
+						core::ReadStream stream(relpath_);
 
 						engine::file::system filesystem(read_data.impl);
 						read_data.callback(filesystem, std::move(stream), read_data.data);
@@ -553,7 +567,7 @@ namespace engine
 					}
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanChangeWork && data)
@@ -571,34 +585,36 @@ namespace engine
 					ScanChangeWork && work = utility::any_cast<ScanChangeWork &&>(std::move(data));
 					engine::file::ScanData & scan_data = *work.ptr;
 
-					utility::heap_string_utfw old_files = scan_data.files;
 					// todo garbage callback if copy fails
+					ful::heap_string_utfw old_files;
+					if (!debug_verify(ful::copy(scan_data.files, old_files)))
+						return; // error
 
-					utility::string_units_utfw subdir(work.filepath.begin() + scan_data.dirpath.size(), work.filepath.end());
+					ful::view_utfw subdir(work.filepath.begin() + scan_data.dirpath.size(), work.filepath.end());
 
 					for (const auto & file : work.files)
 					{
-						switch (front(file))
+						switch (file.data()[0])
 						{
 						case '+':
-							add_file(scan_data.files, subdir, utility::string_units_utfw(file.begin() + 1, file.end()));
+							add_file(scan_data.files, subdir, ful::view_utfw(file.begin() + 1, file.end()));
 							break;
 						case '-':
-							remove_file(scan_data.files, subdir, utility::string_units_utfw(file.begin() + 1, file.end()));
+							remove_file(scan_data.files, subdir, ful::view_utfw(file.begin() + 1, file.end()));
 							break;
 						default:
 							debug_unreachable("unknown file change");
 						}
 					}
 
-					remove_duplicates(old_files, scan_data.files);
+					remove_duplicates(old_files, ful::view_utfw(scan_data.files));
 
-					utility::heap_string_utf8 existing_files_utf8;
-					if (!debug_verify(utility::try_narrow(scan_data.files, existing_files_utf8)))
+					ful::heap_string_utf8 existing_files_utf8;
+					if (!debug_verify(ful::convert(scan_data.files, existing_files_utf8)))
 						return; // error
 
-					utility::heap_string_utf8 removed_files_utf8;
-					if (!debug_verify(utility::try_narrow(old_files, removed_files_utf8)))
+					ful::heap_string_utf8 removed_files_utf8;
+					if (!debug_verify(ful::convert(old_files, removed_files_utf8)))
 						return; // error
 
 					core::file::backslash_to_slash(existing_files_utf8);
@@ -609,7 +625,7 @@ namespace engine
 					filesystem.detach();
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanOnceWork && data)
@@ -627,17 +643,17 @@ namespace engine
 					ScanOnceWork && work = utility::any_cast<ScanOnceWork &&>(std::move(data));
 					engine::file::ScanData & scan_data = *work.ptr;
 
-					utility::heap_string_utfw old_files = std::move(scan_data.files);
+					ful::heap_string_utfw old_files = std::move(scan_data.files);
 					scan_directory(scan_data.dirpath, false, scan_data.files);
 
-					remove_duplicates(old_files, scan_data.files);
+					remove_duplicates(old_files, ful::view_utfw(scan_data.files));
 
-					utility::heap_string_utf8 existing_files_utf8;
-					if (!debug_verify(utility::try_narrow(scan_data.files, existing_files_utf8)))
+					ful::heap_string_utf8 existing_files_utf8;
+					if (!debug_verify(convert(scan_data.files, existing_files_utf8)))
 						return; // error
 
-					utility::heap_string_utf8 removed_files_utf8;
-					if (!debug_verify(utility::try_narrow(old_files, removed_files_utf8)))
+					ful::heap_string_utf8 removed_files_utf8;
+					if (!debug_verify(convert(old_files, removed_files_utf8)))
 						return; // error
 
 					core::file::backslash_to_slash(existing_files_utf8);
@@ -648,7 +664,7 @@ namespace engine
 					filesystem.detach();
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanRecursiveWork && data)
@@ -666,17 +682,17 @@ namespace engine
 					ScanRecursiveWork && work = utility::any_cast<ScanRecursiveWork &&>(std::move(data));
 					engine::file::ScanData & scan_data = *work.ptr;
 
-					utility::heap_string_utfw old_files = std::move(scan_data.files);
+					ful::heap_string_utfw old_files = std::move(scan_data.files);
 					scan_directory(scan_data.dirpath, true, scan_data.files);
 
-					remove_duplicates(old_files, scan_data.files);
+					remove_duplicates(old_files, ful::view_utfw(scan_data.files));
 
-					utility::heap_string_utf8 existing_files_utf8;
-					if (!debug_verify(utility::try_narrow(scan_data.files, existing_files_utf8)))
+					ful::heap_string_utf8 existing_files_utf8;
+					if (!debug_verify(convert(scan_data.files, existing_files_utf8)))
 						return; // error
 
-					utility::heap_string_utf8 removed_files_utf8;
-					if (!debug_verify(utility::try_narrow(old_files, removed_files_utf8)))
+					ful::heap_string_utf8 removed_files_utf8;
+					if (!debug_verify(convert(old_files, removed_files_utf8)))
 						return; // error
 
 					core::file::backslash_to_slash(existing_files_utf8);
@@ -687,7 +703,7 @@ namespace engine
 					filesystem.detach();
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(FileWriteWork && data)
@@ -710,13 +726,14 @@ namespace engine
 					}
 					else
 					{
-						utility::heap_string_utf8 relpath;
-						if (!debug_verify(utility::try_narrow(utility::string_points_utfw(write_data.filepath.data() + write_data.root, write_data.filepath.data() + write_data.filepath.size()), relpath)))
+						ful::heap_string_utf8 relpath;
+						if (!debug_verify(convert(write_data.filepath.data() + write_data.root, write_data.filepath.data() + write_data.filepath.size(), relpath)))
 							return; // error
 
 						core::file::backslash_to_slash(relpath);
 
-						core::WriteStream stream(std::move(relpath));
+						ful::cstr_utf8 relpath_(relpath);
+						core::WriteStream stream(relpath_);
 
 						engine::file::system filesystem(write_data.impl);
 						write_data.callback(filesystem, std::move(stream), std::move(write_data.data));
@@ -724,7 +741,7 @@ namespace engine
 					}
 				}
 			},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 	}
 }
@@ -735,7 +752,7 @@ namespace
 	{
 		engine::file::system_impl & impl;
 		engine::Hash alias;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 		engine::Hash parent;
 
 		static void NTAPI Callback(ULONG_PTR Parameter)
@@ -743,14 +760,14 @@ namespace
 			std::unique_ptr<ProcessRegisterDirectory> data(reinterpret_cast<ProcessRegisterDirectory *>(Parameter));
 			ProcessRegisterDirectory & x = *data;
 
-			if (!debug_verify(find(x.impl.aliases, x.alias) == x.impl.aliases.end()))
+			if (!debug_verify(find(x.impl.aliases, engine::Token(x.alias)) == x.impl.aliases.end()))
 				return; // error
 
-			const auto parent_alias_it = find(x.impl.aliases, x.parent);
+			const auto parent_alias_it = find(x.impl.aliases, engine::Token(x.parent));
 			if (!debug_verify(parent_alias_it != x.impl.aliases.end()))
 				return; // error
 
-			if (!debug_verify(validate_filepath(x.filepath)))
+			if (!debug_verify(validate_filepath(ful::view_utf8(x.filepath))))
 				return; // error
 
 			const auto parent_directory_it = find(x.impl.directories, x.impl.aliases.get<Alias>(parent_alias_it)->directory);
@@ -759,23 +776,23 @@ namespace
 
 			const auto & dirpath = x.impl.get_dirpath(parent_directory_it);
 
-			utility::heap_string_utfw filepath;
-			if (!debug_verify(filepath.try_append(dirpath)))
+			ful::heap_string_utfw filepath;
+			if (!debug_verify(ful::append(filepath, dirpath)))
 				return; // error
 
-			if (!debug_verify(utility::try_widen_append(x.filepath, filepath)))
+			if (!debug_verify(convert(x.filepath, filepath)))
 				return; // error
 
 			core::file::slash_to_backslash(filepath.begin() + dirpath.size(), filepath.end());
 
-			if (back(filepath) != L'\\')
+			if (filepath.end()[-1] != L'\\')
 			{
-				if (!debug_verify(filepath.try_push_back(L'\\')))
+				if (!debug_verify(ful::push_back(filepath, ful::char16{'\\'})))
 					return; // error
 			}
 
-			const auto directory_asset = make_asset(filepath);
-			const auto directory_it = find(x.impl.directories, directory_asset);
+			const auto directory_asset = make_asset(ful::view_utfw(filepath));
+			const auto directory_it = find(x.impl.directories, engine::Token(directory_asset));
 			if (directory_it != x.impl.directories.end())
 			{
 				const auto directory_ptr = x.impl.directories.get<Directory>(directory_it);
@@ -786,11 +803,11 @@ namespace
 			}
 			else
 			{
-				if (!debug_verify(x.impl.directories.emplace<Directory>(directory_asset, std::move(filepath))))
+				if (!debug_verify(x.impl.directories.emplace<Directory>(engine::Token(directory_asset), std::move(filepath))))
 					return; // error
 			}
 
-			if (!debug_verify(x.impl.aliases.emplace<Alias>(x.alias, directory_asset)))
+			if (!debug_verify(x.impl.aliases.emplace<Alias>(engine::Token(x.alias), engine::Token(directory_asset))))
 				return; // error
 		}
 	};
@@ -806,40 +823,45 @@ namespace
 			ProcessRegisterTemporaryDirectory & x = *data;
 
 			// todo generate directory name some other way
-			utility::static_string_utfw<(MAX_PATH + 1 + 1)> temppath(MAX_PATH + 1); // GetTempPathW returns at most (MAX_PATH + 1) (not counting null terminator)
-			if (!debug_verify(::GetTempPathW(MAX_PATH + 1 + 1, temppath.data()) != 0, "failed with last error ", ::GetLastError()))
+			ful::static_string_utfw<(MAX_PATH + 1)> temppath; // GetTempPathW returns at most (MAX_PATH + 1) (not counting null terminator)
+			const auto ntemppath = ::GetTempPathW(MAX_PATH + 1 + 1, temppath.data()); // todo GetTempPath2W
+			if (!debug_verify(ntemppath != 0, "failed with last error ", ::GetLastError()))
 				return;
 
-			utility::static_string_utfw<MAX_PATH> tempfilepath(MAX_PATH - 1); // GetTempFileNameW returns at most MAX_PATH (including null terminator)
+			reduce(temppath, temppath.begin() + ntemppath);
+
+			ful::static_string_utfw<(MAX_PATH - 1)> tempfilepath; // GetTempFileNameW returns at most MAX_PATH (including null terminator)
 			if (!debug_verify(::GetTempFileNameW(temppath.data(), L"unn", 0, tempfilepath.data()) != 0, "failed with last error ", ::GetLastError()))
 				return;
+
+			ful::reduce(tempfilepath, ful::strend(tempfilepath.data()));
 
 			if (!debug_verify(::DeleteFileW(tempfilepath.data()) != FALSE, "failed with last error ", ::GetLastError()))
 				return;
 
-			utility::heap_string_utfw filepath;
-			if (!debug_verify(filepath.try_append(static_cast<const wchar_t *>(tempfilepath.data()))))
+			ful::heap_string_utfw filepath;
+			if (!debug_verify(ful::append(filepath, tempfilepath)))
 				return; // error
 
 			if (!debug_verify(::CreateDirectoryW(filepath.data(), nullptr) != FALSE, "failed with last error ", ::GetLastError()))
 				return;
 
-			debug_printline("created temporary directory \"", utility::heap_narrow<utility::encoding_utf8>(filepath), "\"");
+			debug_printlinew(L"created temporary directory \"", filepath, L"\"");
 
-			if (!debug_verify(filepath.try_push_back(L'\\')))
+			if (!debug_verify(ful::push_back(filepath, ful::char16{'\\'})))
 			{
 				purge_temporary_directory(filepath);
 				return; // error
 			}
 
-			const auto directory_asset = make_asset(filepath);
-			if (!debug_verify(x.impl.directories.emplace<TemporaryDirectory>(directory_asset, std::move(filepath))))
+			const auto directory_asset = make_asset(ful::view_utfw(filepath));
+			if (!debug_verify(x.impl.directories.emplace<TemporaryDirectory>(engine::Token(directory_asset), std::move(filepath))))
 			{
 				purge_temporary_directory(filepath);
 				return; // error
 			}
 
-			if (!debug_verify(x.impl.aliases.emplace<Alias>(x.alias, directory_asset)))
+			if (!debug_verify(x.impl.aliases.emplace<Alias>(engine::Token(x.alias), engine::Token(directory_asset))))
 				return; // error
 		}
 	};
@@ -854,7 +876,7 @@ namespace
 			std::unique_ptr<ProcessUnregisterDirectory> data(reinterpret_cast<ProcessUnregisterDirectory *>(Parameter));
 			ProcessUnregisterDirectory & x = *data;
 
-			const auto alias_it = find(x.impl.aliases, x.alias);
+			const auto alias_it = find(x.impl.aliases, engine::Token(x.alias));
 			if (!debug_verify(alias_it != x.impl.aliases.end(), "alias does not exist"))
 				return; // error
 
@@ -892,7 +914,7 @@ namespace
 		engine::file::system_impl & impl;
 		engine::Token id;
 		engine::Hash directory;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 		engine::Hash strand;
 		engine::file::read_callback * callback;
 		utility::any data;
@@ -903,7 +925,7 @@ namespace
 			std::unique_ptr<ProcessRead> data(reinterpret_cast<ProcessRead *>(Parameter));
 			ProcessRead & x = *data;
 
-			const auto alias_it = find(x.impl.aliases, x.directory);
+			const auto alias_it = find(x.impl.aliases, engine::Token(x.directory));
 			if (!debug_verify(alias_it != x.impl.aliases.end()))
 				return; // error
 
@@ -917,11 +939,11 @@ namespace
 
 			const auto & dirpath = x.impl.get_dirpath(directory_it);
 
-			utility::heap_string_utfw filepath;
-			if (!debug_verify(filepath.try_append(dirpath)))
+			ful::heap_string_utfw filepath;
+			if (!debug_verify(ful::append(filepath, dirpath)))
 				return; // error
 
-			if (!debug_verify(utility::try_widen_append(x.filepath, filepath)))
+			if (!debug_verify(convert(x.filepath, filepath)))
 				return; // error
 
 			core::file::slash_to_backslash(filepath.begin() + dirpath.size(), filepath.end());
@@ -968,7 +990,7 @@ namespace
 			std::unique_ptr<ProcessScan> data(reinterpret_cast<ProcessScan *>(Parameter));
 			ProcessScan & x = *data;
 
-			const auto alias_it = find(x.impl.aliases, x.directory);
+			const auto alias_it = find(x.impl.aliases, engine::Token(x.directory));
 			if (!debug_verify(alias_it != x.impl.aliases.end()))
 				return; // error
 
@@ -980,9 +1002,11 @@ namespace
 			if (!debug_assert(directory_it != x.impl.directories.end()))
 				return;
 
-			const auto & dirpath = x.impl.get_dirpath(directory_it);
+			ful::heap_string_utfw dirpath;
+			if (!debug_verify(ful::copy(x.impl.get_dirpath(directory_it), dirpath)))
+				return; // error
 
-			ext::heap_shared_ptr<engine::file::ScanData> ptr(utility::in_place, x.impl, dirpath, x.directory, x.strand, x.callback, std::move(x.data), utility::heap_string_utfw());
+			ext::heap_shared_ptr<engine::file::ScanData> ptr(utility::in_place, x.impl, std::move(dirpath), x.directory, x.strand, x.callback, std::move(x.data), ful::heap_string_utfw());
 			if (!debug_verify(ptr))
 				return; // error
 
@@ -1006,7 +1030,7 @@ namespace
 	{
 		engine::file::system_impl & impl;
 		engine::Hash directory;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 		engine::Hash strand;
 		engine::file::write_callback * callback;
 		utility::any data;
@@ -1017,7 +1041,7 @@ namespace
 			std::unique_ptr<ProcessWrite> data(reinterpret_cast<ProcessWrite *>(Parameter));
 			ProcessWrite & x = *data;
 
-			const auto alias_it = find(x.impl.aliases, x.directory);
+			const auto alias_it = find(x.impl.aliases, engine::Token(x.directory));
 			if (!debug_verify(alias_it != x.impl.aliases.end()))
 				return; // error
 
@@ -1031,39 +1055,39 @@ namespace
 
 			const auto & dirpath = x.impl.get_dirpath(directory_it);
 
-			utility::heap_string_utfw filepath;
-			if (!debug_verify(filepath.try_append(dirpath)))
+			ful::heap_string_utfw filepath;
+			if (!debug_verify(ful::append(filepath, dirpath)))
 				return; // error
 
-			if (!debug_verify(utility::try_widen_append(x.filepath, filepath)))
+			if (!debug_verify(convert(x.filepath, filepath)))
 				return; // error
 
 			core::file::slash_to_backslash(filepath.begin() + dirpath.size(), filepath.end());
 
-			ext::heap_shared_ptr<engine::file::WriteData> ptr(utility::in_place, x.impl, filepath, static_cast<std::uint32_t>(dirpath.size()), x.strand, x.callback, std::move(x.data), static_cast<bool>(x.mode & engine::file::flags::APPEND_EXISTING), static_cast<bool>(x.mode & engine::file::flags::OVERWRITE_EXISTING));
+			ext::heap_shared_ptr<engine::file::WriteData> ptr(utility::in_place, x.impl, std::move(filepath), static_cast<std::uint32_t>(dirpath.size()), x.strand, x.callback, std::move(x.data), static_cast<bool>(x.mode & engine::file::flags::APPEND_EXISTING), static_cast<bool>(x.mode & engine::file::flags::OVERWRITE_EXISTING));
 			if (!debug_verify(ptr))
 				return; // error
 
 			if (x.mode & engine::file::flags::CREATE_DIRECTORIES)
 			{
-				auto begin = filepath.begin() + dirpath.size();
-				const auto end = filepath.end();
+				auto begin = ptr->filepath.begin() + dirpath.size();
+				const auto end = ptr->filepath.end();
 
 				while (true)
 				{
-					const auto slash = find(begin, end, L'\\');
+					const auto slash = ful::find(begin, end, ful::char16{'\\'});
 					if (slash == end)
 						break;
 
-					*slash = L'\0';
+					*slash = ful::char16{};
 
-					if (CreateDirectoryW(filepath.data(), nullptr) == 0)
+					if (CreateDirectoryW(ptr->filepath.data(), nullptr) == 0)
 					{
 						if (!debug_verify(::GetLastError() == ERROR_ALREADY_EXISTS))
 							return; // error
 					}
 
-					*slash = L'\\';
+					*slash = ful::char16{'\\'};
 
 					begin = slash + 1;
 				}
@@ -1128,7 +1152,7 @@ namespace engine
 			if (!debug_verify(len != 0, ::GetLastError()))
 				return dir;
 
-			if (!debug_verify(dir.filepath_.try_resize(len)))
+			if (!debug_verify(resize(dir.filepath_, len)))
 				return dir;
 
 			if (!debug_verify(::GetCurrentDirectoryW(len, dir.filepath_.data()) != 0, ::GetLastError()))
@@ -1158,15 +1182,15 @@ namespace engine
 			{
 				impl->taskscheduler = &taskscheduler;
 
-				const auto root_asset = make_asset(root.filepath_);
+				const auto root_asset = make_asset(ful::view_utfw(root.filepath_));
 
-				if (!debug_verify(impl->directories.emplace<Directory>(root_asset, std::move(root.filepath_))))
+				if (!debug_verify(impl->directories.emplace<Directory>(engine::Token(root_asset), std::move(root.filepath_))))
 				{
 					destroy_impl(*impl);
 					return nullptr;
 				}
 
-				if (!debug_verify(impl->aliases.emplace<Alias>(engine::file::working_directory, root_asset)))
+				if (!debug_verify(impl->aliases.emplace<Alias>(engine::Token(engine::file::working_directory), engine::Token(root_asset))))
 				{
 					destroy_impl(*impl);
 					return nullptr;
@@ -1194,7 +1218,7 @@ namespace engine
 		void register_directory(
 			system & system,
 			engine::Hash name,
-			utility::heap_string_utf8 && filepath,
+			ful::heap_string_utf8 && filepath,
 			engine::Hash parent)
 		{
 			try_queue_apc<ProcessRegisterDirectory>(system->hThread, *system, name, std::move(filepath), parent);
@@ -1218,7 +1242,7 @@ namespace engine
 			system & system,
 			engine::Token id,
 			engine::Hash directory,
-			utility::heap_string_utf8 && filepath,
+			ful::heap_string_utf8 && filepath,
 			engine::Hash strand,
 			read_callback * callback,
 			utility::any && data,
@@ -1249,7 +1273,7 @@ namespace engine
 		void write(
 			system & system,
 			engine::Hash directory,
-			utility::heap_string_utf8 && filepath,
+			ful::heap_string_utf8 && filepath,
 			engine::Hash strand,
 			write_callback * callback,
 			utility::any && data,

@@ -72,7 +72,7 @@ namespace core
 			member_table<T>::for_each_member(x, [&](const auto& name, const auto& y){ write_(j[std::string(name.begin(), name.end())], y); } );
 		}
 
-		void write_string(json & j, const utility::string_units_utf8 & x)
+		void write_string(json & j, const ful::view_utf8 & x)
 		{
 			j = std::string(x.begin(), x.end());
 		}

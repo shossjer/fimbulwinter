@@ -91,8 +91,6 @@ namespace engine
 				renderThread = core::async::Thread{ opengl_30::run };
 				break;
 #endif
-			case Type::DUMMY_HACK:
-				break;
 			}
 		}
 

@@ -33,7 +33,10 @@ namespace ext
 	template <typename Range, typename Predicate>
 	auto remove_if(Range && range, Predicate && predicate)
 	{
-		return ext::remove_if(utility::begin(std::forward<Range>(range)), utility::end(std::forward<Range>(range)), std::forward<Predicate>(predicate));
+		using ext::begin;
+		using ext::end;
+
+		return ext::remove_if(begin(std::forward<Range>(range)), end(std::forward<Range>(range)), std::forward<Predicate>(predicate));
 	}
 
 	// note this algorithm is different from the standard algorithm
@@ -77,6 +80,9 @@ namespace ext
 	template <typename Range, typename OutputIt, typename Predicate>
 	auto remove_copy_if(Range && from, OutputIt to, Predicate && predicate)
 	{
-		return ext::remove_copy_if(utility::begin(std::forward<Range>(from)), utility::end(std::forward<Range>(from)), to, std::forward<Predicate>(predicate));
+		using ext::begin;
+		using ext::end;
+
+		return ext::remove_copy_if(begin(std::forward<Range>(from)), end(std::forward<Range>(from)), to, std::forward<Predicate>(predicate));
 	}
 }

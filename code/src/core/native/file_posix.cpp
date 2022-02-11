@@ -2,8 +2,7 @@
 
 #if FILE_SYSTEM_USE_POSIX
 
-#include "file.hpp"
-
+#include "core/native/file.hpp"
 #include "core/ReadStream.hpp"
 
 #include "utility/ext/unistd.hpp"
@@ -16,9 +15,9 @@ namespace core
 {
 	namespace native
 	{
-		bool try_read_file(utility::heap_string_utf8 && filepath, void (* callback)(core::ReadStream && stream, void * data), void * data)
+		bool try_read_file(ful::cstr_utf8 filepath, void (* callback)(core::ReadStream && stream, void * data), void * data)
 		{
-			const int fd = ::open(filepath.data(), O_RDONLY);
+			const int fd = ::open(filepath.c_str(), O_RDONLY);
 			if (fd == -1)
 			{
 				debug_assert(errno == ENOENT, "open \"", filepath, "\" failed with errno ", errno);

@@ -3,7 +3,8 @@
 #include "core/debug.hpp"
 
 #include "utility/ext/stddef.hpp"
-#include "utility/unicode/string.hpp"
+
+#include "ful/cstr.hpp"
 
 namespace core
 {
@@ -17,24 +18,24 @@ namespace core
 		bool done_;
 		bool fail_;
 
-		utility::heap_string_utf8 filepath_;
+		ful::cstr_utf8 filepath_;
 
 	public:
 
-		explicit ReadStream(utility::heap_string_utf8 && filepath)
+		explicit ReadStream(ful::cstr_utf8 filepath)
 			: callback_(nullptr)
 			, data_(nullptr)
 			, done_(true)
 			, fail_(true)
-			, filepath_(static_cast<utility::heap_string_utf8 &&>(filepath))
+			, filepath_(filepath)
 		{}
 
-		explicit ReadStream(ext::ssize (* callback)(void * dest, ext::usize n, void * data), void * data, utility::heap_string_utf8 && filepath)
+		explicit ReadStream(ext::ssize (* callback)(void * dest, ext::usize n, void * data), void * data, ful::cstr_utf8 filepath)
 			: callback_(callback)
 			, data_(data)
 			, done_(false)
 			, fail_(false)
-			, filepath_(static_cast<utility::heap_string_utf8 &&>(filepath))
+			, filepath_(filepath)
 		{}
 
 	public:
@@ -117,6 +118,6 @@ namespace core
 			return size - remaining;
 		}
 
-		const utility::heap_string_utf8 & filepath() const { return filepath_; }
+		ful::cstr_utf8 filepath() const { return filepath_; }
 	};
 }

@@ -18,6 +18,10 @@
 #include "utility/ext/unistd.hpp"
 #include "utility/optional.hpp"
 #include "utility/shared_ptr.hpp"
+#include "utility/spinlock.hpp"
+
+#include "ful/string_modify.hpp"
+#include "ful/string_search.hpp"
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -27,17 +31,19 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <mutex>
+
 static_hashes("_working directory_");
 
 namespace
 {
 	struct Directory
 	{
-		utility::heap_string_utf8 dirpath;
+		ful::heap_string_utf8 dirpath;
 
 		ext::ssize share_count;
 
-		explicit Directory(utility::heap_string_utf8 && dirpath)
+		explicit Directory(ful::heap_string_utf8 && dirpath)
 			: dirpath(std::move(dirpath))
 			, share_count(0)
 		{}
@@ -45,16 +51,16 @@ namespace
 
 	struct TemporaryDirectory
 	{
-		utility::heap_string_utf8 dirpath;
+		ful::heap_string_utf8 dirpath;
 
-		explicit TemporaryDirectory(utility::heap_string_utf8 && dirpath)
+		explicit TemporaryDirectory(ful::heap_string_utf8 && dirpath)
 			: dirpath(std::move(dirpath))
 		{}
 	};
 
 	struct Alias
 	{
-		engine::Hash directory;
+		engine::Token directory;
 	};
 }
 
@@ -70,7 +76,7 @@ namespace engine
 
 			core::container::Collection
 			<
-				engine::Hash,
+				engine::Token,
 				utility::heap_storage_traits,
 				utility::heap_storage<Directory>,
 				utility::heap_storage<TemporaryDirectory>
@@ -79,7 +85,7 @@ namespace engine
 
 			core::container::Collection
 			<
-				engine::Hash,
+				engine::Token,
 				utility::heap_storage_traits,
 				utility::heap_storage<Alias>
 			>
@@ -88,9 +94,9 @@ namespace engine
 			int pipe[2];
 			core::async::Thread thread;
 
-			const utility::heap_string_utf8 & get_dirpath(decltype(directories)::const_iterator it)
+			const ful::heap_string_utf8 & get_dirpath(decltype(directories)::const_iterator it)
 			{
-				return directories.call(it, [](const auto & x) -> const utility::heap_string_utf8 & { return x.dirpath; });
+				return directories.call(it, [](const auto & x) -> const ful::heap_string_utf8 & { return x.dirpath; });
 			}
 		};
 	}
@@ -123,14 +129,14 @@ namespace
 
 namespace
 {
-	void scan_directory(const utility::heap_string_utf8 & dirpath, bool recurse, utility::heap_string_utf8 & files)
+	void scan_directory(const ful::heap_string_utf8 & dirpath, bool recurse, ful::heap_string_utf8 & files)
 	{
-		utility::heap_vector<utility::heap_string_utf8> subdirs;
+		utility::heap_vector<ful::heap_string_utf8> subdirs;
 		if (!debug_verify(subdirs.try_emplace_back()))
 			return;
 
-		utility::heap_string_utf8 pattern;
-		if (!debug_verify(pattern.try_append(dirpath)))
+		ful::heap_string_utf8 pattern;
+		if (!debug_verify(ful::append(pattern, dirpath)))
 			return; // error
 
 		while (!ext::empty(subdirs))
@@ -138,7 +144,7 @@ namespace
 			auto subdir = ext::back(std::move(subdirs));
 			ext::pop_back(subdirs);
 
-			if (!debug_verify(pattern.try_append(subdir)))
+			if (!debug_verify(ful::append(pattern, subdir)))
 				return; // error
 
 			DIR * const dir = ::opendir(pattern.data());
@@ -165,25 +171,25 @@ namespace
 
 						auto & dir = ext::back(subdirs);
 
-						if (!debug_verify(dir.try_append(subdir)))
+						if (!debug_verify(ful::append(dir, subdir)))
 							return; // error
 
-						if (!debug_verify(dir.try_append(const_cast<const char *>(entry->d_name))))
+						if (!debug_verify(ful::append(dir, entry->d_name + 0, ful::strend(entry->d_name))))
 							return; // error
 
-						if (!debug_verify(dir.try_push_back('/')))
+						if (!debug_verify(ful::push_back(dir, ful::char8{'/'})))
 							return; // error
 					}
 				}
 				else
 				{
-					if (!debug_verify(files.try_append(subdir)))
+					if (!debug_verify(ful::append(files, subdir)))
 						return; // error
 
-					if (!debug_verify(files.try_append(const_cast<const char *>(entry->d_name))))
+					if (!debug_verify(ful::append(files, entry->d_name + 0, ful::strend(entry->d_name))))
 						return; // error
 
-					if (!debug_verify(files.try_push_back(';')))
+					if (!debug_verify(ful::push_back(files, ful::char8{';'})))
 						return; // error
 				}
 			}
@@ -192,16 +198,16 @@ namespace
 
 			debug_verify(::closedir(dir) != -1, "failed with errno ", errno);
 
-			pattern.reduce(subdir.size());
+			ful::reduce(pattern, pattern.begin() + dirpath.size());
 		}
 
 		if (!empty(files))
 		{
-			files.reduce(1); // trailing ;
+			files.reduce(files.end() - 1); // trailing ;
 		}
 	}
 
-	bool read_file(engine::file::system_impl & impl, utility::heap_string_utf8 & filepath, std::uint32_t root, engine::file::read_callback * callback, utility::any & data)
+	bool read_file(engine::file::system_impl & impl, ful::heap_string_utf8 & filepath, std::uint32_t root, engine::file::read_callback * callback, utility::any & data)
 	{
 		// note updating access time takes time, so let's not (O_NOATIME)
 		const int fd = ::open(filepath.data(), O_RDONLY | O_NOATIME);
@@ -220,29 +226,26 @@ namespace
 			}
 		}
 
-		utility::heap_string_utf8 relpath;
-		if (debug_verify(relpath.try_append(filepath.data() + root, filepath.size() - root)))
-		{
-			core::ReadStream stream(
-				[](void * dest, ext::usize n, void * data)
-				{
-					const int fd = static_cast<int>(reinterpret_cast<std::intptr_t>(data));
+		ful::cstr_utf8 relpath_(filepath.data() + root, filepath.data() + filepath.size());
+		core::ReadStream stream(
+			[](void * dest, ext::usize n, void * data)
+			{
+				const int fd = static_cast<int>(reinterpret_cast<std::intptr_t>(data));
 
-					return ext::read_some_nonzero(fd, dest, n);
-				},
-				reinterpret_cast<void *>(fd),
-				std::move(relpath));
+				return ext::read_some_nonzero(fd, dest, n);
+			},
+			reinterpret_cast<void *>(fd),
+			relpath_);
 
-			engine::file::system filesystem(impl);
-			callback(filesystem, std::move(stream), data);
-			filesystem.detach();
-		}
+		engine::file::system filesystem(impl);
+		callback(filesystem, std::move(stream), data);
+		filesystem.detach();
 
 		debug_verify(::close(fd) != -1, "failed with errno ", errno);
 		return true;
 	}
 
-	bool write_file(engine::file::system_impl & impl, utility::heap_string_utf8 & filepath, std::uint32_t root, engine::file::write_callback * callback, utility::any & data, bool append, bool overwrite)
+	bool write_file(engine::file::system_impl & impl, ful::heap_string_utf8 & filepath, std::uint32_t root, engine::file::write_callback * callback, utility::any & data, bool append, bool overwrite)
 	{
 		// todo define _FILE_OFFSET_BITS 64 (see open(2))
 
@@ -273,29 +276,26 @@ namespace
 			}
 		}
 
-		utility::heap_string_utf8 relpath;
-		if (debug_verify(relpath.try_append(filepath.data() + root, filepath.size() - root)))
-		{
-			core::WriteStream stream(
-				[](const void * src, ext::usize n, void * data)
-				{
-					const int fd = static_cast<int>(reinterpret_cast<std::intptr_t>(data));
+		ful::cstr_utf8 relpath_(filepath.data() + root, filepath.data() + filepath.size());
+		core::WriteStream stream(
+			[](const void * src, ext::usize n, void * data)
+			{
+				const int fd = static_cast<int>(reinterpret_cast<std::intptr_t>(data));
 
-					return ext::write_some_nonzero(fd, src, n);
-				},
-				reinterpret_cast<void *>(fd),
-				std::move(relpath));
+				return ext::write_some_nonzero(fd, src, n);
+			},
+			reinterpret_cast<void *>(fd),
+			relpath_);
 
-			engine::file::system filesystem(impl);
-			callback(filesystem, std::move(stream), std::move(data));
-			filesystem.detach();
-		}
+		engine::file::system filesystem(impl);
+		callback(filesystem, std::move(stream), std::move(data));
+		filesystem.detach();
 
 		debug_verify(::close(fd) != -1, "failed with errno ", errno);
 		return true;
 	}
 
-	void purge_temporary_directory(const utility::heap_string_utf8 & filepath)
+	void purge_temporary_directory(const ful::heap_string_utf8 & filepath)
 	{
 		debug_printline("removing temporary directory \"", filepath, "\"");
 		// todo replace nftw
@@ -323,7 +323,7 @@ namespace
 			!= -1, "failed to remove temporary directory \"", filepath, "\"");
 	}
 
-	utility::const_string_iterator<utility::boundary_unit_utf8> check_filepath(utility::const_string_iterator<utility::boundary_unit_utf8> begin, utility::const_string_iterator<utility::boundary_unit_utf8> end)
+	const ful::unit_utf8 * check_filepath(const ful::unit_utf8 * begin, const ful::unit_utf8 * end)
 	{
 		// todo disallow windows absolute paths
 
@@ -331,7 +331,7 @@ namespace
 
 		while (true)
 		{
-			const auto slash = find(begin, end, '/');
+			const auto slash = ful::find(begin, end, ful::char8{'/'});
 			if (slash == begin)
 				return slash; // note this disallows linux absolute paths
 
@@ -356,12 +356,12 @@ namespace
 		return end;
 	}
 
-	bool validate_filepath(utility::string_units_utf8 str)
+	bool validate_filepath(ful::view_utf8 str)
 	{
 		return check_filepath(str.begin(), str.end()) == str.end();
 	}
 
-	bool add_file(utility::heap_string_utf8 & files, utility::string_units_utf8 subdir, utility::string_units_utf8 filename)
+	bool add_file(ful::heap_string_utf8 & files, ful::view_utf8 subdir, ful::view_utf8 filename)
 	{
 		auto begin = files.begin();
 		const auto end = files.end();
@@ -369,11 +369,11 @@ namespace
 		{
 			while (true)
 			{
-				const auto split = find(begin, end, ';');
-				if (utility::starts_with(begin, end, subdir))
+				const auto split = ful::find(begin, end, ful::char8{';'});
+				if (ful::starts_with(begin, end, subdir))
 				{
 					const auto dir_skip = begin + subdir.size();
-					if (utility::string_units_utf8(dir_skip, split) == filename)
+					if (ful::view_utf8(dir_skip, split) == filename)
 						return false; // already added
 				}
 
@@ -383,21 +383,21 @@ namespace
 				begin = split + 1; // skip ;
 			}
 
-			if (!debug_verify(files.try_push_back(';')))
+			if (!debug_verify(ful::push_back(files, ful::char8{';'})))
 				return false;
 		}
 
-		if (!(debug_verify(files.try_append(subdir)) &&
-		      debug_verify(files.try_append(filename))))
+		if (!(debug_verify(ful::append(files, subdir)) &&
+		      debug_verify(ful::append(files, filename))))
 		{
-			files.erase(begin == end ? files.begin() : rfind(files, ';'), files.end());
+			files.erase(begin == end ? files.begin() : ful::rfind(files, ful::char8{';'}), files.end());
 			return false;
 		}
 
 		return true;
 	}
 
-	bool remove_file(utility::heap_string_utf8 & files, utility::string_units_utf8 subdir, utility::string_units_utf8 filename)
+	bool remove_file(ful::heap_string_utf8 & files, ful::view_utf8 subdir, ful::view_utf8 filename)
 	{
 		auto begin = files.begin();
 		const auto end = files.end();
@@ -405,13 +405,13 @@ namespace
 		auto prev_split = begin;
 		while (true)
 		{
-			const auto split = find(begin, end, ';');
+			const auto split = ful::find(begin, end, ful::char8{';'});
 			if (split == end)
 				break;
 
 			const auto next_begin = split + 1; // skip ;
 
-			if (starts_with(begin, split, subdir) && utility::string_units_utf8(begin + subdir.size(), split) == filename)
+			if (ful::starts_with(begin, split, subdir) && ful::view_utf8(begin + subdir.size(), split) == filename)
 			{
 				files.erase(begin, next_begin);
 
@@ -422,7 +422,7 @@ namespace
 			begin = next_begin;
 		}
 
-		if (starts_with(begin, end, subdir) && utility::string_units_utf8(begin + subdir.size(), end) == filename)
+		if (ful::starts_with(begin, end, subdir) && ful::view_utf8(begin + subdir.size(), end) == filename)
 		{
 			files.erase(prev_split, end);
 
@@ -432,7 +432,7 @@ namespace
 		return false; // already removed
 	}
 
-	void remove_duplicates(utility::heap_string_utf8 & files, utility::string_units_utf8 duplicates)
+	void remove_duplicates(ful::heap_string_utf8 & files, ful::view_utf8 duplicates)
 	{
 		auto duplicates_begin = duplicates.begin();
 		const auto duplicates_end = duplicates.end();
@@ -441,11 +441,11 @@ namespace
 		{
 			while (true)
 			{
-				const auto duplicates_split = find(duplicates_begin, duplicates_end, ';');
+				const auto duplicates_split = ful::find(duplicates_begin, duplicates_end, ful::char8{';'});
 				if (!debug_assert(duplicates_split != duplicates_begin, "unexpected file without name"))
 					return; // error
 
-				remove_file(files, "", utility::string_units_utf8(duplicates_begin, duplicates_split));
+				remove_file(files, ful::view_utf8{}, ful::view_utf8(duplicates_begin, duplicates_split));
 
 				if (duplicates_split == duplicates_end)
 					break;
@@ -475,18 +475,15 @@ namespace engine
 						FileMissingWork && work = utility::any_cast<FileMissingWork &&>(std::move(data));
 						engine::file::ReadData & read_data = *work.ptr;
 
-						utility::heap_string_utf8 relpath;
-						if (!debug_verify(relpath.try_append(read_data.filepath.data() + read_data.root, read_data.filepath.size() - read_data.root)))
-							return; // error
-
-						core::ReadStream stream(std::move(relpath));
+						ful::cstr_utf8 relpath_(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size());
+						core::ReadStream stream(relpath_);
 
 						engine::file::system filesystem(read_data.impl);
 						read_data.callback(filesystem, std::move(stream), read_data.data);
 						filesystem.detach();
 					}
 				},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(FileReadWork && data)
@@ -509,11 +506,8 @@ namespace engine
 						}
 						else
 						{
-							utility::heap_string_utf8 relpath;
-							if (!debug_verify(relpath.try_append(read_data.filepath.data() + read_data.root, read_data.filepath.size() - read_data.root)))
-								return; // error
-
-							core::ReadStream stream(std::move(relpath));
+							ful::cstr_utf8 relpath_(read_data.filepath.data() + read_data.root, read_data.filepath.data() + read_data.filepath.size());
+							core::ReadStream stream(relpath_);
 
 							engine::file::system filesystem(read_data.impl);
 							read_data.callback(filesystem, std::move(stream), read_data.data);
@@ -521,7 +515,7 @@ namespace engine
 						}
 					}
 				},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanChangeWork && data)
@@ -539,34 +533,40 @@ namespace engine
 						ScanChangeWork && work = utility::any_cast<ScanChangeWork &&>(std::move(data));
 						engine::file::ScanData & scan_data = *work.ptr;
 
-						utility::heap_string_utf8 old_files = scan_data.files;
 						// todo garbage callback if copy fails
+						ful::heap_string_utf8 old_files;
+						if (!debug_verify(ful::copy(scan_data.files, old_files)))
+							return; // error
 
-						utility::string_units_utf8 subdir(work.filepath.begin() + scan_data.dirpath.size(), work.filepath.end());
+						ful::view_utf8 subdir(work.filepath.begin() + scan_data.dirpath.size(), work.filepath.end());
 
 						for (const auto & file : work.files)
 						{
-							switch (front(file))
+							switch (file.data()[0])
 							{
 							case '+':
-								add_file(scan_data.files, subdir, utility::string_units_utf8(file.begin() + 1, file.end()));
+								add_file(scan_data.files, subdir, ful::view_utf8(file.begin() + 1, file.end()));
 								break;
 							case '-':
-								remove_file(scan_data.files, subdir, utility::string_units_utf8(file.begin() + 1, file.end()));
+								remove_file(scan_data.files, subdir, ful::view_utf8(file.begin() + 1, file.end()));
 								break;
 							default:
 								debug_unreachable("unknown file change");
 							}
 						}
 
-						remove_duplicates(old_files, scan_data.files);
+						remove_duplicates(old_files, ful::view_utf8(scan_data.files));
+
+						ful::heap_string_utf8 existing_files;
+						if (!debug_verify(ful::copy(scan_data.files, existing_files)))
+							return; // error
 
 						engine::file::system filesystem(scan_data.impl);
-						scan_data.callback(filesystem, scan_data.directory, utility::heap_string_utf8(scan_data.files), std::move(old_files), scan_data.data);
+						scan_data.callback(filesystem, scan_data.directory, std::move(existing_files), std::move(old_files), scan_data.data);
 						filesystem.detach();
 					}
 				},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanOnceWork && data)
@@ -584,16 +584,21 @@ namespace engine
 						ScanOnceWork && work = utility::any_cast<ScanOnceWork &&>(std::move(data));
 						engine::file::ScanData & scan_data = *work.ptr;
 
-						utility::heap_string_utf8 removed_files = std::move(scan_data.files);
+						ful::heap_string_utf8 removed_files = std::move(scan_data.files);
 						scan_directory(scan_data.dirpath, false, scan_data.files);
-						remove_duplicates(removed_files, scan_data.files);
+
+						remove_duplicates(removed_files, ful::view_utf8(scan_data.files));
+
+						ful::heap_string_utf8 existing_files;
+						if (!debug_verify(ful::copy(scan_data.files, existing_files)))
+							return; // error
 
 						engine::file::system filesystem(scan_data.impl);
-						scan_data.callback(filesystem, scan_data.directory, utility::heap_string_utf8(scan_data.files), std::move(removed_files), scan_data.data);
+						scan_data.callback(filesystem, scan_data.directory, std::move(existing_files), std::move(removed_files), scan_data.data);
 						filesystem.detach();
 					}
 				},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(ScanRecursiveWork && data)
@@ -611,16 +616,21 @@ namespace engine
 						ScanRecursiveWork && work = utility::any_cast<ScanRecursiveWork &&>(std::move(data));
 						engine::file::ScanData & scan_data = *work.ptr;
 
-						utility::heap_string_utf8 removed_files = std::move(scan_data.files);
+						ful::heap_string_utf8 removed_files = std::move(scan_data.files);
 						scan_directory(scan_data.dirpath, true, scan_data.files);
-						remove_duplicates(removed_files, scan_data.files);
+
+						remove_duplicates(removed_files, ful::view_utf8(scan_data.files));
+
+						ful::heap_string_utf8 existing_files;
+						if (!debug_verify(ful::copy(scan_data.files, existing_files)))
+							return; // error
 
 						engine::file::system filesystem(scan_data.impl);
-						scan_data.callback(filesystem, scan_data.directory, utility::heap_string_utf8(scan_data.files), std::move(removed_files), scan_data.data);
+						scan_data.callback(filesystem, scan_data.directory, std::move(existing_files), std::move(removed_files), scan_data.data);
 						filesystem.detach();
 					}
 				},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 
 		void post_work(FileWriteWork && data)
@@ -643,11 +653,8 @@ namespace engine
 						}
 						else
 						{
-							utility::heap_string_utf8 relpath;
-							if (!debug_verify(relpath.try_append(write_data.filepath.data() + write_data.root, write_data.filepath.size() - write_data.root)))
-								return; // error
-
-							core::WriteStream stream(std::move(relpath));
+							ful::cstr_utf8 relpath_(write_data.filepath.data() + write_data.root, write_data.filepath.data() + write_data.filepath.size());
+							core::WriteStream stream(relpath_);
 
 							engine::file::system filesystem(write_data.impl);
 							write_data.callback(filesystem, std::move(stream), std::move(write_data.data));
@@ -655,7 +662,7 @@ namespace engine
 						}
 					}
 				},
-				std::move(data));
+				utility::any(std::move(data)));
 		}
 	}
 }
@@ -665,7 +672,7 @@ namespace
 	struct RegisterDirectory
 	{
 		engine::Hash alias;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 		engine::Hash parent;
 	};
 
@@ -683,7 +690,7 @@ namespace
 	{
 		engine::Token id;
 		engine::Hash directory;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 		engine::Hash strand;
 		engine::file::read_callback * callback;
 		utility::any data;
@@ -708,7 +715,7 @@ namespace
 	struct Write
 	{
 		engine::Hash directory;
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 		engine::Hash strand;
 		engine::file::write_callback * callback;
 		utility::any data;
@@ -719,14 +726,14 @@ namespace
 	{
 		auto & x = *static_cast<RegisterDirectory *>(data);
 
-		if (!debug_verify(find(system_impl.aliases, x.alias) == system_impl.aliases.end()))
+		if (!debug_verify(find(system_impl.aliases, engine::Token(x.alias)) == system_impl.aliases.end()))
 			return; // error
 
-		const auto parent_alias_it = find(system_impl.aliases, x.parent);
+		const auto parent_alias_it = find(system_impl.aliases, engine::Token(x.parent));
 		if (!debug_verify(parent_alias_it != system_impl.aliases.end()))
 			return; // error
 
-		if (!debug_verify(validate_filepath(x.filepath)))
+		if (!debug_verify(validate_filepath(ful::view_utf8(x.filepath))))
 			return; // error
 
 		const auto parent_directory_it = find(system_impl.directories, system_impl.aliases.get<Alias>(parent_alias_it)->directory);
@@ -735,21 +742,21 @@ namespace
 
 		const auto & dirpath = system_impl.get_dirpath(parent_directory_it);
 
-		utility::heap_string_utf8 filepath;
-		if (!debug_verify(filepath.try_append(dirpath)))
+		ful::heap_string_utf8 filepath;
+		if (!debug_verify(ful::append(filepath, dirpath)))
 			return; // error
 
-		if (!debug_verify(filepath.try_append(x.filepath)))
+		if (!debug_verify(ful::append(filepath, x.filepath)))
 			return; // error
 
-		if (back(filepath) != '/')
+		if (filepath.end()[-1] != '/')
 		{
-			if (!debug_verify(filepath.try_push_back('/')))
+			if (!debug_verify(ful::push_back(filepath, ful::char8{'/'})))
 				return; // error
 		}
 
 		const auto directory_asset = engine::Asset(filepath);
-		const auto directory_it = find(system_impl.directories, directory_asset);
+		const auto directory_it = find(system_impl.directories, engine::Token(directory_asset));
 		if (directory_it != system_impl.directories.end())
 		{
 			const auto directory_ptr = system_impl.directories.get<Directory>(directory_it);
@@ -760,11 +767,11 @@ namespace
 		}
 		else
 		{
-			if (!debug_verify(system_impl.directories.emplace<Directory>(directory_asset, std::move(filepath))))
+			if (!debug_verify(system_impl.directories.emplace<Directory>(engine::Token(directory_asset), std::move(filepath))))
 				return; // error
 		}
 
-		if (!debug_verify(system_impl.aliases.emplace<Alias>(x.alias, directory_asset)))
+		if (!debug_verify(system_impl.aliases.emplace<Alias>(engine::Token(x.alias), engine::Token(directory_asset))))
 			return; // error
 	}
 
@@ -772,29 +779,36 @@ namespace
 	{
 		auto & x = *static_cast<RegisterTemporaryDirectory *>(data);
 
-		if (!debug_verify(find(system_impl.aliases, x.alias) == system_impl.aliases.end()))
+		if (!debug_verify(find(system_impl.aliases, engine::Token(x.alias)) == system_impl.aliases.end()))
 			return; // error
 
-		utility::heap_string_utf8 filepath(u8"" P_tmpdir "/unnamed-XXXXXX"); // todo project name
-		if (!debug_verify(::mkdtemp(filepath.data()) != nullptr, "failed with errno ", errno))
+		constexpr ful::cstr_utf8 filepath_template = ful::cstr_utf8(P_tmpdir "/unnamed-XXXXXX"); // todo project name
+		ful::heap_string_utf8 filepath;
+		if (!debug_verify(ful::reserve(filepath, filepath_template.size() + 1)))
+			return; // error
+
+		if (!debug_verify(ful::assign(filepath, filepath_template)))
+			return; // error impossible?
+
+		if (!debug_verify(::mkdtemp(filepath.c_str()) != nullptr, "failed with errno ", errno, " : ", filepath))
 			return; // error
 
 		debug_printline("created temporary directory \"", filepath, "\"");
 
-		if (!debug_verify(filepath.try_append('/')))
+		if (!debug_verify(ful::push_back(filepath, ful::char8{'/'})))
 		{
 			purge_temporary_directory(filepath);
 			return; // error
 		}
 
 		const auto directory_asset = engine::Asset(filepath);
-		if (!debug_verify(system_impl.directories.emplace<TemporaryDirectory>(directory_asset, std::move(filepath))))
+		if (!debug_verify(system_impl.directories.emplace<TemporaryDirectory>(engine::Token(directory_asset), std::move(filepath))))
 		{
 			purge_temporary_directory(filepath);
 			return; // error
 		}
 
-		if (!debug_verify(system_impl.aliases.emplace<Alias>(x.alias, directory_asset)))
+		if (!debug_verify(system_impl.aliases.emplace<Alias>(engine::Token(x.alias), engine::Token(directory_asset))))
 			return; // error
 	}
 
@@ -802,7 +816,7 @@ namespace
 	{
 		auto & x = *static_cast<UnregisterDirectory *>(data);
 
-		const auto alias_it = find(system_impl.aliases, x.alias);
+		const auto alias_it = find(system_impl.aliases, engine::Token(x.alias));
 		if (!debug_verify(alias_it != system_impl.aliases.end(), "alias does not exist"))
 			return; // error
 
@@ -837,7 +851,7 @@ namespace
 	{
 		auto & x = *static_cast<Read *>(data);
 
-		const auto alias_it = find(system_impl.aliases, x.directory);
+		const auto alias_it = find(system_impl.aliases, engine::Token(x.directory));
 		if (!debug_verify(alias_it != system_impl.aliases.end()))
 			return; // error
 
@@ -851,11 +865,11 @@ namespace
 
 		const auto & dirpath = system_impl.get_dirpath(directory_it);
 
-		utility::heap_string_utf8 filepath;
-		if (!debug_verify(filepath.try_append(dirpath)))
+		ful::heap_string_utf8 filepath;
+		if (!debug_verify(ful::append(filepath, dirpath)))
 			return; // error
 
-		if (!debug_verify(filepath.try_append(x.filepath)))
+		if (!debug_verify(ful::append(filepath, x.filepath)))
 			return; // error
 
 		ext::heap_shared_ptr<engine::file::ReadData> data_ptr(utility::in_place, system_impl, std::move(filepath), static_cast<std::uint32_t>(dirpath.size()), x.strand, x.callback, std::move(x.data));
@@ -881,7 +895,7 @@ namespace
 	{
 		auto & x = *static_cast<Scan *>(data);
 
-		const auto alias_it = find(system_impl.aliases, x.directory);
+		const auto alias_it = find(system_impl.aliases, engine::Token(x.directory));
 		if (!debug_verify(alias_it != system_impl.aliases.end()))
 			return; // error
 
@@ -893,9 +907,11 @@ namespace
 		if (!debug_assert(directory_it != system_impl.directories.end()))
 			return;
 
-		const auto & dirpath = system_impl.get_dirpath(directory_it);
+		ful::heap_string_utf8 dirpath;
+		if (!debug_verify(ful::copy(system_impl.get_dirpath(directory_it), dirpath)))
+			return; // error
 
-		ext::heap_shared_ptr<engine::file::ScanData> call_ptr(utility::in_place, system_impl, dirpath, x.directory, x.strand, x.callback, std::move(x.data), utility::heap_string_utf8());
+		ext::heap_shared_ptr<engine::file::ScanData> call_ptr(utility::in_place, system_impl, std::move(dirpath), x.directory, x.strand, x.callback, std::move(x.data), ful::heap_string_utf8());
 		if (!debug_verify(call_ptr))
 			return; // error
 
@@ -918,7 +934,7 @@ namespace
 	{
 		auto & x = *static_cast<Write *>(data);
 
-		const auto alias_it = find(system_impl.aliases, x.directory);
+		const auto alias_it = find(system_impl.aliases, engine::Token(x.directory));
 		if (!debug_verify(alias_it != system_impl.aliases.end()))
 			return; // error
 
@@ -932,44 +948,44 @@ namespace
 
 		const auto & dirpath = system_impl.get_dirpath(directory_it);
 
-		utility::heap_string_utf8 filepath;
-		if (!debug_verify(filepath.try_append(dirpath)))
+		ful::heap_string_utf8 filepath;
+		if (!debug_verify(ful::append(filepath, dirpath)))
 			return; // error
 
-		if (!debug_verify(filepath.try_append(x.filepath)))
+		if (!debug_verify(ful::append(filepath, x.filepath)))
 			return; // error
 
-		ext::heap_shared_ptr<engine::file::WriteData> ptr(utility::in_place, system_impl, filepath, static_cast<std::uint32_t>(dirpath.size()), x.strand, x.callback, std::move(x.data), static_cast<bool>(x.mode & engine::file::flags::APPEND_EXISTING), static_cast<bool>(x.mode & engine::file::flags::OVERWRITE_EXISTING));
+		ext::heap_shared_ptr<engine::file::WriteData> ptr(utility::in_place, system_impl, std::move(filepath), static_cast<std::uint32_t>(dirpath.size()), x.strand, x.callback, std::move(x.data), static_cast<bool>(x.mode & engine::file::flags::APPEND_EXISTING), static_cast<bool>(x.mode & engine::file::flags::OVERWRITE_EXISTING));
 		if (!debug_verify(ptr))
 			return; // error
 
 		if (x.mode & engine::file::flags::CREATE_DIRECTORIES)
 		{
-			auto begin = filepath.begin() + dirpath.size();
-			const auto end = filepath.end();
+			auto begin = ptr->filepath.begin() + dirpath.size();
+			const auto end = ptr->filepath.end();
 
 			while (true)
 			{
-				const auto slash = find(begin, end, '/');
+				const auto slash = ful::find(begin, end, ful::char8{'/'});
 				if (slash == end)
 					break;
 
-				*slash = '\0';
+				*slash = ful::char8{};
 
-				if (::mkdir(filepath.data(), 0775) != 0)
+				if (::mkdir(ptr->filepath.data(), 0775) != 0)
 				{
 					if (!debug_verify(errno == EEXIST))
 						return; // error
 
 					struct stat buf;
-					if (!debug_verify(stat(filepath.data(), &buf) == 0))
+					if (!debug_verify(stat(ptr->filepath.data(), &buf) == 0))
 						return; // error
 
 					if (!debug_verify(S_ISDIR(buf.st_mode)))
 						return; // error
 				}
 
-				*slash = '/';
+				*slash = ful::char8{'/'};
 
 				begin = slash + 1;
 			}
@@ -1061,8 +1077,8 @@ namespace engine
 			if (!debug_verify(malloc_str, "get_current_dir_name failed with errno ", errno))
 				return dir;
 
-			const auto len = ext::strlen(malloc_str) + 1; // one extra for trailing /
-			if (debug_verify(dir.filepath_.try_append(malloc_str, len))) // it is fine to copy null
+			const auto len = ful::strlen(malloc_str) + 1; // one extra for trailing /
+			if (debug_verify(ful::assign(dir.filepath_, malloc_str, malloc_str + len)))
 			{
 				dir.filepath_.data()[len - 1] = '/';
 			}
@@ -1095,7 +1111,7 @@ namespace engine
 
 				const auto root_asset = engine::Asset(root.filepath_);
 
-				if (!debug_verify(impl->directories.emplace<Directory>(root_asset, std::move(root.filepath_))))
+				if (!debug_verify(impl->directories.emplace<Directory>(engine::Token(root_asset), std::move(root.filepath_))))
 				{
 					destroy_impl(*impl);
 					return nullptr;
@@ -1103,7 +1119,7 @@ namespace engine
 
 				impl->strand = root_asset; // the strand ought to be something unique, this is probably good enough
 
-				if (!debug_verify(impl->aliases.emplace<Alias>(engine::file::working_directory, root_asset)))
+				if (!debug_verify(impl->aliases.emplace<Alias>(engine::Token(engine::file::working_directory), engine::Token(root_asset))))
 				{
 					destroy_impl(*impl);
 					return nullptr;
@@ -1128,7 +1144,7 @@ namespace engine
 			return impl;
 		}
 
-		void register_directory(system & system, engine::Hash name, utility::heap_string_utf8 && filepath, engine::Hash parent)
+		void register_directory(system & system, engine::Hash name, ful::heap_string_utf8 && filepath, engine::Hash parent)
 		{
 			if (!debug_assert(system->thread.valid()))
 				return;
@@ -1174,7 +1190,7 @@ namespace engine
 			system & system,
 			engine::Token id,
 			engine::Hash directory,
-			utility::heap_string_utf8 && filepath,
+			ful::heap_string_utf8 && filepath,
 			engine::Hash strand,
 			read_callback * callback,
 			utility::any && data,
@@ -1232,7 +1248,7 @@ namespace engine
 		void write(
 			system & system,
 			engine::Hash directory,
-			utility::heap_string_utf8 && filepath,
+			ful::heap_string_utf8 && filepath,
 			engine::Hash strand,
 			write_callback * callback,
 			utility::any && data,

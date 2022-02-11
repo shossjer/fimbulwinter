@@ -8,11 +8,11 @@ TEST_CASE("A zero initialized Asset", "[engine][asset]")
 
 	SECTION("contains the underlying value zero")
 	{
-		CHECK(static_cast<uint64_t>(asset) == 0);
+		CHECK(static_cast<engine::Asset::value_type>(asset) == 0);
 	}
 
 	SECTION("is the same an empty string Asset")
 	{
-		CHECK(asset == engine::Asset(""));
+		CHECK(asset == engine::Asset(ful::cstr_utf8("")));
 	}
 }

@@ -11,6 +11,9 @@
 
 #include "utility/any.hpp"
 
+#include "ful/string_init.hpp"
+#include "ful/string_modify.hpp"
+
 #include <catch2/catch.hpp>
 
 static_hashes("tmpdir", "tree.root", "dependency.1", "dependency.2", "dependency.3", "dependency.4", "dependency.5");
@@ -57,8 +60,12 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 	SECTION("")
 	{
-		engine::file::write(filesystem, tmpdir, u8"maybe.exists", engine::Hash{}, write_char, utility::any(char(2)));
-		engine::file::write(filesystem, tmpdir, u8"folder/maybe.exists", engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("maybe.exists"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("folder/maybe.exists"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Hash{}, write_char, utility::any(char(2)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Hash{}, write_char, utility::any(char(3)), engine::file::flags::CREATE_DIRECTORIES);
 
 		engine::file::scoped_library tmplib(fileloader, tmpdir);
 
@@ -128,7 +135,7 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 		engine::file::load_independent(
 			fileloader,
-			engine::Asset("my independent load"),
+			engine::Token(engine::Asset("my independent load")),
 			engine::Asset(u8"maybe.exists"),
 			filetype,
 			[](engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset /*name*/, const utility::any & stash, engine::Asset /*file*/)
@@ -163,7 +170,7 @@ TEST_CASE("file loader can read files", "[engine][file]")
 
 		engine::file::load_independent(
 			fileloader,
-			engine::Asset("my other independent load"),
+			engine::Token(engine::Asset("my other independent load")),
 			engine::Asset(u8"folder/maybe.exists"),
 			filetype,
 			[](engine::file::loader & /*fileloader*/, utility::any & data, engine::Asset /*name*/, const utility::any & stash, engine::Asset /*file*/)
@@ -203,8 +210,8 @@ TEST_CASE("file loader can read files", "[engine][file]")
 		CHECK(sync_data[0].unload_value == 0);
 		CHECK(sync_data[1].unload_value == 0);
 
-		engine::file::unload_independent(fileloader, engine::Asset("my independent load"));
-		engine::file::unload_independent(fileloader, engine::Asset("my other independent load"));
+		engine::file::unload_independent(fileloader, engine::Token(engine::Asset("my independent load")));
+		engine::file::unload_independent(fileloader, engine::Token(engine::Asset("my other independent load")));
 
 		REQUIRE(sync_data[0].unload_event.wait(timeout));
 		REQUIRE(sync_data[1].unload_event.wait(timeout));
@@ -321,25 +328,25 @@ namespace
 		switch (file)
 		{
 		case engine::Hash(u8"tree.root"):
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.2"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.2"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.1"):
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.2"):
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.4"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.4"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.3"):
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.4"):
-			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.5"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, &sync_data);
+			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.5"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			file_data.value += int(read_char(stream));
 			break;
 		case engine::Hash(u8"dependency.5"):
@@ -399,18 +406,30 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 
 	SECTION("")
 	{
-		engine::file::write(filesystem, tmpdir, u8"tree.root", engine::Asset{}, write_char, utility::any(char(1)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.1", engine::Asset{}, write_char, utility::any(char(11)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.2", engine::Asset{}, write_char, utility::any(char(12)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.3", engine::Asset{}, write_char, utility::any(char(13)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.4", engine::Asset{}, write_char, utility::any(char(14)));
-		engine::file::write(filesystem, tmpdir, u8"dependency.5", engine::Asset{}, write_char, utility::any(char(15)));
+		ful::heap_string_utf8 filepath0;
+		ful::assign(filepath0, ful::cstr_utf8("tree.root"));
+		ful::heap_string_utf8 filepath1;
+		ful::assign(filepath1, ful::cstr_utf8("dependency.1"));
+		ful::heap_string_utf8 filepath2;
+		ful::assign(filepath2, ful::cstr_utf8("dependency.2"));
+		ful::heap_string_utf8 filepath3;
+		ful::assign(filepath3, ful::cstr_utf8("dependency.3"));
+		ful::heap_string_utf8 filepath4;
+		ful::assign(filepath4, ful::cstr_utf8("dependency.4"));
+		ful::heap_string_utf8 filepath5;
+		ful::assign(filepath5, ful::cstr_utf8("dependency.5"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath0), engine::Asset{}, write_char, utility::any(char(1)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath1), engine::Asset{}, write_char, utility::any(char(11)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Asset{}, write_char, utility::any(char(12)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath3), engine::Asset{}, write_char, utility::any(char(13)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath4), engine::Asset{}, write_char, utility::any(char(14)));
+		engine::file::write(filesystem, tmpdir, std::move(filepath5), engine::Asset{}, write_char, utility::any(char(15)));
 
 		engine::file::scoped_library tmplib(fileloader, tmpdir);
 
 		engine::file::scoped_filetype filetype(fileloader, engine::Asset("tmpfiletype"), tree_load, tree_unload);
 
-		engine::file::load_independent(fileloader, engine::Asset("tree root"), engine::Asset(u8"tree.root"), filetype, tree_ready, tree_unready, &sync_data);
+		engine::file::load_independent(fileloader, engine::Token(engine::Asset("tree root")), engine::Asset(u8"tree.root"), filetype, tree_ready, tree_unready, utility::any(&sync_data));
 
 		REQUIRE(sync_data.ready_event.wait(timeout));
 		CHECK(sync_data.ready_values[0] == 1);
@@ -422,7 +441,8 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 
 		sync_data.watch_event.reset();
 
-		engine::file::write(filesystem, tmpdir, u8"dependency.2", engine::Asset{}, write_char, utility::any(char(21)), engine::file::flags::OVERWRITE_EXISTING);
+		ful::assign(filepath2, ful::cstr_utf8("dependency.2"));
+		engine::file::write(filesystem, tmpdir, std::move(filepath2), engine::Asset{}, write_char, utility::any(char(21)), engine::file::flags::OVERWRITE_EXISTING);
 
 		REQUIRE(sync_data.watch_event.wait(timeout));
 		CHECK(sync_data.ready_values[0] == 1);
@@ -432,7 +452,7 @@ TEST_CASE("file loader can load tree", "[engine][file]")
 		CHECK(sync_data.ready_values[4] == 1);
 		CHECK(sync_data.ready_values[5] == 1);
 
-		engine::file::unload_independent(fileloader, engine::Asset("tree root"));
+		engine::file::unload_independent(fileloader, engine::Token(engine::Asset("tree root")));
 
 		REQUIRE(sync_data.unload_event.wait(timeout));
 		CHECK(sync_data.ready_values[0] == 0);

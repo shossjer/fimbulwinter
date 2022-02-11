@@ -98,7 +98,7 @@ namespace camera
 	// TODO: make thread safe when needed
 	void add(simulation & simulation, engine::Token id, core::maths::Vector3f position, bool bounded)
 	{
-		debug_verify(components.emplace<Camera>(id, Camera{ bounded, position }));
+		static_cast<void>(debug_verify(components.emplace<Camera>(id, Camera{ bounded, position })));
 
 		// snap new camera to bounds
 		update(simulation, id, core::maths::Vector3f{ 0.f, 0.f, 0.f });
@@ -241,11 +241,10 @@ namespace physics
 			{
 				void operator () (MessageAddObject && x)
 				{
-					const auto object_it = find(objects, x.entity);
-					if (!debug_assert(object_it != objects.end()))
+					if (!debug_assert(find(objects, x.entity) != objects.end()))
 						return; // error
 
-					debug_verify(objects.emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat)));
+					static_cast<void>(debug_verify(objects.emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat))));
 				}
 				void operator () (MessageRemove && x)
 				{

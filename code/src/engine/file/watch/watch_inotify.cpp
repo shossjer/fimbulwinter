@@ -12,6 +12,10 @@
 #include "utility/container/vector.hpp"
 #include "utility/functional/utility.hpp"
 
+#include "ful/cstrext.hpp"
+#include "ful/string_modify.hpp"
+#include "ful/string_search.hpp"
+
 #include <dirent.h>
 #include <sys/inotify.h>
 #include <unistd.h>
@@ -47,14 +51,14 @@ namespace
 
 	struct Directory
 	{
-		utility::heap_vector<utility::string_units_utf8, ext::heap_shared_ptr<engine::file::ReadData>> reads;
-		utility::heap_vector<utility::string_units_utf8, ext::heap_shared_ptr<engine::file::ReadData>> missing_reads;
+		utility::heap_vector<ful::view_utf8, ext::heap_shared_ptr<engine::file::ReadData>> reads;
+		utility::heap_vector<ful::view_utf8, ext::heap_shared_ptr<engine::file::ReadData>> missing_reads;
 		utility::heap_vector<ext::heap_shared_ptr<engine::file::ScanData>> scans;
 		utility::heap_vector<ext::heap_shared_ptr<engine::file::ScanData>> recursive_scans;
 
-		utility::heap_string_utf8 filepath;
+		ful::heap_string_utf8 filepath;
 
-		explicit Directory(utility::heap_string_utf8 && filepath)
+		explicit Directory(ful::heap_string_utf8 && filepath)
 			: filepath(std::move(filepath))
 		{}
 	};
@@ -82,7 +86,7 @@ namespace
 	>
 	aliases;
 
-	fd_t start_watch(fd_t notify_fd, const utility::heap_string_utf8 & filepath)
+	fd_t start_watch(fd_t notify_fd, ful::cstr_utf8 filepath)
 	{
 		uint32_t mask = IN_CLOSE_WRITE | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_ONLYDIR;
 #if defined(IN_MASK_CREATE)
@@ -91,7 +95,7 @@ namespace
 #if MODE_DEBUG
 		mask |= IN_ATTRIB | IN_MODIFY | IN_MOVE_SELF | IN_MOVE;
 #endif
-		const fd_t fd = ::inotify_add_watch(notify_fd, filepath.data(), mask);
+		const fd_t fd = ::inotify_add_watch(notify_fd, filepath.c_str(), mask);
 		debug_printline("starting watch ", fd, " of \"", filepath, "\"");
 		if (fd == -1)
 		{
@@ -146,17 +150,20 @@ namespace
 		watches.clear();
 	}
 
-	void scan_directory_subdirs(utility::string_units_utf8 filepath, utility::heap_vector<utility::heap_string_utf8> & subdirs)
+	void scan_directory_subdirs(ful::view_utf8 filepath, utility::heap_vector<ful::heap_string_utf8> & subdirs)
 	{
-		debug_verify(subdirs.try_emplace_back());
+		static_cast<void>(debug_verify(subdirs.try_emplace_back()));
 
-		utility::heap_string_utf8 pattern(filepath);
+		ful::heap_string_utf8 pattern;
+		if (!debug_verify(ful::assign(pattern, filepath)))
+			return; // error
+
 		for (ext::index index = 0; index < static_cast<ext::index>(subdirs.size()); index++)
 		{
-			if (!debug_verify(pattern.try_append(subdirs[index])))
+			if (!debug_verify(ful::append(pattern, subdirs[index])))
 				continue;
 
-			DIR * const dir = ::opendir(pattern.data());
+			DIR * const dir = ::opendir(pattern.c_str());
 			if (debug_inform(dir != nullptr, "opendir(\"", pattern, "\") failed with errno ", errno))
 			{
 				debug_expression(errno = 0);
@@ -175,10 +182,10 @@ namespace
 
 					if (debug_verify(subdirs.try_emplace_back()))
 					{
-						utility::heap_string_utf8 & subdir = ext::back(subdirs);
-						if (!(debug_verify(subdir.try_append(subdirs[index])) &&
-						      debug_verify(subdir.try_append(const_cast<const char *>(entry->d_name))) &&
-						      debug_verify(subdir.try_push_back('/'))))
+						ful::heap_string_utf8 & subdir = ext::back(subdirs);
+						if (!(debug_verify(ful::append(subdir, subdirs[index])) &&
+						      debug_verify(ful::append(subdir, entry->d_name + 0, ful::strend(entry->d_name))) &&
+						      debug_verify(ful::push_back(subdir, ful::char8{'/'}))))
 						{
 							ext::pop_back(subdirs);
 						}
@@ -190,7 +197,7 @@ namespace
 				debug_verify(::closedir(dir) != -1, "failed with errno ", errno);
 			}
 
-			pattern.reduce(subdirs[index].size());
+			ful::reduce(pattern, pattern.begin() + filepath.size());
 		}
 	}
 
@@ -215,7 +222,7 @@ namespace
 		return directory;
 	}
 
-	Directory * get_or_create_directory(engine::Hash asset, fd_t notify_fd, utility::string_units_utf8 filepath)
+	Directory * get_or_create_directory(engine::Hash asset, fd_t notify_fd, ful::view_utf8 filepath)
 	{
 		const auto alias_it = find(aliases, asset);
 		if (alias_it != aliases.end())
@@ -238,8 +245,11 @@ namespace
 		}
 		else
 		{
-			utility::heap_string_utf8 filepath_null(filepath);
-			const fd_t fd = start_watch(notify_fd, filepath_null);
+			ful::heap_string_utf8 filepath_null;
+			if (!debug_verify(ful::copy(filepath, filepath_null)))
+				return nullptr; // error
+
+			const fd_t fd = start_watch(notify_fd, ful::cstr_utf8(filepath_null));
 			if (fd == -1)
 				return nullptr;
 
@@ -298,27 +308,27 @@ namespace
 		}
 	}
 
-	void add_recursive_scan(utility::heap_string_utf8 && filepath, fd_t notify_fd, const ext::heap_shared_ptr<engine::file::ScanData> & ptr)
+	void add_recursive_scan(ful::view_utf8 filepath, fd_t notify_fd, const ext::heap_shared_ptr<engine::file::ScanData> & ptr)
 	{
-		utility::heap_string_utf8 pattern;
-		if (!debug_verify(pattern.try_append(std::move(filepath))))
+		ful::heap_string_utf8 pattern;
+		if (!debug_verify(ful::append(pattern, filepath)))
 			return;
 
-		utility::heap_vector<utility::heap_string_utf8> subdirs;
+		utility::heap_vector<ful::heap_string_utf8> subdirs;
 		if (!debug_verify(subdirs.try_emplace_back()))
 			return;
 
 		while (!ext::empty(subdirs))
 		{
-			utility::heap_string_utf8 subdir = ext::back(std::move(subdirs));
+			ful::heap_string_utf8 subdir = ext::back(std::move(subdirs));
 			ext::pop_back(subdirs);
 
-			if (!debug_verify(pattern.try_append(subdir)))
+			if (!debug_verify(ful::append(pattern, subdir)))
 				continue;
 
 			debug_printline(pattern);
 			const auto alias = engine::Asset(pattern);
-			if (Directory * const directory = get_or_create_directory(alias, notify_fd, pattern))
+			if (Directory * const directory = get_or_create_directory(alias, notify_fd, ful::view_utf8(pattern)))
 			{
 				bool using_directory = false;
 
@@ -332,7 +342,7 @@ namespace
 				}
 			}
 
-			DIR * const dir = ::opendir(pattern.data());
+			DIR * const dir = ::opendir(pattern.c_str());
 			if (debug_inform(dir != nullptr, "opendir(\"", pattern, "\") failed with errno ", errno))
 			{
 				debug_expression(errno = 0);
@@ -351,10 +361,10 @@ namespace
 
 					if (debug_verify(subdirs.try_emplace_back()))
 					{
-						utility::heap_string_utf8 & newdir = ext::back(subdirs);
-						if (!(debug_verify(newdir.try_append(subdir)) &&
-						      debug_verify(newdir.try_append(const_cast<const char *>(entry->d_name))) &&
-						      debug_verify(newdir.try_push_back('/'))))
+						ful::heap_string_utf8 & newdir = ext::back(subdirs);
+						if (!(debug_verify(ful::append(newdir, subdir)) &&
+						      debug_verify(ful::append(newdir, entry->d_name + 0, ful::strend(entry->d_name))) &&
+						      debug_verify(ful::push_back(newdir, ful::char8{'/'}))))
 						{
 							ext::pop_back(subdirs);
 						}
@@ -366,7 +376,7 @@ namespace
 				debug_verify(::closedir(dir) != -1, "failed with errno ", errno);
 			}
 
-			pattern.reduce(subdir.size());
+			ful::reduce(pattern, pattern.begin() + filepath.size());
 		}
 	}
 
@@ -375,15 +385,15 @@ namespace
 		if (!debug_verify(watches.emplace<ReadWatch>(watch_id, ptr)))
 			return;
 
-		const auto directory_split = utility::rfind(ptr->filepath, '/');
+		const auto directory_split = ful::rfind(ptr->filepath, ful::char8{'/'});
 		if (!debug_assert(directory_split != ptr->filepath.end()))
 			return;
 
-		utility::string_units_utf8 filepath(ptr->filepath.begin(), directory_split + 1); // include '/'
+		ful::view_utf8 filepath(ptr->filepath.begin(), directory_split + 1); // include '/'
 		const auto alias = engine::Asset(filepath);
 		if (Directory * const directory = get_or_create_directory(alias, notify_fd, filepath))
 		{
-			utility::string_units_utf8 filename(directory_split + 1, ptr->filepath.end());
+			ful::view_utf8 filename(directory_split + 1, ptr->filepath.end());
 
 			bool using_directory = false;
 
@@ -408,14 +418,14 @@ namespace
 			if (!debug_verify(watches.emplace<ScanRecursiveWatch>(watch_id, ptr)))
 				return;
 
-			add_recursive_scan(utility::heap_string_utf8(ptr->dirpath), notify_fd, ptr);
+			add_recursive_scan(ful::view_utf8(ptr->dirpath), notify_fd, ptr);
 		}
 		else
 		{
 			if (!debug_verify(watches.emplace<ScanWatch>(watch_id, ptr)))
 				return;
 
-			utility::string_units_utf8 filepath(ptr->dirpath);
+			ful::view_utf8 filepath(ptr->dirpath);
 			const auto alias = engine::Asset(filepath);
 			if (Directory * const directory = get_or_create_directory(alias, notify_fd, filepath))
 			{
@@ -437,15 +447,15 @@ namespace
 			watch_it,
 			[notify_fd](const ReadWatch & x)
 			{
-				const auto directory_split = utility::rfind(x.ptr->filepath, '/');
+				const auto directory_split = ful::rfind(x.ptr->filepath, ful::char8{'/'});
 				if (!debug_assert(directory_split != x.ptr->filepath.end()))
 					return;
 
-				utility::string_units_utf8 filepath(x.ptr->filepath.begin(), directory_split + 1); // include '/'
+				ful::view_utf8 filepath(x.ptr->filepath.begin(), directory_split + 1); // include '/'
 				const auto alias = engine::Asset(filepath);
 				if (Directory * const directory = get_directory(alias))
 				{
-					utility::string_units_utf8 filename(directory_split + 1, x.ptr->filepath.end());
+					ful::view_utf8 filename(directory_split + 1, x.ptr->filepath.end());
 
 					bool using_directory = false;
 
@@ -471,8 +481,7 @@ namespace
 			},
 			[notify_fd](const ScanWatch & x)
 			{
-				utility::string_units_utf8 filepath(x.ptr->dirpath);
-				const auto alias = engine::Asset(filepath);
+				const auto alias = engine::Asset(x.ptr->dirpath);
 				if (Directory * const directory = get_directory(alias))
 				{
 					const auto scan_it = ext::find(directory->scans, x.ptr);
@@ -485,13 +494,16 @@ namespace
 			},
 			[notify_fd](const ScanRecursiveWatch & x)
 			{
-				utility::heap_vector<utility::heap_string_utf8> subdirs;
-				scan_directory_subdirs(x.ptr->dirpath, subdirs);
+				utility::heap_vector<ful::heap_string_utf8> subdirs;
+				scan_directory_subdirs(ful::view_utf8(x.ptr->dirpath), subdirs);
 
-				utility::heap_string_utf8 filepath = x.ptr->dirpath;
+				ful::heap_string_utf8 filepath;
+				if (!debug_verify(ful::assign(filepath, x.ptr->dirpath)))
+					return; // error
+
 				for (const auto & subdir : subdirs)
 				{
-					if (!debug_verify(filepath.try_append(subdir)))
+					if (!debug_verify(ful::append(filepath, subdir)))
 						continue;
 
 					const auto alias = engine::Asset(filepath);
@@ -519,7 +531,7 @@ namespace
 						}
 					}
 
-					filepath.reduce(subdir.size());
+					ful::reduce(filepath, filepath.begin() + x.ptr->dirpath.size());
 				}
 			});
 
@@ -544,14 +556,14 @@ namespace
 				return;
 			}
 
-			utility::heap_vector<const Directory *, utility::heap_vector<utility::heap_string_utf8>> changed_directories;
+			utility::heap_vector<const Directory *, utility::heap_vector<ful::heap_string_utf8>> changed_directories;
 			auto get_or_create_change = [&](const Directory * directory)
 			{
 				const auto it = ext::find_if(changed_directories, fun::get<0> == directory);
 				if (it != changed_directories.end())
 					return it;
 
-				if (!debug_verify(changed_directories.try_emplace_back(directory, utility::heap_vector<utility::heap_string_utf8>())))
+				if (!debug_verify(changed_directories.try_emplace_back(directory, utility::heap_vector<ful::heap_string_utf8>())))
 					return it;
 
 				return changed_directories.end() - 1;
@@ -567,8 +579,10 @@ namespace
 
 				ptr += sizeof(struct inotify_event) + event->len;
 
+				ful::cstr_utf8 name = ful::make_cstr_utf8(event->name);
+
 #if MODE_DEBUG
-				debug_printline("event ", event->wd, " ", event->name);
+				debug_printline("event ", event->wd, " ", name);
 				if (event->mask & IN_ACCESS) { debug_printline("event IN_ACCESS"); }
 				if (event->mask & IN_ATTRIB) { debug_printline("event IN_ATTRIB"); }
 				if (event->mask & IN_CLOSE_WRITE) { debug_printline("event IN_CLOSE_WRITE"); }
@@ -601,14 +615,14 @@ namespace
 					{
 						if (!ext::empty(directory->recursive_scans))
 						{
-							utility::heap_string_utf8 filepath;
-							if (debug_verify(filepath.try_append(directory->filepath)) &&
-							    debug_verify(filepath.try_append(event->name)) &&
-							    debug_verify(filepath.try_push_back('/')))
+							ful::heap_string_utf8 filepath;
+							if (debug_verify(ful::append(filepath, directory->filepath)) &&
+							    debug_verify(ful::append(filepath, name)) &&
+							    debug_verify(ful::push_back(filepath, ful::char8{'/'})))
 							{
 								for (auto && scan : directory->recursive_scans)
 								{
-									add_recursive_scan(utility::heap_string_utf8(filepath), notify_fd, scan);
+									add_recursive_scan(ful::view_utf8(filepath), notify_fd, scan);
 
 									engine::file::post_work(engine::file::ScanRecursiveWork{scan});
 								}
@@ -623,8 +637,8 @@ namespace
 							if (debug_verify(std::get<1>(*change_it).try_emplace_back()))
 							{
 								auto & file = ext::back(std::get<1>(*change_it));
-								if (!(debug_verify(file.try_push_back('+')) &&
-								      debug_verify(file.try_append(event->name))))
+								if (!(debug_verify(ful::push_back(file, ful::char8{'+'})) &&
+								      debug_verify(ful::append(file, name))))
 								{
 									ext::pop_back(std::get<1>(*change_it));
 								}
@@ -641,8 +655,8 @@ namespace
 						if (debug_verify(std::get<1>(*change_it).try_emplace_back()))
 						{
 							auto & file = ext::back(std::get<1>(*change_it));
-							if (!(debug_verify(file.try_push_back('-')) &&
-							      debug_verify(file.try_append(event->name))))
+							if (!(debug_verify(ful::push_back(file, ful::char8{'-'})) &&
+							      debug_verify(ful::append(file, name))))
 							{
 								ext::pop_back(std::get<1>(*change_it));
 							}
@@ -650,7 +664,7 @@ namespace
 					}
 					for (auto && read : directory->missing_reads)
 					{
-						if (read.first == event->name)
+						if (read.first == name)
 						{
 							engine::file::post_work(engine::file::FileMissingWork{read.second});
 						}
@@ -661,7 +675,7 @@ namespace
 				{
 					for (auto && read : directory->reads)
 					{
-						if (read.first == event->name)
+						if (read.first == name)
 						{
 							engine::file::post_work(engine::file::FileReadWork{read.second});
 						}
@@ -676,7 +690,33 @@ namespace
 						auto && changed = *changed_directory_it;
 						for (auto && scan : changed.first->scans)
 						{
-							engine::file::post_work(engine::file::ScanChangeWork{scan, changed.first->filepath, changed.second});
+							ful::heap_string_utf8 filepath;
+							if (!debug_verify(ful::copy(changed.first->filepath, filepath)))
+								continue; // error ????
+
+							utility::heap_vector<ful::heap_string_utf8> changes_copy;
+							if (!changes_copy.try_reserve(changed.second.size()))
+								continue; // error ????
+
+							bool fail = false;
+							for (const auto & change : changed.second)
+							{
+								if (!changes_copy.try_emplace_back())
+								{
+									fail = true;
+									break;
+								}
+
+								if (!debug_verify(ful::copy(change, ext::back(changes_copy))))
+								{
+									fail = true;
+									break;
+								}
+							}
+							if (fail)
+								continue; // error ????
+
+							engine::file::post_work(engine::file::ScanChangeWork{scan, std::move(filepath), std::move(changes_copy)});
 						}
 						changed_directories.erase(changed_directory_it);
 					}
@@ -689,7 +729,33 @@ namespace
 			{
 				for (auto && scan : changed.first->scans)
 				{
-					engine::file::post_work(engine::file::ScanChangeWork{scan, changed.first->filepath, changed.second});
+					ful::heap_string_utf8 filepath;
+					if (!debug_verify(ful::copy(changed.first->filepath, filepath)))
+						continue; // error ????
+
+					utility::heap_vector<ful::heap_string_utf8> changes_copy;
+					if (!changes_copy.try_reserve(changed.second.size()))
+						continue; // error ????
+
+					bool fail = false;
+					for (const auto & change : changed.second)
+					{
+						if (!changes_copy.try_emplace_back())
+						{
+							fail = true;
+							break;
+						}
+
+						if (!debug_verify(ful::copy(change, ext::back(changes_copy))))
+						{
+							fail = true;
+							break;
+						}
+					}
+					if (fail)
+						continue; // error ????
+
+					engine::file::post_work(engine::file::ScanChangeWork{scan, std::move(filepath), std::move(changes_copy)});
 				}
 			}
 		}
