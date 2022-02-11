@@ -204,7 +204,7 @@ namespace core
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				if (!debug_assert(it.bucket_ != bucket_t(-1)))
+				if (it.bucket_ == bucket_t(-1))
 					return nullptr;
 
 				if (slots()[it.bucket_].get_type() != type)
@@ -220,7 +220,7 @@ namespace core
 			{
 				constexpr auto type = mpl::index_of<C, component_types>::value;
 
-				if (!debug_assert(it.bucket_ != bucket_t(-1)))
+				if (it.bucket_ == bucket_t(-1))
 					return nullptr;
 
 				if (slots()[it.bucket_].get_type() != type)
