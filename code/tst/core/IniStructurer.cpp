@@ -29,39 +29,22 @@ namespace test
 
 TEST_CASE("", "[core][ini][structurer]")
 {
-	const char simple[] = R"(
+	char simple[] = R"(
 ; variables without group
-Int=79817
-Bool=1
+Int = 79817
+Bool = true
 ; variables with group
 [group1]
-type=one
-Int=1234
-String=a long string with many spaces without quotes because that is not needed
+type = one
+Int = 1234
+String = a long string with many spaces without quotes because that is not needed
 [group2]
-type=two
-Int=-789872
-String=name
+type = two
+Int = -789872
+String = name
 )";
 
-	struct stream_data
-	{
-		const char * begin;
-		const char * end;
-	}
-	stream_data{simple, simple + sizeof simple - 1};
-
-	core::IniStructurer structurer(core::ReadStream(
-		[](void * dest, ext::usize n, void * data) -> ext::ssize
-		{
-			auto & d = *static_cast<struct stream_data *>(data);
-			n = std::min(n, ext::usize(d.end - d.begin));
-			std::copy_n(d.begin, n, static_cast<char *>(dest));
-			d.begin += n;
-			return n;
-		},
-		&stream_data,
-		ful::cstr_utf8("")));
+	core::content content(ful::cstr_utf8(""), simple + 0, sizeof simple - 1);
 
 	SECTION("can be read into full struct")
 	{
@@ -71,12 +54,14 @@ String=name
 			{
 				test::Enum type;
 				int Int;
+				ful::view_utf8 String;
 
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table<ful::view_utf8>(
 						std::make_pair(ful::cstr_utf8("type"), &group1_type::type),
-						std::make_pair(ful::cstr_utf8("Int"), &group1_type::Int)
+						std::make_pair(ful::cstr_utf8("Int"), &group1_type::Int),
+						std::make_pair(ful::cstr_utf8("String"), &group1_type::String)
 					);
 				}
 			}
@@ -86,12 +71,14 @@ String=name
 			{
 				test::Enum type;
 				int Int;
+				ful::view_utf8 String;
 
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table<ful::view_utf8>(
 						std::make_pair(ful::cstr_utf8("type"), &group2_type::type),
-						std::make_pair(ful::cstr_utf8("Int"), &group2_type::Int)
+						std::make_pair(ful::cstr_utf8("Int"), &group2_type::Int),
+						std::make_pair(ful::cstr_utf8("String"), &group2_type::String)
 					);
 				}
 			}
@@ -110,8 +97,16 @@ String=name
 					);
 			}
 		}
-		data;
+		data{};
 
-		REQUIRE(structurer.read(data));
+		REQUIRE(core::structure_ini(content, data));
+		CHECK(data.Int == 79817);
+		CHECK(data.Bool == true);
+		CHECK(data.group1.type == test::Enum::one);
+		CHECK(data.group1.Int == 1234);
+		CHECK(data.group1.String == "a long string with many spaces without quotes because that is not needed");
+		CHECK(data.group2.type == test::Enum::two);
+		CHECK(data.group2.Int == -789872);
+		CHECK(data.group2.String == "name");
 	}
 }

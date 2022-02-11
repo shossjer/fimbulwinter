@@ -1,7 +1,7 @@
-#include "core/ReadStream.hpp"
+#include "core/content.hpp"
 #include "core/sync/Event.hpp"
-#include "core/WriteStream.hpp"
 
+#include "engine/file/config.hpp"
 #include "engine/file/loader.hpp"
 #include "engine/file/scoped_directory.hpp"
 #include "engine/file/scoped_library.hpp"
@@ -20,20 +20,21 @@ static_hashes("tmpdir", "tree.root", "dependency.1", "dependency.2", "dependency
 
 namespace
 {
-	void write_char(engine::file::system & /*filesystem*/, core::WriteStream && stream, utility::any && data)
+	ext::ssize write_char(engine::file::system & /*filesystem*/, core::content & content, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
-			return;
+			return 0;
 
 		const char number = utility::any_cast<char>(data);
-		stream.write_all(&number, sizeof number);
+		return ful::memcopy(&number + 0, &number + 1, static_cast<char *>(content.data())) - static_cast<char *>(content.data());
 	};
 
-	char read_char(core::ReadStream & stream)
+	char read_char(core::content & content)
 	{
-		char number = -1;
-		stream.read_all(&number, sizeof number);
-		return number;
+		if (content.size() < 1)
+			return static_cast<char>(-1);
+
+		return *static_cast<char *>(content.data());
 	}
 
 	const int timeout = 1000; // milliseconds
@@ -42,7 +43,7 @@ namespace
 TEST_CASE("file loader can be created and destroyed", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -53,7 +54,7 @@ TEST_CASE("file loader can be created and destroyed", "[engine][file]")
 TEST_CASE("file loader can read files", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 	engine::file::loader fileloader(taskscheduler, filesystem);
 
 	engine::file::scoped_directory tmpdir(filesystem, engine::Hash("tmpdir"));
@@ -80,17 +81,17 @@ TEST_CASE("file loader can read files", "[engine][file]")
 		engine::file::scoped_filetype filetype(
 			fileloader,
 			engine::Asset("tmpfiletype"),
-			[](engine::file::loader & /*fileloader*/, core::ReadStream && stream, utility::any & stash, engine::Asset file)
+			[](engine::file::loader & /*fileloader*/, core::content & content, utility::any & stash, engine::Asset file)
 		{
 			FileData & file_data = stash.emplace<FileData>();
 
 			switch (file)
 			{
 			case engine::Hash(u8"maybe.exists"):
-				file_data.value += int(read_char(stream));
+				file_data.value += int(read_char(content));
 				break;
 			case engine::Hash(u8"folder/maybe.exists"):
-				file_data.value += int(read_char(stream));
+				file_data.value += int(read_char(content));
 				break;
 			default:
 				debug_fail();
@@ -321,7 +322,7 @@ namespace
 		}
 	}
 
-	void tree_load(engine::file::loader & fileloader, core::ReadStream && stream, utility::any & stash, engine::Asset file)
+	void tree_load(engine::file::loader & fileloader, core::content & content, utility::any & stash, engine::Asset file)
 	{
 		TreeFileData & file_data = stash.emplace<TreeFileData>();
 
@@ -331,26 +332,26 @@ namespace
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.2"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.1"):
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.2"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.3"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.4"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.3"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.1"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.4"):
 			engine::file::load_dependency(fileloader, file, engine::Asset(u8"dependency.5"), engine::Asset("tmpfiletype"), tree_ready, tree_unready, utility::any(&sync_data));
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		case engine::Hash(u8"dependency.5"):
-			file_data.value += int(read_char(stream));
+			file_data.value += int(read_char(content));
 			break;
 		default:
 			debug_fail();
@@ -399,7 +400,7 @@ namespace
 TEST_CASE("file loader can load tree", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 	engine::file::loader fileloader(taskscheduler, filesystem);
 
 	engine::file::scoped_directory tmpdir(filesystem, engine::Asset("tmpdir"));

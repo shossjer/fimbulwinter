@@ -166,33 +166,6 @@ endif()
 
 _package_glext()
 
-# todo replace with simd json
-#
-macro(_package_json)
-	dep_package(json fiw_json
-		${ARGV}
-
-		FILES
-		nlohmann/json.hpp
-		)
-endmacro()
-
-option(FIW_BUILD_JSON "Build json" ON)
-if(FIW_BUILD_JSON)
-	_package_json(IGNORE_SYSTEM)
-
-	dep_build(json
-		DOWNLOAD_STEP
-		GIT_REPOSITORY "https://github.com/nlohmann/json.git"
-		GIT_TAG "ce0b3fe5a334567825a554a08b76c725d0790500"
-
-		CMAKE_OPTIONS
-		-DBuildTests=OFF
-		)
-endif()
-
-_package_json()
-
 #
 macro(_package_zlib)
 	dep_package(zlib fiw_zlib
@@ -433,11 +406,6 @@ add_library(fiw_utility_features INTERFACE)
 add_library(fiw_core_features INTERFACE)
 add_library(fiw_engine_features INTERFACE)
 
-if(TARGET fiw_json)
-	target_link_libraries(fiw_utility_features INTERFACE fiw_json)
-	target_compile_definitions(fiw_utility_features INTERFACE FIW_HAVE_JSON)
-endif()
-
 if(TARGET fiw_libpng)
 	target_link_libraries(fiw_core_features INTERFACE fiw_libpng)
 	target_compile_definitions(fiw_core_features INTERFACE FIW_HAVE_LIBPNG)
@@ -601,11 +569,6 @@ if(PROFILING_COZ)
 		)
 else()
 	message(STATUS "Disabled profiling")
-endif()
-
-if(CMAKE_BUILD_TYPE)
-	string(TOUPPER "${CMAKE_BUILD_TYPE}" _upper_build_type)
-	set(MODE_${_upper_build_type} 1)
 endif()
 
 configure_file(

@@ -11,11 +11,10 @@
 #include "engine/model/data.hpp"
 #include "engine/Token.hpp"
 
+#include "utility/container/vector.hpp"
 #include "utility/optional.hpp"
 
 #include "ful/heap.hpp"
-
-#include <vector>
 
 namespace engine
 {
@@ -129,8 +128,8 @@ namespace engine
 				static constexpr auto serialization()
 				{
 					return utility::make_lookup_table<ful::view_utf8>(
-						std::make_pair(ful::cstr_utf8("diffuse"), &MaterialAsset::diffuse),
-						std::make_pair(ful::cstr_utf8("shader"), &MaterialAsset::shader)
+						std::make_pair(ful::cstr_utf8("diffuse"), core::optional(&MaterialAsset::diffuse)),
+						std::make_pair(ful::cstr_utf8("shader"), core::optional(&MaterialAsset::shader))
 					);
 				}
 			};
@@ -165,8 +164,8 @@ namespace engine
 					}
 				};
 
-				std::vector<VertexInput> inputs;
-				std::vector<FragmentOutput> outputs;
+				utility::heap_vector<VertexInput> inputs;
+				utility::heap_vector<FragmentOutput> outputs;
 				ful::heap_string_utf8 vertex_source;
 				ful::heap_string_utf8 fragment_source;
 
@@ -198,7 +197,7 @@ namespace engine
 
 				engine::Token materialclass;
 				uint32_t diffuse;
-				std::vector<Texture> textures;
+				utility::heap_array<Texture> textures;
 			};
 
 			struct MeshObject
@@ -211,7 +210,7 @@ namespace engine
 
 			struct CharacterSkinning
 			{
-				std::vector<core::maths::Matrix4x4f> matrix_pallet;
+				utility::heap_array<core::maths::Matrix4x4f> matrix_pallet;
 			};
 
 			struct ModelviewMatrix

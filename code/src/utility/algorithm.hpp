@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utility/compiler.hpp"
 #include "utility/concepts.hpp"
 #include "utility/type_traits.hpp"
 
@@ -113,7 +114,7 @@ namespace ext
 		constexpr auto size_impl(const T & x, float)
 			-> decltype(ext::tuple_size<T>::value)
 		{
-			return static_cast<void>(x), ext::tuple_size<T>::value;
+			return fiw_unused(x), ext::tuple_size<T>::value;
 		}
 	}
 
@@ -236,7 +237,7 @@ namespace utl
 	                 F && f)
 	{
 		int expansion_hack[] = {(f(std::get<Is>(array)), 0)...};
-		static_cast<void>(expansion_hack);
+		fiw_unused(expansion_hack);
 	}
 #if defined(_MSC_VER)
 # pragma warning( pop )
@@ -449,7 +450,7 @@ namespace utl
 		value_type values[N] = {};
 
 		int expansion_hack[] = {(values[pairs.first] = std::move(pairs.second), 0)...};
-		static_cast<void>(expansion_hack);
+		fiw_unused(expansion_hack);
 
 		return utl::to_array(std::move(values));
 	}

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "config.h"
-
+#include "core/debug.hpp"
 #include "core/maths/Matrix.hpp"
 #include "core/maths/Scalar.hpp"
 #include "core/maths/Vector.hpp"

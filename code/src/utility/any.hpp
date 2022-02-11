@@ -6,10 +6,10 @@
 #include "utility/utility.hpp"
 
 #include "fio/stdio.hpp"
+
 #include "ful/heap.hpp"
 #include "ful/string_init.hpp"
 
-#include <cassert>
 #include <memory>
 
 namespace utility
@@ -272,8 +272,8 @@ namespace utility
 				case any_action::move:
 				{
 					auto & x = utility::construct_at<T>(&out.data_->buffer_, static_cast<T &&>(*static_cast<T *>(static_cast<void *>(&in.data_->buffer_))));
-					static_cast<void>(x);
-					assert(static_cast<void *>(&x) == static_cast<void *>(&out.data_->buffer_)); // [new.delete.placement]§2
+					fiw_unused(x);
+					fiw_assert(static_cast<void *>(&x) == static_cast<void *>(&out.data_->buffer_)); // [new.delete.placement]§2
 					out.data_->handler_ = &any_small<T>::handler;
 					static_cast<T *>(static_cast<void *>(&in.data_->buffer_))->~T();
 					break;

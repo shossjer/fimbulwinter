@@ -1,8 +1,6 @@
+#pragma once
 
-#ifndef CORE_SYNC_MUTEX_HPP
-#define CORE_SYNC_MUTEX_HPP
-
-#include <config.h>
+#include "config.h"
 
 #if THREAD_USE_KERNEL32
 # include <windows.h>
@@ -121,5 +119,3 @@ namespace sync
 	}
 }
 }
-
-#endif /* CORE_SYNC_MUTEX_HPP */

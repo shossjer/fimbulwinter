@@ -147,7 +147,7 @@ namespace core
 			case 5:
 				return rgb_t<T>{C + m, m, C * (T(6) - Hp) + m};
 			default:
-				intrinsic_unreachable();
+				fiw_unreachable();
 			}
 		}
 	};
@@ -222,15 +222,6 @@ namespace core
 
 		// 		return ret;
 		// 	}
-
-		static constexpr auto serialization()
-		{
-			return utility::make_lookup_table<ful::view_utf8>(
-				std::make_pair(ful::cstr_utf8("r"), core::array_element(&this_type::rgb, 0)),
-				std::make_pair(ful::cstr_utf8("g"), core::array_element(&this_type::rgb, 1)),
-				std::make_pair(ful::cstr_utf8("b"), core::array_element(&this_type::rgb, 2))
-			);
-		}
 
 	private:
 

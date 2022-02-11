@@ -1,4 +1,3 @@
-
 #include "config.h"
 
 #if GRAPHICS_USE_OPENGL

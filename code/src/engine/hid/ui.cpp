@@ -22,7 +22,6 @@
 
 #include <algorithm>
 #include <tuple>
-#include <vector>
 
 namespace
 {
@@ -55,8 +54,8 @@ namespace
 		ful::heap_string_utf8 name;
 	};
 
-	std::vector<Device> devices;
-	std::vector<DeviceMapping> device_mappings;
+	utility::heap_vector<Device> devices;
+	utility::heap_vector<DeviceMapping> device_mappings;
 	utility::heap_vector<utility::heap_vector<DeviceSource>> device_sources;
 
 	std::ptrdiff_t find_device(Device device)
@@ -72,8 +71,8 @@ namespace
 		debug_assert(std::find(devices.begin(), devices.end(), device) == devices.end());
 
 		devices.push_back(device);
-		device_mappings.emplace_back();
-		debug_verify(device_sources.try_emplace_back());
+		debug_verify(device_mappings.try_emplace_back());
+		fiw_unused(debug_verify(device_sources.try_emplace_back()));
 	}
 
 	void remove_device(Device device)
@@ -126,8 +125,8 @@ namespace
 		Filter axes[engine::hid::Input::axis_count] = {};
 	};
 
-	std::vector<engine::Token> mapping_entities;
-	std::vector<Mapping> mappings;
+	utility::heap_vector<engine::Token> mapping_entities;
+	utility::heap_vector<Mapping> mappings;
 
 	std::ptrdiff_t find_mapping(engine::Token mapping)
 	{
@@ -144,7 +143,7 @@ namespace
 		if (it == mapping_entities.end())
 		{
 			mapping_entities.push_back(mapping);
-			mappings.emplace_back();
+			debug_verify(mappings.try_emplace_back());
 		}
 		return i;
 	}
@@ -153,24 +152,24 @@ namespace
 	{
 		struct StateMapping
 		{
-			std::vector<engine::Token> mappings;
-			std::vector<void (*)(engine::Command command, float value, void * data)> callbacks;
-			std::vector<void *> datas;
+			utility::heap_vector<engine::Token> mappings;
+			utility::heap_vector<void (*)(engine::Command command, float value, void * data)> callbacks;
+			utility::heap_vector<void *> datas;
 		};
 
 		std::ptrdiff_t active = 0;
 		bool has_device_mappings = false;
 
-		std::vector<engine::Token> states;
-		std::vector<StateMapping> state_mappings;
+		utility::heap_array<engine::Token> states;
+		utility::heap_array<StateMapping> state_mappings;
 
-		std::vector<Device> devices;
+		utility::heap_vector<Device> devices;
 
-		Context(std::vector<engine::Token> && states)
+		Context(utility::heap_array<engine::Token> && states)
 			: states(std::move(states))
 			, state_mappings(this->states.size())
 		{
-			debug_assert(!this->states.empty(), "a context without states is useless, and a special case we do not want to handle");
+			debug_assert(this->states.size() != 0, "a context without states is useless, and a special case we do not want to handle");
 		}
 
 		std::ptrdiff_t find(engine::Token state) const
@@ -326,8 +325,8 @@ namespace
 		}
 	};
 
-	std::vector<engine::Token> context_assets;
-	std::vector<Context> contexts;
+	utility::heap_vector<engine::Token> context_assets;
+	utility::heap_vector<Context> contexts;
 
 	engine::Token default_context = engine::Token{};
 
@@ -339,12 +338,12 @@ namespace
 		return std::distance(context_assets.begin(), it);
 	}
 
-	void add_context(engine::Token context, std::vector<engine::Token> && states)
+	void add_context(engine::Token context, utility::heap_array<engine::Token> && states)
 	{
 		debug_assert(std::find(context_assets.begin(), context_assets.end(), context) == context_assets.end());
 
 		context_assets.push_back(context);
-		contexts.emplace_back(std::move(states));
+		debug_verify(contexts.try_emplace_back(std::move(states)));
 	}
 
 	void remove_context(engine::Token context)
@@ -389,7 +388,7 @@ namespace
 	struct AddContext
 	{
 		engine::Token context;
-		std::vector<engine::Token> states;
+		utility::heap_array<engine::Token> states;
 	};
 
 	struct AddDevice
@@ -410,24 +409,24 @@ namespace
 	struct ContextInfo
 	{
 		engine::Token asset;
-		std::vector<engine::Token> states;
-		std::vector<int> devices;
+		utility::heap_array<engine::Token> states;
+		utility::heap_array<int> devices;
 	};
 	struct QueryContexts
 	{
 		std::atomic_int * ready;
-		std::vector<ContextInfo> * contexts;
+		utility::heap_array<ContextInfo> * contexts;
 	};
 
 	struct DeviceInfo
 	{
 		int id;
-		std::vector<DeviceSource> sources;
+		utility::heap_array<DeviceSource> sources;
 	};
 	struct QueryDevices
 	{
 		std::atomic_int * ready;
-		std::vector<DeviceInfo> * devices;
+		utility::heap_array<DeviceInfo> * devices;
 	};
 
 	struct RemoveContext
@@ -582,12 +581,12 @@ namespace
 
 	};
 
-	void post_query_contexts(std::atomic_int & ready, std::vector<ContextInfo> & contexts_)
+	void post_query_contexts(std::atomic_int & ready, utility::heap_array<ContextInfo> & contexts_)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<QueryContexts>, &ready, &contexts_));
 	}
 
-	void post_query_devices(std::atomic_int & ready, std::vector<DeviceInfo> & devices_)
+	void post_query_devices(std::atomic_int & ready, utility::heap_array<DeviceInfo> & devices_)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<QueryDevices>, &ready, &devices_));
 	}
@@ -595,8 +594,8 @@ namespace
 	void callback_print_devices(void *)
 	{
 		std::atomic_int ready(0);
-		std::vector<DeviceInfo> devices_;
-		std::vector<ContextInfo> contexts_;
+		utility::heap_array<DeviceInfo> devices_;
+		utility::heap_array<ContextInfo> contexts_;
 		post_query_devices(ready, devices_);
 		post_query_contexts(ready, contexts_);
 
@@ -608,7 +607,7 @@ namespace
 		debug_printline("print-devices:");
 		for (const auto & device : devices_)
 		{
-			std::vector<std::ptrdiff_t> contexts_using_device;
+			utility::heap_vector<std::ptrdiff_t> contexts_using_device;
 			for (auto i : ranges::index_sequence_for(contexts_))
 			{
 				if (std::find(contexts_[i].devices.begin(), contexts_[i].devices.end(), device.id) != contexts_[i].devices.end())
@@ -617,7 +616,7 @@ namespace
 				}
 			}
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			for (const auto & source : device.sources)
 			{
 				debug_printline("  source ", source.path, "(", source.type, "): ", source.name);
@@ -660,7 +659,7 @@ namespace hid
 				void operator () (AddAxisMove && x)
 				{
 					const Filter filter = next_available_filter++;
-					static_cast<void>(debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y)));
+					fiw_unused(debug_verify(filters.emplace<AxisMove>(filter, x.command_x, x.command_y)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -670,7 +669,7 @@ namespace hid
 				void operator () (AddAxisTilt && x)
 				{
 					const Filter filter = next_available_filter++;
-					static_cast<void>(debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max)));
+					fiw_unused(debug_verify(filters.emplace<AxisTilt>(filter, x.command_min, x.command_max)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.axes[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -680,7 +679,7 @@ namespace hid
 				void operator () (AddButtonPress && x)
 				{
 					const Filter filter = next_available_filter++;
-					static_cast<void>(debug_verify(filters.emplace<ButtonPress>(filter, x.command)));
+					fiw_unused(debug_verify(filters.emplace<ButtonPress>(filter, x.command)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -690,7 +689,7 @@ namespace hid
 				void operator () (AddButtonRelease && x)
 				{
 					const Filter filter = next_available_filter++;
-					static_cast<void>(debug_verify(filters.emplace<ButtonRelease>(filter, x.command)));
+					fiw_unused(debug_verify(filters.emplace<ButtonRelease>(filter, x.command)));
 
 					auto & mapping = mappings[add_or_find_mapping(x.mapping)];
 					debug_assert(mapping.buttons[static_cast<int>(x.code)] == Filter{}, "mapping contains conflicts");
@@ -699,7 +698,7 @@ namespace hid
 
 				void operator () (AddContext && x)
 				{
-					const bool first_context = context_assets.empty();
+					const bool first_context = context_assets.size() == 0;
 
 					add_context(x.context, std::move(x.states));
 
@@ -756,8 +755,10 @@ namespace hid
 					for (auto i : ranges::index_sequence_for(contexts))
 					{
 						(*x.contexts)[i].asset = context_assets[i];
-						(*x.contexts)[i].devices = contexts[i].devices;
-						(*x.contexts)[i].states = contexts[i].states;
+						(*x.contexts)[i].devices.resize(contexts[i].devices.size());
+						(*x.contexts)[i].states.resize(contexts[i].states.size());
+						ful::copy(contexts[i].devices.begin(), contexts[i].devices.end(), (*x.contexts)[i].devices.begin(), (*x.contexts)[i].devices.end());
+						ful::copy(contexts[i].states.begin(), contexts[i].states.end(), (*x.contexts)[i].states.begin(), (*x.contexts)[i].states.end());
 					}
 
 					x.ready->fetch_add(1, std::memory_order_release);
@@ -770,13 +771,14 @@ namespace hid
 					for (auto i : ranges::index_sequence_for(devices))
 					{
 						(*x.devices)[i].id = devices[i];
-						(*x.devices)[i].sources.reserve(device_sources[i].size());
+						(*x.devices)[i].sources.resize(device_sources[i].size());
+						DeviceSource * it = (*x.devices)[i].sources.begin();
 						for (const auto & source : device_sources[i])
 						{
-							(*x.devices)[i].sources.emplace_back();
-							(*x.devices)[i].sources.back().type = source.type;
-							ful::copy(source.path, (*x.devices)[i].sources.back().path);
-							ful::copy(source.name, (*x.devices)[i].sources.back().name);
+							it->type = source.type;
+							ful::copy(source.path, it->path);
+							ful::copy(source.name, it->name);
+							it++;
 						}
 					}
 
@@ -801,9 +803,9 @@ namespace hid
 
 					if (removing_default_context)
 					{
-						if (!context_assets.empty())
+						if (!ext::empty(context_assets))
 						{
-							default_context = context_assets.front();
+							default_context = ext::front(context_assets);
 						}
 					}
 				}
@@ -897,7 +899,7 @@ namespace hid
 
 					const auto i = find_device(x.id);
 					debug_assert(std::find_if(device_sources[i].begin(), device_sources[i].end(), [&](const DeviceSource & source){ return source.path == x.path; }) == device_sources[i].end());
-					debug_verify(device_sources[i].try_emplace_back(x.type, std::move(x.path), std::move(x.name)));
+					fiw_unused(debug_verify(device_sources[i].try_emplace_back(x.type, std::move(x.path), std::move(x.name))));
 				}
 
 				void operator () (RemoveSource && x)
@@ -1001,7 +1003,7 @@ namespace hid
 	void post_add_context(
 		ui &,
 		engine::Token context,
-		std::vector<engine::Token> states)
+		utility::heap_array<engine::Token> && states)
 	{
 		debug_verify(queue.try_emplace(utility::in_place_type<AddContext>, context, std::move(states)));
 	}

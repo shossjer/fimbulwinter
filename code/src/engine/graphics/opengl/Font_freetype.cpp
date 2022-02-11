@@ -127,7 +127,7 @@ namespace engine
 				while (true);
 
 				const int max_number_of_bitmaps_in_x = texture_size / max_bitmap_width;
-				pixels.resize(texture_size * texture_size, 0);
+				pixels.resize(texture_size * texture_size);
 				params.resize(256);
 				for (int i = 0; i < 256; i++)
 				{

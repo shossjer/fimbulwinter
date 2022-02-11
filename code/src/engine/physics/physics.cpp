@@ -98,7 +98,7 @@ namespace camera
 	// TODO: make thread safe when needed
 	void add(simulation & simulation, engine::Token id, core::maths::Vector3f position, bool bounded)
 	{
-		static_cast<void>(debug_verify(components.emplace<Camera>(id, Camera{ bounded, position })));
+		fiw_unused(debug_verify(components.emplace<Camera>(id, Camera{ bounded, position })));
 
 		// snap new camera to bounds
 		update(simulation, id, core::maths::Vector3f{ 0.f, 0.f, 0.f });
@@ -244,7 +244,7 @@ namespace physics
 					if (!debug_assert(find(objects, x.entity) != objects.end()))
 						return; // error
 
-					static_cast<void>(debug_verify(objects.emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat))));
+					fiw_unused(debug_verify(objects.emplace<object_t>(x.entity, std::move(x.transform.pos), std::move(x.transform.quat))));
 				}
 				void operator () (MessageRemove && x)
 				{

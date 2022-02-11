@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utility/compiler.hpp"
 #include "utility/type_info.hpp"
 #include "utility/type_traits.hpp"
 
@@ -7,7 +8,7 @@ namespace utility
 {
 	// todo remove
 	template <typename Stream>
-	bool to_stream(Stream && stream) { static_cast<void>(stream); return true; }
+	bool to_stream(Stream && stream) { fiw_unused(stream); return true; }
 	template <typename Stream, typename T, typename ...Ts>
 	bool to_stream(Stream && stream, T && t, Ts && ...ts)
 	{
@@ -29,7 +30,7 @@ namespace utility
 		auto try_stream_impl(Stream && stream, T && t, ...)
 			-> decltype(stream)
 		{
-			static_cast<void>(t);
+			fiw_unused(t);
 			return std::forward<Stream>(stream) << static_cast<typename mpl::remove_cvref_t<Stream>::char_type>('?');
 		}
 

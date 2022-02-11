@@ -29,13 +29,13 @@ namespace utility
 		protected:
 			void set_capacity(std::size_t capacity)
 			{
-				assert(capacity == 0 || capacity == storage_traits::capacity_value);
-				static_cast<void>(capacity);
+				fiw_assert(capacity == 0 || capacity == storage_traits::capacity_value);
+				fiw_unused(capacity);
 			}
 
 			void set_size(std::size_t size)
 			{
-				assert(size <= size_type(-1) && size <= storage_traits::capacity_value);
+				fiw_assert(size <= size_type(-1) && size <= storage_traits::capacity_value);
 
 				size_ = static_cast<size_type>(size);
 			}
@@ -67,7 +67,7 @@ namespace utility
 
 			void set_size(std::size_t size)
 			{
-				assert(size <= capacity_);
+				fiw_assert(size <= capacity_);
 
 				size_ = size;
 			}
@@ -302,7 +302,9 @@ namespace utility
 		annotate_nodiscard
 		bool try_erase(ext::index index)
 		{
-			if (!/*debug_assert*/(std::find(this->storage_.data(this->begin_indices()) + this->size(), this->storage_.data(this->begin_indices()) + this->capacity(), static_cast<std::size_t>(index)) == this->storage_.data(this->begin_indices()) + this->capacity()))
+			const auto found = std::find(this->storage_.data(this->begin_indices()) + this->size(), this->storage_.data(this->begin_indices()) + this->capacity(), static_cast<std::size_t>(index));
+			const auto outside = this->storage_.data(this->begin_indices()) + this->capacity();
+			if (!fiw_expect(found == outside))
 				return false;
 
 			const auto last = this->size() - 1;

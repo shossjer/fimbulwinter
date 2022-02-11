@@ -1,12 +1,9 @@
 #pragma once
 
-#include <config.h>
+#include "core/maths/Scalar.hpp"
 
-#include "Scalar.hpp"
-
-#include "core/debug.hpp"
-#include <utility/algorithm.hpp>
-#include <utility/type_traits.hpp>
+#include "utility/algorithm.hpp"
+#include "utility/type_traits.hpp"
 
 #include <array>
 #include <algorithm>
@@ -445,25 +442,5 @@ namespace core
 		using Vector3d = Vector<3, double>;
 		using Vector4f = Vector<4, float>;
 		using Vector4d = Vector<4, double>;
-
-		template <std::size_t N, typename T, typename BeginIt, typename EndIt>
-		bool copy(Vector<N, T> & x, BeginIt ibegin, EndIt iend)
-		{
-			typename Vector<N, T>::array_type buffer;
-
-			auto obegin = buffer + 0;
-			debug_expression(const auto oend = buffer + N);
-			if (!debug_assert(iend - ibegin == oend - obegin))
-				return false;
-
-			std::copy(ibegin, iend, obegin);
-
-			x.set(buffer);
-
-			return true;
-		}
-
-		template <std::size_t N, typename T>
-		constexpr auto size(const Vector<N, T> &) { return N; }
 	}
 }

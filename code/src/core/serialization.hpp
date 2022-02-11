@@ -2,6 +2,7 @@
 
 #include "core/debug.hpp"
 
+#include "utility/ext/stddef.hpp"
 #include "utility/iterator.hpp"
 #include "utility/lookup_table.hpp"
 #include "utility/optional.hpp"
@@ -14,8 +15,69 @@
 #include "ful/view.hpp"
 #include "ful/string_compare.hpp"
 
+namespace std
+{
+	template <class T>
+	struct tuple_size;
+}
+
 namespace core
 {
+	template <typename T, unsigned long long N>
+	ful_inline ful_pure constexpr T * begin(T (& x)[N]) { return x + 0; }
+
+	template <typename T, unsigned long long N>
+	ful_inline ful_pure constexpr T * end(T (& x)[N]) { return x + N; }
+
+	template <typename T, unsigned long long N>
+	ful_inline ful_pure constexpr bool empty(T (& x)[N]) { return ful_unused(x), N == 0; }
+
+	template <typename T>
+	static T && declval();
+
+	namespace detail
+	{
+		template <typename T>
+		static auto is_range(const T & x, int) -> decltype(begin(x), end(x), mpl::true_type());
+		template <typename T>
+		static auto is_range(const T &, ...) -> mpl::false_type;
+	}
+	template <typename T>
+	static auto is_range(const T & x) -> decltype(detail::is_range(x, 0));
+
+	namespace detail
+	{
+		template <typename T>
+		static auto is_same(const T &, const T &, int) -> mpl::true_type;
+		template <typename T, typename U>
+		static auto is_same(const T &, const U &, ...) -> mpl::false_type;
+
+		template <typename U, typename T>
+		static auto is_range_of(const T & x, int) -> decltype(end(x), is_same(*begin(x), declval<U>(), 0));
+		template <typename T>
+		static auto is_range_of(const T &, ...) -> mpl::false_type;
+	}
+	template <typename U, typename T>
+	static auto is_range_of(const T & x) -> decltype(detail::is_range_of<U>(x, 0));
+
+	template <typename T, std::size_t N>
+	static auto tuple_size(const T(&)[N]) -> mpl::index_constant<N>;
+	template <typename T>
+	static auto tuple_size(const T &) -> mpl::index_constant<std::tuple_size<T>::value>;
+
+	namespace detail
+	{
+		template <typename T>
+		static auto is_tuple(const T & x, int) -> decltype(tuple_size(x), mpl::true_type());
+		template <typename T>
+		static auto is_tuple(const T &, ...) -> mpl::false_type;
+	}
+	template <typename T>
+	static auto is_tuple(const T & x) -> decltype(detail::is_tuple(x, 0));
+
+	template <typename T = void>
+	static inline T only_if(mpl::true_type);
+
 	namespace detail
 	{
 		template <typename T>
@@ -36,12 +98,77 @@ namespace core
 			}
 
 		};
+
+		struct identity_t
+		{
+			template <typename X>
+			X && get(X && x) const
+			{
+				return static_cast<X &&>(x);
+			}
+		};
+
+		template <typename T>
+		struct optional_t
+		{
+			T member_;
+
+			template <typename X>
+			decltype(auto) get(X && x) const
+			{
+				auto && y = x.*member_;
+				return y.has_value() ? y.value() : y.emplace();
+			}
+		};
+
+		template <typename T, typename Proxy>
+		struct proxy_t
+		{
+			T member_;
+
+			template <typename X>
+			decltype(auto) get(X && x) const
+			{
+				return Proxy{x.*member_};
+			}
+		};
 	}
 
 	template <typename T, typename C>
 	constexpr auto array_element(T C:: * member, std::size_t index)
 	{
 		return detail::array_element_t<T C:: *>(member, index);
+	}
+
+	constexpr detail::identity_t identity()
+	{
+		return detail::identity_t();
+	}
+
+	template <typename T, typename C>
+	constexpr auto optional(T C:: * member)
+		-> decltype((std::declval<C>().*member).has_value(), (std::declval<C>().*member).value(), (std::declval<C>().*member).emplace(), detail::optional_t<T C:: *>())
+	{
+		return detail::optional_t<T C:: *>{member};
+	}
+
+	template <typename T, typename C>
+	constexpr auto vector(T C:: * member)
+	{
+		struct vector_proxy
+		{
+			using proxy_type = typename T::array_type;
+
+			T & value_;
+
+			bool set(const typename T::array_type & buffer)
+			{
+				value_.set(buffer);
+				return true;
+			}
+		};
+
+		return detail::proxy_t<T C:: *, vector_proxy>{member};
 	}
 
 	namespace detail
@@ -116,12 +243,25 @@ namespace core
 	class member_table
 	{
 	private:
+
 		using lookup_table_t = decltype(serialization(utility::in_place_type<T>));
 
 	private:
+
 		static constexpr lookup_table_t lookup_table = serialization(utility::in_place_type<T>);
 
 	public:
+
+		static constexpr bool empty()
+		{
+			return lookup_table.size() == 0;
+		}
+
+		static constexpr ext::usize size()
+		{
+			return lookup_table.size();
+		}
+
 		static constexpr bool has(ful::view_utf8 name)
 		{
 			return lookup_table.contains(name);
@@ -164,11 +304,13 @@ namespace core
 		}
 
 		template <typename X, typename F>
-		static void for_each_member(X && x, F && f)
+		static bool for_each_member(X && x, F && f)
 		{
-			for_each_member_impl(mpl::make_index_sequence<lookup_table.capacity>{}, std::forward<X>(x), std::forward<F>(f));
+			return for_each_member_impl(static_cast<X &&>(x), static_cast<F &&>(f), mpl::index_constant<0>{});
 		}
+
 	private:
+
 #if defined(_MSC_VER)
 # pragma warning( push )
 # pragma warning( disable : 4702 )
@@ -177,9 +319,9 @@ namespace core
 		template <typename X, typename F>
 		static utility::detail::invalid_type call_impl(mpl::index_constant<std::size_t(-1)>, X && x, F && f)
 		{
-			static_cast<void>(x);
-			static_cast<void>(f);
-			intrinsic_unreachable();
+			fiw_unused(x);
+			fiw_unused(f);
+			fiw_unreachable();
 		}
 #if defined(_MSC_VER)
 # pragma warning( pop )
@@ -188,31 +330,52 @@ namespace core
 		template <std::size_t I, typename X, typename F,
 		          REQUIRES((I != std::size_t(-1)))>
 		static auto call_impl(mpl::index_constant<I>, X && x, F && f)
-			-> decltype(f(detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<I>())))
+			-> decltype(static_cast<F &&>(f)(detail::get_member(static_cast<X &&>(x), std::declval<lookup_table_t>().template get_value<I>())))
 		{
-			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()));
+			return static_cast<F &&>(f)(detail::get_member(static_cast<X &&>(x), lookup_table.template get_value<I>()));
 		}
 
 		template <std::size_t I, typename X, typename F,
 		          REQUIRES((I != std::size_t(-1)))>
 		static auto call_impl(mpl::index_constant<I>, X && x, F && f)
-			-> decltype(f(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(std::forward<X>(x), std::declval<lookup_table_t>().template get_value<I>())))
+			-> decltype(static_cast<F &&>(f)(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(static_cast<X &&>(x), std::declval<lookup_table_t>().template get_value<I>())))
 		{
-			return f(lookup_table.template get_key<I>(), detail::get_member(std::forward<X>(x), lookup_table.template get_value<I>()));
+			return static_cast<F &&>(f)(lookup_table.template get_key<I>(), detail::get_member(static_cast<X &&>(x), lookup_table.template get_value<I>()));
+		}
+
+		template <std::size_t I, typename X, typename F,
+		          REQUIRES((I != std::size_t(-1)))>
+		static auto call_impl(mpl::index_constant<I> index, X && x, F && f)
+			-> decltype(static_cast<F &&>(f)(std::declval<lookup_table_t>().template get_key<I>(), detail::get_member(static_cast<X &&>(x), std::declval<lookup_table_t>().template get_value<I>()), index))
+		{
+			return static_cast<F &&>(f)(lookup_table.template get_key<I>(), detail::get_member(static_cast<X &&>(x), lookup_table.template get_value<I>()), index);
 		}
 
 		template <std::size_t ...Is, typename X, typename F>
 		static decltype(auto) call_with_all_members_impl(mpl::index_sequence<Is...>, X && x, F && f)
 		{
-			return f(detail::get_member(std::forward<X>(x), lookup_table.template get_value<Is>())...);
+			return static_cast<F &&>(f)(detail::get_member(static_cast<X &&>(x), lookup_table.template get_value<Is>())...);
 		}
 
-		template <std::size_t ...Is, typename X, typename F>
-		static void for_each_member_impl(mpl::index_sequence<Is...>, X && x, F && f)
+		template <typename X, typename F>
+		static bool for_each_member_impl(X && x, F && f, mpl::index_constant<lookup_table.capacity> index)
 		{
-			int expansion_hack[] = {(call_impl(mpl::index_constant<Is>{}, std::forward<X>(x), std::forward<F>(f)), 0)...};
-			static_cast<void>(expansion_hack);
+			fiw_unused(x);
+			fiw_unused(f);
+			fiw_unused(index);
+
+			return true;
 		}
+
+		template <typename X, typename F, size_t I>
+		static bool for_each_member_impl(X && x, F && f, mpl::index_constant<I> index)
+		{
+			if (!call_impl(index, static_cast<X &&>(x), static_cast<F &&>(f)))
+				return false;
+
+			return for_each_member_impl(static_cast<X &&>(x), static_cast<F &&>(f), mpl::index_constant<(I + 1)>{});
+		}
+
 	};
 
 	template <typename T>
@@ -294,9 +457,9 @@ namespace core
 			auto copy_impl_tuple(Tuple & tuple, BeginIt ibegin, EndIt iend, mpl::index_sequence<Is...>)
 				-> decltype(ext::declexpand(get<Is>(tuple) = *ibegin...), bool())
 			{
-				static_cast<void>(iend);
+				fiw_unused(iend);
 				int expansion_hack[] = {(get<Is>(tuple) = *ibegin, ++ibegin, 0)...};
-				static_cast<void>(expansion_hack);
+				fiw_unused(expansion_hack);
 
 				return true;
 			}
@@ -347,38 +510,68 @@ namespace core
 
 	namespace detail
 	{
+		template <typename T, typename F, typename Index>
+		auto for_each_impl_call(T & x, F && f, Index index)
+			-> decltype(static_cast<F &&>(f)(x))
+		{
+			fiw_unused(index);
+
+			return static_cast<F &&>(f)(x);
+		}
+
+		template <typename T, typename F, typename Index>
+		auto for_each_impl_call(T & x, F && f, Index index)
+			-> decltype(static_cast<F &&>(f)(x, index))
+		{
+			return static_cast<F &&>(f)(x, index);
+		}
+
 		template <typename T, typename F,
 		          REQUIRES((ext::is_range<T &>::value))>
 		bool for_each_impl(T & x, F && f, int)
 		{
-			for (auto && y : x)
+			auto begin_ = begin(x);
+			auto end_ = end(x);
+			ext::index index_ = 0;
+			if (begin_ != end_)
 			{
-				if (!f(y))
-					return false;
+				do
+				{
+					if (!for_each_impl_call(*begin_, static_cast<F &&>(f), index_))
+						return false;
+
+					++begin_;
+					index_++;
+				}
+				while (begin_ != end_);
 			}
 			return true;
 		}
 
-		template <typename F>
-		bool for_each_impl_tuple(F &&)
+		template <typename T, typename F>
+		bool for_each_impl_tuple(T & x, F && f, ext::tuple_size<T> index)
 		{
+			fiw_unused(x);
+			fiw_unused(f);
+			fiw_unused(index);
+
 			return true;
 		}
 
-		template <typename F, typename T, typename ...Ts>
-		bool for_each_impl_tuple(F && f, T & x, Ts & ...xs)
+		template <typename T, typename F, size_t I>
+		bool for_each_impl_tuple(T & x, F && f, mpl::index_constant<I> index)
 		{
-			if (!f(x))
+			if (!for_each_impl_call(ext::get<I>(x), static_cast<F &&>(f), index))
 				return false;
 
-			return for_each_impl_tuple(std::forward<F>(f), xs...);
+			return for_each_impl_tuple(x, static_cast<F &&>(f), mpl::index_constant<(I + 1)>{});
 		}
 
 		template <typename T, typename F,
 		          REQUIRES((ext::is_tuple<T &>::value))>
 		bool for_each_impl(T & x, F && f, ...)
 		{
-			return ext::apply([&](auto & ...ys){ return for_each_impl_tuple(std::forward<F>(f), ys...); }, x);
+			return for_each_impl_tuple(x, static_cast<F &&>(f), mpl::index_constant<0>{});
 		}
 	}
 
@@ -421,6 +614,20 @@ namespace core
 	{
 		x.emplace_back();
 		return x.back();
+	}
+
+	template <typename T>
+	auto grow(T & x)
+		-> decltype(x.try_emplace_back(), ext::back(x))
+	{
+		if (x.try_emplace_back())
+		{
+			return ext::back(x);
+		}
+		else
+		{
+			debug_unreachable();
+		}
 	}
 
 	namespace detail
@@ -468,27 +675,37 @@ namespace core
 	template <typename U, typename T>
 	using supports_reshape = decltype(reshape<U>(std::declval<T>(), 0));
 
+	//template <typename Stream, typename T>
+	//auto operator >> (Stream && stream, utility::optional<T> & value)
+	//	-> decltype(static_cast<Stream &&>(stream) >> value.value())
+	//{
+	//	// todo expect !value?
+	//	return static_cast<Stream &&>(stream) >> (value ? value.value() : value.emplace());
+	//}
+	template <typename Stream, typename T>
+	Stream && operator >> (Stream && stream, utility::optional<T> & value) = delete;
+
 	namespace detail
 	{
 		template <typename Stream, typename Value,
-		          REQUIRES((std::is_enum<mpl::remove_cvref_t<Value>>::value)),
-		          REQUIRES((core::has_lookup_table<mpl::remove_cvref_t<Value>>::value))>
-		auto serialize__(Stream && stream, Value && value, int)
-			-> decltype(core::value_table<mpl::remove_cvref_t<Value>>::find(stream.buffer()), std::declval<Stream &&>())
+		          REQUIRES((std::is_enum<Value>::value)),
+		          REQUIRES((core::has_lookup_table<Value>::value))>
+		auto serialize__(Stream && stream, Value & value, int)
+			-> decltype(core::value_table<Value>::find(stream.buffer()), std::declval<Stream &&>())
 		{
-			const auto index = core::value_table<mpl::remove_cvref_t<Value>>::find(stream.buffer());
+			const auto index = core::value_table<Value>::find(stream.buffer());
 			if (index != std::size_t(-1))
 			{
-				value = core::value_table<mpl::remove_cvref_t<Value>>::get(index);
+				value = core::value_table<Value>::get(index);
 
 				// todo consume whole stream buffer
 			}
 			else
 			{
-				constexpr auto value_name = utility::type_name<mpl::remove_cvref_t<Value>>();
-				static_cast<void>(value_name);
+				constexpr auto value_name = utility::type_name<Value>();
+				fiw_unused(value_name);
 
-				static_cast<void>(debug_fail("cannot serialize enum of type '", value_name, "' from stream value '", stream.buffer(), "'"));
+				debug_printline("cannot serialize enum of type '", value_name, "' from stream value '", stream.buffer(), "'");
 
 				stream.setstate(stream.failbit);
 			}
@@ -497,16 +714,32 @@ namespace core
 		}
 
 		template <typename Stream, typename Value>
-		Stream && serialize__(Stream && stream, Value && value, ...)
+		auto serialize__(Stream && stream, Value & value, float)
+			-> decltype(assign(value, stream.buffer()), std::declval<Stream &&>())
 		{
-			static_cast<void>(value);
+			if (assign(value, stream.buffer()))
+			{
+				// todo consume whole stream buffer
+			}
+			else
+			{
+				stream.setstate(stream.failbit);
+			}
+
+			return static_cast<Stream &&>(stream);
+		}
+
+		template <typename Stream, typename Value>
+		Stream && serialize__(Stream && stream, Value & value, ...)
+		{
+			fiw_unused(value);
 
 			constexpr auto stream_name = utility::type_name< mpl::remove_cvref_t<Stream>>();
-			constexpr auto value_name = utility::type_name<mpl::remove_cvref_t<Value>>();
-			static_cast<void>(stream_name);
-			static_cast<void>(value_name);
+			constexpr auto value_name = utility::type_name<Value>();
+			fiw_unused(stream_name);
+			fiw_unused(value_name);
 
-			static_cast<void>(debug_fail("cannot serialize value of type '", value_name, "' from stream of type '", stream_name, "', maybe you are missing an overload to 'operator >>'?"));
+			fiw_unused(debug_fail("cannot serialize value of type '", value_name, "' from stream of type '", stream_name, "', maybe you are missing an overload to 'operator >>'?"));
 
 			stream.setstate(stream.failbit);
 
@@ -515,111 +748,49 @@ namespace core
 	}
 
 	template <typename Stream, typename Value>
-	auto operator >> (Stream && stream, Value && value)
-		-> decltype(detail::serialize__(static_cast<Stream &&>(stream), static_cast<Value &&>(value), 0))
+	Stream && operator >> (Stream && stream, const Value & value) = delete;
+
+	template <typename Stream, typename Value>
+	auto operator >> (Stream && stream, Value & value)
+		-> decltype(detail::serialize__(static_cast<Stream &&>(stream), value, 0))
 	{
-		return detail::serialize__(static_cast<Stream &&>(stream), static_cast<Value &&>(value), 0);
+		return detail::serialize__(static_cast<Stream &&>(stream), value, 0);
+	}
+
+	template <typename T>
+	auto serialize(T & x, ful::view_utf8 object)
+		-> decltype(fio::istream<ful::view_utf8>(object) >> x, bool())
+	{
+		return static_cast<bool>(fio::istream<ful::view_utf8>(object) >> x);
+	}
+
+	template <typename T>
+	auto serialize(T & x, ful::cstr_utf8 object)
+		-> decltype(fio::istream<ful::view_utf8>(object) >> x, bool())
+	{
+		return static_cast<bool>(fio::istream<ful::view_utf8>(object) >> x);
 	}
 
 	namespace detail
 	{
-		// todo implement invoke and simplify object
-
-		template <typename T, typename Object,
-		          REQUIRES((core::has_lookup_table<T>::value))>
-		auto serialize_enum(T & x, Object && object)
-			-> decltype(core::value_table<T>::find(object()), bool())
-		{
-			const auto index = core::value_table<T>::find(object());
-			if (index == std::size_t(-1))
-				return debug_fail("unknown enum value");
-
-			x = core::value_table<T>::get(index);
-			return true;
-		}
-
-		template <typename T, typename Object,
-		          REQUIRES((core::has_lookup_table<T>::value))>
-		auto serialize_enum(T & x, Object && object)
-			-> decltype(core::value_table<T>::find(std::forward<Object>(object)), bool())
-		{
-			const auto index = core::value_table<T>::find(std::forward<Object>(object));
-			if (index == std::size_t(-1))
-				return debug_fail("unknown enum value");
-
-			x = core::value_table<T>::get(index);
-			return true;
-		}
-
-		template <typename T, typename Object,
-		          REQUIRES((std::is_enum<mpl::remove_cvref_t<T>>::value))>
-		auto serialize_impl(T & x, Object && object, int)
-			-> decltype(serialize_enum(x, std::forward<Object>(object)))
-		{
-			return serialize_enum(x, std::forward<Object>(object));
-		}
-
 		template <typename T, typename Object>
-		auto serialize_arithmetic(T & x, Object && object)
-			-> decltype(x = object(), bool())
+		auto serialize_(T & x, Object && object, int)
+			-> decltype(x = object(), x == object(), bool())
 		{
 			x = debug_cast<T>(object());
 			return true;
 		}
 
 		template <typename T, typename Object>
-		auto serialize_arithmetic(T & x, Object && object)
-			-> decltype(x = std::forward<Object>(object), bool())
+		auto serialize_(T & x, Object && object, int)
+			-> decltype(x = static_cast<Object &&>(object), x == object, bool())
 		{
-			x = debug_cast<T>(std::forward<Object>(object));
+			x = debug_cast<T>(static_cast<Object &&>(object));
 			return true;
 		}
 
-		template <typename T, typename Value>
-		auto serialize_arithmetic_impl(T & x, Value && value)
-			-> decltype(fio::from_chars(value.data(), value.data() + value.size(), x), bool())
-		{
-			return fio::from_chars(value.data(), value.data() + value.size(), x) != nullptr;
-		}
-
 		template <typename T, typename Object>
-		auto serialize_arithmetic(T & x, Object && object)
-			-> decltype(serialize_arithmetic_impl(x, object()))
-		{
-			return serialize_arithmetic_impl(x, object());
-		}
-
-		template <typename T, typename Object>
-		auto serialize_arithmetic(T & x, Object && object)
-			-> decltype(serialize_arithmetic_impl(x, std::forward<Object>(object)))
-		{
-			return serialize_arithmetic_impl(x, std::forward<Object>(object));
-		}
-
-		template <typename T, typename Object,
-		          REQUIRES((std::is_arithmetic<mpl::remove_cvref_t<T>>::value))>
-		auto serialize_impl(T & x, Object && object, int)
-			-> decltype(serialize_arithmetic(x, std::forward<Object>(object)))
-		{
-			return serialize_arithmetic(x, std::forward<Object>(object));
-		}
-
-		template <typename T, typename Object>
-		auto serialize_assign(T & x, Object && object, int)
-			-> decltype(static_cast<bool>(assign(x, object())))
-		{
-			return static_cast<bool>(assign(x, object()));
-		}
-
-		template <typename T, typename Object>
-		auto serialize_assign(T & x, Object && object, int)
-			-> decltype(static_cast<bool>(assign(x, std::forward<Object>(object))))
-		{
-			return static_cast<bool>(assign(x, std::forward<Object>(object)));
-		}
-
-		template <typename T, typename Object>
-		auto serialize_assign(T & x, Object && object, ...)
+		auto serialize_(T & x, Object && object, float)
 			-> decltype(x = object(), bool())
 		{
 			x = object();
@@ -627,41 +798,35 @@ namespace core
 		}
 
 		template <typename T, typename Object>
-		auto serialize_assign(T & x, Object && object, ...)
-			-> decltype(x = std::forward<Object>(object), bool())
+		auto serialize_(T & x, Object && object, float)
+			-> decltype(x = static_cast<Object &&>(object), bool())
 		{
-			x = std::forward<Object>(object);
+			x = static_cast<Object &&>(object);
 			return true;
 		}
 
 		template <typename T, typename Object>
-		auto serialize_impl(T & x, Object && object, float)
-			-> decltype(serialize_assign(x, std::forward<Object>(object), 0))
-		{
-			return serialize_assign(x, std::forward<Object>(object), 0);
-		}
-
-		template <typename T, typename Object>
-		bool serialize_impl(T &, Object &&, ...)
+		bool serialize_(T &, Object &&, ...)
 		{
 			constexpr auto value_name = utility::type_name<T>();
 			constexpr auto object_name = utility::type_name<Object>();
-			static_cast<void>(value_name);
-			static_cast<void>(object_name);
+			fiw_unused(value_name);
+			fiw_unused(object_name);
 			return debug_fail("cannot serialize value of type '", value_name, "' to/from object of type '", object_name, "', maybe you are missing an overload to 'serialize'?");
 		}
 	}
 
 	template <typename T, typename Object>
-	bool serialize(T & x, Object && object)
+	auto serialize(T & x, Object && object)
+		-> decltype(detail::serialize_(x, static_cast<Object &&>(object), 0))
 	{
-		return detail::serialize_impl(x, std::forward<Object>(object), 0);
+		return detail::serialize_(x, static_cast<Object &&>(object), 0);
 	}
 
 	template <typename T, typename Object>
 	bool serialize(utility::optional<T> & x, Object && object)
 	{
-		return serialize(x ? x.value() : x.emplace(), std::forward<Object>(object));
+		return serialize(x ? x.value() : x.emplace(), static_cast<Object &&>(object));
 	}
 
 	namespace detail

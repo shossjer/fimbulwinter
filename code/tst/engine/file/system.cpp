@@ -1,8 +1,8 @@
+#include "core/content.hpp"
 #include "core/debug.hpp"
-#include "core/ReadStream.hpp"
 #include "core/sync/Event.hpp"
-#include "core/WriteStream.hpp"
 
+#include "engine/file/config.hpp"
 #include "engine/file/scoped_directory.hpp"
 #include "engine/file/system.hpp"
 #include "engine/HashTable.hpp"
@@ -35,23 +35,27 @@ namespace
 		{}
 	};
 
-	void write_char(engine::file::system & /*filesystem*/, core::WriteStream && stream, utility::any && data)
+	ext::ssize write_char(engine::file::system & /*filesystem*/, core::content & content, utility::any && data)
 	{
 		if (!debug_assert(data.type_id() == utility::type_id<char>()))
-			return;
+			return 0;
 
-		if (!stream.done())
+		if (content.size() != 0)
 		{
 			const char number = utility::any_cast<char>(data);
-			stream.write_all(&number, sizeof number);
+			return ful::memcopy(&number + 0, &number + 1, static_cast<char *>(content.data())) - static_cast<char *>(content.data());
+		}
+		else
+		{
+			return 0;
 		}
 	};
 
-	char read_char(core::ReadStream & stream)
+	char read_char(core::content & content, int index = 0)
 	{
-		char number = -1;
-		stream.read_all(&number, sizeof number);
-		return number;
+		if (static_cast<ext::usize>(index) < content.size())
+			return *(static_cast<char *>(content.data()) + index);
+		return static_cast<char>(-1);
 	}
 
 	const int timeout = 1000; // milliseconds
@@ -63,7 +67,7 @@ TEST_CASE("file system can be created and destroyed", "[engine][file]")
 
 	for (int i = 0; i < 2; i++)
 	{
-		engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+		engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 	}
 }
 
@@ -72,7 +76,7 @@ TEST_CASE("file system can be created and destroyed", "[engine][file]")
 TEST_CASE("file system can read files", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 	engine::file::scoped_directory tmpdir(filesystem, engine::Hash("tmpdir"));
 
 	SECTION("that are created before the read starts")
@@ -97,15 +101,15 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash{},
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				debug_printline(stream.filepath());
-				sync_data.value = stream.filepath() == u8"maybe.exists" ? int(read_char(stream)) : -1;
+				debug_printline(content.filepath());
+				sync_data.value = content.filepath() == u8"maybe.exists" ? int(read_char(content)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(sync_data + 0));
@@ -116,15 +120,15 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			std::move(filepath2),
 			engine::Hash{},
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				debug_printline(stream.filepath());
-				sync_data.value = stream.filepath() == u8"folder/maybe.exists" ? int(read_char(stream)) : -1;
+				debug_printline(content.filepath());
+				sync_data.value = content.filepath() == u8"folder/maybe.exists" ? int(read_char(content)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(sync_data + 1));
@@ -161,14 +165,14 @@ TEST_CASE("file system can read files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash("strand"),
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 		{
 			if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 				return;
 
 			auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-			const auto value = int(read_char(stream));
+			const auto value = int(read_char(content));
 			if (value == 3)
 			{
 				if (sync_data.value_3 == 0)
@@ -208,7 +212,7 @@ TEST_CASE("file system can read files", "[engine][file]")
 TEST_CASE("file system can scan directories", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 	engine::file::scoped_directory tmpdir(filesystem, engine::Hash("tmpdir"));
 
 	SECTION("that are empty")
@@ -380,7 +384,7 @@ TEST_CASE("file system can scan directories", "[engine][file]")
 TEST_CASE("file system can write files", "[engine][file]")
 {
 	engine::task::scheduler taskscheduler(1);
-	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory());
+	engine::file::system filesystem(taskscheduler, engine::file::directory::working_directory(), engine::file::config_t{});
 	engine::file::scoped_directory tmpdir(filesystem, engine::Hash("tmpdir"));
 
 	SECTION("and ignore superfluous writes")
@@ -408,14 +412,14 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash("strand"),
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) : -1;
+				sync_data.value = content.filepath() == u8"new.file" ? int(read_char(content)) + int(read_char(content, 1)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(&sync_data));
@@ -449,14 +453,14 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash("strand"),
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) : -1;
+				sync_data.value = content.filepath() == u8"new.file" ? int(read_char(content)) + int(read_char(content, 1)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(&sync_data));
@@ -490,14 +494,14 @@ TEST_CASE("file system can write files", "[engine][file]")
 			tmpdir,
 			std::move(filepath1),
 			engine::Hash("strand"),
-			[](engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+			[](engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 			{
 				if (!debug_assert(data.type_id() == utility::type_id<SyncData *>()))
 					return;
 
 				auto & sync_data = *utility::any_cast<SyncData *>(data);
 
-				sync_data.value = stream.filepath() == u8"new.file" ? int(read_char(stream)) + int(read_char(stream)) + int(read_char(stream)) : -1;
+				sync_data.value = content.filepath() == u8"new.file" ? int(read_char(content)) + int(read_char(content, 1)) + int(read_char(content, 2)) : -1;
 				sync_data.event.set();
 			},
 			utility::any(&sync_data));

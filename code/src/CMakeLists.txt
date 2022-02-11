@@ -2,24 +2,23 @@
 set(SOURCES_CORE
 	src/core/async/Thread_kernel32.cpp
 	src/core/async/Thread_pthread.cpp
+	src/core/error.cpp
 	src/core/iostream.cpp
 	src/core/native/file_kernel32.cpp
 	src/core/native/file_posix.cpp
 	)
 
 set(HEADERS_CORE
-	src/core/ArmatureStructurer.hpp
 	src/core/async/delay.hpp
 	src/core/async/Thread.hpp
-	src/core/BufferedStream.hpp
-	src/core/BytesStructurer.hpp
 	src/core/color.hpp
 	src/core/container/Buffer.hpp
 	src/core/container/Collection.hpp
 	src/core/container/ExchangeQueue.hpp
-	src/core/container/Stack.hpp
 	src/core/container/Queue.hpp
+	src/core/content.hpp
 	src/core/debug.hpp
+	src/core/error.hpp
 	src/core/file/paths.hpp
 	src/core/graphics/Image.hpp
 	src/core/graphics/types.hpp
@@ -28,7 +27,6 @@ set(HEADERS_CORE
 	src/core/iostream.hpp
 	src/core/JsonSerializer.hpp
 	src/core/JsonStructurer.hpp
-	src/core/LevelStructurer.hpp
 	src/core/maths/Matrix.hpp
 	src/core/maths/Plane.hpp
 	src/core/maths/Quaternion.hpp
@@ -37,19 +35,11 @@ set(HEADERS_CORE
 	src/core/maths/algorithm.hpp
 	src/core/maths/util.hpp
 	src/core/native/file.hpp
-	src/core/NoSerializer.hpp
-	src/core/PlaceholderStructurer.hpp
 	src/core/PngStructurer.hpp
-	src/core/ReadStream.hpp
 	src/core/serialization.hpp
-	src/core/ShaderStructurer.hpp
-	src/core/StringSerializer.hpp
-	src/core/StringStream.hpp
-	src/core/StringStructurer.hpp
 	src/core/sync/CriticalSection.hpp
 	src/core/sync/Event.hpp
 	src/core/sync/Mutex.hpp
-	src/core/WriteStream.hpp
 	)
 
 set(MSVC_CORE
@@ -111,6 +101,7 @@ set(HEADERS_ENGINE
 	src/engine/audio/system.hpp
 	src/engine/common.hpp
 	src/engine/debug.hpp
+	src/engine/file/config.hpp
 	src/engine/file/loader.hpp
 	src/engine/file/scoped_directory.hpp
 	src/engine/file/scoped_library.hpp
@@ -161,6 +152,7 @@ set(HEADERS_UTILITY
 	src/utility/array.hpp
 	src/utility/bitmanip.hpp
 	src/utility/cast_iterator.hpp
+	src/utility/compiler.hpp
 	src/utility/compound.hpp
 	src/utility/concepts.hpp
 	src/utility/container/array.hpp
@@ -178,9 +170,7 @@ set(HEADERS_UTILITY
 	src/utility/functional/utility.hpp
 	src/utility/heap_allocator.hpp
 	src/utility/inaccessible.hpp
-	src/utility/intrinsics.hpp
 	src/utility/iterator.hpp
-	src/utility/json.hpp
 	src/utility/lookup_table.hpp
 	src/utility/null_allocator.hpp
 	src/utility/optional.hpp
@@ -206,6 +196,7 @@ set(HEADERS_UTILITY
 	src/utility/tuple.hpp
 	src/utility/type_info.hpp
 	src/utility/type_traits.hpp
+	src/utility/unique_ptr.hpp
 	src/utility/utility.hpp
 	src/utility/variant.hpp
 	src/utility/weak_ptr.hpp

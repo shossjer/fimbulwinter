@@ -5,7 +5,7 @@
 TEST_CASE("null allocator has default constructor", "[allocator][utility]")
 {
 	utility::null_allocator<char> na;
-	static_cast<void>(na);
+	fiw_unused(na);
 }
 
 TEST_CASE("null allocator fails to allocate", "[allocator][utility]")

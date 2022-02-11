@@ -1,13 +1,11 @@
+#pragma once
 
-#ifndef CORE_SYNC_CRITICALSECTION_HPP
-#define CORE_SYNC_CRITICALSECTION_HPP
-
-#include <config.h>
+#include "config.h"
 
 #if THREAD_USE_KERNEL32
 # include <windows.h>
 #elif THREAD_USE_PTHREAD
-# include "Mutex.hpp"
+# include "core/sync/Mutex.hpp"
 #endif
 
 // so that we get std::lock_guard
@@ -133,5 +131,3 @@ namespace sync
 	}
 }
 }
-
-#endif /* CORE_SYNC_CRITICALSECTION_HPP */

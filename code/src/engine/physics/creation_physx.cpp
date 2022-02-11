@@ -1,5 +1,4 @@
-
-#include <config.h>
+#include "config.h"
 
 #if PHYSICS_USE_PHYSX
 

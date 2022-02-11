@@ -4,7 +4,7 @@
 #include "engine/hid/input.hpp"
 #include "engine/Token.hpp"
 
-#include <vector>
+#include "utility/container/array.hpp"
 
 namespace engine
 {
@@ -20,7 +20,7 @@ namespace hid
 	void post_add_context(
 		ui & ui,
 		engine::Token context,
-		std::vector<engine::Token> states);
+		utility::heap_array<engine::Token> && states);
 	void post_remove_context(
 		ui & ui,
 		engine::Token context);

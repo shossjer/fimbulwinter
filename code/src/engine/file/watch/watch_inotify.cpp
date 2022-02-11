@@ -92,7 +92,7 @@ namespace
 #if defined(IN_MASK_CREATE)
 		mask |= IN_MASK_CREATE;
 #endif
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 		mask |= IN_ATTRIB | IN_MODIFY | IN_MOVE_SELF | IN_MOVE;
 #endif
 		const fd_t fd = ::inotify_add_watch(notify_fd, filepath.c_str(), mask);
@@ -112,7 +112,7 @@ namespace
 
 	void clear_aliases()
 	{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 		for (const Alias & alias : aliases.get<Alias>())
 		{
 			debug_printline("removing alias prematurely \"", aliases.get_key(alias), "\" with ", alias.use_count, " users");
@@ -133,7 +133,7 @@ namespace
 
 	void clear_watches()
 	{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 		for (const ReadWatch & watch : watches.get<ReadWatch>())
 		{
 			debug_printline("removing read watch prematurely \"", watch.ptr->filepath, "\"");
@@ -152,7 +152,7 @@ namespace
 
 	void scan_directory_subdirs(ful::view_utf8 filepath, utility::heap_vector<ful::heap_string_utf8> & subdirs)
 	{
-		static_cast<void>(debug_verify(subdirs.try_emplace_back()));
+		fiw_unused(debug_verify(subdirs.try_emplace_back()));
 
 		ful::heap_string_utf8 pattern;
 		if (!debug_verify(ful::assign(pattern, filepath)))
@@ -292,7 +292,7 @@ namespace
 			if (!debug_assert(directory_it != directories.end()))
 				return;
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			const Directory * const directory = directories.get<Directory>(directory_it);
 			if (debug_assert(directory))
 			{
@@ -581,7 +581,7 @@ namespace
 
 				ful::cstr_utf8 name = ful::make_cstr_utf8(event->name);
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 				debug_printline("event ", event->wd, " ", name);
 				if (event->mask & IN_ACCESS) { debug_printline("event IN_ACCESS"); }
 				if (event->mask & IN_ATTRIB) { debug_printline("event IN_ATTRIB"); }

@@ -1,14 +1,12 @@
 #pragma once
 
-#include "config.h"
-
 #include "utility/ext/stddef.hpp"
 
 #include "ful/view.hpp"
 
 namespace engine
 {
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 	extern void debug_tokentable_unregister(ext::usize from, ext::usize count);
 	extern bool debug_tokentable_register(ext::usize from, ext::usize count, ful::view_utf8 name);
 #endif
@@ -22,7 +20,7 @@ namespace engine
 
 		~EntityFactory()
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			if (count != 0)
 			{
 				debug_tokentable_unregister(from, count);
@@ -38,7 +36,8 @@ namespace engine
 			: from(from)
 			, count(count)
 		{
-#if MODE_DEBUG
+			fiw_unused(name);
+#if defined(_DEBUG) || !defined(NDEBUG)
 			if (count != 0)
 			{
 				if (!debug_tokentable_register(from, count, name))
@@ -54,14 +53,14 @@ namespace engine
 			: from(other.from)
 			, count(other.count)
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			other.count = 0;
 #endif
 		}
 
 		EntityFactory & operator =(EntityFactory && other) noexcept
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			if (count != 0)
 			{
 				debug_tokentable_unregister(from, count);
@@ -71,7 +70,7 @@ namespace engine
 			from = other.from;
 			count = other.count;
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			other.count = 0;
 #endif
 

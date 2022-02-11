@@ -1,9 +1,8 @@
 #pragma once
 
 #include "utility/annotate.hpp"
+#include "utility/compiler.hpp"
 #include "utility/container/container.hpp"
-
-#include <cassert>
 
 namespace utility
 {
@@ -289,10 +288,35 @@ namespace utility
 		annotate_nodiscard
 		bool try_reserve(std::size_t min_capacity)
 		{
-			if (intrinsic_likely(min_capacity <= this->capacity()))
+			if (fiw_likely(min_capacity <= this->capacity()))
 				return true;
 
 			return this->try_reallocate(min_capacity);
+		}
+
+		template <typename ...Ps>
+		annotate_nodiscard
+		bool resize(std::size_t size, Ps && ...ps)
+		{
+			if (size < this->size())
+			{
+				const auto it = this->begin_storage() + size;
+
+				this->storage_.destruct_range(it, this->end_storage());
+				this->set_end(it);
+			}
+			else
+			{
+				if (size > this->capacity())
+				{
+					if (!this->try_reallocate(size))
+						return false;
+				}
+
+				this->set_end(this->storage_.construct_fill(this->end_storage(), size - this->size(), static_cast<Ps &&>(ps)...));
+			}
+
+			return true;
 		}
 
 		template <typename ...Ps>
@@ -309,7 +333,7 @@ namespace utility
 		annotate_nodiscard
 		bool try_emplace_back(utility::no_reallocate_t, Ps && ...ps)
 		{
-			if (intrinsic_likely(this->position_end() != this->position_cap()))
+			if (fiw_likely(this->position_end() != this->position_cap()))
 				return try_emplace_back(utility::no_failure, std::forward<Ps>(ps)...);
 
 			return false;
@@ -319,7 +343,7 @@ namespace utility
 		annotate_nodiscard
 		bool try_emplace_back(Ps && ...ps)
 		{
-			if (intrinsic_likely(try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...)))
+			if (fiw_likely(try_emplace_back(utility::no_reallocate, std::forward<Ps>(ps)...)))
 				return true;
 
 			if (this->try_reserve(this->size() + 1))
@@ -367,7 +391,9 @@ namespace utility
 		iterator erase(const_iterator it)
 		{
 			iterator nonit = undo_const(it);
-			if (!/*debug_assert*/(begin() <= it && it < end()))
+			const auto beg__ = begin();
+			const auto end__ = end();
+			if (!fiw_expect(beg__ <= it && it < end__))
 				return nonit;
 
 			auto last = this->end_storage();
@@ -384,7 +410,9 @@ namespace utility
 		iterator erase(const_iterator from, const_iterator to)
 		{
 			iterator nonfrom = undo_const(from);
-			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
+			const auto beg__ = begin();
+			const auto end__ = end();
+			if (!fiw_expect(beg__ <= from && from <= to && to <= end__))
 				return nonfrom;
 
 			auto last = this->end_storage();
@@ -406,7 +434,9 @@ namespace utility
 		iterator erase(utility::stable_t, const_iterator it)
 		{
 			iterator nonit = undo_const(it);
-			if (!/*debug_assert*/(begin() <= it && it < end()))
+			const auto beg__ = begin();
+			const auto end__ = end();
+			if (!fiw_expect(beg__ <= it && it < end__))
 				return nonit;
 
 			iterator write = nonit;
@@ -424,7 +454,9 @@ namespace utility
 		iterator erase(utility::stable_t, const_iterator from, const_iterator to)
 		{
 			iterator nonfrom = undo_const(from);
-			if (!/*debug_assert*/(begin() <= from && from <= to && to <= end()))
+			const auto beg__ = begin();
+			const auto end__ = end();
+			if (!fiw_expect(beg__ <= from && from <= to && to <= end__))
 				return nonfrom;
 
 			iterator write = nonfrom;
@@ -439,6 +471,26 @@ namespace utility
 			return nonfrom;
 		}
 	};
+
+	template <typename Data>
+	constexpr std::size_t capacity(const basic_vector<Data> & x) { return x.capacity(); }
+	template <typename Data>
+	std::size_t size(const basic_vector<Data> & x) { return x.size(); }
+
+	template <typename Data>
+	typename basic_vector<Data>::iterator begin(basic_vector<Data> & x) { return x.begin(); }
+	template <typename Data>
+	typename basic_vector<Data>::const_iterator begin(const basic_vector<Data> & x) { return x.begin(); }
+
+	template <typename Data>
+	typename basic_vector<Data>::iterator end(basic_vector<Data> & x) { return x.end(); }
+	template <typename Data>
+	typename basic_vector<Data>::const_iterator end(const basic_vector<Data> & x) { return x.end(); }
+
+	template <typename Data>
+	typename basic_vector<Data>::pointer data(basic_vector<Data> & x) { return x.data(); }
+	template <typename Data>
+	typename basic_vector<Data>::const_pointer data(const basic_vector<Data> & x) { return x.data(); }
 
 	template <typename Storage,
 	          template <typename> class ReservationStrategy = utility::reserve_power_of_two,

@@ -117,7 +117,7 @@ namespace core
 					, readendi_{0}
 					, writei_{0}
 				{
-					static_cast<void>(debug_verify(storage_.allocate(capacity)));
+					fiw_unused(debug_verify(storage_.allocate(capacity)));
 				}
 
 				constexpr std::size_t capacity() const { return utility::storage_traits<Storage>::capacity_value; }
@@ -139,7 +139,7 @@ namespace core
 					, writei_{0}
 					, capacity_(capacity)
 				{
-					static_cast<void>(debug_verify(storage_.allocate(capacity)));
+					fiw_unused(debug_verify(storage_.allocate(capacity)));
 				}
 
 				std::size_t capacity() const { return capacity_; }

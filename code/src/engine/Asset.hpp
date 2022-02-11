@@ -7,7 +7,7 @@
 
 namespace engine
 {
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 	extern void debug_hashtable_add(std::uint32_t value, ful::view_utf8 string);
 #endif
 
@@ -34,7 +34,7 @@ namespace engine
 		explicit Asset(const char * str, std::size_t n)
 			: Hash(str, n)
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(str, n));
 #endif
 		}
@@ -43,7 +43,7 @@ namespace engine
 		explicit constexpr Asset(const char (& str)[N])
 			: Hash(str, N - 1) // subtract terminating null
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(str, N - 1));
 #endif
 		}
@@ -52,30 +52,22 @@ namespace engine
 		explicit Asset(const R & str)
 			: Hash(data(str), size(str))
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			debug_hashtable_add(static_cast<std::uint32_t>(*this), ful::view_utf8(data(str), size(str)));
 #endif
 		}
 
-	public:
+	private:
 
-		static constexpr auto serialization()
+		template <typename Stream>
+		friend Stream && operator >> (Stream && stream, this_type & value)
 		{
-			return utility::make_lookup_table<ful::view_utf8>(
-				std::make_pair(ful::cstr_utf8("id"), &Asset::value_)
-				);
+			value = Asset(stream.buffer());
+
+			// todo consume whole stream buffer
+
+			return static_cast<Stream &&>(stream);
 		}
 
 	};
-
-	inline bool serialize(Asset & x, ful::view_utf8 object)
-	{
-		x = Asset(object);
-		return true;
-	}
-
-	inline bool serialize(Asset & x, ful::cstr_utf8 object)
-	{
-		return serialize(x, static_cast<ful::view_utf8>(object));
-	}
 }

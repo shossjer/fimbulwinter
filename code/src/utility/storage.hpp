@@ -1,7 +1,5 @@
 #pragma once
 
-#include "config.h"
-
 #include "utility/aggregation_allocator.hpp"
 #include "utility/algorithm.hpp"
 #include "utility/annotate.hpp"
@@ -15,7 +13,6 @@
 #include "utility/tuple.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstring>
 
 namespace utility
@@ -77,7 +74,7 @@ namespace utility
 		annotate_nodiscard
 		bool allocate(std::size_t capacity)
 		{
-			return /*debug_assert*/(capacity == Capacity);
+			return fiw_expect(capacity == Capacity);
 		}
 
 		annotate_nodiscard
@@ -88,8 +85,8 @@ namespace utility
 
 		void deallocate(std::size_t capacity)
 		{
-			assert(capacity == Capacity);
-			static_cast<void>(capacity);
+			fiw_assert(capacity == Capacity);
+			fiw_unused(capacity);
 		}
 
 		annotate_nodiscard
@@ -308,16 +305,16 @@ namespace utility
 	private:
 		struct empty_allocator_hack : allocator_type
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			void * storage_ = nullptr;
 #else
 			void * storage_;
 #endif
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			~empty_allocator_hack()
 			{
-				assert(!storage_);
+				fiw_assert(!storage_);
 			}
 #endif
 			empty_allocator_hack() = default;
@@ -326,8 +323,8 @@ namespace utility
 			{}
 			empty_allocator_hack & operator = (empty_allocator_hack && other)
 			{
-#if MODE_DEBUG
-				assert(!storage_);
+#if defined(_DEBUG) || !defined(NDEBUG)
+				fiw_assert(!storage_);
 #endif
 				storage_ = std::exchange(other.storage_, nullptr);
 
@@ -339,8 +336,8 @@ namespace utility
 		annotate_nodiscard
 		bool allocate(std::size_t capacity)
 		{
-#if MODE_DEBUG
-			assert(!storage());
+#if defined(_DEBUG) || !defined(NDEBUG)
+			fiw_assert(!storage());
 #endif
 			storage() = allocator_traits::allocate(allocator(), capacity);
 			return good();
@@ -354,11 +351,11 @@ namespace utility
 
 		void deallocate(std::size_t capacity)
 		{
-#if MODE_DEBUG
-			assert(storage());
+#if defined(_DEBUG) || !defined(NDEBUG)
+			fiw_assert(storage());
 #endif
 			allocator_traits::deallocate(allocator(), storage(), capacity);
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			storage() = nullptr;
 #endif
 		}
@@ -367,8 +364,8 @@ namespace utility
 		T & construct_at(T * ptr_, Ps && ...ps)
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
-#if MODE_DEBUG
-			assert(storage());
+#if defined(_DEBUG) || !defined(NDEBUG)
+			fiw_assert(storage());
 #endif
 			allocator_traits::construct(allocator(), ptr_, std::forward<Ps>(ps)...);
 			return *ptr_;
@@ -378,8 +375,8 @@ namespace utility
 		void destruct_at(T * ptr_)
 		{
 			static_assert(mpl::member_of<T, Ts...>::value, "");
-#if MODE_DEBUG
-			assert(storage());
+#if defined(_DEBUG) || !defined(NDEBUG)
+			fiw_assert(storage());
 #endif
 			allocator_traits::destroy(allocator(), ptr_);
 		}
@@ -965,7 +962,7 @@ namespace utility
 			using utility::raw_range;
 			auto range = raw_range(begin, end);
 
-			assert(range.first <= range.second);
+			fiw_assert(range.first <= range.second);
 			std::memcpy(this->data(start), range.first, (range.second - range.first) * sizeof(S));
 
 			return start + (range.second - range.first);
@@ -1004,7 +1001,7 @@ namespace utility
 		void destruct_range_impl(mpl::index_sequence<Is...>, utility::zip_iterator<Ss *...> begin, utility::zip_iterator<Ss *...> end)
 		{
 			int expansion_hack[] = {(destruct_range(std::get<Is>(begin), std::get<Is>(end)), 0)...};
-			static_cast<void>(expansion_hack);
+			fiw_unused(expansion_hack);
 		}
 	};
 

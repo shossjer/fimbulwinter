@@ -1,15 +1,11 @@
 #pragma once
 
-#include "config.h"
-
+#include "utility/compiler.hpp"
 #include "utility/ext/stddef.hpp"
 #include "utility/heap_allocator.hpp"
 #include "utility/storing.hpp"
 
 #include <atomic>
-#if MODE_DEBUG
-# include <cassert>
-#endif
 #include <memory>
 
 namespace ext
@@ -23,11 +19,11 @@ namespace ext
 			std::atomic<ext::ssize> weak_count_;
 			utility::storing<T> storing_;
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			~shared_data()
 			{
-				assert(shared_count_.load(std::memory_order_relaxed) == 0);
-				assert(weak_count_.load(std::memory_order_relaxed) == 0);
+				fiw_assert(shared_count_.load(std::memory_order_relaxed) == 0);
+				fiw_assert(weak_count_.load(std::memory_order_relaxed) == 0);
 			}
 #endif
 

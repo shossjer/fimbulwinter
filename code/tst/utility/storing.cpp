@@ -1,3 +1,4 @@
+#include "utility/compiler.hpp"
 #include "utility/storing.hpp"
 
 #include <catch2/catch.hpp>
@@ -27,11 +28,11 @@ namespace
 TEST_CASE("", "")
 {
 	utility::storing<not_default_constructible> a;
-	static_cast<void>(a);
+	fiw_unused(a);
 }
 
 TEST_CASE("", "")
 {
 	utility::storing<also_not_default_constructible> a;
-	static_cast<void>(a);
+	fiw_unused(a);
 }

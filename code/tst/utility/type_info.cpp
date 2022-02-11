@@ -1,3 +1,4 @@
+#include "utility/compiler.hpp"
 #include "utility/type_info.hpp"
 
 #include "ful/string_compare.hpp"
@@ -10,6 +11,9 @@ namespace
 
 	template <typename>
 	struct template_type;
+
+	enum enum_type {};
+	enum struct enum_class_type {};
 
 	using alias_type = int;
 
@@ -1198,6 +1202,26 @@ TEST_CASE("type signature", "[utility][type info]")
 #endif
 	}
 
+	SECTION("of enum_type")
+	{
+		constexpr auto signature = utility::type_signature<enum_type>();
+#if defined(__GNUG__)
+		CHECK(signature == "(anonymous namespace)::enum_type");
+#elif defined(_MSC_VER)
+		CHECK(signature == "enum `anonymous-namespace'::enum_type");
+#endif
+	}
+
+	SECTION("of enum_class_type")
+	{
+		constexpr auto signature = utility::type_signature<enum_class_type>();
+#if defined(__GNUG__)
+		CHECK(signature == "(anonymous namespace)::enum_class_type");
+#elif defined(_MSC_VER)
+		CHECK(signature == "enum `anonymous-namespace'::enum_class_type");
+#endif
+	}
+
 	SECTION("of alias_type")
 	{
 		constexpr auto signature = utility::type_signature<alias_type>();
@@ -1279,6 +1303,18 @@ TEST_CASE("type name", "[utility][type info]")
 		CHECK(name == "anonymous-namespace::template_type<std::nullptr_t>");
 	}
 
+	SECTION("of enum_type")
+	{
+		constexpr auto name = utility::type_name<enum_type>();
+		CHECK(name == "anonymous-namespace::enum_type");
+	}
+
+	SECTION("of enum_class_type")
+	{
+		constexpr auto name = utility::type_name<enum_class_type>();
+		CHECK(name == "anonymous-namespace::enum_class_type");
+	}
+
 	SECTION("of alias_type")
 	{
 		constexpr auto name = utility::type_name<alias_type>();
@@ -1306,7 +1342,7 @@ TEST_CASE("type name", "[utility][type info]")
 		constexpr auto name = utility::type_name<in_function_type>();
 		// we do not promise any name in particular for a type in a function,
 		// which means its name can be anything :shrug:
-		static_cast<void>(name);
+		fiw_unused(name);
 	}
 }
 
@@ -1348,6 +1384,18 @@ TEST_CASE("type id", "[utility][type info]")
 		CHECK(id == utility::crypto::crc32("anonymous-namespace::template_type<std::nullptr_t>"));
 	}
 
+	SECTION("of enum_type")
+	{
+		constexpr auto id = utility::type_id<enum_type>();
+		CHECK(id == utility::crypto::crc32("anonymous-namespace::enum_type"));
+	}
+
+	SECTION("of enum_class_type")
+	{
+		constexpr auto id = utility::type_id<enum_class_type>();
+		CHECK(id == utility::crypto::crc32("anonymous-namespace::enum_class_type"));
+	}
+
 	SECTION("of alias_type")
 	{
 		constexpr auto id = utility::type_id<alias_type>();
@@ -1359,7 +1407,7 @@ TEST_CASE("type id", "[utility][type info]")
 		constexpr auto id = utility::type_id<anonymous_type>();
 		// we do not promise any name in particular for an anonymous type,
 		// which means its id can be anything :shrug:
-		static_cast<void>(id);
+		fiw_unused(id);
 	}
 
 	SECTION("of lambda_type")
@@ -1367,7 +1415,7 @@ TEST_CASE("type id", "[utility][type info]")
 		constexpr auto id = utility::type_id<lambda_type>();
 		// we do not promise any name in particular for a lambda type, which
 		// means its id can be anything :shrug:
-		static_cast<void>(id);
+		fiw_unused(id);
 	}
 
 	SECTION("of type in function")
@@ -1375,6 +1423,6 @@ TEST_CASE("type id", "[utility][type info]")
 		constexpr auto id = utility::type_id<in_function_type>();
 		// we do not promise any name in particular for a type in a function,
 		// which means its name can be anything :shrug:
-		static_cast<void>(id);
+		fiw_unused(id);
 	}
 }

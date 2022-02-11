@@ -1,15 +1,13 @@
+#pragma once
 
-#ifndef CORE_SYNC_CONDITIONVARIABLE_HPP
-#define CORE_SYNC_CONDITIONVARIABLE_HPP
+#include "config.h"
 
-#include <config.h>
-
-# include "CriticalSection.hpp"
+#include "core/sync/CriticalSection.hpp"
 
 #if THREAD_USE_KERNEL32
 # include <Windows.h>
 #elif THREAD_USE_PTHREAD
-# include "Mutex.hpp"
+# include "core/sync/Mutex.hpp"
 # include <pthread.h>
 #endif
 
@@ -117,5 +115,3 @@ namespace sync
 #endif
 }
 }
-
-#endif /* CORE_SYNC_CONDITIONVARIABLE_HPP */

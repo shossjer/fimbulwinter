@@ -3,7 +3,6 @@
 #include "utility/iterator.hpp"
 #include "utility/type_traits.hpp"
 
-#include <cassert>
 #include <cstddef>
 #include <utility>
 
@@ -54,7 +53,7 @@ namespace utility
 		{
 			static_assert(mpl::integral_max<std::size_t, 1, alignof(Ts)...>::value <= alignof(std::max_align_t), "operator new only guarantees correct alignment for fundamental types");
 			char * const p = base().allocate(size_of(n), hint);
-			assert(reinterpret_cast<std::uintptr_t>(p) % alignof(std::max_align_t) == 0);
+			fiw_assert(reinterpret_cast<std::uintptr_t>(p) % alignof(std::max_align_t) == 0);
 
 			return reinterpret_cast<value_type *>(p);
 		}
@@ -108,14 +107,14 @@ namespace utility
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, P && p)
 		{
 			int expansion_hack[] = {(construct(std::get<Is>(ptrs), std::get<Is>(std::forward<P>(p))), 0)...};
-			static_cast<void>(expansion_hack);
+			fiw_unused(expansion_hack);
 		}
 		template <std::size_t ...Is, typename ...Ps,
 		          REQUIRES((!ext::is_tuple<Ps...>::value))>
 		void construct_impl(mpl::index_sequence<Is...>, const std::tuple<Ts *...> & ptrs, Ps && ...ps)
 		{
 			int expansion_hack[] = {(construct(std::get<Is>(ptrs), std::forward<Ps>(ps)), 0)...};
-			static_cast<void>(expansion_hack);
+			fiw_unused(expansion_hack);
 		}
 #if defined(_MSC_VER)
 # pragma warning( pop )

@@ -1,417 +1,513 @@
 #pragma once
 
-#include "core/debug.hpp"
-#include "core/ReadStream.hpp"
+#include "core/content.hpp"
+#include "core/error.hpp"
 #include "core/serialization.hpp"
 
-#include "utility/algorithm.hpp"
-#include "utility/cast_iterator.hpp"
-#include "utility/json.hpp"
-#include "utility/priority.hpp"
-#include "utility/ranges.hpp"
-
-#include "ful/cstrext.hpp"
 #include "ful/string_search.hpp"
-
-#include <cfloat>
-#include <cstdint>
-#include <limits>
-
-namespace ext
-{
-	template <typename S>
-	struct signature;
-
-	template <typename R>
-	struct signature<R (...)>
-	{
-		template <typename ...Ps>
-		R operator () (Ps && ...);
-	};
-}
 
 namespace core
 {
-	class JsonStructurer
+	namespace detail
 	{
-	private:
-
-		ful::cstr_utf8 filepath_;
-
-		json root;
-
-	public:
-
-		explicit JsonStructurer(core::ReadStream && read_stream)
-			: filepath_(read_stream.filepath())
-		{
-			std::vector<char> buffer;
-			std::size_t filled = 0;
-
-			while (!read_stream.done())
-			{
-				const auto extra = 0x1000;
-				buffer.resize(filled + extra); // todo might throw
-
-				const ext::ssize ret = read_stream.read_some(buffer.data() + filled, extra);
-				if (!debug_verify(ret >= 0))
-					return;
-
-				filled += ret;
-			}
-
-			try
-			{
-				root = json::parse(buffer.data(), buffer.data() + filled);
-			}
-			catch (std::exception & x)
-			{
-				static_cast<void>(x);
-				debug_fail("json '", filepath_, "' failed due to: ", ful::make_cstr_utf8(x.what()));
-			}
-		}
-
-	public:
-
 		template <typename T>
-		bool read(T & x)
+		auto grow_range(T & x, int)
+			-> decltype(x.emplace_back() == x.data(), x.data())
 		{
-			return read(root, x);
+			return x.emplace_back();
 		}
 
-	private:
-
-#if defined(_MSC_VER)
-# pragma warning( push )
-# pragma warning( disable : 4702 )
-		// C4702 - unreachable code
-#endif
+		// todo iff exceptions enabled
 		template <typename T>
-		bool read(const json & j, T & x)
+		auto grow_range(T & x, int)
+			-> decltype(&x.emplace_back() == x.data(), x.data())
 		{
-			if (j.is_array())
-			{
-				if (!read_array(j, x))
-					return false;
-			}
-			else if (j.is_boolean())
-			{
-				if (!read_bool(j, x))
-					return false;
-			}
-			else if (j.is_number())
-			{
-				if (!read_number(j, x))
-					return false;
-			}
-			else if (j.is_object())
-			{
-				if (!read_object(j, x))
-					return false;
-			}
-			else if (j.is_string())
-			{
-				if (!read_string(j, x))
-					return false;
-			}
-			else
-			{
-				debug_unreachable("unknown value type in json '", filepath_, "'");
-			}
-			return true;
+			//std::is_nothrow_default_constructible<typename T::value_type>::value
+			return &x.emplace_back();
 		}
-#if defined(_MSC_VER)
-# pragma warning( pop )
-#endif
 
-		utility::type_id_t figure_out_array_type(json::const_iterator from, json::const_iterator to) const
+		// todo iff exceptions enabled
+		template <typename T>
+		auto grow_range(T & x, ...)
+			-> decltype(x.emplace_back(), x.back(), x.data())
 		{
-			static_assert(FLT_RADIX == 2, "");
-			constexpr uint64_t biggest_int_in_float = (uint64_t(1) << FLT_MANT_DIG) - 1;
+			//std::is_nothrow_default_constructible<typename T::value_type>::value
+			x.emplace_back();
+			return &x.back();
+		}
+	}
 
-			int64_t smallest_int = 0;
-			uint64_t biggest_int = 0;
-			bool is_float = false;
+	template <typename T>
+	auto grow_range(T & x)
+		-> decltype(detail::grow_range(x, 0))
+	{
+		return detail::grow_range(x, 0);
+	}
 
-			for (; from != to; from++)
+	namespace detail
+	{
+		struct structure_json
+		{
+		private:
+
+			struct error_code
 			{
-				if (from->is_number_float())
+				enum type : ext::ssize
 				{
-					if (static_cast<double>(static_cast<float>(*from)) != static_cast<double>(*from))
-						return utility::type_id<double>();
-					is_float = true;
+					// reached_eof, // not an error
+					unexpected_eof = 1,
+					unexpected_error,
+					unexpected_key,
+					unexpected_symbol,
+					unexpected_value,
+					expected_array,
+					expected_less,
+					expected_more,
+					expected_object,
+					expected_string,
+				};
+			};
+
+			text_error error_;
+
+			template <error_code::type E>
+#if defined(_MSC_VER)
+			__declspec(noinline)
+#else
+			__attribute__((noinline))
+#endif
+			ext::ssize error(ext::ssize size, ful::unit_utf8 * end)
+			{
+				fiw_unused(end);
+
+				error_.where = size;
+				error_.type = ful::view_utf8{};
+
+				switch (E)
+				{
+				case error_code::unexpected_eof:
+					error_.message = ful::cstr_utf8("unexpected end of file");
+					return E;
+				case error_code::unexpected_error:
+					error_.message = ful::cstr_utf8("unexpected error");
+					return E;
+				case error_code::unexpected_key:
+					error_.message = ful::cstr_utf8("unexpected key");
+					return E;
+				case error_code::unexpected_symbol:
+					error_.message = ful::cstr_utf8("unexpected symbol");
+					return E;
+				case error_code::expected_array:
+					error_.message = ful::cstr_utf8("expected array");
+					return E;
+				case error_code::expected_less:
+					error_.message = ful::cstr_utf8("expected less");
+					return E;
+				case error_code::expected_more:
+					error_.message = ful::cstr_utf8("expected more");
+					return E;
+				case error_code::expected_object:
+					error_.message = ful::cstr_utf8("expected object");
+					return E;
+				case error_code::expected_string:
+					error_.message = ful::cstr_utf8("expected string");
+					return E;
+				case error_code::unexpected_value:
+#if defined(_MSC_VER)
+				default:
+#endif
+					ful_unreachable();
 				}
-				else if (from->is_number_unsigned())
+			}
+
+			template <error_code::type E, typename T>
+#if defined(_MSC_VER)
+			__declspec(noinline)
+#else
+			__attribute__((noinline))
+#endif
+			ext::ssize error(ext::ssize size, ful::unit_utf8 * end, T & x)
+			{
+				fiw_unused(end);
+				fiw_unused(x);
+
+				constexpr const auto name = utility::type_name<T>();
+
+				error_.where = size;
+				error_.type = name;
+
+				switch (E)
 				{
-					biggest_int = std::max(biggest_int, static_cast<uint64_t>(*from));
+				case error_code::unexpected_value:
+					error_.message = ful::cstr_utf8("unexpected value");
+					return E;
+				case error_code::unexpected_eof:
+				case error_code::unexpected_error:
+				case error_code::unexpected_key:
+				case error_code::unexpected_symbol:
+				case error_code::expected_array:
+				case error_code::expected_less:
+				case error_code::expected_more:
+				case error_code::expected_object:
+				case error_code::expected_string:
+#if defined(_MSC_VER)
+				default:
+#endif
+					ful_unreachable();
 				}
-				else if (from->is_number_integer())
+			}
+
+		public:
+
+			const text_error & error() const { return error_; }
+
+			ext::ssize skip_whitespace(ext::ssize size, ful::unit_utf8 * end)
+			{
+				if (size >= 0)
+					return error<error_code::unexpected_eof>(size, end);
+
+				if (static_cast<unsigned char>(*(end + size)) <= ' ')
 				{
-					debug_assert(static_cast<int64_t>(*from) < 0);
-					smallest_int = std::min(smallest_int, static_cast<int64_t>(*from));
+					do
+					{
+						size++;
+						if (size >= 0)
+							return error<error_code::unexpected_eof>(size, end);
+					}
+					while (static_cast<unsigned char>(*(end + size)) <= ' ');
+				}
+
+				return size;
+			}
+
+			ext::ssize read_string(ext::ssize size, ful::unit_utf8 * end, ful::view_utf8 & x)
+			{
+				if (*(end + size) != '"')
+					return error<error_code::expected_string>(size, end);
+
+				const ext::ssize first = size + 1;
+
+				while (true)
+				{
+					size++;
+
+					ful::unit_utf8 * found = ful::find(end + size, end, ful::char8{'"'});
+					if (found == end)
+						return error<error_code::unexpected_eof>(size, end);
+
+					size = found - end;
+
+					if (*(found - 1) != '\\')
+						break;
+					if (*(found - 2) == '\\')
+					{
+						if (*(found - 3) != '\\')
+							break;
+						if (*(found - 4) == '\\')
+						{
+							if (!debug_fail("more than 3 \\ at the end of string not implemented"))
+								return error<error_code::unexpected_error>(size, end);
+						}
+					}
+				}
+
+				const ext::ssize last = size;
+				x = ful::view_utf8(end + first, end + last);
+
+				return size;
+			}
+
+			ext::ssize read_value(ext::ssize size, ful::unit_utf8 * end, bool & x)
+			{
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (size <= -4)
+				{
+					if (*reinterpret_cast<const unsigned int *>(end + size + 4 - 4) == 0x65757274ull) // 'true' (LE)
+					{
+						x = true;
+						return size + 4;
+					}
+				}
+
+				if (size <= -5)
+				{
+					if (*reinterpret_cast<const unsigned int *>(end + size + 4 - 4) == 0x736c6166ull && // 'fals' (LE)
+						*reinterpret_cast<const unsigned char *>(end + size + 5 - 1) == 'e')
+					{
+						x = false;
+						return size + 5;
+					}
+				}
+
+				return error<error_code::unexpected_value>(size, end, x);
+			}
+
+			template <typename T>
+			auto read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+				-> decltype(fio::from_chars(end, end, x), ext::ssize())
+			{
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				const ext::ssize n = fio::from_chars(end + size, end, x) - (end + size);
+				if (n > 0)
+				{
+					return size + n;
 				}
 				else
 				{
-					return utility::type_id_t{};
+					return error<error_code::unexpected_value>(size, end, x);
 				}
 			}
 
-			if (is_float)
-				return
-					static_cast<uint64_t>(-smallest_int) > biggest_int_in_float || biggest_int > biggest_int_in_float ? utility::type_id<double>() :
-					utility::type_id<float>();
-
-			if (smallest_int < 0)
-				return
-					smallest_int < std::numeric_limits<int32_t>::min() || biggest_int > std::numeric_limits<int32_t>::max() ? utility::type_id<int64_t>() :
-					smallest_int < std::numeric_limits<int16_t>::min() || biggest_int > std::numeric_limits<int16_t>::max() ? utility::type_id<int32_t>() :
-					smallest_int < std::numeric_limits<int8_t>::min() || biggest_int > std::numeric_limits<int8_t>::max() ? utility::type_id<int16_t>() :
-					utility::type_id<int8_t>();
-
-			return
-				biggest_int > std::numeric_limits<uint32_t>::max() ? utility::type_id<uint64_t>() :
-				biggest_int > std::numeric_limits<uint16_t>::max() ? utility::type_id<uint32_t>() :
-				biggest_int > std::numeric_limits<uint8_t>::max() ? utility::type_id<uint16_t>() :
-				utility::type_id<uint8_t>();
-		}
-
-		template <typename T>
-		auto read_array(const json & j, T & x, ext::priority_highest)
-			-> decltype(core::supports_resize<T &>(), core::supports_copy<T &, json::const_iterator, json::const_iterator>())
-		{
-			if (!debug_assert(j.is_array()))
-				return false;
-
-			using core::copy;
-			using core::resize;
-
-			if (!resize(x, j.size()))
-				return false;
-
-			try
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_enum<T>::value))>
+			ext::ssize read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
 			{
-				return copy(x, j.begin(), j.end());
-			}
-			catch (std::exception & x)
-			{
-				static_cast<void>(x);
-				return debug_fail(ful::make_cstr_utf8(x.what()));
-			}
-		}
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
 
-		template <typename T>
-		auto read_array(const json & j, T & x, ext::priority_high)
-			-> decltype(core::supports_reshape<uint8_t, T &>(),
-			            core::supports_reshape<uint16_t, T &>(),
-			            core::supports_reshape<uint32_t, T &>(),
-			            core::supports_reshape<uint64_t, T &>(),
-			            core::supports_reshape<int8_t, T &>(),
-			            core::supports_reshape<int16_t, T &>(),
-			            core::supports_reshape<int32_t, T &>(),
-			            core::supports_reshape<int64_t, T &>(),
-			            core::supports_reshape<float, T &>(),
-			            core::supports_reshape<double, T &>(),
-			            core::supports_copy<T &, ext::cast_iterator<uint8_t, json::const_iterator>, ext::cast_iterator<uint8_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<uint16_t, json::const_iterator>, ext::cast_iterator<uint16_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<uint32_t, json::const_iterator>, ext::cast_iterator<uint32_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<uint64_t, json::const_iterator>, ext::cast_iterator<uint64_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<int8_t, json::const_iterator>, ext::cast_iterator<int8_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<int16_t, json::const_iterator>, ext::cast_iterator<int16_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<int32_t, json::const_iterator>, ext::cast_iterator<int32_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<int64_t, json::const_iterator>, ext::cast_iterator<int64_t, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<float, json::const_iterator>, ext::cast_iterator<float, json::const_iterator>>(),
-			            core::supports_copy<T &, ext::cast_iterator<double, json::const_iterator>, ext::cast_iterator<double, json::const_iterator>>())
-		{
-			if (!debug_assert(j.is_array()))
-				return false;
+				ful::view_utf8 str;
+				ext::ssize length = read_string(size, end, str);
+				if (length >= 0)
+					return length;
 
-			using core::copy;
-			using core::reshape;
-
-			try
-			{
-				switch (figure_out_array_type(j.begin(), j.end()))
+				const auto index = core::value_table<T>::find(str);
+				if (index != std::size_t(-1))
 				{
-				case utility::type_id<uint8_t>():
-					if (!reshape<uint8_t>(x, j.size()))
-						return false;
+					x = core::value_table<T>::get(index);
 
-					return copy(x, ext::make_cast_iterator<uint8_t>(j.begin()), ext::make_cast_iterator<uint8_t>(j.end()));
-				case utility::type_id<uint16_t>():
-					if (!reshape<uint16_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<uint16_t>(j.begin()), ext::make_cast_iterator<uint16_t>(j.end()));
-				case utility::type_id<uint32_t>():
-					if (!reshape<uint32_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<uint32_t>(j.begin()), ext::make_cast_iterator<uint32_t>(j.end()));
-				case utility::type_id<uint64_t>():
-					if (!reshape<uint64_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<uint64_t>(j.begin()), ext::make_cast_iterator<uint64_t>(j.end()));
-				case utility::type_id<int8_t>():
-					if (!reshape<int8_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<int8_t>(j.begin()), ext::make_cast_iterator<int8_t>(j.end()));
-				case utility::type_id<int16_t>():
-					if (!reshape<int16_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<int16_t>(j.begin()), ext::make_cast_iterator<int16_t>(j.end()));
-				case utility::type_id<int32_t>():
-					if (!reshape<int32_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<int32_t>(j.begin()), ext::make_cast_iterator<int32_t>(j.end()));
-				case utility::type_id<int64_t>():
-					if (!reshape<int64_t>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<int64_t>(j.begin()), ext::make_cast_iterator<int64_t>(j.end()));
-				case utility::type_id<float>():
-					if (!reshape<float>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<float>(j.begin()), ext::make_cast_iterator<float>(j.end()));
-				case utility::type_id<double>():
-					if (!reshape<double>(x, j.size()))
-						return false;
-
-					return copy(x, ext::make_cast_iterator<double>(j.begin()), ext::make_cast_iterator<double>(j.end()));
-				default:
-					return debug_fail();
+					return length + 1;
+				}
+				else
+				{
+					return error<error_code::unexpected_value>(size, end, x);
 				}
 			}
-			catch (std::exception & x)
+
+			template <typename T,
+			          REQUIRES((core::has_lookup_table<T>::value)),
+			          REQUIRES((std::is_class<T>::value))>
+			ext::ssize read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
 			{
-				static_cast<void>(x);
-				debug_unreachable(ful::make_cstr_utf8(x.what()));
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (*(end + size) != '{')
+					return error<error_code::expected_object>(size, end);
+
+				do
+				{
+					size++; // '{' or ','
+
+					size = skip_whitespace(size, end);
+					if (size >= 0)
+						return size;
+
+					ful::view_utf8 key;
+					ext::ssize length = read_string(size, end, key);
+					if (length >= 0)
+						return length;
+
+					const auto key_index = core::member_table<T>::find(key);
+					if (key_index != std::size_t(-1))
+					{
+						length++; // '"'
+
+						size = skip_whitespace(length, end);
+						if (size >= 0)
+							return size;
+
+						if (*(end + size) != ':')
+							return error<error_code::unexpected_symbol>(size, end);
+
+						size++; // ':'
+
+						size = core::member_table<T>::call(key_index, x, [=](auto && y){ return read_value(size, end, static_cast<decltype(y)>(y)); });
+						if (size >= 0)
+							return size;
+
+						size = skip_whitespace(size, end);
+						if (size >= 0)
+							return size;
+					}
+					else
+					{
+						return error<error_code::unexpected_key>(size, end);
+					}
+				}
+				while (*(end + size) == ',');
+
+				if (*(end + size) != '}')
+					return error<error_code::unexpected_symbol>(size, end);
+
+				return size + 1;
 			}
-		}
 
-		template <typename T>
-		auto read_array(const json & j, T & x, ext::priority_normal)
-			-> decltype(core::supports_resize<T &>(),
-			            core::supports_for_each<T &, ext::signature<bool(...)>>())
-		{
-			if (!debug_assert(j.is_array()))
-				return false;
-
-			using core::for_each;
-			using core::resize;
-
-			if (!resize(x, j.size()))
-				return false;
-
-			auto it = j.begin();
-			return for_each(x, [&](auto & y){ return read(*it++, y); });
-		}
-
-		template <typename T>
-		bool read_array(const json &, T &, ext::priority_default)
-		{
-			constexpr auto name = utility::type_name<T>();
-			static_cast<void>(name);
-			return debug_fail("attempting to read array into ", name, " from json '", filepath_, "'");
-		}
-
-		template <typename T>
-		bool read_array(const json & j, T & x)
-		{
-			return read_array(j, x, ext::resolve_priority);
-		}
-
-		template <typename T>
-		bool read_bool(const json & j, T & x)
-		{
-			if (!debug_assert(j.is_boolean()))
-				return false;
-
-			using core::serialize;
-			return debug_verify(serialize(x, static_cast<typename json::boolean_t>(j)));
-		}
-
-		template <typename T>
-		bool read_number(const json & j, T & x)
-		{
-			if (!debug_assert(j.is_number()))
-				return false;
-
-			using core::serialize;
-
-			if (j.is_number_float())
+			template <typename T>
+			auto read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+				-> decltype(core::grow_range(x), ext::ssize())
 			{
-				return debug_verify(serialize(x, static_cast<typename json::number_float_t>(j)));
-			}
-			else if (j.is_number_unsigned())
-			{
-				return debug_verify(serialize(x, static_cast<typename json::number_unsigned_t>(j)));
-			}
-			else if (j.is_number_integer())
-			{
-				return debug_verify(serialize(x, static_cast<typename json::number_integer_t>(j)));
-			}
-			else
-			{
-				debug_unreachable("not a number");
-			}
-		}
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
 
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_class<T>::value))>
-		bool read_object(const json & j, T & x)
+				if (*(end + size) != '[')
+					return error<error_code::expected_array>(size, end);
+
+				size++; // '['
+
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (*(end + size) != ']')
+					goto entry_array;
+
+				return size + 1;
+
+				do
+				{
+					size++;
+
+				entry_array:
+					auto it = core::grow_range(x);
+					if (!it)
+						return error<error_code::unexpected_error>(size, end);
+
+					size = read_value(size, end, *it);
+					if (size >= 0)
+						return size;
+
+					size = skip_whitespace(size, end);
+					if (size >= 0)
+						return size;
+				}
+				while (*(end + size) == ',');
+
+				if (*(end + size) != ']')
+					return error<error_code::unexpected_symbol>(size, end);
+
+				return size + 1;
+			}
+
+			template <typename T>
+			fio_inline
+			ext::ssize read_value_tuple_impl(ext::ssize size, ful::unit_utf8 * end, T & x, mpl::index_constant<(ext::tuple_size<T>::value - 1)>, int)
+			{
+				size++;
+
+				using ext::get;
+				size = read_value(size, end, get<(ext::tuple_size<T>::value - 1)>(x));
+				if (size >= 0)
+					return size;
+
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (*(end + size) != ']')
+					return error<error_code::expected_less>(size, end);
+
+				return size + 1;
+			}
+
+			template <typename T, size_t I>
+			fio_inline
+			ext::ssize read_value_tuple_impl(ext::ssize size, ful::unit_utf8 * end, T & x, mpl::index_constant<I>, float)
+			{
+				size++;
+
+				using ext::get;
+				size = read_value(size, end, get<I>(x));
+				if (size >= 0)
+					return size;
+
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (*(end + size) != ',')
+					return error<error_code::expected_more>(size, end);
+
+				return read_value_tuple_impl(size, end, x, mpl::index_constant<(I + 1)>{}, 0);
+			}
+
+			template <typename T>
+			auto read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+				-> decltype(mpl::enable_if_t<ext::is_tuple<T>::value>(), ext::ssize())
+			{
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				if (*(end + size) != '[')
+					return error<error_code::expected_array>(size, end);
+
+				return read_value_tuple_impl(size, end, x, mpl::index_constant<0>{}, 0);
+			}
+
+			template <typename T>
+			auto read_value(ext::ssize size, ful::unit_utf8 * end, T && x)
+				-> decltype(sizeof(typename T::proxy_type), ext::ssize())
+			{
+				typename T::proxy_type proxy;
+				size = read_value(size, end, proxy);
+				if (size >= 0)
+					return size;
+
+				if (!x.set(proxy))
+					return error<error_code::unexpected_error>(size, end);
+
+				return size;
+			}
+
+			template <typename T>
+			auto read_value(ext::ssize size, ful::unit_utf8 * end, T & x)
+				-> decltype(x = T(ful::view_utf8{}), ext::ssize())
+			{
+				size = skip_whitespace(size, end);
+				if (size >= 0)
+					return size;
+
+				ful::view_utf8 str;
+				size = read_string(size, end, str);
+				if (size >= 0)
+					return size;
+
+				x = T(str);
+
+				return size + 1;
+			}
+
+		};
+	}
+
+	template <typename T>
+	ful_inline
+	bool structure_json(core::content & content, T & x)
+	{
+		ful::unit_utf8 * const begin = static_cast<ful::unit_utf8 *>(content.data());
+		ful::unit_utf8 * const end = static_cast<ful::unit_utf8 *>(content.data()) + content.size();
+
+		detail::structure_json state;
+		const ext::ssize remainder = state.read_value(begin - end, end, x);
+		if (remainder <= 0)
 		{
-			if (!debug_assert(j.is_object()))
-				return false;
-
-			for (auto it = j.begin(); it != j.end(); ++it)
-			{
-				const auto key_string = it.key();
-				const ful::cstr_utf8 key(key_string);
-				const auto key_index = member_table<T>::find(key);
-				if (key_index == std::size_t(-1))
-					continue;
-
-				if (!member_table<T>::call(key_index, x, [&](auto & y){ return read(it.value(), y); }))
-					return false;
-			}
 			return true;
 		}
-
-		template <typename T,
-		          REQUIRES((core::has_lookup_table<T>::value)),
-		          REQUIRES((std::is_enum<T>::value))>
-		bool read_object(const json &, T &)
+		else
 		{
-			constexpr auto name = utility::type_name<T>();
-			static_cast<void>(name);
-			return debug_fail("attempting to read object into ", name, " from json '", filepath_, "'");
+			report_text_error(content, state.error());
+
+			return false;
 		}
-
-		template <typename T,
-		          REQUIRES((!core::has_lookup_table<T>::value))>
-		bool read_object(const json &, T &)
-		{
-			constexpr auto name = utility::type_name<T>();
-			static_cast<void>(name);
-			return debug_fail("attempting to read object into ", name, " from json '", filepath_, "'");
-		}
-
-		template <typename T>
-		bool read_string(const json & j, T & x)
-		{
-			if (!debug_assert(j.is_string()))
-				return false;
-
-			const typename json::string_t & string = j;
-
-			using core::serialize;
-			return debug_verify(serialize(x, ful::cstr_utf8(string)));
-		}
-	};
+	}
 }

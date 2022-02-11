@@ -4,9 +4,9 @@
 
 #include "engine/graphics/opengl.hpp"
 
-#include "ful/cstr.hpp"
+#include "utility/container/array.hpp"
 
-#include <vector>
+#include "ful/cstr.hpp"
 
 #if TEXT_USE_FREETYPE
 # include <ft2build.h>
@@ -53,8 +53,8 @@ namespace engine
 					int16_t max_bitmap_width;
 					int16_t max_bitmap_height;
 					int32_t texture_size;
-					std::vector<unsigned char> pixels;
-					std::vector<Param> params;
+					utility::heap_array<unsigned char> pixels;
+					utility::heap_array<Param> params;
 #elif TEXT_USE_USER32
 					engine::application::window * window_;
 					HFONT hFont;
@@ -98,7 +98,7 @@ namespace engine
 				int32_t texture_size;
 				/**
 				 */
-				std::vector<Data::Param> params;
+				utility::heap_array<Data::Param> params;
 #elif TEXT_USE_USER32
 				/**
 				 */

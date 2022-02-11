@@ -120,7 +120,7 @@ namespace utility
 		void assign(Tuple && tuple, mpl::index_sequence<Is...>)
 		{
 			int expansion_hack[] = {(std::get<Is>(*this) = std::get<Is>(std::forward<Tuple>(tuple)), 0)...};
-			static_cast<void>(expansion_hack);
+			fiw_unused(expansion_hack);
 		}
 	};
 

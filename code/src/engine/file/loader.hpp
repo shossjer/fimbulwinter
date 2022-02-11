@@ -6,7 +6,7 @@
 
 namespace core
 {
-	class ReadStream;
+	class content;
 }
 
 namespace engine
@@ -39,7 +39,7 @@ namespace engine
 
 		using load_callback = void(
 			loader & loader,
-			core::ReadStream && stream,
+			core::content & content,
 			utility::any & stash,
 			engine::Asset file);
 		using unload_callback = void(

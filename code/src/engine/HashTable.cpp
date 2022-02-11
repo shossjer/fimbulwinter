@@ -1,6 +1,4 @@
-#include "config.h"
-
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 
 #include "core/debug.hpp"
 
@@ -48,9 +46,7 @@ namespace
 
 		impl()
 		{
-#if MODE_DEBUG
 			engine::debug_tokentable_register(0, std::uint32_t(-1) & (ext::usize(-1) >> 1), ful::cstr_utf8("__hash_table__"), hashtable_copy);
-#endif
 
 			ful::heap_string_utf8 string;
 			table.emplace(std::uint32_t{}, std::move(string));

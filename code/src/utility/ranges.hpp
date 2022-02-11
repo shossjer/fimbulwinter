@@ -1,6 +1,7 @@
 #pragma once
 
-#include <cassert>
+#include "utility/compiler.hpp"
+
 #include <cstdint>
 #include <iterator>
 #include <type_traits>
@@ -65,8 +66,8 @@ namespace ranges
 
 	inline constexpr auto index_sequence(std::ptrdiff_t from, std::ptrdiff_t to)
 	{
-		assert(from <= to);
-		assert(0 <= from); // more weird than harmful
+		fiw_assert(from <= to);
+		fiw_assert(0 <= from); // more weird than harmful
 
 		return iota_range<std::ptrdiff_t>(from, to);
 	}
@@ -76,7 +77,7 @@ namespace ranges
 	{
 		using I = std::make_signed_t<N>;
 
-		assert(0 <= static_cast<I>(count));
+		fiw_assert(0 <= static_cast<I>(count));
 
 		return iota_range<I>(0, static_cast<I>(count));
 	}

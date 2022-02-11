@@ -104,6 +104,7 @@ namespace utility
 				ful::cxp::starts_with(str, "(anonymous namespace)") ? TypePattern{ 21, ful::cstr_utf8("anonymous-namespace") } :
 #elif defined(_MSC_VER)
 				ful::cxp::starts_with(str, "class ") ? TypePattern{ 6, ful::cstr_utf8() } :
+				ful::cxp::starts_with(str, "enum ") ? TypePattern{ 5, ful::cstr_utf8() } :
 				ful::cxp::starts_with(str, "struct ") ? TypePattern{ 7, ful::cstr_utf8() } :
 				ful::cxp::starts_with(str, "__int64") && !is_identifier_character(str.data()[7]) ? TypePattern{ 7, ful::cstr_utf8("long long int") } :
 				ful::cxp::starts_with(str, "`anonymous-namespace'") ? TypePattern{ 21, ful::cstr_utf8("anonymous-namespace") } :

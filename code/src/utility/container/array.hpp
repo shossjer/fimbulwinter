@@ -3,8 +3,6 @@
 #include "utility/annotate.hpp"
 #include "utility/container/container.hpp"
 
-#include <cassert>
-
 namespace utility
 {
 	namespace detail
@@ -123,7 +121,6 @@ namespace utility
 			if (!StorageTraits::moves_allocation::value)
 			{
 				this->set_cap(this->storage_.place(other.capacity()));
-				this->set_end(begin_storage() + other.size());
 			}
 		}
 
@@ -236,6 +233,16 @@ namespace utility
 		constexpr std::size_t size() const { return capacity(); }
 
 		annotate_nodiscard
+		pointer begin() { return this->storage_.data(this->begin_storage()); }
+		annotate_nodiscard
+		const_pointer begin() const { return this->storage_.data(this->begin_storage()); }
+
+		annotate_nodiscard
+		pointer end() { return this->storage_.data(this->end_storage()); }
+		annotate_nodiscard
+		const_pointer end() const { return this->storage_.data(this->end_storage()); }
+
+		annotate_nodiscard
 		auto data() { return this->storage_.data(this->begin_storage()); }
 		annotate_nodiscard
 		auto data() const { return this->storage_.data(this->begin_storage()); }
@@ -250,6 +257,13 @@ namespace utility
 				return true;
 
 			return this->try_reallocate(min_capacity);
+		}
+
+		// todo this is only correct if ReservationStrategy is exact
+		annotate_nodiscard
+		bool resize(std::size_t size)
+		{
+			return this->try_reallocate(size);
 		}
 	};
 

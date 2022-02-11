@@ -6,8 +6,7 @@
 
 namespace core
 {
-	class ReadStream;
-	class WriteStream;
+	class content;
 }
 
 namespace utility
@@ -23,7 +22,7 @@ namespace engine
 
 		using read_callback = void(
 			engine::file::system & filesystem,
-			core::ReadStream && stream,
+			core::content & content,
 			utility::any & data);
 
 		using scan_callback = void(
@@ -33,9 +32,9 @@ namespace engine
 			ful::heap_string_utf8 && removed_files, // multiple files separated by ;
 			utility::any & data);
 
-		using write_callback = void(
+		using write_callback = ext::ssize(
 			engine::file::system & filesystem,
-			core::WriteStream && stream,
+			core::content & content,
 			utility::any && data);
 	}
 }

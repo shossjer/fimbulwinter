@@ -1,12 +1,11 @@
 #pragma once
 
+#include "utility/container/vector.hpp"
 #include "utility/type_traits.hpp"
+#include "utility/unique_ptr.hpp"
 #include "utility/variant.hpp"
 
 #include "ful/view.hpp"
-
-#include <memory>
-#include <vector>
 
 namespace engine
 {
@@ -23,14 +22,14 @@ namespace engine
 		<
 			bool,
 			double,
-			int64_t,
+			ext::ssize,
 			ful::view_utf8
 		>;
 
 		struct CallbackBase
 		{
 			virtual ~CallbackBase() = default;
-			virtual bool call(const std::vector<Argument> &) = 0;
+			virtual bool call(const utility::heap_vector<Argument> &) = 0;
 		};
 
 		template <typename ...Parameters>
@@ -44,7 +43,7 @@ namespace engine
 				, data(data)
 			{}
 
-			bool call(const std::vector<Argument> & arguments) override
+			bool call(const utility::heap_vector<Argument> & arguments) override
 			{
 				if (arguments.size() != sizeof...(Parameters))
 					return false;
@@ -54,18 +53,18 @@ namespace engine
 
 		private:
 			template <std::size_t ...Is>
-			void call_fun(mpl::index_sequence<Is...>, const std::vector<Argument> & arguments) const
+			void call_fun(mpl::index_sequence<Is...>, const utility::heap_vector<Argument> & arguments) const
 			{
 				fun(data, utility::get<Parameters>(arguments[Is])...);
 			}
 
-			bool call_impl(mpl::index_constant<sizeof...(Parameters)>, const std::vector<Argument> & arguments) const
+			bool call_impl(mpl::index_constant<sizeof...(Parameters)>, const utility::heap_vector<Argument> & arguments) const
 			{
 				call_fun(mpl::make_index_sequence<sizeof...(Parameters)>{}, arguments);
 				return true;
 			}
 			template <std::size_t I>
-			bool call_impl(mpl::index_constant<I>, const std::vector<Argument> & arguments) const
+			bool call_impl(mpl::index_constant<I>, const utility::heap_vector<Argument> & arguments) const
 			{
 				if (!utility::holds_alternative<mpl::type_at<I, Parameters...>>(arguments[I]))
 					return false;
@@ -74,7 +73,7 @@ namespace engine
 			}
 		};
 
-		void observe_impl(ful::view_utf8 keyword, std::unique_ptr<CallbackBase> && callback);
+		void observe_impl(ful::view_utf8 keyword, ext::heap_unique_ptr<CallbackBase> && callback);
 	}
 
 	void abandon(ful::view_utf8 keyword);
@@ -82,6 +81,6 @@ namespace engine
 	template <typename ...Parameters>
 	void observe(ful::view_utf8 keyword, void (* fun)(void * data, Parameters...), void * data)
 	{
-		detail::observe_impl(keyword, std::make_unique<detail::Callback<Parameters...>>(fun, data));
+		detail::observe_impl(keyword, ext::heap_unique_ptr<detail::Callback<Parameters...>>(utility::in_place, fun, data));
 	}
 }

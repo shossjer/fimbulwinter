@@ -1,6 +1,4 @@
-
-#ifndef ENGINE_APPLICATION_WINDOW_HPP
-#define ENGINE_APPLICATION_WINDOW_HPP
+#pragma once
 
 #include "config.h"
 
@@ -52,5 +50,3 @@ namespace engine
 		void close();
 	}
 }
-
-#endif /* ENGINE_APPLICATION_WINDOW_HPP */

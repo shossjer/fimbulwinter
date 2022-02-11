@@ -1,8 +1,6 @@
+#pragma once
 
-#ifndef ENGINE_GRAPHICS_OPENGL_HPP
-#define ENGINE_GRAPHICS_OPENGL_HPP
-
-#include <config.h>
+#include "config.h"
 
 #if WINDOW_USE_USER32
 // windows needs its header before any opengl header
@@ -78,5 +76,3 @@ namespace opengl
 }
 }
 }
-
-#endif /* ENGINE_GRAPHICS_OPENGL_HPP */

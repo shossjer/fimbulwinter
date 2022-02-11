@@ -6,7 +6,7 @@
 
 namespace engine
 {
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 	extern ful::unit_utf8 * debug_hashtable_copy(std::uint32_t value, ful::unit_utf8 * begin, ful::unit_utf8 * end);
 #endif
 
@@ -53,7 +53,7 @@ namespace engine
 		friend auto operator << (Stream && stream, this_type x)
 			-> decltype(stream << value_type{})
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			ful::unit_utf8 chars[100]; // todo
 			return stream << x.value_ << ful::view_utf8(chars + 0, debug_hashtable_copy(x.value_, chars + 0, chars + 100));
 #else

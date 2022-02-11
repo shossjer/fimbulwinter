@@ -85,7 +85,7 @@ namespace
 		engine::Asset file;
 		ext::heap_weak_ptr<FileCallData> file_callback;
 
-		static void file_load(engine::file::system & filesystem, core::ReadStream && stream, utility::any & data);
+		static void file_load(engine::file::system & filesystem, core::content & content, utility::any & data);
 	};
 
 	constexpr auto global = engine::Hash{};
@@ -502,7 +502,7 @@ namespace
 
 				if (ext::empty(x.owners))
 				{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 					const engine::Token id = make_token(x.directory, engine::Asset(x.filepath));
 					engine::file::remove_watch(*impl.filesystem, id);
 #endif
@@ -594,7 +594,7 @@ namespace
 
 				if (ext::empty(x.owners))
 				{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 					const engine::Token id = make_token(x.directory, engine::Asset(x.filepath));
 					engine::file::remove_watch(*impl.filesystem, id);
 #endif
@@ -706,7 +706,7 @@ namespace
 		if (loading_load_filepath_it != loading_load_filepath.end())
 			return false; // error
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 		const auto mode = engine::file::flags::ADD_WATCH; // todo ought to add engine::file::flags::RECURSE_DIRECTORIES if filepath contains subdir, but since a recursive scan watch has already been made it might be fine anyway?
 #else
 		const auto mode = engine::file::flags{};
@@ -729,7 +729,7 @@ namespace
 		engine::file::unready_callback * unreadycall,
 		utility::any && data)
 	{
-		static_cast<void>(filetype);
+		fiw_unused(filetype);
 		return loads.call(file_it, ext::overload(
 			[&](RadicalLoad &) -> bool { debug_unreachable(); },
 			[&](LoadingLoad & y)
@@ -851,7 +851,7 @@ namespace
 
 			if (ext::empty(y.owners))
 			{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 				const engine::Token id = make_token(y.directory, engine::Asset(y.filepath));
 				engine::file::remove_watch(*impl.filesystem, id);
 #endif
@@ -951,7 +951,7 @@ namespace
 
 			if (ext::empty(y.owners))
 			{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 				const engine::Token id = make_token(y.directory, engine::Asset(y.filepath));
 				engine::file::remove_watch(*impl.filesystem, id);
 #endif
@@ -1120,6 +1120,7 @@ namespace
 		},
 			[&](engine::Asset key, LoadingLoad & y)
 		{
+			fiw_unused(key);
 			if (debug_verify(y.attachments.push_back(attachment)))
 			{
 				y.remaining_count++;
@@ -1655,7 +1656,7 @@ namespace
 			}
 			else
 			{
-				static_cast<void>(debug_verify(task.impl->delayed_messages.push_back(std::move(task.message))));
+				fiw_unused(debug_verify(task.impl->delayed_messages.push_back(std::move(task.message))));
 			}
 		}
 		else
@@ -1677,7 +1678,7 @@ namespace
 		loader_update(*loader->taskscheduler, strand, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageFileScan>, directory, std::move(existing_files), std::move(removed_files)));
 	}
 
-	void ReadData::file_load(engine::file::system & /*filesystem*/, core::ReadStream && stream, utility::any & data)
+	void ReadData::file_load(engine::file::system & /*filesystem*/, core::content & content, utility::any & data)
 	{
 		ReadData * const read_data = utility::any_cast<ReadData>(&data);
 		if (!debug_assert(read_data))
@@ -1698,7 +1699,7 @@ namespace
 			}
 			filecall_ptr->ready = false;
 		}
-		filecall_ptr->filetype.loadcall(loader, std::move(stream), filecall_ptr->stash, read_data->file);
+		filecall_ptr->filetype.loadcall(loader, content, filecall_ptr->stash, read_data->file);
 		loader.detach();
 
 		engine::task::post_work(*read_data->impl->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *read_data->impl, utility::in_place_type<MessageLoadDone>, read_data->file));
@@ -1749,7 +1750,7 @@ namespace engine
 		{
 			engine::task::post_work(*loader->taskscheduler, strand, loader_update, utility::any(utility::in_place_type<Task>, *loader, utility::in_place_type<MessageRegisterLibrary>, directory));
 
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES | engine::file::flags::ADD_WATCH;
 #else
 			const auto mode = engine::file::flags::RECURSE_DIRECTORIES;
@@ -1760,7 +1761,7 @@ namespace engine
 
 		void unregister_library(loader & loader, engine::Hash directory)
 		{
-#if MODE_DEBUG
+#if defined(_DEBUG) || !defined(NDEBUG)
 			const auto id = directory;
 			engine::file::remove_watch(*loader->filesystem, engine::Token(id));
 #endif

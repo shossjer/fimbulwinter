@@ -1,12 +1,15 @@
 #pragma once
 
 #include "core/container/Buffer.hpp"
+#include "core/content.hpp"
 #include "core/debug.hpp"
 #include "core/graphics/types.hpp"
-#include "core/ReadStream.hpp"
 #include "core/serialization.hpp"
 
-#include <vector>
+#include "utility/container/array.hpp"
+#include "utility/span.hpp"
+
+#include "ful/string_modify.hpp" // ful::copy
 
 #include <png.h>
 
@@ -15,21 +18,23 @@ namespace core
 	class PngStructurer
 	{
 	private:
-		ReadStream read_stream_;
+
+		core::content & content_;
 
 	public:
-		PngStructurer(ReadStream && read_stream)
-			: read_stream_(std::move(read_stream))
+
+		explicit PngStructurer(core::content & content)
+			: content_(content)
 		{}
 
 		template <typename T>
 		void read(T & x)
 		{
-			png_byte sig[8];
-			if (!debug_verify(read_stream_.read_all(sig, 8) == 8, "not a png signature"))
+			if (!debug_verify(content_.size() >= 8))
 				return;
 
-			if (!debug_verify(png_sig_cmp(sig, 0, 8) == 0, "not a png signature"))
+			png_const_bytep ptr = static_cast<png_const_bytep>(content_.data());
+			if (!debug_verify(png_sig_cmp(ptr, 0, 8) == 0, "not a png signature"))
 				return;
 
 			png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -58,7 +63,7 @@ namespace core
 			// all objects with a non-trivial destructor have to be
 			// put before the setjmp
 			core::container::Buffer pixels;
-			std::vector<png_bytep> rows;
+			utility::heap_array<png_bytep> rows;
 
 #if defined(_MSC_VER)
 # pragma warning( push )
@@ -76,21 +81,23 @@ namespace core
 				return;
 			}
 
+			utility::span<png_byte> view(static_cast<png_byte *>(content_.data()) + 8, content_.size() - 8);
 			auto custom_read =
 				[](png_structp png_ptr, png_bytep data, png_size_t size)
+			{
+				utility::span<png_byte> & view = *static_cast<utility::span<png_byte> *>(png_get_io_ptr(png_ptr));
+				if (utility::empty(view))
 				{
-					ReadStream & read_stream = *static_cast<ReadStream *>(png_get_io_ptr(png_ptr));
-					if (read_stream.done())
-					{
-						png_error(png_ptr, "unexpected eol");
-					}
-					const uint64_t amount_read = read_stream.read_all(data, size);
-					if (amount_read < size)
-					{
-						png_error(png_ptr, "unexpected eol");
-					}
-				};
-			png_set_read_fn(png_ptr, &read_stream_, custom_read);
+					png_error(png_ptr, "unexpected eol");
+				}
+				if (utility::size(view) < size)
+				{
+					png_error(png_ptr, "unexpected eol");
+				}
+				ful::copy(ful::first(view, size), data, data + size);
+				view = utility::drop(view, size);
+			};
+			png_set_read_fn(png_ptr, &view, custom_read);
 			png_set_sig_bytes(png_ptr, 8);
 
 			png_read_info(png_ptr, info_ptr);
@@ -101,7 +108,7 @@ namespace core
 			const int image_height = png_get_image_height(png_ptr, info_ptr);
 			const int bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 			const int row_size = image_width * channels * (bit_depth / 8);
-			debug_printline(core::core_channel, "texture: ", read_stream_.filepath());
+			debug_printline(core::core_channel, "texture: ", content_.filepath());
 			debug_printline(core::core_channel, "channels: ", channels);
 			debug_printline(core::core_channel, "color_type: ", color_type);
 			debug_printline(core::core_channel, "image_width: ", image_width);
@@ -111,7 +118,8 @@ namespace core
 			if (!debug_verify(pixels.reshape<uint8_t>(row_size * image_height)))
 				return; // todo cleanup
 
-			rows.resize(image_height);
+			if (!debug_verify(rows.resize(image_height)))
+				return; // todo cleanup
 			// rows are ordered top to bottom in PNG, but OpenGL wants it bottom to top.
 			for (int i = 0; i < image_height; i++)
 			{

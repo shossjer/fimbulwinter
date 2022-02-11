@@ -3,11 +3,12 @@
 
 #include "engine/hid/input.hpp"
 
+#include "utility/container/array.hpp"
+
 #include "ful/heapfwd.hpp"
 #include "ful/view.hpp"
 
 #include <bitset>
-#include <vector>
 
 namespace engine
 {
@@ -42,7 +43,7 @@ namespace
 		std::bitset<engine::hid::Input::button_count> button_states;
 	};
 
-	std::vector<DeviceValues> device_values;
+	utility::heap_array<DeviceValues> device_values;
 }
 
 namespace engine
